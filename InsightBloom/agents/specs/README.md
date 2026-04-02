@@ -1,0 +1,50 @@
+# Specs Index
+
+Indice de iniciativas o capacidades definidas como specs separadas.
+
+## Cuando crear una carpeta o archivo aqui
+
+Crear una spec separada cuando:
+
+- el cambio supera una sola sesion de trabajo
+- participan varias areas del sistema
+- hace falta conservar contexto historico de una iniciativa
+- una sola `SPEC.md` ya no alcanza
+
+## Estructura sugerida
+
+Cada iniciativa puede vivir como carpeta o archivo. La opcion preferida
+es una carpeta por iniciativa cuando hay mas de un documento.
+
+### Opcion carpeta
+
+```text
+agents/specs/
+  mi-iniciativa/
+    README.md
+    SPEC.md
+```
+
+### Opcion archivo unico
+
+```text
+agents/specs/
+  mi-iniciativa.md
+```
+
+## Regla de navegacion
+
+- Si entras a una iniciativa, abre primero su `README.md`.
+- Si no existe `README.md`, abre su `SPEC.md`.
+- Mantener los nombres de carpetas en kebab-case.
+
+## Specs activas
+
+- [`platform-foundation`](./platform-foundation/README.md):
+  estructura del repo, tooling, CI y soporte de despliegue.
+- [`backend-contracts`](./backend-contracts/README.md):
+  microservicios, datos, APIs, permisos y reglas backend.
+- [`frontend-web`](./frontend-web/README.md):
+  app Vue, rutas, vistas publicas y portal web.
+- [`moderation-dashboard`](./moderation-dashboard/README.md):
+  reglas y UI de moderacion manual.
