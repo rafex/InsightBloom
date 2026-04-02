@@ -1,0 +1,23 @@
+# Java build output
+**/target/
+
+# Node modules
+**/node_modules/
+
+# Build output
+**/dist/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Databases
+*.db
+*.sqlite

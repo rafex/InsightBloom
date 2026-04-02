@@ -1,0 +1,117 @@
+version: "3.9"
+
+services:
+  insightbloom-users:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.java
+      args:
+        JAR_FILE: services/insightbloom-users/target/insightbloom-users-0.1.0-SNAPSHOT.jar
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - DB_PATH=/data/users.db
+    volumes:
+      - users-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  insightbloom-moderation:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.java
+      args:
+        JAR_FILE: services/insightbloom-moderation/target/insightbloom-moderation-0.1.0-SNAPSHOT.jar
+    ports:
+      - "8084:8084"
+    environment:
+      - PORT=8084
+      - DB_PATH=/data/moderation.db
+    volumes:
+      - moderation-data:/data
+    depends_on:
+      insightbloom-users:
+        condition: service_healthy
+
+  insightbloom-stats:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.java
+      args:
+        JAR_FILE: services/insightbloom-stats/target/insightbloom-stats-0.1.0-SNAPSHOT.jar
+    ports:
+      - "8085:8085"
+    environment:
+      - PORT=8085
+      - DB_PATH=/data/stats.db
+    volumes:
+      - stats-data:/data
+    depends_on:
+      insightbloom-users:
+        condition: service_healthy
+
+  insightbloom-query:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.java
+      args:
+        JAR_FILE: services/insightbloom-query/target/insightbloom-query-0.1.0-SNAPSHOT.jar
+    ports:
+      - "8083:8083"
+    environment:
+      - PORT=8083
+      - DB_PATH=/data/query.db
+      - STATS_URL=http://insightbloom-stats:8085
+      - MODERATION_URL=http://insightbloom-moderation:8084
+    volumes:
+      - query-data:/data
+    depends_on:
+      insightbloom-stats:
+        condition: service_healthy
+      insightbloom-moderation:
+        condition: service_healthy
+
+  insightbloom-ingest:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.java
+      args:
+        JAR_FILE: services/insightbloom-ingest/target/insightbloom-ingest-0.1.0-SNAPSHOT.jar
+    ports:
+      - "8082:8082"
+    environment:
+      - PORT=8082
+      - DB_PATH=/data/ingest.db
+      - USERS_URL=http://insightbloom-users:8081
+      - MODERATION_URL=http://insightbloom-moderation:8084
+      - STATS_URL=http://insightbloom-stats:8085
+    volumes:
+      - ingest-data:/data
+    depends_on:
+      insightbloom-users:
+        condition: service_healthy
+      insightbloom-moderation:
+        condition: service_healthy
+      insightbloom-stats:
+        condition: service_healthy
+
+  insightbloom-web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+    ports:
+      - "8080:80"
+    depends_on:
+      - insightbloom-ingest
+      - insightbloom-query
+
+volumes:
+  users-data:
+  moderation-data:
+  stats-data:
+  query-data:
+  ingest-data:

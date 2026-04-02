@@ -1,0 +1,92 @@
+# InsightBloom - Task Runner
+# Requires: just (https://just.systems)
+
+default:
+    @just --list
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+install:
+    ./helpers-build/install-web.sh
+    ./helpers-build/install-services.sh
+
+# ── Development ───────────────────────────────────────────────────────────────
+
+dev:
+    @echo "Starting all services and frontend..."
+    @just dev-services &
+    @just dev-web
+
+dev-web:
+    npm --prefix apps/insightbloom-web run dev
+
+dev-services:
+    ./helpers-run/run-services.sh
+
+service-run SERVICE:
+    ./helpers-run/run-service.sh {{SERVICE}}
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+
+web-build:
+    npm --prefix apps/insightbloom-web run build
+
+services-build:
+    ./helpers-build/build-services.sh
+
+build:
+    @just services-build
+    @just web-build
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+
+test:
+    @just test-services
+    @just test-web
+
+test-web:
+    npm --prefix apps/insightbloom-web run test
+
+test-services:
+    ./mvnw -f services/pom.xml test
+
+web-test:
+    npm --prefix apps/insightbloom-web run test
+
+services-test:
+    ./mvnw -f services/pom.xml test
+
+# ── Lint & Format ─────────────────────────────────────────────────────────────
+
+lint:
+    @just lint-web
+
+lint-web:
+    npm --prefix apps/insightbloom-web run lint
+
+fmt:
+    @just lint-web
+
+web-lint:
+    npm --prefix apps/insightbloom-web run lint
+
+# ── Compose ───────────────────────────────────────────────────────────────────
+
+up:
+    docker compose -f infra/compose/local.yml up --build
+
+down:
+    docker compose -f infra/compose/local.yml down
+
+# ── CI ────────────────────────────────────────────────────────────────────────
+
+ci:
+    @just services-build
+    @just test-services
+    @just web-build
+    @just test-web
+
+# ── Helm ──────────────────────────────────────────────────────────────────────
+
+helm-lint:
+    helm lint infra/helm/charts/*
