@@ -21,3 +21,6 @@
 # Databases
 *.db
 *.sqlite
+
+.claude/
+.opencode/
