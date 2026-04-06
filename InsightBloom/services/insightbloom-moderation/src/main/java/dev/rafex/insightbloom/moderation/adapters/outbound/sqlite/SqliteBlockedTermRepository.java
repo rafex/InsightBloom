@@ -37,6 +37,12 @@ public class SqliteBlockedTermRepository implements BlockedTermRepository {
     private BlockedTerm map(ResultSet rs) throws SQLException {
         return new BlockedTerm(rs.getString("uuid"), rs.getString("scope"), rs.getString("term_normalized"),
             rs.getString("status"), rs.getString("created_by_user_uuid"),
-            Instant.parse(rs.getString("created_at")), Instant.parse(rs.getString("updated_at")));
+            parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at")));
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

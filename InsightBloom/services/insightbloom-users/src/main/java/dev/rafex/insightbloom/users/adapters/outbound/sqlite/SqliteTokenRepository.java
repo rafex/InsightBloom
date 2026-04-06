@@ -46,13 +46,19 @@ public class SqliteTokenRepository implements TokenRepository {
                 return Optional.of(new Token(
                     rs.getString("uuid"), rs.getString("user_uuid"), rs.getString("guest_user_uuid"),
                     TokenKind.valueOf(rs.getString("token_kind")), rs.getString("token_value"),
-                    Instant.parse(rs.getString("expires_at")), Instant.parse(rs.getString("created_at")),
-                    revokedStr != null ? Instant.parse(revokedStr) : null
+                    parseInstant(rs.getString("expires_at")), parseInstant(rs.getString("created_at")),
+                    revokedStr != null ? parseInstant(revokedStr) : null
                 ));
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         return Optional.empty();
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

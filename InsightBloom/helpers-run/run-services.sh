@@ -3,7 +3,7 @@ set -euo pipefail
 SERVICES=(insightbloom-users insightbloom-moderation insightbloom-stats insightbloom-query insightbloom-ingest)
 echo "[run-services] Starting all services..."
 for svc in "${SERVICES[@]}"; do
-  JAR=$(find services/$svc/target -name "*.jar" -not -name "*sources*" 2>/dev/null | head -1)
+  JAR=$(find services/$svc/target -name "*.jar" -not -name "*sources*" -not -name "original-*" 2>/dev/null | head -1)
   if [[ -n "$JAR" ]]; then
     echo "[run-services] Starting $svc..."
     java -jar "$JAR" &

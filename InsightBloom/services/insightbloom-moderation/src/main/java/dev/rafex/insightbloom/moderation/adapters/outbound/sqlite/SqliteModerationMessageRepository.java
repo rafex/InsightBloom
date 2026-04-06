@@ -78,6 +78,12 @@ public class SqliteModerationMessageRepository implements ModerationMessageRepos
             rs.getString("conference_uuid"), ContentStatus.valueOf(rs.getString("word_status")),
             ContentStatus.valueOf(rs.getString("detail_status")), rs.getString("reason"),
             rs.getString("edited_word_value"), rs.getString("edited_detail_value"),
-            rs.getString("updated_by_user_uuid"), Instant.parse(rs.getString("updated_at")));
+            rs.getString("updated_by_user_uuid"), parseInstant(rs.getString("updated_at")));
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

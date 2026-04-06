@@ -65,12 +65,18 @@ public class SqliteConferenceRepository implements ConferenceRepository {
                     rs.getString("uuid"), rs.getString("friendly_id"), rs.getString("name"),
                     rs.getString("created_by_user_uuid"),
                     ConferenceStatus.valueOf(rs.getString("status")),
-                    Instant.parse(rs.getString("created_at")), Instant.parse(rs.getString("updated_at"))
+                    parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at"))
                 ));
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         return Optional.empty();
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

@@ -58,6 +58,12 @@ public class SqliteWordStatsRepository implements WordStatsRepository {
             MessageType.valueOf(rs.getString("message_type")),rs.getString("word_normalized"),
             rs.getString("word_canonical"),rs.getLong("count_total"),rs.getLong("count_visible"),
             rs.getLong("count_censored"),rs.getDouble("score_intent"),rs.getDouble("relevance_score"),
-            Instant.parse(rs.getString("updated_at")));
+            parseInstant(rs.getString("updated_at")));
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

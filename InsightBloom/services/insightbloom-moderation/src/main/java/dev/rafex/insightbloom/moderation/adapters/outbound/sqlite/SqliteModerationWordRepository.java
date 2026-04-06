@@ -84,6 +84,12 @@ public class SqliteModerationWordRepository implements ModerationWordRepository 
             rs.getString("word_normalized"), rs.getString("word_canonical"),
             ContentStatus.valueOf(rs.getString("status")), rs.getString("reason"),
             rs.getString("edited_value"), rs.getString("updated_by_user_uuid"),
-            Instant.parse(rs.getString("updated_at")));
+            parseInstant(rs.getString("updated_at")));
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

@@ -54,7 +54,13 @@ public class SqliteCloudWordRepository implements CloudWordRepository {
         return new CloudWord(rs.getString("uuid"),rs.getString("conference_uuid"),
             MessageType.valueOf(rs.getString("message_type")),rs.getString("word_normalized"),
             rs.getString("word_canonical"),rs.getDouble("relevance_score"),rs.getLong("message_count"),
-            Instant.parse(rs.getString("first_seen_at")),Instant.parse(rs.getString("last_seen_at")),
-            rs.getInt("is_visible")==1,Instant.parse(rs.getString("updated_at")));
+            parseInstant(rs.getString("first_seen_at")),parseInstant(rs.getString("last_seen_at")),
+            rs.getInt("is_visible")==1,parseInstant(rs.getString("updated_at")));
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

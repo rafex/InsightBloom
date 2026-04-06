@@ -50,7 +50,13 @@ public class SqliteWordTimelineRepository implements WordTimelineRepository {
             rs.getString("word_normalized"),rs.getString("message_uuid"),
             MessageType.valueOf(rs.getString("message_type")),rs.getString("author_label"),
             AuthorKind.valueOf(rs.getString("author_kind")),rs.getString("detail_visible"),
-            Instant.parse(rs.getString("received_at")),rs.getInt("is_visible")==1,
-            Instant.parse(rs.getString("updated_at")));
+            parseInstant(rs.getString("received_at")),rs.getInt("is_visible")==1,
+            parseInstant(rs.getString("updated_at")));
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

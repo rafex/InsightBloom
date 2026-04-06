@@ -42,12 +42,18 @@ public class SqliteGuestUserRepository implements GuestUserRepository {
                 return Optional.of(new GuestUser(
                     rs.getString("uuid"), rs.getString("display_name"),
                     rs.getString("device_fingerprint"), rs.getString("conference_uuid"),
-                    Instant.parse(rs.getString("created_at"))
+                    parseInstant(rs.getString("created_at"))
                 ));
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         return Optional.empty();
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

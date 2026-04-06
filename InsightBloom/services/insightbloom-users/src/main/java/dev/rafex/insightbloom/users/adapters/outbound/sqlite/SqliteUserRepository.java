@@ -70,7 +70,13 @@ public class SqliteUserRepository implements UserRepository {
             rs.getString("display_name"), rs.getString("email"),
             UserRole.valueOf(rs.getString("role")), UserStatus.valueOf(rs.getString("status")),
             rs.getString("password_hash"),
-            Instant.parse(rs.getString("created_at")), Instant.parse(rs.getString("updated_at"))
+            parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at"))
         );
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }

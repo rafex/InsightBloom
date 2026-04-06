@@ -46,12 +46,18 @@ public class SqliteMessageRepository implements MessageRepository {
         return new Message(rs.getString("uuid"),rs.getString("conference_uuid"),
             rs.getString("author_uuid"), AuthorKind.valueOf(rs.getString("author_kind")),
             rs.getString("device_fingerprint"), MessageType.valueOf(rs.getString("message_type")),
-            SourceType.valueOf(rs.getString("source_type")), Instant.parse(rs.getString("received_at")),
+            SourceType.valueOf(rs.getString("source_type")), parseInstant(rs.getString("received_at")),
             rs.getString("word_original"),rs.getString("word_normalized"),rs.getString("word_canonical"),
             wIntent!=null ? WordIntent.valueOf(wIntent) : null,
             rs.getString("detail_original"),rs.getString("detail_visible"),
             dIntent!=null ? DetailIntent.valueOf(dIntent) : null,
             ContentStatus.valueOf(rs.getString("word_status")), ContentStatus.valueOf(rs.getString("detail_status")),
-            rs.getInt("is_visible")==1, Instant.parse(rs.getString("created_at")), Instant.parse(rs.getString("updated_at")));
+            rs.getInt("is_visible")==1, parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at")));
+    }
+
+    private static Instant parseInstant(String s) {
+        if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
     }
 }
