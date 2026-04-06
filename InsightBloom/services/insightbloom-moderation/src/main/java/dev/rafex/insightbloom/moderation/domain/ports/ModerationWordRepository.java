@@ -7,5 +7,7 @@ public interface ModerationWordRepository {
     Optional<ModerationWord> findByUuid(String uuid);
     Optional<ModerationWord> findByConferenceAndNormalized(String conferenceUuid, String wordNormalized);
     List<ModerationWord> findByConference(String conferenceUuid, int page, int pageSize);
+    List<ModerationWord> findByConferenceAndStatus(String conferenceUuid, String status, int page, int pageSize);
     long countByConference(String conferenceUuid);
+    long countByConferenceAndStatus(String conferenceUuid, String status);
 }

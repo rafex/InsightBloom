@@ -18,10 +18,12 @@ public class ModerationApplication {
         var listUseCase = new ListModerationUseCase(wordRepo, messageRepo);
         var censorWordUseCase = new CensorWordUseCase(wordRepo);
         var restoreWordUseCase = new RestoreWordUseCase(wordRepo);
+        var editWordUseCase = new EditWordUseCase(wordRepo);
         var censorMessageUseCase = new CensorMessageUseCase(messageRepo);
         var restoreMessageUseCase = new RestoreMessageUseCase(messageRepo);
-        var wordHandler = new ModerationWordHandler(listUseCase, censorWordUseCase, restoreWordUseCase);
-        var messageHandler = new ModerationMessageHandler(listUseCase, censorMessageUseCase, restoreMessageUseCase);
+        var editMessageUseCase = new EditMessageUseCase(messageRepo);
+        var wordHandler = new ModerationWordHandler(listUseCase, censorWordUseCase, restoreWordUseCase, editWordUseCase);
+        var messageHandler = new ModerationMessageHandler(listUseCase, censorMessageUseCase, restoreMessageUseCase, editMessageUseCase);
         var evaluateHandler = new InternalEvaluateHandler(evaluateUseCase);
         var healthHandler = new HealthHandler();
         HttpServer server = new HttpServer(port, wordHandler, messageHandler, evaluateHandler, healthHandler);

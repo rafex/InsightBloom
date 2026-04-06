@@ -6,17 +6,17 @@ function authHeader(token) {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export async function getModerationWords(conferenceId, page = 1, pageSize = 50, token) {
+export async function getModerationWords(conferenceId, page = 1, pageSize = 50, status = '', token) {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/moderation/words`, {
-    params: { page, pageSize },
+    params: { page, pageSize, ...(status ? { status } : {}) },
     headers: authHeader(token)
   })
   return res.data
 }
 
-export async function getModerationMessages(conferenceId, page = 1, pageSize = 50, token) {
+export async function getModerationMessages(conferenceId, page = 1, pageSize = 50, status = '', token) {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/moderation/messages`, {
-    params: { page, pageSize },
+    params: { page, pageSize, ...(status ? { status } : {}) },
     headers: authHeader(token)
   })
   return res.data
@@ -45,6 +45,20 @@ export async function censorMessage(messageId, reason, token) {
 
 export async function restoreMessage(messageId, token) {
   const res = await axios.post(`${BASE}/moderation/messages/${messageId}/restore`, {}, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function editWord(wordId, value, token) {
+  const res = await axios.patch(`${BASE}/moderation/words/${wordId}`, { value }, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function editMessage(messageId, editedWord, editedDetail, token) {
+  const res = await axios.patch(`${BASE}/moderation/messages/${messageId}`, { editedWord, editedDetail }, {
     headers: authHeader(token)
   })
   return res.data

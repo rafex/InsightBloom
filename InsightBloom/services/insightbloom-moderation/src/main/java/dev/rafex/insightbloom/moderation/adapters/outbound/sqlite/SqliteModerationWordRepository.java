@@ -46,9 +46,28 @@ public class SqliteModerationWordRepository implements ModerationWordRepository 
         return list;
     }
     @Override
+    public List<ModerationWord> findByConferenceAndStatus(String conf, String status, int page, int pageSize) {
+        List<ModerationWord> list = new ArrayList<>();
+        String sql = "SELECT * FROM moderation_words WHERE conference_uuid=? AND status=? ORDER BY updated_at DESC LIMIT ? OFFSET ?";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, conf); ps.setString(2, status); ps.setInt(3, pageSize); ps.setInt(4, (page-1)*pageSize);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) list.add(map(rs));
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return list;
+    }
+    @Override
     public long countByConference(String conf) {
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM moderation_words WHERE conference_uuid=?")) {
             ps.setString(1, conf); ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getLong(1);
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return 0;
+    }
+    @Override
+    public long countByConferenceAndStatus(String conf, String status) {
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement("SELECT COUNT(*) FROM moderation_words WHERE conference_uuid=? AND status=?")) {
+            ps.setString(1, conf); ps.setString(2, status); ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getLong(1);
         } catch (SQLException e) { throw new RuntimeException(e); }
         return 0;

@@ -16,7 +16,12 @@ public class StatsHandler extends BaseHandler {
             if ("conferences".equals(parts[i]) && i+1 < parts.length) { conferenceId = parts[i+1]; break; }
         }
         if (conferenceId == null) { error(res,cb,400,"bad_request","conferenceId required"); return true; }
-        ok(res, cb, useCase.overview(conferenceId));
+        if (path.endsWith("/relevance")) {
+            String type = queryString(req, "type");
+            ok(res, cb, useCase.relevance(conferenceId, type));
+        } else {
+            ok(res, cb, useCase.overview(conferenceId));
+        }
         return true;
     }
 }

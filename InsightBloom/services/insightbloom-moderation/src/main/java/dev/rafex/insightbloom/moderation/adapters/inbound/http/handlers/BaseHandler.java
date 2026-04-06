@@ -50,4 +50,13 @@ public abstract class BaseHandler extends Handler.Abstract {
         }
         return def;
     }
+    protected String queryString(Request request, String name) {
+        String v = request.getHttpURI().getQuery();
+        if (v == null) return null;
+        for (String part : v.split("&")) {
+            String[] kv = part.split("=");
+            if (kv.length == 2 && name.equals(kv[0])) return kv[1];
+        }
+        return null;
+    }
 }

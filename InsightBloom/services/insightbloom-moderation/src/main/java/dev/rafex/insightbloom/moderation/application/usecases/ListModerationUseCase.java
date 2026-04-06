@@ -16,9 +16,21 @@ public class ListModerationUseCase {
         long total = wordRepo.countByConference(conferenceUuid);
         return new PagedResult<>(items, total, page, pageSize);
     }
+    public PagedResult<ModerationWord> listWords(String conferenceUuid, String status, int page, int pageSize) {
+        if (status == null || status.isBlank()) return listWords(conferenceUuid, page, pageSize);
+        List<ModerationWord> items = wordRepo.findByConferenceAndStatus(conferenceUuid, status, page, pageSize);
+        long total = wordRepo.countByConferenceAndStatus(conferenceUuid, status);
+        return new PagedResult<>(items, total, page, pageSize);
+    }
     public PagedResult<ModerationMessage> listMessages(String conferenceUuid, int page, int pageSize) {
         List<ModerationMessage> items = messageRepo.findByConference(conferenceUuid, page, pageSize);
         long total = messageRepo.countByConference(conferenceUuid);
+        return new PagedResult<>(items, total, page, pageSize);
+    }
+    public PagedResult<ModerationMessage> listMessages(String conferenceUuid, String status, int page, int pageSize) {
+        if (status == null || status.isBlank()) return listMessages(conferenceUuid, page, pageSize);
+        List<ModerationMessage> items = messageRepo.findByConferenceAndStatus(conferenceUuid, status, page, pageSize);
+        long total = messageRepo.countByConferenceAndStatus(conferenceUuid, status);
         return new PagedResult<>(items, total, page, pageSize);
     }
 }

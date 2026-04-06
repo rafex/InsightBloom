@@ -35,4 +35,13 @@ public abstract class BaseHandler extends Handler.Abstract {
     protected <T> T readBody(Request req, Class<T> type) throws IOException {
         try (InputStream is = Request.asInputStream(req)) { return mapper.readValue(is, type); }
     }
+    protected String queryString(Request req, String name) {
+        String v = req.getHttpURI().getQuery();
+        if (v == null) return null;
+        for (String part : v.split("&")) {
+            String[] kv = part.split("=");
+            if (kv.length == 2 && name.equals(kv[0])) return kv[1];
+        }
+        return null;
+    }
 }

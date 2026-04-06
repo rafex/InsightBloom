@@ -8,4 +8,10 @@ public class GetStatsUseCase {
     public List<WordStats> overview(String conferenceUuid) {
         return repo.findByConference(conferenceUuid);
     }
+    public List<WordStats> relevance(String conferenceUuid, String type) {
+        return repo.findByConference(conferenceUuid).stream()
+            .filter(s -> type == null || type.isBlank() || s.getMessageType().name().equalsIgnoreCase(type))
+            .sorted((a, b) -> Double.compare(b.getRelevanceScore(), a.getRelevanceScore()))
+            .toList();
+    }
 }

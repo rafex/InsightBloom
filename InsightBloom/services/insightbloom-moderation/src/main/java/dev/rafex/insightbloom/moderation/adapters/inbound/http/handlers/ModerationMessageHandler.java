@@ -8,31 +8,27 @@ public class ModerationMessageHandler extends BaseHandler {
     private final ListModerationUseCase listUseCase;
     private final CensorMessageUseCase censorUseCase;
     private final RestoreMessageUseCase restoreUseCase;
-    public ModerationMessageHandler(ListModerationUseCase listUseCase, CensorMessageUseCase censorUseCase, RestoreMessageUseCase restoreUseCase) {
-        this.listUseCase = listUseCase; this.censorUseCase = censorUseCase; this.restoreUseCase = restoreUseCase;
+    private final EditMessageUseCase editUseCase;
+    public ModerationMessageHandler(ListModerationUseCase listUseCase, CensorMessageUseCase censorUseCase,
+                                     RestoreMessageUseCase restoreUseCase, EditMessageUseCase editUseCase) {
+        this.listUseCase = listUseCase; this.censorUseCase = censorUseCase;
+        this.restoreUseCase = restoreUseCase; this.editUseCase = editUseCase;
     }
     @Override
     public boolean handle(Request request, Response response, Callback callback) throws Exception {
         String path = request.getHttpURI().getPath();
         String method = request.getMethod();
         if ("GET".equals(method) && path.contains("/moderation/messages")) {
-            String[] parts = path.split("/");
-            String conferenceId = null;
-            for (int i = 0; i < parts.length; i++) {
-                if ("conferences".equals(parts[i]) && i+1 < parts.length) { conferenceId = parts[i+1]; break; }
-            }
+            String conferenceId = extractSegmentAfter(path, "conferences");
             int page = queryParam(request, "page", 1);
             int pageSize = queryParam(request, "pageSize", 50);
-            var result = listUseCase.listMessages(conferenceId, page, pageSize);
+            String status = queryString(request, "status");
+            var result = listUseCase.listMessages(conferenceId, status, page, pageSize);
             okPaged(response, callback, result.items(), result.page(), result.pageSize(), result.total());
             return true;
         }
         if ("POST".equals(method) && path.contains("/censor") && path.contains("/messages/")) {
-            String[] parts = path.split("/");
-            String msgId = null;
-            for (int i = 0; i < parts.length; i++) {
-                if ("messages".equals(parts[i]) && i+1 < parts.length) { msgId = parts[i+1]; break; }
-            }
+            String msgId = extractSegmentAfter(path, "messages");
             var body = readBody(request, Map.class);
             try {
                 censorUseCase.execute(new CensorMessageUseCase.Request(msgId, (String) body.getOrDefault("target","detail"), (String) body.get("reason"), (String) body.get("updatedByUserUuid")));
@@ -41,11 +37,7 @@ public class ModerationMessageHandler extends BaseHandler {
             return true;
         }
         if ("POST".equals(method) && path.contains("/restore") && path.contains("/messages/")) {
-            String[] parts = path.split("/");
-            String msgId = null;
-            for (int i = 0; i < parts.length; i++) {
-                if ("messages".equals(parts[i]) && i+1 < parts.length) { msgId = parts[i+1]; break; }
-            }
+            String msgId = extractSegmentAfter(path, "messages");
             var body = readBody(request, Map.class);
             try {
                 restoreUseCase.execute(msgId, (String) body.getOrDefault("updatedByUserUuid","system"));
@@ -53,7 +45,24 @@ public class ModerationMessageHandler extends BaseHandler {
             } catch (IllegalArgumentException e) { error(response, callback, 404, e.getMessage(), "Message not found"); }
             return true;
         }
+        // PATCH /api/v1/moderation/messages/{messageId}
+        if ("PATCH".equals(method) && path.contains("/messages/")) {
+            String msgId = extractSegmentAfter(path, "messages");
+            var body = readBody(request, Map.class);
+            try {
+                editUseCase.execute(new EditMessageUseCase.Request(msgId, (String) body.get("editedWord"), (String) body.get("editedDetail"), (String) body.get("updatedByUserUuid")));
+                ok(response, callback, Map.of("status", "updated"));
+            } catch (IllegalArgumentException e) { error(response, callback, 404, e.getMessage(), "Message not found"); }
+            return true;
+        }
         error(response, callback, 404, "not_found", "Endpoint not found");
         return true;
+    }
+    private String extractSegmentAfter(String path, String key) {
+        String[] parts = path.split("/");
+        for (int i = 0; i < parts.length; i++) {
+            if (key.equals(parts[i]) && i+1 < parts.length) return parts[i+1];
+        }
+        return null;
     }
 }

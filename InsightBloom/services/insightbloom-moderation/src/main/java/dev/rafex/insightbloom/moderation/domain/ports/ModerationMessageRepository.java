@@ -7,5 +7,7 @@ public interface ModerationMessageRepository {
     Optional<ModerationMessage> findByUuid(String uuid);
     Optional<ModerationMessage> findByMessageUuid(String messageUuid);
     List<ModerationMessage> findByConference(String conferenceUuid, int page, int pageSize);
+    List<ModerationMessage> findByConferenceAndStatus(String conferenceUuid, String status, int page, int pageSize);
     long countByConference(String conferenceUuid);
+    long countByConferenceAndStatus(String conferenceUuid, String status);
 }
