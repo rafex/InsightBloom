@@ -19,8 +19,8 @@ public class SqliteUserRepository implements UserRepository {
     @Override
     public void save(User user) {
         String sql = """
-            INSERT OR REPLACE INTO users (uuid, username, display_name, email, role, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO users (uuid, username, display_name, email, role, status, password_hash, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getUuid());
@@ -29,8 +29,9 @@ public class SqliteUserRepository implements UserRepository {
             ps.setString(4, user.getEmail());
             ps.setString(5, user.getRole().name());
             ps.setString(6, user.getStatus().name());
-            ps.setString(7, user.getCreatedAt().toString());
-            ps.setString(8, user.getUpdatedAt().toString());
+            ps.setString(7, user.getPasswordHash());
+            ps.setString(8, user.getCreatedAt().toString());
+            ps.setString(9, user.getUpdatedAt().toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -68,6 +69,7 @@ public class SqliteUserRepository implements UserRepository {
             rs.getString("id"), rs.getString("uuid"), rs.getString("username"),
             rs.getString("display_name"), rs.getString("email"),
             UserRole.valueOf(rs.getString("role")), UserStatus.valueOf(rs.getString("status")),
+            rs.getString("password_hash"),
             Instant.parse(rs.getString("created_at")), Instant.parse(rs.getString("updated_at"))
         );
     }

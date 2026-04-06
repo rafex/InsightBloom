@@ -13,6 +13,7 @@
   <modules>
     <module>packages</module>
     <module>services</module>
+    <module>tools</module>
   </modules>
 
   <properties>

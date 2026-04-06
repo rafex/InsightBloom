@@ -1,5 +1,6 @@
 .PHONY: install build test lint fmt up down ci helm-lint \
-        services-build services-test web-build web-test dev dev-web dev-services
+        services-build services-test web-build web-test dev dev-web dev-services \
+        cli-build create-user
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 install:
@@ -52,3 +53,10 @@ ci: services-build services-test web-build web-test
 # ── Helm ──────────────────────────────────────────────────────────────────────
 helm-lint:
 	helm lint infra/helm/charts/*
+
+# ── Admin CLI ─────────────────────────────────────────────────────────────────
+cli-build:
+	./mvnw -f tools/insightbloom-cli/pom.xml clean package -DskipTests
+
+create-user:
+	java -jar tools/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user $(ARGS)

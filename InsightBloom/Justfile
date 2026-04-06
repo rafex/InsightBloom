@@ -90,3 +90,13 @@ ci:
 
 helm-lint:
     helm lint infra/helm/charts/*
+
+# ── Admin CLI ─────────────────────────────────────────────────────────────────
+
+cli-build:
+    ./mvnw -f tools/insightbloom-cli/pom.xml clean package -DskipTests
+
+# Crea o actualiza un usuario. Pasar argumentos después de --:
+#   just create-user -- --username john --password s3cr3t --role ORGANIZER --db users.db
+create-user *ARGS:
+    java -jar tools/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user {{ARGS}}

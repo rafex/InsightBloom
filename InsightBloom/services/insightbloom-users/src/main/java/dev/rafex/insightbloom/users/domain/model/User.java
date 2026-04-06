@@ -11,6 +11,7 @@ public class User {
     private String email;
     private UserRole role;
     private UserStatus status;
+    private String passwordHash;
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -27,7 +28,7 @@ public class User {
     }
 
     public User(String id, String uuid, String username, String displayName, String email,
-                UserRole role, UserStatus status, Instant createdAt, Instant updatedAt) {
+                UserRole role, UserStatus status, String passwordHash, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.uuid = uuid;
         this.username = username;
@@ -35,6 +36,7 @@ public class User {
         this.email = email;
         this.role = role;
         this.status = status;
+        this.passwordHash = passwordHash;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -46,6 +48,8 @@ public class User {
     public String getEmail() { return email; }
     public UserRole getRole() { return role; }
     public UserStatus getStatus() { return status; }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

@@ -27,10 +27,14 @@ public class DatabaseManager {
                     email TEXT,
                     role TEXT NOT NULL,
                     status TEXT NOT NULL,
+                    password_hash TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
             """);
+            // Migrate: add password_hash if existing DB lacks the column
+            try { stmt.executeUpdate("ALTER TABLE users ADD COLUMN password_hash TEXT"); }
+            catch (SQLException ignored) { /* column already exists */ }
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS guest_users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
