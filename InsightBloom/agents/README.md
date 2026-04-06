@@ -26,6 +26,8 @@ Si eres un agente o una persona entrando por primera vez:
   comandos de desarrollo, test, lint y operaciones comunes.
 - [`DECISIONS.md`](./DECISIONS.md):
   decisiones relevantes ya tomadas y su racional.
+- [`ROLES.md`](./ROLES.md):
+  roles de usuario (ORGANIZER, MODERATOR, GUEST), matriz de permisos por endpoint y ciclo de vida.
 - [`SPEC.md`](./SPEC.md):
   spec activa o spec general cuando aun no se separa por iniciativa.
 - [`specs/README.md`](./specs/README.md):
@@ -36,5 +38,6 @@ Si eres un agente o una persona entrando por primera vez:
 - Producto y direccion: `PRODUCT.md` y `ROADMAP.md`
 - Sistema y restricciones: `ARCHITECTURE.md`, `STACK.md`,
   `CONVENTIONS.md`, `COMMANDS.md`
+- Usuarios y permisos: `ROLES.md`
 - Ejecucion: `SPEC.md`
 - Memoria de decisiones: `DECISIONS.md`

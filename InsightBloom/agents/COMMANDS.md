@@ -105,6 +105,34 @@ make helm-lint
 helm lint infra/helm/charts/*
 ```
 
+## Admin CLI
+
+Compilar el CLI de administración:
+
+```bash
+just cli-build
+make cli-build
+./mvnw -f tools/insightbloom-cli/pom.xml clean package -DskipTests
+```
+
+Crear o actualizar un usuario (requiere haber compilado antes):
+
+```bash
+# Vía Justfile (variadic args después de --)
+just create-user -- --username <u> --password <p> --role ORGANIZER
+just create-user -- --username <u> --password <p> --role MODERATOR --db /data/users.db
+
+# Vía Makefile
+make create-user ARGS="--username <u> --password <p> --role ORGANIZER"
+
+# Directamente con java
+java -jar tools/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user \
+  --username admin --password clave-segura --role ORGANIZER
+```
+
+Ver [`tools/insightbloom-cli/README.md`](../tools/insightbloom-cli/README.md) para la referencia completa de opciones y ejemplos.
+Ver [`ROLES.md`](./ROLES.md) para la descripción de roles y permisos.
+
 ## Nota
 
 Estos comandos definen la interfaz operativa esperada del repositorio. Si
