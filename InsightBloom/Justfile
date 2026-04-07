@@ -100,3 +100,21 @@ cli-build:
 #   just create-user -- --username john --password s3cr3t --role ORGANIZER --db users.db
 create-user *ARGS:
     java -jar tools/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user {{ARGS}}
+
+# ── Simulación / Demo ─────────────────────────────────────────────────────────
+
+# Simula asistentes enviando palabras a una conferencia
+#   just simulate                           # crea conferencia nueva con 40 mensajes
+#   just simulate -- --count 80 --delay 0.2
+#   just simulate -- --conference-id <uuid>
+simulate *ARGS:
+    ./scripts/simulate-chat.sh {{ARGS}}
+
+# Observa la nube de palabras en tiempo real
+#   just watch-cloud CONF=<uuid>
+watch-cloud CONF:
+    ./scripts/watch-cloud.sh --conference-id {{CONF}}
+
+# Demo end-to-end: crea conferencia + simula + muestra nube en vivo
+demo *ARGS:
+    ./scripts/demo.sh {{ARGS}}
