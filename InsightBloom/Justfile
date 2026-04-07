@@ -110,8 +110,9 @@ create-user *ARGS:
 simulate *ARGS:
     ./scripts/simulate-chat.sh {{ARGS}}
 
-# Observa la nube de palabras en tiempo real
-#   just watch-cloud CONF=<uuid>
+# Observa la nube de palabras en tiempo real (acepta UUID o friendly-id)
+#   just watch-cloud demo-ai-2026
+#   just watch-cloud 4dce90ae-2110-414d-9d23-b95e3b338a5a
 watch-cloud CONF:
     ./scripts/watch-cloud.sh --conference-id {{CONF}}
 

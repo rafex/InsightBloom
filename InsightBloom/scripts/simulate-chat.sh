@@ -25,6 +25,7 @@ CONF_NAME="Demo $(date +'%H:%M:%S')"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --)              shift ;;                        # ignorar separador de Just/Make
     --conference-id) CONFERENCE_ID="$2"; shift 2 ;;
     --conf-name)     CONF_NAME="$2"; shift 2 ;;
     --count)         COUNT="$2"; shift 2 ;;
@@ -137,7 +138,20 @@ print(d.get('uuid') or d.get('conferenceId'))
   ok "Conferencia: ${CONFERENCE_ID}"
   ok "Friendly ID: ${FRIENDLY_ID}"
 else
-  ok "Usando conferencia: ${CONFERENCE_ID}"
+  # Si parece un friendly-id (no tiene guiones en posición UUID), resolvemos el UUID
+  if [[ ! "$CONFERENCE_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+    info "Resolviendo friendly-id '${CONFERENCE_ID}'..."
+    CONF_RESP=$(curl -sf "${USERS_URL}/api/v1/conferences/by-friendly/${CONFERENCE_ID}" 2>/dev/null) \
+      || fail "No se encontró la conferencia con friendly-id '${CONFERENCE_ID}'"
+    CONFERENCE_ID=$(echo "$CONF_RESP" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)['data']
+print(d.get('uuid') or d.get('conferenceId'))
+" 2>/dev/null) || fail "No se pudo resolver el UUID desde el friendly-id"
+    ok "UUID resuelto: ${CONFERENCE_ID}"
+  else
+    ok "Usando conferencia: ${CONFERENCE_ID}"
+  fi
 fi
 
 echo ""

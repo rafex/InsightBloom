@@ -23,6 +23,7 @@ CONFERENCE_ID=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --)              shift ;;
     --conference-id) CONFERENCE_ID="$2"; shift 2 ;;
     --count)         COUNT="$2"; shift 2 ;;
     --delay)         DELAY="$2"; shift 2 ;;

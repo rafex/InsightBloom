@@ -12,6 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DISPLAY_PY="${SCRIPT_DIR}/cloud-display.py"
 
+USERS_URL="${USERS_URL:-http://localhost:8081}"
 QUERY_URL="${QUERY_URL:-http://localhost:8083}"
 STATS_URL="${STATS_URL:-http://localhost:8085}"
 INTERVAL="${INTERVAL:-3}"
@@ -20,6 +21,7 @@ CONFERENCE_ID=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --)              shift ;;
     --conference-id) CONFERENCE_ID="$2"; shift 2 ;;
     --interval)      INTERVAL="$2"; shift 2 ;;
     --type)          TYPE="$2"; shift 2 ;;
@@ -28,6 +30,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -z "$CONFERENCE_ID" ]] && { echo "ERROR: --conference-id requerido" >&2; exit 1; }
+
+# Resolver friendly-id → UUID si no tiene formato UUID
+if [[ ! "$CONFERENCE_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+  echo "Resolviendo friendly-id '${CONFERENCE_ID}'..."
+  RESP=$(curl -sf "${USERS_URL}/api/v1/conferences/by-friendly/${CONFERENCE_ID}" 2>/dev/null) \
+    || { echo "ERROR: friendly-id no encontrado" >&2; exit 1; }
+  CONFERENCE_ID=$(echo "$RESP" | python3 -c "
+import sys,json; d=json.load(sys.stdin)['data']
+print(d.get('uuid') or d.get('conferenceId'))
+" 2>/dev/null) || { echo "ERROR: no se pudo resolver UUID" >&2; exit 1; }
+  echo "UUID: ${CONFERENCE_ID}"
+fi
 
 STATS_TYPE=$(echo "$TYPE" | tr '[:lower:]' '[:upper:]')
 CLOUD_EP="${QUERY_URL}/api/v1/conferences/${CONFERENCE_ID}/cloud/${TYPE}s"
