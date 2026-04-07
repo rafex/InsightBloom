@@ -27,6 +27,10 @@ public class ConferenceHandler extends BaseHandler {
         String path = request.getHttpURI().getPath();
         String method = request.getMethod();
 
+        // GET /api/v1/conferences  — lista del usuario autenticado
+        if ("GET".equals(method) && path.matches(".*/conferences/?$")) {
+            return handleList(request, response, callback);
+        }
         // POST /api/v1/conferences
         if ("POST".equals(method) && path.matches(".*/conferences/?$")) {
             return handleCreate(request, response, callback);
@@ -79,6 +83,15 @@ public class ConferenceHandler extends BaseHandler {
                 c -> { try { ok(response, callback, c); } catch (Exception e) { throw new RuntimeException(e); } },
                 () -> { try { error(response, callback, 404, "conference_not_found", "Conference not found"); } catch (Exception e) { throw new RuntimeException(e); } }
             );
+        return true;
+    }
+
+    private boolean handleList(Request request, Response response, Callback callback) throws Exception {
+        String auth = getToken(request);
+        if (auth == null) { error(response, callback, 401, "token_missing", "Authorization required"); return true; }
+        var validation = validateTokenUseCase.execute(auth);
+        if (!validation.valid()) { error(response, callback, 401, "token_invalid", "Invalid token"); return true; }
+        ok(response, callback, getConferenceUseCase.byUser(validation.subjectUuid()));
         return true;
     }
 

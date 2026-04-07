@@ -6,6 +6,8 @@ import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 
 import java.sql.*;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class SqliteConferenceRepository implements ConferenceRepository {
@@ -56,21 +58,33 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         }
     }
 
+    @Override
+    public List<Conference> findByUser(String userUuid) {
+        List<Conference> list = new ArrayList<>();
+        String sql = "SELECT * FROM conferences WHERE created_by_user_uuid = ? ORDER BY created_at DESC";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userUuid);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) list.add(map(rs));
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return list;
+    }
+
+    private Conference map(ResultSet rs) throws SQLException {
+        return new Conference(
+            rs.getString("uuid"), rs.getString("friendly_id"), rs.getString("name"),
+            rs.getString("created_by_user_uuid"),
+            ConferenceStatus.valueOf(rs.getString("status")),
+            parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at"))
+        );
+    }
+
     private Optional<Conference> query(String sql, String param) {
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, param);
             ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return Optional.of(new Conference(
-                    rs.getString("uuid"), rs.getString("friendly_id"), rs.getString("name"),
-                    rs.getString("created_by_user_uuid"),
-                    ConferenceStatus.valueOf(rs.getString("status")),
-                    parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at"))
-                ));
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+            if (rs.next()) return Optional.of(map(rs));
+        } catch (SQLException e) { throw new RuntimeException(e); }
         return Optional.empty();
     }
 
