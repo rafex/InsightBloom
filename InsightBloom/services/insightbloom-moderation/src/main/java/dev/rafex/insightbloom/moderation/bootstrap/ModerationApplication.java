@@ -14,7 +14,7 @@ public class ModerationApplication {
         var wordRepo = new SqliteModerationWordRepository(db);
         var messageRepo = new SqliteModerationMessageRepository(db);
         var autoCensureService = new AutoCensureService(blockedTermRepo);
-        var evaluateUseCase = new EvaluateCensureUseCase(autoCensureService);
+        var evaluateUseCase = new EvaluateCensureUseCase(autoCensureService, wordRepo);
         var listUseCase = new ListModerationUseCase(wordRepo, messageRepo);
         var censorWordUseCase = new CensorWordUseCase(wordRepo);
         var restoreWordUseCase = new RestoreWordUseCase(wordRepo);

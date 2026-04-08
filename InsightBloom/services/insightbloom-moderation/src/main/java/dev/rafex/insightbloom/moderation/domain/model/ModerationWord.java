@@ -20,6 +20,10 @@ public class ModerationWord {
         this.status = ContentStatus.VISIBLE;
         this.updatedAt = Instant.now();
     }
+    public ModerationWord(String conferenceUuid, String wordNormalized, String wordCanonical, ContentStatus status) {
+        this(conferenceUuid, wordNormalized, wordCanonical);
+        this.status = status;
+    }
     public ModerationWord(String uuid, String conferenceUuid, String wordNormalized, String wordCanonical,
                           ContentStatus status, String reason, String editedValue,
                           String updatedByUserUuid, Instant updatedAt) {

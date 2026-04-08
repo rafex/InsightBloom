@@ -28,11 +28,13 @@ const routes = [
       { path: 'conferences/new', component: () => import('@/pages/dashboard/NewConferencePage.vue') },
       {
         path: 'conferences/:conferenceId/moderation/messages',
-        component: () => import('@/pages/dashboard/ModerationMessagesPage.vue')
+        component: () => import('@/pages/dashboard/ModerationMessagesPage.vue'),
+        props: true
       },
       {
         path: 'conferences/:conferenceId/moderation/words',
-        component: () => import('@/pages/dashboard/ModerationWordsPage.vue')
+        component: () => import('@/pages/dashboard/ModerationWordsPage.vue'),
+        props: true
       }
     ]
   }

@@ -18,26 +18,23 @@
   )
     template(#header)
       th Palabra
-      th Tipo
-      th Relevancia
+      th Normalizada
       th Estado
       th Acciones
     template(#row="{ row }")
       td
         span.word-cell {{ row.wordCanonical }}
+      td {{ row.wordNormalized }}
       td
-        span.badge(:class="row.messageType === 'DOUBT' ? 'badge-doubt' : 'badge-topic'") {{ row.messageType === 'DOUBT' ? 'Duda' : 'Tema' }}
-      td {{ row.relevanceScore?.toFixed(2) || '—' }}
-      td
-        span.status(:class="statusClass(row.contentStatus)") {{ statusLabel(row.contentStatus) }}
+        span.status(:class="statusClass(row.status)") {{ statusLabel(row.status) }}
       td.actions
         button.btn-sm.btn-danger(
-          v-if="row.contentStatus === 'VISIBLE' || row.contentStatus === 'PENDIENTE_REVISION'"
+          v-if="row.status === 'VISIBLE' || row.status === 'PENDIENTE_REVISION'"
           @click="censor(row)"
           :disabled="row._loading"
         ) Censurar
         button.btn-sm.btn-success(
-          v-if="row.contentStatus !== 'VISIBLE'"
+          v-if="row.status !== 'VISIBLE'"
           @click="restore(row)"
           :disabled="row._loading"
         ) Restaurar
@@ -72,12 +69,12 @@ export default {
     function nextPage() { if (page.value < totalPages.value) { page.value++; load() } }
     async function censor(row) {
       row._loading = true
-      try { await censorWord(props.conferenceId, row.wordId, auth.state.token); await load() }
+      try { await censorWord(row.uuid, null, auth.state.token); await load() }
       catch (e) { row._loading = false }
     }
     async function restore(row) {
       row._loading = true
-      try { await restoreWord(props.conferenceId, row.wordId, auth.state.token); await load() }
+      try { await restoreWord(row.uuid, auth.state.token); await load() }
       catch (e) { row._loading = false }
     }
     function statusClass(s) {

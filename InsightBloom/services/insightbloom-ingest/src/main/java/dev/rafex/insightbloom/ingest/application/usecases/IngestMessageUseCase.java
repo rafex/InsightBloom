@@ -42,10 +42,10 @@ public class IngestMessageUseCase {
         WordIntent wordIntent = intentService.classifyWord(req.wordOriginal(), req.detailOriginal());
         DetailIntent detailIntent = intentService.classifyDetail(req.detailOriginal());
 
-        // 3. Evaluate censure
+        // 3. Evaluate censure (also registers word in moderation service)
         ModerationPort.EvaluationResult eval;
         try {
-            eval = moderationPort.evaluate(wordNorm, req.detailOriginal());
+            eval = moderationPort.evaluate(wordNorm, req.detailOriginal(), req.conferenceUuid(), wordCanonical);
         } catch (Exception e) {
             // If moderation service unavailable, allow the message
             eval = new ModerationPort.EvaluationResult(false, false);
