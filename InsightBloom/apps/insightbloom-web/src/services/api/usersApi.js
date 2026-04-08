@@ -7,11 +7,19 @@ export async function getConferences(token) {
   return res.data.data
 }
 
-export async function createConference(name, token) {
-  const res = await axios.post('/api/users/api/v1/conferences', { name }, {
+export async function createConference(name, expiresAt, token) {
+  const body = { name }
+  if (expiresAt) body.expiresAt = expiresAt
+  const res = await axios.post('/api/users/api/v1/conferences', body, {
     headers: { Authorization: `Bearer ${token}` }
   })
   return res.data.data
+}
+
+export async function deleteConference(uuid, token) {
+  await axios.delete(`/api/users/api/v1/conferences/${uuid}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
 }
 
 export async function getConferenceByFriendlyId(friendlyId) {

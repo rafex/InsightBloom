@@ -20,8 +20,9 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     @Override
     public void save(Conference conference) {
         String sql = """
-            INSERT OR REPLACE INTO conferences (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO conferences
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
@@ -31,6 +32,18 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(5, conference.getStatus().name());
             ps.setString(6, conference.getCreatedAt().toString());
             ps.setString(7, conference.getUpdatedAt().toString());
+            ps.setString(8, conference.getExpiresAt() != null ? conference.getExpiresAt().toString() : null);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void delete(String uuid) {
+        String sql = "DELETE FROM conferences WHERE uuid = ?";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, uuid);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -75,7 +88,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             rs.getString("uuid"), rs.getString("friendly_id"), rs.getString("name"),
             rs.getString("created_by_user_uuid"),
             ConferenceStatus.valueOf(rs.getString("status")),
-            parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at"))
+            parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at")),
+            parseInstantNullable(rs.getString("expires_at"))
         );
     }
 
@@ -90,6 +104,12 @@ public class SqliteConferenceRepository implements ConferenceRepository {
 
     private static Instant parseInstant(String s) {
         if (s == null) return Instant.now();
+        String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
+        return Instant.parse(iso);
+    }
+
+    private static Instant parseInstantNullable(String s) {
+        if (s == null || s.isBlank()) return null;
         String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";
         return Instant.parse(iso);
     }

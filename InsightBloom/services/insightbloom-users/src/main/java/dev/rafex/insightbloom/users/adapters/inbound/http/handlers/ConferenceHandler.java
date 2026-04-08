@@ -27,7 +27,7 @@ public class ConferenceHandler extends BaseHandler {
         String path = request.getHttpURI().getPath();
         String method = request.getMethod();
 
-        // GET /api/v1/conferences  — lista del usuario autenticado
+        // GET /api/v1/conferences
         if ("GET".equals(method) && path.matches(".*/conferences/?$")) {
             return handleList(request, response, callback);
         }
@@ -40,7 +40,12 @@ public class ConferenceHandler extends BaseHandler {
             String friendlyId = path.substring(path.lastIndexOf("/") + 1);
             return handleGetByFriendly(friendlyId, response, callback);
         }
-        // GET /api/v1/conferences/{conferenceId}
+        // DELETE /api/v1/conferences/{id}
+        if ("DELETE".equals(method) && path.matches(".*/conferences/[^/]+$")) {
+            String id = path.substring(path.lastIndexOf("/") + 1);
+            return handleDelete(id, request, response, callback);
+        }
+        // GET /api/v1/conferences/{id}
         if ("GET".equals(method) && path.matches(".*/conferences/[^/]+$")) {
             String id = path.substring(path.lastIndexOf("/") + 1);
             return handleGetById(id, response, callback);
@@ -51,20 +56,33 @@ public class ConferenceHandler extends BaseHandler {
 
     private boolean handleCreate(Request request, Response response, Callback callback) throws Exception {
         String auth = getToken(request);
-        if (auth == null) {
-            error(response, callback, 401, "token_missing", "Authorization required");
-            return true;
-        }
+        if (auth == null) { error(response, callback, 401, "token_missing", "Authorization required"); return true; }
         var validation = validateTokenUseCase.execute(auth);
         if (!validation.valid() || !"organizer".equals(validation.role())) {
             error(response, callback, 403, "forbidden", "Only organizers can create conferences");
             return true;
         }
         var body = readBody(request, Map.class);
-        var result = createConferenceUseCase.execute(
-            new CreateConferenceUseCase.CreateRequest((String) body.get("name"), validation.subjectUuid())
-        );
+        var result = createConferenceUseCase.execute(new CreateConferenceUseCase.CreateRequest(
+            (String) body.get("name"),
+            validation.subjectUuid(),
+            (String) body.get("expiresAt")
+        ));
         created(response, callback, result);
+        return true;
+    }
+
+    private boolean handleDelete(String id, Request request, Response response, Callback callback) throws Exception {
+        String auth = getToken(request);
+        if (auth == null) { error(response, callback, 401, "token_missing", "Authorization required"); return true; }
+        var validation = validateTokenUseCase.execute(auth);
+        if (!validation.valid()) { error(response, callback, 401, "token_invalid", "Invalid token"); return true; }
+        boolean deleted = getConferenceUseCase.delete(id, validation.subjectUuid());
+        if (deleted) {
+            ok(response, callback, Map.of("deleted", true));
+        } else {
+            error(response, callback, 404, "not_found", "Conference not found or not owned by you");
+        }
         return true;
     }
 

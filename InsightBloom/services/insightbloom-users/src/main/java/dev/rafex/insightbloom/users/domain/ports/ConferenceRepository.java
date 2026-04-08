@@ -6,6 +6,7 @@ import java.util.Optional;
 
 public interface ConferenceRepository {
     void save(Conference conference);
+    void delete(String uuid);
     Optional<Conference> findByUuid(String uuid);
     Optional<Conference> findByFriendlyId(String friendlyId);
     boolean existsByFriendlyId(String friendlyId);

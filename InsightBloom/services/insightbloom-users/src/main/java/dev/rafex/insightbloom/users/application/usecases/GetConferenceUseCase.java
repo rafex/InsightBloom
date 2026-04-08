@@ -24,4 +24,11 @@ public class GetConferenceUseCase {
     public List<Conference> byUser(String userUuid) {
         return conferenceRepository.findByUser(userUuid);
     }
+
+    public boolean delete(String uuid, String requestingUserUuid) {
+        return conferenceRepository.findByUuid(uuid)
+            .filter(c -> c.getCreatedByUserUuid().equals(requestingUserUuid))
+            .map(c -> { conferenceRepository.delete(uuid); return true; })
+            .orElse(false);
+    }
 }

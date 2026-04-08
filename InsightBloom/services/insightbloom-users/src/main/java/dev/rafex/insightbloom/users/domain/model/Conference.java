@@ -11,6 +11,7 @@ public class Conference {
     private ConferenceStatus status;
     private final Instant createdAt;
     private Instant updatedAt;
+    private Instant expiresAt; // nullable
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -22,8 +23,13 @@ public class Conference {
         this.updatedAt = this.createdAt;
     }
 
+    public Conference(String friendlyId, String name, String createdByUserUuid, Instant expiresAt) {
+        this(friendlyId, name, createdByUserUuid);
+        this.expiresAt = expiresAt;
+    }
+
     public Conference(String uuid, String friendlyId, String name, String createdByUserUuid,
-                      ConferenceStatus status, Instant createdAt, Instant updatedAt) {
+                      ConferenceStatus status, Instant createdAt, Instant updatedAt, Instant expiresAt) {
         this.uuid = uuid;
         this.friendlyId = friendlyId;
         this.name = name;
@@ -31,6 +37,7 @@ public class Conference {
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.expiresAt = expiresAt;
     }
 
     public String getUuid() { return uuid; }
@@ -40,4 +47,5 @@ public class Conference {
     public ConferenceStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public Instant getExpiresAt() { return expiresAt; }
 }
