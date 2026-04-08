@@ -27,7 +27,13 @@
         .conf-actions
           a.btn-outline(:href="`/c/${c.friendlyId}/doubts`" target="_blank") Ver nube
           router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Moderación
-          button.btn-danger(@click="confirmDelete(c)" :disabled="c._deleting") Eliminar
+          button.btn-trash(@click="confirmDelete(c)" :disabled="c._deleting" title="Eliminar conferencia")
+            svg(xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
+              polyline(points="3 6 5 6 21 6")
+              path(d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6")
+              path(d="M10 11v6")
+              path(d="M14 11v6")
+              path(d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2")
 
   .confirm-overlay(v-if="deleteTarget" @click.self="deleteTarget = null")
     .confirm-dialog
@@ -139,9 +145,16 @@ h2 { color: #374151; font-size: 1.1rem; font-weight: 600; margin: 0 0 16px; }
 .btn-ghost { display: inline-block; padding: 6px 14px; color: #6b7280; border: 1px solid #e5e7eb; border-radius: 8px; text-decoration: none; font-size: 0.8rem; }
 .btn-ghost:hover { background: #f3f4f6; color: #374151; }
 
-.btn-danger { padding: 6px 14px; background: transparent; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; cursor: pointer; font-size: 0.8rem; margin-left: auto; }
-.btn-danger:hover { background: #fee2e2; }
-.btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-trash {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  background: transparent; color: #9ca3af;
+  border: 1px solid #e5e7eb; border-radius: 8px;
+  cursor: pointer; margin-left: auto;
+  transition: all 0.15s;
+}
+.btn-trash:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+.btn-trash:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Modal de confirmación */
 .confirm-overlay {
