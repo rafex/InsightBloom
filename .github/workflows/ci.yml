@@ -24,7 +24,7 @@ jobs:
         run: ./mvnw -f pom.xml clean package -DskipTests
 
       - name: Test services
-        run: ./mvnw -f services/pom.xml test
+        run: ./mvnw -f backend/services/pom.xml test
 
   frontend:
     name: Build & Test Frontend
@@ -37,13 +37,13 @@ jobs:
         with:
           node-version: "25"
           cache: npm
-          cache-dependency-path: apps/insightbloom-web/package-lock.json
+          cache-dependency-path: frontend/web/package-lock.json
 
       - name: Install frontend deps
-        run: npm --prefix apps/insightbloom-web install
+        run: npm --prefix frontend/web install
 
       - name: Build frontend
-        run: npm --prefix apps/insightbloom-web run build
+        run: npm --prefix frontend/web run build
 
       - name: Test frontend
-        run: npm --prefix apps/insightbloom-web run test
+        run: npm --prefix frontend/web run test

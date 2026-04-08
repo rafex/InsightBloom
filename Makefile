@@ -4,30 +4,30 @@
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 install:
-	./helpers-build/install-web.sh
-	./helpers-build/install-services.sh
+	./scripts/build/install-web.sh
+	./scripts/build/install-services.sh
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 build: services-build web-build
 
 services-build:
-	./helpers-build/build-services.sh
+	./scripts/build/build-services.sh
 
 web-build:
-	npm --prefix apps/insightbloom-web run build
+	npm --prefix frontend/web run build
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 test: services-test web-test
 
 services-test:
-	./mvnw -f services/pom.xml test
+	./mvnw -f backend/services/pom.xml test
 
 web-test:
-	npm --prefix apps/insightbloom-web run test
+	npm --prefix frontend/web run test
 
 # ── Lint ──────────────────────────────────────────────────────────────────────
 lint:
-	npm --prefix apps/insightbloom-web run lint
+	npm --prefix frontend/web run lint
 
 fmt: lint
 
@@ -35,10 +35,10 @@ fmt: lint
 dev: dev-services dev-web
 
 dev-web:
-	npm --prefix apps/insightbloom-web run dev
+	npm --prefix frontend/web run dev
 
 dev-services:
-	./helpers-run/run-services.sh
+	./scripts/run/run-services.sh
 
 # ── Compose ───────────────────────────────────────────────────────────────────
 up:
@@ -56,7 +56,7 @@ helm-lint:
 
 # ── Admin CLI ─────────────────────────────────────────────────────────────────
 cli-build:
-	./mvnw -f tools/insightbloom-cli/pom.xml clean package -DskipTests
+	./mvnw -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests
 
 create-user:
-	java -jar tools/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user $(ARGS)
+	java -jar backend/cli/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user $(ARGS)

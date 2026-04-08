@@ -11,9 +11,9 @@
   <name>InsightBloom Parent</name>
 
   <modules>
-    <module>packages</module>
-    <module>services</module>
-    <module>tools</module>
+    <module>backend/contracts</module>
+    <module>backend/services</module>
+    <module>backend/cli</module>
   </modules>
 
   <properties>

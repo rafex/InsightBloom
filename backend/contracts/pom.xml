@@ -8,14 +8,14 @@
     <groupId>dev.rafex.insightbloom</groupId>
     <artifactId>insightbloom-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <relativePath>../pom.xml</relativePath>
+    <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>insightbloom-tools</artifactId>
+  <artifactId>insightbloom-packages</artifactId>
   <packaging>pom</packaging>
-  <name>InsightBloom Tools</name>
+  <name>InsightBloom Packages</name>
 
   <modules>
-    <module>insightbloom-cli</module>
+    <module>insightbloom-contracts</module>
   </modules>
 </project>

@@ -1,8 +1,8 @@
 FROM node:25-alpine AS builder
 WORKDIR /app
-COPY apps/insightbloom-web/package*.json ./
+COPY frontend/web/package*.json ./
 RUN npm install
-COPY apps/insightbloom-web/ .
+COPY frontend/web/ .
 RUN npm run build
 
 FROM nginx:alpine

@@ -7,8 +7,8 @@ default:
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 install:
-    ./helpers-build/install-web.sh
-    ./helpers-build/install-services.sh
+    ./scripts/build/install-web.sh
+    ./scripts/build/install-services.sh
 
 # ── Development ───────────────────────────────────────────────────────────────
 
@@ -18,21 +18,21 @@ dev:
     @just dev-web
 
 dev-web:
-    npm --prefix apps/insightbloom-web run dev
+    npm --prefix frontend/web run dev
 
 dev-services:
-    ./helpers-run/run-services.sh
+    ./scripts/run/run-services.sh
 
 service-run SERVICE:
-    ./helpers-run/run-service.sh {{SERVICE}}
+    ./scripts/run/run-service.sh {{SERVICE}}
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 
 web-build:
-    npm --prefix apps/insightbloom-web run build
+    npm --prefix frontend/web run build
 
 services-build:
-    ./helpers-build/build-services.sh
+    ./scripts/build/build-services.sh
 
 build:
     @just services-build
@@ -45,16 +45,16 @@ test:
     @just test-web
 
 test-web:
-    npm --prefix apps/insightbloom-web run test
+    npm --prefix frontend/web run test
 
 test-services:
-    ./mvnw -f services/pom.xml test
+    ./mvnw -f backend/services/pom.xml test
 
 web-test:
-    npm --prefix apps/insightbloom-web run test
+    npm --prefix frontend/web run test
 
 services-test:
-    ./mvnw -f services/pom.xml test
+    ./mvnw -f backend/services/pom.xml test
 
 # ── Lint & Format ─────────────────────────────────────────────────────────────
 
@@ -62,13 +62,13 @@ lint:
     @just lint-web
 
 lint-web:
-    npm --prefix apps/insightbloom-web run lint
+    npm --prefix frontend/web run lint
 
 fmt:
     @just lint-web
 
 web-lint:
-    npm --prefix apps/insightbloom-web run lint
+    npm --prefix frontend/web run lint
 
 # ── Compose ───────────────────────────────────────────────────────────────────
 
@@ -94,12 +94,12 @@ helm-lint:
 # ── Admin CLI ─────────────────────────────────────────────────────────────────
 
 cli-build:
-    ./mvnw -f tools/insightbloom-cli/pom.xml clean package -DskipTests
+    ./mvnw -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests
 
 # Crea o actualiza un usuario. Pasar argumentos después de --:
 #   just create-user -- --username john --password s3cr3t --role ORGANIZER --db users.db
 create-user *ARGS:
-    java -jar tools/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user {{ARGS}}
+    java -jar backend/cli/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user {{ARGS}}
 
 # ── Simulación / Demo ─────────────────────────────────────────────────────────
 
@@ -108,14 +108,14 @@ create-user *ARGS:
 #   just simulate -- --count 80 --delay 0.2
 #   just simulate -- --conference-id <uuid>
 simulate *ARGS:
-    ./scripts/simulate-chat.sh {{ARGS}}
+    ./scripts/sim/simulate-chat.sh {{ARGS}}
 
 # Observa la nube de palabras en tiempo real (acepta UUID o friendly-id)
 #   just watch-cloud demo-ai-2026
 #   just watch-cloud 4dce90ae-2110-414d-9d23-b95e3b338a5a
 watch-cloud CONF:
-    ./scripts/watch-cloud.sh --conference-id {{CONF}}
+    ./scripts/sim/watch-cloud.sh --conference-id {{CONF}}
 
 # Demo end-to-end: crea conferencia + simula + muestra nube en vivo
 demo *ARGS:
-    ./scripts/demo.sh {{ARGS}}
+    ./scripts/sim/demo.sh {{ARGS}}

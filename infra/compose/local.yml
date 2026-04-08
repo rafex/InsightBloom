@@ -6,7 +6,7 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.java
       args:
-        JAR_FILE: services/insightbloom-users/target/insightbloom-users-0.1.0-SNAPSHOT.jar
+        JAR_FILE: backend/services/insightbloom-users/target/insightbloom-users-0.1.0-SNAPSHOT.jar
     ports:
       - "8081:8081"
     environment:
@@ -25,7 +25,7 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.java
       args:
-        JAR_FILE: services/insightbloom-moderation/target/insightbloom-moderation-0.1.0-SNAPSHOT.jar
+        JAR_FILE: backend/services/insightbloom-moderation/target/insightbloom-moderation-0.1.0-SNAPSHOT.jar
     ports:
       - "8084:8084"
     environment:
@@ -42,7 +42,7 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.java
       args:
-        JAR_FILE: services/insightbloom-stats/target/insightbloom-stats-0.1.0-SNAPSHOT.jar
+        JAR_FILE: backend/services/insightbloom-stats/target/insightbloom-stats-0.1.0-SNAPSHOT.jar
     ports:
       - "8085:8085"
     environment:
@@ -59,7 +59,7 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.java
       args:
-        JAR_FILE: services/insightbloom-query/target/insightbloom-query-0.1.0-SNAPSHOT.jar
+        JAR_FILE: backend/services/insightbloom-query/target/insightbloom-query-0.1.0-SNAPSHOT.jar
     ports:
       - "8083:8083"
     environment:
@@ -80,7 +80,7 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.java
       args:
-        JAR_FILE: services/insightbloom-ingest/target/insightbloom-ingest-0.1.0-SNAPSHOT.jar
+        JAR_FILE: backend/services/insightbloom-ingest/target/insightbloom-ingest-0.1.0-SNAPSHOT.jar
     ports:
       - "8082:8082"
     environment:
