@@ -9,34 +9,32 @@
       option(value="CENSURADO_MANUAL") Censurado manual
       option(value="PENDIENTE_REVISION") Pendiente revisión
   ModerationTable(
-    :rows="words"
-    :loading="loading"
-    :page="page"
+    :items="words"
+    :currentPage="page"
     :totalPages="totalPages"
-    @prev="prevPage"
-    @next="nextPage"
+    @page="goToPage"
   )
-    template(#header)
+    template(#headers)
       th Palabra
       th Normalizada
       th Estado
       th Acciones
-    template(#row="{ row }")
+    template(#row="{ item }")
       td
-        span.word-cell {{ row.wordCanonical }}
-      td {{ row.wordNormalized }}
+        span.word-cell {{ item.wordCanonical }}
+      td {{ item.wordNormalized }}
       td
-        span.status(:class="statusClass(row.status)") {{ statusLabel(row.status) }}
+        span.status(:class="statusClass(item.status)") {{ statusLabel(item.status) }}
       td.actions
         button.btn-sm.btn-danger(
-          v-if="row.status === 'VISIBLE' || row.status === 'PENDIENTE_REVISION'"
-          @click="censor(row)"
-          :disabled="row._loading"
+          v-if="item.status === 'VISIBLE' || item.status === 'PENDIENTE_REVISION'"
+          @click="censor(item)"
+          :disabled="item._loading"
         ) Censurar
         button.btn-sm.btn-success(
-          v-if="row.status !== 'VISIBLE'"
-          @click="restore(row)"
-          :disabled="row._loading"
+          v-if="item.status !== 'VISIBLE'"
+          @click="restore(item)"
+          :disabled="item._loading"
         ) Restaurar
 </template>
 
@@ -65,8 +63,7 @@ export default {
         totalPages.value = res.meta?.totalPages || 1
       } catch (e) { } finally { loading.value = false }
     }
-    function prevPage() { if (page.value > 1) { page.value--; load() } }
-    function nextPage() { if (page.value < totalPages.value) { page.value++; load() } }
+    function goToPage(p) { page.value = p; load() }
     async function censor(row) {
       row._loading = true
       try { await censorWord(row.uuid, null, auth.state.token); await load() }
@@ -85,7 +82,7 @@ export default {
       return map[s] || s
     }
     onMounted(load)
-    return { words, loading, page, totalPages, statusFilter, load, prevPage, nextPage, censor, restore, statusClass, statusLabel }
+    return { words, loading, page, totalPages, statusFilter, load, goToPage, censor, restore, statusClass, statusLabel }
   }
 }
 </script>

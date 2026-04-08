@@ -9,38 +9,32 @@
       option(value="CENSURADO_MANUAL") Censurado manual
       option(value="PENDIENTE_REVISION") Pendiente revisión
   ModerationTable(
-    :rows="messages"
-    :loading="loading"
-    :page="page"
+    :items="messages"
+    :currentPage="page"
     :totalPages="totalPages"
-    @prev="prevPage"
-    @next="nextPage"
+    @page="goToPage"
   )
-    template(#header)
-      th ID
-      th Tipo
-      th Palabra
-      th Detalle
-      th Estado
+    template(#headers)
+      th ID mensaje
+      th Estado palabra
+      th Estado detalle
       th Acciones
-    template(#row="{ row }")
-      td.mono {{ row.messageId?.slice(0,8) }}
+    template(#row="{ item }")
+      td.mono {{ item.messageUuid?.slice(0,8) }}
       td
-        span.badge(:class="row.messageType === 'DOUBT' ? 'badge-doubt' : 'badge-topic'") {{ row.messageType === 'DOUBT' ? 'Duda' : 'Tema' }}
-      td {{ row.wordOriginal }}
-      td.detail {{ row.detailOriginal || '—' }}
+        span.status(:class="statusClass(item.wordStatus)") {{ statusLabel(item.wordStatus) }}
       td
-        span.status(:class="statusClass(row.contentStatus)") {{ statusLabel(row.contentStatus) }}
+        span.status(:class="statusClass(item.detailStatus)") {{ statusLabel(item.detailStatus) }}
       td.actions
         button.btn-sm.btn-danger(
-          v-if="row.contentStatus === 'VISIBLE' || row.contentStatus === 'PENDIENTE_REVISION'"
-          @click="censor(row)"
-          :disabled="row._loading"
+          v-if="item.wordStatus === 'VISIBLE' || item.wordStatus === 'PENDIENTE_REVISION'"
+          @click="censor(item)"
+          :disabled="item._loading"
         ) Censurar
         button.btn-sm.btn-success(
-          v-if="row.contentStatus !== 'VISIBLE'"
-          @click="restore(row)"
-          :disabled="row._loading"
+          v-if="item.wordStatus !== 'VISIBLE'"
+          @click="restore(item)"
+          :disabled="item._loading"
         ) Restaurar
 </template>
 
@@ -69,17 +63,16 @@ export default {
         totalPages.value = res.meta?.totalPages || 1
       } catch (e) { } finally { loading.value = false }
     }
-    function prevPage() { if (page.value > 1) { page.value--; load() } }
-    function nextPage() { if (page.value < totalPages.value) { page.value++; load() } }
-    async function censor(row) {
-      row._loading = true
-      try { await censorMessage(props.conferenceId, row.messageId, auth.state.token); await load() }
-      catch (e) { row._loading = false }
+    function goToPage(p) { page.value = p; load() }
+    async function censor(item) {
+      item._loading = true
+      try { await censorMessage(item.uuid, null, auth.state.token); await load() }
+      catch (e) { item._loading = false }
     }
-    async function restore(row) {
-      row._loading = true
-      try { await restoreMessage(props.conferenceId, row.messageId, auth.state.token); await load() }
-      catch (e) { row._loading = false }
+    async function restore(item) {
+      item._loading = true
+      try { await restoreMessage(item.uuid, auth.state.token); await load() }
+      catch (e) { item._loading = false }
     }
     function statusClass(s) {
       return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION' }
@@ -89,7 +82,7 @@ export default {
       return map[s] || s
     }
     onMounted(load)
-    return { messages, loading, page, totalPages, statusFilter, load, prevPage, nextPage, censor, restore, statusClass, statusLabel }
+    return { messages, loading, page, totalPages, statusFilter, load, goToPage, censor, restore, statusClass, statusLabel }
   }
 }
 </script>
@@ -100,10 +93,6 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 .filters { margin-bottom: 16px; }
 select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
 .mono { font-family: monospace; font-size: 0.85rem; color: #6b7280; }
-.detail { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
-.badge { padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; }
-.badge-doubt { background: #ede9fe; color: #4f46e5; }
-.badge-topic { background: #cffafe; color: #0891b2; }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
 .status-visible { background: #dcfce7; color: #166534; }
 .status-censored { background: #fee2e2; color: #991b1b; }
