@@ -51,8 +51,9 @@ Fuente de verdad de la base tecnologica del proyecto.
   referencia del proyecto `ether-crypto`:
   `https://github.com/rafex/ether-crypto/tree/main`
 - Tooling local:
-  `Justfile`, `Makefile`, `helpers-build` y `helpers-run` como soporte de
-  desarrollo, construccion y ejecucion.
+  `Makefile` como builder y `Justfile` como task runner. Los scripts de
+  soporte viven en `scripts/build/` (construccion), `scripts/run/`
+  (ejecucion) y `scripts/sim/` (simulacion y demo).
 
 ## Restricciones
 

@@ -1,90 +1,47 @@
 # InsightBloom - Task Runner
+# Orquesta flujos de desarrollo, demos y operaciones.
 # Requires: just (https://just.systems)
 
 default:
     @just --list
 
-# ── Setup ─────────────────────────────────────────────────────────────────────
+# ── Desarrollo ────────────────────────────────────────────────────────────────
 
-install:
-    ./scripts/build/install-web.sh
-    ./scripts/build/install-services.sh
-
-# ── Development ───────────────────────────────────────────────────────────────
-
+# Compila todo y levanta servicios + frontend
 dev:
-    @echo "Starting all services and frontend..."
+    make build
     @just dev-services &
     @just dev-web
 
+# Levanta solo el frontend en modo dev (sin compilar)
 dev-web:
     npm --prefix frontend/web run dev
 
+# Levanta los servicios backend (sin compilar)
 dev-services:
     ./scripts/run/run-services.sh
 
+# Levanta un servicio individual: just service-run insightbloom-ingest
 service-run SERVICE:
     ./scripts/run/run-service.sh {{SERVICE}}
 
-# ── Build ─────────────────────────────────────────────────────────────────────
+# ── CI ────────────────────────────────────────────────────────────────────────
 
-web-build:
-    npm --prefix frontend/web run build
+# Ejecuta el pipeline completo de integración continua
+ci:
+    make build
+    make test
+    make lint
 
-services-build:
-    ./scripts/build/build-services.sh
+# ── Docker / Compose ──────────────────────────────────────────────────────────
 
-build:
-    @just services-build
-    @just web-build
-
-# ── Tests ─────────────────────────────────────────────────────────────────────
-
-test:
-    @just test-services
-    @just test-web
-
-test-web:
-    npm --prefix frontend/web run test
-
-test-services:
-    ./mvnw -f backend/services/pom.xml test
-
-web-test:
-    npm --prefix frontend/web run test
-
-services-test:
-    ./mvnw -f backend/services/pom.xml test
-
-# ── Lint & Format ─────────────────────────────────────────────────────────────
-
-lint:
-    @just lint-web
-
-lint-web:
-    npm --prefix frontend/web run lint
-
-fmt:
-    @just lint-web
-
-web-lint:
-    npm --prefix frontend/web run lint
-
-# ── Compose ───────────────────────────────────────────────────────────────────
-
+# Construye imágenes y levanta todos los contenedores
 up:
     docker compose -f infra/compose/local.yml up --build
 
+# Para y elimina los contenedores
 down:
     docker compose -f infra/compose/local.yml down
-
-# ── CI ────────────────────────────────────────────────────────────────────────
-
-ci:
-    @just services-build
-    @just test-services
-    @just web-build
-    @just test-web
 
 # ── Helm ──────────────────────────────────────────────────────────────────────
 
@@ -92,9 +49,6 @@ helm-lint:
     helm lint infra/helm/charts/*
 
 # ── Admin CLI ─────────────────────────────────────────────────────────────────
-
-cli-build:
-    ./mvnw -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests
 
 # Crea o actualiza un usuario. Pasar argumentos después de --:
 #   just create-user -- --username john --password s3cr3t --role ORGANIZER --db users.db
@@ -116,6 +70,7 @@ simulate *ARGS:
 watch-cloud CONF:
     ./scripts/sim/watch-cloud.sh --conference-id {{CONF}}
 
-# Demo end-to-end: crea conferencia + simula + muestra nube en vivo
+# Demo end-to-end: compila, crea conferencia, simula y muestra nube en vivo
 demo *ARGS:
+    make build
     ./scripts/sim/demo.sh {{ARGS}}

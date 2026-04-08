@@ -67,7 +67,7 @@ arquitectura hexagonal para separar dominio, casos de uso y adaptadores.
 ## Estructura base de un microservicio backend
 
 ```text
-services/insightbloom-<service-name>/
+backend/services/insightbloom-<service-name>/
   README.md
   pom.xml
   src/
@@ -114,7 +114,7 @@ services/insightbloom-<service-name>/
 ## Estructura base del frontend
 
 ```text
-apps/insightbloom-web/
+frontend/web/
   README.md
   package.json
   vite.config.js
@@ -169,53 +169,65 @@ apps/insightbloom-web/
 ## Estructura raiz del repositorio
 
 ```text
-InsightBloom/
+/
   .github/
-  AGENTS.md
   README.md
   Justfile
   Makefile
-  agents/
-  apps/
-    insightbloom-web/
-  services/
-    insightbloom-users/
-    insightbloom-ingest/
-    insightbloom-query/
-    insightbloom-moderation/
-    insightbloom-stats/
-  packages/
-    insightbloom-contracts/
-    insightbloom-ui/
-    insightbloom-devtools/
+  frontend/
+    web/
+  backend/
+    contracts/
+      insightbloom-contracts/
+    services/
+      insightbloom-users/
+      insightbloom-ingest/
+      insightbloom-query/
+      insightbloom-moderation/
+      insightbloom-stats/
+    cli/
+      insightbloom-cli/
   infra/
     docker/
     compose/
-    scripts/
     helm/
       charts/
-  helpers-build/
-  helpers-run/
+  scripts/
+    build/
+    run/
+    sim/
+  docs/
 ```
 
 - `.github/`:
   workflows de GitHub Actions.
 - `Justfile`:
-  task runner de alto nivel para desarrollo y operaciones comunes.
+  task runner para flujos de desarrollo, demos y operaciones.
+  Delega compilacion a `make`.
 - `Makefile`:
-  construccion apoyada en scripts reutilizables.
+  builder: compila, testea, lintea y produce artefactos.
+- `frontend/web`:
+  aplicacion web con Vite, Vue y D3.js.
+- `backend/contracts`:
+  contratos compartidos entre microservicios (DTOs, interfaces).
+- `backend/services`:
+  microservicios HTTP del sistema.
+- `backend/cli`:
+  CLI de administracion para operaciones de usuarios y configuracion.
 - `infra/docker`:
-  artefactos de contenedores.
+  Dockerfiles por servicio.
 - `infra/compose`:
-  composicion local de servicios.
-- `infra/scripts`:
-  automatizacion transversal de infraestructura.
+  composicion local de servicios con Docker Compose.
 - `infra/helm/charts`:
-  charts de despliegue.
-- `helpers-build`:
-  scripts orientados a build, empaquetado y validaciones de construccion.
-- `helpers-run`:
-  scripts orientados a arranque local, demo y ejecucion operativa.
+  charts de despliegue en Kubernetes.
+- `scripts/build`:
+  scripts de instalacion, compilacion y empaquetado.
+- `scripts/run`:
+  scripts de arranque local de servicios.
+- `scripts/sim`:
+  scripts de simulacion, demo y observacion en tiempo real.
+- `docs`:
+  documentacion del proyecto: arquitectura, stack, convenciones y specs.
 
 ## Ownership de datos
 

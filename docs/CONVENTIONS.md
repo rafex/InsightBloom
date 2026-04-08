@@ -31,10 +31,13 @@ Reglas operativas y de implementacion del proyecto.
 
 ### Operacion
 
-- `Justfile` concentra tareas de alto nivel para humanos y agentes.
-- `Makefile` delega construccion a scripts reutilizables cuando convenga.
-- `helpers-build` contiene scripts de build y no scripts de ejecucion.
-- `helpers-run` contiene scripts de ejecucion y no scripts de build.
+- `Makefile` es el builder: compila, testea, lintea y produce artefactos.
+  No orquesta procesos ni arranca servicios.
+- `Justfile` es el task runner: orquesta flujos de desarrollo, demos y
+  operaciones. Cuando necesita compilar, delega a `make`.
+- `scripts/build/` contiene scripts de build y no scripts de ejecucion.
+- `scripts/run/` contiene scripts de arranque y no scripts de build.
+- `scripts/sim/` contiene scripts de simulacion y demo.
 - Los workflows en `.github/workflows` deben usar los mismos comandos
   oficiales definidos en `COMMANDS.md`, `Justfile` o `Makefile`.
 

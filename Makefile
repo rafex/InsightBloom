@@ -1,6 +1,13 @@
-.PHONY: install build test lint fmt up down ci helm-lint \
-        services-build services-test web-build web-test dev dev-web dev-services \
-        cli-build create-user
+# InsightBloom - Builder
+# Produces artefacts, verifica código, ejecuta pruebas.
+# Uso: make <target>
+
+.PHONY: all install build services-build web-build cli-build \
+        test services-test web-test \
+        lint fmt clean
+
+# ── Default ───────────────────────────────────────────────────────────────────
+all: build
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 install:
@@ -16,7 +23,10 @@ services-build:
 web-build:
 	npm --prefix frontend/web run build
 
-# ── Tests ─────────────────────────────────────────────────────────────────────
+cli-build:
+	./mvnw -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests
+
+# ── Test ──────────────────────────────────────────────────────────────────────
 test: services-test web-test
 
 services-test:
@@ -25,38 +35,14 @@ services-test:
 web-test:
 	npm --prefix frontend/web run test
 
-# ── Lint ──────────────────────────────────────────────────────────────────────
+# ── Lint & Format ─────────────────────────────────────────────────────────────
 lint:
 	npm --prefix frontend/web run lint
 
 fmt: lint
 
-# ── Dev ───────────────────────────────────────────────────────────────────────
-dev: dev-services dev-web
-
-dev-web:
-	npm --prefix frontend/web run dev
-
-dev-services:
-	./scripts/run/run-services.sh
-
-# ── Compose ───────────────────────────────────────────────────────────────────
-up:
-	docker compose -f infra/compose/local.yml up --build
-
-down:
-	docker compose -f infra/compose/local.yml down
-
-# ── CI ────────────────────────────────────────────────────────────────────────
-ci: services-build services-test web-build web-test
-
-# ── Helm ──────────────────────────────────────────────────────────────────────
-helm-lint:
-	helm lint infra/helm/charts/*
-
-# ── Admin CLI ─────────────────────────────────────────────────────────────────
-cli-build:
-	./mvnw -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests
-
-create-user:
-	java -jar backend/cli/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user $(ARGS)
+# ── Clean ─────────────────────────────────────────────────────────────────────
+clean:
+	./mvnw -f backend/services/pom.xml clean
+	./mvnw -f backend/cli/insightbloom-cli/pom.xml clean
+	rm -rf frontend/web/dist

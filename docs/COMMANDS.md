@@ -8,75 +8,81 @@ Reducir la ambiguedad de ejecucion para agentes y humanos.
 
 ## Convencion general
 
-- `Justfile` expone los comandos de uso diario.
-- `Makefile` apoya build y tareas repetibles.
-- `helpers-build/` concentra scripts de build.
-- `helpers-run/` concentra scripts de ejecucion local.
+- `Makefile` es el builder: compila, testea, lintea y produce artefactos.
+- `Justfile` es el task runner: orquesta flujos de desarrollo y operaciones.
+  Cuando un flujo requiere compilacion, delega a `make`.
+- `scripts/build/` concentra scripts de construccion e instalacion.
+- `scripts/run/` concentra scripts de arranque local.
+- `scripts/sim/` concentra scripts de simulacion y demo.
 
 ## Setup
 
 ```bash
-just install
 make install
-./helpers-build/install-web.sh
-./helpers-build/install-services.sh
+./scripts/build/install-web.sh
+./scripts/build/install-services.sh
 ```
 
 ## Desarrollo
 
 ```bash
+# Orquestar entorno completo (compila + arranca servicios + frontend)
 just dev
+
+# Solo frontend en modo dev (sin compilar)
 just dev-web
+
+# Solo servicios backend (sin compilar)
 just dev-services
-make dev
-./helpers-run/run-web.sh
-./helpers-run/run-services.sh
+
+# Un servicio individual
+just service-run insightbloom-users
+./scripts/run/run-service.sh insightbloom-users
 ```
 
-## Frontend
+## Build
 
 ```bash
-just web-dev
-just web-build
-just web-test
-just web-lint
-npm --prefix apps/insightbloom-web install
-npm --prefix apps/insightbloom-web run dev
-npm --prefix apps/insightbloom-web run build
-npm --prefix apps/insightbloom-web run test
-npm --prefix apps/insightbloom-web run lint
-```
-
-## Backend
-
-```bash
-just services-test
-just services-build
-just service-run SERVICE=insightbloom-users
-make services-test
+make build
 make services-build
-./helpers-build/build-service.sh insightbloom-users
-./helpers-run/run-service.sh insightbloom-users
-./mvnw -f services/insightbloom-users/pom.xml test
-./mvnw -f services/insightbloom-users/pom.xml package
+make web-build
+make cli-build
+
+./scripts/build/build-services.sh
+./mvnw -f backend/services/pom.xml package
+./mvnw -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests
+npm --prefix frontend/web run build
 ```
 
-## Tests
+## Test
 
 ```bash
-just test
-just test-web
-just test-services
 make test
+make services-test
+make web-test
+
+./mvnw -f backend/services/pom.xml test
+npm --prefix frontend/web run test
 ```
 
 ## Lint y formato
 
 ```bash
-just lint
-just fmt
 make lint
 make fmt
+npm --prefix frontend/web run lint
+```
+
+## CI local
+
+```bash
+# Pipeline completo (build + test + lint)
+just ci
+
+# O paso a paso con make
+make build
+make test
+make lint
 ```
 
 ## Compose local
@@ -84,54 +90,56 @@ make fmt
 ```bash
 just up
 just down
-make up
-make down
 docker compose -f infra/compose/local.yml up --build
 docker compose -f infra/compose/local.yml down
-```
-
-## CI local
-
-```bash
-just ci
-make ci
 ```
 
 ## Helm
 
 ```bash
 just helm-lint
-make helm-lint
 helm lint infra/helm/charts/*
 ```
 
 ## Admin CLI
 
-Compilar el CLI de administración:
+Compilar:
 
 ```bash
-just cli-build
 make cli-build
-./mvnw -f tools/insightbloom-cli/pom.xml clean package -DskipTests
 ```
 
-Crear o actualizar un usuario (requiere haber compilado antes):
+Crear o actualizar un usuario:
 
 ```bash
-# Vía Justfile (variadic args después de --)
+# Via Justfile (variadic args despues de --)
 just create-user -- --username <u> --password <p> --role ORGANIZER
 just create-user -- --username <u> --password <p> --role MODERATOR --db /data/users.db
 
-# Vía Makefile
-make create-user ARGS="--username <u> --password <p> --role ORGANIZER"
-
 # Directamente con java
-java -jar tools/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user \
-  --username admin --password clave-segura --role ORGANIZER
+java -jar backend/cli/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar \
+  create-user --username admin --password clave-segura --role ORGANIZER
 ```
 
-Ver [`tools/insightbloom-cli/README.md`](../tools/insightbloom-cli/README.md) para la referencia completa de opciones y ejemplos.
-Ver [`ROLES.md`](./ROLES.md) para la descripción de roles y permisos.
+Ver [`ROLES.md`](./ROLES.md) para la descripcion de roles y permisos.
+
+## Simulacion y demo
+
+```bash
+# Simular asistentes enviando palabras a una conferencia nueva
+just simulate
+
+# Con parametros
+just simulate -- --count 80 --delay 0.2
+just simulate -- --conference-id <uuid>
+
+# Observar la nube en tiempo real
+just watch-cloud <friendly-id>
+just watch-cloud <uuid>
+
+# Demo end-to-end: compila + crea conferencia + simula + nube en vivo
+just demo
+```
 
 ## Nota
 
