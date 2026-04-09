@@ -15,30 +15,51 @@
   <name>InsightBloom Users Service</name>
 
   <dependencies>
+    <!-- HTTP server (Jetty 12 + all ether-http-* modules) -->
     <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-server</artifactId>
+      <groupId>dev.rafex.ether.http</groupId>
+      <artifactId>ether-http-jetty12</artifactId>
+    </dependency>
+
+    <!-- JSON -->
+    <dependency>
+      <groupId>dev.rafex.ether.json</groupId>
+      <artifactId>ether-json</artifactId>
+    </dependency>
+
+    <!-- JWT (token generation and validation) -->
+    <dependency>
+      <groupId>dev.rafex.ether.jwt</groupId>
+      <artifactId>ether-jwt</artifactId>
+    </dependency>
+
+    <!-- Crypto (password hashing) -->
+    <dependency>
+      <groupId>dev.rafex.ether.crypto</groupId>
+      <artifactId>ether-crypto</artifactId>
+    </dependency>
+
+    <!-- Database -->
+    <dependency>
+      <groupId>dev.rafex.ether.database</groupId>
+      <artifactId>ether-database-core</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-util</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.datatype</groupId>
-      <artifactId>jackson-datatype-jsr310</artifactId>
+      <groupId>dev.rafex.ether.jdbc</groupId>
+      <artifactId>ether-jdbc</artifactId>
     </dependency>
     <dependency>
       <groupId>org.xerial</groupId>
       <artifactId>sqlite-jdbc</artifactId>
     </dependency>
+
+    <!-- Internal -->
     <dependency>
       <groupId>dev.rafex.insightbloom</groupId>
       <artifactId>insightbloom-contracts</artifactId>
     </dependency>
+
+    <!-- Test -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
