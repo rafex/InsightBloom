@@ -1,7 +1,8 @@
 <template lang="pug">
 header.app-header
   .header-brand
-    router-link(to="/") InsightBloom
+    router-link(to="/")
+      img.brand-logo(src="@/assets/logo.svg" alt="InsightBloom")
   nav.header-nav
     router-link(v-if="auth.state.token" to="/dashboard") Dashboard
     a(v-if="auth.state.token" href="#" @click.prevent="logout") Salir
@@ -28,7 +29,8 @@ export default {
   padding: 12px 24px; background: #1e1b4b; color: #fff;
   position: sticky; top: 0; z-index: 100;
 }
-.header-brand a { color: #a5b4fc; font-weight: 700; font-size: 1.2rem; text-decoration: none; }
+.header-brand a { text-decoration: none; display: flex; align-items: center; }
+.brand-logo { height: 36px; width: auto; }
 .header-nav { display: flex; gap: 16px; }
 .header-nav a { color: #c7d2fe; text-decoration: none; font-size: 0.9rem; }
 .header-nav a:hover { color: #fff; }
