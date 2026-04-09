@@ -9,8 +9,8 @@ Antes de trabajar en cualquier carpeta, leer primero su `README.md`.
 ## Mapa rapido
 
 - `README.md` del root: explica la estructura del repo.
-- `agents/README.md`: indice principal del contexto operativo.
-- `agents/specs/README.md`: indice de specs disponibles.
+- `docs/README.md`: indice principal del contexto operativo.
+- `docs/specs/README.md`: indice de specs disponibles.
 
 ## Politica de contexto
 
@@ -24,9 +24,9 @@ Antes de trabajar en cualquier carpeta, leer primero su `README.md`.
 
 1. Leer el `README.md` de la carpeta actual.
 2. Revisar `PRODUCT.md` y el contexto tecnico relevante.
-3. Revisar o crear un `SPEC.md` en `agents/` o en `agents/specs/`.
+3. Revisar o crear un `SPEC.md` en `docs/` o en `docs/specs/`.
 4. Implementar y validar.
-5. Registrar decisiones permanentes en `agents/DECISIONS.md`.
+5. Registrar decisiones permanentes en `docs/DECISIONS.md`.
 
 ## Criterio de actualizacion
 

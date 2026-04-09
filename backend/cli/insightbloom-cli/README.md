@@ -12,13 +12,13 @@ directamente sobre la base de datos SQLite del servicio `insightbloom-users`.
 just cli-build
 
 # O directamente con Maven
-./mvnw -f tools/insightbloom-cli/pom.xml clean package -DskipTests
+./mvnw -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests
 ```
 
 El JAR resultante queda en:
 
 ```
-tools/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar
+backend/cli/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar
 ```
 
 ---
@@ -158,12 +158,12 @@ docker compose -f infra/compose/local.yml cp ./users.db insightbloom-users:/data
 ## Ayuda integrada
 
 ```bash
-java -jar tools/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar --help
+java -jar backend/cli/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar --help
 ```
 
 ---
 
 ## Referencias
 
-- [ROLES.md](../../agents/ROLES.md) — descripción completa de roles y permisos
-- [SPEC.md](../../agents/SPEC.md) — requisitos del sistema de autenticación
+- [ROLES.md](../../docs/ROLES.md) — descripción completa de roles y permisos
+- [SPEC.md](../../docs/SPEC.md) — requisitos del sistema de autenticación

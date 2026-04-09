@@ -113,7 +113,7 @@ CLI create-user
 
 ## Cómo crear usuarios
 
-Ver [`tools/insightbloom-cli/README.md`](../tools/insightbloom-cli/README.md).
+Ver [`backend/cli/insightbloom-cli/README.md`](../backend/cli/insightbloom-cli/README.md).
 
 ## Relación con el esquema de base de datos
 

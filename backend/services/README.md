@@ -26,11 +26,13 @@ Cada servicio sigue arquitectura hexagonal con dominio, puertos y adaptadores.
 
 ```bash
 # Build todos
-./helpers-build/build-services.sh
+make services-build
 
 # Correr uno
-./helpers-run/run-service.sh insightbloom-users
+just service-run insightbloom-users
+./scripts/run/run-service.sh insightbloom-users
 
 # Test todos
-./mvnw -f services/pom.xml test
+make services-test
+./mvnw -f backend/services/pom.xml test
 ```
