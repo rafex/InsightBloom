@@ -4,6 +4,15 @@
   .conf-loading(v-if="loading") Cargando conferencia...
   .conf-error(v-else-if="error") {{ error }}
   template(v-else-if="conference")
+    //- Fullscreen intro map (only when conference has coordinates)
+    ConferenceIntroMap(
+      v-if="showIntro"
+      :latitude="conference.latitude"
+      :longitude="conference.longitude"
+      :label="conference.name"
+      @enter="dismissIntro"
+    )
+
     .conf-header
       .conf-title-row
         h1 {{ conference.name }}
@@ -13,40 +22,44 @@
       .conf-tabs
         router-link(:to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
         router-link(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
-    .conf-map-section(v-if="conference.latitude != null")
-      ConferenceMap(
-        :latitude="conference.latitude"
-        :longitude="conference.longitude"
-        :label="conference.name"
-      )
     router-view(:conference-id="conference.conferenceId || conference.uuid")
 </template>
 
 <script>
 import AppHeader from '@/app/layout/AppHeader.vue'
-import ConferenceMap from '@/components/map/ConferenceMap.vue'
+import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getConferenceByFriendlyId } from '@/services/api/usersApi'
+
 export default {
   name: 'ConferencePage',
-  components: { AppHeader, ConferenceMap },
+  components: { AppHeader, ConferenceIntroMap },
   setup() {
-    const route = useRoute()
+    const route      = useRoute()
     const friendlyId = route.params.friendlyId
     const conference = ref(null)
-    const loading = ref(true)
-    const error = ref('')
+    const loading    = ref(true)
+    const error      = ref('')
+    const showIntro  = ref(false)
+
+    function dismissIntro() {
+      showIntro.value = false
+    }
+
     onMounted(async () => {
       try {
         conference.value = await getConferenceByFriendlyId(friendlyId)
+        // Show intro only when conference has a location
+        showIntro.value = conference.value?.latitude != null
       } catch (e) {
         error.value = 'Conferencia no encontrada. Verifica el ID.'
       } finally {
         loading.value = false
       }
     })
-    return { friendlyId, conference, loading, error }
+
+    return { friendlyId, conference, loading, error, showIntro, dismissIntro }
   }
 }
 </script>
@@ -80,6 +93,5 @@ h1 { margin: 0; color: #1e1b4b; }
   border-color: #4f46e5;
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
 }
-.conf-map-section { max-height: 340px; overflow: hidden; }
 .conf-loading, .conf-error { padding: 40px; text-align: center; color: #6b7280; }
 </style>

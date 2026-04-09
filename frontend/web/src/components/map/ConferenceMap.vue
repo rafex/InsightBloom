@@ -1,248 +1,98 @@
 <template lang="pug">
-.conference-map-wrap
-  svg.conference-map(ref="svgRef" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="xMidYMid meet")
-    g(ref="gRef")
-  .map-controls
-    button.zoom-btn(@click="zoomIn" title="Acercar") +
-    button.zoom-btn(@click="zoomOut" title="Alejar") −
-    button.zoom-btn(@click="resetZoom" title="Restablecer") ⌂
+.conf-map-wrap
+  #conf-leaflet-map(ref="mapRef")
 </template>
 
 <script>
-import { ref, onMounted, watch } from 'vue'
-import * as d3 from 'd3'
-import * as topojson from 'topojson-client'
-import worldData from 'world-atlas/countries-110m.json'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 export default {
   name: 'ConferenceMap',
   props: {
-    latitude: { type: Number, default: null },
-    longitude: { type: Number, default: null },
-    label: { type: String, default: '' }
+    latitude:  { type: Number, required: true },
+    longitude: { type: Number, required: true },
+    label:     { type: String, default: '' }
   },
   setup(props) {
-    const W = 960
-    const H = 500
-    const svgRef = ref(null)
-    const gRef = ref(null)
+    const mapRef = ref(null)
+    let map    = null
+    let marker = null
 
-    let zoom = null
-    let svg = null
-    let g = null
-    let projection = null
+    const pinIcon = L.divIcon({
+      className: '',
+      html: `<div class="lf-pin"><div class="lf-pin-pulse"></div><div class="lf-pin-dot"></div></div>`,
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      popupAnchor: [0, -20]
+    })
 
-    function buildMap() {
-      svg = d3.select(svgRef.value)
-      g = d3.select(gRef.value)
+    onMounted(() => {
+      map = L.map(mapRef.value, { zoomControl: true, scrollWheelZoom: false })
+        .setView([props.latitude, props.longitude], 12)
 
-      projection = d3.geoNaturalEarth1()
-        .scale(153)
-        .translate([W / 2, H / 2])
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+      }).addTo(map)
 
-      const path = d3.geoPath().projection(projection)
-      const countries = topojson.feature(worldData, worldData.objects.countries)
-      const borders = topojson.mesh(worldData, worldData.objects.countries, (a, b) => a !== b)
+      marker = L.marker([props.latitude, props.longitude], { icon: pinIcon }).addTo(map)
+      if (props.label) marker.bindPopup(`<b>${props.label}</b>`).openPopup()
+    })
 
-      g.selectAll('.country')
-        .data(countries.features)
-        .join('path')
-        .attr('class', 'country')
-        .attr('d', path)
+    watch(() => [props.latitude, props.longitude], ([lat, lng]) => {
+      if (!map || lat == null || lng == null) return
+      map.flyTo([lat, lng], 12, { duration: 1 })
+      marker?.setLatLng([lat, lng])
+    })
 
-      g.append('path')
-        .datum(borders)
-        .attr('class', 'borders')
-        .attr('d', path)
+    onUnmounted(() => { if (map) { map.remove(); map = null } })
 
-      // Graticule
-      const graticule = d3.geoGraticule()
-      g.insert('path', '.country')
-        .datum(graticule())
-        .attr('class', 'graticule')
-        .attr('d', path)
-
-      // Sphere outline
-      g.insert('path', '.graticule')
-        .datum({ type: 'Sphere' })
-        .attr('class', 'sphere')
-        .attr('d', path)
-
-      zoom = d3.zoom()
-        .scaleExtent([1, 12])
-        .translateExtent([[0, 0], [W, H]])
-        .on('zoom', (event) => {
-          g.attr('transform', event.transform)
-        })
-
-      svg.call(zoom)
-
-      placeMarker()
-    }
-
-    function placeMarker() {
-      g.selectAll('.conf-marker').remove()
-      g.selectAll('.conf-label').remove()
-
-      if (props.latitude == null || props.longitude == null) return
-
-      const [x, y] = projection([props.longitude, props.latitude])
-      if (isNaN(x) || isNaN(y)) return
-
-      const marker = g.append('g')
-        .attr('class', 'conf-marker')
-        .attr('transform', `translate(${x},${y})`)
-
-      // Outer pulsing ring
-      marker.append('circle')
-        .attr('class', 'pulse-ring')
-        .attr('r', 14)
-
-      // Inner dot
-      marker.append('circle')
-        .attr('class', 'marker-dot')
-        .attr('r', 6)
-
-      // Pin stem
-      marker.append('line')
-        .attr('class', 'marker-stem')
-        .attr('x1', 0).attr('y1', 6)
-        .attr('x2', 0).attr('y2', 16)
-
-      // Label
-      if (props.label) {
-        marker.append('text')
-          .attr('class', 'conf-label')
-          .attr('x', 0).attr('y', -18)
-          .attr('text-anchor', 'middle')
-          .text(props.label)
-      }
-
-      zoomToMarker()
-    }
-
-    function zoomToMarker() {
-      if (props.latitude == null || props.longitude == null || !zoom) return
-      const [x, y] = projection([props.longitude, props.latitude])
-      if (isNaN(x) || isNaN(y)) return
-
-      const scale = 5
-      svg.transition().duration(1000).call(
-        zoom.transform,
-        d3.zoomIdentity
-          .translate(W / 2, H / 2)
-          .scale(scale)
-          .translate(-x, -y)
-      )
-    }
-
-    function zoomIn() {
-      svg.transition().duration(300).call(zoom.scaleBy, 1.5)
-    }
-
-    function zoomOut() {
-      svg.transition().duration(300).call(zoom.scaleBy, 1 / 1.5)
-    }
-
-    function resetZoom() {
-      svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity)
-      setTimeout(zoomToMarker, 520)
-    }
-
-    onMounted(buildMap)
-    watch(() => [props.latitude, props.longitude, props.label], placeMarker)
-
-    return { svgRef, gRef, W, H, zoomIn, zoomOut, resetZoom }
+    return { mapRef }
   }
 }
 </script>
 
 <style scoped>
-.conference-map-wrap {
-  position: relative;
+.conf-map-wrap {
   width: 100%;
+  height: 320px;
   border-radius: 12px;
   overflow: hidden;
-  background: #1e3a5f;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
 }
-.conference-map {
-  display: block;
-  width: 100%;
-  height: auto;
-  cursor: grab;
-}
-.conference-map:active { cursor: grabbing; }
+#conf-leaflet-map { width: 100%; height: 100%; }
+</style>
 
-:deep(.sphere) {
-  fill: #1a3a5c;
+<style>
+/* Global styles for the divIcon — must be unscoped */
+.lf-pin {
+  position: relative;
+  width: 36px;
+  height: 36px;
 }
-:deep(.graticule) {
-  fill: none;
-  stroke: #2a4a70;
-  stroke-width: 0.4;
-}
-:deep(.country) {
-  fill: #2d6a4f;
-  stroke: #1b4332;
-  stroke-width: 0.3;
-}
-:deep(.borders) {
-  fill: none;
-  stroke: #1b4332;
-  stroke-width: 0.5;
-}
-:deep(.conf-marker .pulse-ring) {
-  fill: rgba(251, 191, 36, 0.25);
-  stroke: #fbbf24;
-  stroke-width: 1.5;
-  animation: pulse 2s ease-out infinite;
-}
-:deep(.conf-marker .marker-dot) {
-  fill: #fbbf24;
-  stroke: #fff;
-  stroke-width: 1.5;
-}
-:deep(.conf-marker .marker-stem) {
-  stroke: #fbbf24;
-  stroke-width: 2;
-}
-:deep(.conf-label) {
-  fill: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  font-family: system-ui, sans-serif;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-  pointer-events: none;
-}
-
-@keyframes pulse {
-  0%   { r: 8; opacity: 0.9; }
-  100% { r: 22; opacity: 0; }
-}
-
-.map-controls {
+.lf-pin-pulse {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  inset: 0;
+  border: 2.5px solid #4f46e5;
+  border-radius: 50%;
+  animation: lf-pulse 1.8s ease-out infinite;
 }
-.zoom-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.15);
-  color: #fff;
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(4px);
-  transition: background 0.15s;
+.lf-pin-dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #4f46e5;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 6px rgba(79,70,229,0.5);
 }
-.zoom-btn:hover { background: rgba(255,255,255,0.3); }
+@keyframes lf-pulse {
+  0%   { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
 </style>
