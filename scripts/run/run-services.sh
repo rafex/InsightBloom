@@ -4,7 +4,7 @@ set -euo pipefail
 # Asegurar que los servicios usen el directorio del proyecto como CWD
 # para que users.db, moderation.db, etc. se creen siempre en el mismo lugar
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
+cd "$SCRIPT_DIR/../.."
 
 SERVICES=(insightbloom-users insightbloom-moderation insightbloom-stats insightbloom-query insightbloom-ingest)
 PORTS=(8081 8082 8083 8084 8085)

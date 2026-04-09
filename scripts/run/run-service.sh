@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/../.."
+
 SERVICE=${1:?Usage: run-service.sh <service-name>}
 JAR=$(find backend/services/$SERVICE/target -name "*.jar" -not -name "*sources*" -not -name "original-*" | head -1)
 if [[ -z "$JAR" ]]; then
