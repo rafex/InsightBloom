@@ -15,24 +15,24 @@
     @page="goToPage"
   )
     template(#headers)
-      th ID mensaje
-      th Estado palabra
+      th Palabra
+      th Detalle
       th Estado detalle
       th Acciones
     template(#row="{ item }")
-      td.mono {{ item.messageUuid?.slice(0,8) }}
       td
-        span.status(:class="statusClass(item.wordStatus)") {{ statusLabel(item.wordStatus) }}
+        span.word-cell {{ item.wordText || item.messageUuid?.slice(0,8) }}
+      td.detail-cell {{ truncate(item.detailText, 80) }}
       td
         span.status(:class="statusClass(item.detailStatus)") {{ statusLabel(item.detailStatus) }}
       td.actions
         button.btn-sm.btn-danger(
-          v-if="item.wordStatus === 'VISIBLE' || item.wordStatus === 'PENDIENTE_REVISION'"
-          @click="censor(item)"
+          v-if="item.detailStatus === 'VISIBLE' || item.detailStatus === 'PENDIENTE_REVISION'"
+          @click="censorDetail(item)"
           :disabled="item._loading"
-        ) Censurar
+        ) Censurar detalle
         button.btn-sm.btn-success(
-          v-if="item.wordStatus !== 'VISIBLE'"
+          v-if="item.detailStatus !== 'VISIBLE'"
           @click="restore(item)"
           :disabled="item._loading"
         ) Restaurar
@@ -64,9 +64,9 @@ export default {
       } catch (e) { } finally { loading.value = false }
     }
     function goToPage(p) { page.value = p; load() }
-    async function censor(item) {
+    async function censorDetail(item) {
       item._loading = true
-      try { await censorMessage(item.uuid, null, auth.state.token); await load() }
+      try { await censorMessage(item.uuid, null, 'detail', auth.state.token); await load() }
       catch (e) { item._loading = false }
     }
     async function restore(item) {
@@ -81,8 +81,9 @@ export default {
       const map = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente' }
       return map[s] || s
     }
+    function truncate(text, n) { return text && text.length > n ? text.slice(0, n) + '…' : (text || '') }
     onMounted(load)
-    return { messages, loading, page, totalPages, statusFilter, load, goToPage, censor, restore, statusClass, statusLabel }
+    return { messages, loading, page, totalPages, statusFilter, load, goToPage, censorDetail, restore, statusClass, statusLabel, truncate }
   }
 }
 </script>
@@ -92,7 +93,8 @@ export default {
 h2 { color: #1e1b4b; margin-bottom: 20px; }
 .filters { margin-bottom: 16px; }
 select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
-.mono { font-family: monospace; font-size: 0.85rem; color: #6b7280; }
+.word-cell { font-family: monospace; font-weight: 700; font-size: 1rem; color: #1e1b4b; }
+.detail-cell { max-width: 300px; font-size: 0.88rem; color: #374151; }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
 .status-visible { background: #dcfce7; color: #166534; }
 .status-censored { background: #fee2e2; color: #991b1b; }

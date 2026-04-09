@@ -14,10 +14,12 @@ public class ModerationApplication {
         var wordRepo = new SqliteModerationWordRepository(db);
         var messageRepo = new SqliteModerationMessageRepository(db);
         var autoCensureService = new AutoCensureService(blockedTermRepo);
-        var evaluateUseCase = new EvaluateCensureUseCase(autoCensureService, wordRepo);
+        String queryUrl = System.getenv().getOrDefault("QUERY_URL", "http://localhost:8083");
+        var queryPort = new dev.rafex.insightbloom.moderation.adapters.outbound.queryclient.HttpQueryPort(queryUrl);
+        var evaluateUseCase = new EvaluateCensureUseCase(autoCensureService, wordRepo, messageRepo);
         var listUseCase = new ListModerationUseCase(wordRepo, messageRepo);
-        var censorWordUseCase = new CensorWordUseCase(wordRepo);
-        var restoreWordUseCase = new RestoreWordUseCase(wordRepo);
+        var censorWordUseCase = new CensorWordUseCase(wordRepo, queryPort);
+        var restoreWordUseCase = new RestoreWordUseCase(wordRepo, queryPort);
         var editWordUseCase = new EditWordUseCase(wordRepo);
         var censorMessageUseCase = new CensorMessageUseCase(messageRepo);
         var restoreMessageUseCase = new RestoreMessageUseCase(messageRepo);

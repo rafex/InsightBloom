@@ -38,6 +38,8 @@ public class DatabaseManager {
                     uuid TEXT NOT NULL UNIQUE,
                     message_uuid TEXT NOT NULL UNIQUE,
                     conference_uuid TEXT NOT NULL,
+                    word_text TEXT,
+                    detail_text TEXT,
                     word_status TEXT NOT NULL DEFAULT 'VISIBLE',
                     detail_status TEXT NOT NULL DEFAULT 'VISIBLE',
                     reason TEXT,
@@ -46,6 +48,8 @@ public class DatabaseManager {
                     updated_by_user_uuid TEXT,
                     updated_at TEXT NOT NULL
                 )""");
+            try { stmt.executeUpdate("ALTER TABLE moderation_messages ADD COLUMN word_text TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE moderation_messages ADD COLUMN detail_text TEXT"); } catch (SQLException ignored) {}
             // Seed some blocked terms for PoC
             stmt.executeUpdate("""
                 INSERT OR IGNORE INTO blocked_terms (uuid, scope, term_normalized, status, created_at, updated_at)

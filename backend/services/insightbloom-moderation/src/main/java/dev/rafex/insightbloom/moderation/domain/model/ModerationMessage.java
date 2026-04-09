@@ -5,6 +5,8 @@ public class ModerationMessage {
     private final String uuid;
     private final String messageUuid;
     private final String conferenceUuid;
+    private String wordText;
+    private String detailText;
     private ContentStatus wordStatus;
     private ContentStatus detailStatus;
     private String reason;
@@ -17,15 +19,19 @@ public class ModerationMessage {
         this.uuid = UUID.randomUUID().toString();
         this.messageUuid = messageUuid;
         this.conferenceUuid = conferenceUuid;
+        this.wordText = null;
+        this.detailText = null;
         this.wordStatus = ContentStatus.VISIBLE;
         this.detailStatus = ContentStatus.VISIBLE;
         this.updatedAt = Instant.now();
     }
     public ModerationMessage(String uuid, String messageUuid, String conferenceUuid,
+                              String wordText, String detailText,
                               ContentStatus wordStatus, ContentStatus detailStatus, String reason,
                               String editedWordValue, String editedDetailValue,
                               String updatedByUserUuid, Instant updatedAt) {
         this.uuid = uuid; this.messageUuid = messageUuid; this.conferenceUuid = conferenceUuid;
+        this.wordText = wordText; this.detailText = detailText;
         this.wordStatus = wordStatus; this.detailStatus = detailStatus; this.reason = reason;
         this.editedWordValue = editedWordValue; this.editedDetailValue = editedDetailValue;
         this.updatedByUserUuid = updatedByUserUuid; this.updatedAt = updatedAt;
@@ -33,6 +39,12 @@ public class ModerationMessage {
     public String getUuid() { return uuid; }
     public String getMessageUuid() { return messageUuid; }
     public String getConferenceUuid() { return conferenceUuid; }
+    public String getWordText() { return wordText; }
+    public String getDetailText() { return detailText; }
+    public void initContent(String wordText, String detailText) {
+        this.wordText = wordText;
+        this.detailText = detailText;
+    }
     public ContentStatus getWordStatus() { return wordStatus; }
     public ContentStatus getDetailStatus() { return detailStatus; }
     public String getReason() { return reason; }

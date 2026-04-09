@@ -58,6 +58,18 @@ public class SqliteCloudWordRepository implements CloudWordRepository {
             rs.getInt("is_visible")==1,parseInstant(rs.getString("updated_at")));
     }
 
+    @Override
+    public void updateVisibility(String conferenceUuid, String wordNormalized, boolean visible) {
+        String sql = "UPDATE cloud_words SET is_visible=?, updated_at=? WHERE conference_uuid=? AND word_normalized=?";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, visible ? 1 : 0);
+            ps.setString(2, java.time.Instant.now().toString());
+            ps.setString(3, conferenceUuid);
+            ps.setString(4, wordNormalized);
+            ps.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
     private static Instant parseInstant(String s) {
         if (s == null) return Instant.now();
         String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";

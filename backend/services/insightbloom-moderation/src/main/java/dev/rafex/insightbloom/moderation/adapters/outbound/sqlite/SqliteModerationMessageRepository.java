@@ -10,13 +10,14 @@ public class SqliteModerationMessageRepository implements ModerationMessageRepos
     public SqliteModerationMessageRepository(DatabaseManager db) { this.db = db; }
     @Override
     public void save(ModerationMessage m) {
-        String sql = "INSERT OR REPLACE INTO moderation_messages (uuid,message_uuid,conference_uuid,word_status,detail_status,reason,edited_word_value,edited_detail_value,updated_by_user_uuid,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)";
+        String sql = "INSERT OR REPLACE INTO moderation_messages (uuid,message_uuid,conference_uuid,word_text,detail_text,word_status,detail_status,reason,edited_word_value,edited_detail_value,updated_by_user_uuid,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, m.getUuid()); ps.setString(2, m.getMessageUuid());
-            ps.setString(3, m.getConferenceUuid()); ps.setString(4, m.getWordStatus().name());
-            ps.setString(5, m.getDetailStatus().name()); ps.setString(6, m.getReason());
-            ps.setString(7, m.getEditedWordValue()); ps.setString(8, m.getEditedDetailValue());
-            ps.setString(9, m.getUpdatedByUserUuid()); ps.setString(10, m.getUpdatedAt().toString());
+            ps.setString(3, m.getConferenceUuid()); ps.setString(4, m.getWordText());
+            ps.setString(5, m.getDetailText()); ps.setString(6, m.getWordStatus().name());
+            ps.setString(7, m.getDetailStatus().name()); ps.setString(8, m.getReason());
+            ps.setString(9, m.getEditedWordValue()); ps.setString(10, m.getEditedDetailValue());
+            ps.setString(11, m.getUpdatedByUserUuid()); ps.setString(12, m.getUpdatedAt().toString());
             ps.executeUpdate();
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
@@ -75,7 +76,8 @@ public class SqliteModerationMessageRepository implements ModerationMessageRepos
     }
     private ModerationMessage map(ResultSet rs) throws SQLException {
         return new ModerationMessage(rs.getString("uuid"), rs.getString("message_uuid"),
-            rs.getString("conference_uuid"), ContentStatus.valueOf(rs.getString("word_status")),
+            rs.getString("conference_uuid"), rs.getString("word_text"), rs.getString("detail_text"),
+            ContentStatus.valueOf(rs.getString("word_status")),
             ContentStatus.valueOf(rs.getString("detail_status")), rs.getString("reason"),
             rs.getString("edited_word_value"), rs.getString("edited_detail_value"),
             rs.getString("updated_by_user_uuid"), parseInstant(rs.getString("updated_at")));

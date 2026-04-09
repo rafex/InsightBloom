@@ -36,10 +36,10 @@ export async function restoreWord(wordId, token) {
   return res.data
 }
 
-export async function censorMessage(messageId, reason, token) {
-  const res = await axios.post(`${BASE}/moderation/messages/${messageId}/censor`, { reason }, {
-    headers: authHeader(token)
-  })
+export async function censorMessage(messageId, reason, target, token) {
+  const res = await axios.post(`${BASE}/moderation/messages/${messageId}/censor`,
+    { reason, target: target || 'detail' },
+    { headers: authHeader(token) })
   return res.data
 }
 

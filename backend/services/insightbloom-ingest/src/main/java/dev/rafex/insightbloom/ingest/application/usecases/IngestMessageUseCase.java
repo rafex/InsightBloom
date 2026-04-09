@@ -42,22 +42,24 @@ public class IngestMessageUseCase {
         WordIntent wordIntent = intentService.classifyWord(req.wordOriginal(), req.detailOriginal());
         DetailIntent detailIntent = intentService.classifyDetail(req.detailOriginal());
 
-        // 3. Evaluate censure (also registers word in moderation service)
-        ModerationPort.EvaluationResult eval;
-        try {
-            eval = moderationPort.evaluate(wordNorm, req.detailOriginal(), req.conferenceUuid(), wordCanonical);
-        } catch (Exception e) {
-            // If moderation service unavailable, allow the message
-            eval = new ModerationPort.EvaluationResult(false, false);
-        }
-
-        // 4. Build message
+        // 3. Build message (before evaluate, to have UUID)
         Message msg = new Message(req.conferenceUuid(), req.authorUuid(), authorKind,
             req.deviceFingerprint(), type, source, req.wordOriginal(), req.detailOriginal(), ts);
         msg.setWordNormalized(wordNorm);
         msg.setWordCanonical(wordCanonical);
         msg.setWordIntent(wordIntent);
         msg.setDetailIntent(detailIntent);
+        msg.setDetailVisible(req.detailOriginal()); // tentative
+
+        // 4. Evaluate censure (also registers word in moderation service)
+        ModerationPort.EvaluationResult eval;
+        try {
+            eval = moderationPort.evaluate(wordNorm, req.detailOriginal(), req.conferenceUuid(), wordCanonical,
+                msg.getUuid(), wordCanonical, req.detailOriginal());
+        } catch (Exception e) {
+            // If moderation service unavailable, allow the message
+            eval = new ModerationPort.EvaluationResult(false, false);
+        }
 
         // 5. Apply censure results
         boolean wordVisible = true;

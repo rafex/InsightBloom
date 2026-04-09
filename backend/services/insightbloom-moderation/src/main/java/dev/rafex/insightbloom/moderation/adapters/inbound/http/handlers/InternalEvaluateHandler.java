@@ -15,7 +15,8 @@ public class InternalEvaluateHandler extends BaseHandler {
         var body = readBody(request, Map.class);
         var result = useCase.execute(new EvaluateCensureUseCase.EvaluateRequest(
             (String) body.get("word"), (String) body.get("detail"),
-            (String) body.get("conferenceUuid"), (String) body.get("wordCanonical")));
+            (String) body.get("conferenceUuid"), (String) body.get("wordCanonical"),
+            (String) body.get("messageUuid"), (String) body.get("wordText"), (String) body.get("detailText")));
         ok(response, callback, result);
         return true;
     }

@@ -16,13 +16,17 @@ public class HttpModerationClient implements ModerationPort {
         this.mapper = new ObjectMapper();
     }
     @Override
-    public EvaluationResult evaluate(String word, String detail, String conferenceUuid, String wordCanonical) {
+    public EvaluationResult evaluate(String word, String detail, String conferenceUuid, String wordCanonical, String messageUuid, String wordText, String detailText) {
         try {
-            String body = mapper.writeValueAsString(Map.of(
-                "word", word != null ? word : "",
-                "detail", detail != null ? detail : "",
-                "conferenceUuid", conferenceUuid != null ? conferenceUuid : "",
-                "wordCanonical", wordCanonical != null ? wordCanonical : (word != null ? word : "")));
+            var bodyMap = new java.util.HashMap<String, Object>();
+            bodyMap.put("word", word != null ? word : "");
+            bodyMap.put("detail", detail != null ? detail : "");
+            bodyMap.put("conferenceUuid", conferenceUuid != null ? conferenceUuid : "");
+            bodyMap.put("wordCanonical", wordCanonical != null ? wordCanonical : (word != null ? word : ""));
+            bodyMap.put("messageUuid", messageUuid != null ? messageUuid : "");
+            bodyMap.put("wordText", wordText != null ? wordText : "");
+            bodyMap.put("detailText", detailText != null ? detailText : "");
+            String body = mapper.writeValueAsString(bodyMap);
             HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/internal/evaluate"))
                 .header("Content-Type","application/json")

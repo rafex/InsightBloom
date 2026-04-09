@@ -36,11 +36,13 @@
           @click="restore(item)"
           :disabled="item._loading"
         ) Restaurar
+        button.btn-sm.btn-secondary(@click="verMensajes(item)" title="Ver mensajes de esta palabra") Ver mensajes
 </template>
 
 <script>
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getModerationWords, censorWord, restoreWord } from '@/services/api/moderationApi'
 import { useAuthStore } from '@/features/auth/authStore'
 export default {
@@ -54,6 +56,7 @@ export default {
     const totalPages = ref(1)
     const statusFilter = ref('')
     const auth = useAuthStore()
+    const router = useRouter()
     async function load() {
       if (!props.conferenceId) return
       loading.value = true
@@ -81,8 +84,11 @@ export default {
       const map = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente' }
       return map[s] || s
     }
+    function verMensajes(word) {
+      router.push(`/dashboard/conferences/${props.conferenceId}/moderation/messages`)
+    }
     onMounted(load)
-    return { words, loading, page, totalPages, statusFilter, load, goToPage, censor, restore, statusClass, statusLabel }
+    return { words, loading, page, totalPages, statusFilter, load, goToPage, censor, restore, statusClass, statusLabel, verMensajes }
   }
 }
 </script>
@@ -107,4 +113,6 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .btn-success { background: #dcfce7; color: #16a34a; }
 .btn-success:hover { background: #bbf7d0; }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { background: #ede9fe; color: #4f46e5; }
+.btn-secondary:hover { background: #ddd6fe; }
 </style>
