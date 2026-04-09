@@ -31,7 +31,11 @@ public class ModerationMessageHandler extends BaseHandler {
             String msgId = extractSegmentAfter(path, "messages");
             var body = readBody(request, Map.class);
             try {
-                censorUseCase.execute(new CensorMessageUseCase.Request(msgId, (String) body.getOrDefault("target","detail"), (String) body.get("reason"), (String) body.get("updatedByUserUuid")));
+                censorUseCase.execute(new CensorMessageUseCase.Request(
+                    msgId, (String) body.getOrDefault("target","detail"),
+                    (String) body.get("reason"), (String) body.get("updatedByUserUuid"),
+                    (String) body.get("conferenceUuid"), (String) body.get("wordText"), (String) body.get("detailText")
+                ));
                 ok(response, callback, Map.of("status", "censored"));
             } catch (IllegalArgumentException e) { error(response, callback, 404, e.getMessage(), "Message not found"); }
             return true;

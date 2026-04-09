@@ -6,4 +6,5 @@ public interface WordTimelineRepository {
     void save(WordTimeline entry);
     Optional<WordTimeline> findByMessageUuid(String messageUuid);
     List<WordTimeline> findVisibleByConferenceAndWord(String conferenceUuid, String wordNormalized);
+    void updateMessageVisibility(String messageUuid, boolean visible);
 }

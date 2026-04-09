@@ -12,13 +12,16 @@ public class HttpServer {
     private final CloudHandler cloudHandler;
     private final TimelineHandler timelineHandler;
     private final UpdateHandler updateHandler;
+    private final MessageVisibilityHandler messageVisibilityHandler;
     private final HealthHandler healthHandler;
     private Server server;
 
     public HttpServer(int port, CloudHandler cloudHandler, TimelineHandler timelineHandler,
-                      UpdateHandler updateHandler, HealthHandler healthHandler) {
+                      UpdateHandler updateHandler, MessageVisibilityHandler messageVisibilityHandler,
+                      HealthHandler healthHandler) {
         this.port = port; this.cloudHandler = cloudHandler; this.timelineHandler = timelineHandler;
-        this.updateHandler = updateHandler; this.healthHandler = healthHandler;
+        this.updateHandler = updateHandler; this.messageVisibilityHandler = messageVisibilityHandler;
+        this.healthHandler = healthHandler;
     }
 
     public void start() throws Exception {
@@ -26,6 +29,7 @@ public class HttpServer {
         CloudHandler ch = cloudHandler;
         TimelineHandler th = timelineHandler;
         UpdateHandler uh = updateHandler;
+        MessageVisibilityHandler mvh = messageVisibilityHandler;
         HealthHandler hh = healthHandler;
         server.setHandler(new Handler.Abstract() {
             @Override
@@ -33,6 +37,7 @@ public class HttpServer {
                 String path = request.getHttpURI().getPath();
                 if (path.contains("/cloud/")) return ch.handle(request, response, callback);
                 if (path.contains("/words/") && path.endsWith("/timeline")) return th.handle(request, response, callback);
+                if (path.startsWith("/internal/message-visibility")) return mvh.handle(request, response, callback);
                 if (path.startsWith("/internal/update")) return uh.handle(request, response, callback);
                 return hh.handle(request, response, callback);
             }
