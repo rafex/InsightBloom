@@ -1,0 +1,193 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# InsightBloom – Docker Compose
+#
+# Ejecutar desde la RAÍZ del repositorio:
+#   docker compose -f container/compose.yml up --build
+#   docker compose -f container/compose.yml down -v   # elimina volúmenes
+#
+# El contexto de build de todos los servicios es la raíz del repo (.)
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: insightbloom
+
+# ── Red interna ───────────────────────────────────────────────────────────────
+networks:
+  backend:
+    driver: bridge
+
+# ── Volúmenes persistentes (SQLite) ──────────────────────────────────────────
+volumes:
+  users-data:
+  ingest-data:
+  query-data:
+  moderation-data:
+  stats-data:
+
+# ── Fragmento reutilizable de build Java ─────────────────────────────────────
+x-java-build: &java-build
+  context: .
+  dockerfile: container/backend/java/Dockerfile
+
+services:
+
+  # ── 1. Users (sin dependencias externas) ───────────────────────────────────
+  insightbloom-users:
+    build:
+      <<: *java-build
+      args:
+        SERVICE: insightbloom-users
+        SERVICE_PORT: 8081
+    ports:
+      - "8081:8081"
+    environment:
+      PORT:    8081
+      DB_PATH: /data/users.db
+    volumes:
+      - users-data:/data
+    networks:
+      - backend
+    healthcheck:
+      test:         ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      interval:     15s
+      timeout:      5s
+      start_period: 40s
+      retries:      4
+    restart: unless-stopped
+
+  # ── 2. Stats (sin dependencias externas) ───────────────────────────────────
+  insightbloom-stats:
+    build:
+      <<: *java-build
+      args:
+        SERVICE: insightbloom-stats
+        SERVICE_PORT: 8085
+    ports:
+      - "8085:8085"
+    environment:
+      PORT:    8085
+      DB_PATH: /data/stats.db
+    volumes:
+      - stats-data:/data
+    networks:
+      - backend
+    healthcheck:
+      test:         ["CMD", "wget", "-qO-", "http://localhost:8085/health"]
+      interval:     15s
+      timeout:      5s
+      start_period: 40s
+      retries:      4
+    restart: unless-stopped
+
+  # ── 3. Moderation (requiere users) ─────────────────────────────────────────
+  insightbloom-moderation:
+    build:
+      <<: *java-build
+      args:
+        SERVICE: insightbloom-moderation
+        SERVICE_PORT: 8084
+    ports:
+      - "8084:8084"
+    environment:
+      PORT:              8084
+      DB_PATH:           /data/moderation.db
+      QUERY_SERVICE_URL: http://insightbloom-query:8083
+    volumes:
+      - moderation-data:/data
+    networks:
+      - backend
+    depends_on:
+      insightbloom-users:
+        condition: service_healthy
+    healthcheck:
+      test:         ["CMD", "wget", "-qO-", "http://localhost:8084/health"]
+      interval:     15s
+      timeout:      5s
+      start_period: 40s
+      retries:      4
+    restart: unless-stopped
+
+  # ── 4. Query (requiere stats y moderation) ─────────────────────────────────
+  insightbloom-query:
+    build:
+      <<: *java-build
+      args:
+        SERVICE: insightbloom-query
+        SERVICE_PORT: 8083
+    ports:
+      - "8083:8083"
+    environment:
+      PORT:    8083
+      DB_PATH: /data/query.db
+    volumes:
+      - query-data:/data
+    networks:
+      - backend
+    depends_on:
+      insightbloom-stats:
+        condition: service_healthy
+      insightbloom-moderation:
+        condition: service_healthy
+    healthcheck:
+      test:         ["CMD", "wget", "-qO-", "http://localhost:8083/health"]
+      interval:     15s
+      timeout:      5s
+      start_period: 40s
+      retries:      4
+    restart: unless-stopped
+
+  # ── 5. Ingest (requiere users, moderation y stats) ─────────────────────────
+  insightbloom-ingest:
+    build:
+      <<: *java-build
+      args:
+        SERVICE: insightbloom-ingest
+        SERVICE_PORT: 8082
+    ports:
+      - "8082:8082"
+    environment:
+      PORT:            8082
+      DB_PATH:         /data/ingest.db
+      USERS_URL:       http://insightbloom-users:8081
+      MODERATION_URL:  http://insightbloom-moderation:8084
+      STATS_URL:       http://insightbloom-stats:8085
+      QUERY_URL:       http://insightbloom-query:8083
+    volumes:
+      - ingest-data:/data
+    networks:
+      - backend
+    depends_on:
+      insightbloom-users:
+        condition: service_healthy
+      insightbloom-moderation:
+        condition: service_healthy
+      insightbloom-stats:
+        condition: service_healthy
+    healthcheck:
+      test:         ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
+      interval:     15s
+      timeout:      5s
+      start_period: 40s
+      retries:      4
+    restart: unless-stopped
+
+  # ── 6. Web – SPA Vue + nginx reverse proxy ─────────────────────────────────
+  insightbloom-web:
+    build:
+      context: .
+      dockerfile: container/frontend/Dockerfile
+    ports:
+      - "8080:80"
+    networks:
+      - backend
+    depends_on:
+      insightbloom-ingest:
+        condition: service_healthy
+      insightbloom-query:
+        condition: service_healthy
+    healthcheck:
+      test:         ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval:     15s
+      timeout:      5s
+      start_period: 20s
+      retries:      3
+    restart: unless-stopped
