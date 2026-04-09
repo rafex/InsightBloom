@@ -1,9 +1,14 @@
 package dev.rafex.insightbloom.moderation.application.usecases;
 import dev.rafex.insightbloom.moderation.domain.model.ModerationMessage;
 import dev.rafex.insightbloom.moderation.domain.ports.ModerationMessageRepository;
+import dev.rafex.insightbloom.moderation.domain.ports.QueryPort;
 public class CensorMessageUseCase {
     private final ModerationMessageRepository repo;
-    public CensorMessageUseCase(ModerationMessageRepository repo) { this.repo = repo; }
+    private final QueryPort queryPort;
+    public CensorMessageUseCase(ModerationMessageRepository repo, QueryPort queryPort) {
+        this.repo = repo;
+        this.queryPort = queryPort;
+    }
 
     public record Request(
         String messageUuid,
@@ -44,5 +49,6 @@ public class CensorMessageUseCase {
             msg.censorDetail(req.reason(), req.updatedByUserUuid());
         }
         repo.save(msg);
+        try { queryPort.setMessageVisibility(msg.getMessageUuid(), false); } catch (Exception ignored) {}
     }
 }

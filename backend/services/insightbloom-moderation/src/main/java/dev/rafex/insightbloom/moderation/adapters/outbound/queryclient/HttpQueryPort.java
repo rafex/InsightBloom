@@ -30,4 +30,16 @@ public class HttpQueryPort implements QueryPort {
             client.send(req, HttpResponse.BodyHandlers.ofString());
         } catch (Exception e) { /* best-effort */ }
     }
+    @Override
+    public void setMessageVisibility(String messageUuid, boolean visible) {
+        try {
+            String body = mapper.writeValueAsString(Map.of("messageUuid", messageUuid, "visible", visible));
+            HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/internal/message-visibility"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+            client.send(req, HttpResponse.BodyHandlers.ofString());
+        } catch (Exception e) { /* best-effort */ }
+    }
 }

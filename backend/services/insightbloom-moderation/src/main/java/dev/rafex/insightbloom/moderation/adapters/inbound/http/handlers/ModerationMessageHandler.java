@@ -53,7 +53,6 @@ public class ModerationMessageHandler extends BaseHandler {
             } catch (IllegalArgumentException e) { error(response, callback, 404, e.getMessage(), "Message not found"); }
             return true;
         }
-        // PATCH /api/v1/moderation/messages/{messageId}
         if ("PATCH".equals(method) && path.contains("/messages/")) {
             String msgId = extractSegmentAfter(path, "messages");
             var body = readBody(request, Map.class);

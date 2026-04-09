@@ -7,9 +7,11 @@ export async function getConferences(token) {
   return res.data.data
 }
 
-export async function createConference(name, expiresAt, token) {
+export async function createConference(name, expiresAt, token, latitude, longitude) {
   const body = { name }
   if (expiresAt) body.expiresAt = expiresAt
+  if (latitude != null) body.latitude = latitude
+  if (longitude != null) body.longitude = longitude
   const res = await axios.post('/api/users/api/v1/conferences', body, {
     headers: { Authorization: `Bearer ${token}` }
   })

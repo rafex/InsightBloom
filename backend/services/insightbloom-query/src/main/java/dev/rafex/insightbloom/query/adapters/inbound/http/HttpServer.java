@@ -13,13 +13,16 @@ public class HttpServer {
     private final TimelineHandler timelineHandler;
     private final UpdateHandler updateHandler;
     private final VisibilityHandler visibilityHandler;
+    private final MessageVisibilityHandler messageVisibilityHandler;
     private final HealthHandler healthHandler;
     private Server server;
 
     public HttpServer(int port, CloudHandler cloudHandler, TimelineHandler timelineHandler,
-                      UpdateHandler updateHandler, VisibilityHandler visibilityHandler, HealthHandler healthHandler) {
+                      UpdateHandler updateHandler, VisibilityHandler visibilityHandler,
+                      MessageVisibilityHandler messageVisibilityHandler, HealthHandler healthHandler) {
         this.port = port; this.cloudHandler = cloudHandler; this.timelineHandler = timelineHandler;
-        this.updateHandler = updateHandler; this.visibilityHandler = visibilityHandler; this.healthHandler = healthHandler;
+        this.updateHandler = updateHandler; this.visibilityHandler = visibilityHandler;
+        this.messageVisibilityHandler = messageVisibilityHandler; this.healthHandler = healthHandler;
     }
 
     public void start() throws Exception {
@@ -28,6 +31,7 @@ public class HttpServer {
         TimelineHandler th = timelineHandler;
         UpdateHandler uh = updateHandler;
         VisibilityHandler vh = visibilityHandler;
+        MessageVisibilityHandler mvh = messageVisibilityHandler;
         HealthHandler hh = healthHandler;
         server.setHandler(new Handler.Abstract() {
             @Override
@@ -36,6 +40,7 @@ public class HttpServer {
                 if (path.contains("/cloud/")) return ch.handle(request, response, callback);
                 if (path.contains("/words/") && path.endsWith("/timeline")) return th.handle(request, response, callback);
                 if (path.startsWith("/internal/visibility")) return vh.handle(request, response, callback);
+                if (path.startsWith("/internal/message-visibility")) return mvh.handle(request, response, callback);
                 if (path.startsWith("/internal/update")) return uh.handle(request, response, callback);
                 return hh.handle(request, response, callback);
             }

@@ -21,8 +21,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     public void save(Conference conference) {
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
@@ -33,6 +33,10 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(6, conference.getCreatedAt().toString());
             ps.setString(7, conference.getUpdatedAt().toString());
             ps.setString(8, conference.getExpiresAt() != null ? conference.getExpiresAt().toString() : null);
+            if (conference.getLatitude() != null) ps.setDouble(9, conference.getLatitude());
+            else ps.setNull(9, Types.REAL);
+            if (conference.getLongitude() != null) ps.setDouble(10, conference.getLongitude());
+            else ps.setNull(10, Types.REAL);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -84,12 +88,17 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     }
 
     private Conference map(ResultSet rs) throws SQLException {
+        double lat = rs.getDouble("latitude");
+        Double latitude = rs.wasNull() ? null : lat;
+        double lng = rs.getDouble("longitude");
+        Double longitude = rs.wasNull() ? null : lng;
         return new Conference(
             rs.getString("uuid"), rs.getString("friendly_id"), rs.getString("name"),
             rs.getString("created_by_user_uuid"),
             ConferenceStatus.valueOf(rs.getString("status")),
             parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at")),
-            parseInstantNullable(rs.getString("expires_at"))
+            parseInstantNullable(rs.getString("expires_at")),
+            latitude, longitude
         );
     }
 

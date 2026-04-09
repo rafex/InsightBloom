@@ -34,19 +34,19 @@
         span.word-cell {{ item.wordCanonical }}
       td {{ item.wordNormalized }}
       td
-        span.status(:class="statusClass(item.status)") {{ statusLabel(item.status) }}
+        span.status(:class="statusClass(item.contentStatus)") {{ statusLabel(item.contentStatus) }}
       td.actions
         button.btn-sm.btn-danger(
-          v-if="item.status === 'VISIBLE' || item.status === 'PENDIENTE_REVISION'"
+          v-if="item.contentStatus === 'VISIBLE' || item.contentStatus === 'PENDIENTE_REVISION'"
           @click="censor(item)"
           :disabled="item._loading"
         ) Censurar
         button.btn-sm.btn-success(
-          v-if="item.status !== 'VISIBLE'"
+          v-if="item.contentStatus !== 'VISIBLE'"
           @click="restore(item)"
           :disabled="item._loading"
         ) Restaurar
-        button.btn-sm.btn-secondary(@click="verMensajes(item)" title="Ver mensajes de esta palabra") Ver mensajes
+        button.btn-sm.btn-secondary(@click="verMensajes(item)") Ver mensajes
 </template>
 
 <script>
@@ -82,16 +82,24 @@ export default {
 
     function goToPage(p) { page.value = p; load() }
 
-    async function censor(row) {
-      row._loading = true
-      try { await censorWord(row.uuid, null, auth.state.token); await load() }
-      catch (e) { row._loading = false }
+    async function censor(item) {
+      item._loading = true
+      try { await censorWord(item.uuid, null, auth.state.token); await load() }
+      catch (e) { item._loading = false }
     }
 
-    async function restore(row) {
-      row._loading = true
-      try { await restoreWord(row.uuid, auth.state.token); await load() }
-      catch (e) { row._loading = false }
+    async function restore(item) {
+      item._loading = true
+      try { await restoreWord(item.uuid, auth.state.token); await load() }
+      catch (e) { item._loading = false }
+    }
+
+    function verMensajes(item) {
+      const params = new URLSearchParams({
+        wordNormalized: item.wordNormalized || item.wordCanonical,
+        wordCanonical: item.wordCanonical
+      })
+      router.push(`/dashboard/conferences/${props.conferenceId}/moderation/messages?${params}`)
     }
 
     function statusClass(s) {
@@ -101,14 +109,6 @@ export default {
     function statusLabel(s) {
       const map = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente' }
       return map[s] || s
-    }
-
-    function verMensajes(word) {
-      const params = new URLSearchParams({
-        wordNormalized: word.wordNormalized,
-        wordCanonical: word.wordCanonical
-      })
-      router.push(`/dashboard/conferences/${props.conferenceId}/moderation/messages?${params}`)
     }
 
     onMounted(async () => {
@@ -121,7 +121,7 @@ export default {
       }
     })
 
-    return { words, loading, page, totalPages, statusFilter, conferenceName, load, goToPage, censor, restore, statusClass, statusLabel, verMensajes }
+    return { words, loading, page, totalPages, statusFilter, conferenceName, load, goToPage, censor, restore, verMensajes, statusClass, statusLabel }
   }
 }
 </script>

@@ -15,18 +15,21 @@ public class CreateConferenceUseCase {
         this.friendlyIdService = friendlyIdService;
     }
 
-    public record CreateRequest(String name, String createdByUserUuid, String expiresAt) {}
-    public record CreateResult(String conferenceId, String friendlyId, String name, String status, String expiresAt) {}
+    public record CreateRequest(String name, String createdByUserUuid, String expiresAt, Double latitude, Double longitude) {}
+    public record CreateResult(String conferenceId, String friendlyId, String name, String status,
+                               String expiresAt, Double latitude, Double longitude) {}
 
     public CreateResult execute(CreateRequest request) {
         String friendlyId = friendlyIdService.generate(request.name());
         Instant expiresAt = parseInstant(request.expiresAt());
-        Conference conference = new Conference(friendlyId, request.name(), request.createdByUserUuid(), expiresAt);
+        Conference conference = new Conference(friendlyId, request.name(), request.createdByUserUuid(),
+                expiresAt, request.latitude(), request.longitude());
         conferenceRepository.save(conference);
         return new CreateResult(
             conference.getUuid(), conference.getFriendlyId(),
             conference.getName(), conference.getStatus().name().toLowerCase(),
-            expiresAt != null ? expiresAt.toString() : null
+            expiresAt != null ? expiresAt.toString() : null,
+            conference.getLatitude(), conference.getLongitude()
         );
     }
 

@@ -63,10 +63,14 @@ public class ConferenceHandler extends BaseHandler {
             return true;
         }
         var body = readBody(request, Map.class);
+        Double latitude = body.get("latitude") instanceof Number n ? n.doubleValue() : null;
+        Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
         var result = createConferenceUseCase.execute(new CreateConferenceUseCase.CreateRequest(
             (String) body.get("name"),
             validation.subjectUuid(),
-            (String) body.get("expiresAt")
+            (String) body.get("expiresAt"),
+            latitude,
+            longitude
         ));
         created(response, callback, result);
         return true;

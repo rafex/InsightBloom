@@ -45,6 +45,17 @@ public class SqliteWordTimelineRepository implements WordTimelineRepository {
         } catch (SQLException e) { throw new RuntimeException(e); }
         return list;
     }
+    @Override
+    public void updateMessageVisibility(String messageUuid, boolean visible) {
+        String sql = "UPDATE word_timeline SET is_visible=?, updated_at=? WHERE message_uuid=?";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, visible ? 1 : 0);
+            ps.setString(2, Instant.now().toString());
+            ps.setString(3, messageUuid);
+            ps.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
     private WordTimeline map(ResultSet rs) throws SQLException {
         return new WordTimeline(rs.getString("uuid"),rs.getString("conference_uuid"),
             rs.getString("word_normalized"),rs.getString("message_uuid"),

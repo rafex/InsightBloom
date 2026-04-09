@@ -68,11 +68,15 @@ public class DatabaseManager {
                     status TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
-                    expires_at TEXT
+                    expires_at TEXT,
+                    latitude REAL,
+                    longitude REAL
                 )
             """);
-            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN expires_at TEXT"); }
-            catch (SQLException ignored) { /* column already exists */ }
+            // Migrations for existing databases
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN expires_at TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN latitude REAL"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN longitude REAL"); } catch (SQLException ignored) {}
             // Seed a default organizer for PoC
             stmt.executeUpdate("""
                 INSERT OR IGNORE INTO users (uuid, username, display_name, email, role, status, created_at, updated_at)

@@ -15,12 +15,14 @@ public class QueryApplication {
         var getTimelineUseCase = new GetTimelineUseCase(timelineRepo);
         var updateUseCase = new UpdateCloudUseCase(cloudRepo, timelineRepo);
         var setVisibilityUseCase = new SetVisibilityUseCase(cloudRepo);
+        var setMessageVisibilityUseCase = new SetMessageVisibilityUseCase(timelineRepo);
         var cloudHandler = new CloudHandler(getCloudUseCase);
         var timelineHandler = new TimelineHandler(getTimelineUseCase);
         var updateHandler = new UpdateHandler(updateUseCase);
         var visibilityHandler = new VisibilityHandler(setVisibilityUseCase);
+        var messageVisibilityHandler = new MessageVisibilityHandler(setMessageVisibilityUseCase);
         var healthHandler = new HealthHandler();
-        var server = new HttpServer(port, cloudHandler, timelineHandler, updateHandler, visibilityHandler, healthHandler);
+        var server = new HttpServer(port, cloudHandler, timelineHandler, updateHandler, visibilityHandler, messageVisibilityHandler, healthHandler);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> { try { server.stop(); } catch (Exception e) { e.printStackTrace(); } }));
         server.start();
         server.join();
