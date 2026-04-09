@@ -22,8 +22,7 @@ FROM nginx:1.27-alpine AS runtime
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Copia configuración personalizada
-COPY container/frontend/proxy_params.conf /etc/nginx/conf.d/proxy_params.conf
-COPY container/frontend/nginx.conf        /etc/nginx/conf.d/default.conf
+COPY container/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copia el build de Vite
 COPY --from=builder /app/dist /usr/share/nginx/html
