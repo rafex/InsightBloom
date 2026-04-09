@@ -18,8 +18,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     @Override
     public void save(Conference conference) {
         String sql = """
-            INSERT OR REPLACE INTO conferences (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO conferences (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, latitude, longitude)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
@@ -29,6 +29,10 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(5, conference.getStatus().name());
             ps.setString(6, conference.getCreatedAt().toString());
             ps.setString(7, conference.getUpdatedAt().toString());
+            if (conference.getLatitude() != null) ps.setDouble(8, conference.getLatitude());
+            else ps.setNull(8, Types.REAL);
+            if (conference.getLongitude() != null) ps.setDouble(9, conference.getLongitude());
+            else ps.setNull(9, Types.REAL);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -61,11 +65,16 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(1, param);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
+                double lat = rs.getDouble("latitude");
+                Double latitude = rs.wasNull() ? null : lat;
+                double lng = rs.getDouble("longitude");
+                Double longitude = rs.wasNull() ? null : lng;
                 return Optional.of(new Conference(
                     rs.getString("uuid"), rs.getString("friendly_id"), rs.getString("name"),
                     rs.getString("created_by_user_uuid"),
                     ConferenceStatus.valueOf(rs.getString("status")),
-                    Instant.parse(rs.getString("created_at")), Instant.parse(rs.getString("updated_at"))
+                    Instant.parse(rs.getString("created_at")), Instant.parse(rs.getString("updated_at")),
+                    latitude, longitude
                 ));
             }
         } catch (SQLException e) {

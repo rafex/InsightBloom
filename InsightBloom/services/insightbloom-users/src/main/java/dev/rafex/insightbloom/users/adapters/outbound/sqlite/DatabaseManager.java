@@ -63,9 +63,14 @@ public class DatabaseManager {
                     created_by_user_uuid TEXT NOT NULL,
                     status TEXT NOT NULL,
                     created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    latitude REAL,
+                    longitude REAL
                 )
             """);
+            // Migrations for existing databases
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN latitude REAL"); } catch (SQLException ignore) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN longitude REAL"); } catch (SQLException ignore) {}
             // Seed a default organizer for PoC
             stmt.executeUpdate("""
                 INSERT OR IGNORE INTO users (uuid, username, display_name, email, role, status, created_at, updated_at)

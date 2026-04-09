@@ -11,8 +11,10 @@ public class Conference {
     private ConferenceStatus status;
     private final Instant createdAt;
     private Instant updatedAt;
+    private Double latitude;
+    private Double longitude;
 
-    public Conference(String friendlyId, String name, String createdByUserUuid) {
+    public Conference(String friendlyId, String name, String createdByUserUuid, Double latitude, Double longitude) {
         this.uuid = UUID.randomUUID().toString();
         this.friendlyId = friendlyId;
         this.name = name;
@@ -20,10 +22,13 @@ public class Conference {
         this.status = ConferenceStatus.ACTIVE;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     public Conference(String uuid, String friendlyId, String name, String createdByUserUuid,
-                      ConferenceStatus status, Instant createdAt, Instant updatedAt) {
+                      ConferenceStatus status, Instant createdAt, Instant updatedAt,
+                      Double latitude, Double longitude) {
         this.uuid = uuid;
         this.friendlyId = friendlyId;
         this.name = name;
@@ -31,6 +36,8 @@ public class Conference {
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     public String getUuid() { return uuid; }
@@ -40,4 +47,6 @@ public class Conference {
     public ConferenceStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public Double getLatitude() { return latitude; }
+    public Double getLongitude() { return longitude; }
 }

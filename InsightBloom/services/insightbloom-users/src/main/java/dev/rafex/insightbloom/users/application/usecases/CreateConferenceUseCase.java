@@ -13,14 +13,16 @@ public class CreateConferenceUseCase {
         this.friendlyIdService = friendlyIdService;
     }
 
-    public record CreateRequest(String name, String createdByUserUuid) {}
-    public record CreateResult(String conferenceId, String friendlyId, String name, String status) {}
+    public record CreateRequest(String name, String createdByUserUuid, Double latitude, Double longitude) {}
+    public record CreateResult(String conferenceId, String friendlyId, String name, String status, Double latitude, Double longitude) {}
 
     public CreateResult execute(CreateRequest request) {
         String friendlyId = friendlyIdService.generate(request.name());
-        Conference conference = new Conference(friendlyId, request.name(), request.createdByUserUuid());
+        Conference conference = new Conference(friendlyId, request.name(), request.createdByUserUuid(),
+                request.latitude(), request.longitude());
         conferenceRepository.save(conference);
         return new CreateResult(conference.getUuid(), conference.getFriendlyId(),
-                conference.getName(), conference.getStatus().name().toLowerCase());
+                conference.getName(), conference.getStatus().name().toLowerCase(),
+                conference.getLatitude(), conference.getLongitude());
     }
 }
