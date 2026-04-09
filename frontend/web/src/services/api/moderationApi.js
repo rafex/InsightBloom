@@ -36,9 +36,9 @@ export async function restoreWord(wordId, token) {
   return res.data
 }
 
-export async function censorMessage(messageId, reason, target, token) {
+export async function censorMessage(messageId, reason, target, token, conferenceId, wordText, detailText) {
   const res = await axios.post(`${BASE}/moderation/messages/${messageId}/censor`,
-    { reason, target: target || 'detail' },
+    { reason, target: target || 'detail', conferenceUuid: conferenceId, wordText, detailText },
     { headers: authHeader(token) })
   return res.data
 }

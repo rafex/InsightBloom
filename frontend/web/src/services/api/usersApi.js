@@ -22,6 +22,13 @@ export async function deleteConference(uuid, token) {
   })
 }
 
+export async function getConference(id, token) {
+  const res = await axios.get(`/api/users/api/v1/conferences/${id}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return res.data.data
+}
+
 export async function getConferenceByFriendlyId(friendlyId) {
   const res = await axios.get(`/api/users/api/v1/conferences/by-friendly/${friendlyId}`)
   return res.data.data
