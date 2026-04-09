@@ -16,10 +16,17 @@ Fuente de verdad de la base tecnologica del proyecto.
   de palabras interactiva y ThumbmarkJS para obtener el identificador de
   dispositivo del cliente.
 - Backend:
-  biblioteca estandar de Java 25 y
-  `dev.rafex.ether.http:ether-http-jetty12` para exponer endpoints HTTP
-  sobre Jetty 12 usando handlers. Para autenticacion y manejo criptografico
-  se utilizara el proyecto `ether-crypto`.
+  Java 25 con Ether 9.5.5 como framework base.
+  `insightbloom-parent` hereda de `dev.rafex.ether.parent:ether-parent:9.5.5`,
+  que gestiona las versiones de Jetty 12 y Jackson de forma centralizada.
+  Modulos Ether en uso:
+  - `ether-http-jetty12`: servidor HTTP sobre Jetty 12 con routing y handlers.
+  - `ether-json`: codec JSON sobre Jackson.
+  - `ether-jwt`: generacion y validacion de tokens JWT (HS256/RS256/ES256).
+  - `ether-crypto`: primitivas criptograficas, hashing SHA-256 de contrasenas.
+  - `ether-http-client`: cliente HTTP saliente para llamadas inter-servicio.
+  - `ether-database-core` + `ether-jdbc`: abstracciones JDBC para SQLite.
+  - `ether-config`: configuracion tipada.
 
 ## Infraestructura
 
@@ -46,10 +53,8 @@ Fuente de verdad de la base tecnologica del proyecto.
   el frontend obtendra un identificador de dispositivo con ThumbmarkJS para
   enviarlo como parte del contrato.
 - Maven Central / Sonatype:
-  distribucion de la dependencia `ether-http-jetty12`.
-- GitHub:
-  referencia del proyecto `ether-crypto`:
-  `https://github.com/rafex/ether-crypto/tree/main`
+  todos los modulos Ether se distribuyen desde Maven Central via
+  `dev.rafex.ether.*`. Catalogo oficial: https://ether.rafex.io/
 - Tooling local:
   `Makefile` como builder y `Justfile` como task runner. Los scripts de
   soporte viven en `scripts/build/` (construccion), `scripts/run/`
