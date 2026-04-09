@@ -31,7 +31,7 @@
     .message-row(v-for="item in items" :key="item.id || item.messageId || item.uuid")
       .msg-word(v-if="!wordCanonical")
         span.word-chip {{ item.wordText || '—' }}
-      .msg-detail {{ item.detailText || item.detail || '—' }}
+      .msg-detail {{ item.detailText || item.detail || item.detailVisible || '—' }}
       .msg-meta
         span.msg-author {{ item.author?.displayName || 'Anónimo' }}
         span.msg-time(v-if="item.receivedAt || item.updatedAt") · {{ formatTime(item.receivedAt || item.updatedAt) }}
@@ -91,10 +91,16 @@ export default {
           getWordTimeline(props.conferenceId, wordCanonical || wordNormalized, 'doubt'),
           getWordTimeline(props.conferenceId, wordCanonical || wordNormalized, 'topic')
         ])
+        const seen = new Set()
         const merged = [
           ...(doubts.status === 'fulfilled' ? doubts.value || [] : []),
           ...(topics.status === 'fulfilled' ? topics.value || [] : [])
-        ]
+        ].filter(m => {
+          const id = m.messageId || m.uuid
+          if (seen.has(id)) return false
+          seen.add(id)
+          return true
+        })
         // Sort by receivedAt descending
         merged.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
         items.value = merged.map(m => ({ ...m, detailStatus: null, _loading: false }))
@@ -117,7 +123,7 @@ export default {
     async function censorDetail(item) {
       item._loading = true
       const messageId = item.messageId || item.uuid
-      const detailTxt = item.detail || item.detailText || ''
+      const detailTxt = item.detail || item.detailVisible || item.detailText || ''
       const wordTxt = item.word || item.wordText || wordCanonical || ''
       try {
         await censorMessage(
