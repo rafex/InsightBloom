@@ -36,7 +36,9 @@ ci:
 # ── Docker / Compose ──────────────────────────────────────────────────────────
 
 # Construye imágenes y levanta todos los contenedores (equivalente a `just dev` pero en Docker)
+# Detiene cualquier instancia previa del stack antes de levantar
 container-dev:
+    docker compose -f container/compose.yml down --remove-orphans 2>/dev/null || true
     docker compose -f container/compose.yml up --build
 
 # Construye imágenes y levanta en segundo plano
