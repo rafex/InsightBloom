@@ -1,0 +1,33 @@
+# ── Dependencias ─────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Build output de Vite ──────────────────────────────────────────────────────
+dist/
+dist-ssr/
+
+# ── Caché de Vite ─────────────────────────────────────────────────────────────
+.vite/
+**/.vite/
+
+# ── Cobertura de tests ────────────────────────────────────────────────────────
+coverage/
+.vitest-cache/
+
+# ── Variables de entorno locales ──────────────────────────────────────────────
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ── Logs de npm/pnpm/yarn ─────────────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ── Archivos generados por editores ──────────────────────────────────────────
+*.local
+
+# ── TypeScript (si se migra en el futuro) ─────────────────────────────────────
+*.tsbuildinfo

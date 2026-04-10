@@ -35,13 +35,25 @@ ci:
 
 # ── Docker / Compose ──────────────────────────────────────────────────────────
 
-# Construye imágenes y levanta todos los contenedores
-up:
-    docker compose -f infra/compose/local.yml up --build
+# Construye imágenes y levanta todos los contenedores (equivalente a `just dev` pero en Docker)
+container-dev:
+    docker compose -f container/compose.yml up --build
 
-# Para y elimina los contenedores
+# Construye imágenes y levanta en segundo plano
+up:
+    docker compose -f container/compose.yml up --build -d
+
+# Para los contenedores (sin eliminar volúmenes)
 down:
-    docker compose -f infra/compose/local.yml down
+    docker compose -f container/compose.yml down
+
+# Para y elimina volúmenes (reset completo)
+down-clean:
+    docker compose -f container/compose.yml down -v
+
+# Muestra los logs de todos los servicios (o de uno: just logs insightbloom-users)
+logs SERVICE="":
+    docker compose -f container/compose.yml logs -f {{SERVICE}}
 
 # ── Helm ──────────────────────────────────────────────────────────────────────
 

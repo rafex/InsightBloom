@@ -1,0 +1,22 @@
+# ── Scripts locales (no compartir configuraciones personales) ─────────────────
+*.local.sh
+*.local.py
+
+# ── Python (scripts de simulación) ───────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+venv/
+.venv/
+*.egg-info/
+
+# ── Salida de simulaciones ────────────────────────────────────────────────────
+output/
+results/
+*.csv
+*.json.tmp
+
+# ── Variables de entorno de scripts ──────────────────────────────────────────
+.env
+config.local.sh

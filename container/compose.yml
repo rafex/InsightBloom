@@ -25,7 +25,7 @@ volumes:
 
 # ── Fragmento reutilizable de build Java ─────────────────────────────────────
 x-java-build: &java-build
-  context: .
+  context: ..
   dockerfile: container/backend/java/Dockerfile
 
 services:
@@ -173,7 +173,7 @@ services:
   # ── 6. Web – SPA Vue + nginx reverse proxy ─────────────────────────────────
   insightbloom-web:
     build:
-      context: .
+      context: ..
       dockerfile: container/frontend/Dockerfile
     ports:
       - "8080:80"

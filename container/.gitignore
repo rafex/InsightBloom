@@ -1,0 +1,22 @@
+# ── Overrides locales de Compose ──────────────────────────────────────────────
+compose.override.yml
+docker-compose.override.yml
+
+# ── Imágenes exportadas ───────────────────────────────────────────────────────
+*.tar
+*.tar.gz
+
+# ── Variables de entorno por servicio ────────────────────────────────────────
+*.env
+.env.*
+!.env.example
+
+# ── Datos de volúmenes montados localmente ────────────────────────────────────
+data/
+volumes/
+
+# ── Certificados TLS locales ──────────────────────────────────────────────────
+certs/
+*.pem
+*.crt
+*.key

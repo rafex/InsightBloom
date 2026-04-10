@@ -1,0 +1,39 @@
+# ── Maven build output ────────────────────────────────────────────────────────
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# ── Clases compiladas sueltas ─────────────────────────────────────────────────
+**/*.class
+
+# ── JVM crash dumps ───────────────────────────────────────────────────────────
+hs_err_pid*.log
+replay_pid*.log
+
+# ── IntelliJ IDEA ─────────────────────────────────────────────────────────────
+**/.idea/
+**/*.iml
+**/*.iws
+**/*.ipr
+**/out/
+
+# ── Eclipse ───────────────────────────────────────────────────────────────────
+**/.project
+**/.classpath
+**/.settings/
+**/.factorypath
+**/bin/
+
+# ── NetBeans ──────────────────────────────────────────────────────────────────
+**/nbproject/private/
+**/nbbuild/
+**/nbdist/
+**/.nb-gradle/
+
+# ── Checkstyle cache ──────────────────────────────────────────────────────────
+.checkstyle
+checkstyle-cachefile
+
+# ── JARs de distribución local (no subir artefactos) ─────────────────────────
+# Excluye JARs compilados pero preserva el wrapper de Maven
+*.jar
+!**/.mvn/wrapper/maven-wrapper.jar

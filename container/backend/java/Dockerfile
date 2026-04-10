@@ -1,11 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Stage 1 – Builder: compila todos los servicios con Maven
+# Stage 1 – Builder: compila todos los servicios con Maven Wrapper
 # ─────────────────────────────────────────────────────────────────────────────
 FROM eclipse-temurin:25-jdk-alpine AS builder
 
+# unzip es necesario para que el Maven Wrapper extraiga la distribución
+RUN apk add --no-cache unzip
+
 WORKDIR /workspace
 
-# Maven wrapper (cacheado antes del código fuente)
+# Maven Wrapper raíz (cacheado antes del código fuente)
 COPY .mvn/   .mvn/
 COPY mvnw    ./
 RUN  chmod +x mvnw
@@ -14,14 +17,19 @@ RUN  chmod +x mvnw
 COPY pom.xml ./
 COPY backend/ backend/
 
-# 1. Instala el parent POM raíz
+# Permisos de los wrappers de cada módulo
+RUN chmod +x backend/contracts/mvnw \
+             backend/services/mvnw \
+             backend/cli/mvnw
+
+# 1. Instala el parent POM raíz usando el wrapper raíz
 RUN ./mvnw -f pom.xml install -N -DskipTests -q
 
-# 2. Instala el módulo de contratos (dependencia compartida entre servicios)
-RUN ./mvnw -f backend/contracts/pom.xml clean install -DskipTests -q
+# 2. Instala el módulo de contratos usando su propio wrapper
+RUN backend/contracts/mvnw -f backend/contracts/pom.xml clean install -DskipTests -q
 
-# 3. Empaqueta todos los servicios (fat JARs vía maven-shade-plugin)
-RUN ./mvnw -f backend/services/pom.xml clean package -DskipTests -q
+# 3. Empaqueta todos los servicios usando su propio wrapper
+RUN backend/services/mvnw -f backend/services/pom.xml clean package -DskipTests -q
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 – Runtime: imagen mínima JRE para un servicio específico

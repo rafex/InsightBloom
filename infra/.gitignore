@@ -1,0 +1,39 @@
+# ── Terraform ─────────────────────────────────────────────────────────────────
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ── Helm – dependencias descargadas ──────────────────────────────────────────
+**/charts/charts/
+**/charts/*.lock
+**/charts/tmpcharts/
+
+# ── Kubeconfig locales ────────────────────────────────────────────────────────
+kubeconfig
+*.kubeconfig
+.kube/
+
+# ── Secretos y credenciales ───────────────────────────────────────────────────
+*.pem
+*.key
+*.crt
+secrets.yaml
+secrets.yml
+*-secret.yaml
+*-secret.yml
+
+# ── Imágenes Docker exportadas ───────────────────────────────────────────────
+*.tar
+*.tar.gz
+
+# ── Overrides locales de Compose ──────────────────────────────────────────────
+compose.override.yml
+docker-compose.override.yml
