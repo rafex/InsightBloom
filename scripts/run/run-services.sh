@@ -23,11 +23,13 @@ done
 sleep 1
 
 echo "[run-services] Starting all services..."
-for svc in "${SERVICES[@]}"; do
+for i in "${!SERVICES[@]}"; do
+  svc="${SERVICES[$i]}"
+  port="${PORTS[$i]}"
   JAR=$(find backend/services/$svc/target -name "*.jar" -not -name "*sources*" -not -name "original-*" 2>/dev/null | head -1)
   if [[ -n "$JAR" ]]; then
-    echo "[run-services] Starting $svc..."
-    java -jar "$JAR" &
+    echo "[run-services] Starting $svc on port $port..."
+    PORT=$port java -jar "$JAR" &
   else
     echo "[run-services] Skipping $svc (not built)"
   fi

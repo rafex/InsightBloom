@@ -1,76 +1,145 @@
 package dev.rafex.insightbloom.ingest.adapters.inbound.http.handlers;
+
+import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.http.core.Route;
+import dev.rafex.ether.http.jetty12.response.JettyApiResponses;
+import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
+import dev.rafex.ether.http.jetty12.handler.NonBlockingResourceHandler;
+import dev.rafex.ether.json.JsonCodec;
+import dev.rafex.ether.json.JsonUtils;
+import dev.rafex.insightbloom.contracts.ApiError;
+import dev.rafex.insightbloom.contracts.ApiMeta;
+import dev.rafex.insightbloom.contracts.ApiResponse;
 import dev.rafex.insightbloom.ingest.application.usecases.GetMessageUseCase;
 import dev.rafex.insightbloom.ingest.application.usecases.IngestMessageUseCase;
 import dev.rafex.insightbloom.ingest.domain.ports.UsersPort;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-public class IngestHandler extends BaseHandler {
+import java.util.Set;
+import java.util.UUID;
+
+public class IngestHandler extends NonBlockingResourceHandler {
+
+    private static final JsonCodec JSON_CODEC = JsonUtils.codec();
+    private static final JettyApiResponses RESPONSES = new JettyApiResponses(JSON_CODEC);
+
     private final IngestMessageUseCase ingestUseCase;
     private final GetMessageUseCase getMessageUseCase;
     private final UsersPort usersPort;
-    public IngestHandler(IngestMessageUseCase ingestUseCase, GetMessageUseCase getMessageUseCase, UsersPort usersPort) {
-        this.ingestUseCase=ingestUseCase; this.getMessageUseCase=getMessageUseCase; this.usersPort=usersPort;
+
+    public IngestHandler(final IngestMessageUseCase ingestUseCase, final GetMessageUseCase getMessageUseCase,
+                         final UsersPort usersPort) {
+        super(JSON_CODEC);
+        this.ingestUseCase = ingestUseCase;
+        this.getMessageUseCase = getMessageUseCase;
+        this.usersPort = usersPort;
     }
+
     @Override
-    public boolean handle(Request req, Response res, Callback cb) throws Exception {
-        String path = req.getHttpURI().getPath();
-        String method = req.getMethod();
-        // POST /api/v1/messages
-        if ("POST".equals(method) && path.matches(".*/messages/?$")) {
-            return handleIngest(req, res, cb, false);
+    protected String basePath() {
+        return "/api/v1";
+    }
+
+    @Override
+    protected List<Route> routes() {
+        return List.of(
+                Route.of("/messages", Set.of("POST")),
+                Route.of("/messages/{id}", Set.of("GET")),
+                Route.of("/webhooks/messages", Set.of("POST")));
+    }
+
+    @Override
+    public Set<String> supportedMethods() {
+        return Set.of("GET", "POST");
+    }
+
+    @Override
+    public boolean get(final HttpExchange x) {
+        final var jx = asJetty(x);
+        final String id = jx.pathParam("id");
+        if (id == null) {
+            sendError(jx, 404, "not_found", "Endpoint not found");
+            return true;
         }
-        // POST /api/v1/webhooks/messages
-        if ("POST".equals(method) && path.contains("/webhooks/")) {
-            return handleIngest(req, res, cb, true);
+        try {
+            getMessageUseCase.execute(id).ifPresentOrElse(
+                    m -> sendOk(jx, 200, m),
+                    () -> sendError(jx, 404, "message_not_found", "Message not found"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
         }
-        // GET /api/v1/messages/{id}
-        if ("GET".equals(method) && path.matches(".*/messages/[^/]+$")) {
-            String id = path.substring(path.lastIndexOf("/")+1);
-            return handleGet(id, res, cb);
-        }
-        error(res,cb,404,"not_found","Endpoint not found");
         return true;
     }
-    private boolean handleIngest(Request req, Response res, Callback cb, boolean isWebhook) throws Exception {
-        String token = getToken(req);
-        String authorUuid = "anonymous"; String authorKind = "guest"; String role = "guest";
-        String displayName = null;
-        if (token != null) {
-            var validation = usersPort.validate(token);
-            if (!validation.valid()) { error(res,cb,401,"token_invalid","Invalid token"); return true; }
-            authorUuid = validation.subjectUuid(); authorKind = validation.kind(); role = validation.role();
+
+    @Override
+    public boolean post(final HttpExchange x) {
+        final var jx = asJetty(x);
+        final boolean isWebhook = jx.path().contains("/webhooks/");
+        return handleIngest(jx, isWebhook);
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean handleIngest(final JettyHttpExchange jx, final boolean isWebhook) {
+        try {
+            final String authHeader = jx.request().getHeaders().get("Authorization");
+            final String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
+
+            String authorUuid = "anonymous";
+            String authorKind = "guest";
+            String displayName = null;
+
+            if (token != null) {
+                final var validation = usersPort.validate(token);
+                if (!validation.valid()) {
+                    sendError(jx, 401, "token_invalid", "Invalid token");
+                    return true;
+                }
+                authorUuid = validation.subjectUuid();
+                authorKind = validation.kind();
+            }
+
+            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final Map<Object, Object> author = body.get("author") instanceof Map ? (Map<Object, Object>) body.get("author") : new HashMap<>();
+            final Map<Object, Object> device = body.get("device") instanceof Map ? (Map<Object, Object>) body.get("device") : new HashMap<>();
+            final Map<Object, Object> msgMap = body.get("message") instanceof Map ? (Map<Object, Object>) body.get("message") : (Map<Object, Object>) (Map<?, ?>) body;
+
+            final String conferenceUuid = (String) body.get("conferenceId");
+            if (author.get("displayName") != null) displayName = (String) author.get("displayName");
+            if (author.get("userId") != null) authorUuid = (String) author.get("userId");
+            if (author.get("kind") != null) authorKind = (String) author.get("kind");
+
+            final String fingerprint = device.get("fingerprint") != null ? (String) device.get("fingerprint") : "";
+            final String msgType = msgMap.get("type") != null ? (String) msgMap.get("type") : "doubt";
+            final String word = msgMap.get("word") != null ? (String) msgMap.get("word") : "";
+            final String detail = msgMap.get("detail") != null ? (String) msgMap.get("detail") : "";
+            final String receivedAt = body.get("receivedAt") != null ? (String) body.get("receivedAt") : Instant.now().toString();
+
+            final var result = ingestUseCase.execute(new IngestMessageUseCase.IngestRequest(
+                    conferenceUuid, authorUuid, authorKind, displayName, fingerprint,
+                    msgType, isWebhook ? "WEBHOOK" : "REST", word, detail, receivedAt));
+
+            sendOk(jx, 201, Map.of("messageId", result.getUuid(), "status", result.getWordStatus().name().toLowerCase()));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
         }
-        var body = readBody(req, Map.class);
-        @SuppressWarnings("unchecked")
-        Map<Object,Object> author = body.get("author") instanceof Map ? (Map<Object,Object>) body.get("author") : new java.util.HashMap<>();
-        @SuppressWarnings("unchecked")
-        Map<Object,Object> device = body.get("device") instanceof Map ? (Map<Object,Object>) body.get("device") : new java.util.HashMap<>();
-        @SuppressWarnings("unchecked")
-        Map<Object,Object> msgMap = body.get("message") instanceof Map ? (Map<Object,Object>) body.get("message") : (Map<Object,Object>)(Map<?,?>) body;
-        String conferenceUuid = (String) body.get("conferenceId");
-        if (author.get("displayName") != null) displayName = (String) author.get("displayName");
-        if (author.get("userId") != null) authorUuid = (String) author.get("userId");
-        if (author.get("kind") != null) authorKind = (String) author.get("kind");
-        String fingerprint = device.get("fingerprint") != null ? (String) device.get("fingerprint") : "";
-        String msgType = msgMap.get("type") != null ? (String) msgMap.get("type") : "doubt";
-        String word = msgMap.get("word") != null ? (String) msgMap.get("word") : "";
-        String detail = msgMap.get("detail") != null ? (String) msgMap.get("detail") : "";
-        String receivedAt = body.get("receivedAt") != null ? (String) body.get("receivedAt") : java.time.Instant.now().toString();
-        var result = ingestUseCase.execute(new IngestMessageUseCase.IngestRequest(
-            conferenceUuid, authorUuid, authorKind, displayName, fingerprint,
-            msgType, isWebhook ? "WEBHOOK" : "REST", word, detail, receivedAt
-        ));
-        created(res, cb, Map.of("messageId", result.getUuid(), "status", result.getWordStatus().name().toLowerCase()));
         return true;
     }
-    private boolean handleGet(String id, Response res, Callback cb) throws Exception {
-        getMessageUseCase.execute(id)
-            .ifPresentOrElse(
-                m -> { try { ok(res,cb,m); } catch (Exception e) { throw new RuntimeException(e); } },
-                () -> { try { error(res,cb,404,"message_not_found","Message not found"); } catch (Exception e) { throw new RuntimeException(e); } }
-            );
-        return true;
+
+    private <T> void sendOk(final JettyHttpExchange jx, final int status, final T data) {
+        RESPONSES.json(jx.response(), jx.callback(), status,
+                new ApiResponse<>(data, ApiMeta.of(UUID.randomUUID().toString())));
+    }
+
+    private void sendError(final JettyHttpExchange jx, final int status, final String code, final String message) {
+        RESPONSES.json(jx.response(), jx.callback(), status,
+                ApiError.of(code, message, UUID.randomUUID().toString()));
+    }
+
+    private static JettyHttpExchange asJetty(final HttpExchange x) {
+        return (JettyHttpExchange) x;
     }
 }
