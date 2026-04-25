@@ -177,8 +177,19 @@ jobs:
 
       - name: Build admin CLI
         if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          architecture: x64
+          cache: maven
+
+      - name: Compile admin CLI artifact
+        if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'
         run: |
-          ./mvnw -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests
+          # Usar mvn del sistema (actions/setup-java lo instala) para evitar
+          # dependencias de wrapper/no-java en runners limpios
+          mvn -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests -q
 
       - name: Ensure admin user exists/updated from secret
         if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'
