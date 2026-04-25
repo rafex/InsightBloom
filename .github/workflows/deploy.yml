@@ -21,6 +21,7 @@ env:
   K3S_NAMESPACE: mvps
   RELEASE_NAME: insightbloom
   CHART_PATH: ./infra/helm/charts/insightbloom
+  SERVER_K3S: ${{ vars.SERVER_K3S }}
 
 jobs:
   deploy:
@@ -37,9 +38,26 @@ jobs:
             echo "Content: base64-encoded kubeconfig from your k3s cluster"
             exit 1
           fi
+          if [ -z "${{ vars.SERVER_K3S }}" ]; then
+            echo "::error::Missing required variable: SERVER_K3S"
+            echo "Create it in GitHub repo settings: Settings → Secrets and variables → Actions → Variables"
+            echo "Value: IP or hostname of your k3s server (e.g. https://192.168.1.100:6443)"
+            exit 1
+          fi
           mkdir -p "$HOME/.kube"
           echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
+
+          # Reemplazar el server del cluster en el kubeconfig
+          CURRENT_SERVER=$(yq eval '.clusters[0].cluster.server' "$HOME/.kube/config")
+          echo "Replacing server: $CURRENT_SERVER → ${{ vars.SERVER_K3S }}"
+          yq eval -i \
+            '.clusters[0].cluster.server = "${{ vars.SERVER_K3S }}"' \
+            "$HOME/.kube/config"
+
+          # Verificar que el kubeconfig es válido
+          echo "--- kubeconfig summary ---"
+          yq eval '.clusters[0].name, .clusters[0].cluster.server, .users[0].name' "$HOME/.kube/config"
 
       - name: Install Helm
         uses: azure/setup-helm@v4.3.1
