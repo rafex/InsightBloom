@@ -38,6 +38,10 @@ spec:
         - name: {{ $name }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
+            {{- if $svc.runAsUser }}
+            runAsUser: {{ $svc.runAsUser }}
+            runAsGroup: {{ $svc.runAsGroup }}
+            {{- end }}
           image: "{{ $svc.repository }}:{{ $.Values.image.tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           ports:

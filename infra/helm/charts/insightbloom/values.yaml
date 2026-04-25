@@ -28,6 +28,8 @@ securityContext:
   capabilities:
     drop:
       - ALL
+  runAsUser: 1000
+  runAsGroup: 1000
 
 service:
   type: ClusterIP
@@ -125,6 +127,8 @@ services:
   web:
     repository: ghcr.io/rafex/insightbloom-web
     port: 8080
+    runAsUser: 101
+    runAsGroup: 101
     livenessProbe:
       httpGet:
         path: /

@@ -31,7 +31,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/cache/nginx /var/run
 
-USER nginx
+USER 101
 
 EXPOSE 8080
 
