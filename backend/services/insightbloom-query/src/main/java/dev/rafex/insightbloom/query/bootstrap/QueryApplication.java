@@ -30,10 +30,10 @@ public class QueryApplication {
         final var messageVisibilityHandler = new MessageVisibilityHandler(setMessageVisibilityUseCase);
 
         final var routes = new JettyRouteRegistry();
-        routes.add("/api/v1/conferences", conferenceQueryHandler);
-        routes.add("/internal/update", updateHandler);
-        routes.add("/internal/visibility", visibilityHandler);
-        routes.add("/internal/message-visibility", messageVisibilityHandler);
+        routes.add("/api/v1/conferences/*", conferenceQueryHandler);
+        routes.add("/internal/update/*", updateHandler);
+        routes.add("/internal/visibility/*", visibilityHandler);
+        routes.add("/internal/message-visibility/*", messageVisibilityHandler);
 
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();

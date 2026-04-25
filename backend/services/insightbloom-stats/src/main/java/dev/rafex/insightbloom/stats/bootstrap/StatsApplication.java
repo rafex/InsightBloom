@@ -25,8 +25,8 @@ public class StatsApplication {
         final var statsHandler = new StatsHandler(getStatsUseCase);
 
         final var routes = new JettyRouteRegistry();
-        routes.add("/internal/recalc", recalcHandler);
-        routes.add("/api/v1/conferences", statsHandler);
+        routes.add("/internal/recalc/*", recalcHandler);
+        routes.add("/api/v1/conferences/*", statsHandler);
 
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();

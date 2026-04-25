@@ -40,8 +40,8 @@ public class UsersApplication {
 
         // Route registry
         final var routes = new JettyRouteRegistry();
-        routes.add("/api/v1/auth", authHandler);
-        routes.add("/api/v1/conferences", conferenceHandler);
+        routes.add("/api/v1/auth/*", authHandler);
+        routes.add("/api/v1/conferences/*", conferenceHandler);
 
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();

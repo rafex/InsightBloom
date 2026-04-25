@@ -38,7 +38,7 @@ public class IngestApplication {
         final var ingestHandler = new IngestHandler(ingestUseCase, getMessageUseCase, usersPort);
 
         final var routes = new JettyRouteRegistry();
-        routes.add("/api/v1", ingestHandler);
+        routes.add("/api/v1/*", ingestHandler);
 
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();
