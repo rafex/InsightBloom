@@ -1,25 +1,143 @@
 replicaCount: 1
 
+nameOverride: ""
+fullnameOverride: ""
+
 image:
-  repository: insightbloom
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   tag: "latest"
 
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 15
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  failureThreshold: 30
+  periodSeconds: 10
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 75
+
+ingress:
+  enabled: true
+  className: haproxy
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    ingress.kubernetes.io/backend-protocol: "http"
+  hosts:
+    - host: insightbloom.v1.rafex.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# ── Services ───────────────────────────────────────────────────────────────────
 services:
   users:
+    repository: ghcr.io/rafex/insightbloom-users
     port: 8081
-  ingest:
-    port: 8082
-  query:
-    port: 8083
-  moderation:
-    port: 8084
-  stats:
-    port: 8085
-  web:
-    port: 8080
+    env:
+      PORT: "8081"
+      DB_PATH: /data/users.db
 
-resources: {}
+  stats:
+    repository: ghcr.io/rafex/insightbloom-stats
+    port: 8085
+    env:
+      PORT: "8085"
+      DB_PATH: /data/stats.db
+
+  moderation:
+    repository: ghcr.io/rafex/insightbloom-moderation
+    port: 8084
+    env:
+      PORT: "8084"
+      DB_PATH: /data/moderation.db
+      QUERY_SERVICE_URL: http://insightbloom-query:8083
+
+  query:
+    repository: ghcr.io/rafex/insightbloom-query
+    port: 8083
+    env:
+      PORT: "8083"
+      DB_PATH: /data/query.db
+
+  ingest:
+    repository: ghcr.io/rafex/insightbloom-ingest
+    port: 8082
+    env:
+      PORT: "8082"
+      DB_PATH: /data/ingest.db
+      USERS_URL: http://insightbloom-users:8081
+      MODERATION_URL: http://insightbloom-moderation:8084
+      STATS_URL: http://insightbloom-stats:8085
+      QUERY_URL: http://insightbloom-query:8083
+
+  web:
+    repository: ghcr.io/rafex/insightbloom-web
+    port: 80
+    livenessProbe:
+      httpGet:
+        path: /
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 15
+    readinessProbe:
+      httpGet:
+        path: /
+        port: http
+      initialDelaySeconds: 5
+      periodSeconds: 10
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
