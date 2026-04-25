@@ -189,3 +189,44 @@ Registrar una decision cuando cambie:
   el catalogo oficial de modulos esta en https://ether.rafex.io/;
   la version minima de Java soportada por Ether es 21; InsightBloom usa 25.
 - Reemplaza: `none`
+
+### DEC-0009 - Login con password obligatorio y provisión administrativa por CLI
+
+- Fecha: 2026-04-25
+- Estado: accepted
+- Contexto:
+  el PoC permitía autenticar usuarios seed sin `password_hash`, lo que abría
+  una puerta insegura en entornos locales y remotos. Además, se requería
+  evitar endpoints de administración para alta de usuarios en operación.
+- Decision:
+  el login de `ORGANIZER` y `MODERATOR` exige siempre `username` + `password`
+  válidos contra `password_hash`. Se elimina el seed automático de `admin`
+  sin contraseña. La provisión de usuarios administrativos se realiza
+  únicamente con `insightbloom-cli create-user` (local, Docker o K3s).
+- Consecuencias:
+  mejora la seguridad básica del flujo de autenticación;
+  se requiere un paso operativo explícito de bootstrap de usuarios antes de
+  iniciar sesión por primera vez;
+  scripts de simulación y demo deben recibir `ADMIN_PASS`;
+  la documentación operativa incorpora el mecanismo para K3s sin exponer
+  endpoints de administración.
+- Reemplaza: `none`
+
+### DEC-0010 - SQLite en modo WAL para concurrencia de escrituras
+
+- Fecha: 2026-04-25
+- Estado: accepted
+- Contexto:
+  con múltiples microservicios y operaciones concurrentes sobre SQLite, el
+  modo de journal por defecto aumenta la probabilidad de bloqueos de
+  escritura en escenarios locales y de demo.
+- Decision:
+  configurar `PRAGMA journal_mode=WAL` en cada conexión SQLite de los
+  servicios backend y del CLI administrativo. Se añade además
+  `PRAGMA busy_timeout=5000` para esperar locks transitorios.
+- Consecuencias:
+  mejora la convivencia entre lecturas y escrituras concurrentes;
+  reduce errores intermitentes tipo "database is locked" bajo carga;
+  mantiene SQLite como persistencia del PoC sin introducir infraestructura
+  adicional.
+- Reemplaza: `none`

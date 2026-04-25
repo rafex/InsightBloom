@@ -93,10 +93,7 @@ just create-user -- \
   --role ORGANIZER
 ```
 
-### Actualizar la contraseña del admin de seed
-
-El usuario `admin` se crea sin contraseña al arrancar el servicio por primera
-vez. Para protegerlo:
+### Crear o actualizar admin
 
 ```bash
 just create-user -- \
@@ -132,8 +129,8 @@ Si el usuario ya existía:
 - La contraseña se hashea con **SHA-256** antes de persistirse.
 - El texto plano nunca se almacena ni se loguea.
 - El servicio `insightbloom-users` valida el hash en cada login.
-- Usuarios del seed sin `password_hash` aceptan cualquier contraseña hasta
-  que se les asigne una con este CLI.
+- El login requiere siempre `username` + `password`.
+- No hay usuario administrador con contraseña por defecto.
 
 ---
 
@@ -152,6 +149,26 @@ docker compose -f infra/compose/local.yml cp insightbloom-users:/data/users.db .
 just create-user -- --db ./users.db --username nueva --password abc --role MODERATOR
 docker compose -f infra/compose/local.yml cp ./users.db insightbloom-users:/data/users.db
 ```
+
+## K3s / Kubernetes (sin endpoint admin)
+
+Usar el wrapper:
+
+```bash
+./scripts/run/k3s-create-user.sh \
+  --namespace <ns> \
+  --release <helm-release> \
+  --username admin \
+  --password "cambia-esta-clave" \
+  --role ORGANIZER
+```
+
+El script:
+
+- compila el CLI si no existe el JAR
+- localiza el pod `users` del release Helm
+- copia el JAR al pod
+- ejecuta `create-user` sobre `/data/users.db`
 
 ---
 
