@@ -124,7 +124,7 @@ services:
 
   web:
     repository: ghcr.io/rafex/insightbloom-web
-    port: 80
+    port: 8080
     livenessProbe:
       httpGet:
         path: /

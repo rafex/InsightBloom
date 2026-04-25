@@ -44,7 +44,7 @@ WORKDIR /app
 
 # Usuario no-root para seguridad
 RUN addgroup -S insightbloom && \
-    adduser  -S insightbloom -G insightbloom && \
+    adduser  -S insightbloom -G insightbloom -u 1000 && \
     mkdir -p /data && \
     chown -R insightbloom:insightbloom /app /data
 
@@ -54,7 +54,7 @@ COPY --from=builder \
 
 RUN chown insightbloom:insightbloom app.jar
 
-USER insightbloom
+USER 1000
 
 # Variables de entorno con defaults del servicio
 ENV PORT=${SERVICE_PORT}
