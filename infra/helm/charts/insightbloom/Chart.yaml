@@ -1,6 +1,6 @@
 apiVersion: v2
 name: insightbloom
-description: InsightBloom PoC Helm chart
+description: Helm chart para desplegar InsightBloom en k3s
 type: application
 version: 0.1.0
-appVersion: "0.1.0"
+appVersion: "latest"
