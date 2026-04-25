@@ -61,14 +61,28 @@ jobs:
             '.clusters[0].cluster.server = "'"$SERVER"'"' \
             "$HOME/.kube/config"
 
-          # Deshabilitar verificación TLS (certificado autofirmado de k3s)
+          # Deshabilitar verificación TLS y eliminar CA (incompatibles juntos)
           yq eval -i \
-            '.clusters[0].cluster."insecure-skip-tls-verify" = true' \
+            '.clusters[0].cluster."insecure-skip-tls-verify" = true |
+             del(.clusters[0].cluster."certificate-authority-data")' \
             "$HOME/.kube/config"
 
-          # Verificar que el kubeconfig es válido
-          echo "--- kubeconfig summary ---"
-          yq eval '.clusters[0].name, .clusters[0].cluster.server, .clusters[0].cluster."insecure-skip-tls-verify", .users[0].name' "$HOME/.kube/config"
+          # ── DUMP de diagnóstico del kubeconfig resultante ───────────────────
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║            KUBECONFIG DIAGNOSTIC DUMP                       ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "── Contexts ──"
+          kubectl config view --minify -o yaml 2>&1 || true
+          echo ""
+          echo "── Cluster info ──"
+          kubectl cluster-info 2>&1 || true
+          echo ""
+          echo "── Auth check (whoami) ──"
+          kubectl auth can-i get pods --all-namespaces 2>&1 || true
+          echo ""
+          echo "── Namespace list ──"
+          kubectl get namespaces 2>&1 || true
 
       - name: Install Helm
         uses: azure/setup-helm@v4.3.1
