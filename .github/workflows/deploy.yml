@@ -21,6 +21,7 @@ env:
   K3S_NAMESPACE: mvps
   RELEASE_NAME: insightbloom
   CHART_PATH: ./infra/helm/charts/insightbloom
+  SERVER_K3S: ${{ vars.SERVER_K3S }}
 
 jobs:
   deploy:
@@ -31,9 +32,57 @@ jobs:
 
       - name: Configure kubeconfig
         run: |
+          if [ -z "${{ secrets.KUBE_CONFIG_DATA }}" ]; then
+            echo "::error::Missing required secret: KUBE_CONFIG_DATA"
+            echo "Create it in GitHub repo settings: Settings → Secrets and variables → Actions"
+            echo "Content: base64-encoded kubeconfig from your k3s cluster"
+            exit 1
+          fi
+          if [ -z "${{ vars.SERVER_K3S }}" ]; then
+            echo "::error::Missing required variable: SERVER_K3S"
+            echo "Create it in GitHub repo settings: Settings → Secrets and variables → Actions → Variables"
+            echo "Value: IP or hostname of your k3s server (e.g. https://192.168.1.100:6443)"
+            exit 1
+          fi
           mkdir -p "$HOME/.kube"
-          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > "$HOME/.kube/config"
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
+
+          # Asegurar que SERVER_K3S tenga el prefijo https://
+          SERVER="${{ vars.SERVER_K3S }}"
+          if ! echo "$SERVER" | grep -q '^https\?://'; then
+            SERVER="https://${SERVER}:6443"
+          fi
+
+          # Reemplazar el server del cluster en el kubeconfig
+          CURRENT_SERVER=$(yq eval '.clusters[0].cluster.server' "$HOME/.kube/config")
+          echo "Replacing server: $CURRENT_SERVER → $SERVER"
+          yq eval -i \
+            '.clusters[0].cluster.server = "'"$SERVER"'"' \
+            "$HOME/.kube/config"
+
+          # Deshabilitar verificación TLS y eliminar CA (incompatibles juntos)
+          yq eval -i \
+            '.clusters[0].cluster."insecure-skip-tls-verify" = true |
+             del(.clusters[0].cluster."certificate-authority-data")' \
+            "$HOME/.kube/config"
+
+          # ── DUMP de diagnóstico del kubeconfig resultante ───────────────────
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║            KUBECONFIG DIAGNOSTIC DUMP                       ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "── Contexts ──"
+          kubectl config view --minify -o yaml 2>&1 || true
+          echo ""
+          echo "── Cluster info ──"
+          kubectl cluster-info 2>&1 || true
+          echo ""
+          echo "── Auth check (whoami) ──"
+          kubectl auth can-i get pods --all-namespaces 2>&1 || true
+          echo ""
+          echo "── Namespace list ──"
+          kubectl get namespaces 2>&1 || true
 
       - name: Install Helm
         uses: azure/setup-helm@v4.3.1

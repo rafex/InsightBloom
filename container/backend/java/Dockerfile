@@ -1,35 +1,30 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Stage 1 – Builder: compila todos los servicios con Maven Wrapper
+# Stage 1 – Builder: compila todos los servicios con Maven
 # ─────────────────────────────────────────────────────────────────────────────
 FROM eclipse-temurin:25-jdk-alpine AS builder
 
-# unzip es necesario para que el Maven Wrapper extraiga la distribución
-RUN apk add --no-cache unzip
+# Instalar Maven directamente (evita que mvnw descargue distribuciones externas)
+ENV MAVEN_VERSION=3.9.9
+RUN apk add --no-cache unzip wget && \
+    wget -q "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${MAVEN_VERSION}/apache-maven-${MAVEN_VERSION}-bin.tar.gz" -O /tmp/maven.tar.gz && \
+    tar xzf /tmp/maven.tar.gz -C /opt && \
+    ln -s "/opt/apache-maven-${MAVEN_VERSION}/bin/mvn" /usr/local/bin/mvn && \
+    rm -f /tmp/maven.tar.gz
 
 WORKDIR /workspace
-
-# Maven Wrapper raíz (cacheado antes del código fuente)
-COPY .mvn/   .mvn/
-COPY mvnw    ./
-RUN  chmod +x mvnw
 
 # POMs de raíz y módulos (capa de caché de dependencias)
 COPY pom.xml ./
 COPY backend/ backend/
 
-# Permisos de los wrappers de cada módulo
-RUN chmod +x backend/contracts/mvnw \
-             backend/services/mvnw \
-             backend/cli/mvnw
+# 1. Instala el parent POM raíz
+RUN mvn -f pom.xml install -N -DskipTests -q
 
-# 1. Instala el parent POM raíz usando el wrapper raíz
-RUN ./mvnw -f pom.xml install -N -DskipTests -q
+# 2. Instala el módulo de contratos
+RUN mvn -f backend/contracts/pom.xml clean install -DskipTests -q
 
-# 2. Instala el módulo de contratos usando su propio wrapper
-RUN backend/contracts/mvnw -f backend/contracts/pom.xml clean install -DskipTests -q
-
-# 3. Empaqueta todos los servicios usando su propio wrapper
-RUN backend/services/mvnw -f backend/services/pom.xml clean package -DskipTests -q
+# 3. Empaqueta todos los servicios
+RUN mvn -f backend/services/pom.xml clean package -DskipTests -q
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 – Runtime: imagen mínima JRE para un servicio específico

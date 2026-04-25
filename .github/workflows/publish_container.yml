@@ -53,7 +53,9 @@ jobs:
 
       - name: Build Java services
         run: |
-          ./mvnw -f backend/services/pom.xml -DskipTests package -q
+          # Usar mvn del sistema (actions/setup-java lo instala) para evitar
+          # que mvnw intente descargar Maven desde repositorios externos
+          mvn -DskipTests package -q
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -114,7 +116,9 @@ jobs:
 
       - name: Build Java services
         run: |
-          ./mvnw -f backend/services/pom.xml -DskipTests package -q
+          # Usar mvn del sistema (actions/setup-java lo instala) para evitar
+          # que mvnw intente descargar Maven desde repositorios externos
+          mvn -DskipTests package -q
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -175,7 +179,9 @@ jobs:
 
       - name: Build Java services
         run: |
-          ./mvnw -f backend/services/pom.xml -DskipTests package -q
+          # Usar mvn del sistema (actions/setup-java lo instala) para evitar
+          # que mvnw intente descargar Maven desde repositorios externos
+          mvn -DskipTests package -q
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -236,7 +242,9 @@ jobs:
 
       - name: Build Java services
         run: |
-          ./mvnw -f backend/services/pom.xml -DskipTests package -q
+          # Usar mvn del sistema (actions/setup-java lo instala) para evitar
+          # que mvnw intente descargar Maven desde repositorios externos
+          mvn -DskipTests package -q
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -297,7 +305,9 @@ jobs:
 
       - name: Build Java services
         run: |
-          ./mvnw -f backend/services/pom.xml -DskipTests package -q
+          # Usar mvn del sistema (actions/setup-java lo instala) para evitar
+          # que mvnw intente descargar Maven desde repositorios externos
+          mvn -DskipTests package -q
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
