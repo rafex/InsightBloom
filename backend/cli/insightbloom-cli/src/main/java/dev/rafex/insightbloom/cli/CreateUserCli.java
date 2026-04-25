@@ -1,5 +1,7 @@
 package dev.rafex.insightbloom.cli;
 
+import org.sqlite.SQLiteConfig;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -89,7 +91,10 @@ public class CreateUserCli {
                            String role, String displayName, String email) throws Exception {
 
         String url = "jdbc:sqlite:" + dbPath;
-        try (Connection conn = DriverManager.getConnection(url)) {
+        final SQLiteConfig config = new SQLiteConfig();
+        config.setJournalMode(SQLiteConfig.JournalMode.WAL);
+        config.setBusyTimeout(5000);
+        try (Connection conn = DriverManager.getConnection(url, config.toProperties())) {
 
             // Ensure table and password_hash column exist
             ensureSchema(conn);
