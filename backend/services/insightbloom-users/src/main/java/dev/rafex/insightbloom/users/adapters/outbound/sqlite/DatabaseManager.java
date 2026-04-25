@@ -1,5 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.outbound.sqlite;
 
+import org.sqlite.SQLiteConfig;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -13,7 +15,10 @@ public class DatabaseManager {
     }
 
     public Connection getConnection() throws SQLException {
-        return DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+        final SQLiteConfig config = new SQLiteConfig();
+        config.setJournalMode(SQLiteConfig.JournalMode.WAL);
+        config.setBusyTimeout(5000);
+        return DriverManager.getConnection("jdbc:sqlite:" + dbPath, config.toProperties());
     }
 
     public void initialize() {
@@ -77,14 +82,9 @@ public class DatabaseManager {
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN expires_at TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN latitude REAL"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN longitude REAL"); } catch (SQLException ignored) {}
-            // Seed a default organizer for PoC
-            stmt.executeUpdate("""
-                INSERT OR IGNORE INTO users (uuid, username, display_name, email, role, status, created_at, updated_at)
-                VALUES ('00000000-0000-0000-0000-000000000001', 'admin', 'Admin', 'admin@insightbloom.dev',
-                        'ORGANIZER', 'ACTIVE', datetime('now'), datetime('now'))
-            """);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
         }
     }
+
 }

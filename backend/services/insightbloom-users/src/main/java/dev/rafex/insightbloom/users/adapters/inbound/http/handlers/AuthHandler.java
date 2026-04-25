@@ -82,7 +82,7 @@ public class AuthHandler extends NonBlockingResourceHandler {
             if (result.isPresent()) {
                 sendOk(jx, 201, result.get());
             } else {
-                sendError(jx, 401, "invalid_credentials", "User not found");
+                sendError(jx, 401, "invalid_credentials", "Invalid username or password");
             }
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());

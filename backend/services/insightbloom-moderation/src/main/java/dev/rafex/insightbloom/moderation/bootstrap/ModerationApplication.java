@@ -39,8 +39,8 @@ public class ModerationApplication {
         final var evaluateHandler = new InternalEvaluateHandler(evaluateUseCase);
 
         final var routes = new JettyRouteRegistry();
-        routes.add("/api/v1/conferences", conferenceModerationHandler);
-        routes.add("/internal/evaluate", evaluateHandler);
+        routes.add("/api/v1/conferences/*", conferenceModerationHandler);
+        routes.add("/internal/evaluate/*", evaluateHandler);
 
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();

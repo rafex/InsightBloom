@@ -103,6 +103,12 @@ automatica.
 - RF-17:
   usuarios registrados, invitados o nuevos deben autenticarse mediante
   tokens emitidos o validados por el sistema de usuarios del PoC.
+- RF-17.1:
+  el login de organizer y moderator debe requerir `username` y `password`
+  validos; no se permiten usuarios sin contraseña.
+- RF-17.2:
+  la creación y actualización de organizer/moderator ocurre por CLI
+  administrativo, no por endpoint público.
 - RF-18:
   los invitados solo pueden enviar mensajes y no pueden moderar.
 - RF-19:
@@ -230,7 +236,7 @@ automatica.
 
 - `users`
   `id`, `uuid`, `username`, `display_name`, `email`, `role`, `status`,
-  `created_at`, `updated_at`
+  `password_hash`, `created_at`, `updated_at`
 - `guest_users`
   `id`, `uuid`, `display_name`, `device_fingerprint`, `conference_uuid`,
   `created_at`

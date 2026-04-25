@@ -18,7 +18,8 @@ class LoginUseCaseTest {
         TokenRepository tokenRepo = Mockito.mock(TokenRepository.class);
         TokenService tokenService = new TokenService(tokenRepo);
 
-        User user = new User("uuid-1", "admin", "Admin", "admin@test.com", UserRole.ORGANIZER);
+        User user = new User("1", "uuid-1", "admin", "Admin", "admin@test.com",
+                UserRole.ORGANIZER, UserStatus.ACTIVE, LoginUseCase.sha256("pass"), java.time.Instant.now(), java.time.Instant.now());
         Mockito.when(repo.findByUsername("admin")).thenReturn(Optional.of(user));
 
         LoginUseCase uc = new LoginUseCase(repo, tokenService);
@@ -38,5 +39,29 @@ class LoginUseCaseTest {
 
         LoginUseCase uc = new LoginUseCase(repo, tokenService);
         assertTrue(uc.execute(new LoginUseCase.LoginRequest("nobody", "pass")).isEmpty());
+    }
+
+    @Test
+    void login_wrongPassword_returnsEmpty() {
+        UserRepository repo = Mockito.mock(UserRepository.class);
+        TokenRepository tokenRepo = Mockito.mock(TokenRepository.class);
+        TokenService tokenService = new TokenService(tokenRepo);
+
+        User user = new User("1", "uuid-1", "admin", "Admin", "admin@test.com",
+                UserRole.ORGANIZER, UserStatus.ACTIVE, LoginUseCase.sha256("correct"), java.time.Instant.now(), java.time.Instant.now());
+        Mockito.when(repo.findByUsername("admin")).thenReturn(Optional.of(user));
+
+        LoginUseCase uc = new LoginUseCase(repo, tokenService);
+        assertTrue(uc.execute(new LoginUseCase.LoginRequest("admin", "wrong")).isEmpty());
+    }
+
+    @Test
+    void login_blankPassword_returnsEmpty() {
+        UserRepository repo = Mockito.mock(UserRepository.class);
+        TokenRepository tokenRepo = Mockito.mock(TokenRepository.class);
+        TokenService tokenService = new TokenService(tokenRepo);
+
+        LoginUseCase uc = new LoginUseCase(repo, tokenService);
+        assertTrue(uc.execute(new LoginUseCase.LoginRequest("admin", "")).isEmpty());
     }
 }

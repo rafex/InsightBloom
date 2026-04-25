@@ -44,6 +44,12 @@ jobs:
             echo "Value: IP or hostname of your k3s server (e.g. https://192.168.1.100:6443)"
             exit 1
           fi
+          if [ -z "${{ secrets.PASSWORD_ADMIN_USER }}" ]; then
+            echo "::error::Missing required secret: PASSWORD_ADMIN_USER"
+            echo "Create it in GitHub repo settings: Settings → Secrets and variables → Actions"
+            echo "Value: contraseña del usuario admin (ORGANIZER)"
+            exit 1
+          fi
           mkdir -p "$HOME/.kube"
           echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
@@ -113,6 +119,15 @@ jobs:
         run: |
           kubectl get namespace "$K3S_NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$K3S_NAMESPACE"
 
+      - name: Upsert admin auth secret in k3s
+        env:
+          PASSWORD_ADMIN_USER: ${{ secrets.PASSWORD_ADMIN_USER }}
+        run: |
+          kubectl -n "$K3S_NAMESPACE" create secret generic "${RELEASE_NAME}-admin-auth" \
+            --from-literal=username=admin \
+            --from-literal=password="$PASSWORD_ADMIN_USER" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Lint chart
         run: |
           helm lint "$CHART_PATH"
@@ -159,6 +174,23 @@ jobs:
         run: |
           echo "Helm deploy no alcanzo estado Ready dentro del timeout" >&2
           exit 1
+
+      - name: Build admin CLI
+        if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'
+        run: |
+          ./mvnw -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests
+
+      - name: Ensure admin user exists/updated from secret
+        if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'
+        env:
+          PASSWORD_ADMIN_USER: ${{ secrets.PASSWORD_ADMIN_USER }}
+        run: |
+          ./scripts/run/k3s-create-user.sh \
+            --namespace "$K3S_NAMESPACE" \
+            --release "$RELEASE_NAME" \
+            --username admin \
+            --password "$PASSWORD_ADMIN_USER" \
+            --role ORGANIZER
 
       - name: Print deployed image reference
         if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'

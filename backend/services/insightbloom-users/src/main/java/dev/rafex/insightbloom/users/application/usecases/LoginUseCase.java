@@ -25,13 +25,15 @@ public class LoginUseCase {
     public record LoginResult(String token, String userUuid, String role) {}
 
     public Optional<LoginResult> execute(LoginRequest request) {
+        if (request == null) return Optional.empty();
+        if (request.username() == null || request.username().isBlank()) return Optional.empty();
+        if (request.password() == null || request.password().isBlank()) return Optional.empty();
+
         Optional<User> user = userRepository.findByUsername(request.username());
         return user.flatMap(u -> {
-            // If user has a password hash, validate it; otherwise allow (seed users without password)
-            if (u.getPasswordHash() != null && !u.getPasswordHash().isBlank()) {
-                String inputHash = sha256(request.password() != null ? request.password() : "");
-                if (!inputHash.equals(u.getPasswordHash())) return Optional.empty();
-            }
+            if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) return Optional.empty();
+            String inputHash = sha256(request.password());
+            if (!inputHash.equals(u.getPasswordHash())) return Optional.empty();
             Token token = tokenService.issueUserToken(u.getUuid(), TokenKind.USER);
             return Optional.of(new LoginResult(token.getTokenValue(), u.getUuid(), u.getRole().name().toLowerCase()));
         });

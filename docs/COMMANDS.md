@@ -127,18 +127,43 @@ Ver [`ROLES.md`](./ROLES.md) para la descripcion de roles y permisos.
 
 ```bash
 # Simular asistentes enviando palabras a una conferencia nueva
-just simulate
+ADMIN_PASS=<password-admin> just simulate
 
 # Con parametros
-just simulate -- --count 80 --delay 0.2
-just simulate -- --conference-id <uuid>
+ADMIN_PASS=<password-admin> just simulate -- --count 80 --delay 0.2
+ADMIN_PASS=<password-admin> just simulate -- --conference-id <uuid>
 
 # Observar la nube en tiempo real
 just watch-cloud <friendly-id>
 just watch-cloud <uuid>
 
 # Demo end-to-end: compila + crea conferencia + simula + nube en vivo
-just demo
+ADMIN_PASS=<password-admin> just demo
+```
+
+## K3s / Kubernetes: crear usuarios por CLI
+
+Compilar CLI:
+
+```bash
+make cli-build
+```
+
+Crear o actualizar usuario dentro del pod `users` (sin endpoint admin):
+
+```bash
+./scripts/run/k3s-create-user.sh \
+  --namespace <ns> \
+  --release <helm-release> \
+  --username <u> \
+  --password <p> \
+  --role ORGANIZER
+
+# ejemplo rápido (defaults: ns=default, release=insightbloom)
+./scripts/run/k3s-create-user.sh \
+  --username admin \
+  --password "cambia-esta-clave" \
+  --role ORGANIZER
 ```
 
 ## Nota

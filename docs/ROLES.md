@@ -19,7 +19,7 @@ Capacidades:
 
 Restricciones:
 
-- Solo puede crearse a través del CLI de administración o del seed inicial.
+- Solo puede crearse a través del CLI de administración.
 - No existe registro público de organizadores.
 
 ---
@@ -104,8 +104,8 @@ CLI create-user
 ```
 
 - Los usuarios creados por CLI arrancan en estado `ACTIVE`.
-- El seed inicial (`admin`) arranca sin `password_hash`; acepta cualquier
-  contraseña hasta que se actualice con el CLI.
+- No existe seed administrativo con contraseña por defecto.
+- Todo usuario ORGANIZER o MODERATOR debe crearse explícitamente con el CLI.
 - Los invitados (GUEST) no tienen fila en la tabla `users`; usan
   `guest_users` y tokens de tipo `GUEST`.
 
@@ -125,7 +125,7 @@ users
   email         TEXT  — opcional
   role          TEXT  — ORGANIZER | MODERATOR | GUEST
   status        TEXT  — ACTIVE | INACTIVE
-  password_hash TEXT  — SHA-256 del password; NULL = sin restricción (seed)
+  password_hash TEXT  — SHA-256 del password
   created_at    TEXT  — ISO-8601 UTC
   updated_at    TEXT  — ISO-8601 UTC
 ```

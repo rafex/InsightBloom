@@ -27,7 +27,13 @@ COPY container/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 # Copia el build de Vite
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+# Cambia permisos para usuario no-root nginx (UID 101)
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx /var/run
+
+USER 101
+
+EXPOSE 8080
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
   CMD wget -qO- http://localhost/ || exit 1

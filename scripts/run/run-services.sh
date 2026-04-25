@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../.."
 
-SERVICES=(insightbloom-users insightbloom-moderation insightbloom-stats insightbloom-query insightbloom-ingest)
+SERVICES=(insightbloom-users insightbloom-ingest insightbloom-query insightbloom-moderation insightbloom-stats)
 PORTS=(8081 8082 8083 8084 8085)
 
 # ── Matar procesos existentes en los puertos de los servicios ─────────────────

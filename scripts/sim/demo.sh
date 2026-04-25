@@ -6,9 +6,9 @@
 # y muestra la nube de palabras creciendo en tiempo real.
 #
 # Uso:
-#   ./scripts/demo.sh
-#   ./scripts/demo.sh --count 60 --delay 0.5
-#   ./scripts/demo.sh --conference-id <uuid>   # re-usar conferencia existente
+#   ADMIN_PASS=<password> ./scripts/demo.sh
+#   ADMIN_PASS=<password> ./scripts/demo.sh --count 60 --delay 0.5
+#   ADMIN_PASS=<password> ./scripts/demo.sh --conference-id <uuid>   # re-usar conferencia existente
 # =============================================================================
 set -euo pipefail
 
@@ -19,6 +19,8 @@ QUERY_URL="${QUERY_URL:-http://localhost:8083}"
 STATS_URL="${STATS_URL:-http://localhost:8085}"
 COUNT="${COUNT:-60}"
 DELAY="${DELAY:-0.4}"
+ADMIN_USER="${ADMIN_USER:-admin}"
+ADMIN_PASS="${ADMIN_PASS:-}"
 CONFERENCE_ID=""
 
 while [[ $# -gt 0 ]]; do
@@ -30,6 +32,12 @@ while [[ $# -gt 0 ]]; do
     *) echo "Argumento desconocido: $1"; exit 1 ;;
   esac
 done
+
+if [[ -z "${ADMIN_PASS}" ]]; then
+  echo "[err] ADMIN_PASS no configurado. Define una contraseña real para ${ADMIN_USER}." >&2
+  echo "Ejemplo: ADMIN_PASS='tu-clave' just demo -- --count 60" >&2
+  exit 1
+fi
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
@@ -57,10 +65,10 @@ for svc_info in "users|${USERS_URL}" "ingest|${INGEST_URL}" "query|${QUERY_URL}"
 done
 
 # ─── Login ────────────────────────────────────────────────────────────────────
-log "Login como admin..."
+log "Login como ${ADMIN_USER}..."
 LOGIN_RESP=$(curl -sf -X POST "${USERS_URL}/api/v1/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":""}') \
+  -d "{\"username\":\"${ADMIN_USER}\",\"password\":\"${ADMIN_PASS}\"}") \
   || fail "Login fallido"
 
 TOKEN=$(echo "$LOGIN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['token'])") \

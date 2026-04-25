@@ -67,7 +67,12 @@ helm-lint:
 # Crea o actualiza un usuario. Pasar argumentos después de --:
 #   just create-user -- --username john --password s3cr3t --role ORGANIZER --db users.db
 create-user *ARGS:
-    java -jar backend/cli/insightbloom-cli/target/insightbloom-cli-0.1.0-SNAPSHOT.jar create-user {{ARGS}}
+    ./scripts/run/create-user.sh {{ARGS}}
+
+# Crea/actualiza usuario dentro de K3s (pod users). Pasar args después de --:
+#   just k3s-create-user -- --namespace default --release insightbloom --username admin --password x --role ORGANIZER
+k3s-create-user *ARGS:
+    ./scripts/run/k3s-create-user.sh {{ARGS}}
 
 # ── Simulación / Demo ─────────────────────────────────────────────────────────
 

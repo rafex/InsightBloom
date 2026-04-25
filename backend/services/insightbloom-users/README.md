@@ -15,9 +15,11 @@ Microservicio de autenticacion, usuarios y conferencias.
 - `GET  /api/v1/conferences/{id}` — obtener por UUID
 - `GET  /api/v1/conferences/by-friendly/{friendlyId}` — obtener por friendlyId
 
-## Credencial PoC
+## Credenciales
 
-Username: `admin` (ORGANIZER, sin password)
+- Login de usuarios registrados requiere `username` y `password`.
+- El servicio ya no crea un usuario `admin` por seed.
+- Los usuarios se crean o actualizan con el CLI `insightbloom-cli`.
 
 ## Build & run
 

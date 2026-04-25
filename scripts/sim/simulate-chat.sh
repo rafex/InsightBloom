@@ -3,10 +3,10 @@
 # simulate-chat.sh — Simula asistentes enviando palabras a una conferencia
 #
 # Uso:
-#   ./scripts/simulate-chat.sh
-#   ./scripts/simulate-chat.sh --conference-id <uuid>
-#   ./scripts/simulate-chat.sh --count 80 --delay 0.2 --mode topics
-#   ./scripts/simulate-chat.sh --count 50 --delay 0 --mode mixed
+#   ADMIN_PASS=<password> ./scripts/simulate-chat.sh
+#   ADMIN_PASS=<password> ./scripts/simulate-chat.sh --conference-id <uuid>
+#   ADMIN_PASS=<password> ./scripts/simulate-chat.sh --count 80 --delay 0.2 --mode topics
+#   ADMIN_PASS=<password> ./scripts/simulate-chat.sh --count 50 --delay 0 --mode mixed
 # =============================================================================
 set -euo pipefail
 
@@ -36,6 +36,12 @@ while [[ $# -gt 0 ]]; do
     *) echo "Argumento desconocido: $1" >&2; exit 1 ;;
   esac
 done
+
+if [[ -z "${ADMIN_PASS}" ]]; then
+  echo "[err] ADMIN_PASS no configurado. Define una contraseña real para ${ADMIN_USER}." >&2
+  echo "Ejemplo: ADMIN_PASS='tu-clave' just simulate -- --count 40" >&2
+  exit 1
+fi
 
 # ─── Colores ─────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
