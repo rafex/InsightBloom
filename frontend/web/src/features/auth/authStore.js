@@ -8,8 +8,8 @@ const state = reactive({
 })
 
 export function useAuthStore() {
-  async function login(username) {
-    const res = await axios.post('/api/users/api/v1/auth/login', { username })
+  async function login(username, password) {
+    const res = await axios.post('/api/users/api/v1/auth/login', { username, password })
     const { token, userUuid, role } = res.data.data
     state.token = token
     state.role = role

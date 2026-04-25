@@ -4,10 +4,13 @@
   main.login-main
     .login-card.animate__animated.animate__fadeIn
       h2 Acceso organizador
-      p.hint PoC: ingresa cualquier usuario registrado (ej: admin)
+      p.hint Ingresa tus credenciales de organizador o moderador
       .form-group
         label Usuario
-        input(v-model="username" type="text" placeholder="admin" @keyup.enter="doLogin")
+        input(v-model="username" type="text" autocomplete="username" placeholder="admin" @keyup.enter="doLogin")
+      .form-group
+        label Contraseña
+        input(v-model="password" type="password" autocomplete="current-password" placeholder="••••••••" @keyup.enter="doLogin")
       .error(v-if="error") {{ error }}
       button.btn-primary(@click="doLogin" :disabled="loading")
         span(v-if="loading") Entrando...
@@ -23,24 +26,28 @@ export default {
   name: 'LoginPage',
   components: { AppHeader },
   setup() {
-    const username = ref('admin')
+    const username = ref('')
+    const password = ref('')
     const error = ref('')
     const loading = ref(false)
     const router = useRouter()
     const auth = useAuthStore()
     async function doLogin() {
-      if (!username.value.trim()) return
+      if (!username.value.trim() || !password.value.trim()) {
+        error.value = 'Usuario y contraseña son obligatorios'
+        return
+      }
       loading.value = true; error.value = ''
       try {
-        await auth.login(username.value.trim())
+        await auth.login(username.value.trim(), password.value)
         router.push('/dashboard')
       } catch (e) {
-        error.value = 'Usuario no encontrado o error de conexión'
+        error.value = 'Credenciales inválidas o error de conexión'
       } finally {
         loading.value = false
       }
     }
-    return { username, error, loading, doLogin }
+    return { username, password, error, loading, doLogin }
   }
 }
 </script>
