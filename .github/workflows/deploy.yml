@@ -48,16 +48,27 @@ jobs:
           echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
 
+          # Asegurar que SERVER_K3S tenga el prefijo https://
+          SERVER="${{ vars.SERVER_K3S }}"
+          if ! echo "$SERVER" | grep -q '^https\?://'; then
+            SERVER="https://${SERVER}:6443"
+          fi
+
           # Reemplazar el server del cluster en el kubeconfig
           CURRENT_SERVER=$(yq eval '.clusters[0].cluster.server' "$HOME/.kube/config")
-          echo "Replacing server: $CURRENT_SERVER → ${{ vars.SERVER_K3S }}"
+          echo "Replacing server: $CURRENT_SERVER → $SERVER"
           yq eval -i \
-            '.clusters[0].cluster.server = "${{ vars.SERVER_K3S }}"' \
+            '.clusters[0].cluster.server = "'"$SERVER"'"' \
+            "$HOME/.kube/config"
+
+          # Deshabilitar verificación TLS (certificado autofirmado de k3s)
+          yq eval -i \
+            '.clusters[0].cluster."insecure-skip-tls-verify" = true' \
             "$HOME/.kube/config"
 
           # Verificar que el kubeconfig es válido
           echo "--- kubeconfig summary ---"
-          yq eval '.clusters[0].name, .clusters[0].cluster.server, .users[0].name' "$HOME/.kube/config"
+          yq eval '.clusters[0].name, .clusters[0].cluster.server, .clusters[0].cluster."insecure-skip-tls-verify", .users[0].name' "$HOME/.kube/config"
 
       - name: Install Helm
         uses: azure/setup-helm@v4.3.1
