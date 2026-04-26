@@ -53,6 +53,13 @@ spec:
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
+            {{- range $svc.secretEnv }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .secretKey }}
+            {{- end }}
           {{- if $svc.livenessProbe }}
           livenessProbe:
             {{- toYaml $svc.livenessProbe | nindent 12 }}
@@ -89,7 +96,12 @@ spec:
           {{- end }}
       volumes:
         - name: data
+          {{- if and $svc.persistence $svc.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "insightbloom.fullname" $ }}-{{ $name }}-data
+          {{- else }}
           emptyDir: {}
+          {{- end }}
         {{- if eq $name "web" }}
         - name: nginx-tmp
           emptyDir: {}

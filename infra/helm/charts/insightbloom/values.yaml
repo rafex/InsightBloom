@@ -142,6 +142,25 @@ services:
       initialDelaySeconds: 5
       periodSeconds: 10
 
+  chat:
+    repository: ghcr.io/rafex/insightbloom-chat
+    port: 8090
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: local-path
+    env:
+      PORT: "8090"
+      DB_PATH: /data/chat.db
+      INGEST_URL: http://insightbloom-ingest:8082
+    secretEnv:
+      - name: DEEPSEEK_API_KEY
+        secretName: insightbloom-chat-secrets
+        secretKey: deepseek-api-key
+      - name: CHAT_SECRET_KEY
+        secretName: insightbloom-chat-secrets
+        secretKey: chat-secret-key
+
 nodeSelector: {}
 tolerations: []
 affinity: {}

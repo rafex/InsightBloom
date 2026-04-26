@@ -128,6 +128,24 @@ jobs:
             --from-literal=password="$PASSWORD_ADMIN_USER" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Upsert chat secrets in k3s
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          CHAT_SECRET_KEY: ${{ secrets.CHAT_SECRET_KEY }}
+        run: |
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "::error::Missing required secret: DEEPSEEK_API_KEY"
+            echo "Create it in GitHub repo settings: Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          if [ -z "$CHAT_SECRET_KEY" ]; then
+            echo "::warning::CHAT_SECRET_KEY not set — chat service will auto-generate one (not recommended for production)"
+          fi
+          kubectl -n "$K3S_NAMESPACE" create secret generic "${RELEASE_NAME}-chat-secrets" \
+            --from-literal=deepseek-api-key="$DEEPSEEK_API_KEY" \
+            --from-literal=chat-secret-key="${CHAT_SECRET_KEY:-}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Lint chart
         run: |
           helm lint "$CHART_PATH"
@@ -146,7 +164,7 @@ jobs:
         if: steps.helm_deploy.outcome == 'success'
         continue-on-error: true
         run: |
-          for svc in users stats moderation query ingest web; do
+          for svc in users stats moderation query ingest chat web; do
             kubectl -n "$K3S_NAMESPACE" rollout status "deployment/${RELEASE_NAME}-${svc}" --timeout=180s || true
           done
 
@@ -207,4 +225,4 @@ jobs:
         if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'
         run: |
           echo "Deployed successfully with tag: ${{ steps.deploy_tag.outputs.value }}"
-          echo "All images: ghcr.io/rafex/insightbloom-{users,stats,moderation,query,ingest,web}:${{ steps.deploy_tag.outputs.value }}"
+          echo "All images: ghcr.io/rafex/insightbloom-{users,stats,moderation,query,ingest,chat,web}:${{ steps.deploy_tag.outputs.value }}"
