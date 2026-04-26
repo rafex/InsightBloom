@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InsightBloom Chat</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' }</script>
+  <style>
+    #chatDisplay::-webkit-scrollbar { width: 4px; }
+    #chatDisplay::-webkit-scrollbar-track { background: transparent; }
+    #chatDisplay::-webkit-scrollbar-thumb { background: #52525b; border-radius: 4px; }
+    .dot { animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay:.2s; }
+    .dot:nth-child(3) { animation-delay:.4s; }
+    @keyframes blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+    .mention-me { background:rgba(234,179,8,.08); border-left:2px solid #eab308; }
+  </style>
+</head>
+<body class="min-h-screen bg-zinc-900 flex items-center justify-center p-4">
+
+<!-- ══════════════════════════════════════════
+     1. PANTALLA DE AUTENTICACIÓN
+══════════════════════════════════════════ -->
+<div id="authScreen" class="w-full max-w-sm">
+  <div class="bg-zinc-800 shadow-xl rounded-2xl overflow-hidden">
+
+    <div class="px-6 py-5 border-b border-zinc-700 text-center">
+      <h1 class="text-2xl font-bold text-white">💬 InsightBloom Chat</h1>
+      <p class="text-zinc-400 text-sm mt-1">Sala de participantes</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex border-b border-zinc-700">
+      <button id="tabLogin"    onclick="showTab('login')"
+        class="flex-1 py-3 text-sm font-semibold text-white bg-zinc-700 transition">
+        Iniciar sesión
+      </button>
+      <button id="tabRegister" onclick="showTab('register')"
+        class="flex-1 py-3 text-sm font-semibold text-zinc-400 hover:text-white transition">
+        Registrarse
+      </button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="formLogin" class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs text-zinc-400 mb-1">Número de teléfono</label>
+        <input id="loginPhone" type="tel" placeholder="+521234567890"
+          class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs text-zinc-400 mb-1">Contraseña</label>
+        <input id="loginPassword" type="password" placeholder="••••••••"
+          class="input-field" />
+      </div>
+      <p id="loginError" class="text-red-400 text-xs hidden"></p>
+      <button onclick="doLogin()"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition text-sm">
+        Entrar
+      </button>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="formRegister" class="p-6 space-y-4 hidden">
+      <div>
+        <label class="block text-xs text-zinc-400 mb-1">Número de teléfono</label>
+        <input id="regPhone" type="tel" placeholder="+521234567890"
+          class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs text-zinc-400 mb-1">
+          Nickname <span class="text-zinc-500">(se guarda en minúsculas)</span>
+        </label>
+        <input id="regNickname" type="text" placeholder="tunombre"
+          oninput="this.value=this.value.toLowerCase()"
+          class="input-field" />
+      </div>
+      <div>
+        <label class="block text-xs text-zinc-400 mb-1">Contraseña</label>
+        <input id="regPassword" type="password" placeholder="••••••••"
+          class="input-field" />
+      </div>
+      <p id="regError" class="text-red-400 text-xs hidden"></p>
+      <button onclick="doRegister()"
+        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg transition text-sm">
+        Crear cuenta
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     2. PANTALLA DE CONFERENCIA
+══════════════════════════════════════════ -->
+<div id="conferenceScreen" class="w-full max-w-sm hidden">
+  <div class="bg-zinc-800 shadow-xl rounded-2xl overflow-hidden">
+
+    <div class="px-6 py-5 border-b border-zinc-700">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-lg font-bold text-white">💬 InsightBloom Chat</h1>
+          <p class="text-zinc-400 text-sm mt-0.5">
+            Hola, <span id="confNickname" class="text-blue-400 font-semibold"></span>
+          </p>
+        </div>
+        <button onclick="doLogout()" title="Salir"
+          class="text-zinc-500 hover:text-red-400 transition text-sm px-1">✕</button>
+      </div>
+    </div>
+
+    <div class="p-6 space-y-5">
+      <div>
+        <label class="block text-sm font-semibold text-white mb-1">
+          ID de la conferencia
+        </label>
+        <p class="text-zinc-400 text-xs mb-3">
+          Ingresa el UUID de la conferencia a la que quieres unirte.
+          El organizador del evento te lo proporcionará.
+        </p>
+        <input id="conferenceInput" type="text"
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          class="input-field font-mono text-xs" />
+        <p id="confError" class="text-red-400 text-xs mt-1 hidden"></p>
+      </div>
+
+      <button onclick="doJoin()"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg transition text-sm">
+        Unirse al chat
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     3. PANTALLA DE CHAT
+══════════════════════════════════════════ -->
+<div id="chatScreen" class="w-full max-w-md hidden">
+  <div class="bg-zinc-800 shadow-xl rounded-2xl overflow-hidden flex flex-col h-[90vh] max-h-[700px]">
+
+    <!-- Header -->
+    <div class="px-4 py-3 border-b border-zinc-700">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <span class="text-white font-semibold text-sm">💬 InsightBloom</span>
+          <span id="onlineCount"
+            class="bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+            0 online
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="myNicknameTag" class="text-zinc-400 text-xs font-mono"></span>
+          <span id="confIdBadge"
+            class="text-zinc-600 text-xs font-mono truncate max-w-[80px]" title=""></span>
+          <button onclick="doLogout()" title="Salir"
+            class="text-zinc-500 hover:text-red-400 transition text-xs px-1">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mensajes -->
+    <div id="chatDisplay"
+      class="flex-1 p-3 overflow-y-auto flex flex-col space-y-2 scroll-smooth">
+    </div>
+
+    <!-- Barra de comandos + usuarios online -->
+    <div class="px-4 py-1 border-t border-zinc-700/40 flex items-center justify-between gap-2">
+      <p class="text-zinc-600 text-xs leading-tight shrink-0">
+        <span class="text-blue-400 font-mono">/dudas</span>
+        <span class="text-zinc-600"> &lt;palabra&gt; &lt;descripción&gt;</span>
+        <span class="mx-1 text-zinc-700">·</span>
+        <span class="text-purple-400 font-mono">/temas</span>
+        <span class="text-zinc-600"> &lt;palabra&gt; &lt;descripción&gt;</span>
+      </p>
+      <span id="userList"
+        class="text-zinc-600 text-xs truncate max-w-[110px] text-right shrink-0" title=""></span>
+    </div>
+
+    <!-- Input -->
+    <div class="px-3 py-2 border-t border-zinc-700 relative">
+      <!-- Autocomplete @menciones -->
+      <div id="mentionBox"
+        class="hidden absolute bottom-full left-3 right-3 mb-1
+               bg-zinc-700 border border-zinc-600 rounded-lg overflow-hidden shadow-xl z-50">
+      </div>
+      <div class="flex gap-2">
+        <input id="chatInput" type="text"
+          placeholder="Escribe un mensaje… (@ para mencionar)"
+          maxlength="600"
+          class="flex-1 p-2 rounded-lg bg-zinc-700 border border-zinc-600 text-white text-sm
+                 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-zinc-500" />
+        <button onclick="sendMessage()"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg
+                 transition text-sm whitespace-nowrap">
+          Enviar
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Tailwind inline helpers (no duplicar clases inline) -->
+<style>
+  .input-field {
+    @apply w-full rounded-lg bg-zinc-700 border border-zinc-600 text-white text-sm px-3 py-2
+           focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-zinc-500;
+  }
+</style>
+
+<script>
+/* ══════════════════════════════════════════════════
+   Estado global
+══════════════════════════════════════════════════ */
+let ws             = null;
+let myNick         = '';
+let myToken        = '';
+let myConferenceId = '';
+let onlineUsers    = [];
+let reconnectTimer = null;
+
+/* ══════════════════════════════════════════════════
+   Auth tabs
+══════════════════════════════════════════════════ */
+function showTab(tab) {
+  const login = tab === 'login';
+  document.getElementById('formLogin').classList.toggle('hidden', !login);
+  document.getElementById('formRegister').classList.toggle('hidden', login);
+  const tl = document.getElementById('tabLogin');
+  const tr = document.getElementById('tabRegister');
+  [tl, tr].forEach((el, i) => {
+    const active = (i === 0) === login;
+    el.classList.toggle('bg-zinc-700', active);
+    el.classList.toggle('text-white',  active);
+    el.classList.toggle('text-zinc-400', !active);
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   Registro
+══════════════════════════════════════════════════ */
+async function doRegister() {
+  const phone    = v('regPhone');
+  const nickname = v('regNickname').toLowerCase();
+  const password = v('regPassword');
+  const err      = document.getElementById('regError');
+  err.classList.add('hidden');
+  if (!phone || !nickname || !password)
+    return showErr(err, 'Todos los campos son requeridos');
+  try {
+    await api('/api/register', { phone, nickname, password });
+    showTab('login');
+    document.getElementById('loginPhone').value = phone;
+    // Pequeño feedback antes de ir al login
+    appendSystemIfExists('✅ Cuenta creada. Ahora inicia sesión.');
+  } catch(e) { showErr(err, e.message); }
+}
+
+/* ══════════════════════════════════════════════════
+   Login
+══════════════════════════════════════════════════ */
+async function doLogin() {
+  const phone    = v('loginPhone');
+  const password = v('loginPassword');
+  const err      = document.getElementById('loginError');
+  err.classList.add('hidden');
+  if (!phone || !password) return showErr(err, 'Ingresa teléfono y contraseña');
+  try {
+    const r = await api('/api/login', { phone, password });
+    myToken = r.token;
+    myNick  = r.nickname;
+    showConferenceScreen();
+  } catch(e) { showErr(err, e.message); }
+}
+
+/* ══════════════════════════════════════════════════
+   Selección de conferencia
+══════════════════════════════════════════════════ */
+function showConferenceScreen() {
+  hide('authScreen');
+  show('conferenceScreen');
+  document.getElementById('confNickname').textContent = myNick;
+  document.getElementById('conferenceInput').focus();
+}
+
+async function doJoin() {
+  const conference_id = v('conferenceInput').trim();
+  const err           = document.getElementById('confError');
+  err.classList.add('hidden');
+
+  if (!conference_id)
+    return showErr(err, 'El ID de la conferencia es requerido');
+
+  // Validación básica de formato UUID
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRe.test(conference_id))
+    return showErr(err, 'Formato inválido. Debe ser un UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
+
+  try {
+    const r = await api('/api/join', { token: myToken, conference_id });
+    myConferenceId = r.conference_id;
+    openChat();
+  } catch(e) { showErr(err, e.message); }
+}
+
+/* ══════════════════════════════════════════════════
+   Logout (desde cualquier pantalla)
+══════════════════════════════════════════════════ */
+function doLogout() {
+  if (ws) { ws.close(); ws = null; }
+  myToken = ''; myNick = ''; myConferenceId = '';
+  ['conferenceScreen','chatScreen'].forEach(hide);
+  show('authScreen');
+  document.getElementById('chatDisplay').innerHTML = '';
+}
+
+/* ══════════════════════════════════════════════════
+   Chat + WebSocket
+══════════════════════════════════════════════════ */
+function openChat() {
+  hide('conferenceScreen');
+  show('chatScreen');
+  document.getElementById('myNicknameTag').textContent = '@' + myNick;
+  const badge = document.getElementById('confIdBadge');
+  badge.textContent = myConferenceId.slice(0, 8) + '…';
+  badge.title       = myConferenceId;
+  connectWS();
+}
+
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/${myToken}`);
+
+  ws.onopen    = () => {
+    clearTimeout(reconnectTimer);
+    document.getElementById('chatInput').disabled = false;
+  };
+  ws.onmessage = (e) => handleMsg(JSON.parse(e.data));
+  ws.onclose   = (e) => {
+    document.getElementById('chatInput').disabled = true;
+    if (e.code === 4002) {
+      // Conference no configurada — volver a pantalla de conferencia
+      appendSystem('⚠️ Sesión sin conferencia. Vuelve a unirte.');
+      setTimeout(() => { hide('chatScreen'); showConferenceScreen(); }, 1500);
+      return;
+    }
+    appendSystem('⚠️ Desconectado. Reconectando en 3 s…');
+    reconnectTimer = setTimeout(connectWS, 3000);
+  };
+  ws.onerror = () => ws.close();
+}
+
+function handleMsg(msg) {
+  if      (msg.type === 'message') appendMessage(msg.nickname, msg.text);
+  else if (msg.type === 'system')  appendSystem(msg.text);
+  else if (msg.type === 'users')   updateOnline(msg.count, msg.users);
+}
+
+/* ══════════════════════════════════════════════════
+   Enviar mensaje
+══════════════════════════════════════════════════ */
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text  = input.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+  if (text.startsWith('/dudas ') || text.startsWith('/temas ')) {
+    const err = validateCmd(text);
+    if (err) { appendSystem('⚠️ ' + err); return; }
+  }
+
+  ws.send(JSON.stringify({ text }));
+  input.value = '';
+  hideMentionBox();
+  input.focus();
+}
+
+function validateCmd(text) {
+  const parts = text.trimEnd().split(/\s+/);
+  const cmd   = parts[0];
+  if (parts.length < 3)
+    return `Uso: ${cmd} <una_palabra> <descripción>\nEj: ${cmd} inteligencia ¿Cómo afecta la IA al trabajo?`;
+  const desc = text.slice(cmd.length + parts[1].length + 2).trim();
+  if (!desc)       return 'La descripción no puede estar vacía.';
+  if (desc.length > 300) return `La descripción supera los 300 chars (${desc.length}).`;
+  return null;
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const focused = document.activeElement.id;
+    if (focused === 'loginPassword')    { doLogin();    return; }
+    if (focused === 'loginPhone')       { doLogin();    return; }
+    if (focused === 'conferenceInput')  { doJoin();     return; }
+    if (focused === 'chatInput') {
+      const box = document.getElementById('mentionBox');
+      if (!box.classList.contains('hidden')) {
+        box.querySelector('button')?.click(); return;
+      }
+      sendMessage();
+    }
+  }
+  if (e.key === 'Escape') hideMentionBox();
+});
+
+/* ══════════════════════════════════════════════════
+   @menciones — autocomplete
+══════════════════════════════════════════════════ */
+document.getElementById('chatInput').addEventListener('input', function() {
+  const before = this.value.slice(0, this.selectionStart);
+  const m      = before.match(/@(\w*)$/);
+  if (!m) { hideMentionBox(); return; }
+
+  const q = m[1].toLowerCase();
+  const candidates = onlineUsers.filter(u => u !== myNick && u.startsWith(q));
+  if (!candidates.length) { hideMentionBox(); return; }
+
+  const box = document.getElementById('mentionBox');
+  box.innerHTML = '';
+  candidates.slice(0, 6).forEach(nick => {
+    const btn = document.createElement('button');
+    btn.className =
+      'w-full text-left px-3 py-1.5 text-sm text-white hover:bg-zinc-600 ' +
+      'transition flex items-center gap-2 border-b border-zinc-600/40 last:border-0';
+    btn.innerHTML = `<span class="text-blue-400 font-mono text-xs">@</span>${nick}`;
+    btn.onclick   = () => insertMention(nick, m[0], before.length - m[0].length);
+    box.appendChild(btn);
+  });
+  box.classList.remove('hidden');
+});
+
+function hideMentionBox() {
+  document.getElementById('mentionBox').classList.add('hidden');
+}
+
+function insertMention(nick, fragment, startIdx) {
+  const inp    = document.getElementById('chatInput');
+  const before = inp.value.slice(0, startIdx);
+  const after  = inp.value.slice(startIdx + fragment.length);
+  inp.value    = before + '@' + nick + ' ' + after;
+  inp.setSelectionRange(startIdx + nick.length + 2, startIdx + nick.length + 2);
+  hideMentionBox();
+  inp.focus();
+}
+
+/* ══════════════════════════════════════════════════
+   Renderizado de mensajes
+══════════════════════════════════════════════════ */
+function appendMessage(nick, text) {
+  const box       = document.getElementById('chatDisplay');
+  const isMe      = nick === myNick;
+  const isRoberto = nick.toLowerCase() === 'roberto';
+  const mentioned = text.toLowerCase().includes('@' + myNick);
+
+  const wrap = document.createElement('div');
+  wrap.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} gap-0.5`;
+  if (mentioned && !isMe) wrap.classList.add('mention-me', 'rounded-lg', 'px-1', 'py-0.5');
+
+  if (!isMe) {
+    const nickEl    = document.createElement('span');
+    nickEl.className = isRoberto
+      ? 'text-xs text-violet-400 font-semibold px-1'
+      : 'text-xs text-zinc-500 px-1';
+    nickEl.textContent = (isRoberto ? '🤵 ' : '') + nick;
+    wrap.appendChild(nickEl);
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = [
+    'max-w-xs rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap leading-snug',
+    isMe       ? 'bg-blue-600  text-white rounded-br-sm'
+    : isRoberto ? 'bg-violet-700 text-white rounded-bl-sm'
+    :             'bg-zinc-600  text-white rounded-bl-sm',
+  ].join(' ');
+
+  renderText(bubble, text, isMe);
+  wrap.appendChild(bubble);
+  box.appendChild(wrap);
+  scrollBottom();
+}
+
+function renderText(el, text, isMe) {
+  const re = /(@\w+)|(\/(dudas|temas)\s+\S+(?:\s+.{0,300})?)/g;
+  let last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last)
+      el.appendChild(document.createTextNode(text.slice(last, m.index)));
+
+    if (m[1]) {
+      // @mención
+      const span = document.createElement('span');
+      const mine = m[1].toLowerCase() === '@' + myNick;
+      span.className = mine
+        ? 'font-bold text-yellow-300'
+        : (isMe ? 'font-semibold text-blue-200' : 'font-semibold text-blue-300');
+      span.textContent = m[1];
+      el.appendChild(span);
+    } else {
+      // /dudas o /temas
+      const parts = m[2].split(/\s+/);
+      const cs = document.createElement('span');
+      cs.className = parts[0] === '/dudas'
+        ? 'font-bold text-blue-300' : 'font-bold text-purple-300';
+      cs.textContent = parts[0] + ' ';
+      el.appendChild(cs);
+      const ws2 = document.createElement('span');
+      ws2.className = 'font-semibold text-white';
+      ws2.textContent = (parts[1] || '') + ' ';
+      el.appendChild(ws2);
+      el.appendChild(document.createTextNode(parts.slice(2).join(' ')));
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length)
+    el.appendChild(document.createTextNode(text.slice(last)));
+}
+
+function appendSystem(text) {
+  const box = document.getElementById('chatDisplay');
+  if (!box) return;
+  const el = document.createElement('div');
+  el.className = 'text-center text-zinc-500 text-xs italic py-0.5 whitespace-pre-wrap';
+  el.textContent = text;
+  box.appendChild(el);
+  scrollBottom();
+}
+
+function appendSystemIfExists(text) {
+  // Solo si el chatDisplay existe y está visible
+  if (document.getElementById('chatDisplay')) appendSystem(text);
+}
+
+function updateOnline(count, users) {
+  onlineUsers = users || [];
+  document.getElementById('onlineCount').textContent =
+    count === 1 ? '1 online' : `${count} online`;
+  const ul = document.getElementById('userList');
+  ul.textContent = users.map(u => '@' + u).join(' · ');
+  ul.title       = users.map(u => '@' + u).join('\n');
+}
+
+function scrollBottom() {
+  const box = document.getElementById('chatDisplay');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
+/* ══════════════════════════════════════════════════
+   Utils
+══════════════════════════════════════════════════ */
+function v(id)      { return document.getElementById(id).value.trim(); }
+function show(id)   { document.getElementById(id).classList.remove('hidden'); }
+function hide(id)   { document.getElementById(id).classList.add('hidden'); }
+function showErr(el, msg) { el.textContent = msg; el.classList.remove('hidden'); }
+
+async function api(path, body) {
+  const r = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || 'Error del servidor');
+  return data;
+}
+</script>
+</body>
+</html>
