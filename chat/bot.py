@@ -3,6 +3,7 @@ Roberto — participante "humano" del chat.
 Usa DeepSeek vía cliente OpenAI-compatible.
 Nunca revela que es IA. Nunca propone /dudas ni /temas.
 """
+from __future__ import annotations
 
 import asyncio
 import logging
