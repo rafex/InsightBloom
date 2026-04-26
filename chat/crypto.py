@@ -30,29 +30,44 @@ def _key_from_uuid() -> bytes:
     return base64.urlsafe_b64encode(uuid.uuid4().hex.encode())
 
 
+def _is_valid_fernet_key(raw: str) -> bool:
+    """Comprueba si raw es una clave Fernet válida (32 bytes base64url → 44 chars)."""
+    try:
+        Fernet(raw.encode())
+        return True
+    except Exception:
+        return False
+
+
 def _load_or_create_key() -> bytes:
     # 1. Variable de entorno
     env_key = os.getenv("CHAT_SECRET_KEY", "").strip()
     if env_key:
-        log.info("Clave Fernet cargada desde CHAT_SECRET_KEY")
-        return env_key.encode()
+        if _is_valid_fernet_key(env_key):
+            log.info("Clave Fernet cargada desde CHAT_SECRET_KEY")
+            return env_key.encode()
+        log.warning(
+            "CHAT_SECRET_KEY presente pero no es una clave Fernet válida (necesita 44 chars base64url). "
+            "Se ignorará y se usará la siguiente fuente disponible."
+        )
 
     # 2. Archivo persistente
     if _KEY_FILE.exists():
-        key = _KEY_FILE.read_text().strip().encode()
-        if key:
+        key = _KEY_FILE.read_text().strip()
+        if key and _is_valid_fernet_key(key):
             log.info("Clave Fernet cargada desde %s", _KEY_FILE)
-            return key
+            return key.encode()
 
     # 3. Generar desde UUID v4 y persistir
     key = _key_from_uuid()
     try:
         _KEY_FILE.write_text(key.decode())
         log.warning(
-            "CHAT_SECRET_KEY no configurada. Clave generada desde UUID v4 y guardada en %s\n"
-            "  → Para producción usa: CHAT_SECRET_KEY=%s",
+            "CHAT_SECRET_KEY no configurada (o inválida). "
+            "Clave generada desde UUID v4 y guardada en %s\n"
+            "  → Para producción genera una clave válida:\n"
+            "    python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"",
             _KEY_FILE,
-            key.decode(),
         )
     except OSError as exc:
         log.warning(
