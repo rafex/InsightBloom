@@ -43,3 +43,49 @@ spec:
           {{- end }}
     {{- end }}
 {{- end }}
+{{- if .Values.ingressChat.enabled }}
+---
+{{- $chatSvc := .Values.services.chat }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-chat
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+    app.kubernetes.io/component: chat
+  {{- with .Values.ingressChat.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingressChat.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingressChat.tls }}
+  tls:
+    {{- range .Values.ingressChat.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingressChat.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- with .pathType }}
+            pathType: {{ . }}
+            {{- end }}
+            backend:
+              service:
+                name: {{ include "insightbloom.fullname" $ }}-chat
+                port:
+                  number: {{ $chatSvc.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

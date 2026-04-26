@@ -82,6 +82,19 @@ ingress:
           pathType: Prefix
   tls: []
 
+ingressChat:
+  enabled: true
+  className: haproxy
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    ingress.kubernetes.io/backend-protocol: "http"
+  hosts:
+    - host: chat-insightbloom.v1.rafex.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
 # ── Services ───────────────────────────────────────────────────────────────────
 services:
   users:
