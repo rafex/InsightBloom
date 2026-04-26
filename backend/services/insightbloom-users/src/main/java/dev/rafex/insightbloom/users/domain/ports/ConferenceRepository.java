@@ -9,6 +9,7 @@ public interface ConferenceRepository {
     void delete(String uuid);
     Optional<Conference> findByUuid(String uuid);
     Optional<Conference> findByFriendlyId(String friendlyId);
+    Optional<Conference> findByShortCode(String shortCode);
     boolean existsByFriendlyId(String friendlyId);
     List<Conference> findByUser(String userUuid);
 }

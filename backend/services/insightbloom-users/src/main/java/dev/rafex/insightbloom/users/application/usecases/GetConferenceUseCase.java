@@ -21,6 +21,10 @@ public class GetConferenceUseCase {
         return conferenceRepository.findByFriendlyId(friendlyId);
     }
 
+    public Optional<Conference> byShortCode(String shortCode) {
+        return conferenceRepository.findByShortCode(shortCode);
+    }
+
     public List<Conference> byUser(String userUuid) {
         return conferenceRepository.findByUser(userUuid);
     }

@@ -65,6 +65,15 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     }
 
     @Override
+    public Optional<Conference> findByShortCode(String shortCode) {
+        // Últimos 7 hex chars del UUID (sin guiones): e.g. "b338a5a" de "...b95e3b338a5a"
+        return query(
+            "SELECT * FROM conferences WHERE LOWER(SUBSTR(REPLACE(uuid,'-',''), -7)) = LOWER(?)",
+            shortCode
+        );
+    }
+
+    @Override
     public boolean existsByFriendlyId(String friendlyId) {
         String sql = "SELECT 1 FROM conferences WHERE friendly_id = ?";
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {

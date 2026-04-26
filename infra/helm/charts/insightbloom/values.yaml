@@ -153,6 +153,7 @@ services:
       PORT: "8090"
       DB_PATH: /data/chat.db
       INGEST_URL: http://insightbloom-ingest:8082
+      USERS_URL:  http://insightbloom-users:8081
     secretEnv:
       - name: DEEPSEEK_API_KEY
         secretName: insightbloom-chat-secrets

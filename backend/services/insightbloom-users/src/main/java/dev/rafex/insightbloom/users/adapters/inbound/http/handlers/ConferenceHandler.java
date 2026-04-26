@@ -48,6 +48,7 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
         return List.of(
                 Route.of("/", Set.of("GET", "POST")),
                 Route.of("/by-friendly/{friendlyId}", Set.of("GET")),
+                Route.of("/by-short/{shortCode}", Set.of("GET")),
                 Route.of("/{id}", Set.of("GET", "DELETE")));
     }
 
@@ -62,6 +63,9 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
         final String path = jx.path();
         if (path.contains("/by-friendly/")) {
             return handleGetByFriendly(jx, jx.pathParam("friendlyId"));
+        }
+        if (path.contains("/by-short/")) {
+            return handleGetByShortCode(jx, jx.pathParam("shortCode"));
         }
         final String id = jx.pathParam("id");
         if (id != null) {
@@ -130,6 +134,17 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
     private boolean handleGetByFriendly(final JettyHttpExchange jx, final String friendlyId) {
         try {
             getConferenceUseCase.byFriendlyId(friendlyId).ifPresentOrElse(
+                    c -> sendOk(jx, 200, c),
+                    () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleGetByShortCode(final JettyHttpExchange jx, final String shortCode) {
+        try {
+            getConferenceUseCase.byShortCode(shortCode).ifPresentOrElse(
                     c -> sendOk(jx, 200, c),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {

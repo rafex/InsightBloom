@@ -116,12 +116,24 @@
           ID de la conferencia
         </label>
         <p class="text-zinc-400 text-xs mb-3">
-          Ingresa el UUID de la conferencia a la que quieres unirte.
-          El organizador del evento te lo proporcionará.
+          El organizador te compartirá un código. Puedes ingresar cualquiera de estos formatos:
         </p>
+        <!-- Formato badges -->
+        <div class="flex flex-wrap gap-2 mb-3">
+          <span class="bg-zinc-700 text-zinc-300 text-xs px-2 py-0.5 rounded font-mono">
+            nombre-corto
+          </span>
+          <span class="bg-zinc-700 text-zinc-300 text-xs px-2 py-0.5 rounded font-mono">
+            b338a5a
+          </span>
+          <span class="bg-zinc-700 text-zinc-300 text-xs px-2 py-0.5 rounded font-mono">
+            UUID completo
+          </span>
+        </div>
         <input id="conferenceInput" type="text"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          class="input-field font-mono text-xs" />
+          placeholder="demo-ai-2026  ·  b338a5a  ·  UUID"
+          class="input-field" />
+        <p id="confHint" class="text-zinc-500 text-xs mt-1"></p>
         <p id="confError" class="text-red-400 text-xs mt-1 hidden"></p>
       </div>
 
@@ -282,7 +294,21 @@ function showConferenceScreen() {
   hide('authScreen');
   show('conferenceScreen');
   document.getElementById('confNickname').textContent = myNick;
-  document.getElementById('conferenceInput').focus();
+  const input = document.getElementById('conferenceInput');
+  input.focus();
+  input.addEventListener('input', onConfInput);
+}
+
+const _uuidRe  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const _shortRe = /^[0-9a-f]{7}$/i;
+
+function onConfInput() {
+  const val  = this.value.trim();
+  const hint = document.getElementById('confHint');
+  if (!val)            { hint.textContent = ''; return; }
+  if (_uuidRe.test(val))  hint.textContent = '✓ UUID completo';
+  else if (_shortRe.test(val)) hint.textContent = '✓ Código corto (7 caracteres)';
+  else                 hint.textContent = '✓ ID amigable';
 }
 
 async function doJoin() {
@@ -292,11 +318,6 @@ async function doJoin() {
 
   if (!conference_id)
     return showErr(err, 'El ID de la conferencia es requerido');
-
-  // Validación básica de formato UUID
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRe.test(conference_id))
-    return showErr(err, 'Formato inválido. Debe ser un UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
 
   try {
     const r = await api('/api/join', { token: myToken, conference_id });

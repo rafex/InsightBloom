@@ -22,6 +22,7 @@ volumes:
   query-data:
   moderation-data:
   stats-data:
+  chat-data:
 
 # ── Fragmento reutilizable de build Java ─────────────────────────────────────
 x-java-build: &java-build
@@ -170,7 +171,36 @@ services:
       retries:      4
     restart: unless-stopped
 
-  # ── 6. Web – SPA Vue + nginx reverse proxy ─────────────────────────────────
+  # ── 6. Chat – grupo de chat en tiempo real (FastAPI + WebSocket) ──────────
+  insightbloom-chat:
+    build:
+      context: ../chat
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    environment:
+      PORT:           8090
+      DB_PATH:        /data/chat.db
+      INGEST_URL:     http://insightbloom-ingest:8082
+      USERS_URL:      http://insightbloom-users:8081
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:?DEEPSEEK_API_KEY es requerido}
+      CHAT_SECRET_KEY:  ${CHAT_SECRET_KEY:-}
+    volumes:
+      - chat-data:/data
+    networks:
+      - backend
+    depends_on:
+      insightbloom-ingest:
+        condition: service_healthy
+    healthcheck:
+      test:         ["CMD", "wget", "-qO-", "http://localhost:8090/health"]
+      interval:     15s
+      timeout:      5s
+      start_period: 20s
+      retries:      3
+    restart: unless-stopped
+
+  # ── 7. Web – SPA Vue + nginx reverse proxy ─────────────────────────────────
   insightbloom-web:
     build:
       context: ..

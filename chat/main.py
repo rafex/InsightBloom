@@ -20,6 +20,7 @@ import logging
 import os
 import re
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -37,6 +38,15 @@ log = logging.getLogger("chat")
 # Dentro del cluster usar: http://insightbloom-ingest:8085
 # En local usar: http://localhost:8085
 INGEST_URL = os.getenv("INGEST_URL", "http://localhost:8085")
+USERS_URL  = os.getenv("USERS_URL",  "http://localhost:8081")
+
+# Regex UUID completo
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+# 7 hex chars (short code estilo GitHub)
+_SHORT_RE = re.compile(r"^[0-9a-f]{7}$", re.IGNORECASE)
 
 # Regex de validación de comandos
 _CMD_RE = re.compile(r"^/(dudas|temas)\s+(\S+)\s+(.{1,300})$", re.DOTALL)
@@ -147,23 +157,56 @@ async def login(body: dict):
 @app.post("/api/join")
 async def join_conference(body: dict):
     """
-    Asocia una sesión autenticada a un CONFERENCE_ID.
-    Debe llamarse después del login y antes de conectar el WebSocket.
+    Asocia una sesión autenticada a una conferencia.
+    Acepta UUID completo, friendly-id o short code de 7 hex chars.
+    Resuelve friendly-id / short-code al UUID completo consultando el servicio users.
     """
-    token         = (body.get("token") or "").strip()
-    conference_id = (body.get("conference_id") or "").strip()
+    token = (body.get("token") or "").strip()
+    raw   = (body.get("conference_id") or "").strip()
 
     if not token:
         raise HTTPException(400, "token requerido")
-    if not conference_id:
+    if not raw:
         raise HTTPException(400, "conference_id requerido")
 
     user = db.session_user(token)
     if not user:
         raise HTTPException(401, "Sesión inválida o expirada")
 
-    db.set_conference(token, conference_id)
-    return {"ok": True, "conference_id": conference_id, "nickname": user["nickname"]}
+    # Resolver el identificador al UUID canónico
+    uuid = await _resolve_conference(raw)
+    if not uuid:
+        raise HTTPException(404, f"Conferencia '{raw}' no encontrada")
+
+    db.set_conference(token, uuid)
+    return {"ok": True, "conference_id": uuid, "nickname": user["nickname"]}
+
+
+async def _resolve_conference(raw: str) -> str | None:
+    """
+    Devuelve el UUID de la conferencia dado:
+      - UUID completo  (36 chars con guiones)   → lo devuelve tal cual
+      - short code     (7 hex chars)             → busca en users /by-short/
+      - friendly id    (cualquier otra cosa)     → busca en users /by-friendly/
+    """
+    if _UUID_RE.match(raw):
+        return raw  # ya es UUID, lo asumimos válido
+
+    endpoint = (
+        f"{USERS_URL}/api/v1/conferences/by-short/{raw}"
+        if _SHORT_RE.match(raw)
+        else f"{USERS_URL}/api/v1/conferences/by-friendly/{raw}"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.get(endpoint)
+            if r.status_code == 200:
+                data = r.json()
+                # La respuesta viene envuelta en ApiResponse: { data: { uuid: ... } }
+                return (data.get("data") or data).get("uuid")
+    except Exception as exc:
+        log.warning("No se pudo resolver conferencia '%s': %s", raw, exc)
+    return None
 
 
 @app.post("/api/webhook/insightbloom")
@@ -282,4 +325,5 @@ async def _send_to_insightbloom(
 
 # ── Static files ───────────────────────────────────────────────────────────────
 
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+_STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="static")
