@@ -156,3 +156,7 @@ session-ses_*.md
 .opencode/worktrees.log
 .opencode/node_modules/
 .secret_key
+
+# SQLite WAL (Write-Ahead Logging) and shared memory files
+*.db-shm
+*.db-wal
