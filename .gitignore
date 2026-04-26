@@ -155,3 +155,4 @@ session-ses_*.md
 .opencode/worktrees.db
 .opencode/worktrees.log
 .opencode/node_modules/
+.secret_key

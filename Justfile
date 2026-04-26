@@ -74,6 +74,23 @@ create-user *ARGS:
 k3s-create-user *ARGS:
     ./scripts/run/k3s-create-user.sh {{ARGS}}
 
+# ── Chat (servicio Python) ────────────────────────────────────────────────────
+
+# Crea el venv e instala dependencias Python del chat
+chat-install:
+    python3.13 -m venv chat/.venv
+    chat/.venv/bin/pip install -r chat/requirements.txt
+
+# Levanta el chat en local (requiere DEEPSEEK_API_KEY en el entorno)
+# Apunta al ingest local por defecto; cámbialo con INGEST_URL=http://...
+#   just chat-dev
+#   INGEST_URL=http://localhost:8082 just chat-dev
+chat-dev:
+    DB_PATH=./chat/chat.db \
+    INGEST_URL="${INGEST_URL:-http://localhost:8082}" \
+    USERS_URL="${USERS_URL:-http://localhost:8081}" \
+    chat/.venv/bin/uvicorn main:app --reload --port 8090 --app-dir chat
+
 # ── Simulación / Demo ─────────────────────────────────────────────────────────
 
 # Simula asistentes enviando palabras a una conferencia
