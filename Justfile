@@ -62,6 +62,18 @@ logs SERVICE="":
 helm-lint:
     helm lint infra/helm/charts/*
 
+# Despliega en k3s via Helm. Requiere kubeconfig configurado.
+#   just deploy-k3s                          # deploy con tag 'latest'
+#   just deploy-k3s v1.20260424              # deploy con tag específico
+#   just deploy-k3s --dry-run                # solo validar, no aplicar
+deploy-k3s TAG="latest" DRY="":
+    helm upgrade --install insightbloom infra/helm/charts/insightbloom \
+      --namespace mvps \
+      --set image.tag={{TAG}} \
+      --atomic \
+      --wait --timeout 10m \
+      {{ if DRY == "--dry-run" { "--dry-run" } else { "" } }}
+
 # ── Admin CLI ─────────────────────────────────────────────────────────────────
 
 # Crea o actualiza un usuario. Pasar argumentos después de --:

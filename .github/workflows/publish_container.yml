@@ -3,6 +3,8 @@ name: Build and Publish Containers
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*.*'
   workflow_dispatch:
@@ -34,10 +36,12 @@ jobs:
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
-          else
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             IMAGE_TAG="${GITHUB_REF_NAME}"
+          else
+            IMAGE_TAG="latest"
           fi
-          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+          if [ "${IMAGE_TAG}" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid tag format: $IMAGE_TAG"
             exit 1
           fi
@@ -97,10 +101,12 @@ jobs:
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
-          else
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             IMAGE_TAG="${GITHUB_REF_NAME}"
+          else
+            IMAGE_TAG="latest"
           fi
-          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+          if [ "${IMAGE_TAG}" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid tag format: $IMAGE_TAG"
             exit 1
           fi
@@ -160,10 +166,12 @@ jobs:
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
-          else
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             IMAGE_TAG="${GITHUB_REF_NAME}"
+          else
+            IMAGE_TAG="latest"
           fi
-          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+          if [ "${IMAGE_TAG}" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid tag format: $IMAGE_TAG"
             exit 1
           fi
@@ -223,10 +231,12 @@ jobs:
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
-          else
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             IMAGE_TAG="${GITHUB_REF_NAME}"
+          else
+            IMAGE_TAG="latest"
           fi
-          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+          if [ "${IMAGE_TAG}" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid tag format: $IMAGE_TAG"
             exit 1
           fi
@@ -286,10 +296,12 @@ jobs:
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
-          else
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             IMAGE_TAG="${GITHUB_REF_NAME}"
+          else
+            IMAGE_TAG="latest"
           fi
-          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+          if [ "${IMAGE_TAG}" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid tag format: $IMAGE_TAG"
             exit 1
           fi
@@ -350,10 +362,12 @@ jobs:
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
-          else
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             IMAGE_TAG="${GITHUB_REF_NAME}"
+          else
+            IMAGE_TAG="latest"
           fi
-          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+          if [ "${IMAGE_TAG}" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid tag format: $IMAGE_TAG"
             exit 1
           fi
@@ -397,10 +411,12 @@ jobs:
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
-          else
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             IMAGE_TAG="${GITHUB_REF_NAME}"
+          else
+            IMAGE_TAG="latest"
           fi
-          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+          if [ "${IMAGE_TAG}" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid tag format: $IMAGE_TAG"
             exit 1
           fi
@@ -459,8 +475,8 @@ jobs:
       - build-and-push-ingest
       - build-and-push-chat
       - build-and-push-web
-    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
+    if: ${{ github.ref_type == 'tag' || github.ref_name == 'main' }}
     uses: ./.github/workflows/deploy.yml
     with:
-      version_tag: ${{ github.ref_name }}
+      version_tag: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
     secrets: inherit

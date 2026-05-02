@@ -157,6 +157,7 @@ jobs:
           helm upgrade --install "$RELEASE_NAME" "$CHART_PATH" \
             --namespace "$K3S_NAMESPACE" \
             --set image.tag="${{ steps.deploy_tag.outputs.value }}" \
+            --atomic \
             --wait --timeout 10m
 
       - name: Show rollout status
@@ -202,12 +203,9 @@ jobs:
           architecture: x64
           cache: maven
 
-      - name: Compile admin CLI artifact
+      - name: Compile admin CLI
         if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'
-        run: |
-          # Usar mvn del sistema (actions/setup-java lo instala) para evitar
-          # dependencias de wrapper/no-java en runners limpios
-          mvn -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests -q
+        run: mvn -f backend/cli/insightbloom-cli/pom.xml clean package -DskipTests -q
 
       - name: Ensure admin user exists/updated from secret
         if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'
