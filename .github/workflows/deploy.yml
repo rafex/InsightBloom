@@ -157,6 +157,8 @@ jobs:
           helm upgrade --install "$RELEASE_NAME" "$CHART_PATH" \
             --namespace "$K3S_NAMESPACE" \
             --set image.tag="${{ steps.deploy_tag.outputs.value }}" \
+            --set services.chat.env.LLM_PROVIDER_BASE_URL="${{ vars.LLM_PROVIDER_BASE_URL }}" \
+            --set services.chat.env.LLM_PROVIDER_MODEL="${{ vars.LLM_PROVIDER_MODEL }}" \
             --atomic \
             --wait --timeout 10m
 
