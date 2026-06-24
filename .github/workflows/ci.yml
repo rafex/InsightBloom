@@ -20,11 +20,8 @@ jobs:
           java-version: "25"
           cache: maven
 
-      - name: Build services
-        run: ./mvnw -f pom.xml clean package -DskipTests
-
-      - name: Test services
-        run: ./mvnw -f backend/services/pom.xml test
+      - name: Build and test all modules
+        run: ./mvnw -f pom.xml clean verify
 
   frontend:
     name: Build & Test Frontend
