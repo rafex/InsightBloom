@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("roberto")
 
-DEEPSEEK_API_KEY  = os.getenv("DEEPSEEK_API_KEY", "")
-DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-MODEL             = "deepseek-chat"
+LLM_PROVIDER_API_KEY  = os.getenv("LLM_PROVIDER_API_KEY", "")
+LLM_PROVIDER_BASE_URL = os.getenv("LLM_PROVIDER_BASE_URL", "https://api.groq.com/openai/v1")
+LLM_PROVIDER_MODEL    = os.getenv("LLM_PROVIDER_MODEL", "mixtral-8x7b-32768")
 
 SYSTEM_PROMPT = """\
 Eres Roberto. Eres un ser humano que está participando en el chat grupal de un evento o conferencia.
@@ -46,12 +46,12 @@ class Roberto:
     def __init__(self):
         self._history: list[dict] = []
         self._client: AsyncOpenAI | None = (
-            AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
-            if DEEPSEEK_API_KEY
+            AsyncOpenAI(api_key=LLM_PROVIDER_API_KEY, base_url=LLM_PROVIDER_BASE_URL)
+            if LLM_PROVIDER_API_KEY
             else None
         )
         if not self._client:
-            log.warning("DEEPSEEK_API_KEY no configurada — Roberto está en silencio.")
+            log.warning("LLM_PROVIDER_API_KEY no configurada — Roberto está en silencio.")
 
     # ── Interfaz pública ────────────────────────────────────────────────────
 
@@ -99,7 +99,7 @@ class Roberto:
     async def _call_api(self, messages: list[dict], manager: "ConnectionManager") -> None:
         try:
             resp = await self._client.chat.completions.create(
-                model=MODEL,
+                model=LLM_PROVIDER_MODEL,
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}, *messages],
                 max_tokens=150,
                 temperature=0.88,

@@ -130,11 +130,11 @@ jobs:
 
       - name: Upsert chat secrets in k3s
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_PROVIDER_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }}
           CHAT_SECRET_KEY: ${{ secrets.CHAT_SECRET_KEY }}
         run: |
-          if [ -z "$DEEPSEEK_API_KEY" ]; then
-            echo "::error::Missing required secret: DEEPSEEK_API_KEY"
+          if [ -z "$LLM_PROVIDER_API_KEY" ]; then
+            echo "::error::Missing required secret: LLM_PROVIDER_API_KEY"
             echo "Create it in GitHub repo settings: Settings → Secrets and variables → Actions"
             exit 1
           fi
@@ -142,7 +142,7 @@ jobs:
             echo "::warning::CHAT_SECRET_KEY not set — chat service will auto-generate one (not recommended for production)"
           fi
           kubectl -n "$K3S_NAMESPACE" create secret generic "${RELEASE_NAME}-chat-secrets" \
-            --from-literal=deepseek-api-key="$DEEPSEEK_API_KEY" \
+            --from-literal=llm-provider-api-key="$LLM_PROVIDER_API_KEY" \
             --from-literal=chat-secret-key="${CHAT_SECRET_KEY:-}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
