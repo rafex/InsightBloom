@@ -22,57 +22,57 @@ export async function getModerationMessages(conferenceId, page = 1, pageSize = 5
   return res.data
 }
 
-export async function censorWord(wordId, reason, token) {
-  const res = await axios.post(`${BASE}/moderation/words/${wordId}/censor`, { reason }, {
+export async function censorWord(wordId, reason, token, conferenceId) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/moderation/words/${wordId}/censor`, { reason }, {
     headers: authHeader(token)
   })
   return res.data
 }
 
-export async function restoreWord(wordId, token) {
-  const res = await axios.post(`${BASE}/moderation/words/${wordId}/restore`, {}, {
+export async function restoreWord(wordId, token, conferenceId) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/moderation/words/${wordId}/restore`, {}, {
     headers: authHeader(token)
   })
   return res.data
 }
 
 export async function censorMessage(messageId, reason, target, token, conferenceId, wordText, detailText) {
-  const res = await axios.post(`${BASE}/moderation/messages/${messageId}/censor`,
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/moderation/messages/${messageId}/censor`,
     { reason, target: target || 'detail', conferenceUuid: conferenceId, wordText, detailText },
     { headers: authHeader(token) })
   return res.data
 }
 
-export async function restoreMessage(messageId, token) {
-  const res = await axios.post(`${BASE}/moderation/messages/${messageId}/restore`, {}, {
+export async function restoreMessage(messageId, token, conferenceId) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/moderation/messages/${messageId}/restore`, {}, {
     headers: authHeader(token)
   })
   return res.data
 }
 
-export async function editWord(wordId, value, token) {
-  const res = await axios.patch(`${BASE}/moderation/words/${wordId}`, { value }, {
+export async function editWord(wordId, value, token, conferenceId) {
+  const res = await axios.patch(`${BASE}/conferences/${conferenceId}/moderation/words/${wordId}`, { value }, {
     headers: authHeader(token)
   })
   return res.data
 }
 
-export async function editMessage(messageId, editedWord, editedDetail, token) {
-  const res = await axios.patch(`${BASE}/moderation/messages/${messageId}`, { editedWord, editedDetail }, {
+export async function editMessage(messageId, editedWord, editedDetail, token, conferenceId) {
+  const res = await axios.patch(`${BASE}/conferences/${conferenceId}/moderation/messages/${messageId}`, { editedWord, editedDetail }, {
     headers: authHeader(token)
   })
   return res.data
 }
 
-export async function deleteWord(wordId, token) {
-  const res = await axios.post(`${BASE}/moderation/words/${wordId}/delete`, {}, {
+export async function deleteWord(wordId, token, conferenceId) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/moderation/words/${wordId}/delete`, {}, {
     headers: authHeader(token)
   })
   return res.data
 }
 
-export async function deleteMessage(messageId, token) {
-  const res = await axios.post(`${BASE}/moderation/messages/${messageId}/delete`, {}, {
+export async function deleteMessage(messageId, token, conferenceId) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/moderation/messages/${messageId}/delete`, {}, {
     headers: authHeader(token)
   })
   return res.data

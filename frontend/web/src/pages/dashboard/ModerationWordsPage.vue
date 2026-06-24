@@ -90,19 +90,19 @@ export default {
 
     async function censor(item) {
       item._loading = true
-      try { await censorWord(item.uuid, null, auth.state.token); await load() }
+      try { await censorWord(item.uuid, null, auth.state.token, props.conferenceId); await load() }
       catch (e) { item._loading = false }
     }
 
     async function restore(item) {
       item._loading = true
-      try { await restoreWord(item.uuid, auth.state.token); await load() }
+      try { await restoreWord(item.uuid, auth.state.token, props.conferenceId); await load() }
       catch (e) { item._loading = false }
     }
 
     async function deleteItem(item) {
       item._loading = true
-      try { await deleteWord(item.uuid, auth.state.token); await load() }
+      try { await deleteWord(item.uuid, auth.state.token, props.conferenceId); await load() }
       catch (e) { item._loading = false }
     }
 

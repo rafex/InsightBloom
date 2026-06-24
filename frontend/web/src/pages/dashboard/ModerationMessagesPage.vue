@@ -146,7 +146,7 @@ export default {
       item._loading = true
       const messageId = item.messageId || item.uuid
       try {
-        await restoreMessage(messageId, auth.state.token)
+        await restoreMessage(messageId, auth.state.token, props.conferenceId)
         item.detailStatus = 'VISIBLE'
         item._loading = false
       } catch (e) { item._loading = false }
@@ -156,7 +156,7 @@ export default {
       item._loading = true
       const messageId = item.messageId || item.uuid
       try {
-        await deleteMessage(messageId, auth.state.token)
+        await deleteMessage(messageId, auth.state.token, props.conferenceId)
         item.detailStatus = 'DELETED'
         item._loading = false
       } catch (e) { item._loading = false }
