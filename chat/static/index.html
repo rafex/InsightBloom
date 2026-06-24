@@ -435,12 +435,18 @@ document.getElementById('chatInput').addEventListener('input', function() {
   if (!m) { hideMentionBox(); return; }
 
   const q = m[1].toLowerCase();
-  const candidates = onlineUsers.filter(u => u !== myNick && u.startsWith(q));
+  let candidates = onlineUsers.filter(u => u !== myNick);
+
+  // Si hay letras después del @, filtrar; si no, mostrar todos
+  if (q.length > 0) {
+    candidates = candidates.filter(u => u.toLowerCase().startsWith(q));
+  }
+
   if (!candidates.length) { hideMentionBox(); return; }
 
   const box = document.getElementById('mentionBox');
   box.innerHTML = '';
-  candidates.slice(0, 6).forEach(nick => {
+  candidates.slice(0, 10).forEach(nick => {
     const btn = document.createElement('button');
     btn.className =
       'w-full text-left px-3 py-1.5 text-sm text-white hover:bg-zinc-600 ' +
