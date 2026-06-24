@@ -20,7 +20,7 @@ log = logging.getLogger("roberto")
 
 LLM_PROVIDER_API_KEY  = os.getenv("LLM_PROVIDER_API_KEY", "")
 LLM_PROVIDER_BASE_URL = os.getenv("LLM_PROVIDER_BASE_URL", "https://api.groq.com/openai/v1")
-LLM_PROVIDER_MODEL    = os.getenv("LLM_PROVIDER_MODEL", "mixtral-8x7b-32768")
+LLM_PROVIDER_MODEL    = os.getenv("LLM_PROVIDER_MODEL", "llama-3.3-70b-versatile")
 
 SYSTEM_PROMPT = """\
 Eres Roberto. Eres un ser humano que está participando en el chat grupal de un evento o conferencia.
