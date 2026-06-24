@@ -17,6 +17,7 @@
       option(value="CENSURADO_AUTO") Censurado automático
       option(value="CENSURADO_MANUAL") Censurado manual
       option(value="PENDIENTE_REVISION") Pendiente revisión
+      option(value="DELETED") Eliminado
 
   ModerationTable(
     :items="words"
@@ -42,10 +43,15 @@
           :disabled="item._loading"
         ) Censurar
         button.btn-sm.btn-success(
-          v-if="item.contentStatus !== 'VISIBLE'"
+          v-if="item.contentStatus !== 'VISIBLE' && item.contentStatus !== 'DELETED'"
           @click="restore(item)"
           :disabled="item._loading"
         ) Restaurar
+        button.btn-sm.btn-warning(
+          v-if="item.contentStatus !== 'DELETED'"
+          @click="deleteItem(item)"
+          :disabled="item._loading"
+        ) Eliminar
         button.btn-sm.btn-secondary(@click="verMensajes(item)") Ver mensajes
 </template>
 
@@ -53,7 +59,7 @@
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getModerationWords, censorWord, restoreWord } from '@/services/api/moderationApi'
+import { getModerationWords, censorWord, restoreWord, deleteWord } from '@/services/api/moderationApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 export default {
@@ -94,6 +100,12 @@ export default {
       catch (e) { item._loading = false }
     }
 
+    async function deleteItem(item) {
+      item._loading = true
+      try { await deleteWord(item.uuid, auth.state.token); await load() }
+      catch (e) { item._loading = false }
+    }
+
     function verMensajes(item) {
       const params = new URLSearchParams({
         wordNormalized: item.wordNormalized || item.wordCanonical,
@@ -103,11 +115,11 @@ export default {
     }
 
     function statusClass(s) {
-      return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION' }
+      return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION', 'status-deleted': s === 'DELETED' }
     }
 
     function statusLabel(s) {
-      const map = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente' }
+      const map = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente', DELETED: 'Eliminado' }
       return map[s] || s
     }
 
@@ -121,7 +133,7 @@ export default {
       }
     })
 
-    return { words, loading, page, totalPages, statusFilter, conferenceName, load, goToPage, censor, restore, verMensajes, statusClass, statusLabel }
+    return { words, loading, page, totalPages, statusFilter, conferenceName, load, goToPage, censor, restore, deleteItem, verMensajes, statusClass, statusLabel }
   }
 }
 </script>
@@ -145,12 +157,15 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .status-visible { background: #dcfce7; color: #166534; }
 .status-censored { background: #fee2e2; color: #991b1b; }
 .status-pending { background: #fef9c3; color: #854d0e; }
+.status-deleted { background: #f3f4f6; color: #6b7280; }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
 .btn-danger { background: #fee2e2; color: #dc2626; }
 .btn-danger:hover { background: #fecaca; }
 .btn-success { background: #dcfce7; color: #16a34a; }
 .btn-success:hover { background: #bbf7d0; }
+.btn-warning { background: #fef3c7; color: #d97706; }
+.btn-warning:hover { background: #fde68a; }
 .btn-secondary { background: #ede9fe; color: #4f46e5; }
 .btn-secondary:hover { background: #ddd6fe; }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }

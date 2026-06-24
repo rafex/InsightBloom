@@ -51,4 +51,7 @@ public class ModerationWord {
     public void edit(String newValue, String updatedBy) {
         this.editedValue = newValue; this.updatedByUserUuid = updatedBy; this.updatedAt = Instant.now();
     }
+    public void delete(String deletedBy) {
+        this.status = ContentStatus.DELETED; this.updatedByUserUuid = deletedBy; this.updatedAt = Instant.now();
+    }
 }

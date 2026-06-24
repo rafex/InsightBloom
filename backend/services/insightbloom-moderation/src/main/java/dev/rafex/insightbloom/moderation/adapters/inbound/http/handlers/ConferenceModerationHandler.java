@@ -27,25 +27,31 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     private final CensorWordUseCase censorWordUseCase;
     private final RestoreWordUseCase restoreWordUseCase;
     private final EditWordUseCase editWordUseCase;
+    private final DeleteWordUseCase deleteWordUseCase;
     private final CensorMessageUseCase censorMessageUseCase;
     private final RestoreMessageUseCase restoreMessageUseCase;
     private final EditMessageUseCase editMessageUseCase;
+    private final DeleteMessageUseCase deleteMessageUseCase;
 
     public ConferenceModerationHandler(final ListModerationUseCase listUseCase,
                                        final CensorWordUseCase censorWordUseCase,
                                        final RestoreWordUseCase restoreWordUseCase,
                                        final EditWordUseCase editWordUseCase,
+                                       final DeleteWordUseCase deleteWordUseCase,
                                        final CensorMessageUseCase censorMessageUseCase,
                                        final RestoreMessageUseCase restoreMessageUseCase,
-                                       final EditMessageUseCase editMessageUseCase) {
+                                       final EditMessageUseCase editMessageUseCase,
+                                       final DeleteMessageUseCase deleteMessageUseCase) {
         super(JSON_CODEC);
         this.listUseCase = listUseCase;
         this.censorWordUseCase = censorWordUseCase;
         this.restoreWordUseCase = restoreWordUseCase;
         this.editWordUseCase = editWordUseCase;
+        this.deleteWordUseCase = deleteWordUseCase;
         this.censorMessageUseCase = censorMessageUseCase;
         this.restoreMessageUseCase = restoreMessageUseCase;
         this.editMessageUseCase = editMessageUseCase;
+        this.deleteMessageUseCase = deleteMessageUseCase;
     }
 
     @Override
@@ -59,10 +65,12 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
                 Route.of("/{conferenceId}/moderation/words", Set.of("GET")),
                 Route.of("/{conferenceId}/moderation/words/{wordId}/censor", Set.of("POST")),
                 Route.of("/{conferenceId}/moderation/words/{wordId}/restore", Set.of("POST")),
+                Route.of("/{conferenceId}/moderation/words/{wordId}/delete", Set.of("POST")),
                 Route.of("/{conferenceId}/moderation/words/{wordId}", Set.of("PATCH")),
                 Route.of("/{conferenceId}/moderation/messages", Set.of("GET")),
                 Route.of("/{conferenceId}/moderation/messages/{msgId}/censor", Set.of("POST")),
                 Route.of("/{conferenceId}/moderation/messages/{msgId}/restore", Set.of("POST")),
+                Route.of("/{conferenceId}/moderation/messages/{msgId}/delete", Set.of("POST")),
                 Route.of("/{conferenceId}/moderation/messages/{msgId}", Set.of("PATCH")));
     }
 
@@ -101,11 +109,17 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
             if (path.contains("/moderation/words/") && path.endsWith("/restore")) {
                 return handleRestoreWord(jx, jx.pathParam("wordId"));
             }
+            if (path.contains("/moderation/words/") && path.endsWith("/delete")) {
+                return handleDeleteWord(jx, jx.pathParam("wordId"));
+            }
             if (path.contains("/moderation/messages/") && path.endsWith("/censor")) {
                 return handleCensorMessage(jx, jx.pathParam("msgId"));
             }
             if (path.contains("/moderation/messages/") && path.endsWith("/restore")) {
                 return handleRestoreMessage(jx, jx.pathParam("msgId"));
+            }
+            if (path.contains("/moderation/messages/") && path.endsWith("/delete")) {
+                return handleDeleteMessage(jx, jx.pathParam("msgId"));
             }
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -225,6 +239,30 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
                     msgId, (String) body.get("editedWord"), (String) body.get("editedDetail"),
                     (String) body.get("updatedByUserUuid")));
             sendOk(jx, Map.of("status", "updated"));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), "Message not found");
+        }
+        return true;
+    }
+
+    private boolean handleDeleteWord(final JettyHttpExchange jx, final String wordId) throws Exception {
+        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        try {
+            deleteWordUseCase.execute(new DeleteWordUseCase.Request(
+                    wordId, (String) body.getOrDefault("deletedByUserUuid", "system")));
+            sendOk(jx, Map.of("status", "deleted"));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), "Word not found");
+        }
+        return true;
+    }
+
+    private boolean handleDeleteMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
+        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        try {
+            deleteMessageUseCase.execute(new DeleteMessageUseCase.Request(
+                    msgId, (String) body.getOrDefault("deletedByUserUuid", "system")));
+            sendOk(jx, Map.of("status", "deleted"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Message not found");
         }

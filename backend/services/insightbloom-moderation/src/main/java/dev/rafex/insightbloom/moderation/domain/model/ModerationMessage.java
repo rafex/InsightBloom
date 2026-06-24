@@ -69,4 +69,8 @@ public class ModerationMessage {
         this.editedWordValue = editedWord; this.editedDetailValue = editedDetail;
         this.updatedByUserUuid = updatedBy; this.updatedAt = Instant.now();
     }
+    public void delete(String deletedBy) {
+        this.wordStatus = ContentStatus.DELETED; this.detailStatus = ContentStatus.DELETED;
+        this.updatedByUserUuid = deletedBy; this.updatedAt = Instant.now();
+    }
 }

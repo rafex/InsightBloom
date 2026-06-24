@@ -23,6 +23,7 @@
       option(value="CENSURADO_AUTO") Censurado automático
       option(value="CENSURADO_MANUAL") Censurado manual
       option(value="PENDIENTE_REVISION") Pendiente revisión
+      option(value="DELETED") Eliminado
 
   .empty-state(v-if="!loading && items.length === 0")
     p No hay mensajes para moderar.
@@ -44,10 +45,15 @@
           :disabled="item._loading"
         ) Censurar detalle
         button.btn-sm.btn-success(
-          v-if="item.detailStatus && item.detailStatus !== 'VISIBLE'"
+          v-if="item.detailStatus && item.detailStatus !== 'VISIBLE' && item.detailStatus !== 'DELETED'"
           @click="restore(item)"
           :disabled="item._loading"
         ) Restaurar
+        button.btn-sm.btn-warning(
+          v-if="!item.detailStatus || item.detailStatus !== 'DELETED'"
+          @click="deleteItem(item)"
+          :disabled="item._loading"
+        ) Eliminar
 
   .pagination(v-if="!wordCanonical && totalPages > 1")
     button(@click="goToPage(page - 1)" :disabled="page <= 1") ‹
@@ -58,7 +64,7 @@
 <script>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { getModerationMessages, censorMessage, restoreMessage } from '@/services/api/moderationApi'
+import { getModerationMessages, censorMessage, restoreMessage, deleteMessage } from '@/services/api/moderationApi'
 import { getWordTimeline } from '@/services/api/queryApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -146,14 +152,24 @@ export default {
       } catch (e) { item._loading = false }
     }
 
+    async function deleteItem(item) {
+      item._loading = true
+      const messageId = item.messageId || item.uuid
+      try {
+        await deleteMessage(messageId, auth.state.token)
+        item.detailStatus = 'DELETED'
+        item._loading = false
+      } catch (e) { item._loading = false }
+    }
+
     function statusClass(s) {
       if (!s) return {}
-      return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION' }
+      return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION', 'status-deleted': s === 'DELETED' }
     }
 
     function statusLabel(s) {
       if (!s) return 'Visible'
-      const map = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente' }
+      const map = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente', DELETED: 'Eliminado' }
       return map[s] || s
     }
 
@@ -180,7 +196,7 @@ export default {
       items, loading, page, totalPages, statusFilter, conferenceName,
       wordNormalized, wordCanonical,
       conferenceId: props.conferenceId,
-      loadModMessages, goToPage, censorDetail, restore,
+      loadModMessages, goToPage, censorDetail, restore, deleteItem,
       statusClass, statusLabel, formatTime
     }
   }
@@ -232,6 +248,7 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .status-visible { background: #dcfce7; color: #166534; }
 .status-censored { background: #fee2e2; color: #991b1b; }
 .status-pending { background: #fef9c3; color: #854d0e; }
+.status-deleted { background: #f3f4f6; color: #6b7280; }
 .msg-actions { display: flex; gap: 6px; }
 
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
@@ -239,6 +256,8 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .btn-danger:hover { background: #fecaca; }
 .btn-success { background: #dcfce7; color: #16a34a; }
 .btn-success:hover { background: #bbf7d0; }
+.btn-warning { background: #fef3c7; color: #d97706; }
+.btn-warning:hover { background: #fde68a; }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: #374151; }

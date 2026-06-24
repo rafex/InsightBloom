@@ -63,3 +63,17 @@ export async function editMessage(messageId, editedWord, editedDetail, token) {
   })
   return res.data
 }
+
+export async function deleteWord(wordId, token) {
+  const res = await axios.post(`${BASE}/moderation/words/${wordId}/delete`, {}, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function deleteMessage(messageId, token) {
+  const res = await axios.post(`${BASE}/moderation/messages/${messageId}/delete`, {}, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
