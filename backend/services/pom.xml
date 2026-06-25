@@ -21,5 +21,6 @@
     <module>insightbloom-stats</module>
     <module>insightbloom-query</module>
     <module>insightbloom-ingest</module>
+    <module>insightbloom-survey</module>
   </modules>
 </project>

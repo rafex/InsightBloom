@@ -16,7 +16,9 @@ const routes = [
       { path: '', redirect: to => `/c/${to.params.friendlyId}/doubts` },
       { path: 'doubts', component: () => import('@/pages/conference/CloudDoubtsPage.vue') },
       { path: 'topics', component: () => import('@/pages/conference/CloudTopicsPage.vue') },
-      { path: 'words/:word', component: () => import('@/pages/conference/WordTimelinePage.vue') }
+      { path: 'words/:word', component: () => import('@/pages/conference/WordTimelinePage.vue') },
+      { path: 'presentation', component: () => import('@/pages/conference/PresentationPage.vue') },
+      { path: 'survey', component: () => import('@/pages/conference/SurveyPage.vue') }
     ]
   },
   {
@@ -34,6 +36,16 @@ const routes = [
       {
         path: 'conferences/:conferenceId/moderation/words',
         component: () => import('@/pages/dashboard/ModerationWordsPage.vue'),
+        props: true
+      },
+      {
+        path: 'conferences/:conferenceId/presentation',
+        component: () => import('@/pages/dashboard/PresentationManagePage.vue'),
+        props: true
+      },
+      {
+        path: 'conferences/:conferenceId/survey',
+        component: () => import('@/pages/dashboard/SurveyManagePage.vue'),
         props: true
       }
     ]

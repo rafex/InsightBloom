@@ -137,6 +137,28 @@ services:
       STATS_URL: http://insightbloom-stats:8085
       QUERY_URL: http://insightbloom-query:8083
 
+  survey:
+    repository: ghcr.io/rafex/insightbloom-survey
+    port: 8086
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: local-path
+    env:
+      PORT: "8086"
+      DB_PATH: /data/survey.db
+
+  presentations:
+    repository: ghcr.io/rafex/insightbloom-presentations
+    port: 8091
+    persistence:
+      enabled: true
+      size: 2Gi
+      storageClass: local-path
+    env:
+      PORT: "8091"
+      DATA_DIR: /data
+
   web:
     repository: ghcr.io/rafex/insightbloom-web
     port: 8080

@@ -22,6 +22,8 @@
       .conf-tabs
         router-link(:to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
         router-link(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
+        router-link(:to="`/c/${friendlyId}/presentation`" active-class="active-tab") Presentación
+        router-link(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
     router-view(:conference-id="conference.conferenceId || conference.uuid")
 </template>
 

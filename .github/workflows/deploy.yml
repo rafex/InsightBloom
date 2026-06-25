@@ -167,7 +167,7 @@ jobs:
         if: steps.helm_deploy.outcome == 'success'
         continue-on-error: true
         run: |
-          for svc in users stats moderation query ingest chat web; do
+          for svc in users stats moderation query ingest chat web survey presentations; do
             kubectl -n "$K3S_NAMESPACE" rollout status "deployment/${RELEASE_NAME}-${svc}" --timeout=180s || true
           done
 

@@ -27,6 +27,8 @@
         .conf-actions
           a.btn-outline(:href="`/c/${c.friendlyId}/doubts`" target="_blank") Ver nube
           router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Moderación
+          router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
+          router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
           button.btn-trash(@click="confirmDelete(c)" :disabled="c._deleting" title="Eliminar conferencia")
             svg(xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
               polyline(points="3 6 5 6 21 6")

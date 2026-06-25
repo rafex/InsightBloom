@@ -35,6 +35,14 @@ export default defineConfig({
       '/api/moderation': {
         target: 'http://localhost:8084',
         rewrite: (path) => path.replace(/^\/api\/moderation/, '')
+      },
+      '/api/survey': {
+        target: 'http://localhost:8086',
+        rewrite: (path) => path.replace(/^\/api\/survey/, '')
+      },
+      '/api/presentations': {
+        target: 'http://localhost:8091',
+        rewrite: (path) => path.replace(/^\/api\/presentations/, '')
       }
     }
   }
