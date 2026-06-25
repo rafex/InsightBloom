@@ -7,6 +7,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,8 +20,9 @@ public class SqliteSurveyResponseRepository implements SurveyResponseRepository 
     public void save(final SurveyResponse r) {
         final String sql = """
             INSERT INTO survey_responses
-                (uuid, conference_uuid, question_uuid, respondent_token, answer_text, answer_rating, submitted_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (uuid, conference_uuid, question_uuid, respondent_token, answer_text, answer_rating,
+                 grade_score, grade_feedback, submitted_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, r.getUuid());
@@ -30,10 +32,27 @@ public class SqliteSurveyResponseRepository implements SurveyResponseRepository 
             ps.setString(5, r.getAnswerText());
             if (r.getAnswerRating() == null) ps.setNull(6, java.sql.Types.INTEGER);
             else ps.setInt(6, r.getAnswerRating());
-            ps.setString(7, r.getSubmittedAt().toString());
+            if (r.getGradeScore() == null) ps.setNull(7, java.sql.Types.REAL);
+            else ps.setDouble(7, r.getGradeScore());
+            ps.setString(8, r.getGradeFeedback());
+            ps.setString(9, r.getSubmittedAt().toString());
             ps.executeUpdate();
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to save survey response", e);
+        }
+    }
+
+    @Override
+    public void updateGrade(final String responseUuid, final Double gradeScore, final String gradeFeedback) {
+        final String sql = "UPDATE survey_responses SET grade_score = ?, grade_feedback = ? WHERE uuid = ?";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            if (gradeScore == null) ps.setNull(1, java.sql.Types.REAL);
+            else ps.setDouble(1, gradeScore);
+            ps.setString(2, gradeFeedback);
+            ps.setString(3, responseUuid);
+            ps.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to update survey response grade", e);
         }
     }
 
@@ -54,13 +73,17 @@ public class SqliteSurveyResponseRepository implements SurveyResponseRepository 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     final Object ratingObj = rs.getObject("answer_rating");
+                    final Object scoreObj = rs.getObject("grade_score");
                     result.add(new SurveyResponse(
                             rs.getString("uuid"),
                             rs.getString("conference_uuid"),
                             rs.getString("question_uuid"),
                             rs.getString("respondent_token"),
                             rs.getString("answer_text"),
-                            ratingObj == null ? null : ((Number) ratingObj).intValue()));
+                            ratingObj == null ? null : ((Number) ratingObj).intValue(),
+                            scoreObj == null ? null : ((Number) scoreObj).doubleValue(),
+                            rs.getString("grade_feedback"),
+                            Instant.parse(rs.getString("submitted_at"))));
                 }
             }
         } catch (final SQLException e) {

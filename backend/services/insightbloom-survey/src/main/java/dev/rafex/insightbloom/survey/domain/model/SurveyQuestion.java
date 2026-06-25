@@ -9,18 +9,21 @@ public class SurveyQuestion {
     private String text;
     private QuestionType type;
     private List<String> options;
+    private String referenceAnswer;
     private int orderIndex;
     private boolean active;
     private final Instant createdAt;
     private Instant updatedAt;
 
     public SurveyQuestion(final String uuid, final String conferenceUuid, final String text,
-                           final QuestionType type, final List<String> options, final int orderIndex) {
+                           final QuestionType type, final List<String> options, final String referenceAnswer,
+                           final int orderIndex) {
         this.uuid = uuid;
         this.conferenceUuid = conferenceUuid;
         this.text = text;
         this.type = type;
         this.options = options;
+        this.referenceAnswer = referenceAnswer;
         this.orderIndex = orderIndex;
         this.active = true;
         this.createdAt = Instant.now();
@@ -28,13 +31,15 @@ public class SurveyQuestion {
     }
 
     public SurveyQuestion(final String uuid, final String conferenceUuid, final String text,
-                           final QuestionType type, final List<String> options, final int orderIndex,
-                           final boolean active, final Instant createdAt, final Instant updatedAt) {
+                           final QuestionType type, final List<String> options, final String referenceAnswer,
+                           final int orderIndex, final boolean active, final Instant createdAt,
+                           final Instant updatedAt) {
         this.uuid = uuid;
         this.conferenceUuid = conferenceUuid;
         this.text = text;
         this.type = type;
         this.options = options;
+        this.referenceAnswer = referenceAnswer;
         this.orderIndex = orderIndex;
         this.active = active;
         this.createdAt = createdAt;
@@ -48,6 +53,7 @@ public class SurveyQuestion {
     public String getText() { return text; }
     public QuestionType getType() { return type; }
     public List<String> getOptions() { return options; }
+    public String getReferenceAnswer() { return referenceAnswer; }
     public int getOrderIndex() { return orderIndex; }
     public boolean isActive() { return active; }
     public Instant getCreatedAt() { return createdAt; }

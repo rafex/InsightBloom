@@ -15,6 +15,7 @@ import dev.rafex.insightbloom.survey.application.usecases.DeactivateQuestionUseC
 import dev.rafex.insightbloom.survey.application.usecases.GetResultsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.ListQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SubmitResponsesUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.SuggestQuestionsUseCase;
 import org.eclipse.jetty.server.Request;
 
 import java.util.List;
@@ -32,18 +33,21 @@ public class SurveyHandler extends NonBlockingResourceHandler {
     private final DeactivateQuestionUseCase deactivateQuestionUseCase;
     private final SubmitResponsesUseCase submitResponsesUseCase;
     private final GetResultsUseCase getResultsUseCase;
+    private final SuggestQuestionsUseCase suggestQuestionsUseCase;
 
     public SurveyHandler(final CreateQuestionUseCase createQuestionUseCase,
                           final ListQuestionsUseCase listQuestionsUseCase,
                           final DeactivateQuestionUseCase deactivateQuestionUseCase,
                           final SubmitResponsesUseCase submitResponsesUseCase,
-                          final GetResultsUseCase getResultsUseCase) {
+                          final GetResultsUseCase getResultsUseCase,
+                          final SuggestQuestionsUseCase suggestQuestionsUseCase) {
         super(JSON_CODEC);
         this.createQuestionUseCase = createQuestionUseCase;
         this.listQuestionsUseCase = listQuestionsUseCase;
         this.deactivateQuestionUseCase = deactivateQuestionUseCase;
         this.submitResponsesUseCase = submitResponsesUseCase;
         this.getResultsUseCase = getResultsUseCase;
+        this.suggestQuestionsUseCase = suggestQuestionsUseCase;
     }
 
     @Override
@@ -55,6 +59,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
     protected List<Route> routes() {
         return List.of(
                 Route.of("/{conferenceId}/survey/questions", Set.of("GET", "POST")),
+                Route.of("/{conferenceId}/survey/questions/suggest", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/questions/{questionId}/deactivate", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/responses", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/results", Set.of("GET")));
@@ -77,7 +82,11 @@ public class SurveyHandler extends NonBlockingResourceHandler {
             }
             if (path.endsWith("/survey/questions")) {
                 final boolean onlyActive = !"false".equalsIgnoreCase(queryParam(jx, "onlyActive"));
-                sendOk(jx, listQuestionsUseCase.execute(conferenceId, onlyActive));
+                if (onlyActive) {
+                    sendOk(jx, listQuestionsUseCase.executePublic(conferenceId));
+                } else {
+                    sendOk(jx, listQuestionsUseCase.execute(conferenceId, false));
+                }
                 return true;
             }
         } catch (final Exception e) {
@@ -95,13 +104,20 @@ public class SurveyHandler extends NonBlockingResourceHandler {
         final String conferenceId = jx.pathParam("conferenceId");
         final String path = jx.path();
         try {
+            if (path.endsWith("/survey/questions/suggest")) {
+                final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+                final int count = body.get("count") == null ? 5 : ((Number) body.get("count")).intValue();
+                sendOk(jx, suggestQuestionsUseCase.execute(conferenceId, count));
+                return true;
+            }
             if (path.endsWith("/survey/questions")) {
                 final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
                 final List<String> options = (List<String>) body.get("options");
                 final int orderIndex = body.get("orderIndex") == null ? 0
                         : ((Number) body.get("orderIndex")).intValue();
                 final var question = createQuestionUseCase.execute(new CreateQuestionUseCase.Request(
-                        conferenceId, (String) body.get("text"), (String) body.get("type"), options, orderIndex));
+                        conferenceId, (String) body.get("text"), (String) body.get("type"), options,
+                        (String) body.get("referenceAnswer"), orderIndex));
                 sendOk(jx, question);
                 return true;
             }

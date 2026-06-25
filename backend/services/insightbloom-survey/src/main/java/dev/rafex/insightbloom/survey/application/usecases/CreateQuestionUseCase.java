@@ -12,7 +12,8 @@ public class CreateQuestionUseCase {
 
     public CreateQuestionUseCase(final SurveyQuestionRepository repo) { this.repo = repo; }
 
-    public record Request(String conferenceUuid, String text, String type, List<String> options, int orderIndex) {}
+    public record Request(String conferenceUuid, String text, String type, List<String> options,
+                           String referenceAnswer, int orderIndex) {}
 
     public SurveyQuestion execute(final Request req) {
         if (req.text() == null || req.text().isBlank()) {
@@ -20,7 +21,8 @@ public class CreateQuestionUseCase {
         }
         final QuestionType type = QuestionType.valueOf((req.type() == null ? "TEXT" : req.type()).toUpperCase());
         final var question = new SurveyQuestion(
-                UUID.randomUUID().toString(), req.conferenceUuid(), req.text(), type, req.options(), req.orderIndex());
+                UUID.randomUUID().toString(), req.conferenceUuid(), req.text(), type, req.options(),
+                req.referenceAnswer(), req.orderIndex());
         repo.save(question);
         return question;
     }

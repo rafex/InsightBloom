@@ -13,9 +13,16 @@ export async function getQuestions(conferenceId, onlyActive = true) {
   return res.data
 }
 
-export async function createQuestion(conferenceId, { text, type, options, orderIndex }, token) {
+export async function createQuestion(conferenceId, { text, type, options, referenceAnswer, orderIndex }, token) {
   const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/questions`,
-    { text, type, options, orderIndex },
+    { text, type, options, referenceAnswer, orderIndex },
+    { headers: authHeader(token) })
+  return res.data
+}
+
+export async function suggestQuestions(conferenceId, count, token) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/questions/suggest`,
+    { count },
     { headers: authHeader(token) })
   return res.data
 }

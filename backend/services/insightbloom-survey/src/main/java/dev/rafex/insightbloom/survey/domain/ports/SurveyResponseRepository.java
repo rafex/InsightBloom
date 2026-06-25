@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface SurveyResponseRepository {
     void save(SurveyResponse response);
+    void updateGrade(String responseUuid, Double gradeScore, String gradeFeedback);
     List<SurveyResponse> findByConference(String conferenceUuid);
     List<SurveyResponse> findByQuestion(String questionUuid);
 }

@@ -99,6 +99,13 @@ app.get('/api/v1/conferences/:id/presentation/slides', (req, res) => {
   res.sendFile(file);
 });
 
+app.get('/api/v1/conferences/:id/presentation/markdown', (req, res) => {
+  const srcDir = path.join(conferenceDir(req.params.id), 'src');
+  const mdFile = findFile(srcDir, (name) => name.toLowerCase().endsWith('.md'));
+  if (!mdFile) return res.status(404).json({ error: 'not_found' });
+  res.type('text/plain').send(fs.readFileSync(mdFile, 'utf8'));
+});
+
 app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
   express.static(path.join(conferenceDir(req.params.id), 'src'))(req, res, next);
 });

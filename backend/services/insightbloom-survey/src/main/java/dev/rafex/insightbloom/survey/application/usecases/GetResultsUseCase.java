@@ -21,8 +21,11 @@ public class GetResultsUseCase {
         this.responseRepo = responseRepo;
     }
 
+    public record GradedAnswer(String answerText, Double gradeScore, String gradeFeedback) {}
+
     public record QuestionResult(String questionUuid, String text, String type, int responseCount,
-                                  Double averageRating, Map<String, Integer> counts, List<String> texts) {}
+                                  Double averageRating, Map<String, Integer> counts, List<String> texts,
+                                  Double averageGradeScore, List<GradedAnswer> gradedAnswers) {}
 
     public List<QuestionResult> execute(final String conferenceUuid) {
         final List<SurveyQuestion> questions = questionRepo.findByConference(conferenceUuid, false);
@@ -34,6 +37,8 @@ public class GetResultsUseCase {
             Double avgRating = null;
             final Map<String, Integer> counts = new HashMap<>();
             final List<String> texts = new ArrayList<>();
+            Double avgGrade = null;
+            List<GradedAnswer> gradedAnswers = null;
 
             if (q.getType() == QuestionType.RATING) {
                 final var ratings = responses.stream()
@@ -48,6 +53,17 @@ public class GetResultsUseCase {
                         counts.merge(r.getAnswerText(), 1, Integer::sum);
                     }
                 }
+            } else if (q.getType() == QuestionType.OPEN_GRADED || q.getType() == QuestionType.CODE_GRADED
+                    || q.getType() == QuestionType.DRAG_DROP) {
+                gradedAnswers = responses.stream()
+                        .map(r -> new GradedAnswer(r.getAnswerText(), r.getGradeScore(), r.getGradeFeedback()))
+                        .toList();
+                final var scores = gradedAnswers.stream()
+                        .map(GradedAnswer::gradeScore)
+                        .filter(s -> s != null)
+                        .toList();
+                avgGrade = scores.isEmpty() ? null
+                        : scores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
             } else {
                 for (final SurveyResponse r : responses) {
                     if (r.getAnswerText() != null && !r.getAnswerText().isBlank()) {
@@ -57,7 +73,8 @@ public class GetResultsUseCase {
             }
 
             results.add(new QuestionResult(
-                    q.getUuid(), q.getText(), q.getType().name(), responses.size(), avgRating, counts, texts));
+                    q.getUuid(), q.getText(), q.getType().name(), responses.size(), avgRating, counts, texts,
+                    avgGrade, gradedAnswers));
         }
         return results;
     }
