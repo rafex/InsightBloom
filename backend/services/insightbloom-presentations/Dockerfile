@@ -16,8 +16,8 @@ RUN npm install --omit=dev
 
 COPY server.js ./
 
-RUN useradd -m -u 1000 presentations && mkdir -p /data && chown -R presentations:presentations /app /data
-USER presentations
+RUN mkdir -p /data && chown -R node:node /app /data
+USER node
 
 VOLUME ["/data"]
 EXPOSE 8091
