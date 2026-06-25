@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 ENV CHROME_PATH=/usr/bin/chromium
+ENV CHROME_NO_SANDBOX=true
 ENV PORT=8091
 ENV DATA_DIR=/data
 
