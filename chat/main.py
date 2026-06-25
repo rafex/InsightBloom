@@ -244,7 +244,7 @@ async def ws_endpoint(websocket: WebSocket, token: str):
     log.info("Conectado: %s → conferencia %s (%d online)", nickname, conference_id, manager.count())
 
     await manager.broadcast({"type": "system", "text": f"👋 {nickname} entró al chat"})
-    await websocket.send_json({
+    await manager.broadcast({
         "type":          "users",
         "users":         manager.online_nicknames(),
         "count":         manager.count(),
