@@ -72,7 +72,7 @@ app.post('/api/v1/conferences/:id/presentation', upload.single('file'), async (r
 
     const themeFile = findFile(srcDir, (name, full) => name === 'theme.css' && full.includes(`${path.sep}css${path.sep}`));
 
-    const slidesHtml = path.join(confDir, 'slides.html');
+    const slidesHtml = path.join(srcDir, 'slides.html');
     const slidesPdf = path.join(confDir, 'slides.pdf');
 
     const baseArgs = [mdFile, '--allow-local-files', '--html'];
@@ -94,9 +94,13 @@ app.post('/api/v1/conferences/:id/presentation', upload.single('file'), async (r
 });
 
 app.get('/api/v1/conferences/:id/presentation/slides', (req, res) => {
-  const file = path.join(conferenceDir(req.params.id), 'slides.html');
+  const file = path.join(conferenceDir(req.params.id), 'src', 'slides.html');
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   res.sendFile(file);
+});
+
+app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
+  express.static(path.join(conferenceDir(req.params.id), 'src'))(req, res, next);
 });
 
 app.get('/api/v1/conferences/:id/presentation/pdf', (req, res) => {
@@ -108,7 +112,7 @@ app.get('/api/v1/conferences/:id/presentation/pdf', (req, res) => {
 app.get('/api/v1/conferences/:id/presentation/status', (req, res) => {
   const confDir = conferenceDir(req.params.id);
   res.json({
-    ready: fs.existsSync(path.join(confDir, 'slides.html')) && fs.existsSync(path.join(confDir, 'slides.pdf')),
+    ready: fs.existsSync(path.join(confDir, 'src', 'slides.html')) && fs.existsSync(path.join(confDir, 'slides.pdf')),
   });
 });
 
