@@ -26,13 +26,21 @@
       .question(v-for="q in questions" :key="q.uuid")
         label {{ q.text }}
 
-        .rating(v-if="q.type === 'RATING'")
+        .rating(v-if="q.type === 'RATING' && q.ratingStyle !== 'EMOJIS'")
           button.star(
             type="button"
             v-for="n in 5" :key="n"
             :class="{ active: (answers[q.uuid]?.rating || 0) >= n }"
             @click="setRating(q.uuid, n)"
           ) ★
+
+        .rating.emoji-rating(v-else-if="q.type === 'RATING' && q.ratingStyle === 'EMOJIS'")
+          button.emoji(
+            type="button"
+            v-for="(e, idx) in emojiScale" :key="idx"
+            :class="{ active: answers[q.uuid]?.rating === idx + 1 }"
+            @click="setRating(q.uuid, idx + 1)"
+          ) {{ e }}
 
         textarea(v-else-if="q.type === 'TEXT' || q.type === 'OPEN_GRADED'" v-model="answersText[q.uuid]" rows="3" placeholder="Escribe tu respuesta...")
 
@@ -84,6 +92,7 @@ import { getPresentationStatus, getPdfUrl } from '@/services/api/presentationsAp
 import { organizerContact } from '@/config/contact'
 
 const ORDER_SEP = ';;'
+const EMOJI_SCALE = ['😢', '😕', '😐', '🙂', '🤩']
 
 export default {
   name: 'SurveyPage',
@@ -102,6 +111,7 @@ export default {
     const pdfReady = ref(false)
     const pdfUrl = ref('')
     const contact = organizerContact
+    const emojiScale = EMOJI_SCALE
 
     const canvasRefs = {}
     const drawState = {}
@@ -218,7 +228,7 @@ export default {
 
     return {
       friendlyId, questions, loading, submitting, submitted, error,
-      answers, answersText, dragOrder, pdfReady, pdfUrl, contact, setRating, submit,
+      answers, answersText, dragOrder, pdfReady, pdfUrl, contact, emojiScale, setRating, submit,
       setCanvasRef, startDraw, moveDraw, endDraw, clearCanvas,
       dragStart, dragDrop, moveItem
     }
@@ -242,6 +252,11 @@ textarea {
   background: none; border: none; font-size: 2rem; color: #d1d5db; cursor: pointer; line-height: 1;
 }
 .star.active { color: #f59e0b; }
+.emoji-rating .emoji {
+  background: none; border: none; font-size: 1.8rem; cursor: pointer; line-height: 1; opacity: 0.4;
+  filter: grayscale(60%); transition: all 0.15s;
+}
+.emoji-rating .emoji.active { opacity: 1; filter: none; transform: scale(1.2); }
 .choices { display: flex; flex-direction: column; gap: 8px; }
 .choice { display: flex; align-items: center; gap: 8px; font-weight: 400; cursor: pointer; }
 .survey-error { color: #dc2626; margin-top: 12px; }

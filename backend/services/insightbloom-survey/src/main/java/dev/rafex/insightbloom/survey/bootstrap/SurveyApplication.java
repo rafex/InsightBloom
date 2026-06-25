@@ -17,6 +17,7 @@ import dev.rafex.insightbloom.survey.application.usecases.GetResultsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.ListQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SubmitResponsesUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SuggestQuestionsUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.UpdateQuestionUseCase;
 
 import java.util.List;
 
@@ -43,10 +44,11 @@ public class SurveyApplication {
         final var submitResponsesUseCase = new SubmitResponsesUseCase(questionRepo, responseRepo, llm);
         final var getResultsUseCase = new GetResultsUseCase(questionRepo, responseRepo);
         final var suggestQuestionsUseCase = new SuggestQuestionsUseCase(llm, presentationsClient, JsonUtils.codec());
+        final var updateQuestionUseCase = new UpdateQuestionUseCase(questionRepo);
 
         final var surveyHandler = new SurveyHandler(
                 createQuestionUseCase, listQuestionsUseCase, deactivateQuestionUseCase,
-                submitResponsesUseCase, getResultsUseCase, suggestQuestionsUseCase);
+                submitResponsesUseCase, getResultsUseCase, suggestQuestionsUseCase, updateQuestionUseCase);
 
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/conferences/*", surveyHandler);

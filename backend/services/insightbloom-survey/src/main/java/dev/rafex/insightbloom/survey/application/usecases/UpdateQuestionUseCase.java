@@ -5,24 +5,24 @@ import dev.rafex.insightbloom.survey.domain.model.SurveyQuestion;
 import dev.rafex.insightbloom.survey.domain.ports.SurveyQuestionRepository;
 
 import java.util.List;
-import java.util.UUID;
 
-public class CreateQuestionUseCase {
+public class UpdateQuestionUseCase {
     private final SurveyQuestionRepository repo;
 
-    public CreateQuestionUseCase(final SurveyQuestionRepository repo) { this.repo = repo; }
+    public UpdateQuestionUseCase(final SurveyQuestionRepository repo) { this.repo = repo; }
 
-    public record Request(String conferenceUuid, String text, String type, List<String> options,
-                           String referenceAnswer, String ratingStyle, int orderIndex) {}
+    public record Request(String questionUuid, String text, String type, List<String> options,
+                           String referenceAnswer, String ratingStyle, Integer orderIndex) {}
 
     public SurveyQuestion execute(final Request req) {
+        final SurveyQuestion question = repo.findByUuid(req.questionUuid())
+                .orElseThrow(() -> new IllegalArgumentException("question_not_found"));
         if (req.text() == null || req.text().isBlank()) {
             throw new IllegalArgumentException("text_required");
         }
         final QuestionType type = QuestionType.valueOf((req.type() == null ? "TEXT" : req.type()).toUpperCase());
-        final var question = new SurveyQuestion(
-                UUID.randomUUID().toString(), req.conferenceUuid(), req.text(), type, req.options(),
-                req.referenceAnswer(), req.ratingStyle(), req.orderIndex());
+        final int orderIndex = req.orderIndex() == null ? question.getOrderIndex() : req.orderIndex();
+        question.update(req.text(), type, req.options(), req.referenceAnswer(), req.ratingStyle(), orderIndex);
         repo.save(question);
         return question;
     }

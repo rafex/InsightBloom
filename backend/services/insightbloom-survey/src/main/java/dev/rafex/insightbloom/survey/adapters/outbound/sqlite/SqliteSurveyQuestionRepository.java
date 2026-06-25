@@ -25,14 +25,15 @@ public class SqliteSurveyQuestionRepository implements SurveyQuestionRepository 
     public void save(final SurveyQuestion q) {
         final String sql = """
             INSERT INTO survey_questions
-                (uuid, conference_uuid, text, type, options_json, reference_answer, order_index, active,
-                 created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (uuid, conference_uuid, text, type, options_json, reference_answer, rating_style, order_index,
+                 active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(uuid) DO UPDATE SET
                 text = excluded.text,
                 type = excluded.type,
                 options_json = excluded.options_json,
                 reference_answer = excluded.reference_answer,
+                rating_style = excluded.rating_style,
                 order_index = excluded.order_index,
                 active = excluded.active,
                 updated_at = excluded.updated_at
@@ -44,10 +45,11 @@ public class SqliteSurveyQuestionRepository implements SurveyQuestionRepository 
             ps.setString(4, q.getType().name());
             ps.setString(5, q.getOptions() == null ? null : String.join(OPTIONS_SEP, q.getOptions()));
             ps.setString(6, q.getReferenceAnswer());
-            ps.setInt(7, q.getOrderIndex());
-            ps.setInt(8, q.isActive() ? 1 : 0);
-            ps.setString(9, q.getCreatedAt().toString());
-            ps.setString(10, q.getUpdatedAt().toString());
+            ps.setString(7, q.getRatingStyle());
+            ps.setInt(8, q.getOrderIndex());
+            ps.setInt(9, q.isActive() ? 1 : 0);
+            ps.setString(10, q.getCreatedAt().toString());
+            ps.setString(11, q.getUpdatedAt().toString());
             ps.executeUpdate();
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to save survey question", e);
@@ -96,6 +98,7 @@ public class SqliteSurveyQuestionRepository implements SurveyQuestionRepository 
                 QuestionType.valueOf(rs.getString("type")),
                 options,
                 rs.getString("reference_answer"),
+                rs.getString("rating_style"),
                 rs.getInt("order_index"),
                 rs.getInt("active") == 1,
                 Instant.parse(rs.getString("created_at")),

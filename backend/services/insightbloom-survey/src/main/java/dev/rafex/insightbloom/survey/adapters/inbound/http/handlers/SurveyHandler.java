@@ -16,6 +16,7 @@ import dev.rafex.insightbloom.survey.application.usecases.GetResultsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.ListQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SubmitResponsesUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SuggestQuestionsUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.UpdateQuestionUseCase;
 import org.eclipse.jetty.server.Request;
 
 import java.util.List;
@@ -34,13 +35,15 @@ public class SurveyHandler extends NonBlockingResourceHandler {
     private final SubmitResponsesUseCase submitResponsesUseCase;
     private final GetResultsUseCase getResultsUseCase;
     private final SuggestQuestionsUseCase suggestQuestionsUseCase;
+    private final UpdateQuestionUseCase updateQuestionUseCase;
 
     public SurveyHandler(final CreateQuestionUseCase createQuestionUseCase,
                           final ListQuestionsUseCase listQuestionsUseCase,
                           final DeactivateQuestionUseCase deactivateQuestionUseCase,
                           final SubmitResponsesUseCase submitResponsesUseCase,
                           final GetResultsUseCase getResultsUseCase,
-                          final SuggestQuestionsUseCase suggestQuestionsUseCase) {
+                          final SuggestQuestionsUseCase suggestQuestionsUseCase,
+                          final UpdateQuestionUseCase updateQuestionUseCase) {
         super(JSON_CODEC);
         this.createQuestionUseCase = createQuestionUseCase;
         this.listQuestionsUseCase = listQuestionsUseCase;
@@ -48,6 +51,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
         this.submitResponsesUseCase = submitResponsesUseCase;
         this.getResultsUseCase = getResultsUseCase;
         this.suggestQuestionsUseCase = suggestQuestionsUseCase;
+        this.updateQuestionUseCase = updateQuestionUseCase;
     }
 
     @Override
@@ -61,6 +65,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                 Route.of("/{conferenceId}/survey/questions", Set.of("GET", "POST")),
                 Route.of("/{conferenceId}/survey/questions/suggest", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/questions/{questionId}/deactivate", Set.of("POST")),
+                Route.of("/{conferenceId}/survey/questions/{questionId}/update", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/responses", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/results", Set.of("GET")));
     }
@@ -117,7 +122,18 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                         : ((Number) body.get("orderIndex")).intValue();
                 final var question = createQuestionUseCase.execute(new CreateQuestionUseCase.Request(
                         conferenceId, (String) body.get("text"), (String) body.get("type"), options,
-                        (String) body.get("referenceAnswer"), orderIndex));
+                        (String) body.get("referenceAnswer"), (String) body.get("ratingStyle"), orderIndex));
+                sendOk(jx, question);
+                return true;
+            }
+            if (path.endsWith("/update")) {
+                final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+                final List<String> options = (List<String>) body.get("options");
+                final Integer orderIndex = body.get("orderIndex") == null ? null
+                        : ((Number) body.get("orderIndex")).intValue();
+                final var question = updateQuestionUseCase.execute(new UpdateQuestionUseCase.Request(
+                        jx.pathParam("questionId"), (String) body.get("text"), (String) body.get("type"), options,
+                        (String) body.get("referenceAnswer"), (String) body.get("ratingStyle"), orderIndex));
                 sendOk(jx, question);
                 return true;
             }

@@ -13,9 +13,16 @@ export async function getQuestions(conferenceId, onlyActive = true) {
   return res.data
 }
 
-export async function createQuestion(conferenceId, { text, type, options, referenceAnswer, orderIndex }, token) {
+export async function createQuestion(conferenceId, { text, type, options, referenceAnswer, ratingStyle, orderIndex }, token) {
   const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/questions`,
-    { text, type, options, referenceAnswer, orderIndex },
+    { text, type, options, referenceAnswer, ratingStyle, orderIndex },
+    { headers: authHeader(token) })
+  return res.data
+}
+
+export async function updateQuestion(conferenceId, questionId, { text, type, options, referenceAnswer, ratingStyle, orderIndex }, token) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/questions/${questionId}/update`,
+    { text, type, options, referenceAnswer, ratingStyle, orderIndex },
     { headers: authHeader(token) })
   return res.data
 }

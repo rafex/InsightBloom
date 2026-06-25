@@ -53,6 +53,7 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_r_q ON survey_responses(question_uuid)");
 
             addColumnIfMissing(c, "survey_questions", "reference_answer", "TEXT");
+            addColumnIfMissing(c, "survey_questions", "rating_style", "TEXT");
             addColumnIfMissing(c, "survey_responses", "grade_score", "REAL");
             addColumnIfMissing(c, "survey_responses", "grade_feedback", "TEXT");
         } catch (final SQLException e) {

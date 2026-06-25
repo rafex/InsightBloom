@@ -12,7 +12,7 @@ public class ListQuestionsUseCase {
     public ListQuestionsUseCase(final SurveyQuestionRepository repo) { this.repo = repo; }
 
     public record PublicQuestion(String uuid, String conferenceUuid, String text, String type,
-                                  List<String> options, int orderIndex, boolean active) {}
+                                  List<String> options, String ratingStyle, int orderIndex, boolean active) {}
 
     public List<SurveyQuestion> execute(final String conferenceUuid, final boolean onlyActive) {
         return repo.findByConference(conferenceUuid, onlyActive);
@@ -25,7 +25,7 @@ public class ListQuestionsUseCase {
                             ? shuffled(q.getOptions())
                             : q.getOptions();
                     return new PublicQuestion(q.getUuid(), q.getConferenceUuid(), q.getText(),
-                            q.getType().name(), options, q.getOrderIndex(), q.isActive());
+                            q.getType().name(), options, q.getRatingStyle(), q.getOrderIndex(), q.isActive());
                 })
                 .toList();
     }
