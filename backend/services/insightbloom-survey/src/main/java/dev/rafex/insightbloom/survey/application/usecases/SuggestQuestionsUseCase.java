@@ -6,12 +6,19 @@ import dev.rafex.insightbloom.survey.domain.ports.PresentationsPort;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class SuggestQuestionsUseCase {
+    private static final Pattern FRONTMATTER = Pattern.compile("^---.*?---\\s*", Pattern.DOTALL);
+    private static final Pattern HTML_COMMENT = Pattern.compile("<!--.*?-->", Pattern.DOTALL);
+
     private static final String SYSTEM_PROMPT = """
             Eres un asistente que ayuda a un instructor a crear un cuestionario de evaluacion
-            para verificar si su audiencia entendio una charla o taller. A partir del contenido
-            en markdown de la presentacion, propone preguntas variadas y relevantes.
+            para verificar si su audiencia entendio una charla o taller. Recibiras UNICAMENTE el
+            contenido visible de las diapositivas (lo que el publico vio en pantalla, sin notas del
+            orador ni metadata). Basa las preguntas EXCLUSIVAMENTE en ese contenido visible: no
+            inventes datos que no aparezcan en las diapositivas y no asumas informacion adicional.
+            Propone preguntas variadas y relevantes sobre lo que se mostro.
             Responde UNICAMENTE con un arreglo JSON valido (sin texto adicional, sin markdown),
             donde cada elemento tiene esta forma exacta:
             {"text": "...", "type": "RATING|TEXT|MULTIPLE_CHOICE|OPEN_GRADED|CODE_GRADED|DRAG_DROP",
@@ -44,8 +51,10 @@ public class SuggestQuestionsUseCase {
         }
         final String markdown = presentations.fetchMarkdown(conferenceId)
                 .orElseThrow(() -> new IllegalArgumentException("presentation_not_found"));
+        final String visibleContent = stripNonVisibleContent(markdown);
 
-        final String userPrompt = "Genera " + count + " preguntas a partir de esta presentacion:\n\n" + markdown;
+        final String userPrompt = "Genera " + count
+                + " preguntas a partir del contenido visible de estas diapositivas:\n\n" + visibleContent;
         final String raw = llm.complete(SYSTEM_PROMPT, userPrompt);
         final String jsonArray = extractJsonArray(raw);
 
@@ -58,6 +67,12 @@ public class SuggestQuestionsUseCase {
                         castOptions(m.get("options")),
                         (String) m.get("referenceAnswer")))
                 .toList();
+    }
+
+    private String stripNonVisibleContent(final String markdown) {
+        String result = FRONTMATTER.matcher(markdown).replaceFirst("");
+        result = HTML_COMMENT.matcher(result).replaceAll("");
+        return result.trim();
     }
 
     @SuppressWarnings("unchecked")
