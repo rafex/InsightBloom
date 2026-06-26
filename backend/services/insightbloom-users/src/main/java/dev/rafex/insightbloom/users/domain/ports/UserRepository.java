@@ -7,4 +7,6 @@ public interface UserRepository {
     void save(User user);
     Optional<User> findByUuid(String uuid);
     Optional<User> findByUsername(String username);
+    Optional<User> findByEmail(String email);
+    Optional<User> findByPhone(String phone);
 }

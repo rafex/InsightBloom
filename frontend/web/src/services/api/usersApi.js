@@ -35,3 +35,8 @@ export async function getConferenceByFriendlyId(friendlyId) {
   const res = await axios.get(`/api/users/api/v1/conferences/by-friendly/${friendlyId}`)
   return res.data.data
 }
+
+export async function getUserProfile(uuid) {
+  const res = await axios.get(`/api/users/api/v1/users/${uuid}`)
+  return res.data.data
+}

@@ -7,6 +7,8 @@ import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.insightbloom.users.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.users.adapters.outbound.cascade.HttpCascadeDeleteClient;
 import dev.rafex.insightbloom.users.adapters.outbound.sqlite.*;
+import dev.rafex.insightbloom.users.adapters.outbound.twilio.TwilioSmsClient;
+import dev.rafex.insightbloom.users.adapters.outbound.zoho.ZohoEmailClient;
 import dev.rafex.insightbloom.users.application.usecases.*;
 import dev.rafex.insightbloom.users.domain.services.*;
 
@@ -19,6 +21,15 @@ public class UsersApplication {
         final String presentationsUrl = System.getenv().getOrDefault("PRESENTATIONS_URL", "http://insightbloom-presentations:8091");
         final String surveyUrl = System.getenv().getOrDefault("SURVEY_URL", "http://insightbloom-survey:8086");
 
+        final String twilioAccountSid = System.getenv().getOrDefault("TWILIO_ACCOUNT_SID", "");
+        final String twilioAuthToken = System.getenv().getOrDefault("TWILIO_AUTH_TOKEN", "");
+        final String twilioFromNumber = System.getenv().getOrDefault("TWILIO_FROM_NUMBER", "");
+        final String zohoSmtpHost = System.getenv().getOrDefault("ZOHO_SMTP_HOST", "smtp.zoho.com");
+        final String zohoSmtpPort = System.getenv().getOrDefault("ZOHO_SMTP_PORT", "587");
+        final String zohoUsername = System.getenv().getOrDefault("ZOHO_SMTP_USERNAME", "");
+        final String zohoPassword = System.getenv().getOrDefault("ZOHO_SMTP_PASSWORD", "");
+        final String zohoFromAddress = System.getenv().getOrDefault("ZOHO_FROM_ADDRESS", zohoUsername);
+
         // Infrastructure
         final var db = new DatabaseManager(dbPath);
         db.initialize();
@@ -28,12 +39,15 @@ public class UsersApplication {
         final var guestRepo = new SqliteGuestUserRepository(db);
         final var tokenRepo = new SqliteTokenRepository(db);
         final var conferenceRepo = new SqliteConferenceRepository(db);
+        final var otpRepo = new SqliteOtpCodeRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
         final var friendlyIdService = new FriendlyIdService(conferenceRepo);
         final var cascadeDeletePort = new HttpCascadeDeleteClient(
                 ingestUrl, queryUrl, moderationUrl, presentationsUrl, surveyUrl);
+        final var smsPort = new TwilioSmsClient(twilioAccountSid, twilioAuthToken, twilioFromNumber);
+        final var emailPort = new ZohoEmailClient(zohoSmtpHost, zohoSmtpPort, zohoUsername, zohoPassword, zohoFromAddress);
 
         // Use cases
         final var loginUseCase = new LoginUseCase(userRepo, tokenService);
@@ -41,15 +55,22 @@ public class UsersApplication {
         final var validateTokenUseCase = new ValidateTokenUseCase(tokenService, userRepo, guestRepo);
         final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService);
         final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo, cascadeDeletePort);
+        final var registerUseCase = new RegisterUseCase(userRepo);
+        final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
+        final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);
+        final var getUserProfileUseCase = new GetUserProfileUseCase(userRepo);
 
         // Handlers
-        final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase);
+        final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
+                registerUseCase, sendOtpUseCase, verifyOtpUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase, validateTokenUseCase);
+        final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/auth/*", authHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
+        routes.add("/api/v1/users/*", userProfileHandler);
 
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();

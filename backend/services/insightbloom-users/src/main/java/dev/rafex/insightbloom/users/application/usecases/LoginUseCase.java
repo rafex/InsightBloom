@@ -21,6 +21,7 @@ public class LoginUseCase {
         this.tokenService = tokenService;
     }
 
+    /** {@code username} accepts a username, email, or phone number. */
     public record LoginRequest(String username, String password) {}
     public record LoginResult(String token, String userUuid, String role) {}
 
@@ -29,7 +30,7 @@ public class LoginUseCase {
         if (request.username() == null || request.username().isBlank()) return Optional.empty();
         if (request.password() == null || request.password().isBlank()) return Optional.empty();
 
-        Optional<User> user = userRepository.findByUsername(request.username());
+        Optional<User> user = findByIdentifier(request.username());
         return user.flatMap(u -> {
             if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) return Optional.empty();
             String inputHash = sha256(request.password());
@@ -37,6 +38,12 @@ public class LoginUseCase {
             Token token = tokenService.issueUserToken(u.getUuid(), TokenKind.USER);
             return Optional.of(new LoginResult(token.getTokenValue(), u.getUuid(), u.getRole().name().toLowerCase()));
         });
+    }
+
+    private Optional<User> findByIdentifier(final String identifier) {
+        return userRepository.findByUsername(identifier)
+                .or(() -> userRepository.findByEmail(identifier))
+                .or(() -> userRepository.findByPhone(identifier));
     }
 
     public static String sha256(String input) {

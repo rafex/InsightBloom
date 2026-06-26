@@ -112,6 +112,19 @@ services:
       MODERATION_URL: http://insightbloom-moderation:8084
       PRESENTATIONS_URL: http://insightbloom-presentations:8091
       SURVEY_URL: http://insightbloom-survey:8086
+      TWILIO_ACCOUNT_SID: ""
+      TWILIO_FROM_NUMBER: ""
+      ZOHO_SMTP_HOST: "smtp.zoho.com"
+      ZOHO_SMTP_PORT: "587"
+      ZOHO_SMTP_USERNAME: ""
+      ZOHO_FROM_ADDRESS: ""
+    secretEnv:
+      - name: TWILIO_AUTH_TOKEN
+        secretName: insightbloom-users-secrets
+        secretKey: twilio-auth-token
+      - name: ZOHO_SMTP_PASSWORD
+        secretName: insightbloom-users-secrets
+        secretKey: zoho-smtp-password
 
   stats:
     repository: ghcr.io/rafex/insightbloom-stats

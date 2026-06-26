@@ -10,6 +10,10 @@ const routes = [
     component: () => import('@/pages/login/LoginPage.vue')
   },
   {
+    path: '/register',
+    component: () => import('@/pages/login/RegisterPage.vue')
+  },
+  {
     path: '/c/:friendlyId',
     component: () => import('@/pages/conference/ConferencePage.vue'),
     children: [

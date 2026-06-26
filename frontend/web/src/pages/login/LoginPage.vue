@@ -3,11 +3,11 @@
   AppHeader
   main.login-main
     .login-card.animate__animated.animate__fadeIn
-      h2 Acceso organizador
-      p.hint Ingresa tus credenciales de organizador o moderador
+      h2 Iniciar sesión
+      p.hint Usuario, correo o teléfono
       .form-group
-        label Usuario
-        input(v-model="username" type="text" autocomplete="username" placeholder="admin" @keyup.enter="doLogin")
+        label Usuario / correo / teléfono
+        input(v-model="username" type="text" autocomplete="username" placeholder="admin@ejemplo.com" @keyup.enter="doLogin")
       .form-group
         label Contraseña
         input(v-model="password" type="password" autocomplete="current-password" placeholder="••••••••" @keyup.enter="doLogin")
@@ -15,6 +15,7 @@
       button.btn-primary(@click="doLogin" :disabled="loading")
         span(v-if="loading") Entrando...
         span(v-else) Iniciar sesión
+      p.register-hint ¿No tienes cuenta? #[router-link(to="/register") Regístrate]
 </template>
 
 <script>
@@ -64,4 +65,7 @@ input { padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 input:focus { outline: none; border-color: #4f46e5; }
 .btn-primary { width: 100%; padding: 12px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
+.register-hint { text-align: center; margin: 16px 0 0; font-size: 0.85rem; color: #6b7280; }
+.register-hint a { color: #4f46e5; font-weight: 600; text-decoration: none; }
+.register-hint a:hover { text-decoration: underline; }
 </style>

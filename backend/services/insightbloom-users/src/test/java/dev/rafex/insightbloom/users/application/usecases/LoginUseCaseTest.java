@@ -18,8 +18,9 @@ class LoginUseCaseTest {
         TokenRepository tokenRepo = Mockito.mock(TokenRepository.class);
         TokenService tokenService = new TokenService(tokenRepo);
 
-        User user = new User("1", "uuid-1", "admin", "Admin", "admin@test.com",
-                UserRole.ORGANIZER, UserStatus.ACTIVE, LoginUseCase.sha256("pass"), java.time.Instant.now(), java.time.Instant.now());
+        User user = new User("1", "uuid-1", "admin", "Admin", "admin@test.com", null, java.util.List.of(),
+                false, false, UserRole.ORGANIZER, UserStatus.ACTIVE, LoginUseCase.sha256("pass"),
+                java.time.Instant.now(), java.time.Instant.now());
         Mockito.when(repo.findByUsername("admin")).thenReturn(Optional.of(user));
 
         LoginUseCase uc = new LoginUseCase(repo, tokenService);
@@ -47,8 +48,9 @@ class LoginUseCaseTest {
         TokenRepository tokenRepo = Mockito.mock(TokenRepository.class);
         TokenService tokenService = new TokenService(tokenRepo);
 
-        User user = new User("1", "uuid-1", "admin", "Admin", "admin@test.com",
-                UserRole.ORGANIZER, UserStatus.ACTIVE, LoginUseCase.sha256("correct"), java.time.Instant.now(), java.time.Instant.now());
+        User user = new User("1", "uuid-1", "admin", "Admin", "admin@test.com", null, java.util.List.of(),
+                false, false, UserRole.ORGANIZER, UserStatus.ACTIVE, LoginUseCase.sha256("correct"),
+                java.time.Instant.now(), java.time.Instant.now());
         Mockito.when(repo.findByUsername("admin")).thenReturn(Optional.of(user));
 
         LoginUseCase uc = new LoginUseCase(repo, tokenService);

@@ -34,7 +34,7 @@
         span.word-chip {{ item.wordText || '—' }}
       .msg-detail {{ item.detailText || item.detail || item.detailVisible || '—' }}
       .msg-meta
-        span.msg-author {{ item.author?.displayName || 'Anónimo' }}
+        span.msg-author {{ authorNames[item.authorUuid] || item.authorLabel || 'Anónimo' }}
         span.msg-time(v-if="item.receivedAt || item.updatedAt") · {{ formatTime(item.receivedAt || item.updatedAt) }}
       .msg-status
         span.status(:class="statusClass(item.detailStatus)") {{ statusLabel(item.detailStatus) }}
@@ -66,7 +66,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { getModerationMessages, censorMessage, restoreMessage, deleteMessage } from '@/services/api/moderationApi'
 import { getWordTimeline } from '@/services/api/queryApi'
-import { getConference } from '@/services/api/usersApi'
+import { getConference, getUserProfile } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -86,6 +86,20 @@ export default {
     const totalPages = ref(1)
     const statusFilter = ref('')
     const conferenceName = ref('')
+    const authorNames = ref({})
+
+    async function resolveAuthors() {
+      const uuids = [...new Set(items.value.map(i => i.authorUuid).filter(Boolean))]
+        .filter(uuid => !(uuid in authorNames.value))
+      for (const uuid of uuids) {
+        try {
+          const profile = await getUserProfile(uuid)
+          authorNames.value = { ...authorNames.value, [uuid]: profile?.displayName || profile?.email || profile?.phone || 'Anónimo' }
+        } catch (e) {
+          authorNames.value = { ...authorNames.value, [uuid]: 'Anónimo' }
+        }
+      }
+    }
 
     // ── Word-filtered view: fetch from word timeline (query service) ──────────
     async function loadWordTimeline() {
@@ -121,6 +135,7 @@ export default {
         const res = await getModerationMessages(props.conferenceId, page.value, 20, statusFilter.value, auth.state.token)
         items.value = (res.data || []).map(m => ({ ...m, _loading: false }))
         totalPages.value = res.meta?.totalPages || 1
+        resolveAuthors()
       } catch (e) { } finally { loading.value = false }
     }
 
@@ -193,7 +208,7 @@ export default {
     })
 
     return {
-      items, loading, page, totalPages, statusFilter, conferenceName,
+      items, loading, page, totalPages, statusFilter, conferenceName, authorNames,
       wordNormalized, wordCanonical,
       conferenceId: props.conferenceId,
       loadModMessages, goToPage, censorDetail, restore, deleteItem,

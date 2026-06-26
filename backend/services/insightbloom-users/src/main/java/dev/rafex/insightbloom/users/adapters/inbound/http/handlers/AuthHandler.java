@@ -12,9 +12,14 @@ import dev.rafex.insightbloom.contracts.ApiMeta;
 import dev.rafex.insightbloom.contracts.ApiResponse;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.application.usecases.LoginUseCase;
+import dev.rafex.insightbloom.users.application.usecases.RegisterUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SendOtpUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
+import dev.rafex.insightbloom.users.application.usecases.VerifyOtpUseCase;
+import dev.rafex.insightbloom.users.domain.model.SocialLink;
 import org.eclipse.jetty.server.Request;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,13 +33,20 @@ public class AuthHandler extends NonBlockingResourceHandler {
     private final LoginUseCase loginUseCase;
     private final CreateGuestUseCase createGuestUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
+    private final RegisterUseCase registerUseCase;
+    private final SendOtpUseCase sendOtpUseCase;
+    private final VerifyOtpUseCase verifyOtpUseCase;
 
     public AuthHandler(final LoginUseCase loginUseCase, final CreateGuestUseCase createGuestUseCase,
-                       final ValidateTokenUseCase validateTokenUseCase) {
+                       final ValidateTokenUseCase validateTokenUseCase, final RegisterUseCase registerUseCase,
+                       final SendOtpUseCase sendOtpUseCase, final VerifyOtpUseCase verifyOtpUseCase) {
         super(JSON_CODEC);
         this.loginUseCase = loginUseCase;
         this.createGuestUseCase = createGuestUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
+        this.registerUseCase = registerUseCase;
+        this.sendOtpUseCase = sendOtpUseCase;
+        this.verifyOtpUseCase = verifyOtpUseCase;
     }
 
     @Override
@@ -47,7 +59,10 @@ public class AuthHandler extends NonBlockingResourceHandler {
         return List.of(
                 Route.of("/login", Set.of("POST")),
                 Route.of("/guest", Set.of("POST")),
-                Route.of("/validate", Set.of("GET")));
+                Route.of("/validate", Set.of("GET")),
+                Route.of("/register", Set.of("POST")),
+                Route.of("/otp/send", Set.of("POST")),
+                Route.of("/otp/verify", Set.of("POST")));
     }
 
     @Override
@@ -61,6 +76,9 @@ public class AuthHandler extends NonBlockingResourceHandler {
         final String path = jx.path();
         if (path.endsWith("/login")) return handleLogin(jx);
         if (path.endsWith("/guest")) return handleGuest(jx);
+        if (path.endsWith("/register")) return handleRegister(jx);
+        if (path.endsWith("/otp/send")) return handleSendOtp(jx);
+        if (path.endsWith("/otp/verify")) return handleVerifyOtp(jx);
         sendError(jx, 404, "not_found", "Endpoint not found");
         return true;
     }
@@ -119,6 +137,62 @@ public class AuthHandler extends NonBlockingResourceHandler {
             } else {
                 sendError(jx, 401, "token_invalid", "Token is invalid or expired");
             }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean handleRegister(final JettyHttpExchange jx) {
+        try {
+            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final List<Map<String, String>> rawLinks = (List<Map<String, String>>) body.get("socialLinks");
+            final List<SocialLink> socialLinks = new ArrayList<>();
+            if (rawLinks != null) {
+                for (final Map<String, String> link : rawLinks) {
+                    if (link.get("platform") != null && link.get("url") != null) {
+                        socialLinks.add(new SocialLink(link.get("platform"), link.get("url")));
+                    }
+                }
+            }
+            final var user = registerUseCase.execute(new RegisterUseCase.Request(
+                    (String) body.get("displayName"), (String) body.get("email"), (String) body.get("phone"),
+                    (String) body.get("password"), socialLinks));
+            sendOk(jx, 201, Map.of("userUuid", user.getUuid(), "email", user.getEmail() == null ? "" : user.getEmail(),
+                    "phone", user.getPhone() == null ? "" : user.getPhone()));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 409, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSendOtp(final JettyHttpExchange jx) {
+        try {
+            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            sendOtpUseCase.execute(new SendOtpUseCase.Request(
+                    (String) body.get("identifier"), (String) body.get("channel")));
+            sendOk(jx, 200, Map.of("status", "sent"));
+        } catch (final IllegalStateException e) {
+            sendError(jx, 503, e.getMessage(), e.getMessage());
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleVerifyOtp(final JettyHttpExchange jx) {
+        try {
+            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final var result = verifyOtpUseCase.execute(new VerifyOtpUseCase.Request(
+                    (String) body.get("identifier"), (String) body.get("code")));
+            sendOk(jx, 200, result);
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

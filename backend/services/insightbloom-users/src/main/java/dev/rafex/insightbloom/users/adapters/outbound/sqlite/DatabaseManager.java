@@ -4,8 +4,11 @@ import org.sqlite.SQLiteConfig;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashSet;
+import java.util.Set;
 
 public class DatabaseManager {
     private final String dbPath;
@@ -40,6 +43,13 @@ public class DatabaseManager {
             // Migrate: add password_hash if existing DB lacks the column
             try { stmt.executeUpdate("ALTER TABLE users ADD COLUMN password_hash TEXT"); }
             catch (SQLException ignored) { /* column already exists */ }
+            addColumnIfMissing(conn, "users", "phone", "TEXT");
+            addColumnIfMissing(conn, "users", "social_links", "TEXT");
+            addColumnIfMissing(conn, "users", "email_verified", "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(conn, "users", "phone_verified", "INTEGER NOT NULL DEFAULT 0");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)");
+
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS guest_users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,9 +92,36 @@ public class DatabaseManager {
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN expires_at TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN latitude REAL"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN longitude REAL"); } catch (SQLException ignored) {}
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS otp_codes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    identifier TEXT NOT NULL,
+                    channel TEXT NOT NULL,
+                    code TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    consumed INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_otp_identifier ON otp_codes(identifier)");
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
         }
     }
 
+    private void addColumnIfMissing(final Connection c, final String table, final String column,
+                                     final String ddlType) throws SQLException {
+        final Set<String> existing = new HashSet<>();
+        try (Statement stmt = c.createStatement();
+             ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (rs.next()) existing.add(rs.getString("name"));
+        }
+        if (!existing.contains(column)) {
+            try (Statement stmt = c.createStatement()) {
+                stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + ddlType);
+            }
+        }
+    }
 }

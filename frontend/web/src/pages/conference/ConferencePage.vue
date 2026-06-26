@@ -23,6 +23,7 @@
         router-link(:to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
         router-link(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
         router-link(:to="`/c/${friendlyId}/presentation`" active-class="active-tab") Presentación
+        a(:href="chatUrl" target="_blank" rel="noopener") Chat
         router-link(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
     router-view(:conference-id="conference.conferenceId || conference.uuid")
 </template>
@@ -45,6 +46,9 @@ export default {
     const error      = ref('')
     const showIntro  = ref(false)
 
+    const chatHost = location.hostname.startsWith('chat-') ? location.hostname : `chat-${location.hostname}`
+    const chatUrl = `${location.protocol}//${chatHost}/?conference=${encodeURIComponent(friendlyId)}`
+
     function dismissIntro() {
       showIntro.value = false
     }
@@ -61,7 +65,7 @@ export default {
       }
     })
 
-    return { friendlyId, conference, loading, error, showIntro, dismissIntro }
+    return { friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl }
   }
 }
 </script>

@@ -13,6 +13,7 @@ public class ModerationMessage {
     private String editedWordValue;
     private String editedDetailValue;
     private String updatedByUserUuid;
+    private String authorUuid;
     private Instant updatedAt;
 
     public ModerationMessage(String messageUuid, String conferenceUuid) {
@@ -29,21 +30,25 @@ public class ModerationMessage {
                               String wordText, String detailText,
                               ContentStatus wordStatus, ContentStatus detailStatus, String reason,
                               String editedWordValue, String editedDetailValue,
-                              String updatedByUserUuid, Instant updatedAt) {
+                              String updatedByUserUuid, String authorUuid, Instant updatedAt) {
         this.uuid = uuid; this.messageUuid = messageUuid; this.conferenceUuid = conferenceUuid;
         this.wordText = wordText; this.detailText = detailText;
         this.wordStatus = wordStatus; this.detailStatus = detailStatus; this.reason = reason;
         this.editedWordValue = editedWordValue; this.editedDetailValue = editedDetailValue;
-        this.updatedByUserUuid = updatedByUserUuid; this.updatedAt = updatedAt;
+        this.updatedByUserUuid = updatedByUserUuid; this.authorUuid = authorUuid; this.updatedAt = updatedAt;
     }
     public String getUuid() { return uuid; }
     public String getMessageUuid() { return messageUuid; }
     public String getConferenceUuid() { return conferenceUuid; }
     public String getWordText() { return wordText; }
     public String getDetailText() { return detailText; }
+    public String getAuthorUuid() { return authorUuid; }
     public void initContent(String wordText, String detailText) {
         this.wordText = wordText;
         this.detailText = detailText;
+    }
+    public void initAuthor(String authorUuid) {
+        this.authorUuid = authorUuid;
     }
     public ContentStatus getWordStatus() { return wordStatus; }
     public ContentStatus getDetailStatus() { return detailStatus; }

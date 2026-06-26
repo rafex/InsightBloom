@@ -295,6 +295,8 @@ function showConferenceScreen() {
   show('conferenceScreen');
   document.getElementById('confNickname').textContent = myNick;
   const input = document.getElementById('conferenceInput');
+  const prefill = new URLSearchParams(location.search).get('conference');
+  if (prefill) { input.value = prefill; onConfInput.call(input); }
   input.focus();
   input.addEventListener('input', onConfInput);
 }

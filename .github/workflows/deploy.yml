@@ -146,6 +146,18 @@ jobs:
             --from-literal=chat-secret-key="${CHAT_SECRET_KEY:-}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Upsert users OTP-provider secrets in k3s
+        env:
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          ZOHO_SMTP_PASSWORD: ${{ secrets.ZOHO_SMTP_PASSWORD }}
+        run: |
+          # Twilio/Zoho son opcionales: si no estan configurados, el OTP queda
+          # deshabilitado en runtime con un error claro en vez de fallar el deploy.
+          kubectl -n "$K3S_NAMESPACE" create secret generic "${RELEASE_NAME}-users-secrets" \
+            --from-literal=twilio-auth-token="${TWILIO_AUTH_TOKEN:-}" \
+            --from-literal=zoho-smtp-password="${ZOHO_SMTP_PASSWORD:-}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Lint chart
         run: |
           helm lint "$CHART_PATH"
@@ -161,6 +173,12 @@ jobs:
             --set services.chat.env.LLM_PROVIDER_MODEL="${{ vars.LLM_PROVIDER_MODEL }}" \
             --set services.survey.env.LLM_PROVIDER_BASE_URL="${{ vars.LLM_PROVIDER_BASE_URL }}" \
             --set services.survey.env.LLM_PROVIDER_MODEL="${{ vars.LLM_PROVIDER_MODEL }}" \
+            --set services.users.env.TWILIO_ACCOUNT_SID="${{ vars.TWILIO_ACCOUNT_SID }}" \
+            --set services.users.env.TWILIO_FROM_NUMBER="${{ vars.TWILIO_FROM_NUMBER }}" \
+            --set services.users.env.ZOHO_SMTP_HOST="${{ vars.ZOHO_SMTP_HOST }}" \
+            --set services.users.env.ZOHO_SMTP_PORT="${{ vars.ZOHO_SMTP_PORT }}" \
+            --set services.users.env.ZOHO_SMTP_USERNAME="${{ vars.ZOHO_SMTP_USERNAME }}" \
+            --set services.users.env.ZOHO_FROM_ADDRESS="${{ vars.ZOHO_FROM_ADDRESS }}" \
             --atomic \
             --wait --timeout 10m
 

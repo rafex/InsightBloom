@@ -59,6 +59,13 @@
       <artifactId>insightbloom-contracts</artifactId>
     </dependency>
 
+    <!-- SMTP client for Zoho email OTP -->
+    <dependency>
+      <groupId>com.sun.mail</groupId>
+      <artifactId>javax.mail</artifactId>
+      <version>1.6.2</version>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>

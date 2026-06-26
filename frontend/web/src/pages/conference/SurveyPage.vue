@@ -18,6 +18,13 @@
             a(:href="contact.blog" target="_blank" rel="noopener") 📝 Blog
       a.btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
 
+  .login-required(v-else-if="!canParticipate")
+    h2 Inicia sesión para responder la encuesta
+    p Necesitas una cuenta verificada para participar.
+    .login-actions
+      router-link.btn-primary-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
+      router-link.btn-outline-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Crear cuenta
+
   template(v-else)
     h2 Cuéntanos qué te pareció la charla
     .survey-loading(v-if="loading") Cargando encuesta...
@@ -90,6 +97,7 @@ import { useRoute } from 'vue-router'
 import { getQuestions, submitResponses } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl } from '@/services/api/presentationsApi'
 import { organizerContact } from '@/config/contact'
+import { useAuthStore } from '@/features/auth/authStore'
 
 const ORDER_SEP = ';;'
 const EMOJI_SCALE = ['😢', '😕', '😐', '🙂', '🤩']
@@ -99,6 +107,8 @@ export default {
   props: { conferenceId: String },
   setup(props) {
     const route = useRoute()
+    const auth = useAuthStore()
+    const canParticipate = auth.isAuthenticated() && auth.state.role !== 'guest'
     const friendlyId = route.params.friendlyId
     const questions = ref([])
     const loading = ref(true)
@@ -227,7 +237,7 @@ export default {
     onMounted(load)
 
     return {
-      friendlyId, questions, loading, submitting, submitted, error,
+      friendlyId, questions, loading, submitting, submitted, error, canParticipate,
       answers, answersText, dragOrder, pdfReady, pdfUrl, contact, emojiScale, setRating, submit,
       setCanvasRef, startDraw, moveDraw, endDraw, clearCanvas,
       dragStart, dragDrop, moveItem
@@ -240,6 +250,14 @@ export default {
 .survey-page { padding: 24px; max-width: 640px; margin: 0 auto; }
 h2 { color: #1e1b4b; margin-bottom: 16px; }
 .survey-loading, .survey-empty { text-align: center; color: #6b7280; padding: 60px; }
+.login-required { text-align: center; padding: 60px 24px; }
+.login-required p { color: #6b7280; margin-bottom: 24px; }
+.login-actions { display: flex; gap: 10px; justify-content: center; }
+.btn-primary-link, .btn-outline-link {
+  padding: 10px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem;
+}
+.btn-primary-link { background: #4f46e5; color: #fff; }
+.btn-outline-link { border: 1.5px solid #4f46e5; color: #4f46e5; }
 .question { margin-bottom: 24px; }
 .question label { display: block; font-weight: 600; color: #1e1b4b; margin-bottom: 8px; }
 textarea {

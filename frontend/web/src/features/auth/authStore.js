@@ -33,6 +33,15 @@ export function useAuthStore() {
     return { token }
   }
 
+  function setSession({ token, role, userUuid }) {
+    state.token = token
+    state.role = role
+    state.userUuid = userUuid
+    localStorage.setItem('ib_token', token)
+    localStorage.setItem('ib_role', role)
+    localStorage.setItem('ib_user_uuid', userUuid)
+  }
+
   function logout() {
     state.token = null
     state.role = null
@@ -46,5 +55,5 @@ export function useAuthStore() {
   function isOrganizer() { return state.role === 'organizer' }
   function isModerator() { return ['organizer', 'moderator'].includes(state.role) }
 
-  return { state, login, loginAsGuest, logout, isAuthenticated, isOrganizer, isModerator }
+  return { state, login, loginAsGuest, logout, setSession, isAuthenticated, isOrganizer, isModerator }
 }
