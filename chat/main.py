@@ -19,6 +19,7 @@ import asyncio
 import logging
 import os
 import re
+import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -151,6 +152,68 @@ async def login(body: dict):
         raise HTTPException(401, "Contraseña incorrecta")
 
     token = db.create_session(phone)
+    return {"ok": True, "token": token, "nickname": user["nickname"]}
+
+
+def _sanitize_nickname(raw: str) -> str:
+    base = re.sub(r"[^a-z0-9_.-]", "", (raw or "").strip().lower())[:20]
+    return base if len(base) >= 2 else "user"
+
+
+@app.post("/api/sso")
+async def sso(body: dict):
+    """
+    Inicio de sesión unificado: recibe el token de insightbloom-users (sitio
+    principal), lo valida contra ese servicio, y si corresponde a una cuenta
+    registrada (no invitado) auto-provisiona/reutiliza un usuario de chat
+    ligado a ese mismo uuid, evitando el registro/login propio del chat.
+    """
+    ib_token = (body.get("ib_token") or "").strip()
+    if not ib_token:
+        raise HTTPException(400, "ib_token requerido")
+
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        try:
+            resp = await client.get(
+                f"{USERS_URL}/api/v1/auth/validate",
+                headers={"Authorization": f"Bearer {ib_token}"},
+            )
+        except Exception:
+            raise HTTPException(503, "No se pudo validar la sesión")
+        if resp.status_code != 200:
+            raise HTTPException(401, "Sesión inválida o expirada")
+        validation = (resp.json() or {}).get("data", {})
+        if not validation.get("valid") or validation.get("kind") == "guest":
+            raise HTTPException(401, "Se requiere una cuenta registrada (no invitado)")
+        subject_uuid = validation.get("subjectUuid")
+        if not subject_uuid:
+            raise HTTPException(401, "Sesión inválida")
+
+        display_name = subject_uuid[:8]
+        try:
+            prof_resp = await client.get(f"{USERS_URL}/api/v1/users/{subject_uuid}")
+            if prof_resp.status_code == 200:
+                profile = (prof_resp.json() or {}).get("data", {})
+                display_name = profile.get("displayName") or display_name
+        except Exception:
+            pass
+
+    phone_key = f"ib:{subject_uuid}"
+    user = db.find_by_phone(phone_key)
+    if not user:
+        base_nick = _sanitize_nickname(display_name)
+        nickname = base_nick
+        for attempt in range(50):
+            try:
+                db.create_user(phone_key, nickname, encrypt(secrets.token_urlsafe(16)))
+                break
+            except Exception:
+                nickname = f"{base_nick[:16]}{attempt + 1}"
+        else:
+            raise HTTPException(500, "No se pudo crear el usuario de chat")
+        user = db.find_by_phone(phone_key)
+
+    token = db.create_session(phone_key)
     return {"ok": True, "token": token, "nickname": user["nickname"]}
 
 

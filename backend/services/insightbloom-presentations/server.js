@@ -4,6 +4,9 @@ const { execFile } = require('child_process');
 const express = require('express');
 const multer = require('multer');
 const AdmZip = require('adm-zip');
+const cheerio = require('cheerio');
+
+const PREVIEW_SLIDE_LIMIT = 5;
 
 const PORT = process.env.PORT || 8091;
 const DATA_DIR = process.env.DATA_DIR || '/data';
@@ -97,6 +100,28 @@ app.get('/api/v1/conferences/:id/presentation/slides', (req, res) => {
   const file = path.join(conferenceDir(req.params.id), 'src', 'slides.html');
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   res.sendFile(file);
+});
+
+app.get('/api/v1/conferences/:id/presentation/slides/preview', (req, res) => {
+  const file = path.join(conferenceDir(req.params.id), 'src', 'slides.html');
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
+  try {
+    const $ = cheerio.load(fs.readFileSync(file, 'utf8'), { decodeEntities: false });
+    $('section[data-marpit-pagination]').each((_, el) => {
+      const page = parseInt($(el).attr('data-marpit-pagination'), 10);
+      if (page > PREVIEW_SLIDE_LIMIT) $(el).remove();
+    });
+    $('body').append(
+      '<div style="position:fixed;bottom:0;left:0;right:0;padding:10px 16px;' +
+      'background:rgba(30,27,75,0.92);color:#fff;font-family:sans-serif;font-size:0.85rem;' +
+      'text-align:center;z-index:9999;pointer-events:none;">' +
+      'Vista previa &middot; primeras ' + PREVIEW_SLIDE_LIMIT + ' diapositivas &middot; ' +
+      'inicia sesión para ver la presentación completa</div>'
+    );
+    res.send($.html());
+  } catch (err) {
+    res.status(500).json({ error: 'preview_generation_failed', message: err.message });
+  }
 });
 
 app.get('/api/v1/conferences/:id/presentation/markdown', (req, res) => {

@@ -593,6 +593,23 @@ async function api(path, body) {
   if (!r.ok) throw new Error(data.detail || 'Error del servidor');
   return data;
 }
+
+/* ══════════════════════════════════════════════════
+   SSO: si llegamos con ?ib_token=... (sesión ya iniciada
+   en el sitio principal), saltamos login/registro de chat.
+══════════════════════════════════════════════════ */
+(async function trySso() {
+  const ibToken = new URLSearchParams(location.search).get('ib_token');
+  if (!ibToken) return;
+  try {
+    const r = await api('/api/sso', { ib_token: ibToken });
+    myToken = r.token;
+    myNick  = r.nickname;
+    showConferenceScreen();
+  } catch (e) {
+    // Si falla, se queda en la pantalla de login/registro normal.
+  }
+})();
 </script>
 </body>
 </html>

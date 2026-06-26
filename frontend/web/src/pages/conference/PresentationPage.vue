@@ -5,28 +5,47 @@
   .presentation-loading(v-if="loading") Verificando presentación...
   .presentation-empty(v-else-if="!ready")
     p El organizador aún no ha subido la presentación de esta conferencia.
+  template(v-else-if="timeUp")
+    .preview-expired
+      h3 Tiempo de vista previa agotado
+      p Inicia sesión o crea una cuenta para ver la presentación completa sin límites.
+      .login-actions
+        router-link.btn-primary(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
+        router-link.btn-secondary(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Crear cuenta
   template(v-else)
+    .preview-banner(v-if="!canParticipate")
+      span ⏱ Vista previa: primeras {{ previewSlideLimit }} diapositivas · se cierra en {{ remainingSeconds }}s
+      router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión para ver completa
     iframe.slides-frame(:src="slidesUrl" title="Slides")
     .presentation-actions
-      a.btn-primary(:href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
+      a.btn-primary(v-if="canParticipate" :href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
       router-link.btn-secondary(:to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { getPresentationStatus, getSlidesUrl, getPdfUrl } from '@/services/api/presentationsApi'
+import { getPresentationStatus, getSlidesUrl, getSlidesPreviewUrl, getPdfUrl } from '@/services/api/presentationsApi'
+import { useAuthStore } from '@/features/auth/authStore'
+
+const ANONYMOUS_PREVIEW_SECONDS = 60
+const PREVIEW_SLIDE_LIMIT = 5
 
 export default {
   name: 'PresentationPage',
   props: { conferenceId: String },
   setup(props) {
     const route = useRoute()
+    const auth = useAuthStore()
+    const canParticipate = auth.isAuthenticated() && auth.state.role !== 'guest'
     const friendlyId = route.params.friendlyId
     const loading = ref(true)
     const ready = ref(false)
     const slidesUrl = ref('')
     const pdfUrl = ref('')
+    const timeUp = ref(false)
+    const remainingSeconds = ref(ANONYMOUS_PREVIEW_SECONDS)
+    let timer = null
 
     onMounted(async () => {
       if (!props.conferenceId) { loading.value = false; return }
@@ -34,14 +53,31 @@ export default {
         const status = await getPresentationStatus(props.conferenceId)
         ready.value = !!status.ready
         if (ready.value) {
-          slidesUrl.value = getSlidesUrl(props.conferenceId)
+          slidesUrl.value = canParticipate
+            ? getSlidesUrl(props.conferenceId)
+            : getSlidesPreviewUrl(props.conferenceId)
           pdfUrl.value = getPdfUrl(props.conferenceId)
         }
       } catch (e) { ready.value = false }
       finally { loading.value = false }
+
+      if (!canParticipate) {
+        timer = setInterval(() => {
+          remainingSeconds.value -= 1
+          if (remainingSeconds.value <= 0) {
+            clearInterval(timer)
+            timeUp.value = true
+          }
+        }, 1000)
+      }
     })
 
-    return { friendlyId, loading, ready, slidesUrl, pdfUrl }
+    onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+
+    return {
+      friendlyId, loading, ready, slidesUrl, pdfUrl, canParticipate,
+      timeUp, remainingSeconds, previewSlideLimit: PREVIEW_SLIDE_LIMIT
+    }
   }
 }
 </script>
@@ -75,4 +111,16 @@ h2 { margin: 0; color: #1e1b4b; }
 .btn-primary:hover { background: #4338ca; }
 .btn-secondary { background: #eef2ff; color: #4f46e5; border: 2px solid #c7d2fe; }
 .btn-secondary:hover { background: #e0e7ff; }
+
+.preview-banner {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  background: #fef3c7; color: #92400e; border-radius: 8px; padding: 8px 14px;
+  font-size: 0.85rem; margin-bottom: 10px; flex-wrap: wrap;
+}
+.preview-banner a { color: #4f46e5; font-weight: 600; text-decoration: none; }
+.preview-banner a:hover { text-decoration: underline; }
+
+.preview-expired { text-align: center; padding: 60px 24px; }
+.preview-expired p { color: #6b7280; margin-bottom: 24px; }
+.login-actions { display: flex; gap: 10px; justify-content: center; }
 </style>

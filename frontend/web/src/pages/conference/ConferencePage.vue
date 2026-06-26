@@ -34,6 +34,7 @@ import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getConferenceByFriendlyId } from '@/services/api/usersApi'
+import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'ConferencePage',
@@ -46,8 +47,13 @@ export default {
     const error      = ref('')
     const showIntro  = ref(false)
 
+    const auth = useAuthStore()
     const chatHost = location.hostname.startsWith('chat-') ? location.hostname : `chat-${location.hostname}`
-    const chatUrl = `${location.protocol}//${chatHost}/?conference=${encodeURIComponent(friendlyId)}`
+    const chatParams = new URLSearchParams({ conference: friendlyId })
+    if (auth.isAuthenticated() && auth.state.role !== 'guest') {
+      chatParams.set('ib_token', auth.state.token)
+    }
+    const chatUrl = `${location.protocol}//${chatHost}/?${chatParams.toString()}`
 
     function dismissIntro() {
       showIntro.value = false

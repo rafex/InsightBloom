@@ -24,6 +24,10 @@ export function getSlidesUrl(conferenceId) {
   return `${BASE}/conferences/${conferenceId}/presentation/slides`
 }
 
+export function getSlidesPreviewUrl(conferenceId) {
+  return `${BASE}/conferences/${conferenceId}/presentation/slides/preview`
+}
+
 export function getPdfUrl(conferenceId) {
   return `${BASE}/conferences/${conferenceId}/presentation/pdf`
 }

@@ -10,6 +10,7 @@
   "dependencies": {
     "@marp-team/marp-cli": "^4.0.3",
     "adm-zip": "^0.5.16",
+    "cheerio": "^1.2.0",
     "express": "^4.21.2",
     "multer": "^2.0.1"
   }
