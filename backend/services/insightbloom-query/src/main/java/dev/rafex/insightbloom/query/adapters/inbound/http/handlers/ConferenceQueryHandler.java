@@ -2,14 +2,7 @@ package dev.rafex.insightbloom.query.adapters.inbound.http.handlers;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
-import dev.rafex.ether.http.jetty12.response.JettyApiResponses;
-import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
-import dev.rafex.ether.http.jetty12.handler.NonBlockingResourceHandler;
-import dev.rafex.ether.json.JsonCodec;
-import dev.rafex.ether.json.JsonUtils;
-import dev.rafex.insightbloom.contracts.ApiError;
-import dev.rafex.insightbloom.contracts.ApiMeta;
-import dev.rafex.insightbloom.contracts.ApiResponse;
+import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.query.application.usecases.DeleteConferenceDataUseCase;
 import dev.rafex.insightbloom.query.application.usecases.GetCloudUseCase;
 import dev.rafex.insightbloom.query.application.usecases.GetTimelineUseCase;
@@ -20,12 +13,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
-public class ConferenceQueryHandler extends NonBlockingResourceHandler {
-
-    private static final JsonCodec JSON_CODEC = JsonUtils.codec();
-    private static final JettyApiResponses RESPONSES = new JettyApiResponses(JSON_CODEC);
+public class ConferenceQueryHandler extends BaseResourceHandler {
 
     private final GetCloudUseCase getCloudUseCase;
     private final GetTimelineUseCase getTimelineUseCase;
@@ -33,7 +22,6 @@ public class ConferenceQueryHandler extends NonBlockingResourceHandler {
 
     public ConferenceQueryHandler(final GetCloudUseCase getCloudUseCase, final GetTimelineUseCase getTimelineUseCase,
                                    final DeleteConferenceDataUseCase deleteConferenceDataUseCase) {
-        super(JSON_CODEC);
         this.getCloudUseCase = getCloudUseCase;
         this.getTimelineUseCase = getTimelineUseCase;
         this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
@@ -102,19 +90,5 @@ public class ConferenceQueryHandler extends NonBlockingResourceHandler {
         }
         sendError(jx, 404, "not_found", "Endpoint not found");
         return true;
-    }
-
-    private <T> void sendOk(final JettyHttpExchange jx, final T data) {
-        RESPONSES.json(jx.response(), jx.callback(), 200,
-                new ApiResponse<>(data, ApiMeta.of(UUID.randomUUID().toString())));
-    }
-
-    private void sendError(final JettyHttpExchange jx, final int status, final String code, final String message) {
-        RESPONSES.json(jx.response(), jx.callback(), status,
-                ApiError.of(code, message, UUID.randomUUID().toString()));
-    }
-
-    private static JettyHttpExchange asJetty(final HttpExchange x) {
-        return (JettyHttpExchange) x;
     }
 }
