@@ -100,6 +100,10 @@ services:
   users:
     repository: ghcr.io/rafex/insightbloom-users
     port: 8081
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: local-path
     env:
       PORT: "8081"
       DB_PATH: /data/users.db
@@ -112,6 +116,10 @@ services:
   stats:
     repository: ghcr.io/rafex/insightbloom-stats
     port: 8085
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: local-path
     env:
       PORT: "8085"
       DB_PATH: /data/stats.db
@@ -119,6 +127,10 @@ services:
   moderation:
     repository: ghcr.io/rafex/insightbloom-moderation
     port: 8084
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: local-path
     env:
       PORT: "8084"
       DB_PATH: /data/moderation.db
@@ -127,6 +139,10 @@ services:
   query:
     repository: ghcr.io/rafex/insightbloom-query
     port: 8083
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: local-path
     env:
       PORT: "8083"
       DB_PATH: /data/query.db
@@ -134,6 +150,10 @@ services:
   ingest:
     repository: ghcr.io/rafex/insightbloom-ingest
     port: 8082
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: local-path
     env:
       PORT: "8082"
       DB_PATH: /data/ingest.db
