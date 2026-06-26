@@ -6,6 +6,7 @@ import dev.rafex.insightbloom.survey.domain.model.SurveyResponse;
 import dev.rafex.insightbloom.survey.domain.ports.SurveyQuestionRepository;
 import dev.rafex.insightbloom.survey.domain.ports.SurveyResponseRepository;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,11 +22,12 @@ public class GetResultsUseCase {
         this.responseRepo = responseRepo;
     }
 
-    public record GradedAnswer(String answerText, Double gradeScore, String gradeFeedback) {}
+    public record IndividualAnswer(String answerText, Integer answerRating, Double gradeScore,
+                                    String gradeFeedback, Instant submittedAt) {}
 
-    public record QuestionResult(String questionUuid, String text, String type, int responseCount,
-                                  Double averageRating, Map<String, Integer> counts, List<String> texts,
-                                  Double averageGradeScore, List<GradedAnswer> gradedAnswers) {}
+    public record QuestionResult(String questionUuid, String text, String type, String ratingStyle,
+                                  int responseCount, Double averageRating, Map<String, Integer> counts,
+                                  Double averageGradeScore, List<IndividualAnswer> individualAnswers) {}
 
     public List<QuestionResult> execute(final String conferenceUuid) {
         final List<SurveyQuestion> questions = questionRepo.findByConference(conferenceUuid, false);
@@ -36,9 +38,7 @@ public class GetResultsUseCase {
 
             Double avgRating = null;
             final Map<String, Integer> counts = new HashMap<>();
-            final List<String> texts = new ArrayList<>();
             Double avgGrade = null;
-            List<GradedAnswer> gradedAnswers = null;
 
             if (q.getType() == QuestionType.RATING) {
                 final var ratings = responses.stream()
@@ -55,26 +55,23 @@ public class GetResultsUseCase {
                 }
             } else if (q.getType() == QuestionType.OPEN_GRADED || q.getType() == QuestionType.CODE_GRADED
                     || q.getType() == QuestionType.DRAG_DROP) {
-                gradedAnswers = responses.stream()
-                        .map(r -> new GradedAnswer(r.getAnswerText(), r.getGradeScore(), r.getGradeFeedback()))
-                        .toList();
-                final var scores = gradedAnswers.stream()
-                        .map(GradedAnswer::gradeScore)
+                final var scores = responses.stream()
+                        .map(SurveyResponse::getGradeScore)
                         .filter(s -> s != null)
                         .toList();
                 avgGrade = scores.isEmpty() ? null
                         : scores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-            } else {
-                for (final SurveyResponse r : responses) {
-                    if (r.getAnswerText() != null && !r.getAnswerText().isBlank()) {
-                        texts.add(r.getAnswerText());
-                    }
-                }
             }
 
+            final List<IndividualAnswer> individualAnswers = responses.stream()
+                    .map(r -> new IndividualAnswer(r.getAnswerText(), r.getAnswerRating(), r.getGradeScore(),
+                            r.getGradeFeedback(), r.getSubmittedAt()))
+                    .sorted((a, b) -> b.submittedAt().compareTo(a.submittedAt()))
+                    .toList();
+
             results.add(new QuestionResult(
-                    q.getUuid(), q.getText(), q.getType().name(), responses.size(), avgRating, counts, texts,
-                    avgGrade, gradedAnswers));
+                    q.getUuid(), q.getText(), q.getType().name(), q.getRatingStyle(), responses.size(), avgRating,
+                    counts, avgGrade, individualAnswers));
         }
         return results;
     }

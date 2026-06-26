@@ -88,7 +88,15 @@
         span.chip.chip-ref 📌 Referencia: {{ q.referenceAnswer }}
       .question-item-actions
         button.btn-sm.btn-edit(@click="startEdit(q)") Editar
-        button.btn-sm.btn-warning(@click="deactivate(q)") Desactivar
+        button.btn-sm.btn-delete(@click="confirmDelete(q)") 🗑 Eliminar
+
+  .confirm-overlay(v-if="deleteTarget" @click.self="deleteTarget = null")
+    .confirm-dialog
+      h4 ¿Eliminar pregunta?
+      p Esto quitará <strong>"{{ deleteTarget.text }}"</strong> de la encuesta de forma permanente. Las respuestas ya recibidas se conservan en los resultados.
+      .confirm-actions
+        button.btn-cancel(@click="deleteTarget = null") Cancelar
+        button.btn-confirm(@click="doDelete") Eliminar
 
   .results-card(v-if="results.length")
     h3 Resultados
@@ -96,23 +104,26 @@
       p.result-question
         | {{ r.text }} ({{ r.responseCount }} respuestas)
         span.avg-grade(v-if="r.averageGradeScore != null") · Promedio IA: {{ r.averageGradeScore.toFixed(0) }}/100
-      p(v-if="r.averageRating != null") Promedio: {{ r.averageRating.toFixed(1) }} ★
-      ul(v-else-if="Object.keys(r.counts || {}).length")
-        li(v-for="(count, option) in r.counts" :key="option") {{ option }}: {{ count }}
-      .graded-answers(v-else-if="r.gradedAnswers && r.gradedAnswers.length")
-        .graded-answer(v-for="(a, i) in r.gradedAnswers" :key="i")
-          .answer-image(v-if="isImage(a.answerText)")
+
+      .summary(v-if="r.responseCount")
+        p.summary-line(v-if="r.averageRating != null") Promedio: {{ r.averageRating.toFixed(1) }} {{ r.ratingStyle === 'EMOJIS' ? '🙂' : '★' }}
+        ul.summary-counts(v-if="Object.keys(r.counts || {}).length")
+          li(v-for="(count, option) in r.counts" :key="option") {{ option }}: {{ count }}
+
+      button.btn-toggle(v-if="r.responseCount" type="button" @click="toggleDetail(r.questionUuid)")
+        | {{ openDetail[r.questionUuid] ? '▾ Ocultar respuestas individuales' : '▸ Ver respuestas individuales (' + r.responseCount + ')' }}
+
+      .individual-answers(v-if="openDetail[r.questionUuid]")
+        .individual-answer(v-for="(a, i) in r.individualAnswers" :key="i")
+          .answer-rating(v-if="a.answerRating != null") {{ ratingDisplay(r.ratingStyle, a.answerRating) }}
+          .answer-image(v-else-if="isImage(a.answerText)")
             img(:src="a.answerText")
-          pre.answer-text(v-else) {{ a.answerText }}
+          pre.answer-text(v-else-if="a.answerText") {{ a.answerText }}
+          span.answer-empty(v-else) (sin respuesta)
           .answer-grade(v-if="a.gradeScore != null")
             strong {{ a.gradeScore.toFixed(0) }}/100
-            span – {{ a.gradeFeedback }}
-      ul(v-else-if="r.texts && r.texts.length")
-        li(v-for="(t, i) in r.texts" :key="i")
-          template(v-if="isImage(t)")
-            .answer-image
-              img(:src="t")
-          template(v-else) "{{ t }}"
+            span(v-if="a.gradeFeedback") – {{ a.gradeFeedback }}
+      p.no-responses(v-if="!r.responseCount") Sin respuestas todavía
 </template>
 
 <script>
@@ -142,6 +153,18 @@ export default {
     const suggestions = ref([])
     const editingId = ref(null)
     const form = ref(emptyForm())
+    const deleteTarget = ref(null)
+    const openDetail = ref({})
+
+    const EMOJI_SCALE = ['😢', '😕', '😐', '🙂', '🤩']
+    function ratingDisplay(ratingStyle, value) {
+      if (ratingStyle === 'EMOJIS') return EMOJI_SCALE[value - 1] || value
+      return '★'.repeat(value) + '☆'.repeat(5 - value)
+    }
+
+    function toggleDetail(questionUuid) {
+      openDetail.value = { ...openDetail.value, [questionUuid]: !openDetail.value[questionUuid] }
+    }
 
     function typeLabel(t) {
       return {
@@ -258,7 +281,12 @@ export default {
       }
     }
 
-    async function deactivate(q) {
+    function confirmDelete(q) { deleteTarget.value = q }
+
+    async function doDelete() {
+      const q = deleteTarget.value
+      if (!q) return
+      deleteTarget.value = null
       await deactivateQuestion(props.conferenceId, q.uuid, auth.state.token)
       await load()
     }
@@ -267,8 +295,9 @@ export default {
 
     return {
       questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
-      typeLabel, typeIcon, isImage, save, deactivate, suggest, addSuggestion, startEdit, cancelEdit,
-      onTypeChange, addOption, removeOption, moveOption
+      deleteTarget, openDetail,
+      typeLabel, typeIcon, isImage, ratingDisplay, toggleDetail, save, confirmDelete, doDelete,
+      suggest, addSuggestion, startEdit, cancelEdit, onTypeChange, addOption, removeOption, moveOption
     }
   }
 }
@@ -361,15 +390,42 @@ input, select, textarea {
 .question-item-actions { margin: 8px 0 0 24px; display: flex; gap: 8px; }
 .btn-edit { background: #e0e7ff; color: #4338ca; }
 .btn-edit:hover { background: #c7d2fe; }
-.btn-warning { background: #fef3c7; color: #d97706; }
-.btn-warning:hover { background: #fde68a; }
-.result-row { margin-bottom: 16px; }
+.btn-delete { background: #fee2e2; color: #dc2626; }
+.btn-delete:hover { background: #fecaca; }
+
+.confirm-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.confirm-dialog {
+  background: #fff; border-radius: 16px; padding: 28px 32px;
+  max-width: 420px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+}
+.confirm-dialog h4 { margin: 0 0 12px; color: #1e1b4b; font-size: 1.1rem; }
+.confirm-dialog p { color: #6b7280; font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-cancel { padding: 8px 18px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #374151; cursor: pointer; }
+.btn-cancel:hover { background: #f3f4f6; }
+.btn-confirm { padding: 8px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.btn-confirm:hover { background: #b91c1c; }
+
+.result-row { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f3f4f6; }
+.result-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 .result-question { font-weight: 600; color: #1e1b4b; margin-bottom: 4px; }
 .avg-grade { color: #059669; font-weight: 600; }
-ul { margin: 4px 0 0 16px; padding: 0; color: #374151; }
-.graded-answers { display: flex; flex-direction: column; gap: 10px; }
-.graded-answer { background: #f9fafb; border-radius: 8px; padding: 10px 12px; }
-.answer-text { white-space: pre-wrap; font-family: 'SF Mono', Consolas, monospace; font-size: 0.82rem; margin: 0 0 6px; }
-.answer-grade { font-size: 0.85rem; color: #059669; }
+.summary-line { color: #374151; margin: 4px 0; }
+.summary-counts { margin: 4px 0 0 16px; padding: 0; color: #374151; }
+.no-responses { color: #9ca3af; font-size: 0.85rem; font-style: italic; margin: 4px 0 0; }
+.btn-toggle {
+  margin-top: 8px; padding: 4px 0; border: none; background: none; color: #4f46e5;
+  cursor: pointer; font-size: 0.82rem; font-weight: 500;
+}
+.btn-toggle:hover { text-decoration: underline; }
+.individual-answers { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.individual-answer { background: #f9fafb; border-radius: 8px; padding: 10px 12px; }
+.answer-rating { font-size: 1.1rem; }
+.answer-text { white-space: pre-wrap; font-family: 'SF Mono', Consolas, monospace; font-size: 0.82rem; margin: 0 0 6px; color: #374151; }
+.answer-empty { color: #9ca3af; font-size: 0.82rem; font-style: italic; }
+.answer-grade { font-size: 0.85rem; color: #059669; margin-top: 4px; }
 .answer-image img { max-width: 100%; border-radius: 6px; border: 1px solid #e5e7eb; }
 </style>
