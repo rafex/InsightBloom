@@ -19,6 +19,8 @@ public class User {
     private String passwordHash;
     private final Instant createdAt;
     private Instant updatedAt;
+    private String firstName;
+    private String lastName;
 
     public User(String uuid, String username, String displayName, String email, UserRole role) {
         this(uuid, username, displayName, email, null, List.of(), false, false, role);
@@ -63,6 +65,9 @@ public class User {
     public void markEmailVerified() { this.emailVerified = true; this.updatedAt = Instant.now(); }
     public void markPhoneVerified() { this.phoneVerified = true; this.updatedAt = Instant.now(); }
 
+    public void setFirstName(String firstName) { this.firstName = firstName; this.updatedAt = Instant.now(); }
+    public void setLastName(String lastName) { this.lastName = lastName; this.updatedAt = Instant.now(); }
+
     public String getId() { return id; }
     public String getUuid() { return uuid; }
     public String getUsername() { return username; }
@@ -78,4 +83,6 @@ public class User {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public String getFirstName() { return firstName; }
+    public String getLastName() { return lastName; }
 }

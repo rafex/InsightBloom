@@ -4,6 +4,16 @@
     .thank-you
       h2 ¡Gracias por tu retroalimentación! 🙌
       p Tu opinión ayuda a mejorar futuras charlas y talleres.
+
+      .certificate-card
+        h3 🎓 Tu certificado de asistencia
+        p.cert-hint Se genera al momento, no se almacena. Puedes descargarlo cuando quieras volviendo a esta página.
+        .cert-loading(v-if="certLoading") Generando certificado...
+        template(v-else-if="certUrl")
+          iframe.cert-preview(:src="certUrl")
+          a.btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
+        p.cert-error(v-else-if="certError") {{ certError }}
+
       .contact-card
         h3 Sigamos en contacto
         p.contact-name {{ contact.name }}
@@ -96,8 +106,9 @@
 <script>
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getQuestions, submitResponses } from '@/services/api/surveyApi'
+import { getQuestions, submitResponses, hasResponded } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl } from '@/services/api/presentationsApi'
+import { getCertificateBlobUrl } from '@/services/api/usersApi'
 import { organizerContact, telegramContactUrl } from '@/config/contact'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -125,6 +136,22 @@ export default {
     const contact = organizerContact
     const telegramUrl = telegramContactUrl(friendlyId || props.conferenceId)
     const emojiScale = EMOJI_SCALE
+    const certLoading = ref(false)
+    const certUrl = ref('')
+    const certError = ref('')
+    const certFileName = `certificado-${friendlyId || props.conferenceId}.pdf`
+
+    async function loadCertificate() {
+      certLoading.value = true
+      certError.value = ''
+      try {
+        certUrl.value = await getCertificateBlobUrl(props.conferenceId, auth.state.token)
+      } catch (e) {
+        certError.value = 'No se pudo generar tu certificado todavía.'
+      } finally {
+        certLoading.value = false
+      }
+    }
 
     const canvasRefs = {}
     const drawState = {}
@@ -198,6 +225,19 @@ export default {
 
     async function load() {
       if (!props.conferenceId) { loading.value = false; return }
+
+      if (canParticipate) {
+        try {
+          const already = await hasResponded(props.conferenceId, auth.state.token)
+          if (already) {
+            submitted.value = true
+            loading.value = false
+            await loadCertificate()
+            return
+          }
+        } catch (e) { /* best-effort: if the check fails, fall through to the form */ }
+      }
+
       try {
         const res = await getQuestions(props.conferenceId)
         questions.value = res.data || []
@@ -228,10 +268,13 @@ export default {
             rating: answers[q.uuid]?.rating || null
           }
         })
-        await submitResponses(props.conferenceId, payload)
+        await submitResponses(props.conferenceId, payload, auth.state.token)
         submitted.value = true
+        await loadCertificate()
       } catch (e) {
-        error.value = 'No se pudo enviar tu encuesta. Intenta de nuevo.'
+        error.value = e.response?.status === 409
+          ? 'Ya habías respondido esta encuesta.'
+          : 'No se pudo enviar tu encuesta. Intenta de nuevo.'
       } finally {
         submitting.value = false
       }
@@ -243,7 +286,8 @@ export default {
       friendlyId, questions, loading, submitting, submitted, error, canParticipate,
       answers, answersText, dragOrder, pdfReady, pdfUrl, contact, telegramUrl, emojiScale, setRating, submit,
       setCanvasRef, startDraw, moveDraw, endDraw, clearCanvas,
-      dragStart, dragDrop, moveItem
+      dragStart, dragDrop, moveItem,
+      certLoading, certUrl, certError, certFileName
     }
   }
 }
@@ -309,6 +353,14 @@ textarea {
 .btn-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .thank-you { text-align: center; padding: 24px 0; }
+.certificate-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 24px 0;
+}
+.certificate-card h3 { margin: 0 0 8px; color: #1e1b4b; }
+.cert-hint { color: #6b7280; font-size: 0.85rem; margin: 0 0 16px; }
+.cert-loading { color: #6b7280; padding: 20px; }
+.cert-error { color: #dc2626; font-size: 0.9rem; }
+.cert-preview { width: 100%; height: 360px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; }
 .contact-card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 24px 0;
 }

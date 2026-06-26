@@ -12,6 +12,7 @@ public class SurveyResponse {
     private Double gradeScore;
     private String gradeFeedback;
     private final Instant submittedAt;
+    private String userUuid; // nullable: set when the respondent is an authenticated user
 
     public SurveyResponse(final String uuid, final String conferenceUuid, final String questionUuid,
                            final String respondentToken, final String answerText, final Integer answerRating) {
@@ -38,6 +39,15 @@ public class SurveyResponse {
         this.submittedAt = submittedAt;
     }
 
+    public SurveyResponse(final String uuid, final String conferenceUuid, final String questionUuid,
+                           final String respondentToken, final String answerText, final Integer answerRating,
+                           final Double gradeScore, final String gradeFeedback, final Instant submittedAt,
+                           final String userUuid) {
+        this(uuid, conferenceUuid, questionUuid, respondentToken, answerText, answerRating,
+                gradeScore, gradeFeedback, submittedAt);
+        this.userUuid = userUuid;
+    }
+
     public void grade(final Double score, final String feedback) {
         this.gradeScore = score;
         this.gradeFeedback = feedback;
@@ -52,4 +62,6 @@ public class SurveyResponse {
     public Double getGradeScore() { return gradeScore; }
     public String getGradeFeedback() { return gradeFeedback; }
     public Instant getSubmittedAt() { return submittedAt; }
+    public String getUserUuid() { return userUuid; }
+    public void setUserUuid(final String userUuid) { this.userUuid = userUuid; }
 }

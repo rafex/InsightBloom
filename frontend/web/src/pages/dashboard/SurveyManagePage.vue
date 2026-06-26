@@ -1,5 +1,6 @@
 <template lang="pug">
 .survey-manage-page
+  ConferenceSubNav(:conferenceId="conferenceId")
   h2 Encuesta de la conferencia
 
   .add-card
@@ -9,14 +10,19 @@
       span.ai-error(v-if="suggestError") {{ suggestError }}
 
     .suggestions(v-if="suggestions.length && !editingId")
-      h4 Sugerencias (revisa y agrega las que quieras)
+      h4 Sugerencias (selecciona las que quieras agregar)
       .suggestion-row(v-for="(s, i) in suggestions" :key="i")
+        label.suggestion-check
+          input(type="checkbox" :value="i" v-model="selectedSuggestions")
         .suggestion-text
           strong {{ s.text }}
           span.suggestion-type {{ typeLabel(s.type) }}
           div(v-if="s.options && s.options.length") Opciones: {{ s.options.join(', ') }}
           div(v-if="s.referenceAnswer") Referencia: {{ s.referenceAnswer }}
-        button.btn-sm.btn-primary-sm(type="button" @click="addSuggestion(s)") Agregar
+      .suggestions-actions
+        button.btn-sm.btn-primary-sm(type="button" :disabled="!selectedSuggestions.length || addingSuggestions" @click="addSelectedSuggestions")
+          | {{ addingSuggestions ? 'Agregando...' : `Agregar seleccionadas (${selectedSuggestions.length})` }}
+        button.btn-sm.btn-ghost-sm(type="button" @click="selectedSuggestions = suggestions.map((_, i) => i)") Seleccionar todas
 
     .text-row
       input(v-model="form.text" placeholder="¿Qué tan útil fue la charla?")
@@ -131,6 +137,10 @@
         p.summary-line(v-if="r.averageRating != null") Promedio: {{ r.averageRating.toFixed(1) }} {{ r.ratingStyle === 'EMOJIS' ? '🙂' : '★' }}
         ul.summary-counts(v-if="Object.keys(r.counts || {}).length")
           li(v-for="(count, option) in r.counts" :key="option") {{ option }}: {{ count }}
+        .chart-wrap(v-if="r.averageRating != null")
+          BarChart(:data="ratingChartData(r)")
+        .chart-wrap(v-else-if="Object.keys(r.counts || {}).length")
+          BarChart(:data="choiceChartData(r)")
 
       .result-actions(v-if="r.responseCount")
         button.btn-toggle(type="button" @click="toggleDetail(r.questionUuid)")
@@ -139,6 +149,7 @@
 
       .individual-answers(v-if="openDetail[r.questionUuid]")
         .individual-answer(v-for="(a, i) in r.individualAnswers" :key="i")
+          .answer-author(v-if="a.respondentName || a.respondentUuid") 👤 {{ a.respondentName || a.respondentUuid }}
           .answer-rating(v-if="a.answerRating != null") {{ ratingDisplay(r.ratingStyle, a.answerRating) }}
           .answer-image(v-else-if="isImage(a.answerText)")
             img(:src="a.answerText")
@@ -154,6 +165,8 @@
 import { ref, onMounted } from 'vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import ConferenceSubNav from './ConferenceSubNav.vue'
+import BarChart from '@/components/charts/BarChart.vue'
 
 function emptyForm() {
   return { text: '', type: 'RATING', ratingStyle: 'STARS', options: [], referenceAnswer: '' }
@@ -166,6 +179,7 @@ const TYPE_ICONS = {
 
 export default {
   name: 'SurveyManagePage',
+  components: { ConferenceSubNav, BarChart },
   props: { conferenceId: String },
   setup(props) {
     const auth = useAuthStore()
@@ -175,6 +189,8 @@ export default {
     const suggesting = ref(false)
     const suggestError = ref('')
     const suggestions = ref([])
+    const selectedSuggestions = ref([])
+    const addingSuggestions = ref(false)
     const improving = ref(false)
     const improveError = ref('')
     const improvements = ref([])
@@ -188,6 +204,19 @@ export default {
     function ratingDisplay(ratingStyle, value) {
       if (ratingStyle === 'EMOJIS') return EMOJI_SCALE[value - 1] || value
       return '★'.repeat(value) + '☆'.repeat(5 - value)
+    }
+
+    function ratingChartData(r) {
+      const labels = r.ratingStyle === 'EMOJIS' ? EMOJI_SCALE : ['1★', '2★', '3★', '4★', '5★']
+      const counts = [0, 0, 0, 0, 0]
+      for (const a of r.individualAnswers || []) {
+        if (a.answerRating >= 1 && a.answerRating <= 5) counts[a.answerRating - 1]++
+      }
+      return labels.map((label, i) => ({ label, value: counts[i] }))
+    }
+
+    function choiceChartData(r) {
+      return Object.entries(r.counts || {}).map(([label, value]) => ({ label, value }))
     }
 
     function toggleDetail(questionUuid) {
@@ -244,6 +273,7 @@ export default {
       try {
         const res = await suggestQuestions(props.conferenceId, 5, auth.state.token)
         suggestions.value = res.data || []
+        selectedSuggestions.value = []
       } catch (e) {
         suggestError.value = 'No se pudieron generar sugerencias (¿hay una presentación subida?)'
       } finally {
@@ -251,15 +281,28 @@ export default {
       }
     }
 
-    function addSuggestion(s) {
-      form.value = {
-        text: s.text,
-        type: s.type,
-        ratingStyle: 'STARS',
-        options: s.options && s.options.length ? [...s.options] : [],
-        referenceAnswer: s.referenceAnswer || ''
+    async function addSelectedSuggestions() {
+      addingSuggestions.value = true
+      try {
+        const toAdd = selectedSuggestions.value.map((i) => suggestions.value[i]).filter(Boolean)
+        for (const s of toAdd) {
+          const isOptionsType = s.type === 'MULTIPLE_CHOICE' || s.type === 'DRAG_DROP'
+          const payload = {
+            text: s.text,
+            type: s.type,
+            options: isOptionsType && s.options && s.options.length ? [...s.options] : null,
+            referenceAnswer: s.referenceAnswer || null,
+            ratingStyle: s.type === 'RATING' ? 'STARS' : null,
+            orderIndex: questions.value.length
+          }
+          await createQuestion(props.conferenceId, payload, auth.state.token)
+        }
+        suggestions.value = []
+        selectedSuggestions.value = []
+        await load()
+      } finally {
+        addingSuggestions.value = false
       }
-      onTypeChange()
     }
 
     async function improve() {
@@ -368,9 +411,10 @@ export default {
 
     return {
       questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
+      selectedSuggestions, addingSuggestions,
       deleteTarget, purgeTarget, openDetail, improving, improveError, improvements,
-      typeLabel, typeIcon, isImage, ratingDisplay, toggleDetail, save, confirmDelete, doDelete,
-      confirmPurge, doPurge, suggest, addSuggestion, startEdit, cancelEdit, onTypeChange, addOption,
+      typeLabel, typeIcon, isImage, ratingDisplay, ratingChartData, choiceChartData, toggleDetail, save, confirmDelete, doDelete,
+      confirmPurge, doPurge, suggest, addSelectedSuggestions, startEdit, cancelEdit, onTypeChange, addOption,
       removeOption, moveOption, improve, applyImprovement
     }
   }
@@ -420,6 +464,8 @@ input, select, textarea {
   padding: 8px 0; border-bottom: 1px solid #e9e5ff;
 }
 .suggestion-row:last-child { border-bottom: none; }
+.suggestion-check { display: flex; align-items: flex-start; padding-top: 2px; }
+.suggestions-actions { display: flex; gap: 10px; align-items: center; padding-top: 10px; }
 .suggestion-text { font-size: 0.85rem; color: #374151; }
 .suggestion-type { margin-left: 8px; color: #6b7280; font-size: 0.75rem; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
@@ -497,6 +543,7 @@ input, select, textarea {
 .avg-grade { color: #059669; font-weight: 600; }
 .summary-line { color: #374151; margin: 4px 0; }
 .summary-counts { margin: 4px 0 0 16px; padding: 0; color: #374151; }
+.chart-wrap { margin-top: 10px; max-width: 360px; }
 .no-responses { color: #9ca3af; font-size: 0.85rem; font-style: italic; margin: 4px 0 0; }
 .result-actions { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
 .btn-toggle {
@@ -511,6 +558,7 @@ input, select, textarea {
 .btn-purge:hover { background: #fee2e2; }
 .individual-answers { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .individual-answer { background: #f9fafb; border-radius: 8px; padding: 10px 12px; }
+.answer-author { font-size: 0.78rem; color: #4f46e5; font-weight: 600; margin-bottom: 4px; }
 .answer-rating { font-size: 1.1rem; }
 .answer-text { white-space: pre-wrap; font-family: 'SF Mono', Consolas, monospace; font-size: 0.82rem; margin: 0 0 6px; color: #374151; }
 .answer-empty { color: #9ca3af; font-size: 0.82rem; font-style: italic; }

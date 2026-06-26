@@ -11,12 +11,14 @@ import dev.rafex.insightbloom.contracts.ApiError;
 import dev.rafex.insightbloom.contracts.ApiMeta;
 import dev.rafex.insightbloom.contracts.ApiResponse;
 import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.JoinConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import org.eclipse.jetty.server.Request;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,18 +34,21 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
     private final ValidateTokenUseCase validateTokenUseCase;
     private final JoinConferenceUseCase joinConferenceUseCase;
     private final GetConferenceHistoryUseCase getConferenceHistoryUseCase;
+    private final GenerateCertificateUseCase generateCertificateUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
                              final ValidateTokenUseCase validateTokenUseCase,
                              final JoinConferenceUseCase joinConferenceUseCase,
-                             final GetConferenceHistoryUseCase getConferenceHistoryUseCase) {
+                             final GetConferenceHistoryUseCase getConferenceHistoryUseCase,
+                             final GenerateCertificateUseCase generateCertificateUseCase) {
         super(JSON_CODEC);
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
         this.joinConferenceUseCase = joinConferenceUseCase;
         this.getConferenceHistoryUseCase = getConferenceHistoryUseCase;
+        this.generateCertificateUseCase = generateCertificateUseCase;
     }
 
     @Override
@@ -59,6 +64,7 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
                 Route.of("/by-short/{shortCode}", Set.of("GET")),
                 Route.of("/join", Set.of("POST")),
                 Route.of("/history", Set.of("GET")),
+                Route.of("/{id}/certificate", Set.of("GET")),
                 Route.of("/{id}", Set.of("GET", "DELETE")));
     }
 
@@ -79,6 +85,9 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
         }
         if (path.endsWith("/history")) {
             return handleHistory(jx);
+        }
+        if (path.endsWith("/certificate")) {
+            return handleCertificate(jx, jx.pathParam("id"));
         }
         final String id = jx.pathParam("id");
         if (id != null) {
@@ -129,7 +138,7 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
             final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
             final var result = createConferenceUseCase.execute(new CreateConferenceUseCase.CreateRequest(
                     (String) body.get("name"), v.subjectUuid(), (String) body.get("expiresAt"),
-                    latitude, longitude));
+                    latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue")));
             sendOk(jx, 201, result);
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -213,6 +222,30 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
             } else {
                 sendError(jx, 404, "not_found", "Conference not found or not owned by you");
             }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleCertificate(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || "guest".equals(v.kind())) {
+                sendError(jx, 403, "forbidden", "You must be a verified user to download a certificate");
+                return true;
+            }
+            final var result = generateCertificateUseCase.execute(conferenceId, v.subjectUuid(), token);
+            jx.response().setStatus(200);
+            jx.response().getHeaders().put("Content-Type", "application/pdf");
+            jx.response().getHeaders().put("Content-Disposition", "attachment; filename=\"" + result.fileName() + "\"");
+            jx.response().write(true, ByteBuffer.wrap(result.pdfBytes()), jx.callback());
+        } catch (final IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), "Debes completar la encuesta antes de descargar tu certificado");
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

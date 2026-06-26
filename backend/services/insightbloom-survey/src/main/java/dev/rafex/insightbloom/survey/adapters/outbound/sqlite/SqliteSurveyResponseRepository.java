@@ -21,8 +21,8 @@ public class SqliteSurveyResponseRepository implements SurveyResponseRepository 
         final String sql = """
             INSERT INTO survey_responses
                 (uuid, conference_uuid, question_uuid, respondent_token, answer_text, answer_rating,
-                 grade_score, grade_feedback, submitted_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 grade_score, grade_feedback, submitted_at, user_uuid)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, r.getUuid());
@@ -36,6 +36,7 @@ public class SqliteSurveyResponseRepository implements SurveyResponseRepository 
             else ps.setDouble(7, r.getGradeScore());
             ps.setString(8, r.getGradeFeedback());
             ps.setString(9, r.getSubmittedAt().toString());
+            ps.setString(10, r.getUserUuid());
             ps.executeUpdate();
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to save survey response", e);
@@ -76,6 +77,21 @@ public class SqliteSurveyResponseRepository implements SurveyResponseRepository 
         delete("DELETE FROM survey_responses WHERE conference_uuid = ?", conferenceUuid);
     }
 
+    @Override
+    public boolean existsByUserAndConference(final String conferenceUuid, final String userUuid) {
+        if (userUuid == null || userUuid.isBlank()) return false;
+        final String sql = "SELECT 1 FROM survey_responses WHERE conference_uuid = ? AND user_uuid = ? LIMIT 1";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, conferenceUuid);
+            ps.setString(2, userUuid);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to check existing survey response", e);
+        }
+    }
+
     private void delete(final String sql, final String param) {
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, param);
@@ -102,7 +118,8 @@ public class SqliteSurveyResponseRepository implements SurveyResponseRepository 
                             ratingObj == null ? null : ((Number) ratingObj).intValue(),
                             scoreObj == null ? null : ((Number) scoreObj).doubleValue(),
                             rs.getString("grade_feedback"),
-                            Instant.parse(rs.getString("submitted_at"))));
+                            Instant.parse(rs.getString("submitted_at")),
+                            rs.getString("user_uuid")));
                 }
             }
         } catch (final SQLException e) {

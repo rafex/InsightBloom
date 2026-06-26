@@ -33,11 +33,18 @@ public class SubmitResponsesUseCase {
 
     public record Answer(String questionUuid, String text, Integer rating) {}
 
-    public record Request(String conferenceUuid, List<Answer> answers) {}
+    public record Request(String conferenceUuid, List<Answer> answers, String userUuid) {}
+
+    public boolean hasResponded(final String conferenceUuid, final String userUuid) {
+        return responseRepo.existsByUserAndConference(conferenceUuid, userUuid);
+    }
 
     public void execute(final Request req) {
         if (req.answers() == null || req.answers().isEmpty()) {
             throw new IllegalArgumentException("answers_required");
+        }
+        if (req.userUuid() != null && responseRepo.existsByUserAndConference(req.conferenceUuid(), req.userUuid())) {
+            throw new IllegalStateException("already_responded");
         }
         final String respondentToken = UUID.randomUUID().toString();
         for (final Answer answer : req.answers()) {
@@ -47,6 +54,7 @@ public class SubmitResponsesUseCase {
             final var response = new SurveyResponse(
                     UUID.randomUUID().toString(), req.conferenceUuid(), answer.questionUuid(),
                     respondentToken, answer.text(), answer.rating());
+            response.setUserUuid(req.userUuid());
             grade(question, response);
             responseRepo.save(response);
         }

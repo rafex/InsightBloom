@@ -1,5 +1,6 @@
 <template lang="pug">
 .presentation-manage-page
+  ConferenceSubNav(:conferenceId="conferenceId")
   h2 Presentación
 
   .status-card(v-if="checkedStatus")
@@ -23,9 +24,11 @@
 import { ref, onMounted } from 'vue'
 import { uploadPresentation, getPresentationStatus, getSlidesUrl, getPdfUrl } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import ConferenceSubNav from './ConferenceSubNav.vue'
 
 export default {
   name: 'PresentationManagePage',
+  components: { ConferenceSubNav },
   props: { conferenceId: String },
   setup(props) {
     const auth = useAuthStore()

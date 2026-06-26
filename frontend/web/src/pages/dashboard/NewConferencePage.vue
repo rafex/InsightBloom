@@ -19,6 +19,14 @@
         input(v-model="customDate" type="datetime-local" :min="minDate")
 
     .form-group
+      label Fecha del evento (opcional)
+      input(v-model="eventDate" type="date")
+
+    .form-group
+      label Sede (opcional)
+      input(v-model="venue" type="text" placeholder="Auditorio, ciudad...")
+
+    .form-group
       label Ubicación (opcional)
       .coords-row
         .coord-field
@@ -48,6 +56,12 @@
     .info-row(v-if="created.expiresAt")
       span Expira:
       strong {{ formatDate(created.expiresAt) }}
+    .info-row(v-if="created.eventDate")
+      span Fecha del evento:
+      strong {{ created.eventDate }}
+    .info-row(v-if="created.venue")
+      span Sede:
+      strong {{ created.venue }}
     .info-row(v-if="created.latitude != null")
       span Ubicación:
       span.coords-display {{ created.latitude.toFixed(4) }}, {{ created.longitude.toFixed(4) }}
@@ -89,6 +103,8 @@ export default {
     const customDate = ref('')
     const latitude   = ref(null)
     const longitude  = ref(null)
+    const eventDate  = ref('')
+    const venue      = ref('')
     const auth       = useAuthStore()
 
     const minDate = computed(() => new Date().toISOString().slice(0, 16))
@@ -113,7 +129,8 @@ export default {
         const expiresAt = computeExpiresAt()
         const lat = (latitude.value != null && !isNaN(latitude.value)) ? latitude.value : null
         const lng = (longitude.value != null && !isNaN(longitude.value)) ? longitude.value : null
-        created.value = await createConference(name.value.trim(), expiresAt, auth.state.token, lat, lng)
+        created.value = await createConference(name.value.trim(), expiresAt, auth.state.token, lat, lng,
+          eventDate.value || null, venue.value.trim() || null)
       } catch (e) {
         error.value = e.response?.data?.error?.message || 'Error al crear la conferencia'
       } finally { loading.value = false }
@@ -126,9 +143,11 @@ export default {
     function reset() {
       name.value = ''; created.value = null; expiryMode.value = 'none';
       customDate.value = ''; latitude.value = null; longitude.value = null
+      eventDate.value = ''; venue.value = ''
     }
 
     return { name, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
+             eventDate, venue,
              expiryOptions: EXPIRY_OPTIONS, setExpiryMode, create, formatDate, reset }
   }
 }

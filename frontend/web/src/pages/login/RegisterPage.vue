@@ -7,8 +7,8 @@
         h2 Crear cuenta
         p.hint Necesitas correo o teléfono (al menos uno) para verificar tu identidad
         .form-group
-          label Nombre
-          input(v-model="form.displayName" placeholder="Tu nombre")
+          label Nombre de usuario
+          input(v-model="form.displayName" placeholder="Tu nombre de usuario")
         .form-group
           label Correo electrónico
           input(v-model="form.email" type="email" placeholder="tu@correo.com")

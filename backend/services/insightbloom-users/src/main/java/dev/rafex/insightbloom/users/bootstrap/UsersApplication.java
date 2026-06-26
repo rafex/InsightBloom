@@ -7,6 +7,7 @@ import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.insightbloom.users.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.users.adapters.outbound.cascade.HttpCascadeDeleteClient;
 import dev.rafex.insightbloom.users.adapters.outbound.sqlite.*;
+import dev.rafex.insightbloom.users.adapters.outbound.surveyclient.HttpSurveyClient;
 import dev.rafex.insightbloom.users.adapters.outbound.twilio.TwilioSmsClient;
 import dev.rafex.insightbloom.users.adapters.outbound.zoho.ZohoEmailClient;
 import dev.rafex.insightbloom.users.application.usecases.*;
@@ -49,6 +50,7 @@ public class UsersApplication {
                 ingestUrl, queryUrl, moderationUrl, presentationsUrl, surveyUrl);
         final var smsPort = new TwilioSmsClient(twilioAccountSid, twilioAuthToken, twilioFromNumber);
         final var emailPort = new ZohoEmailClient(zohoSmtpHost, zohoSmtpPort, zohoUsername, zohoPassword, zohoFromAddress);
+        final var surveyPort = new HttpSurveyClient(surveyUrl);
 
         // Use cases
         final var loginUseCase = new LoginUseCase(userRepo, tokenService);
@@ -60,15 +62,17 @@ public class UsersApplication {
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
         final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);
         final var getUserProfileUseCase = new GetUserProfileUseCase(userRepo);
+        final var updateProfileUseCase = new UpdateProfileUseCase(userRepo);
         final var joinConferenceUseCase = new JoinConferenceUseCase(getConferenceUseCase, membershipRepo);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
+        final var generateCertificateUseCase = new GenerateCertificateUseCase(conferenceRepo, userRepo, surveyPort);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
                 registerUseCase, sendOtpUseCase, verifyOtpUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
-                validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase);
-        final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase);
+                validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase);
+        final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase, validateTokenUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();

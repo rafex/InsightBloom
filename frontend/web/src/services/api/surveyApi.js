@@ -41,9 +41,18 @@ export async function deactivateQuestion(conferenceId, questionId, token) {
   return res.data
 }
 
-export async function submitResponses(conferenceId, answers) {
-  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/responses`, { answers })
+export async function submitResponses(conferenceId, answers, token) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/responses`, { answers }, {
+    headers: authHeader(token)
+  })
   return res.data
+}
+
+export async function hasResponded(conferenceId, token) {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/responded`, {
+    headers: authHeader(token)
+  })
+  return res.data.data.responded
 }
 
 export async function getResults(conferenceId, token) {

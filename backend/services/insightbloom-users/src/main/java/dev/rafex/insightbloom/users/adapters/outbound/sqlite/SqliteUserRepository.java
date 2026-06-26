@@ -27,8 +27,8 @@ public class SqliteUserRepository implements UserRepository {
         String sql = """
             INSERT OR REPLACE INTO users
                 (uuid, username, display_name, email, phone, social_links, email_verified, phone_verified,
-                 role, status, password_hash, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 role, status, password_hash, created_at, updated_at, first_name, last_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getUuid());
@@ -44,6 +44,8 @@ public class SqliteUserRepository implements UserRepository {
             ps.setString(11, user.getPasswordHash());
             ps.setString(12, user.getCreatedAt().toString());
             ps.setString(13, user.getUpdatedAt().toString());
+            ps.setString(14, user.getFirstName());
+            ps.setString(15, user.getLastName());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -82,7 +84,7 @@ public class SqliteUserRepository implements UserRepository {
     }
 
     private User map(ResultSet rs) throws SQLException {
-        return new User(
+        User user = new User(
             rs.getString("id"), rs.getString("uuid"), rs.getString("username"),
             rs.getString("display_name"), rs.getString("email"), rs.getString("phone"),
             decodeLinks(rs.getString("social_links")),
@@ -91,6 +93,9 @@ public class SqliteUserRepository implements UserRepository {
             rs.getString("password_hash"),
             parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at"))
         );
+        user.setFirstName(rs.getString("first_name"));
+        user.setLastName(rs.getString("last_name"));
+        return user;
     }
 
     private String encodeLinks(List<SocialLink> links) {

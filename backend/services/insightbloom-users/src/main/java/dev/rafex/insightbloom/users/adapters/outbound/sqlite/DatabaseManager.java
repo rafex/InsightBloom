@@ -47,6 +47,8 @@ public class DatabaseManager {
             addColumnIfMissing(conn, "users", "social_links", "TEXT");
             addColumnIfMissing(conn, "users", "email_verified", "INTEGER NOT NULL DEFAULT 0");
             addColumnIfMissing(conn, "users", "phone_verified", "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(conn, "users", "first_name", "TEXT");
+            addColumnIfMissing(conn, "users", "last_name", "TEXT");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)");
 
@@ -85,13 +87,17 @@ public class DatabaseManager {
                     updated_at TEXT NOT NULL,
                     expires_at TEXT,
                     latitude REAL,
-                    longitude REAL
+                    longitude REAL,
+                    event_date TEXT,
+                    venue TEXT
                 )
             """);
             // Migrations for existing databases
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN expires_at TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN latitude REAL"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN longitude REAL"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN event_date TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN venue TEXT"); } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS otp_codes (

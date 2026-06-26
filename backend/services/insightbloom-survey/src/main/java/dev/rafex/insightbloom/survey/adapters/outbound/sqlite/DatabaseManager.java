@@ -56,6 +56,8 @@ public class DatabaseManager {
             addColumnIfMissing(c, "survey_questions", "rating_style", "TEXT");
             addColumnIfMissing(c, "survey_responses", "grade_score", "REAL");
             addColumnIfMissing(c, "survey_responses", "grade_feedback", "TEXT");
+            addColumnIfMissing(c, "survey_responses", "user_uuid", "TEXT");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_r_user ON survey_responses(conference_uuid, user_uuid)");
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to init survey db", e);
         }

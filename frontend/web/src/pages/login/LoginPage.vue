@@ -4,10 +4,10 @@
   main.login-main
     .login-card.animate__animated.animate__fadeIn
       h2 Iniciar sesión
-      p.hint Usuario, correo o teléfono
+      p.hint Inicia sesión con tu correo electrónico verificado
       .form-group
-        label Usuario / correo / teléfono
-        input(v-model="username" type="text" autocomplete="username" placeholder="admin@ejemplo.com" @keyup.enter="doLogin")
+        label Correo electrónico
+        input(v-model="username" type="email" autocomplete="username" placeholder="tu@correo.com" @keyup.enter="doLogin")
       .form-group
         label Contraseña
         input(v-model="password" type="password" autocomplete="current-password" placeholder="••••••••" @keyup.enter="doLogin")
@@ -35,7 +35,7 @@ export default {
     const auth = useAuthStore()
     async function doLogin() {
       if (!username.value.trim() || !password.value.trim()) {
-        error.value = 'Usuario y contraseña son obligatorios'
+        error.value = 'Correo y contraseña son obligatorios'
         return
       }
       loading.value = true; error.value = ''

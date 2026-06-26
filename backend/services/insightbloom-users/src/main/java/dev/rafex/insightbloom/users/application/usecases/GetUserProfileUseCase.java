@@ -12,10 +12,12 @@ public class GetUserProfileUseCase {
         this.userRepository = userRepository;
     }
 
-    public record Profile(String uuid, String displayName, String email, String phone) {}
+    public record Profile(String uuid, String displayName, String email, String phone,
+                          String firstName, String lastName) {}
 
     public Optional<Profile> execute(final String uuid) {
         return userRepository.findByUuid(uuid)
-                .map(u -> new Profile(u.getUuid(), u.getDisplayName(), u.getEmail(), u.getPhone()));
+                .map(u -> new Profile(u.getUuid(), u.getDisplayName(), u.getEmail(), u.getPhone(),
+                        u.getFirstName(), u.getLastName()));
     }
 }

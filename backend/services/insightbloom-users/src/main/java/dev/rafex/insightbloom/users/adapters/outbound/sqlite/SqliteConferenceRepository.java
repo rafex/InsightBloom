@@ -21,8 +21,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     public void save(Conference conference) {
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
@@ -37,6 +37,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             else ps.setNull(9, Types.REAL);
             if (conference.getLongitude() != null) ps.setDouble(10, conference.getLongitude());
             else ps.setNull(10, Types.REAL);
+            ps.setString(11, conference.getEventDate());
+            ps.setString(12, conference.getVenue());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -107,7 +109,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ConferenceStatus.valueOf(rs.getString("status")),
             parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at")),
             parseInstantNullable(rs.getString("expires_at")),
-            latitude, longitude
+            latitude, longitude,
+            rs.getString("event_date"), rs.getString("venue")
         );
     }
 

@@ -11,4 +11,5 @@ public interface SurveyResponseRepository {
     List<SurveyResponse> findByQuestion(String questionUuid);
     void deleteByQuestion(String questionUuid);
     void deleteByConference(String conferenceUuid);
+    boolean existsByUserAndConference(String conferenceUuid, String userUuid);
 }

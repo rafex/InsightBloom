@@ -20,6 +20,7 @@ import dev.rafex.insightbloom.survey.application.usecases.PurgeResponsesUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SubmitResponsesUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SuggestQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.UpdateQuestionUseCase;
+import dev.rafex.insightbloom.survey.domain.ports.UsersPort;
 import org.eclipse.jetty.server.Request;
 
 import java.util.List;
@@ -42,6 +43,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
     private final PurgeResponsesUseCase purgeResponsesUseCase;
     private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
     private final ImproveQuestionUseCase improveQuestionUseCase;
+    private final UsersPort usersPort;
 
     public SurveyHandler(final CreateQuestionUseCase createQuestionUseCase,
                           final ListQuestionsUseCase listQuestionsUseCase,
@@ -52,7 +54,8 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                           final UpdateQuestionUseCase updateQuestionUseCase,
                           final PurgeResponsesUseCase purgeResponsesUseCase,
                           final DeleteConferenceDataUseCase deleteConferenceDataUseCase,
-                          final ImproveQuestionUseCase improveQuestionUseCase) {
+                          final ImproveQuestionUseCase improveQuestionUseCase,
+                          final UsersPort usersPort) {
         super(JSON_CODEC);
         this.createQuestionUseCase = createQuestionUseCase;
         this.listQuestionsUseCase = listQuestionsUseCase;
@@ -64,6 +67,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
         this.purgeResponsesUseCase = purgeResponsesUseCase;
         this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
         this.improveQuestionUseCase = improveQuestionUseCase;
+        this.usersPort = usersPort;
     }
 
     @Override
@@ -81,6 +85,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                 Route.of("/{conferenceId}/survey/questions/{questionId}/update", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/questions/{questionId}/responses/purge", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/responses", Set.of("POST")),
+                Route.of("/{conferenceId}/survey/responded", Set.of("GET")),
                 Route.of("/{conferenceId}/survey/results", Set.of("GET")),
                 Route.of("/{conferenceId}/survey", Set.of("DELETE")));
     }
@@ -107,6 +112,14 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                 } else {
                     sendOk(jx, listQuestionsUseCase.execute(conferenceId, false));
                 }
+                return true;
+            }
+            if (path.endsWith("/survey/responded")) {
+                final String token = extractToken(jx);
+                if (token == null) { sendOk(jx, Map.of("responded", false)); return true; }
+                final var v = usersPort.validate(token);
+                if (!v.valid() || "guest".equals(v.kind())) { sendOk(jx, Map.of("responded", false)); return true; }
+                sendOk(jx, Map.of("responded", submitResponsesUseCase.hasResponded(conferenceId, v.subjectUuid())));
                 return true;
             }
         } catch (final Exception e) {
@@ -171,6 +184,13 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                 return true;
             }
             if (path.endsWith("/survey/responses")) {
+                final String token = extractToken(jx);
+                if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+                final var v = usersPort.validate(token);
+                if (!v.valid() || "guest".equals(v.kind())) {
+                    sendError(jx, 403, "forbidden", "You must be a verified user to answer the survey");
+                    return true;
+                }
                 final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
                 final List<Map<String, Object>> rawAnswers = (List<Map<String, Object>>) body.get("answers");
                 final List<SubmitResponsesUseCase.Answer> answers = rawAnswers.stream()
@@ -179,10 +199,13 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                                 (String) a.get("text"),
                                 a.get("rating") == null ? null : ((Number) a.get("rating")).intValue()))
                         .toList();
-                submitResponsesUseCase.execute(new SubmitResponsesUseCase.Request(conferenceId, answers));
+                submitResponsesUseCase.execute(new SubmitResponsesUseCase.Request(conferenceId, answers, v.subjectUuid()));
                 sendOk(jx, Map.of("status", "submitted"));
                 return true;
             }
+        } catch (final IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), "You already answered this survey");
+            return true;
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
             return true;
@@ -215,6 +238,11 @@ public class SurveyHandler extends NonBlockingResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private String extractToken(final JettyHttpExchange jx) {
+        final String auth = jx.request().getHeaders().get("Authorization");
+        return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
     }
 
     private static JettyHttpExchange asJetty(final HttpExchange x) {

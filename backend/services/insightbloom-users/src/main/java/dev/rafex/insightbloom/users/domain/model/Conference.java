@@ -14,6 +14,8 @@ public class Conference {
     private Instant expiresAt; // nullable
     private Double latitude;
     private Double longitude;
+    private String eventDate; // ISO-8601 date string, nullable
+    private String venue; // nullable
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -46,6 +48,14 @@ public class Conference {
     public Conference(String uuid, String friendlyId, String name, String createdByUserUuid,
                       ConferenceStatus status, Instant createdAt, Instant updatedAt,
                       Instant expiresAt, Double latitude, Double longitude) {
+        this(uuid, friendlyId, name, createdByUserUuid, status, createdAt, updatedAt,
+                expiresAt, latitude, longitude, null, null);
+    }
+
+    public Conference(String uuid, String friendlyId, String name, String createdByUserUuid,
+                      ConferenceStatus status, Instant createdAt, Instant updatedAt,
+                      Instant expiresAt, Double latitude, Double longitude,
+                      String eventDate, String venue) {
         this.uuid = uuid;
         this.friendlyId = friendlyId;
         this.name = name;
@@ -56,6 +66,8 @@ public class Conference {
         this.expiresAt = expiresAt;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.eventDate = eventDate;
+        this.venue = venue;
     }
 
     public String getUuid() { return uuid; }
@@ -68,4 +80,8 @@ public class Conference {
     public Instant getExpiresAt() { return expiresAt; }
     public Double getLatitude() { return latitude; }
     public Double getLongitude() { return longitude; }
+    public String getEventDate() { return eventDate; }
+    public String getVenue() { return venue; }
+    public void setEventDate(String eventDate) { this.eventDate = eventDate; }
+    public void setVenue(String venue) { this.venue = venue; }
 }

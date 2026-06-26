@@ -21,7 +21,11 @@ public class LoginUseCase {
         this.tokenService = tokenService;
     }
 
-    /** {@code username} accepts a username, email, or phone number. */
+    /**
+     * {@code username} accepts the bootstrap admin's username or a regular
+     * user's email. Phone is intentionally excluded: only email is a
+     * confirmed/verified channel for regular accounts via OTP.
+     */
     public record LoginRequest(String username, String password) {}
     public record LoginResult(String token, String userUuid, String role) {}
 
@@ -42,8 +46,7 @@ public class LoginUseCase {
 
     private Optional<User> findByIdentifier(final String identifier) {
         return userRepository.findByUsername(identifier)
-                .or(() -> userRepository.findByEmail(identifier))
-                .or(() -> userRepository.findByPhone(identifier));
+                .or(() -> userRepository.findByEmail(identifier));
     }
 
     public static String sha256(String input) {

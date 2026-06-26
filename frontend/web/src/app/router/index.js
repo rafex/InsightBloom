@@ -14,6 +14,11 @@ const routes = [
     component: () => import('@/pages/login/RegisterPage.vue')
   },
   {
+    path: '/profile',
+    component: () => import('@/pages/profile/ProfilePage.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/c/:friendlyId',
     component: () => import('@/pages/conference/ConferencePage.vue'),
     children: [

@@ -12,6 +12,12 @@
       span.sep /
       span.crumb-current "{{ wordCanonical }}"
 
+  nav.sub-links
+    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Moderación (mensajes)
+    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/moderation/words`") Moderación (palabras)
+    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/presentation`") Presentación
+    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/survey`") Encuesta
+
   h2
     | Mensajes
     span.word-filter-badge(v-if="wordCanonical") &nbsp;de "{{ wordCanonical }}"
@@ -230,6 +236,13 @@ export default {
 .sep { color: #d1d5db; }
 .crumb-current { color: #374151; font-weight: 500; }
 .crumb-loading { color: #9ca3af; }
+.sub-links { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.sub-link {
+  padding: 6px 14px; border: 1.5px solid #e5e7eb; border-radius: 20px; text-decoration: none;
+  color: #374151; font-size: 0.82rem; font-weight: 500; transition: all 0.15s;
+}
+.sub-link:hover { border-color: #a5b4fc; color: #4f46e5; }
+.sub-link.router-link-active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
 
 h2 { color: #1e1b4b; margin-bottom: 20px; margin-top: 0; }
 .word-filter-badge { font-family: monospace; color: #4f46e5; }
