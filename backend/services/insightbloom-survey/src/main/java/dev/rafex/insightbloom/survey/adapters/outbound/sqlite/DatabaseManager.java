@@ -1,25 +1,19 @@
 package dev.rafex.insightbloom.survey.adapters.outbound.sqlite;
 
-import org.sqlite.SQLiteConfig;
+import dev.rafex.insightbloom.common.migration.ColumnMigrationHelper;
+import dev.rafex.insightbloom.common.sqlite.SqliteConnectionProvider;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashSet;
-import java.util.Set;
 
 public class DatabaseManager {
-    private final String dbPath;
+    private final SqliteConnectionProvider provider;
 
-    public DatabaseManager(final String dbPath) { this.dbPath = dbPath; }
+    public DatabaseManager(final String dbPath) { this.provider = new SqliteConnectionProvider(dbPath); }
 
     public Connection getConnection() throws SQLException {
-        final SQLiteConfig config = new SQLiteConfig();
-        config.setJournalMode(SQLiteConfig.JournalMode.WAL);
-        config.setBusyTimeout(5000);
-        return DriverManager.getConnection("jdbc:sqlite:" + dbPath, config.toProperties());
+        return provider.getConnection();
     }
 
     public void initialize() {
@@ -52,28 +46,14 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_r_conf ON survey_responses(conference_uuid)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_r_q ON survey_responses(question_uuid)");
 
-            addColumnIfMissing(c, "survey_questions", "reference_answer", "TEXT");
-            addColumnIfMissing(c, "survey_questions", "rating_style", "TEXT");
-            addColumnIfMissing(c, "survey_responses", "grade_score", "REAL");
-            addColumnIfMissing(c, "survey_responses", "grade_feedback", "TEXT");
-            addColumnIfMissing(c, "survey_responses", "user_uuid", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "reference_answer", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "rating_style", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(c, "survey_responses", "grade_score", "REAL");
+            ColumnMigrationHelper.addColumnIfMissing(c, "survey_responses", "grade_feedback", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(c, "survey_responses", "user_uuid", "TEXT");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_r_user ON survey_responses(conference_uuid, user_uuid)");
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to init survey db", e);
-        }
-    }
-
-    private void addColumnIfMissing(final Connection c, final String table, final String column,
-                                     final String ddlType) throws SQLException {
-        final Set<String> existing = new HashSet<>();
-        try (Statement stmt = c.createStatement();
-             ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
-            while (rs.next()) existing.add(rs.getString("name"));
-        }
-        if (!existing.contains(column)) {
-            try (Statement stmt = c.createStatement()) {
-                stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + ddlType);
-            }
         }
     }
 }

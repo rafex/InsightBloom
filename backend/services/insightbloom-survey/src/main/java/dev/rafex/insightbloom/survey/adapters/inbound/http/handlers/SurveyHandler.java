@@ -2,14 +2,8 @@ package dev.rafex.insightbloom.survey.adapters.inbound.http.handlers;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
-import dev.rafex.ether.http.jetty12.response.JettyApiResponses;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
-import dev.rafex.ether.http.jetty12.handler.NonBlockingResourceHandler;
-import dev.rafex.ether.json.JsonCodec;
-import dev.rafex.ether.json.JsonUtils;
-import dev.rafex.insightbloom.contracts.ApiError;
-import dev.rafex.insightbloom.contracts.ApiMeta;
-import dev.rafex.insightbloom.contracts.ApiResponse;
+import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.survey.application.usecases.CreateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeactivateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeleteConferenceDataUseCase;
@@ -21,17 +15,12 @@ import dev.rafex.insightbloom.survey.application.usecases.SubmitResponsesUseCase
 import dev.rafex.insightbloom.survey.application.usecases.SuggestQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.UpdateQuestionUseCase;
 import dev.rafex.insightbloom.survey.domain.ports.UsersPort;
-import org.eclipse.jetty.server.Request;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
-public class SurveyHandler extends NonBlockingResourceHandler {
-
-    private static final JsonCodec JSON_CODEC = JsonUtils.codec();
-    private static final JettyApiResponses RESPONSES = new JettyApiResponses(JSON_CODEC);
+public class SurveyHandler extends BaseResourceHandler {
 
     private final CreateQuestionUseCase createQuestionUseCase;
     private final ListQuestionsUseCase listQuestionsUseCase;
@@ -56,7 +45,6 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                           final DeleteConferenceDataUseCase deleteConferenceDataUseCase,
                           final ImproveQuestionUseCase improveQuestionUseCase,
                           final UsersPort usersPort) {
-        super(JSON_CODEC);
         this.createQuestionUseCase = createQuestionUseCase;
         this.listQuestionsUseCase = listQuestionsUseCase;
         this.deactivateQuestionUseCase = deactivateQuestionUseCase;
@@ -138,13 +126,13 @@ public class SurveyHandler extends NonBlockingResourceHandler {
         final String path = jx.path();
         try {
             if (path.endsWith("/survey/questions/suggest")) {
-                final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+                final var body = parseBody(jx);
                 final int count = body.get("count") == null ? 5 : ((Number) body.get("count")).intValue();
                 sendOk(jx, suggestQuestionsUseCase.execute(conferenceId, count));
                 return true;
             }
             if (path.endsWith("/survey/questions/improve")) {
-                final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+                final var body = parseBody(jx);
                 final List<String> options = (List<String>) body.get("options");
                 sendOk(jx, improveQuestionUseCase.execute(new ImproveQuestionUseCase.Request(
                         conferenceId, (String) body.get("text"), (String) body.get("type"), options,
@@ -152,7 +140,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                 return true;
             }
             if (path.endsWith("/survey/questions")) {
-                final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+                final var body = parseBody(jx);
                 final List<String> options = (List<String>) body.get("options");
                 final int orderIndex = body.get("orderIndex") == null ? 0
                         : ((Number) body.get("orderIndex")).intValue();
@@ -163,7 +151,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                 return true;
             }
             if (path.endsWith("/update")) {
-                final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+                final var body = parseBody(jx);
                 final List<String> options = (List<String>) body.get("options");
                 final Integer orderIndex = body.get("orderIndex") == null ? null
                         : ((Number) body.get("orderIndex")).intValue();
@@ -191,7 +179,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                     sendError(jx, 403, "forbidden", "You must be a verified user to answer the survey");
                     return true;
                 }
-                final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+                final var body = parseBody(jx);
                 final List<Map<String, Object>> rawAnswers = (List<Map<String, Object>>) body.get("answers");
                 final List<SubmitResponsesUseCase.Answer> answers = rawAnswers.stream()
                         .map(a -> new SubmitResponsesUseCase.Answer(
@@ -217,16 +205,6 @@ public class SurveyHandler extends NonBlockingResourceHandler {
         return true;
     }
 
-    private <T> void sendOk(final JettyHttpExchange jx, final T data) {
-        RESPONSES.json(jx.response(), jx.callback(), 200,
-                new ApiResponse<>(data, ApiMeta.of(UUID.randomUUID().toString())));
-    }
-
-    private void sendError(final JettyHttpExchange jx, final int status, final String code, final String message) {
-        RESPONSES.json(jx.response(), jx.callback(), status,
-                ApiError.of(code, message, UUID.randomUUID().toString()));
-    }
-
     @Override
     public boolean delete(final HttpExchange x) {
         final var jx = asJetty(x);
@@ -243,9 +221,5 @@ public class SurveyHandler extends NonBlockingResourceHandler {
     private String extractToken(final JettyHttpExchange jx) {
         final String auth = jx.request().getHeaders().get("Authorization");
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
-    }
-
-    private static JettyHttpExchange asJetty(final HttpExchange x) {
-        return (JettyHttpExchange) x;
     }
 }
