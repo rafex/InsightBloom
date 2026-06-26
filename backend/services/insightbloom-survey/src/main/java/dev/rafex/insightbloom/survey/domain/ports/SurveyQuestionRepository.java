@@ -9,4 +9,5 @@ public interface SurveyQuestionRepository {
     void save(SurveyQuestion question);
     Optional<SurveyQuestion> findByUuid(String uuid);
     List<SurveyQuestion> findByConference(String conferenceUuid, boolean onlyActive);
+    void deleteByConference(String conferenceUuid);
 }

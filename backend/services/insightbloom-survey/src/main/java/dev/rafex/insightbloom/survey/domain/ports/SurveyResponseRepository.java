@@ -9,4 +9,6 @@ public interface SurveyResponseRepository {
     void updateGrade(String responseUuid, Double gradeScore, String gradeFeedback);
     List<SurveyResponse> findByConference(String conferenceUuid);
     List<SurveyResponse> findByQuestion(String questionUuid);
+    void deleteByQuestion(String questionUuid);
+    void deleteByConference(String conferenceUuid);
 }

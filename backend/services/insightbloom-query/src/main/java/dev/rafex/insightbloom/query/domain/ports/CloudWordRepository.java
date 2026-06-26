@@ -8,4 +8,5 @@ public interface CloudWordRepository {
     Optional<CloudWord> findByConferenceAndWord(String conferenceUuid, String wordNormalized, MessageType type);
     List<CloudWord> findVisibleByConferenceAndType(String conferenceUuid, MessageType type);
     void updateVisibility(String conferenceUuid, String wordNormalized, boolean visible);
+    void deleteByConference(String conferenceUuid);
 }

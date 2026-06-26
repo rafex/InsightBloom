@@ -10,4 +10,5 @@ public interface ModerationWordRepository {
     List<ModerationWord> findByConferenceAndStatus(String conferenceUuid, String status, int page, int pageSize);
     long countByConference(String conferenceUuid);
     long countByConferenceAndStatus(String conferenceUuid, String status);
+    void deleteByConference(String conferenceUuid);
 }

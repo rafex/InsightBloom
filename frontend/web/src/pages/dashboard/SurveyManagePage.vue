@@ -98,6 +98,14 @@
         button.btn-cancel(@click="deleteTarget = null") Cancelar
         button.btn-confirm(@click="doDelete") Eliminar
 
+  .confirm-overlay(v-if="purgeTarget" @click.self="purgeTarget = null")
+    .confirm-dialog
+      h4 ¿Purgar respuestas?
+      p Esto eliminará permanentemente las <strong>{{ purgeTarget.responseCount }} respuestas</strong> recibidas para "{{ purgeTarget.text }}". La pregunta se conserva, solo se borran las respuestas.
+      .confirm-actions
+        button.btn-cancel(@click="purgeTarget = null") Cancelar
+        button.btn-confirm(@click="doPurge") Purgar
+
   .results-card(v-if="results.length")
     h3 Resultados
     .result-row(v-for="r in results" :key="r.questionUuid")
@@ -110,8 +118,10 @@
         ul.summary-counts(v-if="Object.keys(r.counts || {}).length")
           li(v-for="(count, option) in r.counts" :key="option") {{ option }}: {{ count }}
 
-      button.btn-toggle(v-if="r.responseCount" type="button" @click="toggleDetail(r.questionUuid)")
-        | {{ openDetail[r.questionUuid] ? '▾ Ocultar respuestas individuales' : '▸ Ver respuestas individuales (' + r.responseCount + ')' }}
+      .result-actions(v-if="r.responseCount")
+        button.btn-toggle(type="button" @click="toggleDetail(r.questionUuid)")
+          | {{ openDetail[r.questionUuid] ? '▾ Ocultar respuestas individuales' : '▸ Ver respuestas individuales (' + r.responseCount + ')' }}
+        button.btn-purge(type="button" @click="confirmPurge(r)") 🗑 Purgar respuestas
 
       .individual-answers(v-if="openDetail[r.questionUuid]")
         .individual-answer(v-for="(a, i) in r.individualAnswers" :key="i")
@@ -128,7 +138,7 @@
 
 <script>
 import { ref, onMounted } from 'vue'
-import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions } from '@/services/api/surveyApi'
+import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 function emptyForm() {
@@ -154,6 +164,7 @@ export default {
     const editingId = ref(null)
     const form = ref(emptyForm())
     const deleteTarget = ref(null)
+    const purgeTarget = ref(null)
     const openDetail = ref({})
 
     const EMOJI_SCALE = ['😢', '😕', '😐', '🙂', '🤩']
@@ -291,13 +302,24 @@ export default {
       await load()
     }
 
+    function confirmPurge(r) { purgeTarget.value = r }
+
+    async function doPurge() {
+      const r = purgeTarget.value
+      if (!r) return
+      purgeTarget.value = null
+      await purgeResponses(props.conferenceId, r.questionUuid, auth.state.token)
+      await load()
+    }
+
     onMounted(load)
 
     return {
       questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
-      deleteTarget, openDetail,
+      deleteTarget, purgeTarget, openDetail,
       typeLabel, typeIcon, isImage, ratingDisplay, toggleDetail, save, confirmDelete, doDelete,
-      suggest, addSuggestion, startEdit, cancelEdit, onTypeChange, addOption, removeOption, moveOption
+      confirmPurge, doPurge, suggest, addSuggestion, startEdit, cancelEdit, onTypeChange, addOption,
+      removeOption, moveOption
     }
   }
 }
@@ -416,11 +438,17 @@ input, select, textarea {
 .summary-line { color: #374151; margin: 4px 0; }
 .summary-counts { margin: 4px 0 0 16px; padding: 0; color: #374151; }
 .no-responses { color: #9ca3af; font-size: 0.85rem; font-style: italic; margin: 4px 0 0; }
+.result-actions { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
 .btn-toggle {
-  margin-top: 8px; padding: 4px 0; border: none; background: none; color: #4f46e5;
+  padding: 4px 0; border: none; background: none; color: #4f46e5;
   cursor: pointer; font-size: 0.82rem; font-weight: 500;
 }
 .btn-toggle:hover { text-decoration: underline; }
+.btn-purge {
+  padding: 4px 10px; border: 1px solid #fecaca; border-radius: 6px; background: #fff5f5; color: #dc2626;
+  cursor: pointer; font-size: 0.78rem; font-weight: 500;
+}
+.btn-purge:hover { background: #fee2e2; }
 .individual-answers { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .individual-answer { background: #f9fafb; border-radius: 8px; padding: 10px 12px; }
 .answer-rating { font-size: 1.1rem; }

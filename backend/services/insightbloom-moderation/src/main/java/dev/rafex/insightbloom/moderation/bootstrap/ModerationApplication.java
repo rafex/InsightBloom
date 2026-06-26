@@ -34,10 +34,12 @@ public class ModerationApplication {
         final var restoreMessageUseCase = new RestoreMessageUseCase(messageRepo, queryPort);
         final var editMessageUseCase = new EditMessageUseCase(messageRepo);
         final var deleteMessageUseCase = new DeleteMessageUseCase(messageRepo, queryPort);
+        final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(wordRepo, messageRepo);
 
         final var conferenceModerationHandler = new ConferenceModerationHandler(
                 listUseCase, censorWordUseCase, restoreWordUseCase, editWordUseCase, deleteWordUseCase,
-                censorMessageUseCase, restoreMessageUseCase, editMessageUseCase, deleteMessageUseCase);
+                censorMessageUseCase, restoreMessageUseCase, editMessageUseCase, deleteMessageUseCase,
+                deleteConferenceDataUseCase);
         final var evaluateHandler = new InternalEvaluateHandler(evaluateUseCase);
 
         final var routes = new JettyRouteRegistry();

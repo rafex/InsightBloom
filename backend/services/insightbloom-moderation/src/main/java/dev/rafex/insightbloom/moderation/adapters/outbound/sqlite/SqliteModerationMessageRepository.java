@@ -67,6 +67,12 @@ public class SqliteModerationMessageRepository implements ModerationMessageRepos
         } catch (SQLException e) { throw new RuntimeException(e); }
         return 0;
     }
+    @Override
+    public void deleteByConference(String conf) {
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement("DELETE FROM moderation_messages WHERE conference_uuid=?")) {
+            ps.setString(1, conf); ps.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
     private Optional<ModerationMessage> query(String sql, String param) {
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, param); ResultSet rs = ps.executeQuery();

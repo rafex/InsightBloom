@@ -123,6 +123,11 @@ app.get('/api/v1/conferences/:id/presentation/status', (req, res) => {
   });
 });
 
+app.delete('/api/v1/conferences/:id/presentation', (req, res) => {
+  fs.rmSync(conferenceDir(req.params.id), { recursive: true, force: true });
+  res.json({ status: 'deleted' });
+});
+
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.listen(PORT, () => {

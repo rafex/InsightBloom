@@ -34,8 +34,10 @@ public class IngestApplication {
 
         final var ingestUseCase = new IngestMessageUseCase(messageRepo, moderationPort, statsPort, queryPort, normService, intentService);
         final var getMessageUseCase = new GetMessageUseCase(messageRepo);
+        final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(messageRepo);
 
-        final var ingestHandler = new IngestHandler(ingestUseCase, getMessageUseCase, usersPort);
+        final var ingestHandler = new IngestHandler(ingestUseCase, getMessageUseCase, usersPort,
+                deleteConferenceDataUseCase);
 
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/*", ingestHandler);

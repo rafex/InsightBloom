@@ -66,6 +66,25 @@ public class SqliteSurveyResponseRepository implements SurveyResponseRepository 
         return query("SELECT * FROM survey_responses WHERE question_uuid = ?", questionUuid);
     }
 
+    @Override
+    public void deleteByQuestion(final String questionUuid) {
+        delete("DELETE FROM survey_responses WHERE question_uuid = ?", questionUuid);
+    }
+
+    @Override
+    public void deleteByConference(final String conferenceUuid) {
+        delete("DELETE FROM survey_responses WHERE conference_uuid = ?", conferenceUuid);
+    }
+
+    private void delete(final String sql, final String param) {
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, param);
+            ps.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to delete survey responses", e);
+        }
+    }
+
     private List<SurveyResponse> query(final String sql, final String param) {
         final List<SurveyResponse> result = new ArrayList<>();
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {

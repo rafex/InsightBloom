@@ -56,6 +56,13 @@ public class SqliteWordTimelineRepository implements WordTimelineRepository {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
+    @Override
+    public void deleteByConference(String conferenceUuid) {
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement("DELETE FROM word_timeline WHERE conference_uuid=?")) {
+            ps.setString(1, conferenceUuid); ps.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
     private WordTimeline map(ResultSet rs) throws SQLException {
         return new WordTimeline(rs.getString("uuid"),rs.getString("conference_uuid"),
             rs.getString("word_normalized"),rs.getString("message_uuid"),

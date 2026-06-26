@@ -86,6 +86,17 @@ public class SqliteSurveyQuestionRepository implements SurveyQuestionRepository 
         return result;
     }
 
+    @Override
+    public void deleteByConference(final String conferenceUuid) {
+        try (Connection c = db.getConnection();
+             PreparedStatement ps = c.prepareStatement("DELETE FROM survey_questions WHERE conference_uuid = ?")) {
+            ps.setString(1, conferenceUuid);
+            ps.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to delete survey questions", e);
+        }
+    }
+
     private SurveyQuestion map(final ResultSet rs) throws SQLException {
         final String optionsRaw = rs.getString("options_json");
         final List<String> options = (optionsRaw == null || optionsRaw.isBlank())

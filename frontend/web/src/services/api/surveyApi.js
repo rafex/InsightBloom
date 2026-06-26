@@ -52,3 +52,10 @@ export async function getResults(conferenceId, token) {
   })
   return res.data
 }
+
+export async function purgeResponses(conferenceId, questionId, token) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/questions/${questionId}/responses/purge`, {}, {
+    headers: authHeader(token)
+  })
+  return res.data
+}

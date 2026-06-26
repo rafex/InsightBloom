@@ -40,6 +40,12 @@ public class SqliteMessageRepository implements MessageRepository {
         } catch (SQLException e) { throw new RuntimeException(e); }
         return Optional.empty();
     }
+    @Override
+    public void deleteByConference(String conferenceUuid) {
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement("DELETE FROM messages WHERE conference_uuid=?")) {
+            ps.setString(1, conferenceUuid); ps.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
     private Message map(ResultSet rs) throws SQLException {
         String wIntent = rs.getString("word_intent");
         String dIntent = rs.getString("detail_intent");

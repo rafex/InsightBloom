@@ -4,4 +4,5 @@ import java.util.Optional;
 public interface MessageRepository {
     void save(Message message);
     Optional<Message> findByUuid(String uuid);
+    void deleteByConference(String conferenceUuid);
 }

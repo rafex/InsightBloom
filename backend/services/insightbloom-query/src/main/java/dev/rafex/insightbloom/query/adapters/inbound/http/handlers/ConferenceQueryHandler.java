@@ -10,6 +10,7 @@ import dev.rafex.ether.json.JsonUtils;
 import dev.rafex.insightbloom.contracts.ApiError;
 import dev.rafex.insightbloom.contracts.ApiMeta;
 import dev.rafex.insightbloom.contracts.ApiResponse;
+import dev.rafex.insightbloom.query.application.usecases.DeleteConferenceDataUseCase;
 import dev.rafex.insightbloom.query.application.usecases.GetCloudUseCase;
 import dev.rafex.insightbloom.query.application.usecases.GetTimelineUseCase;
 import dev.rafex.insightbloom.query.domain.model.MessageType;
@@ -17,6 +18,7 @@ import dev.rafex.insightbloom.query.domain.model.MessageType;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -27,11 +29,14 @@ public class ConferenceQueryHandler extends NonBlockingResourceHandler {
 
     private final GetCloudUseCase getCloudUseCase;
     private final GetTimelineUseCase getTimelineUseCase;
+    private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
 
-    public ConferenceQueryHandler(final GetCloudUseCase getCloudUseCase, final GetTimelineUseCase getTimelineUseCase) {
+    public ConferenceQueryHandler(final GetCloudUseCase getCloudUseCase, final GetTimelineUseCase getTimelineUseCase,
+                                   final DeleteConferenceDataUseCase deleteConferenceDataUseCase) {
         super(JSON_CODEC);
         this.getCloudUseCase = getCloudUseCase;
         this.getTimelineUseCase = getTimelineUseCase;
+        this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
     }
 
     @Override
@@ -44,12 +49,25 @@ public class ConferenceQueryHandler extends NonBlockingResourceHandler {
         return List.of(
                 Route.of("/{conferenceId}/cloud/doubts", Set.of("GET")),
                 Route.of("/{conferenceId}/cloud/topics", Set.of("GET")),
-                Route.of("/{conferenceId}/words/{word}/timeline", Set.of("GET")));
+                Route.of("/{conferenceId}/words/{word}/timeline", Set.of("GET")),
+                Route.of("/{conferenceId}/cloud", Set.of("DELETE")));
     }
 
     @Override
     public Set<String> supportedMethods() {
-        return Set.of("GET");
+        return Set.of("GET", "DELETE");
+    }
+
+    @Override
+    public boolean delete(final HttpExchange x) {
+        final var jx = asJetty(x);
+        try {
+            deleteConferenceDataUseCase.execute(jx.pathParam("conferenceId"));
+            sendOk(jx, Map.of("status", "deleted"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
     }
 
     @Override

@@ -5,6 +5,7 @@ import dev.rafex.ether.http.jetty12.JettyServerConfig;
 import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.insightbloom.users.adapters.inbound.http.handlers.*;
+import dev.rafex.insightbloom.users.adapters.outbound.cascade.HttpCascadeDeleteClient;
 import dev.rafex.insightbloom.users.adapters.outbound.sqlite.*;
 import dev.rafex.insightbloom.users.application.usecases.*;
 import dev.rafex.insightbloom.users.domain.services.*;
@@ -12,6 +13,11 @@ import dev.rafex.insightbloom.users.domain.services.*;
 public class UsersApplication {
     public static void main(final String[] args) throws Exception {
         final String dbPath = System.getenv().getOrDefault("DB_PATH", "users.db");
+        final String ingestUrl = System.getenv().getOrDefault("INGEST_URL", "http://insightbloom-ingest:8082");
+        final String queryUrl = System.getenv().getOrDefault("QUERY_URL", "http://insightbloom-query:8083");
+        final String moderationUrl = System.getenv().getOrDefault("MODERATION_URL", "http://insightbloom-moderation:8084");
+        final String presentationsUrl = System.getenv().getOrDefault("PRESENTATIONS_URL", "http://insightbloom-presentations:8091");
+        final String surveyUrl = System.getenv().getOrDefault("SURVEY_URL", "http://insightbloom-survey:8086");
 
         // Infrastructure
         final var db = new DatabaseManager(dbPath);
@@ -26,13 +32,15 @@ public class UsersApplication {
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
         final var friendlyIdService = new FriendlyIdService(conferenceRepo);
+        final var cascadeDeletePort = new HttpCascadeDeleteClient(
+                ingestUrl, queryUrl, moderationUrl, presentationsUrl, surveyUrl);
 
         // Use cases
         final var loginUseCase = new LoginUseCase(userRepo, tokenService);
         final var createGuestUseCase = new CreateGuestUseCase(guestRepo, conferenceRepo, tokenService);
         final var validateTokenUseCase = new ValidateTokenUseCase(tokenService, userRepo, guestRepo);
         final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService);
-        final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo);
+        final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo, cascadeDeletePort);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase);

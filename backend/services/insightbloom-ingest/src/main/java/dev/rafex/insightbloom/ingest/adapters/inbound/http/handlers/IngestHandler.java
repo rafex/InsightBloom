@@ -10,6 +10,7 @@ import dev.rafex.ether.json.JsonUtils;
 import dev.rafex.insightbloom.contracts.ApiError;
 import dev.rafex.insightbloom.contracts.ApiMeta;
 import dev.rafex.insightbloom.contracts.ApiResponse;
+import dev.rafex.insightbloom.ingest.application.usecases.DeleteConferenceDataUseCase;
 import dev.rafex.insightbloom.ingest.application.usecases.GetMessageUseCase;
 import dev.rafex.insightbloom.ingest.application.usecases.IngestMessageUseCase;
 import dev.rafex.insightbloom.ingest.domain.ports.UsersPort;
@@ -30,13 +31,15 @@ public class IngestHandler extends NonBlockingResourceHandler {
     private final IngestMessageUseCase ingestUseCase;
     private final GetMessageUseCase getMessageUseCase;
     private final UsersPort usersPort;
+    private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
 
     public IngestHandler(final IngestMessageUseCase ingestUseCase, final GetMessageUseCase getMessageUseCase,
-                         final UsersPort usersPort) {
+                         final UsersPort usersPort, final DeleteConferenceDataUseCase deleteConferenceDataUseCase) {
         super(JSON_CODEC);
         this.ingestUseCase = ingestUseCase;
         this.getMessageUseCase = getMessageUseCase;
         this.usersPort = usersPort;
+        this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
     }
 
     @Override
@@ -49,12 +52,25 @@ public class IngestHandler extends NonBlockingResourceHandler {
         return List.of(
                 Route.of("/messages", Set.of("POST")),
                 Route.of("/messages/{id}", Set.of("GET")),
-                Route.of("/webhooks/messages", Set.of("POST")));
+                Route.of("/webhooks/messages", Set.of("POST")),
+                Route.of("/conferences/{conferenceId}/messages", Set.of("DELETE")));
     }
 
     @Override
     public Set<String> supportedMethods() {
-        return Set.of("GET", "POST");
+        return Set.of("GET", "POST", "DELETE");
+    }
+
+    @Override
+    public boolean delete(final HttpExchange x) {
+        final var jx = asJetty(x);
+        try {
+            deleteConferenceDataUseCase.execute(jx.pathParam("conferenceId"));
+            sendOk(jx, 200, Map.of("status", "deleted"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
     }
 
     @Override

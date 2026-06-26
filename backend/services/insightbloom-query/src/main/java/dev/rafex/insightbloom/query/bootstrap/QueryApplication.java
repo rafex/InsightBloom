@@ -23,8 +23,10 @@ public class QueryApplication {
         final var updateUseCase = new UpdateCloudUseCase(cloudRepo, timelineRepo);
         final var setVisibilityUseCase = new SetVisibilityUseCase(cloudRepo);
         final var setMessageVisibilityUseCase = new SetMessageVisibilityUseCase(timelineRepo);
+        final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(cloudRepo, timelineRepo);
 
-        final var conferenceQueryHandler = new ConferenceQueryHandler(getCloudUseCase, getTimelineUseCase);
+        final var conferenceQueryHandler = new ConferenceQueryHandler(
+                getCloudUseCase, getTimelineUseCase, deleteConferenceDataUseCase);
         final var updateHandler = new UpdateHandler(updateUseCase);
         final var visibilityHandler = new VisibilityHandler(setVisibilityUseCase);
         final var messageVisibilityHandler = new MessageVisibilityHandler(setMessageVisibilityUseCase);

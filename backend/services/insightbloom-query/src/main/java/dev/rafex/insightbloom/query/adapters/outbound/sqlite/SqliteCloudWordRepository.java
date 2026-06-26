@@ -70,6 +70,13 @@ public class SqliteCloudWordRepository implements CloudWordRepository {
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
+    @Override
+    public void deleteByConference(String conferenceUuid) {
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement("DELETE FROM cloud_words WHERE conference_uuid=?")) {
+            ps.setString(1, conferenceUuid); ps.executeUpdate();
+        } catch (SQLException e) { throw new RuntimeException(e); }
+    }
+
     private static Instant parseInstant(String s) {
         if (s == null) return Instant.now();
         String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";

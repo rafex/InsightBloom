@@ -32,6 +32,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     private final RestoreMessageUseCase restoreMessageUseCase;
     private final EditMessageUseCase editMessageUseCase;
     private final DeleteMessageUseCase deleteMessageUseCase;
+    private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
 
     public ConferenceModerationHandler(final ListModerationUseCase listUseCase,
                                        final CensorWordUseCase censorWordUseCase,
@@ -41,7 +42,8 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
                                        final CensorMessageUseCase censorMessageUseCase,
                                        final RestoreMessageUseCase restoreMessageUseCase,
                                        final EditMessageUseCase editMessageUseCase,
-                                       final DeleteMessageUseCase deleteMessageUseCase) {
+                                       final DeleteMessageUseCase deleteMessageUseCase,
+                                       final DeleteConferenceDataUseCase deleteConferenceDataUseCase) {
         super(JSON_CODEC);
         this.listUseCase = listUseCase;
         this.censorWordUseCase = censorWordUseCase;
@@ -52,6 +54,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
         this.restoreMessageUseCase = restoreMessageUseCase;
         this.editMessageUseCase = editMessageUseCase;
         this.deleteMessageUseCase = deleteMessageUseCase;
+        this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
     }
 
     @Override
@@ -71,12 +74,25 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
                 Route.of("/{conferenceId}/moderation/messages/{msgId}/censor", Set.of("POST")),
                 Route.of("/{conferenceId}/moderation/messages/{msgId}/restore", Set.of("POST")),
                 Route.of("/{conferenceId}/moderation/messages/{msgId}/delete", Set.of("POST")),
-                Route.of("/{conferenceId}/moderation/messages/{msgId}", Set.of("PATCH")));
+                Route.of("/{conferenceId}/moderation/messages/{msgId}", Set.of("PATCH")),
+                Route.of("/{conferenceId}/moderation", Set.of("DELETE")));
     }
 
     @Override
     public Set<String> supportedMethods() {
-        return Set.of("GET", "POST", "PATCH");
+        return Set.of("GET", "POST", "PATCH", "DELETE");
+    }
+
+    @Override
+    public boolean delete(final HttpExchange x) {
+        final var jx = asJetty(x);
+        try {
+            deleteConferenceDataUseCase.execute(jx.pathParam("conferenceId"));
+            sendOk(jx, Map.of("status", "deleted"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
     }
 
     @Override
