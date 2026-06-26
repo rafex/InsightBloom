@@ -40,7 +40,7 @@
         span.word-chip {{ item.wordText || '—' }}
       .msg-detail {{ item.detailText || item.detail || item.detailVisible || '—' }}
       .msg-meta
-        span.msg-author {{ authorNames[item.authorUuid] || item.authorLabel || 'Anónimo' }}
+        span.msg-author {{ item.authorDisplayName || authorNames[item.authorUuid] || item.authorLabel || 'Anónimo' }}
         span.msg-time(v-if="item.receivedAt || item.updatedAt") · {{ formatTime(item.receivedAt || item.updatedAt) }}
       .msg-status
         span.status(:class="statusClass(item.detailStatus)") {{ statusLabel(item.detailStatus) }}
@@ -61,7 +61,7 @@
           :disabled="item._loading"
         ) Eliminar
         button.btn-sm.btn-answer(
-          v-if="!wordCanonical && !item.answerText"
+          v-if="!item.answerText"
           @click="item._answering = !item._answering"
         ) 💬 Responder
 
@@ -109,8 +109,10 @@ export default {
     const authorNames = ref({})
 
     async function resolveAuthors() {
-      const uuids = [...new Set(items.value.map(i => i.authorUuid).filter(Boolean))]
-        .filter(uuid => !(uuid in authorNames.value))
+      const uuids = [...new Set(
+        items.value.filter(i => !i.authorDisplayName).map(i => i.authorUuid)
+      )]
+        .filter(uuid => uuid && uuid !== 'anonymous' && !(uuid in authorNames.value))
       for (const uuid of uuids) {
         try {
           const profile = await getUserProfile(uuid)

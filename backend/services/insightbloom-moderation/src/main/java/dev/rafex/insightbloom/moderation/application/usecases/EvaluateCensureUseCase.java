@@ -14,7 +14,7 @@ public class EvaluateCensureUseCase {
         this.wordRepo = wordRepo;
         this.messageRepo = messageRepo;
     }
-    public record EvaluateRequest(String word, String detail, String conferenceUuid, String wordCanonical, String messageUuid, String wordText, String detailText, String authorUuid) {}
+    public record EvaluateRequest(String word, String detail, String conferenceUuid, String wordCanonical, String messageUuid, String wordText, String detailText, String authorUuid, String authorDisplayName) {}
     public record EvaluateResult(boolean wordBlocked, boolean detailBlocked) {}
     public EvaluateResult execute(EvaluateRequest req) {
         var result = autoCensureService.evaluate(req.word(), req.detail());
@@ -34,7 +34,7 @@ public class EvaluateCensureUseCase {
             if (existingMsg.isEmpty()) {
                 ModerationMessage mm = new ModerationMessage(req.messageUuid(), req.conferenceUuid());
                 mm.initContent(req.wordText(), req.detailText());
-                mm.initAuthor(req.authorUuid());
+                mm.initAuthor(req.authorUuid(), req.authorDisplayName());
                 if (result.wordBlocked()) mm.censorWord(null, "auto");
                 if (result.detailBlocked()) mm.censorDetail(null, "auto");
                 messageRepo.save(mm);

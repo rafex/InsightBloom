@@ -10,7 +10,7 @@ public class SqliteModerationMessageRepository implements ModerationMessageRepos
     public SqliteModerationMessageRepository(DatabaseManager db) { this.db = db; }
     @Override
     public void save(ModerationMessage m) {
-        String sql = "INSERT OR REPLACE INTO moderation_messages (uuid,message_uuid,conference_uuid,word_text,detail_text,word_status,detail_status,reason,edited_word_value,edited_detail_value,updated_by_user_uuid,author_uuid,updated_at,answer_text,answered_at,answered_by_user_uuid) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        String sql = "INSERT OR REPLACE INTO moderation_messages (uuid,message_uuid,conference_uuid,word_text,detail_text,word_status,detail_status,reason,edited_word_value,edited_detail_value,updated_by_user_uuid,author_uuid,updated_at,answer_text,answered_at,answered_by_user_uuid,author_display_name) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, m.getUuid()); ps.setString(2, m.getMessageUuid());
             ps.setString(3, m.getConferenceUuid()); ps.setString(4, m.getWordText());
@@ -22,6 +22,7 @@ public class SqliteModerationMessageRepository implements ModerationMessageRepos
             ps.setString(14, m.getAnswerText());
             ps.setString(15, m.getAnsweredAt() != null ? m.getAnsweredAt().toString() : null);
             ps.setString(16, m.getAnsweredByUserUuid());
+            ps.setString(17, m.getAuthorDisplayName());
             ps.executeUpdate();
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
@@ -93,7 +94,7 @@ public class SqliteModerationMessageRepository implements ModerationMessageRepos
             rs.getString("updated_by_user_uuid"), rs.getString("author_uuid"),
             parseInstant(rs.getString("updated_at")),
             rs.getString("answer_text"), parseInstantNullable(rs.getString("answered_at")),
-            rs.getString("answered_by_user_uuid"));
+            rs.getString("answered_by_user_uuid"), rs.getString("author_display_name"));
     }
 
     private static Instant parseInstant(String s) {

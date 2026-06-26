@@ -55,7 +55,7 @@ public class IngestMessageUseCase {
         ModerationPort.EvaluationResult eval;
         try {
             eval = moderationPort.evaluate(wordNorm, req.detailOriginal(), req.conferenceUuid(), wordCanonical,
-                msg.getUuid(), wordCanonical, req.detailOriginal(), req.authorUuid());
+                msg.getUuid(), wordCanonical, req.detailOriginal(), req.authorUuid(), req.displayName());
         } catch (Exception e) {
             // If moderation service unavailable, allow the message
             eval = new ModerationPort.EvaluationResult(false, false);

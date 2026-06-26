@@ -14,6 +14,7 @@ public class ModerationMessage {
     private String editedDetailValue;
     private String updatedByUserUuid;
     private String authorUuid;
+    private String authorDisplayName;
     private Instant updatedAt;
     private String answerText;
     private Instant answeredAt;
@@ -45,10 +46,12 @@ public class ModerationMessage {
                               ContentStatus wordStatus, ContentStatus detailStatus, String reason,
                               String editedWordValue, String editedDetailValue,
                               String updatedByUserUuid, String authorUuid, Instant updatedAt,
-                              String answerText, Instant answeredAt, String answeredByUserUuid) {
+                              String answerText, Instant answeredAt, String answeredByUserUuid,
+                              String authorDisplayName) {
         this(uuid, messageUuid, conferenceUuid, wordText, detailText, wordStatus, detailStatus, reason,
                 editedWordValue, editedDetailValue, updatedByUserUuid, authorUuid, updatedAt);
         this.answerText = answerText; this.answeredAt = answeredAt; this.answeredByUserUuid = answeredByUserUuid;
+        this.authorDisplayName = authorDisplayName;
     }
     public String getUuid() { return uuid; }
     public String getMessageUuid() { return messageUuid; }
@@ -56,12 +59,14 @@ public class ModerationMessage {
     public String getWordText() { return wordText; }
     public String getDetailText() { return detailText; }
     public String getAuthorUuid() { return authorUuid; }
+    public String getAuthorDisplayName() { return authorDisplayName; }
     public void initContent(String wordText, String detailText) {
         this.wordText = wordText;
         this.detailText = detailText;
     }
-    public void initAuthor(String authorUuid) {
+    public void initAuthor(String authorUuid, String authorDisplayName) {
         this.authorUuid = authorUuid;
+        this.authorDisplayName = authorDisplayName;
     }
     public ContentStatus getWordStatus() { return wordStatus; }
     public ContentStatus getDetailStatus() { return detailStatus; }
