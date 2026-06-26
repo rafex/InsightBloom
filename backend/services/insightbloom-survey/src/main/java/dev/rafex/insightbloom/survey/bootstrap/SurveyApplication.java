@@ -15,6 +15,7 @@ import dev.rafex.insightbloom.survey.application.usecases.CreateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeactivateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeleteConferenceDataUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.GetResultsUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.ImproveQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.ListQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.PurgeResponsesUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SubmitResponsesUseCase;
@@ -49,11 +50,12 @@ public class SurveyApplication {
         final var updateQuestionUseCase = new UpdateQuestionUseCase(questionRepo);
         final var purgeResponsesUseCase = new PurgeResponsesUseCase(responseRepo);
         final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(questionRepo, responseRepo);
+        final var improveQuestionUseCase = new ImproveQuestionUseCase(llm, presentationsClient, JsonUtils.codec());
 
         final var surveyHandler = new SurveyHandler(
                 createQuestionUseCase, listQuestionsUseCase, deactivateQuestionUseCase,
                 submitResponsesUseCase, getResultsUseCase, suggestQuestionsUseCase, updateQuestionUseCase,
-                purgeResponsesUseCase, deleteConferenceDataUseCase);
+                purgeResponsesUseCase, deleteConferenceDataUseCase, improveQuestionUseCase);
 
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/conferences/*", surveyHandler);

@@ -18,7 +18,21 @@
           div(v-if="s.referenceAnswer") Referencia: {{ s.referenceAnswer }}
         button.btn-sm.btn-primary-sm(type="button" @click="addSuggestion(s)") Agregar
 
-    input(v-model="form.text" placeholder="¿Qué tan útil fue la charla?")
+    .text-row
+      input(v-model="form.text" placeholder="¿Qué tan útil fue la charla?")
+      button.btn-wand(type="button" :disabled="!form.text || improving" @click="improve" title="Mejorar con IA") {{ improving ? '✨...' : '🪄' }}
+    span.ai-error(v-if="improveError") {{ improveError }}
+
+    .suggestions.improve-suggestions(v-if="improvements.length")
+      h4 Alternativas mejoradas por IA
+      .suggestion-row(v-for="(s, i) in improvements" :key="i")
+        .suggestion-text
+          strong {{ s.text }}
+          span.suggestion-type {{ typeLabel(s.type) }}
+          div(v-if="s.options && s.options.length") Opciones: {{ s.options.join(', ') }}
+          div(v-if="s.referenceAnswer") Referencia: {{ s.referenceAnswer }}
+        button.btn-sm.btn-primary-sm(type="button" @click="applyImprovement(s)") Usar esta
+
     select(v-model="form.type" @change="onTypeChange")
       option(value="RATING") ★ Calificación (estrellas o emojis)
       option(value="TEXT") 📝 Texto libre
@@ -138,7 +152,7 @@
 
 <script>
 import { ref, onMounted } from 'vue'
-import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses } from '@/services/api/surveyApi'
+import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 function emptyForm() {
@@ -161,6 +175,9 @@ export default {
     const suggesting = ref(false)
     const suggestError = ref('')
     const suggestions = ref([])
+    const improving = ref(false)
+    const improveError = ref('')
+    const improvements = ref([])
     const editingId = ref(null)
     const form = ref(emptyForm())
     const deleteTarget = ref(null)
@@ -245,6 +262,38 @@ export default {
       onTypeChange()
     }
 
+    async function improve() {
+      improveError.value = ''
+      improving.value = true
+      try {
+        const isOptionsType = form.value.type === 'MULTIPLE_CHOICE' || form.value.type === 'DRAG_DROP'
+        const options = isOptionsType ? form.value.options.map((o) => o.trim()).filter(Boolean) : null
+        const res = await improveQuestion(props.conferenceId, {
+          text: form.value.text,
+          type: form.value.type,
+          options,
+          referenceAnswer: form.value.referenceAnswer || null
+        }, auth.state.token)
+        improvements.value = res.data || []
+      } catch (e) {
+        improveError.value = 'No se pudo mejorar la pregunta con IA. Intenta de nuevo.'
+      } finally {
+        improving.value = false
+      }
+    }
+
+    function applyImprovement(s) {
+      form.value = {
+        text: s.text,
+        type: s.type,
+        ratingStyle: form.value.ratingStyle || 'STARS',
+        options: s.options && s.options.length ? [...s.options] : [],
+        referenceAnswer: s.referenceAnswer || ''
+      }
+      onTypeChange()
+      improvements.value = []
+    }
+
     function startEdit(q) {
       editingId.value = q.uuid
       form.value = {
@@ -256,11 +305,13 @@ export default {
       }
       onTypeChange()
       suggestions.value = []
+      improvements.value = []
     }
 
     function cancelEdit() {
       editingId.value = null
       form.value = emptyForm()
+      improvements.value = []
     }
 
     async function save() {
@@ -286,6 +337,7 @@ export default {
         editingId.value = null
         form.value = emptyForm()
         suggestions.value = []
+        improvements.value = []
         await load()
       } finally {
         saving.value = false
@@ -316,10 +368,10 @@ export default {
 
     return {
       questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
-      deleteTarget, purgeTarget, openDetail,
+      deleteTarget, purgeTarget, openDetail, improving, improveError, improvements,
       typeLabel, typeIcon, isImage, ratingDisplay, toggleDetail, save, confirmDelete, doDelete,
       confirmPurge, doPurge, suggest, addSuggestion, startEdit, cancelEdit, onTypeChange, addOption,
-      removeOption, moveOption
+      removeOption, moveOption, improve, applyImprovement
     }
   }
 }
@@ -354,6 +406,14 @@ input, select, textarea {
 .btn-outline:disabled { opacity: 0.6; cursor: not-allowed; }
 .ai-suggest-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .ai-error { color: #dc2626; font-size: 0.82rem; }
+.text-row { display: flex; gap: 8px; align-items: flex-start; }
+.text-row input { flex: 1; }
+.btn-wand {
+  flex-shrink: 0; width: 38px; height: 38px; border: 1.5px solid #a5b4fc; border-radius: 8px;
+  background: #f5f3ff; cursor: pointer; font-size: 1rem;
+}
+.btn-wand:hover:not(:disabled) { background: #ede9fe; }
+.btn-wand:disabled { opacity: 0.4; cursor: not-allowed; }
 .suggestions { background: #f5f3ff; border-radius: 10px; padding: 12px; margin-bottom: 16px; }
 .suggestion-row {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;

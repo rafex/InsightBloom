@@ -14,6 +14,7 @@ import dev.rafex.insightbloom.survey.application.usecases.CreateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeactivateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeleteConferenceDataUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.GetResultsUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.ImproveQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.ListQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.PurgeResponsesUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SubmitResponsesUseCase;
@@ -40,6 +41,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
     private final UpdateQuestionUseCase updateQuestionUseCase;
     private final PurgeResponsesUseCase purgeResponsesUseCase;
     private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
+    private final ImproveQuestionUseCase improveQuestionUseCase;
 
     public SurveyHandler(final CreateQuestionUseCase createQuestionUseCase,
                           final ListQuestionsUseCase listQuestionsUseCase,
@@ -49,7 +51,8 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                           final SuggestQuestionsUseCase suggestQuestionsUseCase,
                           final UpdateQuestionUseCase updateQuestionUseCase,
                           final PurgeResponsesUseCase purgeResponsesUseCase,
-                          final DeleteConferenceDataUseCase deleteConferenceDataUseCase) {
+                          final DeleteConferenceDataUseCase deleteConferenceDataUseCase,
+                          final ImproveQuestionUseCase improveQuestionUseCase) {
         super(JSON_CODEC);
         this.createQuestionUseCase = createQuestionUseCase;
         this.listQuestionsUseCase = listQuestionsUseCase;
@@ -60,6 +63,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
         this.updateQuestionUseCase = updateQuestionUseCase;
         this.purgeResponsesUseCase = purgeResponsesUseCase;
         this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
+        this.improveQuestionUseCase = improveQuestionUseCase;
     }
 
     @Override
@@ -72,6 +76,7 @@ public class SurveyHandler extends NonBlockingResourceHandler {
         return List.of(
                 Route.of("/{conferenceId}/survey/questions", Set.of("GET", "POST")),
                 Route.of("/{conferenceId}/survey/questions/suggest", Set.of("POST")),
+                Route.of("/{conferenceId}/survey/questions/improve", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/questions/{questionId}/deactivate", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/questions/{questionId}/update", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/questions/{questionId}/responses/purge", Set.of("POST")),
@@ -123,6 +128,14 @@ public class SurveyHandler extends NonBlockingResourceHandler {
                 final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
                 final int count = body.get("count") == null ? 5 : ((Number) body.get("count")).intValue();
                 sendOk(jx, suggestQuestionsUseCase.execute(conferenceId, count));
+                return true;
+            }
+            if (path.endsWith("/survey/questions/improve")) {
+                final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+                final List<String> options = (List<String>) body.get("options");
+                sendOk(jx, improveQuestionUseCase.execute(new ImproveQuestionUseCase.Request(
+                        conferenceId, (String) body.get("text"), (String) body.get("type"), options,
+                        (String) body.get("referenceAnswer"))));
                 return true;
             }
             if (path.endsWith("/survey/questions")) {

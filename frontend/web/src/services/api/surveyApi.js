@@ -59,3 +59,10 @@ export async function purgeResponses(conferenceId, questionId, token) {
   })
   return res.data
 }
+
+export async function improveQuestion(conferenceId, { text, type, options, referenceAnswer }, token) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/questions/improve`,
+    { text, type, options, referenceAnswer },
+    { headers: authHeader(token) })
+  return res.data
+}
