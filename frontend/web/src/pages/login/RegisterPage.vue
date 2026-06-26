@@ -97,15 +97,31 @@ export default {
       try {
         const socialLinks = form.value.socialLinks.filter(l => l.url && l.url.trim())
         await register({ ...form.value, socialLinks })
-        verifyChannel.value = form.value.email ? 'EMAIL' : 'SMS'
-        verifyIdentifier.value = form.value.email || form.value.phone
-        await sendOtp(verifyIdentifier.value, verifyChannel.value)
+        await sendOtpWithFallback()
         step.value = 'verify'
       } catch (e) {
         error.value = e.response?.data?.error?.message || 'No se pudo crear la cuenta. Intenta de nuevo.'
       } finally {
         loading.value = false
       }
+    }
+
+    // Correo es el canal primario; si falla (ej. proveedor no configurado o
+    // error de envío) y hay teléfono, se reintenta automáticamente por SMS.
+    async function sendOtpWithFallback() {
+      if (form.value.email) {
+        try {
+          verifyChannel.value = 'EMAIL'
+          verifyIdentifier.value = form.value.email
+          await sendOtp(verifyIdentifier.value, 'EMAIL')
+          return
+        } catch (e) {
+          if (!form.value.phone) throw e
+        }
+      }
+      verifyChannel.value = 'SMS'
+      verifyIdentifier.value = form.value.phone
+      await sendOtp(verifyIdentifier.value, 'SMS')
     }
 
     async function resendOtp() {
