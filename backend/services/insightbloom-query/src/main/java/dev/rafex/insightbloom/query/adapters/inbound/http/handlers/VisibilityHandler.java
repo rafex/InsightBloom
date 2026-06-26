@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.query.adapters.inbound.http.handlers;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
+import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.query.application.usecases.SetVisibilityUseCase;
 
@@ -35,6 +36,10 @@ public class VisibilityHandler extends BaseResourceHandler {
     @Override
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (!validInternalAuth(jx)) {
+            sendError(jx, 403, "forbidden", "Internal endpoint");
+            return true;
+        }
         try {
             final var body = parseBody(jx);
             useCase.execute(new SetVisibilityUseCase.Request(
@@ -46,5 +51,14 @@ public class VisibilityHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private static boolean validInternalAuth(final JettyHttpExchange jx) {
+        final String key = System.getenv("INTERNAL_API_KEY");
+        if (key == null || key.isEmpty()) {
+            return true; // not configured, allow for development
+        }
+        final String header = jx.request().getHeaders().get("X-Internal-Auth");
+        return key.equals(header);
     }
 }

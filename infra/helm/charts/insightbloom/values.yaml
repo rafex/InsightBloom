@@ -149,6 +149,10 @@ services:
       DB_PATH: /data/moderation.db
       QUERY_SERVICE_URL: http://insightbloom-query:8083
       USERS_URL: http://insightbloom-users:8081
+    secretEnv:
+      - name: INTERNAL_API_KEY
+        secretName: insightbloom-internal-secrets
+        secretKey: internal-api-key
 
   query:
     repository: ghcr.io/rafex/insightbloom-query
@@ -160,6 +164,10 @@ services:
     env:
       PORT: "8083"
       DB_PATH: /data/query.db
+    secretEnv:
+      - name: INTERNAL_API_KEY
+        secretName: insightbloom-internal-secrets
+        secretKey: internal-api-key
 
   ingest:
     repository: ghcr.io/rafex/insightbloom-ingest
