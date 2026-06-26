@@ -25,6 +25,7 @@ async def handle_command(
     conference_id: str,
     manager: "ConnectionManager",
     roberto,
+    user_id: str | None = None,
 ) -> None:
     m = _CMD_RE.match(text)
     if not m:
@@ -44,7 +45,7 @@ async def handle_command(
     kind_es = "duda" if kind == "doubt" else "tema"
 
     asyncio.create_task(
-        _send_to_insightbloom(word, description, kind, nickname, conference_id)
+        _send_to_insightbloom(word, description, kind, nickname, conference_id, user_id)
     )
     preview = description[:60] + ("…" if len(description) > 60 else "")
     await manager.broadcast({
@@ -54,11 +55,16 @@ async def handle_command(
 
 
 async def _send_to_insightbloom(
-    word: str, detail: str, kind: str, author: str, conference_id: str
+    word: str, detail: str, kind: str, author: str, conference_id: str,
+    user_id: str | None = None,
 ) -> None:
+    author_payload = {"displayName": author, "kind": "guest"}
+    if user_id:
+        author_payload["userId"] = user_id
+        author_payload["kind"] = "user"
     payload = {
         "conferenceId": conference_id,
-        "author": {"displayName": author, "kind": "guest"},
+        "author": author_payload,
         "message": {"type": kind, "word": word, "detail": detail},
         "receivedAt": None,
     }

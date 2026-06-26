@@ -31,6 +31,8 @@ async def ws_endpoint(websocket: WebSocket, token: str):
     await manager.connect(websocket, user)
     nickname = user["nickname"]
     conference_id = user["conference_id"]
+    phone = user.get("phone") or ""
+    user_id = phone[3:] if phone.startswith("ib:") else None
     log.info(
         "Conectado: %s → conferencia %s (%d online)",
         nickname,
@@ -58,7 +60,7 @@ async def ws_endpoint(websocket: WebSocket, token: str):
 
             if text.startswith("/dudas ") or text.startswith("#temas "):
                 await handle_command(
-                    text, nickname, conference_id, manager, roberto
+                    text, nickname, conference_id, manager, roberto, user_id
                 )
                 await manager.broadcast({
                     "type": "message",

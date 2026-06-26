@@ -5,13 +5,22 @@
     span.kind.badge(:class="item.author?.kind") {{ item.author?.kind }}
     span.time {{ formattedTime }}
   .timeline-detail {{ item.detail || item.detailVisible || '—' }}
+  .timeline-answer(v-if="answer")
+    strong ✓ Respondida
+    p.answer-text {{ answer }}
 </template>
 
 <script>
+import { getMessageAnswer } from '@/services/api/moderationApi'
+
 export default {
   name: 'TimelineItem',
   props: {
-    item: { type: Object, required: true }
+    item: { type: Object, required: true },
+    conferenceId: { type: String, default: '' }
+  },
+  data() {
+    return { answer: null }
   },
   computed: {
     formattedTime() {
@@ -19,6 +28,14 @@ export default {
       if (!ts) return ''
       return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
     }
+  },
+  async mounted() {
+    const messageId = this.item.messageId || this.item.uuid
+    if (!messageId || !this.conferenceId) return
+    try {
+      const result = await getMessageAnswer(messageId, this.conferenceId)
+      this.answer = result?.answer || null
+    } catch (e) { /* sin respuesta aún */ }
   }
 }
 </script>
@@ -50,4 +67,7 @@ export default {
 }
 .badge.guest { background: #fef9c3; color: #854d0e; }
 .timeline-detail { color: #1f2937; font-size: 0.95rem; line-height: 1.5; }
+.timeline-answer { background: #f0fdf4; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+.timeline-answer strong { color: #166534; font-size: 0.8rem; }
+.answer-text { margin: 4px 0 0; color: #1f2937; font-size: 0.9rem; white-space: pre-wrap; }
 </style>

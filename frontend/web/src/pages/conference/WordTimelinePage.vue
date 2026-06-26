@@ -12,7 +12,7 @@
 
   .timeline-empty(v-if="!loading && !items.length") No hay mensajes para esta palabra aún.
   .timeline-list(v-if="items.length")
-    TimelineItem(v-for="item in items" :key="item.messageId || item.uuid" :item="item")
+    TimelineItem(v-for="item in items" :key="item.messageId || item.uuid" :item="item" :conference-id="conferenceId")
   .timeline-loading(v-if="loading") Cargando timeline...
 </template>
 
@@ -39,7 +39,7 @@ export default {
       try { items.value = await getWordTimeline(props.conferenceId, wordDecoded, type) }
       catch (e) { } finally { loading.value = false }
     })
-    return { friendlyId, word, wordDecoded, type, typeLabel, items, loading }
+    return { friendlyId, word, wordDecoded, type, typeLabel, items, loading, conferenceId: props.conferenceId }
   }
 }
 </script>
