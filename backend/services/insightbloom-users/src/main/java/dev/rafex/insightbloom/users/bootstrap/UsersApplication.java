@@ -31,6 +31,15 @@ public class UsersApplication {
         final String zohoPassword = System.getenv().getOrDefault("ZOHO_SMTP_PASSWORD", "");
         final String zohoFromAddress = System.getenv().getOrDefault("ZOHO_FROM_ADDRESS", zohoUsername);
 
+        final String frontendBaseUrl = System.getenv().getOrDefault("FRONTEND_BASE_URL", "https://insightbloom.v1.rafex.cloud");
+        final var contactInfo = new NotifyDoubtAnsweredUseCase.ContactInfo(
+                System.getenv().getOrDefault("CONTACT_NAME", "Raúl González (rafex)"),
+                System.getenv().getOrDefault("CONTACT_EMAIL", "rafex@rafex.dev"),
+                System.getenv().getOrDefault("CONTACT_LINKEDIN", "https://linkedin.com/in/soft-architect-raul-gonzalez"),
+                System.getenv().getOrDefault("CONTACT_GITHUB", "https://github.com/rafex"),
+                System.getenv().getOrDefault("CONTACT_BLOG", "https://theworldofrafex.blog/"),
+                System.getenv().getOrDefault("CONTACT_TELEGRAM", "@rafex0"));
+
         // Infrastructure
         final var db = new DatabaseManager(dbPath);
         db.initialize();
@@ -42,6 +51,7 @@ public class UsersApplication {
         final var conferenceRepo = new SqliteConferenceRepository(db);
         final var otpRepo = new SqliteOtpCodeRepository(db);
         final var membershipRepo = new SqliteConferenceMembershipRepository(db);
+        final var certificateSettingsRepo = new SqliteCertificateSettingsRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -63,22 +73,34 @@ public class UsersApplication {
         final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);
         final var getUserProfileUseCase = new GetUserProfileUseCase(userRepo);
         final var updateProfileUseCase = new UpdateProfileUseCase(userRepo);
+        final var changePasswordUseCase = new ChangePasswordUseCase(userRepo);
         final var joinConferenceUseCase = new JoinConferenceUseCase(getConferenceUseCase, membershipRepo);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
-        final var generateCertificateUseCase = new GenerateCertificateUseCase(conferenceRepo, userRepo, surveyPort);
+        final var generateCertificateUseCase = new GenerateCertificateUseCase(
+                conferenceRepo, userRepo, surveyPort, certificateSettingsRepo);
+        final var notifyDoubtAnsweredUseCase = new NotifyDoubtAnsweredUseCase(
+                userRepo, conferenceRepo, emailPort, frontendBaseUrl, contactInfo);
+        final var getCertificateSettingsUseCase = new GetCertificateSettingsUseCase(certificateSettingsRepo);
+        final var saveCertificateSettingsUseCase = new SaveCertificateSettingsUseCase(certificateSettingsRepo);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
                 registerUseCase, sendOtpUseCase, verifyOtpUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase);
-        final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase, validateTokenUseCase);
+        final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
+                validateTokenUseCase, changePasswordUseCase);
+        final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
+        final var certificateSettingsHandler = new CertificateSettingsHandler(
+                getCertificateSettingsUseCase, saveCertificateSettingsUseCase, validateTokenUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/auth/*", authHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
+        routes.add("/api/v1/notify/*", notifyHandler);
+        routes.add("/api/v1/certificate-settings/*", certificateSettingsHandler);
 
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();

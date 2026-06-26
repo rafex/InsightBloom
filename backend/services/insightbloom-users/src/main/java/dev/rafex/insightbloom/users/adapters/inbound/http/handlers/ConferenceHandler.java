@@ -138,7 +138,8 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
             final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
             final var result = createConferenceUseCase.execute(new CreateConferenceUseCase.CreateRequest(
                     (String) body.get("name"), v.subjectUuid(), (String) body.get("expiresAt"),
-                    latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue")));
+                    latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue"),
+                    (String) body.get("startTime"), (String) body.get("endTime")));
             sendOk(jx, 201, result);
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());

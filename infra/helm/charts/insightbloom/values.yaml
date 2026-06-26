@@ -148,6 +148,7 @@ services:
       PORT: "8084"
       DB_PATH: /data/moderation.db
       QUERY_SERVICE_URL: http://insightbloom-query:8083
+      USERS_URL: http://insightbloom-users:8081
 
   query:
     repository: ghcr.io/rafex/insightbloom-query

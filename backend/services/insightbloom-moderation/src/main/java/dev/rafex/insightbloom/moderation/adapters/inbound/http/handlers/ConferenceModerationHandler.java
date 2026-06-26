@@ -33,6 +33,8 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     private final EditMessageUseCase editMessageUseCase;
     private final DeleteMessageUseCase deleteMessageUseCase;
     private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
+    private final AnswerMessageUseCase answerMessageUseCase;
+    private final GetMessageAnswerUseCase getMessageAnswerUseCase;
 
     public ConferenceModerationHandler(final ListModerationUseCase listUseCase,
                                        final CensorWordUseCase censorWordUseCase,
@@ -43,7 +45,9 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
                                        final RestoreMessageUseCase restoreMessageUseCase,
                                        final EditMessageUseCase editMessageUseCase,
                                        final DeleteMessageUseCase deleteMessageUseCase,
-                                       final DeleteConferenceDataUseCase deleteConferenceDataUseCase) {
+                                       final DeleteConferenceDataUseCase deleteConferenceDataUseCase,
+                                       final AnswerMessageUseCase answerMessageUseCase,
+                                       final GetMessageAnswerUseCase getMessageAnswerUseCase) {
         super(JSON_CODEC);
         this.listUseCase = listUseCase;
         this.censorWordUseCase = censorWordUseCase;
@@ -55,6 +59,8 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
         this.editMessageUseCase = editMessageUseCase;
         this.deleteMessageUseCase = deleteMessageUseCase;
         this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
+        this.answerMessageUseCase = answerMessageUseCase;
+        this.getMessageAnswerUseCase = getMessageAnswerUseCase;
     }
 
     @Override
@@ -74,6 +80,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
                 Route.of("/{conferenceId}/moderation/messages/{msgId}/censor", Set.of("POST")),
                 Route.of("/{conferenceId}/moderation/messages/{msgId}/restore", Set.of("POST")),
                 Route.of("/{conferenceId}/moderation/messages/{msgId}/delete", Set.of("POST")),
+                Route.of("/{conferenceId}/moderation/messages/{msgId}/answer", Set.of("GET", "POST")),
                 Route.of("/{conferenceId}/moderation/messages/{msgId}", Set.of("PATCH")),
                 Route.of("/{conferenceId}/moderation", Set.of("DELETE")));
     }
@@ -104,6 +111,9 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
             if (path.contains("/moderation/words")) {
                 return handleListWords(jx, conferenceId);
             }
+            if (path.contains("/moderation/messages/") && path.endsWith("/answer")) {
+                return handleGetAnswer(jx, jx.pathParam("msgId"));
+            }
             if (path.contains("/moderation/messages")) {
                 return handleListMessages(jx, conferenceId);
             }
@@ -119,6 +129,9 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
         final var jx = asJetty(x);
         final String path = jx.path();
         try {
+            if (path.contains("/moderation/messages/") && path.endsWith("/answer")) {
+                return handleAnswerMessage(jx, jx.pathParam("msgId"));
+            }
             if (path.contains("/moderation/words/") && path.endsWith("/censor")) {
                 return handleCensorWord(jx, jx.pathParam("wordId"));
             }
@@ -269,6 +282,28 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
             sendOk(jx, Map.of("status", "deleted"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Word not found");
+        }
+        return true;
+    }
+
+    private boolean handleAnswerMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
+        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        try {
+            answerMessageUseCase.execute(new AnswerMessageUseCase.Request(
+                    msgId, (String) body.get("answerText"), (String) body.get("answeredByUserUuid")));
+            sendOk(jx, Map.of("status", "answered"));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), "Message not found");
+        }
+        return true;
+    }
+
+    private boolean handleGetAnswer(final JettyHttpExchange jx, final String msgId) throws Exception {
+        final var result = getMessageAnswerUseCase.execute(msgId);
+        if (result.isPresent()) {
+            sendOk(jx, result.get());
+        } else {
+            sendError(jx, 404, "not_found", "No answer found for this message");
         }
         return true;
     }

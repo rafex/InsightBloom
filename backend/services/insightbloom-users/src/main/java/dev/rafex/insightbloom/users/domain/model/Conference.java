@@ -16,6 +16,8 @@ public class Conference {
     private Double longitude;
     private String eventDate; // ISO-8601 date string, nullable
     private String venue; // nullable
+    private String startTime; // HH:mm, nullable
+    private String endTime; // HH:mm, nullable
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -82,6 +84,10 @@ public class Conference {
     public Double getLongitude() { return longitude; }
     public String getEventDate() { return eventDate; }
     public String getVenue() { return venue; }
+    public String getStartTime() { return startTime; }
+    public String getEndTime() { return endTime; }
     public void setEventDate(String eventDate) { this.eventDate = eventDate; }
     public void setVenue(String venue) { this.venue = venue; }
+    public void setStartTime(String startTime) { this.startTime = startTime; }
+    public void setEndTime(String endTime) { this.endTime = endTime; }
 }

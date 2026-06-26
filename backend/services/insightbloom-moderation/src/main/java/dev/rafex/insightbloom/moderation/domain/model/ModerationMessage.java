@@ -15,6 +15,9 @@ public class ModerationMessage {
     private String updatedByUserUuid;
     private String authorUuid;
     private Instant updatedAt;
+    private String answerText;
+    private Instant answeredAt;
+    private String answeredByUserUuid;
 
     public ModerationMessage(String messageUuid, String conferenceUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -37,6 +40,16 @@ public class ModerationMessage {
         this.editedWordValue = editedWordValue; this.editedDetailValue = editedDetailValue;
         this.updatedByUserUuid = updatedByUserUuid; this.authorUuid = authorUuid; this.updatedAt = updatedAt;
     }
+    public ModerationMessage(String uuid, String messageUuid, String conferenceUuid,
+                              String wordText, String detailText,
+                              ContentStatus wordStatus, ContentStatus detailStatus, String reason,
+                              String editedWordValue, String editedDetailValue,
+                              String updatedByUserUuid, String authorUuid, Instant updatedAt,
+                              String answerText, Instant answeredAt, String answeredByUserUuid) {
+        this(uuid, messageUuid, conferenceUuid, wordText, detailText, wordStatus, detailStatus, reason,
+                editedWordValue, editedDetailValue, updatedByUserUuid, authorUuid, updatedAt);
+        this.answerText = answerText; this.answeredAt = answeredAt; this.answeredByUserUuid = answeredByUserUuid;
+    }
     public String getUuid() { return uuid; }
     public String getMessageUuid() { return messageUuid; }
     public String getConferenceUuid() { return conferenceUuid; }
@@ -57,6 +70,16 @@ public class ModerationMessage {
     public String getEditedDetailValue() { return editedDetailValue; }
     public String getUpdatedByUserUuid() { return updatedByUserUuid; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public String getAnswerText() { return answerText; }
+    public Instant getAnsweredAt() { return answeredAt; }
+    public String getAnsweredByUserUuid() { return answeredByUserUuid; }
+
+    public void answer(String answerText, String answeredByUserUuid) {
+        this.answerText = answerText;
+        this.answeredByUserUuid = answeredByUserUuid;
+        this.answeredAt = Instant.now();
+        this.updatedAt = this.answeredAt;
+    }
 
     public void censorWord(String reason, String updatedBy) {
         this.wordStatus = ContentStatus.CENSURADO_MANUAL; this.reason = reason;

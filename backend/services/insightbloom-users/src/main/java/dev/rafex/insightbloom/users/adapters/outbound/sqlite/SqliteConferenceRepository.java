@@ -21,8 +21,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     public void save(Conference conference) {
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
@@ -39,6 +39,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             else ps.setNull(10, Types.REAL);
             ps.setString(11, conference.getEventDate());
             ps.setString(12, conference.getVenue());
+            ps.setString(13, conference.getStartTime());
+            ps.setString(14, conference.getEndTime());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -103,7 +105,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         Double latitude = rs.wasNull() ? null : lat;
         double lng = rs.getDouble("longitude");
         Double longitude = rs.wasNull() ? null : lng;
-        return new Conference(
+        final Conference conference = new Conference(
             rs.getString("uuid"), rs.getString("friendly_id"), rs.getString("name"),
             rs.getString("created_by_user_uuid"),
             ConferenceStatus.valueOf(rs.getString("status")),
@@ -112,6 +114,9 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             latitude, longitude,
             rs.getString("event_date"), rs.getString("venue")
         );
+        conference.setStartTime(rs.getString("start_time"));
+        conference.setEndTime(rs.getString("end_time"));
+        return conference;
     }
 
     private Optional<Conference> query(String sql, String param) {

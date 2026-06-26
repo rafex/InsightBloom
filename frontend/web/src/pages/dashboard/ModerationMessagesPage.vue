@@ -60,6 +60,20 @@
           @click="deleteItem(item)"
           :disabled="item._loading"
         ) Eliminar
+        button.btn-sm.btn-answer(
+          v-if="!wordCanonical && !item.answerText"
+          @click="item._answering = !item._answering"
+        ) 💬 Responder
+
+      .answer-block(v-if="item.answerText")
+        strong ✓ Respondida
+        p.answer-text {{ item.answerText }}
+
+      .answer-form(v-if="item._answering")
+        textarea(v-model="item._answerDraft" rows="3" placeholder="Escribe la respuesta para quien envió esta duda...")
+        .answer-form-actions
+          button.btn-sm.btn-primary-sm(:disabled="!item._answerDraft || item._loading" @click="submitAnswer(item)") Enviar respuesta
+          button.btn-sm.btn-ghost-sm(@click="item._answering = false") Cancelar
 
   .pagination(v-if="!wordCanonical && totalPages > 1")
     button(@click="goToPage(page - 1)" :disabled="page <= 1") ‹
@@ -70,7 +84,7 @@
 <script>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { getModerationMessages, censorMessage, restoreMessage, deleteMessage } from '@/services/api/moderationApi'
+import { getModerationMessages, censorMessage, restoreMessage, deleteMessage, answerMessage } from '@/services/api/moderationApi'
 import { getWordTimeline } from '@/services/api/queryApi'
 import { getConference, getUserProfile } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -183,6 +197,18 @@ export default {
       } catch (e) { item._loading = false }
     }
 
+    async function submitAnswer(item) {
+      item._loading = true
+      const messageId = item.uuid || item.messageId || item.messageUuid
+      try {
+        await answerMessage(messageId, item._answerDraft, auth.state.userUuid, auth.state.token, props.conferenceId)
+        item.answerText = item._answerDraft
+        item._answering = false
+      } finally {
+        item._loading = false
+      }
+    }
+
     function statusClass(s) {
       if (!s) return {}
       return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION', 'status-deleted': s === 'DELETED' }
@@ -217,7 +243,7 @@ export default {
       items, loading, page, totalPages, statusFilter, conferenceName, authorNames,
       wordNormalized, wordCanonical,
       conferenceId: props.conferenceId,
-      loadModMessages, goToPage, censorDetail, restore, deleteItem,
+      loadModMessages, goToPage, censorDetail, restore, deleteItem, submitAnswer,
       statusClass, statusLabel, formatTime
     }
   }
@@ -287,6 +313,19 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .btn-warning { background: #fef3c7; color: #d97706; }
 .btn-warning:hover { background: #fde68a; }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-answer { background: #e0e7ff; color: #4338ca; }
+.btn-answer:hover { background: #c7d2fe; }
+.btn-primary-sm { background: #4f46e5; color: #fff; }
+.btn-ghost-sm { background: #fff; color: #6b7280; border: 1px solid #e5e7eb; }
+.answer-block { background: #f0fdf4; border-radius: 8px; padding: 10px 12px; margin-top: 6px; }
+.answer-block strong { color: #166534; font-size: 0.8rem; }
+.answer-text { margin: 4px 0 0; color: #1f2937; font-size: 0.9rem; white-space: pre-wrap; }
+.answer-form { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+.answer-form textarea {
+  width: 100%; padding: 8px 10px; border: 1.5px solid #d1d5db; border-radius: 8px;
+  font-size: 0.9rem; font-family: inherit; resize: vertical;
+}
+.answer-form-actions { display: flex; gap: 6px; }
 
 .pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: #374151; }
 .pagination button { padding: 4px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 1rem; }

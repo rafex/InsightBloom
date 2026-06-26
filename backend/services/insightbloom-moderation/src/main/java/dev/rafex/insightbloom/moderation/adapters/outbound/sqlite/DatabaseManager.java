@@ -56,6 +56,9 @@ public class DatabaseManager {
             try { stmt.executeUpdate("ALTER TABLE moderation_messages ADD COLUMN detail_text TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE moderation_messages ADD COLUMN author_uuid TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE moderation_words ADD COLUMN author_uuid TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE moderation_messages ADD COLUMN answer_text TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE moderation_messages ADD COLUMN answered_at TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE moderation_messages ADD COLUMN answered_by_user_uuid TEXT"); } catch (SQLException ignored) {}
             // Seed some blocked terms for PoC
             stmt.executeUpdate("""
                 INSERT OR IGNORE INTO blocked_terms (uuid, scope, term_normalized, status, created_at, updated_at)

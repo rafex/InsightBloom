@@ -149,7 +149,8 @@
 <!-- ══════════════════════════════════════════
      3. PANTALLA DE CHAT
 ══════════════════════════════════════════ -->
-<div id="chatScreen" class="w-full max-w-md hidden">
+<div id="chatLayout" class="w-full max-w-md lg:max-w-4xl flex gap-4 items-start justify-center mx-auto">
+<div id="chatScreen" class="w-full max-w-md hidden shrink-0">
   <div class="bg-zinc-800 shadow-xl rounded-2xl overflow-hidden flex flex-col h-[90vh] max-h-[700px]">
 
     <!-- Header -->
@@ -212,6 +213,20 @@
     </div>
 
   </div>
+</div>
+
+<!-- Sidebar: solo se muestra en pantallas grandes (ver updateSidebarVisibility) -->
+<aside id="chatSidebar" class="w-72 shrink-0 flex flex-col gap-3" style="display:none">
+  <div class="bg-zinc-800 shadow-xl rounded-2xl overflow-hidden p-4">
+    <h2 class="text-white font-semibold text-sm mb-2">🟢 Conectados</h2>
+    <ul id="sidebarOnlineList" class="text-zinc-300 text-xs space-y-1"></ul>
+  </div>
+  <div class="bg-zinc-800 shadow-xl rounded-2xl overflow-hidden p-4 flex-1 overflow-y-auto">
+    <h2 class="text-white font-semibold text-sm mb-2">📝 Dudas y temas recientes</h2>
+    <ul id="sidebarRecentList" class="text-zinc-300 text-xs space-y-2"></ul>
+    <p id="sidebarRecentEmpty" class="text-zinc-600 text-xs italic">Aún no hay dudas ni temas en esta conferencia.</p>
+  </div>
+</aside>
 </div>
 
 <!-- Tailwind inline helpers (no duplicar clases inline) -->
@@ -337,6 +352,10 @@ function doLogout() {
   ['conferenceScreen','chatScreen'].forEach(hide);
   show('authScreen');
   document.getElementById('chatDisplay').innerHTML = '';
+  chatIsOpen = false;
+  recentItems = [];
+  renderRecentItems();
+  updateSidebarVisibility();
 }
 
 /* ══════════════════════════════════════════════════
@@ -349,7 +368,65 @@ function openChat() {
   const badge = document.getElementById('confIdBadge');
   badge.textContent = myConferenceId.slice(0, 8) + '…';
   badge.title       = myConferenceId;
+  chatIsOpen = true;
+  updateSidebarVisibility();
   connectWS();
+}
+
+/* ══════════════════════════════════════════════════
+   Sidebar responsivo: usuarios conectados + recientes
+   Se decide en JS (no solo CSS) para reaccionar al resize
+   en vivo, incluso si la ventana cambia de tamaño con el
+   chat ya abierto.
+══════════════════════════════════════════════════ */
+let chatIsOpen   = false;
+let recentItems  = [];
+const LARGE_SCREEN_BREAKPOINT = 1024;
+
+function updateSidebarVisibility() {
+  const sidebar  = document.getElementById('chatSidebar');
+  const isLarge  = window.innerWidth >= LARGE_SCREEN_BREAKPOINT;
+  sidebar.style.display = (chatIsOpen && isLarge) ? 'flex' : 'none';
+}
+
+window.addEventListener('resize', updateSidebarVisibility);
+
+function trackRecentItem(text) {
+  // Coincide con: "✅ {nickname} envió {duda|tema}: [{word}] {preview}"
+  const m = text.match(/^✅ (.+?) envió (duda|tema): \[(.+?)\] (.+)$/);
+  if (!m) return;
+  const [, author, kindEs, word, preview] = m;
+  recentItems.unshift({ author, kindEs, word, preview, at: Date.now() });
+  recentItems = recentItems.slice(0, 10);
+  renderRecentItems();
+}
+
+function renderRecentItems() {
+  const ul    = document.getElementById('sidebarRecentList');
+  const empty = document.getElementById('sidebarRecentEmpty');
+  if (!ul) return;
+  ul.innerHTML = '';
+  empty.classList.toggle('hidden', recentItems.length > 0);
+  for (const item of recentItems) {
+    const li = document.createElement('li');
+    li.className = 'bg-zinc-700/50 rounded-lg px-2 py-1.5';
+    const badgeColor = item.kindEs === 'duda' ? 'text-blue-400' : 'text-purple-400';
+    li.innerHTML = `<span class="${badgeColor} font-mono font-semibold">[${item.word}]</span> ` +
+      `<span class="text-zinc-300">${item.preview}</span><br>` +
+      `<span class="text-zinc-500">— @${item.author}</span>`;
+    ul.appendChild(li);
+  }
+}
+
+function renderSidebarOnline() {
+  const ul = document.getElementById('sidebarOnlineList');
+  if (!ul) return;
+  ul.innerHTML = '';
+  for (const u of onlineUsers) {
+    const li = document.createElement('li');
+    li.textContent = '@' + u;
+    ul.appendChild(li);
+  }
 }
 
 function connectWS() {
@@ -547,6 +624,7 @@ function renderText(el, text, isMe) {
 }
 
 function appendSystem(text) {
+  trackRecentItem(text);
   const box = document.getElementById('chatDisplay');
   if (!box) return;
   const el = document.createElement('div');
@@ -568,6 +646,7 @@ function updateOnline(count, users) {
   const ul = document.getElementById('userList');
   ul.textContent = users.map(u => '@' + u).join(' · ');
   ul.title       = users.map(u => '@' + u).join('\n');
+  renderSidebarOnline();
 }
 
 function scrollBottom() {

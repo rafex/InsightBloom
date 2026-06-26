@@ -89,7 +89,9 @@ public class DatabaseManager {
                     latitude REAL,
                     longitude REAL,
                     event_date TEXT,
-                    venue TEXT
+                    venue TEXT,
+                    start_time TEXT,
+                    end_time TEXT
                 )
             """);
             // Migrations for existing databases
@@ -97,6 +99,8 @@ public class DatabaseManager {
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN latitude REAL"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN longitude REAL"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN event_date TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN start_time TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN end_time TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN venue TEXT"); } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
@@ -126,6 +130,21 @@ public class DatabaseManager {
                 )
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_membership_user ON conference_memberships(user_uuid)");
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS certificate_settings (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    logo_base64 TEXT,
+                    font_family TEXT NOT NULL DEFAULT 'HELVETICA',
+                    title_font_size INTEGER NOT NULL DEFAULT 28,
+                    body_font_size INTEGER NOT NULL DEFAULT 14,
+                    primary_color_hex TEXT NOT NULL DEFAULT '#1e1b4b',
+                    show_venue INTEGER NOT NULL DEFAULT 1,
+                    show_schedule INTEGER NOT NULL DEFAULT 1,
+                    show_issued_date INTEGER NOT NULL DEFAULT 1,
+                    updated_at TEXT
+                )
+            """);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
         }

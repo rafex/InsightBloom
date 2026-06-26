@@ -23,6 +23,16 @@
       input(v-model="eventDate" type="date")
 
     .form-group
+      label Horario (opcional)
+      .coords-row
+        .coord-field
+          span.coord-label Hora de inicio
+          input(v-model="startTime" type="time")
+        .coord-field
+          span.coord-label Hora de fin
+          input(v-model="endTime" type="time")
+
+    .form-group
       label Sede (opcional)
       input(v-model="venue" type="text" placeholder="Auditorio, ciudad...")
 
@@ -59,6 +69,9 @@
     .info-row(v-if="created.eventDate")
       span Fecha del evento:
       strong {{ created.eventDate }}
+    .info-row(v-if="created.startTime || created.endTime")
+      span Horario:
+      strong {{ created.startTime || '?' }} - {{ created.endTime || '?' }}
     .info-row(v-if="created.venue")
       span Sede:
       strong {{ created.venue }}
@@ -105,6 +118,8 @@ export default {
     const longitude  = ref(null)
     const eventDate  = ref('')
     const venue      = ref('')
+    const startTime  = ref('')
+    const endTime    = ref('')
     const auth       = useAuthStore()
 
     const minDate = computed(() => new Date().toISOString().slice(0, 16))
@@ -130,7 +145,7 @@ export default {
         const lat = (latitude.value != null && !isNaN(latitude.value)) ? latitude.value : null
         const lng = (longitude.value != null && !isNaN(longitude.value)) ? longitude.value : null
         created.value = await createConference(name.value.trim(), expiresAt, auth.state.token, lat, lng,
-          eventDate.value || null, venue.value.trim() || null)
+          eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null)
       } catch (e) {
         error.value = e.response?.data?.error?.message || 'Error al crear la conferencia'
       } finally { loading.value = false }
@@ -143,11 +158,11 @@ export default {
     function reset() {
       name.value = ''; created.value = null; expiryMode.value = 'none';
       customDate.value = ''; latitude.value = null; longitude.value = null
-      eventDate.value = ''; venue.value = ''
+      eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
     }
 
     return { name, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
-             eventDate, venue,
+             eventDate, venue, startTime, endTime,
              expiryOptions: EXPIRY_OPTIONS, setExpiryMode, create, formatDate, reset }
   }
 }

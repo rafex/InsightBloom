@@ -16,10 +16,10 @@ public class CreateConferenceUseCase {
     }
 
     public record CreateRequest(String name, String createdByUserUuid, String expiresAt, Double latitude, Double longitude,
-                                String eventDate, String venue) {}
+                                String eventDate, String venue, String startTime, String endTime) {}
     public record CreateResult(String conferenceId, String friendlyId, String name, String status,
                                String expiresAt, Double latitude, Double longitude,
-                               String eventDate, String venue) {}
+                               String eventDate, String venue, String startTime, String endTime) {}
 
     public CreateResult execute(CreateRequest request) {
         String friendlyId = friendlyIdService.generate(request.name());
@@ -28,13 +28,16 @@ public class CreateConferenceUseCase {
                 expiresAt, request.latitude(), request.longitude());
         conference.setEventDate(blankToNull(request.eventDate()));
         conference.setVenue(blankToNull(request.venue()));
+        conference.setStartTime(blankToNull(request.startTime()));
+        conference.setEndTime(blankToNull(request.endTime()));
         conferenceRepository.save(conference);
         return new CreateResult(
             conference.getUuid(), conference.getFriendlyId(),
             conference.getName(), conference.getStatus().name().toLowerCase(),
             expiresAt != null ? expiresAt.toString() : null,
             conference.getLatitude(), conference.getLongitude(),
-            conference.getEventDate(), conference.getVenue()
+            conference.getEventDate(), conference.getVenue(),
+            conference.getStartTime(), conference.getEndTime()
         );
     }
 

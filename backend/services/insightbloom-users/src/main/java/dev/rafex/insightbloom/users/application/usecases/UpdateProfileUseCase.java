@@ -20,7 +20,7 @@ public class UpdateProfileUseCase {
             u.setLastName(blankToNull(request.lastName()));
             userRepository.save(u);
             return new GetUserProfileUseCase.Profile(u.getUuid(), u.getDisplayName(), u.getEmail(), u.getPhone(),
-                    u.getFirstName(), u.getLastName());
+                    u.getFirstName(), u.getLastName(), u.getSocialLinks(), u.isEmailVerified(), u.isPhoneVerified());
         });
     }
 

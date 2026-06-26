@@ -7,13 +7,15 @@ export async function getConferences(token) {
   return res.data.data
 }
 
-export async function createConference(name, expiresAt, token, latitude, longitude, eventDate, venue) {
+export async function createConference(name, expiresAt, token, latitude, longitude, eventDate, venue, startTime, endTime) {
   const body = { name }
   if (expiresAt) body.expiresAt = expiresAt
   if (latitude != null) body.latitude = latitude
   if (longitude != null) body.longitude = longitude
   if (eventDate) body.eventDate = eventDate
   if (venue) body.venue = venue
+  if (startTime) body.startTime = startTime
+  if (endTime) body.endTime = endTime
   const res = await axios.post('/api/users/api/v1/conferences', body, {
     headers: { Authorization: `Bearer ${token}` }
   })
@@ -64,10 +66,29 @@ export async function getConferenceHistory(token) {
   return res.data.data
 }
 
+export async function changePassword(uuid, { currentPassword, newPassword }, token) {
+  const res = await axios.post(`/api/users/api/v1/users/${uuid}/password`, { currentPassword, newPassword }, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return res.data.data
+}
+
 export async function getCertificateBlobUrl(conferenceId, token) {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/certificate`, {
     headers: { Authorization: `Bearer ${token}` },
     responseType: 'blob'
   })
   return URL.createObjectURL(res.data)
+}
+
+export async function getCertificateSettings() {
+  const res = await axios.get('/api/users/api/v1/certificate-settings')
+  return res.data.data
+}
+
+export async function saveCertificateSettings(settings, token) {
+  const res = await axios.put('/api/users/api/v1/certificate-settings', settings, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return res.data.data
 }

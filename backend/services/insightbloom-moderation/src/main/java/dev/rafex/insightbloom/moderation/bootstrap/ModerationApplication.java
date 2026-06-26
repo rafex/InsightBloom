@@ -5,6 +5,7 @@ import dev.rafex.ether.http.jetty12.JettyServerConfig;
 import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.insightbloom.moderation.adapters.inbound.http.handlers.*;
+import dev.rafex.insightbloom.moderation.adapters.outbound.notifyclient.HttpNotifyClient;
 import dev.rafex.insightbloom.moderation.adapters.outbound.queryclient.HttpQueryPort;
 import dev.rafex.insightbloom.moderation.adapters.outbound.sqlite.*;
 import dev.rafex.insightbloom.moderation.application.usecases.*;
@@ -14,6 +15,7 @@ public class ModerationApplication {
     public static void main(final String[] args) throws Exception {
         final String dbPath = System.getenv().getOrDefault("DB_PATH", "moderation.db");
         final String queryUrl = System.getenv().getOrDefault("QUERY_SERVICE_URL", "http://localhost:8083");
+        final String usersUrl = System.getenv().getOrDefault("USERS_URL", "http://insightbloom-users:8081");
 
         final var db = new DatabaseManager(dbPath);
         db.initialize();
@@ -22,6 +24,7 @@ public class ModerationApplication {
         final var wordRepo = new SqliteModerationWordRepository(db);
         final var messageRepo = new SqliteModerationMessageRepository(db);
         final var queryPort = new HttpQueryPort(queryUrl);
+        final var notifyPort = new HttpNotifyClient(usersUrl);
         final var autoCensureService = new AutoCensureService(blockedTermRepo);
 
         final var evaluateUseCase = new EvaluateCensureUseCase(autoCensureService, wordRepo, messageRepo);
@@ -35,11 +38,13 @@ public class ModerationApplication {
         final var editMessageUseCase = new EditMessageUseCase(messageRepo);
         final var deleteMessageUseCase = new DeleteMessageUseCase(messageRepo, queryPort);
         final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(wordRepo, messageRepo);
+        final var answerMessageUseCase = new AnswerMessageUseCase(messageRepo, notifyPort);
+        final var getMessageAnswerUseCase = new GetMessageAnswerUseCase(messageRepo);
 
         final var conferenceModerationHandler = new ConferenceModerationHandler(
                 listUseCase, censorWordUseCase, restoreWordUseCase, editWordUseCase, deleteWordUseCase,
                 censorMessageUseCase, restoreMessageUseCase, editMessageUseCase, deleteMessageUseCase,
-                deleteConferenceDataUseCase);
+                deleteConferenceDataUseCase, answerMessageUseCase, getMessageAnswerUseCase);
         final var evaluateHandler = new InternalEvaluateHandler(evaluateUseCase);
 
         final var routes = new JettyRouteRegistry();

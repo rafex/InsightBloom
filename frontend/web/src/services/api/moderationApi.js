@@ -77,3 +77,15 @@ export async function deleteMessage(messageId, token, conferenceId) {
   })
   return res.data
 }
+
+export async function answerMessage(messageId, answerText, answeredByUserUuid, token, conferenceId) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/moderation/messages/${messageId}/answer`,
+    { answerText, answeredByUserUuid },
+    { headers: authHeader(token) })
+  return res.data
+}
+
+export async function getMessageAnswer(messageId, conferenceId) {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/moderation/messages/${messageId}/answer`)
+  return res.data.data
+}

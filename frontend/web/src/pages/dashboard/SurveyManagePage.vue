@@ -3,7 +3,12 @@
   ConferenceSubNav(:conferenceId="conferenceId")
   h2 Encuesta de la conferencia
 
-  .add-card
+  nav.tabs
+    button.tab-btn(type="button" :class="{ active: activeTab === 'create' }" @click="activeTab = 'create'") {{ editingId ? '✏️ Editando pregunta' : '➕ Alta de preguntas' }}
+    button.tab-btn(type="button" :class="{ active: activeTab === 'edit' }" @click="activeTab = 'edit'") 📋 Edición de preguntas
+    button.tab-btn(type="button" :class="{ active: activeTab === 'results' }" @click="activeTab = 'results'") 📊 Resultados
+
+  .add-card(v-show="activeTab === 'create'")
     h3 {{ editingId ? 'Editar pregunta' : 'Agregar pregunta' }}
     .ai-suggest-row(v-if="!editingId")
       button.btn-outline(type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
@@ -91,7 +96,7 @@
       button.btn-primary(:disabled="!form.text || saving" @click="save") {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Agregar') }}
       button.btn-ghost-sm(v-if="editingId" type="button" @click="cancelEdit") Cancelar
 
-  .questions-card(v-if="questions.length")
+  .questions-card(v-if="questions.length" v-show="activeTab === 'edit'")
     h3 Preguntas activas
     .question-item(v-for="q in questions" :key="q.uuid" :class="{ editing: editingId === q.uuid }")
       .question-item-header
@@ -126,7 +131,7 @@
         button.btn-cancel(@click="purgeTarget = null") Cancelar
         button.btn-confirm(@click="doPurge") Purgar
 
-  .results-card(v-if="results.length")
+  .results-card(v-if="results.length" v-show="activeTab === 'results'")
     h3 Resultados
     .result-row(v-for="r in results" :key="r.questionUuid")
       p.result-question
@@ -183,6 +188,7 @@ export default {
   props: { conferenceId: String },
   setup(props) {
     const auth = useAuthStore()
+    const activeTab = ref('create')
     const questions = ref([])
     const results = ref([])
     const saving = ref(false)
@@ -338,6 +344,7 @@ export default {
     }
 
     function startEdit(q) {
+      activeTab.value = 'create'
       editingId.value = q.uuid
       form.value = {
         text: q.text,
@@ -410,7 +417,7 @@ export default {
     onMounted(load)
 
     return {
-      questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
+      activeTab, questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
       selectedSuggestions, addingSuggestions,
       deleteTarget, purgeTarget, openDetail, improving, improveError, improvements,
       typeLabel, typeIcon, isImage, ratingDisplay, ratingChartData, choiceChartData, toggleDetail, save, confirmDelete, doDelete,
@@ -424,6 +431,13 @@ export default {
 <style scoped>
 .survey-manage-page { padding: 24px; max-width: 720px; }
 h2 { color: #1e1b4b; margin-bottom: 20px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
+.tab-btn {
+  padding: 10px 16px; border: none; background: none; color: #6b7280; cursor: pointer;
+  font-size: 0.9rem; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab-btn:hover { color: #4f46e5; }
+.tab-btn.active { color: #4f46e5; border-bottom-color: #4f46e5; }
 .add-card, .questions-card, .results-card {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px;
 }

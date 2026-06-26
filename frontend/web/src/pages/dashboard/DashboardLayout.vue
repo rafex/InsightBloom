@@ -7,6 +7,7 @@
         router-link(to="/dashboard") Inicio
         router-link(v-if="isOrganizer" to="/dashboard/conferences/new") Nueva conferencia
         router-link(v-else to="/dashboard/join") Unirse a una conferencia
+        router-link(v-if="isOrganizer" to="/dashboard/certificate-settings") Diseño de certificado
         router-link(to="/profile") Mi perfil
     main.dashboard-main
       router-view
