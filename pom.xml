@@ -18,6 +18,7 @@
   <name>InsightBloom Parent</name>
 
   <modules>
+    <module>backend/common</module>
     <module>backend/contracts</module>
     <module>backend/services</module>
     <module>backend/cli</module>
@@ -180,6 +181,11 @@
       <!-- Internal                                                          -->
       <!-- ================================================================ -->
 
+      <dependency>
+        <groupId>dev.rafex.insightbloom</groupId>
+        <artifactId>insightbloom-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
       <dependency>
         <groupId>dev.rafex.insightbloom</groupId>
         <artifactId>insightbloom-contracts</artifactId>
