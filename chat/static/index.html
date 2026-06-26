@@ -149,8 +149,8 @@
 <!-- ══════════════════════════════════════════
      3. PANTALLA DE CHAT
 ══════════════════════════════════════════ -->
-<div id="chatLayout" class="w-full max-w-md lg:max-w-4xl flex gap-4 items-start justify-center mx-auto">
-<div id="chatScreen" class="w-full max-w-md hidden shrink-0">
+<div id="chatLayout" class="w-full max-w-md lg:max-w-4xl hidden flex gap-4 items-start justify-center mx-auto">
+<div id="chatScreen" class="w-full max-w-md shrink-0">
   <div class="bg-zinc-800 shadow-xl rounded-2xl overflow-hidden flex flex-col h-[90vh] max-h-[700px]">
 
     <!-- Header -->
@@ -349,7 +349,7 @@ async function doJoin() {
 function doLogout() {
   if (ws) { ws.close(); ws = null; }
   myToken = ''; myNick = ''; myConferenceId = '';
-  ['conferenceScreen','chatScreen'].forEach(hide);
+  ['conferenceScreen','chatLayout'].forEach(hide);
   show('authScreen');
   document.getElementById('chatDisplay').innerHTML = '';
   chatIsOpen = false;
@@ -363,7 +363,7 @@ function doLogout() {
 ══════════════════════════════════════════════════ */
 function openChat() {
   hide('conferenceScreen');
-  show('chatScreen');
+  show('chatLayout');
   document.getElementById('myNicknameTag').textContent = '@' + myNick;
   const badge = document.getElementById('confIdBadge');
   badge.textContent = myConferenceId.slice(0, 8) + '…';
@@ -443,7 +443,7 @@ function connectWS() {
     if (e.code === 4002) {
       // Conference no configurada — volver a pantalla de conferencia
       appendSystem('⚠️ Sesión sin conferencia. Vuelve a unirte.');
-      setTimeout(() => { hide('chatScreen'); showConferenceScreen(); }, 1500);
+      setTimeout(() => { hide('chatLayout'); chatIsOpen = false; updateSidebarVisibility(); showConferenceScreen(); }, 1500);
       return;
     }
     appendSystem('⚠️ Desconectado. Reconectando en 3 s…');
