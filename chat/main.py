@@ -12,7 +12,7 @@ Webhook entrante (InsightBloom → Chat):
 
 Comandos en chat:
   /dudas <palabra> <descripción hasta 300 chars>
-  /temas <palabra> <descripción hasta 300 chars>
+  #temas <palabra> <descripción hasta 300 chars>
 """
 
 import asyncio
@@ -49,8 +49,8 @@ _UUID_RE = re.compile(
 # 7 hex chars (short code estilo GitHub)
 _SHORT_RE = re.compile(r"^[0-9a-f]{7}$", re.IGNORECASE)
 
-# Regex de validación de comandos
-_CMD_RE = re.compile(r"^/(dudas|temas)\s+(\S+)\s+(.{1,300})$", re.DOTALL)
+# Regex de validación de comandos. "/dudas" usa prefijo "/"; "#temas" usa "#".
+_CMD_RE = re.compile(r"^(/dudas|#temas)\s+(\S+)\s+(.{1,300})$", re.DOTALL)
 
 db      = Database()
 roberto = Roberto()
@@ -321,13 +321,13 @@ async def ws_endpoint(websocket: WebSocket, token: str):
             if not text:
                 continue
 
-            if text.startswith("/dudas ") or text.startswith("/temas "):
+            if text.startswith("/dudas ") or text.startswith("#temas "):
                 await _handle_command(text, nickname, conference_id)
                 await manager.broadcast({"type": "message", "nickname": nickname, "text": text})
                 continue
 
             await manager.broadcast({"type": "message", "nickname": nickname, "text": text})
-            asyncio.create_task(roberto.maybe_respond(text, nickname, manager))
+            asyncio.create_task(roberto.maybe_respond(text, nickname, manager, conference_id))
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
@@ -339,24 +339,24 @@ async def ws_endpoint(websocket: WebSocket, token: str):
         })
 
 
-# ── Comandos /dudas y /temas ───────────────────────────────────────────────────
+# ── Comandos /dudas y #temas ───────────────────────────────────────────────────
 
 async def _handle_command(text: str, nickname: str, conference_id: str) -> None:
     m = _CMD_RE.match(text)
     if not m:
-        cmd = "dudas" if text.startswith("/dudas") else "temas"
+        prefix = "/dudas" if text.startswith("/dudas") else "#temas"
         await manager.broadcast({
             "type": "system",
             "text": (
                 f"⚠️ Formato incorrecto.\n"
-                f"Uso: /{cmd} <una_palabra> <descripción hasta 300 chars>\n"
-                f"Ej: /{cmd} inteligencia ¿Cómo afecta la IA al mercado laboral?"
+                f"Uso: {prefix} <una_palabra> <descripción hasta 300 chars>\n"
+                f"Ej: {prefix} inteligencia ¿Cómo afecta la IA al mercado laboral?"
             ),
         })
         return
 
-    cmd, word, description = m.group(1), m.group(2), m.group(3).strip()
-    kind    = "doubt" if cmd == "dudas" else "topic"
+    prefix, word, description = m.group(1), m.group(2), m.group(3).strip()
+    kind    = "doubt" if prefix == "/dudas" else "topic"
     kind_es = "duda"  if kind == "doubt" else "tema"
 
     asyncio.create_task(_send_to_insightbloom(word, description, kind, nickname, conference_id))

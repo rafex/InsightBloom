@@ -184,7 +184,7 @@
         <span class="text-blue-400 font-mono">/dudas</span>
         <span class="text-zinc-600"> &lt;palabra&gt; &lt;descripción&gt;</span>
         <span class="mx-1 text-zinc-700">·</span>
-        <span class="text-purple-400 font-mono">/temas</span>
+        <span class="text-purple-400 font-mono">#temas</span>
         <span class="text-zinc-600"> &lt;palabra&gt; &lt;descripción&gt;</span>
       </p>
       <span id="userList"
@@ -466,7 +466,7 @@ function sendMessage() {
   const text  = input.value.trim();
   if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
 
-  if (text.startsWith('/dudas ') || text.startsWith('/temas ')) {
+  if (text.startsWith('/dudas ') || text.startsWith('#temas ')) {
     const err = validateCmd(text);
     if (err) { appendSystem('⚠️ ' + err); return; }
   }
@@ -588,7 +588,7 @@ function appendMessage(nick, text) {
 }
 
 function renderText(el, text, isMe) {
-  const re = /(@\w+)|(\/(dudas|temas)\s+\S+(?:\s+.{0,300})?)/g;
+  const re = /(@\w+)|((?:\/dudas|#temas)\s+\S+(?:\s+.{0,300})?)/g;
   let last = 0, m;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last)
@@ -604,7 +604,7 @@ function renderText(el, text, isMe) {
       span.textContent = m[1];
       el.appendChild(span);
     } else {
-      // /dudas o /temas
+      // /dudas o #temas
       const parts = m[2].split(/\s+/);
       const cs = document.createElement('span');
       cs.className = parts[0] === '/dudas'
