@@ -5,14 +5,23 @@
     aside.sidebar
       nav
         router-link(to="/dashboard") Inicio
-        router-link(to="/dashboard/conferences/new") Nueva conferencia
+        router-link(v-if="isOrganizer" to="/dashboard/conferences/new") Nueva conferencia
+        router-link(v-else to="/dashboard/join") Unirse a una conferencia
     main.dashboard-main
       router-view
 </template>
 
 <script>
 import AppHeader from '@/app/layout/AppHeader.vue'
-export default { name: 'DashboardLayout', components: { AppHeader } }
+import { useAuthStore } from '@/features/auth/authStore'
+export default {
+  name: 'DashboardLayout',
+  components: { AppHeader },
+  setup() {
+    const auth = useAuthStore()
+    return { isOrganizer: auth.isOrganizer() }
+  }
+}
 </script>
 
 <style scoped>

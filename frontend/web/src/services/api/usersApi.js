@@ -40,3 +40,17 @@ export async function getUserProfile(uuid) {
   const res = await axios.get(`/api/users/api/v1/users/${uuid}`)
   return res.data.data
 }
+
+export async function joinConference(identifier, token) {
+  const res = await axios.post('/api/users/api/v1/conferences/join', { identifier }, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return res.data.data
+}
+
+export async function getConferenceHistory(token) {
+  const res = await axios.get('/api/users/api/v1/conferences/history', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return res.data.data
+}

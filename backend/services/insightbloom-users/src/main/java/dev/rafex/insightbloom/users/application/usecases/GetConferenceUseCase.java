@@ -32,6 +32,27 @@ public class GetConferenceUseCase {
         return conferenceRepository.findByUser(userUuid);
     }
 
+    private static final java.util.regex.Pattern UUID_RE = java.util.regex.Pattern.compile(
+            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern SHORT_RE = java.util.regex.Pattern.compile(
+            "^[0-9a-f]{7}$", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /** Resuelve un identificador de conferencia sea UUID completo, short code (7 hex) o friendly-id. */
+    public Optional<Conference> resolveAny(final String identifier) {
+        if (identifier == null || identifier.isBlank()) return Optional.empty();
+        final String trimmed = identifier.trim();
+        if (UUID_RE.matcher(trimmed).matches()) {
+            final var byUuid = byId(trimmed);
+            if (byUuid.isPresent()) return byUuid;
+        }
+        if (SHORT_RE.matcher(trimmed).matches()) {
+            final var byShort = byShortCode(trimmed);
+            if (byShort.isPresent()) return byShort;
+        }
+        return byFriendlyId(trimmed);
+    }
+
     public boolean delete(String uuid, String requestingUserUuid) {
         return conferenceRepository.findByUuid(uuid)
             .filter(c -> c.getCreatedByUserUuid().equals(requestingUserUuid))

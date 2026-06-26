@@ -32,6 +32,7 @@ const routes = [
     children: [
       { path: '', component: () => import('@/pages/dashboard/DashboardHome.vue') },
       { path: 'conferences/new', component: () => import('@/pages/dashboard/NewConferencePage.vue') },
+      { path: 'join', component: () => import('@/pages/dashboard/JoinConferencePage.vue') },
       {
         path: 'conferences/:conferenceId/moderation/messages',
         component: () => import('@/pages/dashboard/ModerationMessagesPage.vue'),
@@ -65,6 +66,9 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth) {
     const token = localStorage.getItem('ib_token')
     if (!token) return '/login'
+  }
+  if (to.path === '/dashboard/conferences/new' && localStorage.getItem('ib_role') !== 'organizer') {
+    return '/dashboard'
   }
 })
 

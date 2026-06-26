@@ -40,6 +40,7 @@ public class UsersApplication {
         final var tokenRepo = new SqliteTokenRepository(db);
         final var conferenceRepo = new SqliteConferenceRepository(db);
         final var otpRepo = new SqliteOtpCodeRepository(db);
+        final var membershipRepo = new SqliteConferenceMembershipRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -59,11 +60,14 @@ public class UsersApplication {
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
         final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);
         final var getUserProfileUseCase = new GetUserProfileUseCase(userRepo);
+        final var joinConferenceUseCase = new JoinConferenceUseCase(getConferenceUseCase, membershipRepo);
+        final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
                 registerUseCase, sendOtpUseCase, verifyOtpUseCase);
-        final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase, validateTokenUseCase);
+        final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
+                validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase);
 
         // Route registry

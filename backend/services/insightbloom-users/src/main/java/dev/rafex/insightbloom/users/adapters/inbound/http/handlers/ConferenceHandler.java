@@ -11,7 +11,9 @@ import dev.rafex.insightbloom.contracts.ApiError;
 import dev.rafex.insightbloom.contracts.ApiMeta;
 import dev.rafex.insightbloom.contracts.ApiResponse;
 import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
+import dev.rafex.insightbloom.users.application.usecases.JoinConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import org.eclipse.jetty.server.Request;
 
@@ -28,14 +30,20 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
     private final CreateConferenceUseCase createConferenceUseCase;
     private final GetConferenceUseCase getConferenceUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
+    private final JoinConferenceUseCase joinConferenceUseCase;
+    private final GetConferenceHistoryUseCase getConferenceHistoryUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
-                             final ValidateTokenUseCase validateTokenUseCase) {
+                             final ValidateTokenUseCase validateTokenUseCase,
+                             final JoinConferenceUseCase joinConferenceUseCase,
+                             final GetConferenceHistoryUseCase getConferenceHistoryUseCase) {
         super(JSON_CODEC);
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
+        this.joinConferenceUseCase = joinConferenceUseCase;
+        this.getConferenceHistoryUseCase = getConferenceHistoryUseCase;
     }
 
     @Override
@@ -49,6 +57,8 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
                 Route.of("/", Set.of("GET", "POST")),
                 Route.of("/by-friendly/{friendlyId}", Set.of("GET")),
                 Route.of("/by-short/{shortCode}", Set.of("GET")),
+                Route.of("/join", Set.of("POST")),
+                Route.of("/history", Set.of("GET")),
                 Route.of("/{id}", Set.of("GET", "DELETE")));
     }
 
@@ -67,6 +77,9 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
         if (path.contains("/by-short/")) {
             return handleGetByShortCode(jx, jx.pathParam("shortCode"));
         }
+        if (path.endsWith("/history")) {
+            return handleHistory(jx);
+        }
         final String id = jx.pathParam("id");
         if (id != null) {
             return handleGetById(jx, id);
@@ -76,7 +89,11 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
 
     @Override
     public boolean post(final HttpExchange x) {
-        return handleCreate(asJetty(x));
+        final var jx = asJetty(x);
+        if (jx.path().endsWith("/join")) {
+            return handleJoin(jx);
+        }
+        return handleCreate(jx);
     }
 
     @Override
@@ -147,6 +164,37 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
             getConferenceUseCase.byShortCode(shortCode).ifPresentOrElse(
                     c -> sendOk(jx, 200, c),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleJoin(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final String identifier = (String) body.get("identifier");
+            final var conference = joinConferenceUseCase.execute(v.subjectUuid(), identifier);
+            sendOk(jx, 200, conference);
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), "Esta conferencia ya no se encuentra disponible");
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleHistory(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            sendOk(jx, 200, getConferenceHistoryUseCase.execute(v.subjectUuid()));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

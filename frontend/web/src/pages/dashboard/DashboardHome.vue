@@ -1,5 +1,5 @@
 <template lang="pug">
-.dashboard-home
+.dashboard-home(v-if="isOrganizer")
   .dashboard-header
     h1 Dashboard
     router-link.btn-primary(to="/dashboard/conferences/new") + Nueva conferencia
@@ -44,11 +44,36 @@
       .confirm-actions
         button.btn-cancel(@click="deleteTarget = null") Cancelar
         button.btn-confirm(@click="doDelete") Eliminar
+
+.dashboard-home(v-else)
+  .dashboard-header
+    h1 Mis conferencias
+    router-link.btn-primary(to="/dashboard/join") + Unirse a una conferencia
+
+  .section(v-if="loadingHistory")
+    .loading-text Cargando historial...
+
+  .section(v-else-if="history.length === 0")
+    .empty-state
+      p Aún no te has unido a ninguna conferencia.
+      router-link.btn-primary(to="/dashboard/join") Unirme a una conferencia
+
+  .section(v-else)
+    .conference-grid
+      .conf-card(v-for="h in history" :key="h.conferenceUuid" :class="{ unavailable: !h.available }")
+        .conf-card-header
+          span.friendly-id {{ h.friendlyId || h.conferenceUuid }}
+          span.status-badge(:class="h.available ? 'active' : 'unavailable'") {{ h.available ? 'Disponible' : 'No disponible' }}
+        h3.conf-name {{ h.name || '(sin nombre)' }}
+        p.joined-at Te uniste {{ formatDate(h.joinedAt) }}
+        .conf-actions(v-if="h.available")
+          router-link.btn-outline(:to="`/c/${h.friendlyId}/doubts`") Entrar
+        p.unavailable-note(v-else) Esta conferencia ya no se encuentra disponible.
 </template>
 
 <script>
 import { ref, onMounted } from 'vue'
-import { getConferences, deleteConference } from '@/services/api/usersApi'
+import { getConferences, deleteConference, getConferenceHistory } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -57,16 +82,29 @@ export default {
     const conferences = ref([])
     const loading     = ref(true)
     const deleteTarget = ref(null)
+    const history = ref([])
+    const loadingHistory = ref(true)
     const auth = useAuthStore()
+    const isOrganizer = auth.isOrganizer()
 
     onMounted(async () => {
-      try {
-        const token = auth.state.token
-        if (token) conferences.value = await getConferences(token)
-      } catch (e) {
-        console.error('Error cargando conferencias', e)
-      } finally {
-        loading.value = false
+      const token = auth.state.token
+      if (isOrganizer) {
+        try {
+          if (token) conferences.value = await getConferences(token)
+        } catch (e) {
+          console.error('Error cargando conferencias', e)
+        } finally {
+          loading.value = false
+        }
+      } else {
+        try {
+          if (token) history.value = await getConferenceHistory(token)
+        } catch (e) {
+          console.error('Error cargando historial', e)
+        } finally {
+          loadingHistory.value = false
+        }
       }
     })
 
@@ -86,6 +124,11 @@ export default {
       return past ? `hace ${str}` : `en ${str}`
     }
 
+    function formatDate(iso) {
+      if (!iso) return ''
+      return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+    }
+
     function confirmDelete(c) { deleteTarget.value = c }
 
     async function doDelete() {
@@ -102,7 +145,10 @@ export default {
       }
     }
 
-    return { conferences, loading, deleteTarget, isExpired, formatRelative, confirmDelete, doDelete }
+    return {
+      conferences, loading, deleteTarget, isOrganizer, history, loadingHistory,
+      isExpired, formatRelative, formatDate, confirmDelete, doDelete
+    }
   }
 }
 </script>
@@ -122,14 +168,18 @@ h2 { color: #374151; font-size: 1.1rem; font-weight: 600; margin: 0 0 16px; }
 
 .conf-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; transition: box-shadow 0.2s; }
 .conf-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.conf-card.unavailable { opacity: 0.6; }
 
 .conf-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .friendly-id { font-size: 0.78rem; color: #6b7280; font-family: monospace; }
 .status-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; text-transform: uppercase; }
 .status-badge.ACTIVE, .status-badge.active { background: #d1fae5; color: #065f46; }
 .status-badge.CLOSED, .status-badge.closed { background: #fee2e2; color: #991b1b; }
+.status-badge.unavailable { background: #f3f4f6; color: #6b7280; }
 
 .conf-name { font-size: 1rem; font-weight: 600; color: #1e1b4b; margin: 0 0 8px; }
+.joined-at { font-size: 0.8rem; color: #6b7280; margin: 0 0 12px; }
+.unavailable-note { font-size: 0.82rem; color: #9ca3af; font-style: italic; margin: 0; }
 
 .expiry-row { display: flex; align-items: center; gap: 4px; margin-bottom: 12px; font-size: 0.8rem; }
 .expiry-icon { font-size: 0.85rem; }

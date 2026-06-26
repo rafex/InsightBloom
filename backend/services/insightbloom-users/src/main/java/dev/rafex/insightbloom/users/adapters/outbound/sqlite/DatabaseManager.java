@@ -106,6 +106,20 @@ public class DatabaseManager {
                 )
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_otp_identifier ON otp_codes(identifier)");
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS conference_memberships (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    user_uuid TEXT NOT NULL,
+                    conference_uuid TEXT NOT NULL,
+                    conference_name_snapshot TEXT,
+                    conference_friendly_id_snapshot TEXT,
+                    joined_at TEXT NOT NULL,
+                    UNIQUE(user_uuid, conference_uuid)
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_membership_user ON conference_memberships(user_uuid)");
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
         }
