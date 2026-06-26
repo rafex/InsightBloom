@@ -2,32 +2,21 @@ package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
-import dev.rafex.ether.http.jetty12.response.JettyApiResponses;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
-import dev.rafex.ether.http.jetty12.handler.NonBlockingResourceHandler;
-import dev.rafex.ether.json.JsonCodec;
-import dev.rafex.ether.json.JsonUtils;
-import dev.rafex.insightbloom.contracts.ApiError;
-import dev.rafex.insightbloom.contracts.ApiMeta;
-import dev.rafex.insightbloom.contracts.ApiResponse;
+import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.JoinConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
-import org.eclipse.jetty.server.Request;
 
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
-public class ConferenceHandler extends NonBlockingResourceHandler {
-
-    private static final JsonCodec JSON_CODEC = JsonUtils.codec();
-    private static final JettyApiResponses RESPONSES = new JettyApiResponses(JSON_CODEC);
+public class ConferenceHandler extends BaseResourceHandler {
 
     private final CreateConferenceUseCase createConferenceUseCase;
     private final GetConferenceUseCase getConferenceUseCase;
@@ -42,7 +31,6 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
                              final JoinConferenceUseCase joinConferenceUseCase,
                              final GetConferenceHistoryUseCase getConferenceHistoryUseCase,
                              final GenerateCertificateUseCase generateCertificateUseCase) {
-        super(JSON_CODEC);
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -133,7 +121,7 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
                 sendError(jx, 403, "forbidden", "Only organizers can create conferences");
                 return true;
             }
-            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final var body = parseBody(jx);
             final Double latitude = body.get("latitude") instanceof Number n ? n.doubleValue() : null;
             final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
             final var result = createConferenceUseCase.execute(new CreateConferenceUseCase.CreateRequest(
@@ -186,7 +174,7 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
-            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final var body = parseBody(jx);
             final String identifier = (String) body.get("identifier");
             final var conference = joinConferenceUseCase.execute(v.subjectUuid(), identifier);
             sendOk(jx, 200, conference);
@@ -258,17 +246,4 @@ public class ConferenceHandler extends NonBlockingResourceHandler {
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
     }
 
-    private <T> void sendOk(final JettyHttpExchange jx, final int status, final T data) {
-        RESPONSES.json(jx.response(), jx.callback(), status,
-                new ApiResponse<>(data, ApiMeta.of(UUID.randomUUID().toString())));
-    }
-
-    private void sendError(final JettyHttpExchange jx, final int status, final String code, final String message) {
-        RESPONSES.json(jx.response(), jx.callback(), status,
-                ApiError.of(code, message, UUID.randomUUID().toString()));
-    }
-
-    private static JettyHttpExchange asJetty(final HttpExchange x) {
-        return (JettyHttpExchange) x;
-    }
 }

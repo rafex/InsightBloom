@@ -2,14 +2,8 @@ package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
-import dev.rafex.ether.http.jetty12.response.JettyApiResponses;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
-import dev.rafex.ether.http.jetty12.handler.NonBlockingResourceHandler;
-import dev.rafex.ether.json.JsonCodec;
-import dev.rafex.ether.json.JsonUtils;
-import dev.rafex.insightbloom.contracts.ApiError;
-import dev.rafex.insightbloom.contracts.ApiMeta;
-import dev.rafex.insightbloom.contracts.ApiResponse;
+import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.application.usecases.LoginUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RegisterUseCase;
@@ -17,18 +11,13 @@ import dev.rafex.insightbloom.users.application.usecases.SendOtpUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.VerifyOtpUseCase;
 import dev.rafex.insightbloom.users.domain.model.SocialLink;
-import org.eclipse.jetty.server.Request;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
-public class AuthHandler extends NonBlockingResourceHandler {
-
-    private static final JsonCodec JSON_CODEC = JsonUtils.codec();
-    private static final JettyApiResponses RESPONSES = new JettyApiResponses(JSON_CODEC);
+public class AuthHandler extends BaseResourceHandler {
 
     private final LoginUseCase loginUseCase;
     private final CreateGuestUseCase createGuestUseCase;
@@ -40,7 +29,6 @@ public class AuthHandler extends NonBlockingResourceHandler {
     public AuthHandler(final LoginUseCase loginUseCase, final CreateGuestUseCase createGuestUseCase,
                        final ValidateTokenUseCase validateTokenUseCase, final RegisterUseCase registerUseCase,
                        final SendOtpUseCase sendOtpUseCase, final VerifyOtpUseCase verifyOtpUseCase) {
-        super(JSON_CODEC);
         this.loginUseCase = loginUseCase;
         this.createGuestUseCase = createGuestUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -93,7 +81,7 @@ public class AuthHandler extends NonBlockingResourceHandler {
 
     private boolean handleLogin(final JettyHttpExchange jx) {
         try {
-            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final var body = parseBody(jx);
             final String username = (String) body.get("username");
             final String password = (String) body.get("password");
             final var result = loginUseCase.execute(new LoginUseCase.LoginRequest(username, password));
@@ -110,7 +98,7 @@ public class AuthHandler extends NonBlockingResourceHandler {
 
     private boolean handleGuest(final JettyHttpExchange jx) {
         try {
-            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final var body = parseBody(jx);
             final var result = createGuestUseCase.execute(new CreateGuestUseCase.GuestRequest(
                     (String) body.get("displayName"),
                     (String) body.get("deviceFingerprint"),
@@ -146,7 +134,7 @@ public class AuthHandler extends NonBlockingResourceHandler {
     @SuppressWarnings("unchecked")
     private boolean handleRegister(final JettyHttpExchange jx) {
         try {
-            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final var body = parseBody(jx);
             final List<Map<String, String>> rawLinks = (List<Map<String, String>>) body.get("socialLinks");
             final List<SocialLink> socialLinks = new ArrayList<>();
             if (rawLinks != null) {
@@ -171,7 +159,7 @@ public class AuthHandler extends NonBlockingResourceHandler {
 
     private boolean handleSendOtp(final JettyHttpExchange jx) {
         try {
-            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final var body = parseBody(jx);
             sendOtpUseCase.execute(new SendOtpUseCase.Request(
                     (String) body.get("identifier"), (String) body.get("channel")));
             sendOk(jx, 200, Map.of("status", "sent"));
@@ -187,7 +175,7 @@ public class AuthHandler extends NonBlockingResourceHandler {
 
     private boolean handleVerifyOtp(final JettyHttpExchange jx) {
         try {
-            final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+            final var body = parseBody(jx);
             final var result = verifyOtpUseCase.execute(new VerifyOtpUseCase.Request(
                     (String) body.get("identifier"), (String) body.get("code")));
             sendOk(jx, 200, result);
@@ -199,17 +187,4 @@ public class AuthHandler extends NonBlockingResourceHandler {
         return true;
     }
 
-    private <T> void sendOk(final JettyHttpExchange jx, final int status, final T data) {
-        RESPONSES.json(jx.response(), jx.callback(), status,
-                new ApiResponse<>(data, ApiMeta.of(UUID.randomUUID().toString())));
-    }
-
-    private void sendError(final JettyHttpExchange jx, final int status, final String code, final String message) {
-        RESPONSES.json(jx.response(), jx.callback(), status,
-                ApiError.of(code, message, UUID.randomUUID().toString()));
-    }
-
-    private static JettyHttpExchange asJetty(final HttpExchange x) {
-        return (JettyHttpExchange) x;
-    }
 }

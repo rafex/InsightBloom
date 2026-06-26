@@ -1,27 +1,21 @@
 package dev.rafex.insightbloom.users.adapters.outbound.sqlite;
 
-import org.sqlite.SQLiteConfig;
+import dev.rafex.insightbloom.common.migration.ColumnMigrationHelper;
+import dev.rafex.insightbloom.common.sqlite.SqliteConnectionProvider;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashSet;
-import java.util.Set;
 
 public class DatabaseManager {
-    private final String dbPath;
+    private final SqliteConnectionProvider provider;
 
     public DatabaseManager(String dbPath) {
-        this.dbPath = dbPath;
+        this.provider = new SqliteConnectionProvider(dbPath);
     }
 
     public Connection getConnection() throws SQLException {
-        final SQLiteConfig config = new SQLiteConfig();
-        config.setJournalMode(SQLiteConfig.JournalMode.WAL);
-        config.setBusyTimeout(5000);
-        return DriverManager.getConnection("jdbc:sqlite:" + dbPath, config.toProperties());
+        return provider.getConnection();
     }
 
     public void initialize() {
@@ -43,12 +37,12 @@ public class DatabaseManager {
             // Migrate: add password_hash if existing DB lacks the column
             try { stmt.executeUpdate("ALTER TABLE users ADD COLUMN password_hash TEXT"); }
             catch (SQLException ignored) { /* column already exists */ }
-            addColumnIfMissing(conn, "users", "phone", "TEXT");
-            addColumnIfMissing(conn, "users", "social_links", "TEXT");
-            addColumnIfMissing(conn, "users", "email_verified", "INTEGER NOT NULL DEFAULT 0");
-            addColumnIfMissing(conn, "users", "phone_verified", "INTEGER NOT NULL DEFAULT 0");
-            addColumnIfMissing(conn, "users", "first_name", "TEXT");
-            addColumnIfMissing(conn, "users", "last_name", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "phone", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "social_links", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "email_verified", "INTEGER NOT NULL DEFAULT 0");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "phone_verified", "INTEGER NOT NULL DEFAULT 0");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "first_name", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "last_name", "TEXT");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)");
 
@@ -147,20 +141,6 @@ public class DatabaseManager {
             """);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
-        }
-    }
-
-    private void addColumnIfMissing(final Connection c, final String table, final String column,
-                                     final String ddlType) throws SQLException {
-        final Set<String> existing = new HashSet<>();
-        try (Statement stmt = c.createStatement();
-             ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
-            while (rs.next()) existing.add(rs.getString("name"));
-        }
-        if (!existing.contains(column)) {
-            try (Statement stmt = c.createStatement()) {
-                stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + ddlType);
-            }
         }
     }
 }

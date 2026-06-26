@@ -56,6 +56,10 @@
     <!-- Internal -->
     <dependency>
       <groupId>dev.rafex.insightbloom</groupId>
+      <artifactId>insightbloom-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>dev.rafex.insightbloom</groupId>
       <artifactId>insightbloom-contracts</artifactId>
     </dependency>
 
