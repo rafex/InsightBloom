@@ -182,6 +182,15 @@ jobs:
             --atomic \
             --wait --timeout 10m
 
+      - name: Force rollout restart (latest-tagged images need an explicit restart)
+        id: rollout_restart
+        if: steps.helm_deploy.outcome == 'success'
+        continue-on-error: true
+        run: |
+          for svc in users stats moderation query ingest chat web survey presentations; do
+            kubectl -n "$K3S_NAMESPACE" rollout restart "deployment/${RELEASE_NAME}-${svc}"
+          done
+
       - name: Show rollout status
         id: rollout_status
         if: steps.helm_deploy.outcome == 'success'
