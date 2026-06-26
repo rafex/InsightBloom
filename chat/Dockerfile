@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Código
 COPY *.py ./
+COPY models/ ./models/
+COPY services/ ./services/
+COPY routers/ ./routers/
 COPY static/ ./static/
 
 # Usuario no-root

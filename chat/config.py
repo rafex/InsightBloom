@@ -1,0 +1,8 @@
+import os
+
+# URL interna del microservicio insightbloom-ingest dentro del cluster K3s.
+INGEST_URL = os.getenv("INGEST_URL", "http://localhost:8085")
+USERS_URL = os.getenv("USERS_URL", "http://localhost:8081")
+PRESENTATIONS_URL = os.getenv("PRESENTATIONS_URL", "http://localhost:8091")
+DB_PATH = os.getenv("DB_PATH", "chat.db")
+CHAT_SECRET_KEY = os.getenv("CHAT_SECRET_KEY", "")
