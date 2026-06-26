@@ -6,5 +6,14 @@ export const organizerContact = {
   email: 'rafex@rafex.dev',
   linkedin: 'https://linkedin.com/in/soft-architect-raul-gonzalez',
   github: 'https://github.com/rafex',
-  blog: 'https://theworldofrafex.blog/'
+  blog: 'https://theworldofrafex.blog/',
+  telegram: '@rafex0'
+}
+
+// Construye el deep link de Telegram con un mensaje precargado mencionando
+// la conferencia (friendlyId o uuid) que el asistente acaba de calificar.
+export function telegramContactUrl(conferenceLabel) {
+  const username = organizerContact.telegram.replace('@', '')
+  const message = `¡Hola me gustó tu conferencia ${conferenceLabel}!`
+  return `https://t.me/${username}?text=${encodeURIComponent(message)}`
 }

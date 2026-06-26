@@ -16,6 +16,8 @@
             a(:href="contact.github" target="_blank" rel="noopener") 🐙 GitHub
           li
             a(:href="contact.blog" target="_blank" rel="noopener") 📝 Blog
+          li
+            a(:href="telegramUrl" target="_blank" rel="noopener") 💬 Telegram {{ contact.telegram }}
       a.btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
 
   .login-required(v-else-if="!canParticipate")
@@ -96,7 +98,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getQuestions, submitResponses } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl } from '@/services/api/presentationsApi'
-import { organizerContact } from '@/config/contact'
+import { organizerContact, telegramContactUrl } from '@/config/contact'
 import { useAuthStore } from '@/features/auth/authStore'
 
 const ORDER_SEP = ';;'
@@ -121,6 +123,7 @@ export default {
     const pdfReady = ref(false)
     const pdfUrl = ref('')
     const contact = organizerContact
+    const telegramUrl = telegramContactUrl(friendlyId || props.conferenceId)
     const emojiScale = EMOJI_SCALE
 
     const canvasRefs = {}
@@ -238,7 +241,7 @@ export default {
 
     return {
       friendlyId, questions, loading, submitting, submitted, error, canParticipate,
-      answers, answersText, dragOrder, pdfReady, pdfUrl, contact, emojiScale, setRating, submit,
+      answers, answersText, dragOrder, pdfReady, pdfUrl, contact, telegramUrl, emojiScale, setRating, submit,
       setCanvasRef, startDraw, moveDraw, endDraw, clearCanvas,
       dragStart, dragDrop, moveItem
     }
