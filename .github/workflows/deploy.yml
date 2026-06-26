@@ -175,8 +175,8 @@ jobs:
             --set services.survey.env.LLM_PROVIDER_MODEL="${{ vars.LLM_PROVIDER_MODEL }}" \
             --set services.users.env.TWILIO_ACCOUNT_SID="${{ vars.TWILIO_ACCOUNT_SID }}" \
             --set services.users.env.TWILIO_FROM_NUMBER="${{ vars.TWILIO_FROM_NUMBER }}" \
-            --set services.users.env.ZOHO_SMTP_HOST="${{ vars.ZOHO_SMTP_HOST }}" \
-            --set services.users.env.ZOHO_SMTP_PORT="${{ vars.ZOHO_SMTP_PORT }}" \
+            --set services.users.env.ZOHO_SMTP_HOST="${{ vars.ZOHO_SMTP_HOST || 'smtppro.zoho.com' }}" \
+            --set services.users.env.ZOHO_SMTP_PORT="${{ vars.ZOHO_SMTP_PORT || '465' }}" \
             --set services.users.env.ZOHO_SMTP_USERNAME="${{ vars.ZOHO_SMTP_USERNAME }}" \
             --set services.users.env.ZOHO_FROM_ADDRESS="${{ vars.ZOHO_FROM_ADDRESS }}" \
             --atomic \

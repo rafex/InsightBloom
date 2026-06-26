@@ -42,7 +42,15 @@ public class ZohoEmailClient implements EmailPort {
         props.put("mail.smtp.host", host);
         props.put("mail.smtp.port", port);
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
+        if ("465".equals(port)) {
+            // Puerto 465: TLS implícito desde la conexión (sin STARTTLS)
+            props.put("mail.smtp.ssl.enable", "true");
+            props.put("mail.smtp.socketFactory.port", port);
+            props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        } else {
+            // Puerto 587 (u otro): STARTTLS sobre conexión en texto plano
+            props.put("mail.smtp.starttls.enable", "true");
+        }
 
         final Session session = Session.getInstance(props, new javax.mail.Authenticator() {
             @Override
