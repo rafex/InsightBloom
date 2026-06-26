@@ -1,14 +1,12 @@
 package dev.rafex.insightbloom.ingest.adapters.outbound.sqlite;
-import org.sqlite.SQLiteConfig;
+
+import dev.rafex.insightbloom.common.sqlite.SqliteConnectionProvider;
 import java.sql.*;
 public class DatabaseManager {
-    private final String dbPath;
-    public DatabaseManager(String dbPath) { this.dbPath = dbPath; }
+    private final SqliteConnectionProvider provider;
+    public DatabaseManager(String dbPath) { this.provider = new SqliteConnectionProvider(dbPath); }
     public Connection getConnection() throws SQLException {
-        SQLiteConfig config = new SQLiteConfig();
-        config.setJournalMode(SQLiteConfig.JournalMode.WAL);
-        config.setBusyTimeout(5000);
-        return DriverManager.getConnection("jdbc:sqlite:" + dbPath, config.toProperties());
+        return provider.getConnection();
     }
     public void initialize() {
         try (Connection c = getConnection(); Statement stmt = c.createStatement()) {

@@ -2,26 +2,16 @@ package dev.rafex.insightbloom.moderation.adapters.inbound.http.handlers;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
-import dev.rafex.ether.http.jetty12.response.JettyApiResponses;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
-import dev.rafex.ether.http.jetty12.handler.NonBlockingResourceHandler;
-import dev.rafex.ether.json.JsonCodec;
-import dev.rafex.ether.json.JsonUtils;
-import dev.rafex.insightbloom.contracts.ApiError;
+import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.contracts.ApiMeta;
-import dev.rafex.insightbloom.contracts.ApiResponse;
 import dev.rafex.insightbloom.moderation.application.usecases.*;
-import org.eclipse.jetty.server.Request;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
-public class ConferenceModerationHandler extends NonBlockingResourceHandler {
-
-    private static final JsonCodec JSON_CODEC = JsonUtils.codec();
-    private static final JettyApiResponses RESPONSES = new JettyApiResponses(JSON_CODEC);
+public class ConferenceModerationHandler extends BaseResourceHandler {
 
     private final ListModerationUseCase listUseCase;
     private final CensorWordUseCase censorWordUseCase;
@@ -48,7 +38,6 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
                                        final DeleteConferenceDataUseCase deleteConferenceDataUseCase,
                                        final AnswerMessageUseCase answerMessageUseCase,
                                        final GetMessageAnswerUseCase getMessageAnswerUseCase) {
-        super(JSON_CODEC);
         this.listUseCase = listUseCase;
         this.censorWordUseCase = censorWordUseCase;
         this.restoreWordUseCase = restoreWordUseCase;
@@ -182,8 +171,8 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
         final int page = parseIntParam(queryParam(jx, "page"), 1);
         final int pageSize = parseIntParam(queryParam(jx, "pageSize"), 50);
         final var result = listUseCase.listWords(conferenceId, status, page, pageSize);
-        RESPONSES.json(jx.response(), jx.callback(), 200,
-                new ApiResponse<>(result.items(), ApiMeta.paged(UUID.randomUUID().toString(), result.page(), result.pageSize(), result.total())));
+        sendOk(jx, 200, result.items(),
+                ApiMeta.paged(java.util.UUID.randomUUID().toString(), result.page(), result.pageSize(), result.total()));
         return true;
     }
 
@@ -192,13 +181,13 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
         final int page = parseIntParam(queryParam(jx, "page"), 1);
         final int pageSize = parseIntParam(queryParam(jx, "pageSize"), 50);
         final var result = listUseCase.listMessages(conferenceId, status, page, pageSize);
-        RESPONSES.json(jx.response(), jx.callback(), 200,
-                new ApiResponse<>(result.items(), ApiMeta.paged(UUID.randomUUID().toString(), result.page(), result.pageSize(), result.total())));
+        sendOk(jx, 200, result.items(),
+                ApiMeta.paged(java.util.UUID.randomUUID().toString(), result.page(), result.pageSize(), result.total()));
         return true;
     }
 
     private boolean handleCensorWord(final JettyHttpExchange jx, final String wordId) throws Exception {
-        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        final var body = parseBody(jx);
         try {
             censorWordUseCase.execute(new CensorWordUseCase.Request(
                     wordId, (String) body.get("reason"), (String) body.get("updatedByUserUuid")));
@@ -210,7 +199,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     }
 
     private boolean handleRestoreWord(final JettyHttpExchange jx, final String wordId) throws Exception {
-        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        final var body = parseBody(jx);
         try {
             restoreWordUseCase.execute(wordId, (String) body.getOrDefault("updatedByUserUuid", "system"));
             sendOk(jx, Map.of("status", "restored"));
@@ -221,7 +210,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     }
 
     private boolean handleEditWord(final JettyHttpExchange jx, final String wordId) throws Exception {
-        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        final var body = parseBody(jx);
         try {
             editWordUseCase.execute(new EditWordUseCase.Request(
                     wordId, (String) body.get("value"), (String) body.get("updatedByUserUuid")));
@@ -233,7 +222,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     }
 
     private boolean handleCensorMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
-        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        final var body = parseBody(jx);
         try {
             censorMessageUseCase.execute(new CensorMessageUseCase.Request(
                     msgId,
@@ -251,7 +240,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     }
 
     private boolean handleRestoreMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
-        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        final var body = parseBody(jx);
         try {
             restoreMessageUseCase.execute(msgId, (String) body.getOrDefault("updatedByUserUuid", "system"));
             sendOk(jx, Map.of("status", "restored"));
@@ -262,7 +251,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     }
 
     private boolean handleEditMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
-        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        final var body = parseBody(jx);
         try {
             editMessageUseCase.execute(new EditMessageUseCase.Request(
                     msgId, (String) body.get("editedWord"), (String) body.get("editedDetail"),
@@ -275,7 +264,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     }
 
     private boolean handleDeleteWord(final JettyHttpExchange jx, final String wordId) throws Exception {
-        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        final var body = parseBody(jx);
         try {
             deleteWordUseCase.execute(new DeleteWordUseCase.Request(
                     wordId, (String) body.getOrDefault("deletedByUserUuid", "system")));
@@ -287,7 +276,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     }
 
     private boolean handleAnswerMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
-        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        final var body = parseBody(jx);
         try {
             answerMessageUseCase.execute(new AnswerMessageUseCase.Request(
                     msgId, (String) body.get("answerText"), (String) body.get("answeredByUserUuid")));
@@ -309,7 +298,7 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
     }
 
     private boolean handleDeleteMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
-        final var body = JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);
+        final var body = parseBody(jx);
         try {
             deleteMessageUseCase.execute(new DeleteMessageUseCase.Request(
                     msgId, (String) body.getOrDefault("deletedByUserUuid", "system")));
@@ -320,22 +309,9 @@ public class ConferenceModerationHandler extends NonBlockingResourceHandler {
         return true;
     }
 
-    private <T> void sendOk(final JettyHttpExchange jx, final T data) {
-        RESPONSES.json(jx.response(), jx.callback(), 200,
-                new ApiResponse<>(data, ApiMeta.of(UUID.randomUUID().toString())));
-    }
-
-    private void sendError(final JettyHttpExchange jx, final int status, final String code, final String message) {
-        RESPONSES.json(jx.response(), jx.callback(), status,
-                ApiError.of(code, message, UUID.randomUUID().toString()));
-    }
-
     private static int parseIntParam(final String value, final int defaultValue) {
         if (value == null) return defaultValue;
         try { return Integer.parseInt(value); } catch (final NumberFormatException e) { return defaultValue; }
     }
 
-    private static JettyHttpExchange asJetty(final HttpExchange x) {
-        return (JettyHttpExchange) x;
-    }
 }
