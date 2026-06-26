@@ -23,7 +23,10 @@ RUN mvn -f pom.xml install -N -DskipTests -q
 # 2. Instala el módulo de contratos
 RUN mvn -f backend/contracts/pom.xml clean install -DskipTests -q
 
-# 3. Empaqueta todos los servicios
+# 3. Instala el módulo común (depende de contracts)
+RUN mvn -f backend/common/pom.xml clean install -DskipTests -q
+
+# 4. Empaqueta todos los servicios
 RUN mvn -f backend/services/pom.xml clean package -DskipTests -q
 
 # ─────────────────────────────────────────────────────────────────────────────
