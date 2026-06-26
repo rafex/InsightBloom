@@ -460,13 +460,14 @@ input, select, textarea {
 .btn-wand:disabled { opacity: 0.4; cursor: not-allowed; }
 .suggestions { background: #f5f3ff; border-radius: 10px; padding: 12px; margin-bottom: 16px; }
 .suggestion-row {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  display: flex; align-items: flex-start; gap: 10px;
   padding: 8px 0; border-bottom: 1px solid #e9e5ff;
 }
 .suggestion-row:last-child { border-bottom: none; }
-.suggestion-check { display: flex; align-items: flex-start; padding-top: 2px; }
+.suggestion-check { display: flex; align-items: flex-start; flex-shrink: 0; padding-top: 2px; }
+.suggestion-check input { flex-shrink: 0; width: 16px; height: 16px; margin: 0; }
 .suggestions-actions { display: flex; gap: 10px; align-items: center; padding-top: 10px; }
-.suggestion-text { font-size: 0.85rem; color: #374151; }
+.suggestion-text { flex: 1; min-width: 0; font-size: 0.85rem; color: #374151; }
 .suggestion-type { margin-left: 8px; color: #6b7280; font-size: 0.75rem; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
 .btn-primary-sm { background: #4f46e5; color: #fff; flex-shrink: 0; }
