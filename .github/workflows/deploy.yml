@@ -162,12 +162,29 @@ jobs:
         run: |
           helm lint "$CHART_PATH"
 
+      - name: Write Roberto prompt override (avoids --set, which breaks on multiline/commas)
+        env:
+          ROBERTO_SYSTEM_PROMPT: ${{ vars.ROBERTO_SYSTEM_PROMPT }}
+        run: |
+          if [ -z "$ROBERTO_SYSTEM_PROMPT" ]; then
+            printf 'services: {}\n' > /tmp/roberto-prompt-values.yaml
+          else
+            {
+              echo 'services:'
+              echo '  chat:'
+              echo '    env:'
+              echo '      ROBERTO_SYSTEM_PROMPT: |'
+              printf '%s\n' "$ROBERTO_SYSTEM_PROMPT" | sed 's/^/        /'
+            } > /tmp/roberto-prompt-values.yaml
+          fi
+
       - name: Deploy Helm release
         id: helm_deploy
         continue-on-error: true
         run: |
           helm upgrade --install "$RELEASE_NAME" "$CHART_PATH" \
             --namespace "$K3S_NAMESPACE" \
+            -f /tmp/roberto-prompt-values.yaml \
             --set image.tag="${{ steps.deploy_tag.outputs.value }}" \
             --set services.chat.env.LLM_PROVIDER_BASE_URL="${{ vars.LLM_PROVIDER_BASE_URL }}" \
             --set services.chat.env.LLM_PROVIDER_MODEL="${{ vars.LLM_PROVIDER_MODEL }}" \

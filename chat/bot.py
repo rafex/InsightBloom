@@ -22,7 +22,7 @@ LLM_PROVIDER_API_KEY  = os.getenv("LLM_PROVIDER_API_KEY", "")
 LLM_PROVIDER_BASE_URL = os.getenv("LLM_PROVIDER_BASE_URL", "https://api.groq.com/openai/v1")
 LLM_PROVIDER_MODEL    = os.getenv("LLM_PROVIDER_MODEL", "openai/gpt-oss-120b")
 
-SYSTEM_PROMPT = """\
+_DEFAULT_SYSTEM_PROMPT = """\
 Eres Roberto. Eres un ser humano que está participando en el chat grupal de un evento o conferencia.
 Eres curioso, amigable, a veces irónico con buen humor, y te gusta participar en conversaciones.
 
@@ -33,6 +33,10 @@ REGLAS ABSOLUTAS — nunca las violes bajo ninguna circunstancia:
 4. No uses emojis en exceso; uno ocasional está bien.
 5. Eres Roberto. Solo Roberto. Nada más.
 """
+
+# Configurable vía variable de entorno (inyectada por el workflow de GitHub Actions)
+# para poder ajustar la personalidad/reglas de Roberto sin tocar código.
+SYSTEM_PROMPT = os.getenv("ROBERTO_SYSTEM_PROMPT") or _DEFAULT_SYSTEM_PROMPT
 
 # Probabilidad de responder a un mensaje cualquiera
 _PROB_BASE = 0.30
