@@ -2,29 +2,17 @@ package dev.rafex.insightbloom.stats.adapters.inbound.http.handlers;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
-import dev.rafex.ether.http.jetty12.response.JettyApiResponses;
-import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
-import dev.rafex.ether.http.jetty12.handler.NonBlockingResourceHandler;
-import dev.rafex.ether.json.JsonCodec;
-import dev.rafex.ether.json.JsonUtils;
-import dev.rafex.insightbloom.contracts.ApiError;
-import dev.rafex.insightbloom.contracts.ApiMeta;
-import dev.rafex.insightbloom.contracts.ApiResponse;
+import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.stats.application.usecases.GetStatsUseCase;
 
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
-public class StatsHandler extends NonBlockingResourceHandler {
-
-    private static final JsonCodec JSON_CODEC = JsonUtils.codec();
-    private static final JettyApiResponses RESPONSES = new JettyApiResponses(JSON_CODEC);
+public class StatsHandler extends BaseResourceHandler {
 
     private final GetStatsUseCase useCase;
 
     public StatsHandler(final GetStatsUseCase useCase) {
-        super(JSON_CODEC);
         this.useCase = useCase;
     }
 
@@ -64,19 +52,5 @@ public class StatsHandler extends NonBlockingResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
-    }
-
-    private <T> void sendOk(final JettyHttpExchange jx, final T data) {
-        RESPONSES.json(jx.response(), jx.callback(), 200,
-                new ApiResponse<>(data, ApiMeta.of(UUID.randomUUID().toString())));
-    }
-
-    private void sendError(final JettyHttpExchange jx, final int status, final String code, final String message) {
-        RESPONSES.json(jx.response(), jx.callback(), status,
-                ApiError.of(code, message, UUID.randomUUID().toString()));
-    }
-
-    private static JettyHttpExchange asJetty(final HttpExchange x) {
-        return (JettyHttpExchange) x;
     }
 }
