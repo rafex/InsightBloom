@@ -19,29 +19,42 @@
         button.btn-sm.btn-primary-sm(type="button" @click="addSuggestion(s)") Agregar
 
     input(v-model="form.text" placeholder="¿Qué tan útil fue la charla?")
-    select(v-model="form.type")
-      option(value="RATING") Calificación (estrellas o emojis)
-      option(value="TEXT") Texto libre
-      option(value="MULTIPLE_CHOICE") Opción múltiple
-      option(value="OPEN_GRADED") Abierta (calificada por IA)
-      option(value="CODE_GRADED") Código (calificado por IA)
-      option(value="CANVAS_DRAWING") Diagrama / dibujo
-      option(value="DRAG_DROP") Ordenar elementos (drag and drop)
+    select(v-model="form.type" @change="onTypeChange")
+      option(value="RATING") ★ Calificación (estrellas o emojis)
+      option(value="TEXT") 📝 Texto libre
+      option(value="MULTIPLE_CHOICE") ☑️ Opción múltiple
+      option(value="OPEN_GRADED") 💬 Abierta (calificada por IA)
+      option(value="CODE_GRADED") 💻 Código (calificado por IA)
+      option(value="CANVAS_DRAWING") 🎨 Diagrama / dibujo
+      option(value="DRAG_DROP") ⇕ Ordenar elementos (drag and drop)
 
-    select(v-if="form.type === 'RATING'" v-model="form.ratingStyle")
-      option(value="STARS") ★ Estrellas
-      option(value="EMOJIS") 🙂 Emojis (satisfacción)
+    .style-row(v-if="form.type === 'RATING'")
+      label.style-option(:class="{ active: form.ratingStyle === 'STARS' }")
+        input(type="radio" value="STARS" v-model="form.ratingStyle")
+        span ★★★★★ Estrellas
+      label.style-option(:class="{ active: form.ratingStyle === 'EMOJIS' }")
+        input(type="radio" value="EMOJIS" v-model="form.ratingStyle")
+        span 😢😕😐🙂🤩 Emojis
 
-    input(
-      v-if="form.type === 'MULTIPLE_CHOICE'"
-      v-model="form.optionsRaw"
-      placeholder="Opciones separadas por coma: Sí, No, Tal vez"
-    )
-    input(
-      v-if="form.type === 'DRAG_DROP'"
-      v-model="form.optionsRaw"
-      placeholder="Elementos en el ORDEN CORRECTO, separados por coma"
-    )
+    .options-editor(v-if="form.type === 'MULTIPLE_CHOICE'")
+      label.options-label Opciones que verá el asistente
+      .option-row(v-for="(opt, idx) in form.options" :key="idx")
+        span.option-bullet ☐
+        input(v-model="form.options[idx]" :placeholder="'Opción ' + (idx + 1)")
+        button.btn-icon(type="button" @click="removeOption(idx)" :disabled="form.options.length <= 2" title="Quitar") ✕
+      button.btn-add(type="button" @click="addOption") + Agregar opción
+
+    .options-editor(v-if="form.type === 'DRAG_DROP'")
+      label.options-label Elementos en el ORDEN CORRECTO (el asistente los verá desordenados)
+      .option-row(v-for="(opt, idx) in form.options" :key="idx")
+        span.option-order {{ idx + 1 }}
+        input(v-model="form.options[idx]" :placeholder="'Elemento ' + (idx + 1)")
+        .option-arrows
+          button.btn-icon(type="button" @click="moveOption(idx, -1)" :disabled="idx === 0" title="Subir") ↑
+          button.btn-icon(type="button" @click="moveOption(idx, 1)" :disabled="idx === form.options.length - 1" title="Bajar") ↓
+        button.btn-icon(type="button" @click="removeOption(idx)" :disabled="form.options.length <= 2" title="Quitar") ✕
+      button.btn-add(type="button" @click="addOption") + Agregar elemento
+
     textarea(
       v-if="form.type === 'OPEN_GRADED'"
       v-model="form.referenceAnswer"
@@ -60,11 +73,22 @@
 
   .questions-card(v-if="questions.length")
     h3 Preguntas activas
-    .question-row(v-for="q in questions" :key="q.uuid")
-      span.q-text {{ q.text }}
-      span.q-type {{ typeLabel(q.type) }}
-      button.btn-sm.btn-edit(@click="startEdit(q)") Editar
-      button.btn-sm.btn-warning(@click="deactivate(q)") Desactivar
+    .question-item(v-for="q in questions" :key="q.uuid" :class="{ editing: editingId === q.uuid }")
+      .question-item-header
+        span.q-icon {{ typeIcon(q.type) }}
+        span.q-text {{ q.text }}
+        span.q-type {{ typeLabel(q.type) }}
+      .q-preview(v-if="q.type === 'MULTIPLE_CHOICE' && q.options && q.options.length")
+        span.chip(v-for="opt in q.options" :key="opt") ☐ {{ opt }}
+      .q-preview(v-else-if="q.type === 'DRAG_DROP' && q.options && q.options.length")
+        span.chip.chip-ordered(v-for="(opt, idx) in q.options" :key="opt") {{ idx + 1 }}. {{ opt }}
+      .q-preview(v-else-if="q.type === 'RATING'")
+        span.chip {{ q.ratingStyle === 'EMOJIS' ? '😢😕😐🙂🤩' : '★★★★★' }}
+      .q-preview(v-else-if="(q.type === 'OPEN_GRADED' || q.type === 'CODE_GRADED') && q.referenceAnswer")
+        span.chip.chip-ref 📌 Referencia: {{ q.referenceAnswer }}
+      .question-item-actions
+        button.btn-sm.btn-edit(@click="startEdit(q)") Editar
+        button.btn-sm.btn-warning(@click="deactivate(q)") Desactivar
 
   .results-card(v-if="results.length")
     h3 Resultados
@@ -97,7 +121,12 @@ import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getRe
 import { useAuthStore } from '@/features/auth/authStore'
 
 function emptyForm() {
-  return { text: '', type: 'RATING', ratingStyle: 'STARS', optionsRaw: '', referenceAnswer: '' }
+  return { text: '', type: 'RATING', ratingStyle: 'STARS', options: [], referenceAnswer: '' }
+}
+
+const TYPE_ICONS = {
+  RATING: '★', TEXT: '📝', MULTIPLE_CHOICE: '☑️', OPEN_GRADED: '💬',
+  CODE_GRADED: '💻', CANVAS_DRAWING: '🎨', DRAG_DROP: '⇕'
 }
 
 export default {
@@ -122,8 +151,28 @@ export default {
       }[t] || t
     }
 
+    function typeIcon(t) { return TYPE_ICONS[t] || '•' }
+
     function isImage(text) {
       return typeof text === 'string' && text.startsWith('data:image')
+    }
+
+    function onTypeChange() {
+      const needsOptions = form.value.type === 'MULTIPLE_CHOICE' || form.value.type === 'DRAG_DROP'
+      if (needsOptions && form.value.options.length < 2) {
+        form.value.options = ['', '']
+      }
+    }
+
+    function addOption() { form.value.options.push('') }
+
+    function removeOption(idx) { form.value.options.splice(idx, 1) }
+
+    function moveOption(idx, delta) {
+      const newIdx = idx + delta
+      if (newIdx < 0 || newIdx >= form.value.options.length) return
+      const [item] = form.value.options.splice(idx, 1)
+      form.value.options.splice(newIdx, 0, item)
     }
 
     async function load() {
@@ -156,9 +205,10 @@ export default {
         text: s.text,
         type: s.type,
         ratingStyle: 'STARS',
-        optionsRaw: (s.options || []).join(', '),
+        options: s.options && s.options.length ? [...s.options] : [],
         referenceAnswer: s.referenceAnswer || ''
       }
+      onTypeChange()
     }
 
     function startEdit(q) {
@@ -167,9 +217,10 @@ export default {
         text: q.text,
         type: q.type,
         ratingStyle: q.ratingStyle || 'STARS',
-        optionsRaw: (q.options || []).join(', '),
+        options: q.options && q.options.length ? [...q.options] : [],
         referenceAnswer: q.referenceAnswer || ''
       }
+      onTypeChange()
       suggestions.value = []
     }
 
@@ -183,7 +234,7 @@ export default {
       try {
         const isOptionsType = form.value.type === 'MULTIPLE_CHOICE' || form.value.type === 'DRAG_DROP'
         const options = isOptionsType
-          ? form.value.optionsRaw.split(',').map((s) => s.trim()).filter(Boolean)
+          ? form.value.options.map((o) => o.trim()).filter(Boolean)
           : null
         const payload = {
           text: form.value.text,
@@ -216,7 +267,8 @@ export default {
 
     return {
       questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
-      typeLabel, isImage, save, deactivate, suggest, addSuggestion, startEdit, cancelEdit
+      typeLabel, typeIcon, isImage, save, deactivate, suggest, addSuggestion, startEdit, cancelEdit,
+      onTypeChange, addOption, removeOption, moveOption
     }
   }
 }
@@ -261,11 +313,52 @@ input, select, textarea {
 .suggestion-type { margin-left: 8px; color: #6b7280; font-size: 0.75rem; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
 .btn-primary-sm { background: #4f46e5; color: #fff; flex-shrink: 0; }
-.question-row {
-  display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f3f4f6;
+
+.style-row { display: flex; gap: 10px; margin-bottom: 10px; }
+.style-option {
+  flex: 1; display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+  border: 1.5px solid #d1d5db; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 500;
 }
-.q-text { flex: 1; }
-.q-type { color: #6b7280; font-size: 0.82rem; }
+.style-option input { width: auto; margin: 0; }
+.style-option.active { border-color: #4f46e5; background: #f5f3ff; color: #4338ca; }
+
+.options-editor { margin-bottom: 10px; }
+.options-label { font-size: 0.82rem; color: #6b7280; margin-bottom: 6px; display: block; }
+.option-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.option-row input { margin-bottom: 0; flex: 1; }
+.option-bullet { color: #9ca3af; flex-shrink: 0; }
+.option-order {
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: #4f46e5; color: #fff;
+  font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.option-arrows { display: flex; gap: 2px; flex-shrink: 0; }
+.btn-icon {
+  flex-shrink: 0; width: 28px; height: 28px; border: 1px solid #e5e7eb; border-radius: 6px;
+  background: #f9fafb; color: #6b7280; cursor: pointer; font-size: 0.8rem;
+}
+.btn-icon:hover:not(:disabled) { background: #f3f4f6; color: #374151; }
+.btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-add {
+  padding: 6px 14px; border: 1px dashed #a5b4fc; border-radius: 8px; background: #f5f3ff; color: #4338ca;
+  cursor: pointer; font-size: 0.82rem; font-weight: 500;
+}
+.btn-add:hover { background: #ede9fe; }
+
+.question-item {
+  padding: 12px 0; border-bottom: 1px solid #f3f4f6;
+}
+.question-item.editing { background: #f5f3ff; border-radius: 8px; padding: 12px; margin: -2px 0; }
+.question-item-header { display: flex; align-items: center; gap: 8px; }
+.q-icon { flex-shrink: 0; }
+.q-text { flex: 1; font-weight: 500; color: #1e1b4b; }
+.q-type { color: #6b7280; font-size: 0.78rem; }
+.q-preview { margin: 6px 0 0 24px; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  background: #f3f4f6; color: #374151; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem;
+}
+.chip-ordered { background: #e0e7ff; color: #4338ca; }
+.chip-ref { background: #fef3c7; color: #92400e; max-width: 100%; }
+.question-item-actions { margin: 8px 0 0 24px; display: flex; gap: 8px; }
 .btn-edit { background: #e0e7ff; color: #4338ca; }
 .btn-edit:hover { background: #c7d2fe; }
 .btn-warning { background: #fef3c7; color: #d97706; }
