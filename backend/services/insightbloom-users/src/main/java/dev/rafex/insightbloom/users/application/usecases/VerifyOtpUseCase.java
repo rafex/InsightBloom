@@ -4,6 +4,7 @@ import dev.rafex.insightbloom.users.domain.model.OtpChannel;
 import dev.rafex.insightbloom.users.domain.model.Token;
 import dev.rafex.insightbloom.users.domain.model.TokenKind;
 import dev.rafex.insightbloom.users.domain.model.User;
+import dev.rafex.insightbloom.users.domain.model.UserRole;
 import dev.rafex.insightbloom.users.domain.ports.OtpCodeRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.domain.services.TokenService;
@@ -41,6 +42,6 @@ public class VerifyOtpUseCase {
         userRepository.save(user);
 
         final Token token = tokenService.issueUserToken(user.getUuid(), TokenKind.USER);
-        return new Result(token.getTokenValue(), user.getUuid(), user.getRole().name().toLowerCase());
+        return new Result(token.getTokenValue(), user.getUuid(), UserRole.toCsv(user.getRoles()));
     }
 }

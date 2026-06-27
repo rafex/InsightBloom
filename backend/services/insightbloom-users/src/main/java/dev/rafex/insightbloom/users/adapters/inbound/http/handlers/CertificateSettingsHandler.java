@@ -86,6 +86,6 @@ public class CertificateSettingsHandler extends BaseResourceHandler {
     }
 
     private static boolean isOrganizerOrAdmin(final String role) {
-        return "organizer".equals(role) || "admin".equals(role);
+        return role != null && (role.contains("organizer") || role.contains("admin"));
     }
 }

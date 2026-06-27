@@ -9,8 +9,10 @@ import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import java.sql.*;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class SqliteUserRepository implements UserRepository {
     private static final String LINK_SEP = ";;";
@@ -39,7 +41,7 @@ public class SqliteUserRepository implements UserRepository {
             ps.setString(6, encodeLinks(user.getSocialLinks()));
             ps.setInt(7, user.isEmailVerified() ? 1 : 0);
             ps.setInt(8, user.isPhoneVerified() ? 1 : 0);
-            ps.setString(9, user.getRole().name());
+            ps.setString(9, encodeRoles(user.getRoles()));
             ps.setString(10, user.getStatus().name());
             ps.setString(11, user.getPasswordHash());
             ps.setString(12, user.getCreatedAt().toString());
@@ -115,13 +117,29 @@ public class SqliteUserRepository implements UserRepository {
             rs.getString("display_name"), rs.getString("email"), rs.getString("phone"),
             decodeLinks(rs.getString("social_links")),
             rs.getInt("email_verified") == 1, rs.getInt("phone_verified") == 1,
-            UserRole.valueOf(rs.getString("role")), UserStatus.valueOf(rs.getString("status")),
+            decodeRoles(rs.getString("role")), UserStatus.valueOf(rs.getString("status")),
             rs.getString("password_hash"),
             parseInstant(rs.getString("created_at")), parseInstant(rs.getString("updated_at"))
         );
         user.setFirstName(rs.getString("first_name"));
         user.setLastName(rs.getString("last_name"));
         return user;
+    }
+
+    private String encodeRoles(Set<UserRole> roles) {
+        final List<String> names = new ArrayList<>();
+        for (final UserRole r : roles) names.add(r.name());
+        return String.join(",", names);
+    }
+
+    private Set<UserRole> decodeRoles(String raw) {
+        final Set<UserRole> roles = new LinkedHashSet<>();
+        if (raw == null || raw.isBlank()) return roles;
+        for (final String part : raw.split(",")) {
+            final String trimmed = part.trim();
+            if (!trimmed.isEmpty()) roles.add(UserRole.valueOf(trimmed));
+        }
+        return roles;
     }
 
     private String encodeLinks(List<SocialLink> links) {

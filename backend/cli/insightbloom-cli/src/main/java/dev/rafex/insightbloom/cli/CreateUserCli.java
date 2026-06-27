@@ -25,8 +25,8 @@ import java.util.UUID;
  *       [--display-name "John Doe"] \
  *       [--email john@example.com]
  *
- * Roles disponibles: ORGANIZER, MODERATOR
- * Si el usuario ya existe, actualiza su password y role.
+ * Roles disponibles: ORGANIZER, MODERATOR, ADMIN (separados por coma para asignar varios)
+ * Si el usuario ya existe, actualiza su password y role(s).
  */
 public class CreateUserCli {
 
@@ -72,8 +72,11 @@ public class CreateUserCli {
         if (password == null || password.isBlank()) {
             die("--password es requerido");
         }
-        if (!role.equals("ORGANIZER") && !role.equals("MODERATOR") && !role.equals("ADMIN")) {
-            die("--role debe ser ORGANIZER, MODERATOR o ADMIN");
+        for (String r : role.split(",")) {
+            String trimmed = r.trim();
+            if (!trimmed.equals("ORGANIZER") && !trimmed.equals("MODERATOR") && !trimmed.equals("ADMIN")) {
+                die("--role debe ser uno o varios de ORGANIZER, MODERATOR, ADMIN separados por coma (ej: ORGANIZER,ADMIN)");
+            }
         }
 
         if (displayName == null) displayName = username;
@@ -211,7 +214,8 @@ public class CreateUserCli {
               --db           <ruta>    Ruta al archivo users.db  (default: users.db)
               --username     <texto>   Nombre de usuario         (requerido)
               --password     <texto>   Contraseña                (requerido)
-              --role         <rol>     ORGANIZER | MODERATOR | ADMIN  (default: ORGANIZER)
+              --role         <roles>   ORGANIZER | MODERATOR | ADMIN, separados por coma para
+                                       asignar varios (ej: ORGANIZER,ADMIN)  (default: ORGANIZER)
               --display-name <texto>   Nombre visible            (default: username)
               --email        <texto>   Correo electrónico        (opcional)
 
@@ -227,6 +231,10 @@ public class CreateUserCli {
               # Actualizar contraseña de admin existente
               java -jar insightbloom-cli.jar create-user \\
                 --username admin --password nueva-clave-segura --role ORGANIZER
+
+              # Cuenta con ambos roles: organizador + administrador de usuarios
+              java -jar insightbloom-cli.jar create-user \\
+                --username admin --password nueva-clave-segura --role ORGANIZER,ADMIN
             """);
     }
 }

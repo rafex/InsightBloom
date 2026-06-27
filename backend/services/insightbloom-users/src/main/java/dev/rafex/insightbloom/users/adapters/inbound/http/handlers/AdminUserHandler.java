@@ -10,6 +10,7 @@ import dev.rafex.insightbloom.users.application.usecases.ListUsersUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetUserStatusUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.domain.model.User;
+import dev.rafex.insightbloom.users.domain.model.UserRole;
 import dev.rafex.insightbloom.users.domain.model.UserStatus;
 
 import java.util.List;
@@ -36,12 +37,12 @@ public class AdminUserHandler extends BaseResourceHandler {
     }
 
     public record UserView(String uuid, String username, String displayName, String email, String phone,
-                            String role, String status, String firstName, String lastName,
+                            String roles, String status, String firstName, String lastName,
                             boolean emailVerified, boolean phoneVerified, String createdAt) {}
 
     private static UserView toView(final User u) {
         return new UserView(u.getUuid(), u.getUsername(), u.getDisplayName(), u.getEmail(), u.getPhone(),
-                u.getRole().name(), u.getStatus().name(), u.getFirstName(), u.getLastName(),
+                UserRole.toCsv(u.getRoles()).toUpperCase(), u.getStatus().name(), u.getFirstName(), u.getLastName(),
                 u.isEmailVerified(), u.isPhoneVerified(), u.getCreatedAt().toString());
     }
 
@@ -89,7 +90,7 @@ public class AdminUserHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final var updated = adminUpdateUserUseCase.execute(jx.pathParam("uuid"), new AdminUpdateUserUseCase.Request(
                     (String) body.get("displayName"), (String) body.get("email"), (String) body.get("phone"),
-                    (String) body.get("role"), (String) body.get("firstName"), (String) body.get("lastName")));
+                    (String) body.get("roles"), (String) body.get("firstName"), (String) body.get("lastName")));
             sendOk(jx, toView(updated));
         } catch (final IllegalArgumentException e) {
             sendError(jx, "user_not_found".equals(e.getMessage()) ? 404 : 400, e.getMessage(), e.getMessage());
@@ -133,7 +134,7 @@ public class AdminUserHandler extends BaseResourceHandler {
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return false; }
         final var v = validateTokenUseCase.execute(token);
-        if (!v.valid() || !"admin".equals(v.role())) {
+        if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
             sendError(jx, 403, "forbidden", "Only admins can manage users");
             return false;
         }

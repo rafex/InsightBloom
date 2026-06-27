@@ -1,7 +1,9 @@
 package dev.rafex.insightbloom.users.domain.model;
 
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class User {
@@ -14,7 +16,7 @@ public class User {
     private List<SocialLink> socialLinks;
     private boolean emailVerified;
     private boolean phoneVerified;
-    private UserRole role;
+    private Set<UserRole> roles;
     private UserStatus status;
     private String passwordHash;
     private final Instant createdAt;
@@ -23,11 +25,16 @@ public class User {
     private String lastName;
 
     public User(String uuid, String username, String displayName, String email, UserRole role) {
-        this(uuid, username, displayName, email, null, List.of(), false, false, role);
+        this(uuid, username, displayName, email, null, List.of(), false, false, Set.of(role));
     }
 
     public User(String uuid, String username, String displayName, String email, String phone,
                 List<SocialLink> socialLinks, boolean emailVerified, boolean phoneVerified, UserRole role) {
+        this(uuid, username, displayName, email, phone, socialLinks, emailVerified, phoneVerified, Set.of(role));
+    }
+
+    public User(String uuid, String username, String displayName, String email, String phone,
+                List<SocialLink> socialLinks, boolean emailVerified, boolean phoneVerified, Set<UserRole> roles) {
         this.id = null;
         this.uuid = uuid != null ? uuid : UUID.randomUUID().toString();
         this.username = username;
@@ -37,7 +44,7 @@ public class User {
         this.socialLinks = socialLinks != null ? socialLinks : List.of();
         this.emailVerified = emailVerified;
         this.phoneVerified = phoneVerified;
-        this.role = role;
+        this.roles = new LinkedHashSet<>(roles);
         this.status = UserStatus.ACTIVE;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
@@ -45,7 +52,7 @@ public class User {
 
     public User(String id, String uuid, String username, String displayName, String email, String phone,
                 List<SocialLink> socialLinks, boolean emailVerified, boolean phoneVerified,
-                UserRole role, UserStatus status, String passwordHash, Instant createdAt, Instant updatedAt) {
+                Set<UserRole> roles, UserStatus status, String passwordHash, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.uuid = uuid;
         this.username = username;
@@ -55,7 +62,7 @@ public class User {
         this.socialLinks = socialLinks != null ? socialLinks : List.of();
         this.emailVerified = emailVerified;
         this.phoneVerified = phoneVerified;
-        this.role = role;
+        this.roles = new LinkedHashSet<>(roles);
         this.status = status;
         this.passwordHash = passwordHash;
         this.createdAt = createdAt;
@@ -70,7 +77,8 @@ public class User {
     public void setDisplayName(String displayName) { this.displayName = displayName; this.updatedAt = Instant.now(); }
     public void setEmail(String email) { this.email = email; this.updatedAt = Instant.now(); }
     public void setPhone(String phone) { this.phone = phone; this.updatedAt = Instant.now(); }
-    public void setRole(UserRole role) { this.role = role; this.updatedAt = Instant.now(); }
+    public void setRoles(Set<UserRole> roles) { this.roles = new LinkedHashSet<>(roles); this.updatedAt = Instant.now(); }
+    public void addRole(UserRole role) { this.roles.add(role); this.updatedAt = Instant.now(); }
     public void setStatus(UserStatus status) { this.status = status; this.updatedAt = Instant.now(); }
 
     public String getId() { return id; }
@@ -82,7 +90,8 @@ public class User {
     public List<SocialLink> getSocialLinks() { return socialLinks; }
     public boolean isEmailVerified() { return emailVerified; }
     public boolean isPhoneVerified() { return phoneVerified; }
-    public UserRole getRole() { return role; }
+    public Set<UserRole> getRoles() { return roles; }
+    public boolean hasRole(UserRole role) { return roles.contains(role); }
     public UserStatus getStatus() { return status; }
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }

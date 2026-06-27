@@ -51,10 +51,11 @@ export function useAuthStore() {
     localStorage.removeItem('ib_user_uuid')
   }
 
+  function roleList() { return (state.role || '').split(',').map((r) => r.trim()).filter(Boolean) }
   function isAuthenticated() { return !!state.token }
-  function isOrganizer() { return state.role === 'organizer' || state.role === 'admin' }
-  function isModerator() { return ['organizer', 'moderator'].includes(state.role) }
-  function isAdmin() { return state.role === 'admin' }
+  function isOrganizer() { return roleList().some((r) => r === 'organizer' || r === 'admin') }
+  function isModerator() { return roleList().some((r) => r === 'organizer' || r === 'moderator' || r === 'admin') }
+  function isAdmin() { return roleList().includes('admin') }
 
   return { state, login, loginAsGuest, logout, setSession, isAuthenticated, isOrganizer, isModerator, isAdmin }
 }

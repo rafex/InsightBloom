@@ -75,11 +75,12 @@ router.beforeEach((to) => {
     if (!token) return '/login'
   }
   const organizerOnlyPaths = ['/dashboard/conferences/new', '/dashboard/certificate-settings']
-  const role = localStorage.getItem('ib_role')
-  if (organizerOnlyPaths.includes(to.path) && role !== 'organizer' && role !== 'admin') {
+  const roles = (localStorage.getItem('ib_role') || '').split(',').map((r) => r.trim())
+  const isOrganizerOrAdmin = roles.includes('organizer') || roles.includes('admin')
+  if (organizerOnlyPaths.includes(to.path) && !isOrganizerOrAdmin) {
     return '/dashboard'
   }
-  if (to.path === '/dashboard/admin/users' && role !== 'admin') {
+  if (to.path === '/dashboard/admin/users' && !roles.includes('admin')) {
     return '/dashboard'
   }
 })

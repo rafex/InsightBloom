@@ -33,7 +33,7 @@ public class ValidateTokenUseCase {
         return switch (token.getTokenKind()) {
             case USER -> userRepository.findByUuid(token.getUserUuid())
                     .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-                    .map(u -> new ValidationResult(true, u.getUuid(), "user", u.getRole().name().toLowerCase()))
+                    .map(u -> new ValidationResult(true, u.getUuid(), "user", UserRole.toCsv(u.getRoles())))
                     .orElse(new ValidationResult(false, null, null, null));
             case GUEST -> guestUserRepository.findByUuid(token.getGuestUserUuid())
                     .map(g -> new ValidationResult(true, g.getUuid(), "guest", "guest"))

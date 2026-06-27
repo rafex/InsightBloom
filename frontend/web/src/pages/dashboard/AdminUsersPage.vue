@@ -29,12 +29,11 @@
           div {{ u.email || '—' }}
           .sub(v-if="u.phone") {{ u.phone }}
         td
-          select(v-if="editing === u.uuid" v-model="editForm.role")
-            option(value="ATTENDEE") Attendee
-            option(value="MODERATOR") Moderator
-            option(value="ORGANIZER") Organizer
-            option(value="ADMIN") Admin
-          span(v-else) {{ u.role }}
+          .roles-editor(v-if="editing === u.uuid")
+            label(v-for="r in availableRoles" :key="r")
+              input(type="checkbox" :value="r" v-model="editForm.roles")
+              span {{ r }}
+          span(v-else) {{ u.roles }}
         td
           span.status-badge(:class="u.status") {{ statusLabel(u.status) }}
         td.actions
@@ -84,6 +83,7 @@ export default {
     const saving = ref(false)
     const confirmTarget = ref(null)
     const confirmAction_ = ref(null)
+    const availableRoles = ['ATTENDEE', 'MODERATOR', 'ORGANIZER', 'ADMIN']
 
     const filteredUsers = computed(() =>
       statusFilter.value ? users.value.filter((u) => u.status === statusFilter.value) : users.value)
@@ -113,14 +113,15 @@ export default {
         displayName: u.displayName || '',
         email: u.email || '',
         phone: u.phone || '',
-        role: u.role
+        roles: (u.roles || '').split(',').map((r) => r.trim()).filter(Boolean)
       }
     }
 
     async function saveEdit(u) {
       saving.value = true
       try {
-        const updated = await updateUser(u.uuid, editForm.value, auth.state.token)
+        const payload = { ...editForm.value, roles: editForm.value.roles.join(',') }
+        const updated = await updateUser(u.uuid, payload, auth.state.token)
         Object.assign(u, updated)
         editing.value = null
       } finally {
@@ -162,7 +163,7 @@ export default {
     onMounted(load)
 
     return {
-      users, loading, page, totalPages, statusFilter, filteredUsers, editing, editForm, saving,
+      users, loading, page, totalPages, statusFilter, filteredUsers, editing, editForm, saving, availableRoles,
       confirmTarget, confirmTitle, confirmMessage,
       goToPage, statusLabel, startEdit, saveEdit, confirmAction, runConfirmedAction
     }
@@ -187,6 +188,10 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .status-badge.BANNED { background: #fee2e2; color: #991b1b; }
 .status-badge.DELETED { background: #f3f4f6; color: #6b7280; }
 .status-badge.INACTIVE { background: #fef9c3; color: #854d0e; }
+
+.roles-editor { display: flex; flex-direction: column; gap: 4px; }
+.roles-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
+.roles-editor input { width: auto; margin: 0; }
 
 .actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
 .actions input { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; }

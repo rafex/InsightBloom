@@ -42,7 +42,8 @@ public class LoginUseCase {
             String inputHash = sha256(request.password());
             if (!inputHash.equals(u.getPasswordHash())) return Optional.empty();
             Token token = tokenService.issueUserToken(u.getUuid(), TokenKind.USER);
-            return Optional.of(new LoginResult(token.getTokenValue(), u.getUuid(), u.getRole().name().toLowerCase()));
+            return Optional.of(new LoginResult(token.getTokenValue(), u.getUuid(),
+                    dev.rafex.insightbloom.users.domain.model.UserRole.toCsv(u.getRoles())));
         });
     }
 

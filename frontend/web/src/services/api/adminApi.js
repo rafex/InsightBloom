@@ -11,8 +11,8 @@ export async function listUsers(token, page = 1, pageSize = 50) {
   return res.data
 }
 
-export async function updateUser(uuid, { displayName, email, phone, role, firstName, lastName }, token) {
-  const res = await axios.put(`${BASE}/${uuid}`, { displayName, email, phone, role, firstName, lastName }, {
+export async function updateUser(uuid, { displayName, email, phone, roles, firstName, lastName }, token) {
+  const res = await axios.put(`${BASE}/${uuid}`, { displayName, email, phone, roles, firstName, lastName }, {
     headers: authHeader(token)
   })
   return res.data.data
