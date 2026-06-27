@@ -1,43 +1,28 @@
-# Agents Context
+# docs/ — Legacy (deprecado)
 
-Indice principal del contexto operativo del proyecto.
+> ⚠️ **Esta carpeta está deprecada.** El contexto del proyecto se ha migrado a
+> [`spec-native/`](../spec-native/README.md) siguiendo el estándar
+> SpecNative Development v0.7.
 
-## Como usar esta carpeta
+## Migración
 
-Si eres un agente o una persona entrando por primera vez:
+| Ubicación anterior | Nueva ubicación |
+|-------------------|-----------------|
+| `docs/PRODUCT.md` | [`spec-native/PRODUCT.md`](../spec-native/PRODUCT.md) |
+| `docs/ARCHITECTURE.md` | [`spec-native/ARCHITECTURE.md`](../spec-native/ARCHITECTURE.md) |
+| `docs/STACK.md` | [`spec-native/STACK.md`](../spec-native/STACK.md) |
+| `docs/CONVENTIONS.md` | [`spec-native/CONVENTIONS.md`](../spec-native/CONVENTIONS.md) |
+| `docs/COMMANDS.md` | [`spec-native/COMMANDS.md`](../spec-native/COMMANDS.md) |
+| `docs/DECISIONS.md` | [`spec-native/DECISIONS.md`](../spec-native/DECISIONS.md) |
+| `docs/ROADMAP.md` | [`spec-native/ROADMAP.md`](../spec-native/ROADMAP.md) |
+| `docs/ROLES.md` | [`spec-native/ROLES.md`](../spec-native/ROLES.md) |
+| `docs/SPEC.md` | [`spec-native/specs/main/SPEC.md`](../spec-native/specs/main/SPEC.md) |
+| `docs/specs/` | [`spec-native/specs/`](../spec-native/specs/README.md) |
 
-1. Lee este archivo.
-2. Abre solo el documento que corresponde a tu tarea.
-3. Si trabajas sobre una spec concreta, ve a `specs/README.md`.
+Los archivos en esta carpeta se mantienen como referencia histórica.
+La fuente de verdad ahora es `spec-native/`.
 
-## Documentos base
-
-- [`PRODUCT.md`](./PRODUCT.md):
-  que problema resuelve el producto, para quien y con que objetivos.
-- [`ROADMAP.md`](./ROADMAP.md):
-  direccion y prioridades de mediano plazo.
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md):
-  estructura del sistema, modulos y limites.
-- [`STACK.md`](./STACK.md):
-  tecnologias, versiones y restricciones tecnicas.
-- [`CONVENTIONS.md`](./CONVENTIONS.md):
-  reglas de codigo, naming, testing y organizacion.
-- [`COMMANDS.md`](./COMMANDS.md):
-  comandos de desarrollo, test, lint y operaciones comunes.
-- [`DECISIONS.md`](./DECISIONS.md):
-  decisiones relevantes ya tomadas y su racional.
-- [`ROLES.md`](./ROLES.md):
-  roles de usuario (ORGANIZER, MODERATOR, GUEST), matriz de permisos por endpoint y ciclo de vida.
-- [`SPEC.md`](./SPEC.md):
-  spec activa o spec general cuando aun no se separa por iniciativa.
-- [`specs/README.md`](./specs/README.md):
-  indice de specs por iniciativa.
-
-## Regla de ownership documental
-
-- Producto y direccion: `PRODUCT.md` y `ROADMAP.md`
-- Sistema y restricciones: `ARCHITECTURE.md`, `STACK.md`,
-  `CONVENTIONS.md`, `COMMANDS.md`
-- Usuarios y permisos: `ROLES.md`
-- Ejecucion: `SPEC.md`
-- Memoria de decisiones: `DECISIONS.md`
+Para entender la estructura SpecNative, lee:
+- [`AGENTS.md`](../AGENTS.md) — contrato operativo para agentes
+- [`spec-native/README.md`](../spec-native/README.md) — índice de navegación
+- [`.specnative/SCHEMA.md`](../.specnative/SCHEMA.md) — contrato del framework

@@ -157,6 +157,10 @@ session-ses_*.md
 .opencode/node_modules/
 .secret_key
 
+# SpecNative MCP — venv no se versiona
+.specnative/.venv/
+.specnative/__pycache__/
+
 # SQLite WAL (Write-Ahead Logging) and shared memory files
 *.db-shm
 *.db-wal
