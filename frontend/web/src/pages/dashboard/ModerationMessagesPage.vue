@@ -61,11 +61,15 @@
           :disabled="item._loading"
         ) Eliminar
         button.btn-sm.btn-answer(
-          v-if="!item.answerText"
-          @click="item._answering = !item._answering"
+          v-if="!item.answerText && !item._answering"
+          @click="startAnswering(item)"
         ) 💬 Responder
+        button.btn-sm.btn-answer(
+          v-if="item.answerText && !item._answering"
+          @click="startAnswering(item)"
+        ) ✏️ Editar respuesta
 
-      .answer-block(v-if="item.answerText")
+      .answer-block(v-if="item.answerText && !item._answering")
         strong ✓ Respondida
         p.answer-text {{ item.answerText }}
 
@@ -199,6 +203,11 @@ export default {
       } catch (e) { item._loading = false }
     }
 
+    function startAnswering(item) {
+      item._answerDraft = item.answerText || ''
+      item._answering = true
+    }
+
     async function submitAnswer(item) {
       item._loading = true
       const messageId = item.uuid || item.messageId || item.messageUuid
@@ -245,7 +254,7 @@ export default {
       items, loading, page, totalPages, statusFilter, conferenceName, authorNames,
       wordNormalized, wordCanonical,
       conferenceId: props.conferenceId,
-      loadModMessages, goToPage, censorDetail, restore, deleteItem, submitAnswer,
+      loadModMessages, goToPage, censorDetail, restore, deleteItem, startAnswering, submitAnswer,
       statusClass, statusLabel, formatTime
     }
   }
