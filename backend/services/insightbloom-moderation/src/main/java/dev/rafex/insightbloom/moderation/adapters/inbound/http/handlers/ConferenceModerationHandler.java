@@ -69,11 +69,15 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
             return false;
         }
         final var validation = usersPort.validate(token);
-        if (!validation.valid() || !"organizer".equals(validation.role())) {
+        if (!validation.valid() || !isOrganizerOrAdmin(validation.role())) {
             sendError(jx, 403, "forbidden", "Only organizers can moderate");
             return false;
         }
         return true;
+    }
+
+    private static boolean isOrganizerOrAdmin(final String role) {
+        return "organizer".equals(role) || "admin".equals(role);
     }
 
     @Override

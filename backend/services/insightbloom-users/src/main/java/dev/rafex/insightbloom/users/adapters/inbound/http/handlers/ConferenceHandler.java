@@ -125,7 +125,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !"organizer".equals(v.role())) {
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
                 sendError(jx, 403, "forbidden", "Only organizers can create conferences");
                 return true;
             }
@@ -254,7 +254,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !"organizer".equals(v.role())) {
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
                 sendError(jx, 403, "forbidden", "Only organizers can view attendee counts");
                 return true;
             }
@@ -263,6 +263,10 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private static boolean isOrganizerOrAdmin(final String role) {
+        return "organizer".equals(role) || "admin".equals(role);
     }
 
     private String extractToken(final JettyHttpExchange jx) {

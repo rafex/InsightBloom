@@ -179,7 +179,7 @@ public class SurveyHandler extends BaseResourceHandler {
             if (path.endsWith("/survey/grade")) {
                 final String token = extractToken(jx);
                 final var v = token == null ? null : usersPort.validate(token);
-                if (v == null || !v.valid() || !"organizer".equals(v.role())) {
+                if (v == null || !v.valid() || !isOrganizerOrAdmin(v.role())) {
                     sendError(jx, 403, "forbidden", "Only organizers can grade responses");
                     return true;
                 }
@@ -240,6 +240,10 @@ public class SurveyHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private static boolean isOrganizerOrAdmin(final String role) {
+        return "organizer".equals(role) || "admin".equals(role);
     }
 
     private String extractToken(final JettyHttpExchange jx) {

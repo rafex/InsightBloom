@@ -59,7 +59,7 @@ public class CertificateSettingsHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !"organizer".equals(v.role())) {
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
                 sendError(jx, 403, "forbidden", "Only organizers can edit certificate settings");
                 return true;
             }
@@ -83,5 +83,9 @@ public class CertificateSettingsHandler extends BaseResourceHandler {
     private String extractToken(final JettyHttpExchange jx) {
         final String auth = jx.request().getHeaders().get("Authorization");
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
+    }
+
+    private static boolean isOrganizerOrAdmin(final String role) {
+        return "organizer".equals(role) || "admin".equals(role);
     }
 }

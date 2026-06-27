@@ -52,7 +52,7 @@ export function useAuthStore() {
   }
 
   function isAuthenticated() { return !!state.token }
-  function isOrganizer() { return state.role === 'organizer' }
+  function isOrganizer() { return state.role === 'organizer' || state.role === 'admin' }
   function isModerator() { return ['organizer', 'moderator'].includes(state.role) }
   function isAdmin() { return state.role === 'admin' }
 
