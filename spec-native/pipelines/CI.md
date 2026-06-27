@@ -11,7 +11,7 @@ GitHub Actions (`.github/workflows/ci.yml`)
 - **Push to**: `main`, `claude/**`
 - **PR to**: `main`
 
-## Jobs
+## Jobs (3 paralelos)
 
 ### 1. Build & Test Services (Java)
 
@@ -22,28 +22,28 @@ GitHub Actions (`.github/workflows/ci.yml`)
 ```
 
 Gates:
-- [x] Compilación sin errores
-- [x] Tests unitarios (JUnit 5 + Mockito)
-- [x] Surefire reports generados
+- [x] Compilación sin errores de todos los módulos Maven
+- [x] Tests unitarios (JUnit 5.11.4 + Mockito 5.18.0)
+- [x] Surefire reports generados en `target/surefire-reports/`
 
 ### 2. Build & Test Frontend (JavaScript)
 
-**Runtime**: `ubuntu-latest`, Node 25, npm cache
+**Runtime**: `ubuntu-latest`, Node 25, npm cache desde `package-lock.json`
 
 ```bash
 npm --prefix frontend/web install
-npm --prefix frontend/web run build
-npm --prefix frontend/web run test
+npm --prefix frontend/web run build    # Vite build
+npm --prefix frontend/web run test     # Vitest
 ```
 
 Gates:
-- [x] Build sin errores
+- [x] Build de producción sin errores (Vite 6)
 - [x] Tests Vitest pasan
 - [x] ESLint sin errores
 
 ### 3. Test Chat Service (Python)
 
-**Runtime**: `ubuntu-latest`, Python 3.12, pip cache
+**Runtime**: `ubuntu-latest`, Python 3.12, pip cache desde `requirements.txt`
 
 ```bash
 pip install -r chat/requirements.txt
@@ -52,16 +52,32 @@ cd chat && python -m pytest -v
 ```
 
 Gates:
-- [x] Tests unitarios pasan
+- [x] Tests unitarios del chat (auth, commands, websocket)
 
-## Optional Gates (futuro)
+## Servicios cubiertos por CI
+
+| Servicio | Build | Tests |
+|----------|-------|-------|
+| users (Java) | Maven | JUnit |
+| ingest (Java) | Maven | JUnit |
+| query (Java) | Maven | JUnit |
+| moderation (Java) | Maven | JUnit |
+| stats (Java) | Maven | JUnit |
+| survey (Java) | Maven | JUnit |
+| cli (Java) | Maven | — |
+| presentations (Node.js) | — | — (no incluido en CI actual) |
+| chat (Python) | — | pytest |
+| web (Vue) | Vite | Vitest + ESLint |
+
+## Fail Policy
+
+- **PR**: bloquea merge si cualquier job falla.
+- **Push a main**: notifica fallo, no revierte.
+
+## Optional Gates (no implementados aún)
 
 - [ ] Coverage report (JaCoCo / vitest coverage)
 - [ ] SAST scan (CodeQL / SonarQube)
 - [ ] Integration tests con Docker Compose
-- [ ] E2E tests con Playwright
-
-## Failure Policy
-
-- **PR**: bloquea merge si cualquier job falla.
-- **Push a main**: notifica fallo, no revierte.
+- [ ] E2E tests con Playwright/Cypress
+- [ ] CI para presentations service

@@ -4,10 +4,11 @@ Fuente de verdad de la base tecnologica del proyecto.
 
 ## Runtime
 
-- Frontend:
-  Node.js para desarrollo local y toolchain de construccion.
-- Backend:
-  Java 25.
+- Frontend SPA: Node.js 25 para desarrollo y build (Vite). Runtime: nginx 1.27-alpine.
+- Backend Java: Java 25 (Temurin) + Ether 9.5.5 (Jetty 12).
+- Backend presentations: Node.js 22 (Express 4.21).
+- Chat: Python 3.12 (FastAPI + uvicorn + WebSocket).
+- CLI admin: Java 25.
 
 ## Frameworks
 
@@ -36,63 +37,63 @@ Fuente de verdad de la base tecnologica del proyecto.
 ## Infraestructura
 
 - Persistencia:
-  SQLite para el PoC inicial. Cada microservicio mantiene su propia base de
-  datos y ownership de datos bajo `/data/<service>.db`. La persistencia es
-  efimera para el PoC y no necesita sobrevivir al reinicio del contenedor,
-  aunque los volumenes Docker la preservan entre reinicios en la config actual.
+  SQLite con `PRAGMA journal_mode=WAL` y `busy_timeout=5000` en todos los
+  servicios Java y el chat. Cada microservicio mantiene su propia base de
+  datos bajo `/data/<service>.db` con ownership exclusivo. Volumenes Docker
+  nombrados preservan datos entre reinicios en desarrollo.
+  `presentations` no usa base de datos — almacena archivos en volumen Docker.
 - Contenedores:
   Estructura bajo `container/`:
   - `container/backend/java/Dockerfile`: imagen multi-stage parametrizada.
-    Stage builder con `eclipse-temurin:25-jdk-alpine` compila todos los
-    modulos Maven; stage runtime con `eclipse-temurin:25-jre-alpine` copia
-    solo el JAR del servicio indicado por `ARG SERVICE`.
+    Stage builder `eclipse-temurin:25-jdk-alpine` compila modulos Maven;
+    stage runtime `eclipse-temurin:25-jre-alpine` copia solo el JAR del
+    servicio indicado por `ARG SERVICE`. Usado por: users, ingest, query,
+    moderation, stats, survey.
+  - `backend/services/insightbloom-presentations/Dockerfile`: imagen Node.js
+    para el servicio de presentaciones (Express + Marp CLI).
+  - `chat/Dockerfile`: imagen Python 3.12 para el servicio de chat.
   - `container/frontend/Dockerfile`: stage builder `node:22-alpine` ejecuta
     `npm ci && npm run build`; stage runtime `nginx:1.27-alpine` sirve el SPA
     y actua como reverse proxy hacia los backends.
-  - `container/frontend/nginx.conf`: proxy rules replicando exactamente los
-    rewrites de `vite.config.js` para `/api/users`, `/api/ingest`,
-    `/api/query`, `/api/moderation`. Cache de assets estaticos (1 año).
-    SPA catch-all con `try_files`.
-  - `container/compose.yml`: orquesta 6 servicios con `depends_on` +
+  - `container/frontend/nginx.conf`: proxy rules para `/api/users`, `/api/ingest`,
+    `/api/query`, `/api/moderation`, `/api/survey`, `/api/presentations`.
+    Cache de assets estaticos (1 año). SPA catch-all con `try_files`.
+  - `container/compose.yml`: orquesta 9 servicios con `depends_on` +
     `condition: service_healthy`. Red interna `backend`. Volumenes nombrados
-    para cada servicio.
-- Hosting:
-  despliegue apoyado en contenedores y charts Helm.
-- CI/CD:
-  GitHub Actions via `.github/workflows`.
-- Observabilidad:
-  por definir.
+    para cada servicio con persistencia.
+- Hosting: despliegue en K3s via Helm charts (`infra/helm/charts/insightbloom`).
+- Container Registry: GitHub Container Registry (`ghcr.io/rafex/insightbloom-*`).
+- CI/CD: GitHub Actions (3 workflows). Ver `pipelines/CI.md` y `pipelines/CD.md`.
 
 ## Integraciones
 
-- Chat de entrada:
-  fuente de comandos `/duda` y `/tema` ya parseados. El sistema recibira
-  eventos por webhook y tambien llamadas por API REST.
-- Seguridad:
-  tokens para usuarios registrados y usuarios invitados o nuevos, apoyados en
-  `ether-crypto`.
-- Identidad de dispositivo:
-  el frontend obtendra un identificador de dispositivo con ThumbmarkJS para
-  enviarlo como parte del contrato.
-- Maven Central / Sonatype:
-  todos los modulos Ether se distribuyen desde Maven Central via
-  `dev.rafex.ether.*`. Catalogo oficial: https://ether.rafex.io/
-- Tooling local:
-  `Makefile` como builder y `Justfile` como task runner. Los scripts de
-  soporte viven en `scripts/build/` (construccion), `scripts/run/`
-  (ejecucion) y `scripts/sim/` (simulacion y demo).
+- **LLM Provider** (DeepSeek via API compatible con OpenAI):
+  usado por `chat` (bot Roberto) y `survey` (generacion de preguntas).
+  Configuracion: `LLM_PROVIDER_BASE_URL`, `LLM_PROVIDER_MODEL`, `LLM_PROVIDER_API_KEY`.
+  Libreria: `openai` 1.55 (Python).
+- **Twilio**: envio de OTP via SMS para verificacion de usuarios.
+  Configuracion: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`.
+- **Zoho SMTP**: envio de correos (certificados, notificaciones, OTP email).
+  Configuracion: `ZOHO_SMTP_HOST` (default: smtppro.zoho.com), `ZOHO_SMTP_PORT`
+  (default: 465), `ZOHO_SMTP_USERNAME`, `ZOHO_SMTP_PASSWORD`, `ZOHO_FROM_ADDRESS`.
+- **Marp CLI**: conversion Markdown → HTML slides. Paquete `@marp-team/marp-cli` ^4.0.
+- **Identidad de dispositivo**: ThumbmarkJS para fingerprint del cliente (GUEST).
+- **Seguridad**: tokens JWT (ether-jwt), hashing SHA-256 (ether-crypto),
+  header `X-Internal-Auth` para comunicacion entre servicios.
+- **Maven Central / Sonatype**: modulos Ether desde `dev.rafex.ether.*`.
+  Catalogo: https://ether.rafex.io/
+- **Tooling local**: `Makefile` (builder) + `Justfile` (task runner).
+  Scripts: `scripts/build/`, `scripts/run/`, `scripts/sim/`.
 
 ## Restricciones
 
-- El frontend debe construirse inicialmente con JavaScript, no TypeScript.
-- El backend debe implementarse con Java 25 y evitar frameworks pesados
-  fuera de la biblioteca estandar y la libreria HTTP seleccionada.
-- La persistencia inicial del PoC debe resolverse con SQLite.
-- La persistencia del PoC es efimera y puede perderse al reiniciar el
-  contenedor.
+- El frontend SPA se construye con JavaScript, no TypeScript (por decision de diseño).
+- El backend Java usa Ether 9.5.5 + Jetty 12. Evitar frameworks externos (Spring, etc.).
+- La persistencia por defecto es SQLite con WAL mode.
+- Los datos en SQLite persisten via volumenes Docker y no son efimeros.
 - Los identificadores expuestos por APIs y entre servicios deben ser UUID.
-- La nube de palabras debe apoyarse en D3.js (d3-cloud).
-- Los mapas de ubicacion deben usar Leaflet.js + OpenStreetMap (no Google Maps
-  ni tiles de pago).
-- La UI debe estar preparada para una experiencia en vivo, con enfasis en
-  lectura rapida y actualizacion fluida.
+- La nube de palabras debe usar D3.js (d3-cloud), no librerias alternativas.
+- Los mapas deben usar Leaflet.js + OpenStreetMap (no Google Maps ni tiles de pago).
+- La UI debe estar preparada para experiencia en vivo: lectura rapida, actualizacion fluida.
+- Las comunicaciones entre servicios se protegen con `X-Internal-Auth` (no opcional en prod).
+- Los secretos nunca se versionan en el repositorio (ver `.gitignore`).

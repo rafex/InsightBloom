@@ -230,3 +230,113 @@ Registrar una decision cuando cambie:
   mantiene SQLite como persistencia del PoC sin introducir infraestructura
   adicional.
 - Reemplaza: `none`
+
+### DEC-0011 - Rol ADMIN y soporte multi-rol en usuarios
+
+- Fecha: 2026-06-27
+- Estado: accepted
+- Contexto:
+  la plataforma necesitaba un rol de administracion del sistema separado del
+  organizador de conferencias. Ademas, un mismo usuario podia necesitar ser
+  administrador del sistema y organizador de conferencias simultaneamente.
+- Decision:
+  crear el rol `ADMIN` que hereda todas las capacidades de `ORGANIZER` y
+  anade gestion de usuarios (listar, editar, banear, restaurar). El campo
+  `role` en la tabla `users` pasa a llamarse `roles` y acepta multiples
+  roles separados por coma (ej: `ORGANIZER,ADMIN`). Los endpoints de admin
+  (`/admin/users`) requieren rol `ADMIN`.
+- Consecuencias:
+  separacion clara entre gestion de plataforma y gestion de conferencias;
+  un mismo usuario puede operar en ambos contextos sin necesidad de cuentas
+  separadas;
+  el CLI debe aceptar `--role` con valores multiples;
+  los tests de auth deben verificar multi-rol en el token JWT.
+- Reemplaza: `none`
+
+### DEC-0012 - Presentations como microservicio Node.js independiente
+
+- Fecha: 2026-06-27
+- Estado: accepted
+- Contexto:
+  la plataforma necesitaba soporte para subir y visualizar presentaciones de
+  slides durante conferencias. La herramienta elegida fue Marp (Markdown →
+  HTML). Marp CLI es un paquete npm sin equivalente Java maduro, y embeberlo
+  en el frontend o en un servicio Java añadiria complejidad innecesaria.
+- Decision:
+  `insightbloom-presentations` se implementa como un microservicio
+  Node.js/Express independiente (no Java, no arquitectura hexagonal).
+  Usa `@marp-team/marp-cli` para conversion, `multer` para upload multipart,
+  `adm-zip` para extraer archivos, `cheerio` para parsear slides HTML.
+  No usa base de datos — los archivos se almacenan en volumen Docker.
+  Se despliega en puerto 8091.
+- Consecuencias:
+  se introduce Node.js como runtime adicional en el stack backend;
+  el Dockerfile es independiente (no usa el Dockerfile Java parametrizado);
+  la ausencia de base de datos simplifica el despliegue pero limita
+  funcionalidades futuras (historial, busqueda de slides);
+  el build de CI no incluye este servicio actualmente.
+- Reemplaza: `none`
+
+### DEC-0013 - OTP dual channel: Twilio SMS + Zoho email
+
+- Fecha: 2026-06-27
+- Estado: accepted
+- Contexto:
+  se requeria verificacion de identidad de usuarios mas alla del
+  username/password. El sistema debia soportar al menos un canal de OTP,
+  pero Twilio tiene costos por SMS y Zoho SMTP permite email gratuito.
+- Decision:
+  implementar ambos canales como opcionales: Twilio SMS (via API REST) y
+  Zoho email (via SMTP). Si ninguno esta configurado, el OTP queda
+  deshabilitado sin bloquear el flujo de autenticacion. Las credenciales
+  se inyectan via variables de entorno y Kubernetes secrets, nunca en el
+  codigo ni en archivos de configuracion.
+- Consecuencias:
+  el organizador puede elegir el canal segun su presupuesto y audiencia;
+  si ambos canales fallan o no estan configurados, el sistema funciona en
+  modo sin OTP (degradacion graceful);
+  añade dependencia operativa de dos servicios externos.
+- Reemplaza: `none`
+
+### DEC-0014 - LLM para generacion de preguntas en survey
+
+- Fecha: 2026-06-27
+- Estado: accepted
+- Contexto:
+  el servicio de encuestas necesitaba generar preguntas contextuales para
+  cada conferencia. Escribirlas manualmente no escalaba. El sistema ya tenia
+  integracion con LLM provider via el chat (bot Roberto).
+- Decision:
+  `insightbloom-survey` puede usar el mismo LLM provider (DeepSeek via API
+  OpenAI-compatible) para generacion de preguntas. La funcionalidad es
+  opcional y se activa via variables de entorno (`LLM_PROVIDER_BASE_URL`,
+  `LLM_PROVIDER_MODEL`, `LLM_PROVIDER_API_KEY`). La generacion de preguntas
+  es on-demand, no automatica.
+- Consecuencias:
+  reutiliza la misma infraestructura de LLM del chat;
+  el survey funciona sin LLM (preguntas manuales) si no esta configurado;
+  añade latencia y costo por llamada al generar preguntas;
+  la calidad de las preguntas depende del modelo configurado.
+- Reemplaza: `none`
+
+### DEC-0015 - Migracion a SpecNative Development v0.7
+
+- Fecha: 2026-06-26
+- Estado: accepted
+- Contexto:
+  el proyecto supero la fase PoC y necesitaba una base documental escalable
+  para desarrollo multi-agente. La documentacion vivia en `docs/` con una
+  estructura ad-hoc inspirada en SpecNative pero sin seguir el estandar.
+- Decision:
+  migrar toda la documentacion de contexto a `spec-native/` siguiendo el
+  estandar SpecNative Development v0.7. Instalar el servidor MCP para
+  soporte multi-agente. Mantener `docs/` como referencia legacy con aviso
+  de deprecacion. Mantener `agents/` para artefactos operativos (SECURITY,
+  DIAGNOSE). Adoptar `opencode.json` con prompts spec-*.
+- Consecuencias:
+  cualquier agente compatible con MCP puede retomar trabajo sin friccion;
+  la estructura documental es validable y trazable;
+  `docs/` queda deprecado pero se mantiene para no romper enlaces externos;
+  la migracion es incremental — los documentos se actualizan progresivamente
+  para reflejar el codigo real.
+- Reemplaza: `none`

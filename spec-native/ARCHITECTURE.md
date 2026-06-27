@@ -4,34 +4,70 @@ Describe la arquitectura actual del proyecto.
 
 ## Vision general
 
-El sistema se divide en un frontend web para visualizacion interactiva y
-un conjunto de microservicios HTTP para recepcion, consulta, moderacion,
-usuarios y estadisticas. Los servicios reciben mensajes estructurados a
-partir de comandos como `/duda` y `/tema` ya parseados, normalizan la
-palabra clave, conservan el detalle descriptivo y permiten operar una
-moderacion mixta: automatica y manual. El frontend consulta los datos
-agregados para renderizar nubes separadas de dudas y temas y permite abrir
-una vista de detalle por palabra en formato timeline cronologico.
+El sistema se divide en un frontend web para visualizacion interactiva, un
+conjunto de microservicios HTTP (Java + Ether 9.5.5) para recepcion, consulta,
+moderacion, usuarios, estadisticas, encuestas y presentaciones, y un servicio
+de chat en tiempo real (Python/FastAPI + WebSocket). Los servicios reciben
+mensajes estructurados a partir de comandos como `/duda` y `/tema` ya
+parseados, normalizan la palabra clave, conservan el detalle descriptivo y
+permiten operar una moderacion mixta: automatica y manual. El frontend
+consulta los datos agregados para renderizar nubes separadas de dudas y temas
+y permite abrir una vista de detalle por palabra en formato timeline
+cronologico. Incluye ademas dashboards de moderacion, gestion de presentaciones,
+encuestas con certificados y administracion de usuarios.
 
 La responsabilidad de agregacion, ordenamiento, seguridad y moderacion vive
 en backend. La responsabilidad de visualizacion, navegacion y animacion vive
-en frontend. Para el PoC, cada microservicio tiene su propia base SQLite
-efimera. Los microservicios backend implementan arquitectura hexagonal para
-separar dominio, casos de uso y adaptadores.
+en frontend. Cada microservicio Java tiene su propia base SQLite (WAL mode).
+Los microservicios Java implementan arquitectura hexagonal para separar
+dominio, casos de uso y adaptadores. El servicio de chat usa SQLite propio.
+El servicio de presentaciones es Node.js/Express (sin arquitectura hexagonal,
+microservicio ligero).
 
 ## Modulos principales
 
-- Modulo frontend web:
+- Modulo frontend web (SPA Vue 3 + Vite, puerto 80 via nginx en Docker):
   renderiza la nube de palabras con D3.js, administra rutas con Vue Router,
   presenta animaciones, obtiene el identificador de dispositivo con
   ThumbmarkJS y muestra el timeline de detalles al seleccionar una palabra.
-  Incluye una pantalla introductoria con mapa Leaflet+OpenStreetMap animado
-  que muestra la ubicacion geografica de la conferencia antes de presentar
-  la nube de palabras.
-- Modulo dashboard de moderacion:
-  permite revisar palabras y mensajes capturados, ver estado de censura e
-  intencion estimada y aplicar censura manual sobre casos no detectados por
-  la barrera automatica.
+  Incluye pantalla introductoria con mapa Leaflet+OpenStreetMap, perfil de
+  usuario, landing page, y dashboards administrativos.
+
+  Paginas implementadas:
+  - **Landing**: `LandingPage.vue` — entrada publica al producto
+  - **Auth**: `LoginPage.vue`, `RegisterPage.vue` — autenticacion
+  - **Dashboard** (organizador/admin): `DashboardLayout.vue` + sub-paginas
+    - `NewConferencePage.vue` — creacion de conferencia con mapa
+    - `JoinConferencePage.vue` — acceso via friendlyId
+    - `ModerationWordsPage.vue` / `ModerationMessagesPage.vue` — censura manual
+    - `SurveyManagePage.vue` — gestion de encuestas
+    - `PresentationManagePage.vue` — upload y gestion de slides (Marp)
+    - `AdminUsersPage.vue` — administracion de usuarios (solo ADMIN)
+    - `CertificateSettingsPage.vue` — configuracion de certificados
+    - `DashboardHome.vue` — resumen del organizador
+  - **Conferencia** (vista publica): `ConferencePage.vue` + sub-paginas
+    - `CloudDoubtsPage.vue` / `CloudTopicsPage.vue` — nubes D3.js
+    - `WordTimelinePage.vue` — detalle de palabra
+    - `PresentationPage.vue` — visualizacion de slides
+    - `SurveyPage.vue` — responder encuestas
+  - **Perfil**: `ProfilePage.vue` — edicion de perfil de usuario
+
+  Componentes reutilizables:
+  - `WordCloud.vue` — nube de palabras D3.js + d3-cloud
+  - `TimelineItem.vue` — item del timeline de mensajes
+  - `ConferenceIntroMap.vue` / `ConferenceMap.vue` — mapas Leaflet
+  - `ModerationTable.vue` — tabla de mensajes para moderar
+  - `BarChart.vue` — grafico de barras para estadisticas
+
+  APIs cliente en `src/services/api/`:
+  - `authApi.js`, `usersApi.js`, `ingestApi.js`, `queryApi.js`
+  - `moderationApi.js`, `surveyApi.js`, `presentationsApi.js`
+  - `adminApi.js` — endpoints administrativos
+
+  Estado global:
+  - `authStore.js` (Pinia) — autenticacion, token, rol, fingerprint
+  - `useConference.js` — composable de conferencia activa
+  - `fingerprint.js` — identificador de dispositivo (ThumbmarkJS)
 - Microservicio `insightbloom-ingest`:
   recibe eventos ya parseados por webhook o API REST, valida tokens y
   persiste mensajes canonicos con metadatos del emisor y del dispositivo.
@@ -49,6 +85,16 @@ separar dominio, casos de uso y adaptadores.
   y coordenadas geograficas).
 - Microservicio `insightbloom-stats`:
   calcula agregados y relevancia para enriquecer la nube de palabras.
+  Protegido: requiere autenticacion de organizador (SECURITY.md #6).
+- Microservicio `insightbloom-survey` — Puerto 8086:
+  gestiona encuestas vinculadas a conferencias con soporte de LLM opcional
+  para generacion de preguntas. Expone endpoints para crear, responder y
+  consultar resultados de encuestas. Emite certificados al finalizar.
+- Microservicio `insightbloom-presentations` — Puerto 8091:
+  servicio Node.js/Express que recibe archivos Marp (Markdown), los convierte
+  a HTML via `@marp-team/marp-cli` y sirve slides pre-renderizados para
+  visualizacion en la conferencia. Recibe uploads via multipart. Extrae
+  slides individuales como preview.
 
 ## Distribucion de paquetes Java
 
@@ -58,7 +104,9 @@ Todos los microservicios backend siguen el mismo patron de paquetes raiz:
 dev.rafex.insightbloom.{servicio}
 ```
 
-Donde `{servicio}` es `users`, `ingest`, `query`, `moderation` o `stats`.
+Donde `{servicio}` es `users`, `ingest`, `query`, `moderation`, `stats` o `survey`.
+`insightbloom-presentations` es un servicio Node.js/Express — no sigue esta
+estructura de paquetes.
 
 ### Capas y sub-paquetes
 
@@ -298,23 +346,36 @@ frontend/web/
   vite.config.js        proxy de desarrollo: /api/{servicio} → localhost:{puerto}
   src/
     main.js
+    App.vue
     app/
-      router/           rutas y guards
-      layout/           AppHeader y shells
+      router/index.js   rutas y guards de autenticacion
+      layout/AppHeader.vue
     pages/
-      landing/
-      login/
-      conference/       ConferencePage (intro map + tabs + router-view)
-      dashboard/        NewConferencePage, ModerationWordsPage,
-                        ModerationMessagesPage
+      landing/LandingPage.vue
+      login/LoginPage.vue, RegisterPage.vue
+      profile/ProfilePage.vue
+      conference/       ConferencePage + CloudDoubtsPage, CloudTopicsPage,
+                        WordTimelinePage, PresentationPage, SurveyPage
+      dashboard/        DashboardLayout + NewConferencePage, JoinConferencePage,
+                        ModerationWordsPage, ModerationMessagesPage,
+                        SurveyManagePage, PresentationManagePage,
+                        AdminUsersPage, CertificateSettingsPage,
+                        DashboardHome
     components/
-      cloud/            WordCloud
-      map/              ConferenceMap (preview), ConferenceIntroMap (intro)
-      tables/           ModerationTable
+      cloud/WordCloud.vue
+      timeline/TimelineItem.vue
+      map/ConferenceIntroMap.vue, ConferenceMap.vue
+      charts/BarChart.vue
+      tables/ModerationTable.vue
     services/
-      api/              usersApi, ingestApi, queryApi, moderationApi
+      api/              authApi, usersApi, ingestApi, queryApi,
+                        moderationApi, surveyApi, presentationsApi, adminApi
+      auth/fingerprint.js
     features/
-      auth/
+      auth/authStore.js
+      conferences/useConference.js
+    config/contact.js
+    styles/global.css
 ```
 
 ## Estructura raiz del repositorio
@@ -328,6 +389,8 @@ frontend/web/
   frontend/
     web/                aplicacion Vue + Vite
   backend/
+    common/              codigo compartido (BaseResourceHandler,
+                         SqliteConnectionProvider, ColumnMigrationHelper)
     contracts/
       insightbloom-contracts/   DTOs e interfaces compartidas
     services/
@@ -336,15 +399,18 @@ frontend/web/
       insightbloom-query/
       insightbloom-moderation/
       insightbloom-stats/
+      insightbloom-survey/
+      insightbloom-presentations/   Node.js/Express (no Java)
     cli/
       insightbloom-cli/
+  chat/                  servicio Python FastAPI + WebSocket (puerto 8090)
   container/
     backend/java/
       Dockerfile        build multi-etapa Maven → JRE (ARG SERVICE)
     frontend/
       Dockerfile        build multi-etapa Vite → nginx
       nginx.conf        SPA + reverse proxy /api/{servicio}/
-    compose.yml         orquestacion completa de los 6 servicios
+    compose.yml         orquestacion completa (9 servicios)
   infra/
     docker/             Dockerfiles originales (referencia)
     compose/            compose local original
@@ -388,6 +454,12 @@ frontend/web/
   las decisiones de moderacion.
 - `insightbloom-stats`:
   agregados de relevancia y metricas derivadas para ranking de palabras.
+- `insightbloom-survey`:
+  encuestas y respuestas, preguntas generadas con LLM opcional,
+  certificados de finalizacion.
+- `insightbloom-presentations`:
+  archivos Marp subidos, slides HTML pre-renderizados. Datos en volumen
+  Docker, sin base de datos.
 
 ## Contratos entre servicios
 
@@ -408,7 +480,22 @@ insightbloom-moderation
         (ambas llamadas son best-effort / fire-and-forget)
 ```
 
-Comunicacion: HTTP sincrono entre servicios. Sin broker de eventos en el PoC.
+Comunicacion: HTTP sincrono entre servicios Java. Sin broker de eventos.
+Los servicios pueden comunicarse con endpoints internos protegidos por
+`X-Internal-Auth` (header con `INTERNAL_API_KEY` compartida).
+
+## Integraciones externas
+
+- **DeepSeek / LLM provider**: usado por `chat` (bot Roberto) y `survey`
+  (generacion de preguntas). Configurado via `LLM_PROVIDER_BASE_URL`,
+  `LLM_PROVIDER_MODEL` y `LLM_PROVIDER_API_KEY`.
+- **Twilio**: OTP via SMS para verificacion de usuarios. Configurado via
+  `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`.
+- **Zoho SMTP**: envio de correos (certificados, notificaciones).
+  Configurado via `ZOHO_SMTP_HOST`, `ZOHO_SMTP_PORT`, `ZOHO_SMTP_USERNAME`,
+  `ZOHO_SMTP_PASSWORD`, `ZOHO_FROM_ADDRESS`.
+- **Marp CLI**: conversion de Markdown a slides HTML en `presentations`.
+  Paquete npm `@marp-team/marp-cli`.
 
 ## Flujo principal
 
@@ -447,10 +534,14 @@ Comunicacion: HTTP sincrono entre servicios. Sin broker de eventos en el PoC.
 - La censura manual desde dashboard debe impactar la consulta de nube y
   detalle sin requerir reprocesos manuales complejos.
 - El sistema debe aceptar tanto webhook como API REST como entradas validas.
-- Respetar ownership de datos por microservicio; no compartir SQLite.
-- La persistencia efimera del PoC no se asume como almacenamiento historico.
+- Respetar ownership de datos por microservicio; no compartir SQLite entre
+  servicios Java.
 - Mantener separacion clara entre comandos entrantes, modelo de dominio y
   representacion visual.
+- Los endpoints `/internal/*` requieren header `X-Internal-Auth` con
+  `INTERNAL_API_KEY` compartida entre servicios (no opcional en produccion).
+- Los puertos de los microservicios no deben exponerse directamente al host
+  en produccion; el unico punto de entrada publico es nginx (puerto 80/8080).
 - Los endpoints `/internal/*` de `insightbloom-query` son solo para
   comunicacion inter-servicio y no deben exponerse al frontend ni a
   usuarios externos.
