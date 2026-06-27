@@ -95,6 +95,19 @@ ingressChat:
           pathType: Prefix
   tls: []
 
+ingressTelegram:
+  enabled: true
+  className: haproxy
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    ingress.kubernetes.io/backend-protocol: "http"
+  hosts:
+    - host: telegram-insightbloom.v1.rafex.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
 # ── Services ───────────────────────────────────────────────────────────────────
 services:
   users:
@@ -112,6 +125,7 @@ services:
       MODERATION_URL: http://insightbloom-moderation:8084
       PRESENTATIONS_URL: http://insightbloom-presentations:8091
       SURVEY_URL: http://insightbloom-survey:8086
+      TELEGRAM_URL: http://insightbloom-telegram:8095
       TWILIO_ACCOUNT_SID: ""
       TWILIO_FROM_NUMBER: ""
       ZOHO_SMTP_HOST: "smtppro.zoho.com"
@@ -125,6 +139,9 @@ services:
       - name: ZOHO_SMTP_PASSWORD
         secretName: insightbloom-users-secrets
         secretKey: zoho-smtp-password
+      - name: INTERNAL_API_KEY
+        secretName: insightbloom-internal-secrets
+        secretKey: internal-api-key
 
   stats:
     repository: ghcr.io/rafex/insightbloom-stats
@@ -263,6 +280,29 @@ services:
       - name: CHAT_SECRET_KEY
         secretName: insightbloom-chat-secrets
         secretKey: chat-secret-key
+
+  telegram:
+    repository: ghcr.io/rafex/insightbloom-telegram
+    port: 8095
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: local-path
+    env:
+      PORT: "8095"
+      DB_PATH: /data/telegram.db
+      INGEST_URL: http://insightbloom-ingest:8082
+      USERS_URL: http://insightbloom-users:8081
+    secretEnv:
+      - name: TELEGRAM_BOT_TOKEN
+        secretName: insightbloom-telegram-secrets
+        secretKey: bot-token
+      - name: TELEGRAM_WEBHOOK_SECRET
+        secretName: insightbloom-telegram-secrets
+        secretKey: webhook-secret
+      - name: INTERNAL_API_KEY
+        secretName: insightbloom-internal-secrets
+        secretKey: internal-api-key
 
 nodeSelector: {}
 tolerations: []

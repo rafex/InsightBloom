@@ -4,13 +4,15 @@ import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.EmailPort;
+import dev.rafex.insightbloom.users.domain.ports.TelegramNotifyPort;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 
-/** Emails an attendee when the organizer answers a doubt they submitted, offline. */
+/** Notifies (email + Telegram) when the organizer answers a doubt submitted offline. */
 public class NotifyDoubtAnsweredUseCase {
     private final UserRepository userRepository;
     private final ConferenceRepository conferenceRepository;
     private final EmailPort emailPort;
+    private final TelegramNotifyPort telegramNotifyPort;
     private final String frontendBaseUrl;
     private final ContactInfo contact;
 
@@ -20,11 +22,13 @@ public class NotifyDoubtAnsweredUseCase {
     public NotifyDoubtAnsweredUseCase(final UserRepository userRepository,
                                        final ConferenceRepository conferenceRepository,
                                        final EmailPort emailPort,
+                                       final TelegramNotifyPort telegramNotifyPort,
                                        final String frontendBaseUrl,
                                        final ContactInfo contact) {
         this.userRepository = userRepository;
         this.conferenceRepository = conferenceRepository;
         this.emailPort = emailPort;
+        this.telegramNotifyPort = telegramNotifyPort;
         this.frontendBaseUrl = frontendBaseUrl;
         this.contact = contact;
     }
@@ -32,6 +36,8 @@ public class NotifyDoubtAnsweredUseCase {
     public record Request(String authorUuid, String conferenceUuid, String question, String answer) {}
 
     public void execute(final Request req) {
+        notifyTelegram(req);
+
         if (!emailPort.isEnabled()) return;
         if (req.authorUuid() == null || req.authorUuid().isBlank()) return;
 
@@ -73,6 +79,17 @@ public class NotifyDoubtAnsweredUseCase {
             emailPort.send(user.getEmail(), subject, body);
         } catch (final Exception e) {
             // best-effort: the answer itself is already saved regardless of email delivery
+        }
+    }
+
+    private void notifyTelegram(final Request req) {
+        if (req.conferenceUuid() == null || req.conferenceUuid().isBlank()) return;
+        try {
+            final String message = "💬 Respondieron una duda:\n\n%s\n\nRespuesta:\n%s".formatted(
+                    req.question(), req.answer());
+            telegramNotifyPort.notifyConference(req.conferenceUuid(), message);
+        } catch (final Exception e) {
+            // best-effort: independiente del email, nunca debe interrumpir el flujo de respuesta
         }
     }
 }

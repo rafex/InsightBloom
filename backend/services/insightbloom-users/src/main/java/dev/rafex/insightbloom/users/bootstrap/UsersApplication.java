@@ -8,6 +8,7 @@ import dev.rafex.insightbloom.users.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.users.adapters.outbound.cascade.HttpCascadeDeleteClient;
 import dev.rafex.insightbloom.users.adapters.outbound.sqlite.*;
 import dev.rafex.insightbloom.users.adapters.outbound.surveyclient.HttpSurveyClient;
+import dev.rafex.insightbloom.users.adapters.outbound.telegramclient.HttpTelegramNotifyClient;
 import dev.rafex.insightbloom.users.adapters.outbound.twilio.TwilioSmsClient;
 import dev.rafex.insightbloom.users.adapters.outbound.zoho.ZohoEmailClient;
 import dev.rafex.insightbloom.users.application.usecases.*;
@@ -21,6 +22,8 @@ public class UsersApplication {
         final String moderationUrl = System.getenv().getOrDefault("MODERATION_URL", "http://insightbloom-moderation:8084");
         final String presentationsUrl = System.getenv().getOrDefault("PRESENTATIONS_URL", "http://insightbloom-presentations:8091");
         final String surveyUrl = System.getenv().getOrDefault("SURVEY_URL", "http://insightbloom-survey:8086");
+        final String telegramUrl = System.getenv().getOrDefault("TELEGRAM_URL", "http://insightbloom-telegram:8095");
+        final String internalApiKey = System.getenv().getOrDefault("INTERNAL_API_KEY", "");
 
         final String twilioAccountSid = System.getenv().getOrDefault("TWILIO_ACCOUNT_SID", "");
         final String twilioAuthToken = System.getenv().getOrDefault("TWILIO_AUTH_TOKEN", "");
@@ -61,6 +64,7 @@ public class UsersApplication {
         final var smsPort = new TwilioSmsClient(twilioAccountSid, twilioAuthToken, twilioFromNumber);
         final var emailPort = new ZohoEmailClient(zohoSmtpHost, zohoSmtpPort, zohoUsername, zohoPassword, zohoFromAddress);
         final var surveyPort = new HttpSurveyClient(surveyUrl);
+        final var telegramNotifyPort = new HttpTelegramNotifyClient(telegramUrl, internalApiKey);
 
         // Use cases
         final var loginUseCase = new LoginUseCase(userRepo, tokenService);
@@ -79,7 +83,7 @@ public class UsersApplication {
         final var generateCertificateUseCase = new GenerateCertificateUseCase(
                 conferenceRepo, userRepo, surveyPort, certificateSettingsRepo);
         final var notifyDoubtAnsweredUseCase = new NotifyDoubtAnsweredUseCase(
-                userRepo, conferenceRepo, emailPort, frontendBaseUrl, contactInfo);
+                userRepo, conferenceRepo, emailPort, telegramNotifyPort, frontendBaseUrl, contactInfo);
         final var getCertificateSettingsUseCase = new GetCertificateSettingsUseCase(certificateSettingsRepo);
         final var saveCertificateSettingsUseCase = new SaveCertificateSettingsUseCase(certificateSettingsRepo);
         final var countAttendeesUseCase = new CountAttendeesUseCase(guestRepo);
