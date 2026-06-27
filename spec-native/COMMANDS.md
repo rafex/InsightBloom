@@ -157,13 +157,86 @@ Crear o actualizar usuario dentro del pod `users` (sin endpoint admin):
   --release <helm-release> \
   --username <u> \
   --password <p> \
-  --role ORGANIZER
+  --role ORGANIZER,ADMIN
 
 # ejemplo rápido (defaults: ns=default, release=insightbloom)
 ./scripts/run/k3s-create-user.sh \
   --username admin \
   --password "cambia-esta-clave" \
   --role ORGANIZER
+```
+
+## Chat (Python + FastAPI)
+
+```bash
+# Instalar dependencias y crear venv
+just chat-install
+
+# Desarrollo local (requiere DEEPSEEK_API_KEY)
+just chat-dev
+
+# Personalizar URL de ingest
+INGEST_URL=http://localhost:8082 just chat-dev
+
+# Ejecutar tests
+cd chat && python -m pytest -v
+```
+
+## Survey
+
+```bash
+# El servicio survey se levanta con el resto de servicios Java
+just dev-services
+
+# Sin LLM (preguntas manuales) — no requiere variables extra
+# Con LLM (generacion de preguntas) — requiere variables:
+#   LLM_PROVIDER_BASE_URL, LLM_PROVIDER_MODEL, LLM_PROVIDER_API_KEY
+```
+
+## Presentations
+
+```bash
+# Instalar dependencias
+npm --prefix backend/services/insightbloom-presentations install
+
+# Levantar standalone
+PORT=8091 DATA_DIR=./data node backend/services/insightbloom-presentations/server.js
+```
+
+## Perfil de usuario
+
+```bash
+# Ver/editar perfil desde el frontend
+# Endpoints: GET /profile, PATCH /profile
+# Requiere token JWT valido (ORGANIZER, MODERATOR o ADMIN)
+```
+
+## Admin de usuarios (rol ADMIN)
+
+```bash
+# Endpoints disponibles en el frontend:
+# GET    /admin/users              — listar usuarios
+# PATCH  /admin/users/{id}         — editar usuario
+# POST   /admin/users/{id}/ban     — banear (soft-delete)
+# POST   /admin/users/{id}/restore — restaurar
+```
+
+## CI/CD
+
+```bash
+# Pipeline completo local
+just ci
+
+# Build y publicacion de contenedores
+#   push a main → tag latest en GHCR
+#   push de tag vN.YYYYmmDD → tag versionado en GHCR
+#   workflow_dispatch manual → tag especifico
+
+# Deploy a K3s
+just deploy-k3s
+
+# Deploy con tag especifico
+just deploy-k3s v1.20260424
 ```
 
 ## Nota

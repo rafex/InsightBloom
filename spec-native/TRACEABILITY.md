@@ -9,7 +9,7 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | SPEC-MAIN | spec | ARCHITECTURE.md, STACK.md, DECISIONS.md | Spec activa principal |
 | SPEC-MOD-DASH | spec | SPEC-MAIN | Dashboard de moderación |
 | SPEC-BACKEND-CONTRACTS | spec | ARCHITECTURE.md, DECISIONS.md | Contratos entre servicios |
-| DEC-0001 | decision | ARCHITECTURE.md | SQLite como persistencia PoC |
+| DEC-0001 | decision | ARCHITECTURE.md | SQLite como persistencia |
 | DEC-0002 | decision | ARCHITECTURE.md | Microservicios separados |
 | DEC-0003 | decision | ARCHITECTURE.md | UUID externos, serial internos |
 | DEC-0004 | decision | ARCHITECTURE.md | RelevanceScore visible |
@@ -19,6 +19,11 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | DEC-0008 | decision | STACK.md | Ether 9.5.5 como BOM |
 | DEC-0009 | decision | ROLES.md | Login con password obligatorio |
 | DEC-0010 | decision | STACK.md | SQLite WAL mode |
+| DEC-0011 | decision | ROLES.md, backend/services/insightbloom-users | ADMIN role + multi-rol |
+| DEC-0012 | decision | STACK.md, backend/services/insightbloom-presentations | Presentations Node.js |
+| DEC-0013 | decision | STACK.md, pipelines/CD.md | OTP dual Twilio + Zoho |
+| DEC-0014 | decision | STACK.md, backend/services/insightbloom-survey | LLM para survey |
+| DEC-0015 | decision | spec-native/*, AGENTS.md, opencode.json | Migración SpecNative v0.7 |
 | SEC-001 | security | agents/SECURITY.md | Auditoría de seguridad (7 hallazgos) |
 | DIAG-001 | diagnostic | agents/DIAGNOSE.md | Diagnóstico del proyecto 2026-06-26 |
 
@@ -29,9 +34,25 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | Iniciativa | Spec | Tareas (todo/in_progress/done) | Última actualización |
 |-----------|------|-------------------------------|---------------------|
 | main | specs/main/SPEC.md | — | active |
-| moderation-dashboard | specs/moderation-dashboard/SPEC.md | — | draft |
+| moderation-dashboard | specs/moderation-dashboard/SPEC.md | — | done |
 | backend-contracts | specs/backend-contracts/SPEC.md | — | draft |
-| specnative-migration | — | — | 2026-06-26 |
+
+---
+
+## Servicios y su documentación
+
+| Servicio | Puerto | Documentado en |
+|----------|--------|---------------|
+| users | 8081 | ARCHITECTURE.md § insightbloom-users |
+| ingest | 8082 | ARCHITECTURE.md § insightbloom-ingest |
+| query | 8083 | ARCHITECTURE.md § insightbloom-query |
+| moderation | 8084 | ARCHITECTURE.md § insightbloom-moderation |
+| stats | 8085 | ARCHITECTURE.md § insightbloom-stats |
+| survey | 8086 | ARCHITECTURE.md, STACK.md (DEC-0014) |
+| presentations | 8091 | ARCHITECTURE.md, STACK.md (DEC-0012) |
+| chat | 8090 | ARCHITECTURE.md, STACK.md (Python/FastAPI) |
+| web | 80 | ARCHITECTURE.md (Vue 3 SPA) |
+| cli | — | COMMANDS.md, ROLES.md |
 
 ---
 
