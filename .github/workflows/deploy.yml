@@ -275,7 +275,7 @@ jobs:
             --release "$RELEASE_NAME" \
             --username admin \
             --password "$PASSWORD_ADMIN_USER" \
-            --role ORGANIZER
+            --role ADMIN
 
       - name: Print deployed image reference
         if: steps.helm_deploy.outcome == 'success' && steps.rollout_status.outcome == 'success'
