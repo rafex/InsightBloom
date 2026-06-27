@@ -7,6 +7,13 @@ export async function getConferences(token) {
   return res.data.data
 }
 
+export async function getAttendeesCount(conferenceId, token) {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/attendees/count`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return res.data.data.count
+}
+
 export async function createConference(name, expiresAt, token, latitude, longitude, eventDate, venue, startTime, endTime) {
   const body = { name }
   if (expiresAt) body.expiresAt = expiresAt

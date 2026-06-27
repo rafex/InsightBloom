@@ -51,6 +51,19 @@ public class SqliteGuestUserRepository implements GuestUserRepository {
         return Optional.empty();
     }
 
+    @Override
+    public long countByConference(String conferenceUuid) {
+        String sql = "SELECT COUNT(*) FROM guest_users WHERE conference_uuid = ?";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, conferenceUuid);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getLong(1);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
     private static Instant parseInstant(String s) {
         if (s == null) return Instant.now();
         String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";

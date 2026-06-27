@@ -6,4 +6,5 @@ import java.util.Optional;
 public interface GuestUserRepository {
     void save(GuestUser guest);
     Optional<GuestUser> findByUuid(String uuid);
+    long countByConference(String conferenceUuid);
 }

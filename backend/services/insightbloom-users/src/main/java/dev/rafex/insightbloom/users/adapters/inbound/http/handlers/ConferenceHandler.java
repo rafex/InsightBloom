@@ -4,6 +4,7 @@ import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
+import dev.rafex.insightbloom.users.application.usecases.CountAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
@@ -24,19 +25,22 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final JoinConferenceUseCase joinConferenceUseCase;
     private final GetConferenceHistoryUseCase getConferenceHistoryUseCase;
     private final GenerateCertificateUseCase generateCertificateUseCase;
+    private final CountAttendeesUseCase countAttendeesUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
                              final ValidateTokenUseCase validateTokenUseCase,
                              final JoinConferenceUseCase joinConferenceUseCase,
                              final GetConferenceHistoryUseCase getConferenceHistoryUseCase,
-                             final GenerateCertificateUseCase generateCertificateUseCase) {
+                             final GenerateCertificateUseCase generateCertificateUseCase,
+                             final CountAttendeesUseCase countAttendeesUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
         this.joinConferenceUseCase = joinConferenceUseCase;
         this.getConferenceHistoryUseCase = getConferenceHistoryUseCase;
         this.generateCertificateUseCase = generateCertificateUseCase;
+        this.countAttendeesUseCase = countAttendeesUseCase;
     }
 
     @Override
@@ -53,6 +57,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/join", Set.of("POST")),
                 Route.of("/history", Set.of("GET")),
                 Route.of("/{id}/certificate", Set.of("GET")),
+                Route.of("/{id}/attendees/count", Set.of("GET")),
                 Route.of("/{id}", Set.of("GET", "DELETE")));
     }
 
@@ -76,6 +81,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/certificate")) {
             return handleCertificate(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/attendees/count")) {
+            return handleAttendeesCount(jx, jx.pathParam("id"));
         }
         final String id = jx.pathParam("id");
         if (id != null) {
@@ -235,6 +243,22 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 409, e.getMessage(), "Debes completar la encuesta antes de descargar tu certificado");
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleAttendeesCount(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !"organizer".equals(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can view attendee counts");
+                return true;
+            }
+            sendOk(jx, Map.of("count", countAttendeesUseCase.execute(conferenceId)));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

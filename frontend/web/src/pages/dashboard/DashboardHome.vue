@@ -4,6 +4,24 @@
     h1 Dashboard
     router-link.btn-primary(to="/dashboard/conferences/new") + Nueva conferencia
 
+  .summary-grid(v-if="!loading && conferences.length")
+    .summary-card
+      span.summary-icon 🎤
+      span.summary-value {{ conferences.length }}
+      span.summary-label Conferencias
+    .summary-card
+      span.summary-icon 👥
+      span.summary-value {{ summaryLoading ? '…' : summary.attendees }}
+      span.summary-label Usuarios registrados
+    .summary-card
+      span.summary-icon 📊
+      span.summary-value {{ summaryLoading ? '…' : summary.surveyResponses }}
+      span.summary-label Respuestas de encuesta
+    .summary-card
+      span.summary-icon 🖥️
+      span.summary-value {{ summaryLoading ? '…' : summary.activePresentations }}
+      span.summary-label Presentaciones activas
+
   .section(v-if="loading")
     .loading-text Cargando conferencias...
 
@@ -73,7 +91,9 @@
 
 <script>
 import { ref, onMounted } from 'vue'
-import { getConferences, deleteConference, getConferenceHistory } from '@/services/api/usersApi'
+import { getConferences, deleteConference, getConferenceHistory, getAttendeesCount } from '@/services/api/usersApi'
+import { getResults } from '@/services/api/surveyApi'
+import { getPresentationStatus } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -86,12 +106,44 @@ export default {
     const loadingHistory = ref(true)
     const auth = useAuthStore()
     const isOrganizer = auth.isOrganizer()
+    const summary = ref({ attendees: 0, surveyResponses: 0, activePresentations: 0 })
+    const summaryLoading = ref(true)
+
+    async function loadSummary(confs, token) {
+      summaryLoading.value = true
+      try {
+        const perConference = await Promise.all(confs.map(async (c) => {
+          const id = c.uuid || c.conferenceId
+          const [attendees, results, presentation] = await Promise.all([
+            getAttendeesCount(id, token).catch(() => 0),
+            getResults(id, token).then((r) => r.data || []).catch(() => []),
+            getPresentationStatus(id).catch(() => ({ ready: false }))
+          ])
+          return {
+            attendees,
+            surveyResponses: results.reduce((sum, q) => sum + (q.responseCount || 0), 0),
+            active: !!presentation.ready
+          }
+        }))
+        summary.value = {
+          attendees: perConference.reduce((s, c) => s + c.attendees, 0),
+          surveyResponses: perConference.reduce((s, c) => s + c.surveyResponses, 0),
+          activePresentations: perConference.filter((c) => c.active).length
+        }
+      } finally {
+        summaryLoading.value = false
+      }
+    }
 
     onMounted(async () => {
       const token = auth.state.token
       if (isOrganizer) {
         try {
-          if (token) conferences.value = await getConferences(token)
+          if (token) {
+            conferences.value = await getConferences(token)
+            if (conferences.value.length) loadSummary(conferences.value, token)
+            else summaryLoading.value = false
+          }
         } catch (e) {
           console.error('Error cargando conferencias', e)
         } finally {
@@ -147,6 +199,7 @@ export default {
 
     return {
       conferences, loading, deleteTarget, isOrganizer, history, loadingHistory,
+      summary, summaryLoading,
       isExpired, formatRelative, formatDate, confirmDelete, doDelete
     }
   }
@@ -158,6 +211,18 @@ export default {
 .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
 h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 h2 { color: #374151; font-size: 1.1rem; font-weight: 600; margin: 0 0 16px; }
+
+.summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px; margin-bottom: 32px;
+}
+.summary-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+}
+.summary-icon { font-size: 1.4rem; }
+.summary-value { font-size: 1.6rem; font-weight: 700; color: #1e1b4b; }
+.summary-label { font-size: 0.78rem; color: #6b7280; }
 
 .section { margin-bottom: 32px; }
 .loading-text { color: #6b7280; }
