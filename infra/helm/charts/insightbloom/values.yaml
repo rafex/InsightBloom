@@ -136,6 +136,7 @@ services:
     env:
       PORT: "8085"
       DB_PATH: /data/stats.db
+      USERS_URL: http://insightbloom-users:8081
     secretEnv:
       - name: INTERNAL_API_KEY
         secretName: insightbloom-internal-secrets

@@ -164,8 +164,8 @@ Resultado: 1 hallazgo — posible falso positivo.
 - [x] #2 `InternalEvaluateHandler` — `validInternalAuth(jx)` en `post()`; `HttpModerationClient` (ingest) ahora envía `X-Internal-Auth`
 - [x] #3 `UpdateHandler` — `validInternalAuth(jx)` en `post()`; `HttpQueryClient` (ingest) ahora envía `X-Internal-Auth`
 - [x] #4 `RecalcHandler` — `validInternalAuth(jx)` en `post()`; `HttpStatsClient` (ingest) ahora envía `X-Internal-Auth`
-- [ ] #5 `ConferenceQueryHandler` — decisión de producto sobre si requiere auth (sigue público; los datos de nube/timeline se consideran públicos por diseño del portal de asistentes)
-- [ ] #6 `StatsHandler` — decisión de producto sobre si requiere auth
+- [ ] #5 `ConferenceQueryHandler` — decisión de producto: se deja público (los datos de nube/timeline se consideran públicos por diseño del portal de asistentes, ya consumidos sin login desde `CloudDoubtsPage`/`CloudTopicsPage`/`WordTimelinePage`)
+- [x] #6 `StatsHandler` — no se usa desde ninguna página pública (no hay `statsApi.js` en frontend, no está mapeado en nginx); se añadió `requireOrganizer(jx)` igual que en moderación, sin impacto visible
 - [ ] #7 `validInternalAuth` — se mantiene el fallback fail-open documentado (sin `INTERNAL_API_KEY` no se exige el header); ahora vive una sola vez en `BaseResourceHandler` (`backend/common`) en vez de duplicado por handler
 
 `validInternalAuth` se promovió a `backend/common/.../BaseResourceHandler.java` para evitar duplicar la lógica en cada handler; `VisibilityHandler`/`MessageVisibilityHandler` (query) se actualizaron para usar la versión compartida. `INTERNAL_API_KEY` se añadió también a `ingest` y `stats` en `values.yaml` (antes solo lo tenían `moderation` y `query`), ya que ahora ambos envían/reciben el header.

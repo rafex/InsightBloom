@@ -6,12 +6,14 @@ import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.insightbloom.stats.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.stats.adapters.outbound.sqlite.*;
+import dev.rafex.insightbloom.stats.adapters.outbound.usersclient.HttpUsersClient;
 import dev.rafex.insightbloom.stats.application.usecases.*;
 import dev.rafex.insightbloom.stats.domain.services.RelevanceService;
 
 public class StatsApplication {
     public static void main(final String[] args) throws Exception {
         final String dbPath = System.getenv().getOrDefault("DB_PATH", "stats.db");
+        final String usersUrl = System.getenv().getOrDefault("USERS_URL", "http://insightbloom-users:8081");
 
         final var db = new DatabaseManager(dbPath);
         db.initialize();
@@ -20,9 +22,10 @@ public class StatsApplication {
         final var relevanceService = new RelevanceService();
         final var recalcUseCase = new RecalcStatsUseCase(statsRepo, relevanceService);
         final var getStatsUseCase = new GetStatsUseCase(statsRepo);
+        final var usersPort = new HttpUsersClient(usersUrl);
 
         final var recalcHandler = new RecalcHandler(recalcUseCase);
-        final var statsHandler = new StatsHandler(getStatsUseCase);
+        final var statsHandler = new StatsHandler(getStatsUseCase, usersPort);
 
         final var routes = new JettyRouteRegistry();
         routes.add("/internal/recalc/*", recalcHandler);

@@ -2,8 +2,10 @@ package dev.rafex.insightbloom.stats.adapters.inbound.http.handlers;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
+import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.stats.application.usecases.GetStatsUseCase;
+import dev.rafex.insightbloom.stats.domain.ports.UsersPort;
 
 import java.util.List;
 import java.util.Set;
@@ -11,9 +13,26 @@ import java.util.Set;
 public class StatsHandler extends BaseResourceHandler {
 
     private final GetStatsUseCase useCase;
+    private final UsersPort usersPort;
 
-    public StatsHandler(final GetStatsUseCase useCase) {
+    public StatsHandler(final GetStatsUseCase useCase, final UsersPort usersPort) {
         this.useCase = useCase;
+        this.usersPort = usersPort;
+    }
+
+    private boolean requireOrganizer(final JettyHttpExchange jx) {
+        final String authHeader = jx.request().getHeaders().get("Authorization");
+        final String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
+        if (token == null) {
+            sendError(jx, 401, "unauthorized", "Missing bearer token");
+            return false;
+        }
+        final var validation = usersPort.validate(token);
+        if (!validation.valid() || !"organizer".equals(validation.role())) {
+            sendError(jx, 403, "forbidden", "Only organizers can view stats");
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -39,6 +58,9 @@ public class StatsHandler extends BaseResourceHandler {
         final String conferenceId = jx.pathParam("conferenceId");
         if (conferenceId == null) {
             sendError(jx, 400, "bad_request", "conferenceId required");
+            return true;
+        }
+        if (!requireOrganizer(jx)) {
             return true;
         }
         try {
