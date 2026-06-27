@@ -75,3 +75,10 @@ export async function improveQuestion(conferenceId, { text, type, options, refer
     { headers: authHeader(token) })
   return res.data
 }
+
+export async function gradeResponses(conferenceId, questionUuids, token, regrade = false) {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/grade`,
+    { questionUuids, regrade },
+    { headers: authHeader(token) })
+  return res.data
+}

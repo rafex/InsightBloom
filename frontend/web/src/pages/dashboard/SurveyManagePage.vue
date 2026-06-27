@@ -48,8 +48,8 @@
       option(value="RATING") ★ Calificación (estrellas o emojis)
       option(value="TEXT") 📝 Texto libre
       option(value="MULTIPLE_CHOICE") ☑️ Opción múltiple
-      option(value="OPEN_GRADED") 💬 Abierta (calificada por IA)
-      option(value="CODE_GRADED") 💻 Código (calificado por IA)
+      option(value="OPEN_GRADED") 💬 Abierta (calificación IA bajo demanda)
+      option(value="CODE_GRADED") 💻 Código (calificación IA bajo demanda)
       option(value="CANVAS_DRAWING") 🎨 Diagrama / dibujo
       option(value="DRAG_DROP") ⇕ Ordenar elementos (drag and drop)
 
@@ -133,6 +133,25 @@
 
   .results-card(v-if="results.length" v-show="activeTab === 'results'")
     h3 Resultados
+
+    .grading-toolbar(v-if="gradeableQuestions.length")
+      button.btn-outline(type="button" @click="reviewOpen = !reviewOpen") 🤖 Revisar respuestas
+      span.grading-status(v-if="gradeStatus") {{ gradeStatus }}
+
+    .grading-panel(v-if="reviewOpen")
+      label.grading-select-all
+        input(type="checkbox" :checked="allGradeableSelected" @change="toggleSelectAllGradeable")
+        span Seleccionar todas
+      label.grading-question(v-for="q in gradeableQuestions" :key="q.questionUuid")
+        input(type="checkbox" :value="q.questionUuid" v-model="selectedForGrading")
+        span {{ q.text }} ({{ q.responseCount }} respuestas)
+      .grading-panel-actions
+        label.grading-regrade
+          input(type="checkbox" v-model="regradeAll")
+          span Volver a calificar las que ya tienen puntaje
+        button.btn-primary-sm(type="button" :disabled="!selectedForGrading.length || grading" @click="runGrading")
+          | {{ grading ? 'Calificando...' : `Revisar seleccionadas (${selectedForGrading.length})` }}
+
     .result-row(v-for="r in results" :key="r.questionUuid")
       p.result-question
         | {{ r.text }} ({{ r.responseCount }} respuestas)
@@ -167,8 +186,8 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
-import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion } from '@/services/api/surveyApi'
+import { ref, computed, onMounted } from 'vue'
+import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import ConferenceSubNav from './ConferenceSubNav.vue'
 import BarChart from '@/components/charts/BarChart.vue'
@@ -205,6 +224,41 @@ export default {
     const deleteTarget = ref(null)
     const purgeTarget = ref(null)
     const openDetail = ref({})
+    const reviewOpen = ref(false)
+    const selectedForGrading = ref([])
+    const regradeAll = ref(false)
+    const grading = ref(false)
+    const gradeStatus = ref('')
+
+    const gradeableQuestions = computed(() =>
+      results.value.filter((r) => r.type === 'OPEN_GRADED' || r.type === 'CODE_GRADED'))
+
+    const allGradeableSelected = computed(() =>
+      gradeableQuestions.value.length > 0
+      && gradeableQuestions.value.every((q) => selectedForGrading.value.includes(q.questionUuid)))
+
+    function toggleSelectAllGradeable() {
+      selectedForGrading.value = allGradeableSelected.value
+        ? []
+        : gradeableQuestions.value.map((q) => q.questionUuid)
+    }
+
+    async function runGrading() {
+      grading.value = true
+      gradeStatus.value = ''
+      try {
+        const res = await gradeResponses(props.conferenceId, selectedForGrading.value, auth.state.token, regradeAll.value)
+        const { graded, skipped } = res.data || {}
+        gradeStatus.value = `Calificadas ${graded ?? 0}, omitidas ${skipped ?? 0}`
+        reviewOpen.value = false
+        selectedForGrading.value = []
+        await load()
+      } catch (e) {
+        gradeStatus.value = 'No se pudo calificar (¿está configurado el proveedor de IA?)'
+      } finally {
+        grading.value = false
+      }
+    }
 
     const EMOJI_SCALE = ['😢', '😕', '😐', '🙂', '🤩']
     function ratingDisplay(ratingStyle, value) {
@@ -420,6 +474,8 @@ export default {
       activeTab, questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
       selectedSuggestions, addingSuggestions,
       deleteTarget, purgeTarget, openDetail, improving, improveError, improvements,
+      reviewOpen, selectedForGrading, regradeAll, grading, gradeStatus, gradeableQuestions, allGradeableSelected,
+      toggleSelectAllGradeable, runGrading,
       typeLabel, typeIcon, isImage, ratingDisplay, ratingChartData, choiceChartData, toggleDetail, save, confirmDelete, doDelete,
       confirmPurge, doPurge, suggest, addSelectedSuggestions, startEdit, cancelEdit, onTypeChange, addOption,
       removeOption, moveOption, improve, applyImprovement
@@ -552,6 +608,18 @@ input, select, textarea {
 .btn-confirm { padding: 8px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
 .btn-confirm:hover { background: #b91c1c; }
 
+.grading-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.grading-status { font-size: 0.82rem; color: #059669; }
+.grading-panel {
+  background: #f5f3ff; border-radius: 10px; padding: 14px; margin-bottom: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.grading-select-all { font-weight: 600; color: #4338ca; font-size: 0.85rem; }
+.grading-select-all, .grading-question, .grading-regrade {
+  display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #374151;
+}
+.grading-question input, .grading-select-all input, .grading-regrade input { width: auto; margin: 0; }
+.grading-panel-actions { display: flex; align-items: center; gap: 14px; margin-top: 6px; flex-wrap: wrap; }
 .result-row { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #f3f4f6; }
 .result-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 .result-question { font-weight: 600; color: #1e1b4b; margin-bottom: 4px; }

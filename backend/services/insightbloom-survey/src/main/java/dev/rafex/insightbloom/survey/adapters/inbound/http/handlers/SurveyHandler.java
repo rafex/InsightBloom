@@ -8,6 +8,7 @@ import dev.rafex.insightbloom.survey.application.usecases.CreateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeactivateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeleteConferenceDataUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.GetResultsUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.GradeResponsesUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.ImproveQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.ListQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.PurgeResponsesUseCase;
@@ -32,6 +33,7 @@ public class SurveyHandler extends BaseResourceHandler {
     private final PurgeResponsesUseCase purgeResponsesUseCase;
     private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
     private final ImproveQuestionUseCase improveQuestionUseCase;
+    private final GradeResponsesUseCase gradeResponsesUseCase;
     private final UsersPort usersPort;
 
     public SurveyHandler(final CreateQuestionUseCase createQuestionUseCase,
@@ -44,6 +46,7 @@ public class SurveyHandler extends BaseResourceHandler {
                           final PurgeResponsesUseCase purgeResponsesUseCase,
                           final DeleteConferenceDataUseCase deleteConferenceDataUseCase,
                           final ImproveQuestionUseCase improveQuestionUseCase,
+                          final GradeResponsesUseCase gradeResponsesUseCase,
                           final UsersPort usersPort) {
         this.createQuestionUseCase = createQuestionUseCase;
         this.listQuestionsUseCase = listQuestionsUseCase;
@@ -55,6 +58,7 @@ public class SurveyHandler extends BaseResourceHandler {
         this.purgeResponsesUseCase = purgeResponsesUseCase;
         this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
         this.improveQuestionUseCase = improveQuestionUseCase;
+        this.gradeResponsesUseCase = gradeResponsesUseCase;
         this.usersPort = usersPort;
     }
 
@@ -75,6 +79,7 @@ public class SurveyHandler extends BaseResourceHandler {
                 Route.of("/{conferenceId}/survey/responses", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/responded", Set.of("GET")),
                 Route.of("/{conferenceId}/survey/results", Set.of("GET")),
+                Route.of("/{conferenceId}/survey/grade", Set.of("POST")),
                 Route.of("/{conferenceId}/survey", Set.of("DELETE")));
     }
 
@@ -171,6 +176,21 @@ public class SurveyHandler extends BaseResourceHandler {
                 sendOk(jx, Map.of("status", "purged"));
                 return true;
             }
+            if (path.endsWith("/survey/grade")) {
+                final String token = extractToken(jx);
+                final var v = token == null ? null : usersPort.validate(token);
+                if (v == null || !v.valid() || !"organizer".equals(v.role())) {
+                    sendError(jx, 403, "forbidden", "Only organizers can grade responses");
+                    return true;
+                }
+                final var body = parseBody(jx);
+                final List<String> questionUuids = (List<String>) body.get("questionUuids");
+                final boolean regrade = Boolean.TRUE.equals(body.get("regrade"));
+                final var result = gradeResponsesUseCase.execute(
+                        new GradeResponsesUseCase.Request(conferenceId, questionUuids, regrade));
+                sendOk(jx, Map.of("graded", result.graded(), "skipped", result.skipped()));
+                return true;
+            }
             if (path.endsWith("/survey/responses")) {
                 final String token = extractToken(jx);
                 if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
@@ -192,7 +212,11 @@ public class SurveyHandler extends BaseResourceHandler {
                 return true;
             }
         } catch (final IllegalStateException e) {
-            sendError(jx, 409, e.getMessage(), "You already answered this survey");
+            if ("llm_not_configured".equals(e.getMessage())) {
+                sendError(jx, 503, e.getMessage(), "LLM grading is not configured for this deployment");
+            } else {
+                sendError(jx, 409, e.getMessage(), "You already answered this survey");
+            }
             return true;
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());

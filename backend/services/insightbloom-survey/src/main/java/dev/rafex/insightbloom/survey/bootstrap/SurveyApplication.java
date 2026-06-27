@@ -16,6 +16,7 @@ import dev.rafex.insightbloom.survey.application.usecases.CreateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeactivateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeleteConferenceDataUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.GetResultsUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.GradeResponsesUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.ImproveQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.ListQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.PurgeResponsesUseCase;
@@ -47,18 +48,20 @@ public class SurveyApplication {
         final var createQuestionUseCase = new CreateQuestionUseCase(questionRepo);
         final var listQuestionsUseCase = new ListQuestionsUseCase(questionRepo);
         final var deactivateQuestionUseCase = new DeactivateQuestionUseCase(questionRepo);
-        final var submitResponsesUseCase = new SubmitResponsesUseCase(questionRepo, responseRepo, llm);
+        final var submitResponsesUseCase = new SubmitResponsesUseCase(questionRepo, responseRepo);
         final var getResultsUseCase = new GetResultsUseCase(questionRepo, responseRepo, usersPort);
         final var suggestQuestionsUseCase = new SuggestQuestionsUseCase(llm, presentationsClient, JsonUtils.codec());
         final var updateQuestionUseCase = new UpdateQuestionUseCase(questionRepo);
         final var purgeResponsesUseCase = new PurgeResponsesUseCase(responseRepo);
         final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(questionRepo, responseRepo);
         final var improveQuestionUseCase = new ImproveQuestionUseCase(llm, presentationsClient, JsonUtils.codec());
+        final var gradeResponsesUseCase = new GradeResponsesUseCase(questionRepo, responseRepo, llm);
 
         final var surveyHandler = new SurveyHandler(
                 createQuestionUseCase, listQuestionsUseCase, deactivateQuestionUseCase,
                 submitResponsesUseCase, getResultsUseCase, suggestQuestionsUseCase, updateQuestionUseCase,
-                purgeResponsesUseCase, deleteConferenceDataUseCase, improveQuestionUseCase, usersPort);
+                purgeResponsesUseCase, deleteConferenceDataUseCase, improveQuestionUseCase,
+                gradeResponsesUseCase, usersPort);
 
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/conferences/*", surveyHandler);
