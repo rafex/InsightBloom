@@ -83,6 +83,9 @@ public class UsersApplication {
         final var getCertificateSettingsUseCase = new GetCertificateSettingsUseCase(certificateSettingsRepo);
         final var saveCertificateSettingsUseCase = new SaveCertificateSettingsUseCase(certificateSettingsRepo);
         final var countAttendeesUseCase = new CountAttendeesUseCase(guestRepo);
+        final var listUsersUseCase = new ListUsersUseCase(userRepo);
+        final var adminUpdateUserUseCase = new AdminUpdateUserUseCase(userRepo);
+        final var setUserStatusUseCase = new SetUserStatusUseCase(userRepo, tokenService);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -95,6 +98,8 @@ public class UsersApplication {
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
         final var certificateSettingsHandler = new CertificateSettingsHandler(
                 getCertificateSettingsUseCase, saveCertificateSettingsUseCase, validateTokenUseCase);
+        final var adminUserHandler = new AdminUserHandler(
+                listUsersUseCase, adminUpdateUserUseCase, setUserStatusUseCase, validateTokenUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -103,6 +108,7 @@ public class UsersApplication {
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);
         routes.add("/api/v1/certificate-settings/*", certificateSettingsHandler);
+        routes.add("/api/v1/admin/users/*", adminUserHandler);
 
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();

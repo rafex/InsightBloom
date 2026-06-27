@@ -67,6 +67,11 @@ public class User {
 
     public void setFirstName(String firstName) { this.firstName = firstName; this.updatedAt = Instant.now(); }
     public void setLastName(String lastName) { this.lastName = lastName; this.updatedAt = Instant.now(); }
+    public void setDisplayName(String displayName) { this.displayName = displayName; this.updatedAt = Instant.now(); }
+    public void setEmail(String email) { this.email = email; this.updatedAt = Instant.now(); }
+    public void setPhone(String phone) { this.phone = phone; this.updatedAt = Instant.now(); }
+    public void setRole(UserRole role) { this.role = role; this.updatedAt = Instant.now(); }
+    public void setStatus(UserStatus status) { this.status = status; this.updatedAt = Instant.now(); }
 
     public String getId() { return id; }
     public String getUuid() { return uuid; }

@@ -72,6 +72,32 @@ public class SqliteUserRepository implements UserRepository {
         return query("SELECT * FROM users WHERE phone = ?", phone);
     }
 
+    @Override
+    public List<User> findAll(int page, int pageSize) {
+        final List<User> users = new ArrayList<>();
+        final String sql = "SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, pageSize);
+            ps.setInt(2, (page - 1) * pageSize);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) users.add(map(rs));
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return users;
+    }
+
+    @Override
+    public long countAll() {
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM users")) {
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getLong(1);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
     private Optional<User> query(String sql, String param) {
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, param);

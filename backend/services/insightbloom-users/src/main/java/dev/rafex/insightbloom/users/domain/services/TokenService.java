@@ -37,6 +37,10 @@ public class TokenService {
                 .filter(Token::isValid);
     }
 
+    public void revokeAllForUser(String userUuid) {
+        tokenRepository.revokeAllForUser(userUuid);
+    }
+
     private String generateTokenValue() {
         return UUID.randomUUID().toString().replace("-", "") +
                UUID.randomUUID().toString().replace("-", "");

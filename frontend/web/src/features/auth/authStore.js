@@ -54,6 +54,7 @@ export function useAuthStore() {
   function isAuthenticated() { return !!state.token }
   function isOrganizer() { return state.role === 'organizer' }
   function isModerator() { return ['organizer', 'moderator'].includes(state.role) }
+  function isAdmin() { return state.role === 'admin' }
 
-  return { state, login, loginAsGuest, logout, setSession, isAuthenticated, isOrganizer, isModerator }
+  return { state, login, loginAsGuest, logout, setSession, isAuthenticated, isOrganizer, isModerator, isAdmin }
 }

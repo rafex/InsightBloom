@@ -8,6 +8,7 @@
         router-link(v-if="isOrganizer" to="/dashboard/conferences/new") Nueva conferencia
         router-link(v-else to="/dashboard/join") Unirse a una conferencia
         router-link(v-if="isOrganizer" to="/dashboard/certificate-settings") Diseño de certificado
+        router-link(v-if="isAdmin" to="/dashboard/admin/users") Usuarios
         router-link(to="/profile") Mi perfil
     main.dashboard-main
       router-view
@@ -21,7 +22,7 @@ export default {
   components: { AppHeader },
   setup() {
     const auth = useAuthStore()
-    return { isOrganizer: auth.isOrganizer() }
+    return { isOrganizer: auth.isOrganizer(), isAdmin: auth.isAdmin() }
   }
 }
 </script>

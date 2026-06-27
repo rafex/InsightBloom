@@ -34,7 +34,7 @@ Opciones:
   --namespace <ns>      Namespace de Kubernetes (default: default)
   --release <name>      Helm release name (default: insightbloom)
   --db-path <ruta>      Ruta de users.db en el pod (default: /data/users.db)
-  --role <rol>          ORGANIZER | MODERATOR (default: ORGANIZER)
+  --role <rol>          ORGANIZER | MODERATOR | ADMIN (default: ORGANIZER)
   --display-name <txt>  Nombre visible
   --email <txt>         Email opcional
   --context <ctx>       Contexto de kubectl (opcional)
@@ -53,8 +53,8 @@ if [[ -z "${USERNAME}" || -z "${PASSWORD}" ]]; then
   exit 1
 fi
 
-if [[ "${ROLE}" != "ORGANIZER" && "${ROLE}" != "MODERATOR" ]]; then
-  echo "--role debe ser ORGANIZER o MODERATOR" >&2
+if [[ "${ROLE}" != "ORGANIZER" && "${ROLE}" != "MODERATOR" && "${ROLE}" != "ADMIN" ]]; then
+  echo "--role debe ser ORGANIZER, MODERATOR o ADMIN" >&2
   exit 1
 fi
 

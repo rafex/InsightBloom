@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Token;
 import dev.rafex.insightbloom.users.domain.model.UserRole;
+import dev.rafex.insightbloom.users.domain.model.UserStatus;
 import dev.rafex.insightbloom.users.domain.ports.GuestUserRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.domain.services.TokenService;
@@ -31,6 +32,7 @@ public class ValidateTokenUseCase {
 
         return switch (token.getTokenKind()) {
             case USER -> userRepository.findByUuid(token.getUserUuid())
+                    .filter(u -> u.getStatus() == UserStatus.ACTIVE)
                     .map(u -> new ValidationResult(true, u.getUuid(), "user", u.getRole().name().toLowerCase()))
                     .orElse(new ValidationResult(false, null, null, null));
             case GUEST -> guestUserRepository.findByUuid(token.getGuestUserUuid())

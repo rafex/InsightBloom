@@ -56,6 +56,18 @@ public class SqliteTokenRepository implements TokenRepository {
         return Optional.empty();
     }
 
+    @Override
+    public void revokeAllForUser(String userUuid) {
+        String sql = "UPDATE tokens SET revoked_at = ? WHERE user_uuid = ? AND revoked_at IS NULL";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, Instant.now().toString());
+            ps.setString(2, userUuid);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private static Instant parseInstant(String s) {
         if (s == null) return Instant.now();
         String iso = s.contains("T") ? s : s.replace(" ", "T") + "Z";

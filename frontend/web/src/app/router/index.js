@@ -39,6 +39,7 @@ const routes = [
       { path: 'conferences/new', component: () => import('@/pages/dashboard/NewConferencePage.vue') },
       { path: 'join', component: () => import('@/pages/dashboard/JoinConferencePage.vue') },
       { path: 'certificate-settings', component: () => import('@/pages/dashboard/CertificateSettingsPage.vue') },
+      { path: 'admin/users', component: () => import('@/pages/dashboard/AdminUsersPage.vue') },
       {
         path: 'conferences/:conferenceId/moderation/messages',
         component: () => import('@/pages/dashboard/ModerationMessagesPage.vue'),
@@ -75,6 +76,9 @@ router.beforeEach((to) => {
   }
   const organizerOnlyPaths = ['/dashboard/conferences/new', '/dashboard/certificate-settings']
   if (organizerOnlyPaths.includes(to.path) && localStorage.getItem('ib_role') !== 'organizer') {
+    return '/dashboard'
+  }
+  if (to.path === '/dashboard/admin/users' && localStorage.getItem('ib_role') !== 'admin') {
     return '/dashboard'
   }
 })

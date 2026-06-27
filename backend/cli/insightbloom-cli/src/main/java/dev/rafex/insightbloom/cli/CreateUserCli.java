@@ -72,8 +72,8 @@ public class CreateUserCli {
         if (password == null || password.isBlank()) {
             die("--password es requerido");
         }
-        if (!role.equals("ORGANIZER") && !role.equals("MODERATOR")) {
-            die("--role debe ser ORGANIZER o MODERATOR");
+        if (!role.equals("ORGANIZER") && !role.equals("MODERATOR") && !role.equals("ADMIN")) {
+            die("--role debe ser ORGANIZER, MODERATOR o ADMIN");
         }
 
         if (displayName == null) displayName = username;
@@ -211,7 +211,7 @@ public class CreateUserCli {
               --db           <ruta>    Ruta al archivo users.db  (default: users.db)
               --username     <texto>   Nombre de usuario         (requerido)
               --password     <texto>   Contraseña                (requerido)
-              --role         <rol>     ORGANIZER | MODERATOR     (default: ORGANIZER)
+              --role         <rol>     ORGANIZER | MODERATOR | ADMIN  (default: ORGANIZER)
               --display-name <texto>   Nombre visible            (default: username)
               --email        <texto>   Correo electrónico        (opcional)
 

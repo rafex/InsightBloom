@@ -6,4 +6,5 @@ import java.util.Optional;
 public interface TokenRepository {
     void save(Token token);
     Optional<Token> findByValue(String tokenValue);
+    void revokeAllForUser(String userUuid);
 }

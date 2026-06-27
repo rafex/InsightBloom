@@ -3,6 +3,7 @@ package dev.rafex.insightbloom.users.application.usecases;
 import dev.rafex.insightbloom.users.domain.model.Token;
 import dev.rafex.insightbloom.users.domain.model.TokenKind;
 import dev.rafex.insightbloom.users.domain.model.User;
+import dev.rafex.insightbloom.users.domain.model.UserStatus;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.domain.services.TokenService;
 
@@ -36,6 +37,7 @@ public class LoginUseCase {
 
         Optional<User> user = findByIdentifier(request.username());
         return user.flatMap(u -> {
+            if (u.getStatus() != UserStatus.ACTIVE) return Optional.empty();
             if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) return Optional.empty();
             String inputHash = sha256(request.password());
             if (!inputHash.equals(u.getPasswordHash())) return Optional.empty();
