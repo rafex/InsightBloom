@@ -34,6 +34,10 @@ public class InternalEvaluateHandler extends BaseResourceHandler {
     @Override
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (!validInternalAuth(jx)) {
+            sendError(jx, 403, "forbidden", "Internal endpoint");
+            return true;
+        }
         try {
             final var body = parseBody(jx);
             final var result = useCase.execute(new EvaluateCensureUseCase.EvaluateRequest(

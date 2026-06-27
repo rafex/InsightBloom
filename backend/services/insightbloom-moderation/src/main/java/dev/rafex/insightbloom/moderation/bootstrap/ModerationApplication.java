@@ -7,6 +7,7 @@ import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.insightbloom.moderation.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.moderation.adapters.outbound.notifyclient.HttpNotifyClient;
 import dev.rafex.insightbloom.moderation.adapters.outbound.queryclient.HttpQueryPort;
+import dev.rafex.insightbloom.moderation.adapters.outbound.usersclient.HttpUsersClient;
 import dev.rafex.insightbloom.moderation.adapters.outbound.sqlite.*;
 import dev.rafex.insightbloom.moderation.application.usecases.*;
 import dev.rafex.insightbloom.moderation.domain.services.AutoCensureService;
@@ -25,6 +26,7 @@ public class ModerationApplication {
         final var messageRepo = new SqliteModerationMessageRepository(db);
         final var queryPort = new HttpQueryPort(queryUrl);
         final var notifyPort = new HttpNotifyClient(usersUrl);
+        final var usersPort = new HttpUsersClient(usersUrl);
         final var autoCensureService = new AutoCensureService(blockedTermRepo);
 
         final var evaluateUseCase = new EvaluateCensureUseCase(autoCensureService, wordRepo, messageRepo);
@@ -44,7 +46,7 @@ public class ModerationApplication {
         final var conferenceModerationHandler = new ConferenceModerationHandler(
                 listUseCase, censorWordUseCase, restoreWordUseCase, editWordUseCase, deleteWordUseCase,
                 censorMessageUseCase, restoreMessageUseCase, editMessageUseCase, deleteMessageUseCase,
-                deleteConferenceDataUseCase, answerMessageUseCase, getMessageAnswerUseCase);
+                deleteConferenceDataUseCase, answerMessageUseCase, getMessageAnswerUseCase, usersPort);
         final var evaluateHandler = new InternalEvaluateHandler(evaluateUseCase);
 
         final var routes = new JettyRouteRegistry();

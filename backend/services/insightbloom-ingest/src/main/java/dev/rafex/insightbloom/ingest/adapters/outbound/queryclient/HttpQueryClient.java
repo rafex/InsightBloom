@@ -10,10 +10,12 @@ public class HttpQueryClient implements QueryPort {
     private final String baseUrl;
     private final HttpClient client;
     private final ObjectMapper mapper;
+    private final String internalKey;
     public HttpQueryClient(String baseUrl) {
         this.baseUrl = baseUrl;
         this.client = HttpClient.newHttpClient();
         this.mapper = new ObjectMapper();
+        this.internalKey = System.getenv("INTERNAL_API_KEY");
     }
     @Override
     public void update(UpdateRequest request) {
@@ -32,11 +34,13 @@ public class HttpQueryClient implements QueryPort {
                 Map.entry("receivedAt", request.receivedAt()),
                 Map.entry("wordVisible", request.wordVisible())
             ));
-            HttpRequest req = HttpRequest.newBuilder()
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/internal/update"))
-                .header("Content-Type","application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                .header("Content-Type","application/json");
+            if (internalKey != null && !internalKey.isEmpty()) {
+                builder.header("X-Internal-Auth", internalKey);
+            }
+            HttpRequest req = builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
             client.send(req, HttpResponse.BodyHandlers.ofString());
         } catch (Exception e) { /* fire and forget */ }
     }

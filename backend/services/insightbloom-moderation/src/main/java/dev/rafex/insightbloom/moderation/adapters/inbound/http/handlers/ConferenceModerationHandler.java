@@ -6,6 +6,7 @@ import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.contracts.ApiMeta;
 import dev.rafex.insightbloom.moderation.application.usecases.*;
+import dev.rafex.insightbloom.moderation.domain.ports.UsersPort;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
     private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
     private final AnswerMessageUseCase answerMessageUseCase;
     private final GetMessageAnswerUseCase getMessageAnswerUseCase;
+    private final UsersPort usersPort;
 
     public ConferenceModerationHandler(final ListModerationUseCase listUseCase,
                                        final CensorWordUseCase censorWordUseCase,
@@ -37,7 +39,8 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
                                        final DeleteMessageUseCase deleteMessageUseCase,
                                        final DeleteConferenceDataUseCase deleteConferenceDataUseCase,
                                        final AnswerMessageUseCase answerMessageUseCase,
-                                       final GetMessageAnswerUseCase getMessageAnswerUseCase) {
+                                       final GetMessageAnswerUseCase getMessageAnswerUseCase,
+                                       final UsersPort usersPort) {
         this.listUseCase = listUseCase;
         this.censorWordUseCase = censorWordUseCase;
         this.restoreWordUseCase = restoreWordUseCase;
@@ -50,6 +53,27 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
         this.answerMessageUseCase = answerMessageUseCase;
         this.getMessageAnswerUseCase = getMessageAnswerUseCase;
+        this.usersPort = usersPort;
+    }
+
+    /** Pública por diseño: la usa la vista de timeline del portal de asistentes para mostrar respuestas. */
+    private static boolean isPublicGet(final String path) {
+        return path.contains("/moderation/messages/") && path.endsWith("/answer");
+    }
+
+    private boolean requireOrganizer(final JettyHttpExchange jx) {
+        final String authHeader = jx.request().getHeaders().get("Authorization");
+        final String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
+        if (token == null) {
+            sendError(jx, 401, "unauthorized", "Missing bearer token");
+            return false;
+        }
+        final var validation = usersPort.validate(token);
+        if (!validation.valid() || !"organizer".equals(validation.role())) {
+            sendError(jx, 403, "forbidden", "Only organizers can moderate");
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -96,6 +120,9 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         final String conferenceId = jx.pathParam("conferenceId");
         final String path = jx.path();
+        if (!isPublicGet(path) && !requireOrganizer(jx)) {
+            return true;
+        }
         try {
             if (path.contains("/moderation/words")) {
                 return handleListWords(jx, conferenceId);
@@ -117,6 +144,9 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
         final String path = jx.path();
+        if (!requireOrganizer(jx)) {
+            return true;
+        }
         try {
             if (path.contains("/moderation/messages/") && path.endsWith("/answer")) {
                 return handleAnswerMessage(jx, jx.pathParam("msgId"));
@@ -151,6 +181,9 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
     public boolean patch(final HttpExchange x) {
         final var jx = asJetty(x);
         final String path = jx.path();
+        if (!requireOrganizer(jx)) {
+            return true;
+        }
         try {
             if (path.contains("/moderation/words/")) {
                 return handleEditWord(jx, jx.pathParam("wordId"));

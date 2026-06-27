@@ -10,10 +10,12 @@ public class HttpModerationClient implements ModerationPort {
     private final String baseUrl;
     private final HttpClient client;
     private final ObjectMapper mapper;
+    private final String internalKey;
     public HttpModerationClient(String baseUrl) {
         this.baseUrl = baseUrl;
         this.client = HttpClient.newHttpClient();
         this.mapper = new ObjectMapper();
+        this.internalKey = System.getenv("INTERNAL_API_KEY");
     }
     @Override
     public EvaluationResult evaluate(String word, String detail, String conferenceUuid, String wordCanonical, String messageUuid, String wordText, String detailText, String authorUuid, String authorDisplayName) {
@@ -29,11 +31,13 @@ public class HttpModerationClient implements ModerationPort {
             bodyMap.put("authorUuid", authorUuid != null ? authorUuid : "");
             bodyMap.put("authorDisplayName", authorDisplayName != null ? authorDisplayName : "");
             String body = mapper.writeValueAsString(bodyMap);
-            HttpRequest req = HttpRequest.newBuilder()
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/internal/evaluate"))
-                .header("Content-Type","application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                .header("Content-Type","application/json");
+            if (internalKey != null && !internalKey.isEmpty()) {
+                builder.header("X-Internal-Auth", internalKey);
+            }
+            HttpRequest req = builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
             HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 200) {
                 var node = mapper.readTree(resp.body());

@@ -56,4 +56,14 @@ public abstract class BaseResourceHandler extends NonBlockingResourceHandler {
     protected static JettyHttpExchange asJetty(final HttpExchange x) {
         return (JettyHttpExchange) x;
     }
+
+    /** Shared check for service-to-service /internal/* endpoints. Fails open if INTERNAL_API_KEY is unset (dev mode). */
+    protected static boolean validInternalAuth(final JettyHttpExchange jx) {
+        final String key = System.getenv("INTERNAL_API_KEY");
+        if (key == null || key.isEmpty()) {
+            return true;
+        }
+        final String header = jx.request().getHeaders().get("X-Internal-Auth");
+        return key.equals(header);
+    }
 }
