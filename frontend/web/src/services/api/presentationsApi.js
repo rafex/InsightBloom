@@ -44,3 +44,16 @@ export function getAudienceWsUrl(conferenceId) {
 export function getPresenterWsUrl(conferenceId, token) {
   return `${wsBase()}/conferences/${conferenceId}/presentation/ws/presenter?token=${encodeURIComponent(token)}`
 }
+
+export function getRemoteWsUrl(conferenceId, remoteToken) {
+  return `${wsBase()}/conferences/${conferenceId}/presentation/ws/remote?token=${encodeURIComponent(remoteToken)}`
+}
+
+export async function createRemoteLinkToken(conferenceId, organizerToken) {
+  const res = await axios.post(
+    `${BASE}/conferences/${conferenceId}/presentation/remote-token`,
+    {},
+    { headers: authHeader(organizerToken) }
+  )
+  return res.data.token
+}

@@ -27,6 +27,7 @@ const routes = [
       { path: 'topics', component: () => import('@/pages/conference/CloudTopicsPage.vue') },
       { path: 'words/:word', component: () => import('@/pages/conference/WordTimelinePage.vue') },
       { path: 'presentation', component: () => import('@/pages/conference/PresentationPage.vue') },
+      { path: 'remote', component: () => import('@/pages/conference/RemoteControlPage.vue') },
       { path: 'survey', component: () => import('@/pages/conference/SurveyPage.vue') }
     ]
   },

@@ -1,7 +1,10 @@
+const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 
 const PRESENTER_WS_RE = /^\/api\/v1\/conferences\/([^/]+)\/presentation\/ws\/presenter$/;
 const AUDIENCE_WS_RE = /^\/api\/v1\/conferences\/([^/]+)\/presentation\/ws\/audience$/;
+const REMOTE_WS_RE = /^\/api\/v1\/conferences\/([^/]+)\/presentation\/ws\/remote$/;
+const NAV_DIRECTIONS = new Set(['next', 'prev']);
 
 /**
  * Sincronización en vivo del slide actual entre presentador y audiencia.
@@ -10,9 +13,48 @@ const AUDIENCE_WS_RE = /^\/api\/v1\/conferences\/([^/]+)\/presentation\/ws\/audi
  */
 const HEARTBEAT_INTERVAL_MS = 30000;
 
+const rooms = new Map();
+let usersUrlRef = null;
+
+function room(conferenceId) {
+  if (!rooms.has(conferenceId)) {
+    rooms.set(conferenceId, {
+      currentHash: null,
+      remoteToken: null,
+      presenters: new Set(),
+      audience: new Set(),
+      remotes: new Set(),
+    });
+  }
+  return rooms.get(conferenceId);
+}
+
+async function isOrganizerOrAdmin(token) {
+  if (!token || !usersUrlRef) return false;
+  try {
+    const res = await fetch(`${usersUrlRef}/api/v1/auth/validate`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const body = await res.json();
+    const role = (body && body.data && body.data.role) || '';
+    return !!(body && body.data && body.data.valid) && (role.includes('organizer') || role.includes('admin'));
+  } catch {
+    return false;
+  }
+}
+
+async function issueRemoteToken(conferenceId, organizerToken) {
+  const authorized = await isOrganizerOrAdmin(organizerToken);
+  if (!authorized) return null;
+  const token = crypto.randomUUID();
+  room(conferenceId).remoteToken = token;
+  return token;
+}
+
 function attachLiveSync(server, { usersUrl }) {
+  usersUrlRef = usersUrl;
   const wss = new WebSocketServer({ noServer: true });
-  const rooms = new Map();
 
   wss.on('connection', (ws) => {
     ws.isAlive = true;
@@ -34,33 +76,11 @@ function attachLiveSync(server, { usersUrl }) {
 
   server.on('close', () => clearInterval(heartbeat));
 
-  function room(conferenceId) {
-    if (!rooms.has(conferenceId)) {
-      rooms.set(conferenceId, { currentHash: null, presenters: new Set(), audience: new Set() });
-    }
-    return rooms.get(conferenceId);
-  }
-
   function broadcastCount(conferenceId) {
     const r = room(conferenceId);
     const payload = JSON.stringify({ type: 'count', count: r.audience.size });
     for (const ws of r.presenters) {
       if (ws.readyState === ws.OPEN) ws.send(payload);
-    }
-  }
-
-  async function isOrganizerOrAdmin(token) {
-    if (!token) return false;
-    try {
-      const res = await fetch(`${usersUrl}/api/v1/auth/validate`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return false;
-      const body = await res.json();
-      const role = (body && body.data && body.data.role) || '';
-      return !!(body && body.data && body.data.valid) && (role.includes('organizer') || role.includes('admin'));
-    } catch {
-      return false;
     }
   }
 
@@ -128,8 +148,41 @@ function attachLiveSync(server, { usersUrl }) {
       return;
     }
 
+    const remoteMatch = url.pathname.match(REMOTE_WS_RE);
+    if (remoteMatch) {
+      const conferenceId = remoteMatch[1];
+      const token = url.searchParams.get('token');
+      const r = room(conferenceId);
+      if (!token || !r.remoteToken || token !== r.remoteToken) {
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        r.remotes.add(ws);
+
+        ws.on('message', (raw) => {
+          let msg;
+          try {
+            msg = JSON.parse(raw);
+          } catch {
+            return;
+          }
+          if (msg && msg.type === 'nav' && NAV_DIRECTIONS.has(msg.direction)) {
+            const payload = JSON.stringify({ type: 'nav', direction: msg.direction });
+            for (const p of r.presenters) {
+              if (p.readyState === p.OPEN) p.send(payload);
+            }
+          }
+        });
+        ws.on('close', () => {
+          r.remotes.delete(ws);
+        });
+      });
+      return;
+    }
+
     socket.destroy();
   });
 }
 
-module.exports = { attachLiveSync };
+module.exports = { attachLiveSync, issueRemoteToken };

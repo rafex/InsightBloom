@@ -2,6 +2,9 @@
 .presentation-page
   .presentation-header
     h2 Presentación
+    .live-status(v-if="wsConnected")
+      span.live-dot.connected
+      span 🔴 En vivo · sigue al presentador automáticamente
   .presentation-loading(v-if="loading") Verificando presentación...
   .presentation-empty(v-else-if="!ready")
     p El organizador aún no ha subido la presentación de esta conferencia.
@@ -46,6 +49,7 @@ export default {
     const timeUp = ref(false)
     const remainingSeconds = ref(ANONYMOUS_PREVIEW_SECONDS)
     const slidesFrame = ref(null)
+    const wsConnected = ref(false)
     let timer = null
     let ws = null
     let wsRetryTimer = null
@@ -54,6 +58,7 @@ export default {
     function connectAudienceWs() {
       if (!props.conferenceId) return
       ws = new WebSocket(getAudienceWsUrl(props.conferenceId))
+      ws.onopen = () => { wsConnected.value = true }
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data)
@@ -63,6 +68,7 @@ export default {
         } catch (e) { /* ignorar mensajes malformados */ }
       }
       ws.onclose = () => {
+        wsConnected.value = false
         if (wsClosedByUs) return
         wsRetryTimer = setTimeout(connectAudienceWs, 3000)
       }
@@ -103,7 +109,7 @@ export default {
     })
 
     return {
-      friendlyId, loading, ready, slidesUrl, pdfUrl, canParticipate, slidesFrame,
+      friendlyId, loading, ready, slidesUrl, pdfUrl, canParticipate, slidesFrame, wsConnected,
       timeUp, remainingSeconds, previewSlideLimit: PREVIEW_SLIDE_LIMIT
     }
   }
@@ -112,8 +118,11 @@ export default {
 
 <style scoped>
 .presentation-page { padding: 24px; }
-.presentation-header { margin-bottom: 16px; }
+.presentation-header { margin-bottom: 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 h2 { margin: 0; color: #1e1b4b; }
+.live-status { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #6b7280; }
+.live-dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; }
+.live-dot.connected { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
 .presentation-loading, .presentation-empty { text-align: center; color: #6b7280; padding: 60px; }
 .slides-frame {
   width: 100%;

@@ -13,11 +13,14 @@ import QRCode from 'qrcode'
 
 export default {
   name: 'QrCodeModal',
-  props: { friendlyId: { type: String, required: true } },
+  props: {
+    friendlyId: { type: String, default: '' },
+    url: { type: String, default: '' }
+  },
   emits: ['close'],
   setup(props) {
     const qrCanvas = ref(null)
-    const publicUrl = ref(`${window.location.origin}/c/${props.friendlyId}/doubts`)
+    const publicUrl = ref(props.url || `${window.location.origin}/c/${props.friendlyId}/doubts`)
 
     onMounted(async () => {
       try {

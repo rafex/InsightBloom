@@ -6,7 +6,7 @@ const express = require('express');
 const multer = require('multer');
 const AdmZip = require('adm-zip');
 const cheerio = require('cheerio');
-const { attachLiveSync } = require('./live');
+const { attachLiveSync, issueRemoteToken } = require('./live');
 
 const PREVIEW_SLIDE_LIMIT = 5;
 
@@ -154,6 +154,14 @@ app.get('/api/v1/conferences/:id/presentation/status', (req, res) => {
 app.delete('/api/v1/conferences/:id/presentation', (req, res) => {
   fs.rmSync(conferenceDir(req.params.id), { recursive: true, force: true });
   res.json({ status: 'deleted' });
+});
+
+app.post('/api/v1/conferences/:id/presentation/remote-token', async (req, res) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const remoteToken = await issueRemoteToken(req.params.id, token);
+  if (!remoteToken) return res.status(403).json({ error: 'not_authorized' });
+  res.json({ token: remoteToken });
 });
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
