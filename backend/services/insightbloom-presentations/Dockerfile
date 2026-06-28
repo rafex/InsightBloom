@@ -15,7 +15,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --omit=dev
 
-COPY server.js ./
+COPY server.js live.js ./
 
 RUN mkdir -p /data && chown -R node:node /app /data
 USER node
