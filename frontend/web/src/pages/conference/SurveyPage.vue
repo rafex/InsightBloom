@@ -67,7 +67,7 @@
 
         .choices(v-else-if="q.type === 'MULTIPLE_CHOICE'")
           label.choice(v-for="opt in q.options" :key="opt")
-            input(type="radio" :name="q.uuid" :value="opt" v-model="answersText[q.uuid]")
+            input(type="checkbox" :value="opt" v-model="answersText[q.uuid]")
             span {{ opt }}
 
         .canvas-wrap(v-else-if="q.type === 'CANVAS_DRAWING'")
@@ -243,6 +243,7 @@ export default {
         questions.value = res.data || []
         for (const q of questions.value) {
           if (q.type === 'DRAG_DROP') dragOrder[q.uuid] = [...(q.options || [])]
+          else if (q.type === 'MULTIPLE_CHOICE') answersText[q.uuid] = []
         }
       } catch (e) { questions.value = [] }
       finally { loading.value = false }
@@ -261,6 +262,10 @@ export default {
         const payload = questions.value.map((q) => {
           if (q.type === 'DRAG_DROP') {
             return { questionUuid: q.uuid, text: (dragOrder[q.uuid] || []).join(ORDER_SEP), rating: null }
+          }
+          if (q.type === 'MULTIPLE_CHOICE') {
+            const selected = answersText[q.uuid] || []
+            return { questionUuid: q.uuid, text: selected.length ? JSON.stringify(selected) : null, rating: null }
           }
           return {
             questionUuid: q.uuid,

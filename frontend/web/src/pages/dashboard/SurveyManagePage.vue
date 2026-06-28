@@ -62,12 +62,14 @@
         span 😢😕😐🙂🤩 Emojis
 
     .options-editor(v-if="form.type === 'MULTIPLE_CHOICE'")
-      label.options-label Opciones que verá el asistente
+      label.options-label Opciones que verá el asistente · marca cuáles son correctas
       .option-row(v-for="(opt, idx) in form.options" :key="idx")
-        span.option-bullet ☐
+        label.option-correct(:title="'Marcar como correcta'")
+          input(type="checkbox" v-model="form.optionsCorrect[idx]")
         input(v-model="form.options[idx]" :placeholder="'Opción ' + (idx + 1)")
         button.btn-icon(type="button" @click="removeOption(idx)" :disabled="form.options.length <= 2" title="Quitar") ✕
       button.btn-add(type="button" @click="addOption") + Agregar opción
+      p.options-hint(v-if="!form.optionsCorrect.some(Boolean)") ⚠️ Marca al menos una opción correcta para poder calificar esta pregunta automáticamente.
 
     .options-editor(v-if="form.type === 'DRAG_DROP'")
       label.options-label Elementos en el ORDEN CORRECTO (el asistente los verá desordenados)
@@ -104,7 +106,8 @@
         span.q-text {{ q.text }}
         span.q-type {{ typeLabel(q.type) }}
       .q-preview(v-if="q.type === 'MULTIPLE_CHOICE' && q.options && q.options.length")
-        span.chip(v-for="opt in q.options" :key="opt") ☐ {{ opt }}
+        span.chip(v-for="opt in q.options" :key="opt" :class="{ 'chip-ref': parseMultiSelect(q.referenceAnswer).includes(opt) }")
+          | {{ parseMultiSelect(q.referenceAnswer).includes(opt) ? '✅' : '☐' }} {{ opt }}
       .q-preview(v-else-if="q.type === 'DRAG_DROP' && q.options && q.options.length")
         span.chip.chip-ordered(v-for="(opt, idx) in q.options" :key="opt") {{ idx + 1 }}. {{ opt }}
       .q-preview(v-else-if="q.type === 'RATING'")
@@ -177,6 +180,7 @@
           .answer-rating(v-if="a.answerRating != null") {{ ratingDisplay(r.ratingStyle, a.answerRating) }}
           .answer-image(v-else-if="isImage(a.answerText)")
             img(:src="a.answerText")
+          pre.answer-text(v-else-if="r.type === 'MULTIPLE_CHOICE' && a.answerText") {{ parseMultiSelect(a.answerText).join(', ') }}
           pre.answer-text(v-else-if="a.answerText") {{ a.answerText }}
           span.answer-empty(v-else) (sin respuesta)
           .answer-grade(v-if="a.gradeScore != null")
@@ -193,7 +197,16 @@ import ConferenceSubNav from './ConferenceSubNav.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 
 function emptyForm() {
-  return { text: '', type: 'RATING', ratingStyle: 'STARS', options: [], referenceAnswer: '' }
+  return { text: '', type: 'RATING', ratingStyle: 'STARS', options: [], optionsCorrect: [], referenceAnswer: '' }
+}
+
+function parseMultiSelect(raw) {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed
+  } catch (e) { /* formato anterior: string plano */ }
+  return [raw]
 }
 
 const TYPE_ICONS = {
@@ -231,7 +244,7 @@ export default {
     const gradeStatus = ref('')
 
     const gradeableQuestions = computed(() =>
-      results.value.filter((r) => r.type === 'OPEN_GRADED' || r.type === 'CODE_GRADED'))
+      results.value.filter((r) => r.type === 'OPEN_GRADED' || r.type === 'CODE_GRADED' || r.type === 'MULTIPLE_CHOICE'))
 
     const allGradeableSelected = computed(() =>
       gradeableQuestions.value.length > 0
@@ -302,17 +315,28 @@ export default {
       if (needsOptions && form.value.options.length < 2) {
         form.value.options = ['', '']
       }
+      if (form.value.optionsCorrect.length !== form.value.options.length) {
+        form.value.optionsCorrect = form.value.options.map((_, i) => !!form.value.optionsCorrect[i])
+      }
     }
 
-    function addOption() { form.value.options.push('') }
+    function addOption() {
+      form.value.options.push('')
+      form.value.optionsCorrect.push(false)
+    }
 
-    function removeOption(idx) { form.value.options.splice(idx, 1) }
+    function removeOption(idx) {
+      form.value.options.splice(idx, 1)
+      form.value.optionsCorrect.splice(idx, 1)
+    }
 
     function moveOption(idx, delta) {
       const newIdx = idx + delta
       if (newIdx < 0 || newIdx >= form.value.options.length) return
       const [item] = form.value.options.splice(idx, 1)
       form.value.options.splice(newIdx, 0, item)
+      const [correct] = form.value.optionsCorrect.splice(idx, 1)
+      form.value.optionsCorrect.splice(newIdx, 0, correct)
     }
 
     async function load() {
@@ -386,12 +410,14 @@ export default {
     }
 
     function applyImprovement(s) {
+      const options = s.options && s.options.length ? [...s.options] : []
       form.value = {
         text: s.text,
         type: s.type,
         ratingStyle: form.value.ratingStyle || 'STARS',
-        options: s.options && s.options.length ? [...s.options] : [],
-        referenceAnswer: s.referenceAnswer || ''
+        options,
+        optionsCorrect: options.map(() => false),
+        referenceAnswer: s.type === 'MULTIPLE_CHOICE' ? '' : (s.referenceAnswer || '')
       }
       onTypeChange()
       improvements.value = []
@@ -400,12 +426,15 @@ export default {
     function startEdit(q) {
       activeTab.value = 'create'
       editingId.value = q.uuid
+      const options = q.options && q.options.length ? [...q.options] : []
+      const correctSet = q.type === 'MULTIPLE_CHOICE' ? parseMultiSelect(q.referenceAnswer) : []
       form.value = {
         text: q.text,
         type: q.type,
         ratingStyle: q.ratingStyle || 'STARS',
-        options: q.options && q.options.length ? [...q.options] : [],
-        referenceAnswer: q.referenceAnswer || ''
+        options,
+        optionsCorrect: options.map((o) => correctSet.includes(o)),
+        referenceAnswer: q.type === 'MULTIPLE_CHOICE' ? '' : (q.referenceAnswer || '')
       }
       onTypeChange()
       suggestions.value = []
@@ -425,11 +454,19 @@ export default {
         const options = isOptionsType
           ? form.value.options.map((o) => o.trim()).filter(Boolean)
           : null
+        const referenceAnswer = form.value.type === 'MULTIPLE_CHOICE'
+          ? (() => {
+              const correct = form.value.options
+                .map((o, i) => (form.value.optionsCorrect[i] ? o.trim() : null))
+                .filter(Boolean)
+              return correct.length ? JSON.stringify(correct) : null
+            })()
+          : (form.value.referenceAnswer || null)
         const payload = {
           text: form.value.text,
           type: form.value.type,
           options,
-          referenceAnswer: form.value.referenceAnswer || null,
+          referenceAnswer,
           ratingStyle: form.value.type === 'RATING' ? form.value.ratingStyle : null,
           orderIndex: questions.value.length
         }
@@ -476,7 +513,7 @@ export default {
       deleteTarget, purgeTarget, openDetail, improving, improveError, improvements,
       reviewOpen, selectedForGrading, regradeAll, grading, gradeStatus, gradeableQuestions, allGradeableSelected,
       toggleSelectAllGradeable, runGrading,
-      typeLabel, typeIcon, isImage, ratingDisplay, ratingChartData, choiceChartData, toggleDetail, save, confirmDelete, doDelete,
+      typeLabel, typeIcon, isImage, parseMultiSelect, ratingDisplay, ratingChartData, choiceChartData, toggleDetail, save, confirmDelete, doDelete,
       confirmPurge, doPurge, suggest, addSelectedSuggestions, startEdit, cancelEdit, onTypeChange, addOption,
       removeOption, moveOption, improve, applyImprovement
     }
@@ -555,6 +592,9 @@ input, select, textarea {
 .option-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .option-row input { margin-bottom: 0; flex: 1; }
 .option-bullet { color: #9ca3af; flex-shrink: 0; }
+.option-correct { flex-shrink: 0; display: flex; align-items: center; }
+.option-correct input { width: auto; margin: 0; }
+.options-hint { color: #92400e; font-size: 0.78rem; margin: 4px 0 0; }
 .option-order {
   flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: #4f46e5; color: #fff;
   font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center;

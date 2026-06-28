@@ -1,5 +1,6 @@
 package dev.rafex.insightbloom.survey.application.usecases;
 
+import dev.rafex.insightbloom.survey.domain.model.MultiSelectAnswers;
 import dev.rafex.insightbloom.survey.domain.model.QuestionType;
 import dev.rafex.insightbloom.survey.domain.model.SurveyQuestion;
 import dev.rafex.insightbloom.survey.domain.model.SurveyResponse;
@@ -55,10 +56,16 @@ public class GetResultsUseCase {
                         : ratings.stream().mapToInt(Integer::intValue).average().orElse(0.0);
             } else if (q.getType() == QuestionType.MULTIPLE_CHOICE) {
                 for (final SurveyResponse r : responses) {
-                    if (r.getAnswerText() != null) {
-                        counts.merge(r.getAnswerText(), 1, Integer::sum);
+                    for (final String option : MultiSelectAnswers.parse(r.getAnswerText())) {
+                        counts.merge(option, 1, Integer::sum);
                     }
                 }
+                final var scores = responses.stream()
+                        .map(SurveyResponse::getGradeScore)
+                        .filter(s -> s != null)
+                        .toList();
+                avgGrade = scores.isEmpty() ? null
+                        : scores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
             } else if (q.getType() == QuestionType.OPEN_GRADED || q.getType() == QuestionType.CODE_GRADED
                     || q.getType() == QuestionType.DRAG_DROP) {
                 final var scores = responses.stream()

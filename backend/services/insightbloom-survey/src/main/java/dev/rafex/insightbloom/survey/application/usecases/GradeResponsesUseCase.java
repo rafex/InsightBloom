@@ -1,5 +1,6 @@
 package dev.rafex.insightbloom.survey.application.usecases;
 
+import dev.rafex.insightbloom.survey.domain.model.MultiSelectAnswers;
 import dev.rafex.insightbloom.survey.domain.model.QuestionType;
 import dev.rafex.insightbloom.survey.domain.model.SurveyQuestion;
 import dev.rafex.insightbloom.survey.domain.model.SurveyResponse;
@@ -35,9 +36,6 @@ public class GradeResponsesUseCase {
     public record Result(int graded, int skipped) {}
 
     public Result execute(final Request req) {
-        if (!llm.isEnabled()) {
-            throw new IllegalStateException("llm_not_configured");
-        }
         final List<String> questionUuids = (req.questionUuids() == null || req.questionUuids().isEmpty())
                 ? questionRepo.findByConference(req.conferenceUuid(), false).stream()
                         .map(SurveyQuestion::getUuid).toList()
@@ -48,17 +46,38 @@ public class GradeResponsesUseCase {
         for (final String questionUuid : questionUuids) {
             final SurveyQuestion question = questionRepo.findByUuid(questionUuid).orElse(null);
             if (question == null) continue;
-            final boolean gradeable = question.getType() == QuestionType.OPEN_GRADED
+
+            final boolean llmGradeable = question.getType() == QuestionType.OPEN_GRADED
                     || question.getType() == QuestionType.CODE_GRADED;
-            if (!gradeable || question.getReferenceAnswer() == null) continue;
+            final boolean deterministicGradeable = question.getType() == QuestionType.MULTIPLE_CHOICE;
+            if (!llmGradeable && !deterministicGradeable) continue;
+            if (question.getReferenceAnswer() == null) continue;
+            if (llmGradeable && !llm.isEnabled()) {
+                throw new IllegalStateException("llm_not_configured");
+            }
 
             for (final SurveyResponse response : responseRepo.findByQuestion(questionUuid)) {
                 if (response.getAnswerText() == null || response.getAnswerText().isBlank()) continue;
                 if (!req.regrade() && response.getGradeScore() != null) { skipped++; continue; }
-                if (gradeOne(question, response)) graded++; else skipped++;
+                final boolean ok = deterministicGradeable
+                        ? gradeMultipleChoice(question, response)
+                        : gradeOne(question, response);
+                if (ok) graded++; else skipped++;
             }
         }
         return new Result(graded, skipped);
+    }
+
+    /** Calificación determinística por "regla de tres": no importa el orden, no penaliza
+     *  seleccionar opciones incorrectas además de las correctas. */
+    private boolean gradeMultipleChoice(final SurveyQuestion question, final SurveyResponse response) {
+        final List<String> correct = MultiSelectAnswers.parse(question.getReferenceAnswer());
+        if (correct.isEmpty()) return false;
+        final List<String> selected = MultiSelectAnswers.parse(response.getAnswerText());
+        final long matched = selected.stream().filter(correct::contains).count();
+        final double score = 100.0 * matched / correct.size();
+        responseRepo.updateGrade(response.getUuid(), score, null);
+        return true;
     }
 
     private boolean gradeOne(final SurveyQuestion question, final SurveyResponse response) {
