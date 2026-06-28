@@ -46,21 +46,30 @@ export default {
     let ws = null
     let wsRetryTimer = null
     let wsClosedByUs = false
-    let hashListenerAttached = false
+    let hashPollTimer = null
+    let lastHash = null
 
-    function onHashChange() {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        const hash = slidesFrame.value?.contentWindow?.location?.hash || ''
-        ws.send(JSON.stringify({ type: 'slide', hash }))
+    const HASH_POLL_MS = 250
+
+    function pollHash() {
+      let hash
+      try {
+        hash = slidesFrame.value?.contentWindow?.location?.hash || ''
+      } catch (e) { return /* same-origin esperado; si falla, no hay sync */ }
+      if (hash !== lastHash) {
+        lastHash = hash
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'slide', hash }))
+        }
       }
     }
 
     function onIframeLoad() {
-      if (hashListenerAttached || !slidesFrame.value) return
-      try {
-        slidesFrame.value.contentWindow.addEventListener('hashchange', onHashChange)
-        hashListenerAttached = true
-      } catch (e) { /* same-origin esperado; si falla, no hay sync */ }
+      // bespoke.js (motor de Marp) navega con history.pushState/replaceState,
+      // que no disparan 'hashchange' — por eso se hace polling del hash.
+      if (hashPollTimer) return
+      lastHash = null
+      hashPollTimer = setInterval(pollHash, HASH_POLL_MS)
     }
 
     function connectPresenterWs() {
@@ -99,6 +108,7 @@ export default {
 
     onBeforeUnmount(() => {
       if (wsRetryTimer) clearTimeout(wsRetryTimer)
+      if (hashPollTimer) clearInterval(hashPollTimer)
       wsClosedByUs = true
       if (ws) ws.close()
     })
