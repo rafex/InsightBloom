@@ -238,6 +238,7 @@ services:
     env:
       PORT: "8091"
       DATA_DIR: /data
+      USERS_URL: http://insightbloom-users:8081
 
   web:
     repository: ghcr.io/rafex/insightbloom-web

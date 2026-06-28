@@ -31,3 +31,16 @@ export function getSlidesPreviewUrl(conferenceId) {
 export function getPdfUrl(conferenceId) {
   return `${BASE}/conferences/${conferenceId}/presentation/pdf`
 }
+
+function wsBase() {
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${proto}//${window.location.host}${BASE}`
+}
+
+export function getAudienceWsUrl(conferenceId) {
+  return `${wsBase()}/conferences/${conferenceId}/presentation/ws/audience`
+}
+
+export function getPresenterWsUrl(conferenceId, token) {
+  return `${wsBase()}/conferences/${conferenceId}/presentation/ws/presenter?token=${encodeURIComponent(token)}`
+}

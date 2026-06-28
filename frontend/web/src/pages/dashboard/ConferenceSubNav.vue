@@ -7,6 +7,7 @@
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Moderación (mensajes)
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/moderation/words`") Moderación (palabras)
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/presentation`") Presentación
+    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/speaker`") Presentar
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/survey`") Encuesta
 </template>
 

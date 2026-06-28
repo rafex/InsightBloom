@@ -37,7 +37,7 @@ async def handle_command(
                 f"Uso: {prefix} <una_palabra> <descripción hasta 300 chars>\n"
                 f"Ej: {prefix} inteligencia ¿Cómo afecta la IA al mercado laboral?"
             ),
-        })
+        }, conference_id)
         return
 
     prefix, word, description = m.group(1), m.group(2), m.group(3).strip()
@@ -51,7 +51,7 @@ async def handle_command(
     await manager.broadcast({
         "type": "system",
         "text": f"✅ {nickname} envió {kind_es}: [{word}] {preview}",
-    })
+    }, conference_id)
 
 
 async def _send_to_insightbloom(

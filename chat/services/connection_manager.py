@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import WebSocket
 
 
@@ -13,9 +15,15 @@ class ConnectionManager:
     def disconnect(self, ws: WebSocket) -> None:
         self._conns = [(w, u) for w, u in self._conns if w is not ws]
 
-    async def broadcast(self, payload: dict) -> None:
+    def _scoped(self, conference_id: str | None) -> list[tuple[WebSocket, dict]]:
+        if conference_id is None:
+            return self._conns
+        return [(w, u) for w, u in self._conns if u.get("conference_id") == conference_id]
+
+    async def broadcast(self, payload: dict, conference_id: str | None = None) -> None:
+        """Si se pasa conference_id, solo llega a las conexiones de esa conferencia."""
         dead: list[WebSocket] = []
-        for ws, _ in self._conns:
+        for ws, _ in self._scoped(conference_id):
             try:
                 await ws.send_json(payload)
             except Exception:
@@ -23,8 +31,8 @@ class ConnectionManager:
         for ws in dead:
             self.disconnect(ws)
 
-    def online_nicknames(self) -> list[str]:
-        return [u["nickname"] for _, u in self._conns]
+    def online_nicknames(self, conference_id: str | None = None) -> list[str]:
+        return [u["nickname"] for _, u in self._scoped(conference_id)]
 
-    def count(self) -> int:
-        return len(self._conns)
+    def count(self, conference_id: str | None = None) -> int:
+        return len(self._scoped(conference_id))

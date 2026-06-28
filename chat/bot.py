@@ -204,7 +204,7 @@ class Roberto:
                 "type": "message",
                 "nickname": "Roberto",
                 "text": reply,
-            })
+            }, conference_id)
         except Exception as exc:
             log.error("Roberto API error: %s", exc)
 

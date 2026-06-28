@@ -1,15 +1,18 @@
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 const { execFile } = require('child_process');
 const express = require('express');
 const multer = require('multer');
 const AdmZip = require('adm-zip');
 const cheerio = require('cheerio');
+const { attachLiveSync } = require('./live');
 
 const PREVIEW_SLIDE_LIMIT = 5;
 
 const PORT = process.env.PORT || 8091;
 const DATA_DIR = process.env.DATA_DIR || '/data';
+const USERS_URL = process.env.USERS_URL || 'http://insightbloom-users:8081';
 const MARP_BIN = path.join(__dirname, 'node_modules', '.bin', 'marp');
 
 const upload = multer({ dest: path.join(DATA_DIR, 'tmp') });
@@ -155,6 +158,9 @@ app.delete('/api/v1/conferences/:id/presentation', (req, res) => {
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+attachLiveSync(server, { usersUrl: USERS_URL });
+
+server.listen(PORT, () => {
   console.log(`insightbloom-presentations listening on :${PORT}`);
 });

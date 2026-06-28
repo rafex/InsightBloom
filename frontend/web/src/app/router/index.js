@@ -56,6 +56,11 @@ const routes = [
         props: true
       },
       {
+        path: 'conferences/:conferenceId/speaker',
+        component: () => import('@/pages/dashboard/SpeakerPanelPage.vue'),
+        props: true
+      },
+      {
         path: 'conferences/:conferenceId/survey',
         component: () => import('@/pages/dashboard/SurveyManagePage.vue'),
         props: true

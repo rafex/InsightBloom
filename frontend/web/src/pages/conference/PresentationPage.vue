@@ -16,7 +16,7 @@
     .preview-banner(v-if="!canParticipate")
       span ⏱ Vista previa: primeras {{ previewSlideLimit }} diapositivas · se cierra en {{ remainingSeconds }}s
       router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión para ver completa
-    iframe.slides-frame(:src="slidesUrl" title="Slides")
+    iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides")
     .presentation-actions
       a.btn-primary(v-if="canParticipate" :href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
       router-link.btn-secondary(:to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
@@ -25,7 +25,7 @@
 <script>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { getPresentationStatus, getSlidesUrl, getSlidesPreviewUrl, getPdfUrl } from '@/services/api/presentationsApi'
+import { getPresentationStatus, getSlidesUrl, getSlidesPreviewUrl, getPdfUrl, getAudienceWsUrl } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 const ANONYMOUS_PREVIEW_SECONDS = 60
@@ -45,7 +45,29 @@ export default {
     const pdfUrl = ref('')
     const timeUp = ref(false)
     const remainingSeconds = ref(ANONYMOUS_PREVIEW_SECONDS)
+    const slidesFrame = ref(null)
     let timer = null
+    let ws = null
+    let wsRetryTimer = null
+    let wsClosedByUs = false
+
+    function connectAudienceWs() {
+      if (!props.conferenceId) return
+      ws = new WebSocket(getAudienceWsUrl(props.conferenceId))
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data)
+          if (msg.type === 'slide' && typeof msg.hash === 'string' && slidesFrame.value) {
+            slidesFrame.value.contentWindow.location.hash = msg.hash
+          }
+        } catch (e) { /* ignorar mensajes malformados */ }
+      }
+      ws.onclose = () => {
+        if (wsClosedByUs) return
+        wsRetryTimer = setTimeout(connectAudienceWs, 3000)
+      }
+      ws.onerror = () => ws.close()
+    }
 
     onMounted(async () => {
       if (!props.conferenceId) { loading.value = false; return }
@@ -57,6 +79,7 @@ export default {
             ? getSlidesUrl(props.conferenceId)
             : getSlidesPreviewUrl(props.conferenceId)
           pdfUrl.value = getPdfUrl(props.conferenceId)
+          connectAudienceWs()
         }
       } catch (e) { ready.value = false }
       finally { loading.value = false }
@@ -72,10 +95,15 @@ export default {
       }
     })
 
-    onBeforeUnmount(() => { if (timer) clearInterval(timer) })
+    onBeforeUnmount(() => {
+      if (timer) clearInterval(timer)
+      if (wsRetryTimer) clearTimeout(wsRetryTimer)
+      wsClosedByUs = true
+      if (ws) ws.close()
+    })
 
     return {
-      friendlyId, loading, ready, slidesUrl, pdfUrl, canParticipate,
+      friendlyId, loading, ready, slidesUrl, pdfUrl, canParticipate, slidesFrame,
       timeUp, remainingSeconds, previewSlideLimit: PREVIEW_SLIDE_LIMIT
     }
   }

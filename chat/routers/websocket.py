@@ -37,19 +37,19 @@ async def ws_endpoint(websocket: WebSocket, token: str):
         "Conectado: %s → conferencia %s (%d online)",
         nickname,
         conference_id,
-        manager.count(),
+        manager.count(conference_id),
     )
 
     await manager.broadcast({
         "type": "system",
         "text": f"👋 {nickname} entró al chat",
-    })
+    }, conference_id)
     await manager.broadcast({
         "type": "users",
-        "users": manager.online_nicknames(),
-        "count": manager.count(),
+        "users": manager.online_nicknames(conference_id),
+        "count": manager.count(conference_id),
         "conference_id": conference_id,
-    })
+    }, conference_id)
 
     try:
         while True:
@@ -66,14 +66,14 @@ async def ws_endpoint(websocket: WebSocket, token: str):
                     "type": "message",
                     "nickname": nickname,
                     "text": text,
-                })
+                }, conference_id)
                 continue
 
             await manager.broadcast({
                 "type": "message",
                 "nickname": nickname,
                 "text": text,
-            })
+            }, conference_id)
             asyncio.create_task(
                 roberto.maybe_respond(text, nickname, manager, conference_id)
             )
@@ -81,11 +81,13 @@ async def ws_endpoint(websocket: WebSocket, token: str):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         db.delete_session(token)
-        log.info("Desconectado: %s (%d online)", nickname, manager.count())
+        log.info("Desconectado: %s (%d online)", nickname, manager.count(conference_id))
         await manager.broadcast({
             "type": "system",
             "text": f"👋 {nickname} salió del chat",
-        })
+        }, conference_id)
         await manager.broadcast({
-            "type": "users", "users": manager.online_nicknames(), "count": manager.count(),
-        })
+            "type": "users",
+            "users": manager.online_nicknames(conference_id),
+            "count": manager.count(conference_id),
+        }, conference_id)
