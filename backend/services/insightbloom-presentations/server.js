@@ -19,6 +19,10 @@ const upload = multer({ dest: path.join(DATA_DIR, 'tmp') });
 
 const app = express();
 
+// PDF se genera bajo demanda (corre Chromium headless vía Marp) y se cachea en disco;
+// este mapa deduplica generaciones concurrentes para la misma conferencia.
+const pdfGenerations = new Map();
+
 function conferenceDir(conferenceId) {
   return path.join(DATA_DIR, 'presentations', conferenceId);
 }
@@ -79,13 +83,13 @@ app.post('/api/v1/conferences/:id/presentation', upload.single('file'), async (r
     const themeFile = findFile(srcDir, (name, full) => name === 'theme.css' && full.includes(`${path.sep}css${path.sep}`));
 
     const slidesHtml = path.join(srcDir, 'slides.html');
-    const slidesPdf = path.join(confDir, 'slides.pdf');
 
     const baseArgs = [mdFile, '--allow-local-files', '--html'];
     if (themeFile) baseArgs.push('--theme', themeFile);
 
     await runMarp([...baseArgs, '-o', slidesHtml]);
-    await runMarp([...baseArgs, '-o', slidesPdf]);
+    // El PDF (requiere Chromium headless vía Marp) se genera bajo demanda en el
+    // endpoint /pdf, no aquí, para no pagar ese costo en cada subida.
 
     res.json({
       ok: true,
@@ -138,16 +142,43 @@ app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
   express.static(path.join(conferenceDir(req.params.id), 'src'))(req, res, next);
 });
 
-app.get('/api/v1/conferences/:id/presentation/pdf', (req, res) => {
-  const file = path.join(conferenceDir(req.params.id), 'slides.pdf');
-  if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
-  res.download(file, 'presentacion.pdf');
+async function ensurePdf(conferenceId) {
+  const confDir = conferenceDir(conferenceId);
+  const slidesPdf = path.join(confDir, 'slides.pdf');
+  if (fs.existsSync(slidesPdf)) return slidesPdf;
+
+  if (pdfGenerations.has(conferenceId)) return pdfGenerations.get(conferenceId);
+
+  const srcDir = path.join(confDir, 'src');
+  const mdFile = findFile(srcDir, (name) => name.toLowerCase().endsWith('.md'));
+  if (!mdFile) return null;
+  const themeFile = findFile(srcDir, (name, full) => name === 'theme.css' && full.includes(`${path.sep}css${path.sep}`));
+
+  const baseArgs = [mdFile, '--allow-local-files', '--html'];
+  if (themeFile) baseArgs.push('--theme', themeFile);
+
+  const generation = runMarp([...baseArgs, '-o', slidesPdf])
+    .then(() => slidesPdf)
+    .finally(() => pdfGenerations.delete(conferenceId));
+  pdfGenerations.set(conferenceId, generation);
+  return generation;
+}
+
+app.get('/api/v1/conferences/:id/presentation/pdf', async (req, res) => {
+  try {
+    const file = await ensurePdf(req.params.id);
+    if (!file) return res.status(404).json({ error: 'not_found' });
+    res.download(file, 'presentacion.pdf');
+  } catch (err) {
+    console.error('pdf_generation_failed', err);
+    res.status(500).json({ error: 'pdf_generation_failed', message: err.message });
+  }
 });
 
 app.get('/api/v1/conferences/:id/presentation/status', (req, res) => {
   const confDir = conferenceDir(req.params.id);
   res.json({
-    ready: fs.existsSync(path.join(confDir, 'src', 'slides.html')) && fs.existsSync(path.join(confDir, 'slides.pdf')),
+    ready: fs.existsSync(path.join(confDir, 'src', 'slides.html')),
   });
 });
 
