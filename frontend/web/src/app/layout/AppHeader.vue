@@ -55,4 +55,11 @@ export default {
 .header-nav { display: flex; gap: 16px; }
 .header-nav a { color: #c7d2fe; text-decoration: none; font-size: 0.9rem; }
 .header-nav a:hover { color: #fff; }
+
+@media (max-width: 480px) {
+  .header-row { padding: 10px 14px; }
+  .header-nav { gap: 10px; }
+  .header-nav a { font-size: 0.82rem; }
+  .brand-logo { height: 28px; }
+}
 </style>

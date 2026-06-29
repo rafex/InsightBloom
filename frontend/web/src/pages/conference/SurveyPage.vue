@@ -388,4 +388,10 @@ textarea {
 .contact-links { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .contact-links a { color: #4f46e5; text-decoration: none; font-weight: 500; }
 .contact-links a:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .survey-page { padding: 14px; }
+  .star { font-size: 1.6rem; }
+  .emoji-rating .emoji { font-size: 1.5rem; }
+}
 </style>

@@ -116,4 +116,12 @@ h1 { margin: 0; color: #1e1b4b; }
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
 }
 .conf-loading, .conf-error { padding: 40px; text-align: center; color: #6b7280; }
+
+@media (max-width: 640px) {
+  .conf-header { padding: 16px; }
+  h1 { font-size: 1.4rem; }
+  .conf-tabs { flex-wrap: wrap; gap: 6px; }
+  .conf-tabs a { padding: 7px 14px; font-size: 0.85rem; }
+  .btn-qr { margin-left: 0; }
+}
 </style>

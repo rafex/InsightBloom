@@ -158,4 +158,11 @@ h2 { margin: 0; color: #1e1b4b; }
 .preview-expired { text-align: center; padding: 60px 24px; }
 .preview-expired p { color: #6b7280; margin-bottom: 24px; }
 .login-actions { display: flex; gap: 10px; justify-content: center; }
+
+@media (max-width: 640px) {
+  .presentation-page { padding: 14px; }
+  .slides-frame { height: 45vh; }
+  .presentation-actions { flex-direction: column; }
+  .presentation-actions a { text-align: center; }
+}
 </style>
