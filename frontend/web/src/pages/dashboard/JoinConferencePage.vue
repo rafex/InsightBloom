@@ -58,4 +58,8 @@ input:focus { outline: none; border-color: #4f46e5; }
 }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .error { color: #dc2626; margin-top: 12px; font-size: 0.9rem; }
+
+@media (max-width: 420px) {
+  .form-row { flex-direction: column; }
+}
 </style>

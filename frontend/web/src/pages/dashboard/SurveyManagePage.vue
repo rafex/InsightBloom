@@ -687,4 +687,10 @@ input, select, textarea {
 .answer-empty { color: #9ca3af; font-size: 0.82rem; font-style: italic; }
 .answer-grade { font-size: 0.85rem; color: #059669; margin-top: 4px; }
 .answer-image img { max-width: 100%; border-radius: 6px; border: 1px solid #e5e7eb; }
+
+@media (max-width: 640px) {
+  .survey-manage-page { padding: 14px; }
+  .tabs { gap: 4px; }
+  .tab-btn { padding: 8px 10px; font-size: 0.82rem; }
+}
 </style>

@@ -12,43 +12,44 @@
   .empty-state(v-if="!loading && filteredUsers.length === 0")
     p No hay usuarios para mostrar.
 
-  table.users-table(v-else)
-    thead
-      tr
-        th Usuario
-        th Email / Teléfono
-        th Rol
-        th Estado
-        th Acciones
-    tbody
-      tr(v-for="u in filteredUsers" :key="u.uuid")
-        td
-          strong {{ u.displayName || u.username }}
-          .sub {{ u.username }}
-        td
-          div {{ u.email || '—' }}
-          .sub(v-if="u.phone") {{ u.phone }}
-        td
-          .roles-editor(v-if="editing === u.uuid")
-            label(v-for="r in availableRoles" :key="r")
-              input(type="checkbox" :value="r" v-model="editForm.roles")
-              span {{ r }}
-          span(v-else) {{ u.roles }}
-        td
-          span.status-badge(:class="u.status") {{ statusLabel(u.status) }}
-        td.actions
-          template(v-if="editing === u.uuid")
-            input(v-model="editForm.displayName" placeholder="Nombre visible")
-            input(v-model="editForm.email" placeholder="Email")
-            input(v-model="editForm.phone" placeholder="Teléfono")
-            .actions-row
-              button.btn-sm.btn-primary-sm(:disabled="saving" @click="saveEdit(u)") Guardar
-              button.btn-sm.btn-ghost-sm(@click="editing = null") Cancelar
-          template(v-else)
-            button.btn-sm.btn-edit(@click="startEdit(u)") Editar
-            button.btn-sm.btn-warning(v-if="u.status === 'ACTIVE'" @click="confirmAction(u, 'ban')") Banear
-            button.btn-sm.btn-success(v-if="u.status === 'BANNED'" @click="confirmAction(u, 'unban')") Reactivar
-            button.btn-sm.btn-danger(v-if="u.status !== 'DELETED'" @click="confirmAction(u, 'delete')") Eliminar
+  .table-scroll(v-else)
+    table.users-table
+      thead
+        tr
+          th Usuario
+          th Email / Teléfono
+          th Rol
+          th Estado
+          th Acciones
+      tbody
+        tr(v-for="u in filteredUsers" :key="u.uuid")
+          td
+            strong {{ u.displayName || u.username }}
+            .sub {{ u.username }}
+          td
+            div {{ u.email || '—' }}
+            .sub(v-if="u.phone") {{ u.phone }}
+          td
+            .roles-editor(v-if="editing === u.uuid")
+              label(v-for="r in availableRoles" :key="r")
+                input(type="checkbox" :value="r" v-model="editForm.roles")
+                span {{ r }}
+            span(v-else) {{ u.roles }}
+          td
+            span.status-badge(:class="u.status") {{ statusLabel(u.status) }}
+          td.actions
+            template(v-if="editing === u.uuid")
+              input(v-model="editForm.displayName" placeholder="Nombre visible")
+              input(v-model="editForm.email" placeholder="Email")
+              input(v-model="editForm.phone" placeholder="Teléfono")
+              .actions-row
+                button.btn-sm.btn-primary-sm(:disabled="saving" @click="saveEdit(u)") Guardar
+                button.btn-sm.btn-ghost-sm(@click="editing = null") Cancelar
+            template(v-else)
+              button.btn-sm.btn-edit(@click="startEdit(u)") Editar
+              button.btn-sm.btn-warning(v-if="u.status === 'ACTIVE'" @click="confirmAction(u, 'ban')") Banear
+              button.btn-sm.btn-success(v-if="u.status === 'BANNED'" @click="confirmAction(u, 'unban')") Reactivar
+              button.btn-sm.btn-danger(v-if="u.status !== 'DELETED'" @click="confirmAction(u, 'delete')") Eliminar
 
   .pagination(v-if="totalPages > 1")
     button(@click="goToPage(page - 1)" :disabled="page <= 1") ‹
@@ -178,7 +179,8 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
 .empty-state { text-align: center; color: #9ca3af; padding: 60px; }
 
-.users-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
+.table-scroll { overflow-x: auto; }
+.users-table { width: 100%; min-width: 720px; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
 .users-table th { text-align: left; padding: 10px 12px; background: #f9fafb; color: #6b7280; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
 .users-table td { padding: 10px 12px; border-top: 1px solid #f3f4f6; vertical-align: top; font-size: 0.88rem; }
 .sub { font-size: 0.78rem; color: #9ca3af; }
@@ -215,4 +217,8 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .btn-cancel { padding: 8px 18px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #374151; cursor: pointer; }
 .btn-confirm { padding: 8px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+
+@media (max-width: 640px) {
+  .admin-users-page { padding: 14px; }
+}
 </style>

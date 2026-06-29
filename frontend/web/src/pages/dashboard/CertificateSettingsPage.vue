@@ -154,4 +154,9 @@ input[type="color"] { width: 60px; height: 36px; border: 1.5px solid #d1d5db; bo
 .preview-card h4, .preview-card h5, .preview-card p { margin: 0; }
 .preview-card p { color: #374151; }
 .preview-meta { color: #6b7280 !important; font-size: 0.8em !important; }
+
+@media (max-width: 640px) {
+  .cert-settings-page { padding: 14px; }
+  .layout { gap: 20px; }
+}
 </style>

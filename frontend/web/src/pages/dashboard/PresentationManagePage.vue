@@ -103,4 +103,10 @@ input[type="file"] { display: block; margin-bottom: 12px; }
 .preview-actions { margin-top: 8px; }
 .upload-error { color: #dc2626; margin-top: 10px; }
 .upload-success { color: #16a34a; margin-top: 10px; }
+
+@media (max-width: 480px) {
+  .presentation-manage-page { padding: 14px; }
+  .preview-actions { display: flex; flex-direction: column; gap: 8px; }
+  .btn-secondary { margin-right: 0; text-align: center; }
+}
 </style>

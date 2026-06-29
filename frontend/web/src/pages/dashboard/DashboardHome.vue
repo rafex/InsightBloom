@@ -296,4 +296,9 @@ h2 { color: #374151; font-size: 1.1rem; font-weight: 600; margin: 0 0 16px; }
 .btn-cancel:hover { background: #f3f4f6; }
 .btn-confirm { padding: 8px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
 .btn-confirm:hover { background: #b91c1c; }
+
+@media (max-width: 640px) {
+  .dashboard-home { padding: 16px 14px; }
+  .dashboard-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
 </style>

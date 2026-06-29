@@ -206,4 +206,8 @@ h3 { color: #166534; margin: 0 0 16px; }
 .map-created { margin: 16px 0; border-radius: 10px; overflow: hidden; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
 .btn-outline { padding: 8px 16px; border: 1.5px solid #4f46e5; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 0.9rem; }
+
+@media (max-width: 480px) {
+  .coords-row { flex-direction: column; gap: 14px; }
+}
 </style>
