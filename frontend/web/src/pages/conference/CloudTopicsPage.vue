@@ -40,7 +40,7 @@ export default {
     function onWordClick(word) {
       router.push(`/c/${friendlyId}/words/${encodeURIComponent(word.wordNormalized)}?type=topic`)
     }
-    function resize() { cloudWidth.value = Math.min(window.innerWidth - 48, 1000) }
+    function resize() { cloudWidth.value = Math.min(window.innerWidth - 32, 1000) }
     onMounted(() => {
       resize(); window.addEventListener('resize', resize)
       load(); interval = setInterval(load, 5000)
@@ -58,4 +58,8 @@ h2 { margin: 0; color: #164e63; }
 .count { color: #6b7280; font-size: 0.9rem; }
 .cloud-empty { text-align: center; color: #9ca3af; padding: 60px; font-size: 1.1rem; }
 .cloud-loading { text-align: center; color: #6b7280; padding: 40px; }
+
+@media (max-width: 640px) {
+  .cloud-page { padding: 14px; }
+}
 </style>

@@ -155,4 +155,10 @@ input:focus { outline: none; border-color: #4f46e5; }
 .badge-verified { font-size: 0.72rem; color: #059669; background: #d1fae5; padding: 2px 8px; border-radius: 99px; }
 .social-list { display: flex; flex-direction: column; gap: 4px; }
 .social-chip { font-size: 0.82rem; color: #374151; }
+
+@media (max-width: 480px) {
+  .profile-main { padding: 24px 16px; }
+  .profile-card { padding: 24px; }
+  .data-label { min-width: 100px; }
+}
 </style>

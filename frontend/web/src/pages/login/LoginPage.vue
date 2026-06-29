@@ -68,4 +68,9 @@ input:focus { outline: none; border-color: #4f46e5; }
 .register-hint { text-align: center; margin: 16px 0 0; font-size: 0.85rem; color: #6b7280; }
 .register-hint a { color: #4f46e5; font-weight: 600; text-decoration: none; }
 .register-hint a:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .login-main { padding: 32px 16px; }
+  .login-card { padding: 24px; }
+}
 </style>

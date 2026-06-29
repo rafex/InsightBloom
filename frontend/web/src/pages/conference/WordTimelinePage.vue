@@ -61,4 +61,9 @@ h2 { margin: 0; color: #1e1b4b; font-size: 1.4rem; font-family: monospace; }
 .type-badge { padding: 4px 12px; background: #ede9fe; color: #4f46e5; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
 .timeline-empty { text-align: center; color: #9ca3af; padding: 60px; }
 .timeline-loading { text-align: center; color: #6b7280; padding: 40px; }
+
+@media (max-width: 640px) {
+  .timeline-page { padding: 14px; }
+  h2 { font-size: 1.15rem; }
+}
 </style>

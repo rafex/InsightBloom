@@ -52,4 +52,12 @@ input:focus { border-color: #4f46e5; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .hint { color: #6b7280; font-size: 0.9rem; margin-top: 16px; }
 .hint a { color: #4f46e5; }
+
+@media (max-width: 480px) {
+  .landing-main { padding: 40px 16px; }
+  .landing-hero { margin-bottom: 32px; }
+  h1 { font-size: 2.1rem; }
+  .subtitle { font-size: 1rem; }
+  .landing-form { padding: 24px; }
+}
 </style>

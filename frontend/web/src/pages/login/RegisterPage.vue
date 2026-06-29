@@ -202,4 +202,12 @@ input:focus, select:focus { outline: none; border-color: #4f46e5; }
   cursor: pointer; font-size: 0.82rem; font-weight: 500;
 }
 .btn-add:hover { background: #ede9fe; }
+
+@media (max-width: 480px) {
+  .register-main { padding: 24px 16px; }
+  .register-card { padding: 24px; }
+  .social-row { flex-wrap: wrap; }
+  .social-row select { flex: 1 1 100%; }
+  .social-row input { flex: 1 1 100%; }
+}
 </style>
