@@ -19,6 +19,7 @@
         .conf-location(v-if="conference.latitude != null")
           span.location-icon 📍
           span.location-coords {{ conference.latitude.toFixed(4) }}, {{ conference.longitude.toFixed(4) }}
+        button.btn-qr(type="button" @click="showQr = true") 📱 Mostrar QR
       .conf-tabs
         router-link(:to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
         router-link(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
@@ -26,11 +27,14 @@
         a(:href="chatUrl" target="_blank" rel="noopener") Chat
         router-link(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
     router-view(:conference-id="conference.conferenceId || conference.uuid")
+
+  QrCodeModal(v-if="showQr" :friendlyId="friendlyId" @close="showQr = false")
 </template>
 
 <script>
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
+import QrCodeModal from '@/components/QrCodeModal.vue'
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getConferenceByFriendlyId } from '@/services/api/usersApi'
@@ -38,7 +42,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'ConferencePage',
-  components: { AppHeader, ConferenceIntroMap },
+  components: { AppHeader, ConferenceIntroMap, QrCodeModal },
   setup() {
     const route      = useRoute()
     const friendlyId = route.params.friendlyId
@@ -46,6 +50,7 @@ export default {
     const loading    = ref(true)
     const error      = ref('')
     const showIntro  = ref(false)
+    const showQr     = ref(false)
 
     const auth = useAuthStore()
     const chatHost = location.hostname.startsWith('chat-') ? location.hostname : `chat-${location.hostname}`
@@ -71,7 +76,7 @@ export default {
       }
     })
 
-    return { friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl }
+    return { friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr }
   }
 }
 </script>
@@ -83,6 +88,11 @@ export default {
 h1 { margin: 0; color: #1e1b4b; }
 .conf-location { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #6b7280; }
 .location-coords { font-family: monospace; color: #4f46e5; }
+.btn-qr {
+  margin-left: auto; padding: 8px 16px; border-radius: 8px; border: 2px solid #c7d2fe;
+  background: #eef2ff; color: #4f46e5; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+}
+.btn-qr:hover { background: #e0e7ff; }
 .conf-tabs { display: flex; gap: 8px; }
 .conf-tabs a {
   padding: 8px 20px;
