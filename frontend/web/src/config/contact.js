@@ -4,8 +4,11 @@
 export const organizerContact = {
   name: 'Raúl González (rafex)',
   email: 'rafex@rafex.dev',
+  website: 'https://rafex.dev',
   linkedin: 'https://linkedin.com/in/soft-architect-raul-gonzalez',
+  linkedinNewsletter: 'https://www.linkedin.com/newsletters/explorador-t%C3%A9cnico-7325876304472330240/',
   github: 'https://github.com/rafex',
+  devto: 'https://dev.to/rafex',
   blog: 'https://theworldofrafex.blog/',
   telegram: '@rafex0'
 }

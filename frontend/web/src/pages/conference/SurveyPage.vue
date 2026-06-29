@@ -21,9 +21,15 @@
           li
             a(:href="`mailto:${contact.email}`") ✉️ {{ contact.email }}
           li
+            a(:href="contact.website" target="_blank" rel="noopener") 🌐 {{ contact.website }}
+          li
             a(:href="contact.linkedin" target="_blank" rel="noopener") 🔗 LinkedIn
           li
+            a(:href="contact.linkedinNewsletter" target="_blank" rel="noopener") 📰 Newsletter en LinkedIn
+          li
             a(:href="contact.github" target="_blank" rel="noopener") 🐙 GitHub
+          li
+            a(:href="contact.devto" target="_blank" rel="noopener") 👨‍💻 Dev.to
           li
             a(:href="contact.blog" target="_blank" rel="noopener") 📝 Blog
           li
@@ -39,6 +45,9 @@
 
   template(v-else)
     h2 Cuéntanos qué te pareció la charla
+    .benefits-banner(v-if="!loading && questions.length")
+      span.benefits-icon 🎁
+      span Al terminar el cuestionario obtienes: los datos de contacto del presentador, tu <strong>certificado de asistencia</strong> y la <strong>presentación en PDF</strong> para descargar.
     .survey-loading(v-if="loading") Cargando encuesta...
     .survey-empty(v-else-if="!questions.length") Esta conferencia no tiene encuesta configurada.
     form.survey-form(v-else @submit.prevent="submit")
@@ -302,6 +311,11 @@ export default {
 .survey-page { padding: 24px; max-width: 640px; margin: 0 auto; }
 h2 { color: #1e1b4b; margin-bottom: 16px; }
 .survey-loading, .survey-empty { text-align: center; color: #6b7280; padding: 60px; }
+.benefits-banner {
+  display: flex; align-items: center; gap: 10px; background: #fef3c7; color: #92400e;
+  border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.88rem; line-height: 1.4;
+}
+.benefits-icon { font-size: 1.3rem; flex-shrink: 0; }
 .login-required { text-align: center; padding: 60px 24px; }
 .login-required p { color: #6b7280; margin-bottom: 24px; }
 .login-actions { display: flex; gap: 10px; justify-content: center; }

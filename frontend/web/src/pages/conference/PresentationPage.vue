@@ -21,14 +21,14 @@
       router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión para ver completa
     iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides")
     .presentation-actions
-      a.btn-primary(v-if="canParticipate" :href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
+      router-link.btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Descargar PDF
       router-link.btn-secondary(:to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
 </template>
 
 <script>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { getPresentationStatus, getSlidesUrl, getSlidesPreviewUrl, getPdfUrl, getAudienceWsUrl } from '@/services/api/presentationsApi'
+import { getPresentationStatus, getSlidesUrl, getSlidesPreviewUrl, getAudienceWsUrl } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 const ANONYMOUS_PREVIEW_SECONDS = 60
@@ -45,7 +45,6 @@ export default {
     const loading = ref(true)
     const ready = ref(false)
     const slidesUrl = ref('')
-    const pdfUrl = ref('')
     const timeUp = ref(false)
     const remainingSeconds = ref(ANONYMOUS_PREVIEW_SECONDS)
     const slidesFrame = ref(null)
@@ -84,7 +83,6 @@ export default {
           slidesUrl.value = canParticipate
             ? getSlidesUrl(props.conferenceId)
             : getSlidesPreviewUrl(props.conferenceId)
-          pdfUrl.value = getPdfUrl(props.conferenceId)
           connectAudienceWs()
         }
       } catch (e) { ready.value = false }
@@ -109,7 +107,7 @@ export default {
     })
 
     return {
-      friendlyId, loading, ready, slidesUrl, pdfUrl, canParticipate, slidesFrame, wsConnected,
+      friendlyId, loading, ready, slidesUrl, canParticipate, slidesFrame, wsConnected,
       timeUp, remainingSeconds, previewSlideLimit: PREVIEW_SLIDE_LIMIT
     }
   }
