@@ -24,8 +24,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import nats
+
 from bot import Roberto
-from config import INGEST_URL
+from config import INGEST_URL, NATS_URL, NATS_AUTH_TOKEN
 from db import Database
 from services.connection_manager import ConnectionManager
 from routers import auth, conference, webhook, websocket
@@ -43,7 +45,17 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     log.info("Chat service arrancando. INGEST_URL=%s", INGEST_URL)
+    nc = None
+    if NATS_URL:
+        try:
+            nc = await nats.connect(servers=[NATS_URL], token=NATS_AUTH_TOKEN or None)
+            log.info("Conectado a NATS en %s", NATS_URL)
+        except Exception:
+            log.warning("No se pudo conectar a NATS, sigue en modo local", exc_info=True)
+    manager.attach_nats(nc)
     yield
+    if nc is not None:
+        await nc.close()
 
 
 app = FastAPI(title="InsightBloom Chat", lifespan=lifespan)

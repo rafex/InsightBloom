@@ -184,6 +184,17 @@ jobs:
             --from-literal=internal-api-key="${INTERNAL_API_KEY:-}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Upsert NATS auth secret in k3s
+        env:
+          NATS_AUTH_TOKEN: ${{ secrets.NATS_AUTH_TOKEN }}
+        run: |
+          if [ -z "$NATS_AUTH_TOKEN" ]; then
+            echo "::warning::NATS_AUTH_TOKEN not set — nats-server will run with auth=\"\" (open to any pod in the cluster)"
+          fi
+          kubectl -n "$K3S_NAMESPACE" create secret generic "${RELEASE_NAME}-nats-secrets" \
+            --from-literal=nats-auth-token="${NATS_AUTH_TOKEN:-}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Lint chart
         run: |
           helm lint "$CHART_PATH"

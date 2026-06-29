@@ -69,6 +69,18 @@ autoscaling:
   maxReplicas: 2
   targetCPUUtilizationPercentage: 75
 
+nats:
+  repository: nats
+  tag: "2-alpine"
+  port: 4222
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 ingress:
   enabled: true
   className: haproxy
@@ -239,6 +251,14 @@ services:
       PORT: "8091"
       DATA_DIR: /data
       USERS_URL: http://insightbloom-users:8081
+      NATS_URL: nats://insightbloom-nats:4222
+    secretEnv:
+      - name: NATS_AUTH_TOKEN
+        secretName: insightbloom-nats-secrets
+        secretKey: nats-auth-token
+      - name: INTERNAL_API_KEY
+        secretName: insightbloom-internal-secrets
+        secretKey: internal-api-key
 
   web:
     repository: ghcr.io/rafex/insightbloom-web
@@ -274,6 +294,7 @@ services:
       LLM_PROVIDER_BASE_URL: "https://api.groq.com/openai/v1"
       LLM_PROVIDER_MODEL: "openai/gpt-oss-120b"
       ROBERTO_GUARDRAIL_MODEL: "openai/gpt-oss-safeguard-20b"
+      NATS_URL: nats://insightbloom-nats:4222
     secretEnv:
       - name: LLM_PROVIDER_API_KEY
         secretName: insightbloom-chat-secrets
@@ -281,6 +302,9 @@ services:
       - name: CHAT_SECRET_KEY
         secretName: insightbloom-chat-secrets
         secretKey: chat-secret-key
+      - name: NATS_AUTH_TOKEN
+        secretName: insightbloom-nats-secrets
+        secretKey: nats-auth-token
 
   telegram:
     repository: ghcr.io/rafex/insightbloom-telegram

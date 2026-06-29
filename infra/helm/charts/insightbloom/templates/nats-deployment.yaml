@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-nats
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nats
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: nats
+  template:
+    metadata:
+      labels:
+        {{- include "insightbloom.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: nats
+    spec:
+      serviceAccountName: {{ include "insightbloom.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: nats
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.nats.repository }}:{{ .Values.nats.tag }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - 'exec nats-server --auth "$NATS_AUTH_TOKEN"'
+          env:
+            - name: NATS_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: insightbloom-nats-secrets
+                  key: nats-auth-token
+          ports:
+            - name: client
+              containerPort: {{ .Values.nats.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.nats.resources | nindent 12 }}

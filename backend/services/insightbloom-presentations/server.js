@@ -13,6 +13,9 @@ const PREVIEW_SLIDE_LIMIT = 5;
 const PORT = process.env.PORT || 8091;
 const DATA_DIR = process.env.DATA_DIR || '/data';
 const USERS_URL = process.env.USERS_URL || 'http://insightbloom-users:8081';
+const NATS_URL = process.env.NATS_URL || '';
+const NATS_AUTH_TOKEN = process.env.NATS_AUTH_TOKEN || '';
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || '';
 const MARP_BIN = path.join(__dirname, 'node_modules', '.bin', 'marp');
 
 const upload = multer({ dest: path.join(DATA_DIR, 'tmp') });
@@ -198,7 +201,12 @@ app.post('/api/v1/conferences/:id/presentation/remote-token', async (req, res) =
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 const server = http.createServer(app);
-attachLiveSync(server, { usersUrl: USERS_URL });
+attachLiveSync(server, {
+  usersUrl: USERS_URL,
+  natsUrl: NATS_URL,
+  natsToken: NATS_AUTH_TOKEN,
+  internalApiKey: INTERNAL_API_KEY,
+});
 
 server.listen(PORT, () => {
   console.log(`insightbloom-presentations listening on :${PORT}`);
