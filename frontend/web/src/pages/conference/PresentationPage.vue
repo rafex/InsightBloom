@@ -4,7 +4,7 @@
     h2 Presentación
     .live-status(v-if="wsConnected")
       span.live-dot.connected
-      span 🔴 En vivo · sigue al presentador automáticamente
+      span En vivo · sigue al presentador automáticamente
   .presentation-loading(v-if="loading") Verificando presentación...
   .presentation-empty(v-else-if="!ready")
     p El organizador aún no ha subido la presentación de esta conferencia.
