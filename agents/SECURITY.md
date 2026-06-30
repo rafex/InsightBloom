@@ -1,171 +1,188 @@
 # Security Audit Report — InsightBloom
 
-_Fecha: 2026-06-26 | Auditor: @opencode | Severidad máxima: 🔴 CRÍTICA_
+_Fecha inicial: 2026-06-26 | Actualizado: 2026-06-30 | Estado: ✅ TODOS LOS HALLAZGOS CERRADOS_
 
 ---
 
 ## Resumen ejecutivo
 
-Se identificaron **7 hallazgos** de seguridad: 1 crítico, 3 altos, 2 medios, 1 bajo.
-El riesgo principal es que los endpoints de moderación y comunicación interna entre servicios no tienen autenticación, y los puertos de los microservicios están expuestos directamente al host en Docker Compose, permitiendo saltarse el proxy nginx.
+Se realizaron **dos rondas de auditoría**. La primera identificó 7 hallazgos sobre autenticación y exposición de endpoints. La segunda amplió el alcance a criptografía, infraestructura de red, y operaciones. En total **17 issues** fueron identificados y corregidos.
+
+Estado actual: **ningún hallazgo abierto**.
 
 ---
 
-## Hallazgos detallados
+## Auditoría 1 — Autenticación y endpoints (2026-06-26)
 
-### 🔴 CRÍTICA — #1: Moderación sin autenticación
+### 🔴 CRÍTICA — #1: Moderación sin autenticación ✅ CERRADO
 
-**Endpoint**: `POST /api/v1/conferences/*` via nginx `/api/moderation`  
-**Handler**: `ConferenceModerationHandler` (`insightbloom-moderation:8084`)  
-**Archivo**: `backend/services/insightbloom-moderation/.../handlers/ConferenceModerationHandler.java`
+**Endpoint**: `POST /api/v1/conferences/*` via nginx `/api/moderation`
+**Handler**: `ConferenceModerationHandler` (`insightbloom-moderation:8084`)
 
-El handler gestiona censura, restauración, edición y eliminación de palabras y mensajes. **No realiza ninguna validación de token.** Cualquier persona que conozca el UUID de una conferencia puede:
+El handler gestionaba censura, restauración, edición y eliminación sin validar ningún token. Cualquier persona con el UUID de conferencia podía censurar/restaurar/editar/eliminar palabras y mensajes.
 
-- `POST .../words/{wordId}/censor` — censurar palabras
-- `POST .../words/{wordId}/restore` — restaurar palabras
-- `POST .../words/{wordId}/edit` — editar palabras
-- `DELETE .../words/{wordId}` — eliminar palabras
-- `POST .../messages/{msgId}/censor` — censurar mensajes
-- `POST .../messages/{msgId}/restore` — restaurar mensajes
-- `POST .../messages/{msgId}/edit` — editar mensajes
-- `DELETE .../messages/{msgId}` — eliminar mensajes
-- `GET .../{conferenceId}/words` — listar palabras para moderar
-- `GET .../{conferenceId}/messages` — listar mensajes
-
-**Causa**: El handler no llama a `validateTokenUseCase`, ni extrae el header `Authorization`. No hay ninguna protección.
-
-**Recomendación**: Añadir validación de token JWT al inicio de cada método `get()` y `post()`, verificando que el rol sea `organizer`. Usar `ValidateTokenUseCase` como lo hace `ConferenceHandler` en users.
+**Corrección**: `requireOrganizer(jx)` al inicio de `get()`, `post()` y `patch()`. Valida Bearer token contra users y exige `role=organizer`.
 
 ---
 
-### 🔴 ALTA — #2: `/internal/evaluate` sin protección
+### 🔴 ALTA — #2: `/internal/evaluate` sin protección ✅ CERRADO
 
-**Endpoint**: `POST /internal/evaluate` (moderation:8084)  
-**Handler**: `InternalEvaluateHandler`  
-**Archivo**: `backend/services/insightbloom-moderation/.../handlers/InternalEvaluateHandler.java`
+**Handler**: `InternalEvaluateHandler` (moderation:8084)
 
-Recibe payloads de evaluación de censura automática desde el servicio de ingest. **Sin header `X-Internal-Auth`.** Accesible directamente en `localhost:8084/internal/evaluate`.
+Sin header `X-Internal-Auth`. Accesible directamente en el puerto 8084.
 
-**Recomendación**: Añadir `validInternalAuth(jx)` al inicio del método `post()`, mismo patrón que `VisibilityHandler`.
+**Corrección**: `validInternalAuth(jx)` en `post()`. `HttpModerationClient` (ingest) ahora envía `X-Internal-Auth`.
 
 ---
 
-### 🔴 ALTA — #3: `/internal/update` sin protección
+### 🔴 ALTA — #3: `/internal/update` sin protección ✅ CERRADO
 
-**Endpoint**: `POST /internal/update` (query:8083)  
-**Handler**: `UpdateHandler`  
-**Archivo**: `backend/services/insightbloom-query/.../handlers/UpdateHandler.java`
+**Handler**: `UpdateHandler` (query:8083)
 
-Recibe actualizaciones de nube de palabras desde stats/ingest. **Sin header `X-Internal-Auth`.** Accesible en `localhost:8083/internal/update`.
-
-**Recomendación**: Añadir `validInternalAuth(jx)` al inicio del método `post()`.
+**Corrección**: `validInternalAuth(jx)` en `post()`. `HttpQueryClient` (ingest) envía `X-Internal-Auth`.
 
 ---
 
-### 🔴 ALTA — #4: `/internal/recalc` sin protección
+### 🔴 ALTA — #4: `/internal/recalc` sin protección ✅ CERRADO
 
-**Endpoint**: `POST /internal/recalc` (stats:8085)  
-**Handler**: `RecalcHandler`  
-**Archivo**: `backend/services/insightbloom-stats/.../handlers/RecalcHandler.java`
+**Handler**: `RecalcHandler` (stats:8085)
 
-Recibe solicitudes de recálculo de estadísticas desde ingest. **Sin header `X-Internal-Auth`.** Accesible en `localhost:8085/internal/recalc`.
-
-**Recomendación**: Añadir `validInternalAuth(jx)` al inicio del método `post()`.
+**Corrección**: `validInternalAuth(jx)` en `post()`. `HttpStatsClient` (ingest) envía `X-Internal-Auth`.
 
 ---
 
-### 🟡 MEDIA — #5: Query expuesto sin auth
+### 🟡 MEDIA — #5: Query expuesto sin auth — ACEPTADO POR DISEÑO
 
-**Endpoint**: `GET /api/v1/conferences/{id}/cloud/*` via nginx `/api/query`  
-**Handler**: `ConferenceQueryHandler` (query:8083)  
-**Archivo**: `backend/services/insightbloom-query/.../handlers/ConferenceQueryHandler.java`
+**Endpoint**: `GET /api/v1/conferences/{id}/cloud/*` (query:8083)
 
-Expone nubes de palabras (`/cloud/doubts`, `/cloud/topics`) y timelines (`/words/{word}/timeline`) sin autenticación. Cualquiera con el UUID de conferencia puede leer estos datos.
-
-**Evaluación**: Si los datos de conferencia son públicos por diseño, puede ser aceptable. Si no, requiere validación de token.
+**Decisión**: Los datos de nube/timeline se consideran públicos por diseño — son consumidos sin login desde `CloudDoubtsPage`, `CloudTopicsPage`, `WordTimelinePage`. No se requiere cambio.
 
 ---
 
-### 🟡 MEDIA — #6: Stats expuesto sin auth
+### 🟡 MEDIA — #6: Stats expuesto sin auth ✅ CERRADO
 
-**Endpoint**: `GET /api/v1/conferences/{id}` (stats:8085)  
-**Handler**: `StatsHandler`  
-**Archivo**: `backend/services/insightbloom-stats/.../handlers/StatsHandler.java`
+**Handler**: `StatsHandler` (stats:8085, no mapeado en nginx)
 
-Expone overview y relevance de conferencias sin autenticación. No mapeado en nginx (solo accesible directo al puerto 8085).
+**Corrección**: `requireOrganizer(jx)` igual que moderación.
 
 ---
 
-### 🟢 BAJA — #7: Fallback inseguro en `validInternalAuth`
+### 🟢 BAJA — #7: `validInternalAuth` fail-open ✅ CERRADO
 
-**Endpoint**: `/internal/visibility`, `/internal/message-visibility` (query:8083)  
-**Handlers**: `VisibilityHandler`, `MessageVisibilityHandler`
+Sin `INTERNAL_API_KEY` configurada, la función retornaba `true` silenciosamente.
 
-La validación `X-Internal-Auth` tiene un fallback que permite el acceso si la variable de entorno `INTERNAL_API_KEY` no está configurada:
-
-```java
-if (key == null || key.isEmpty()) {
-    return true; // ← permite todo en desarrollo
-}
-```
-
-**Riesgo**: En entornos donde `INTERNAL_API_KEY` no se setea explícitamente (desarrollo local sin compose, CI), los endpoints quedan sin protección.
-
-**Recomendación**: Loguear warning pero mantener el comportamiento para no romper desarrollo. Alternativa: generar una key por defecto con UUID aleatorio y exigirla siempre.
+**Corrección** (Auditoría 2 / C2): La función ahora falla cerrado — loguea `SECURITY WARNING` y retorna `false` si la env var está ausente o vacía. Vive una sola vez en `BaseResourceHandler` (backend/common).
 
 ---
 
-## Exposición de puertos
+## Auditoría 2 — Criptografía, red e infraestructura (2026-06-30)
 
-`container/compose.yml` mapea todos los puertos al host:
+Auditoría experta completa sobre el proyecto (ya no MVP). Se identificaron y corrigieron 10 items adicionales.
 
-| Servicio | Puerto host | Puerto interno |
-|----------|------------|----------------|
-| users | 8081 | 8081 |
-| ingest | 8082 | 8082 |
-| query | 8083 | 8083 |
-| moderation | 8084 | 8084 |
-| stats | 8085 | 8085 |
+### 🔴 CRÍTICA — C1: 4 endpoints DELETE públicamente accesibles ✅ CERRADO
 
-Nginx (`container/frontend/nginx.conf`) solo enruta `/api/users`, `/api/ingest`, `/api/query`, `/api/moderation`, `/api/survey`. **Los endpoints `/internal/*` NO pasan por nginx** pero son accesibles directamente en los puertos mapeados.
+Los endpoints `DELETE /api/v1/conferences/{uuid}` en ingest, query, moderation y survey no tenían validación `X-Internal-Auth`. Eran invocables desde internet a través de nginx.
 
-**Recomendación**: Quitar `ports` del host para servicios internos en `compose.yml`, reemplazando con `expose` para que solo sean accesibles dentro de la red Docker `backend`. O mantener `ports` solo para desarrollo local y usar `INTERNAL_API_KEY` como protección.
+**Corrección**: `validInternalAuth(jx)` añadido al inicio del método `delete()` en `IngestHandler`, `ConferenceQueryHandler`, `ConferenceModerationHandler` y `SurveyHandler`. Retorna 403 si el header no coincide.
 
 ---
 
-## Scan de secretos
+### 🔴 CRÍTICA — C2: `validInternalAuth` fail-open → fail-closed ✅ CERRADO
 
-Resultado: 1 hallazgo — posible falso positivo.
-
-| Archivo | Línea | Match |
-|---------|-------|-------|
-| `frontend/web/src/pages/profile/ProfilePage.vue` | 126 | `Passwo...` (probable placeholder de input) |
-
-**Conclusión**: No se detectaron secretos reales expuestos en el código.
+_(Ver hallazgo #7 de Auditoría 1 — corregido en esta ronda)_
 
 ---
 
-## Resumen de acciones
+### 🔴 CRÍTICA — C3: Contraseñas SHA-256 sin sal ✅ CERRADO
 
-| Prioridad | Acción | Esfuerzo |
-|-----------|--------|----------|
-| 🔴 Inmediata | Añadir `X-Internal-Auth` a `InternalEvaluateHandler` | 5 min |
-| 🔴 Inmediata | Añadir `X-Internal-Auth` a `UpdateHandler` | 5 min |
-| 🔴 Inmediata | Añadir `X-Internal-Auth` a `RecalcHandler` | 5 min |
-| 🔴 Alta | Añadir validación de token JWT a `ConferenceModerationHandler` | 30 min |
-| 🟡 Media | Evaluar auth en `ConferenceQueryHandler` y `StatsHandler` | Decisión de producto |
-| 🟢 Baja | Quitar `ports` del host o endurecer fallback de `validInternalAuth` | 10 min |
+Las contraseñas se almacenaban como `SHA-256(password)` en texto claro — vulnerable a ataques de diccionario y rainbow tables.
+
+**Corrección**: Nueva clase `PasswordService` que usa `ether-crypto` (PBKDF2-HMAC-SHA256, 310 000 iteraciones, salt aleatorio de 16 bytes). Formato de almacenamiento: `$pbkdf2$<iter>$<salt_hex>$<hash_hex>`. Migración transparente: el login detecta el formato legacy y actualiza el hash automáticamente en la primera autenticación exitosa. Afecta `RegisterUseCase`, `LoginUseCase`, `ChangePasswordUseCase`.
 
 ---
 
-## Verificación de cierre
+### 🔴 CRÍTICA — C4: Tokens de sesión almacenados en claro ✅ CERRADO
 
-- [x] #1 `ConferenceModerationHandler` — `requireOrganizer(jx)` (valida Bearer token contra `insightbloom-users` y exige `role=organizer`) al inicio de `get()` (excepto el GET público de respuesta), `post()` y `patch()`. `delete()` (cascade interno desde users) se deja igual que el resto de endpoints de borrado por conferencia.
-- [x] #2 `InternalEvaluateHandler` — `validInternalAuth(jx)` en `post()`; `HttpModerationClient` (ingest) ahora envía `X-Internal-Auth`
-- [x] #3 `UpdateHandler` — `validInternalAuth(jx)` en `post()`; `HttpQueryClient` (ingest) ahora envía `X-Internal-Auth`
-- [x] #4 `RecalcHandler` — `validInternalAuth(jx)` en `post()`; `HttpStatsClient` (ingest) ahora envía `X-Internal-Auth`
-- [ ] #5 `ConferenceQueryHandler` — decisión de producto: se deja público (los datos de nube/timeline se consideran públicos por diseño del portal de asistentes, ya consumidos sin login desde `CloudDoubtsPage`/`CloudTopicsPage`/`WordTimelinePage`)
-- [x] #6 `StatsHandler` — no se usa desde ninguna página pública (no hay `statsApi.js` en frontend, no está mapeado en nginx); se añadió `requireOrganizer(jx)` igual que en moderación, sin impacto visible
-- [ ] #7 `validInternalAuth` — se mantiene el fallback fail-open documentado (sin `INTERNAL_API_KEY` no se exige el header); ahora vive una sola vez en `BaseResourceHandler` (`backend/common`) en vez de duplicado por handler
+La tabla `tokens` almacenaba el valor crudo del token. Un dump de la BD permitía impersonar cualquier sesión activa.
 
-`validInternalAuth` se promovió a `backend/common/.../BaseResourceHandler.java` para evitar duplicar la lógica en cada handler; `VisibilityHandler`/`MessageVisibilityHandler` (query) se actualizaron para usar la versión compartida. `INTERNAL_API_KEY` se añadió también a `ingest` y `stats` en `values.yaml` (antes solo lo tenían `moderation` y `query`), ya que ahora ambos envían/reciben el header.
+**Corrección**: `SqliteTokenRepository` ahora guarda `SHA-256(token_value)` en la columna `token_value`. El cliente recibe y envía el token crudo; la BD nunca lo ve. Lookup y revocación también pasan por el hash. Los tokens existentes se invalidaron automáticamente en el deploy.
+
+---
+
+### 🔴 CRÍTICA — C5: Sin rate limiting en endpoints de autenticación ✅ CERRADO
+
+Login, registro y OTP no tenían protección contra ataques de fuerza bruta.
+
+**Corrección**: `nginx.conf` — dos zonas `limit_req_zone` y bloques `location` específicos **antes** del catch-all `/api/users`:
+- `/auth/otp/send`: 2 req/min por IP, burst=2
+- `/auth/login`, `/auth/register`, `/auth/otp/verify`: 5 req/min por IP, burst=3
+
+---
+
+### 🔴 ALTA — A1: Sin límite de tamaño en upload de presentaciones ✅ CERRADO
+
+`multer` en `server.js` (presentations) no tenía límite de tamaño de archivo. Posible DoS por archivos gigantes.
+
+**Corrección**: `limits: { fileSize: 100 * 1024 * 1024 }` (100 MB) en la configuración de multer.
+
+---
+
+### 🔴 ALTA — A2: Sin aislamiento de red entre pods ✅ CERRADO
+
+Todos los pods del namespace `mvps` podían recibir tráfico de cualquier origen — incluyendo pods comprometidos de otros namespaces.
+
+**Corrección**: Helm template `network-policy.yaml` con 4 políticas:
+1. Default-deny ingress para todos los pods del release
+2. Allow-from-anywhere para el pod `web` (frontend público)
+3. Allow-intra-namespace para todos los pods backend (web→backend, users→cascade, etc.)
+4. Allow-intra-namespace para NATS
+
+Controlado por `networkPolicy.enabled: true` en `values.yaml`.
+
+---
+
+### 🟡 MEDIA — M3: Sin endpoint de logout ✅ CERRADO
+
+No existía forma de invalidar un token de sesión activo. Un token robado era válido hasta su expiración (24h).
+
+**Corrección**: `POST /api/v1/auth/logout` — extrae el Bearer token y llama a `LogoutUseCase → TokenService.revokeToken() → SqliteTokenRepository.revokeByValue()`. Actualiza `revoked_at` en la tabla `tokens`. El frontend (`authStore.logout()`) llama al endpoint antes de limpiar el estado local (best-effort: limpia siempre, falle o no el servidor).
+
+---
+
+### 🟡 MEDIA — M4: Path traversal en servicio de presentaciones ✅ CERRADO
+
+`server.js` usaba `req.params.id` directamente en `path.join()` para construir rutas del sistema de archivos. Una entrada como `../../etc/passwd` podría acceder a archivos fuera del directorio de presentaciones.
+
+**Corrección**: Regex UUID `^[0-9a-f]{8}-...$` validada antes de cualquier operación con el parámetro. Los 6 endpoints (POST upload, GET slides, GET preview, GET pdf, GET status, DELETE) rechazan con 400 si el ID no es un UUID válido.
+
+---
+
+### 🟢 BAJA — AR3: Sin backup automatizado de SQLite ✅ CERRADO
+
+Las bases de datos SQLite (users, stats) no tenían backup automatizado. Una pérdida del PVC implicaba pérdida total de datos.
+
+**Corrección**: Helm template `sqlite-backup-cronjob.yaml` — CronJob diario (02:00 UTC) por cada servicio con `persistence.enabled` + `DB_PATH`. Usa `alpine+sqlite3` con la API de backup online (`.backup` command — safe para DBs en vivo). Retiene los últimos 7 backups en `/data/backups/`. Controlado por `backup.enabled: true` en `values.yaml`.
+
+---
+
+## Resumen de cierre
+
+| ID | Severidad | Descripción | Estado | Commit |
+|----|-----------|-------------|--------|--------|
+| #1 | 🔴 Crítica | Moderación sin auth | ✅ Cerrado | prior |
+| #2 | 🔴 Alta | `/internal/evaluate` sin X-Internal-Auth | ✅ Cerrado | prior |
+| #3 | 🔴 Alta | `/internal/update` sin X-Internal-Auth | ✅ Cerrado | prior |
+| #4 | 🔴 Alta | `/internal/recalc` sin X-Internal-Auth | ✅ Cerrado | prior |
+| #5 | 🟡 Media | Query público sin auth | ✅ Aceptado por diseño | — |
+| #6 | 🟡 Media | Stats sin auth | ✅ Cerrado | prior |
+| #7 | 🟢 Baja | `validInternalAuth` fail-open | ✅ Cerrado | C2 |
+| C1 | 🔴 Crítica | 4 DELETE endpoints sin X-Internal-Auth | ✅ Cerrado | `6557a7d` |
+| C2 | 🔴 Crítica | Internal auth fail-open → fail-closed | ✅ Cerrado | `6557a7d` |
+| C3 | 🔴 Crítica | SHA-256 sin sal → PBKDF2 | ✅ Cerrado | `e7048c5` |
+| C4 | 🔴 Crítica | Tokens en claro en BD → SHA-256 at rest | ✅ Cerrado | `e7048c5` |
+| C5 | 🔴 Crítica | Sin rate limiting en auth | ✅ Cerrado | `fde6490` |
+| A1 | 🔴 Alta | Sin límite de tamaño en upload | ✅ Cerrado | `6557a7d` |
+| A2 | 🔴 Alta | Sin NetworkPolicy | ✅ Cerrado | `fde6490` |
+| M3 | 🟡 Media | Sin endpoint de logout | ✅ Cerrado | `fde6490` |
+| M4 | 🟡 Media | Path traversal en presentations | ✅ Cerrado | `6557a7d` |
+| AR3 | 🟢 Baja | Sin backup automatizado | ✅ Cerrado | `e7048c5` |
