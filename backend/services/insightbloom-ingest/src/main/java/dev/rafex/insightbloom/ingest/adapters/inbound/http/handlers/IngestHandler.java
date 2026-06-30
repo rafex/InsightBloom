@@ -52,11 +52,12 @@ public class IngestHandler extends BaseResourceHandler {
     @Override
     public boolean delete(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (!validInternalAuth(jx)) { sendError(jx, 403, "forbidden", "Internal access only"); return true; }
         try {
             deleteConferenceDataUseCase.execute(jx.pathParam("conferenceId"));
             sendOk(jx, 200, Map.of("status", "deleted"));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendError(jx, 500, "internal_error", "Internal error");
         }
         return true;
     }

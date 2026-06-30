@@ -18,13 +18,19 @@ const NATS_AUTH_TOKEN = process.env.NATS_AUTH_TOKEN || '';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || '';
 const MARP_BIN = path.join(__dirname, 'node_modules', '.bin', 'marp');
 
-const upload = multer({ dest: path.join(DATA_DIR, 'tmp') });
+const upload = multer({ dest: path.join(DATA_DIR, 'tmp'), limits: { fileSize: 100 * 1024 * 1024 } });
 
 const app = express();
 
 // PDF se genera bajo demanda (corre Chromium headless vía Marp) y se cachea en disco;
 // este mapa deduplica generaciones concurrentes para la misma conferencia.
 const pdfGenerations = new Map();
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function validConferenceId(id) {
+  return typeof id === 'string' && UUID_RE.test(id);
+}
 
 function conferenceDir(conferenceId) {
   return path.join(DATA_DIR, 'presentations', conferenceId);
@@ -65,6 +71,7 @@ function runMarp(args) {
 
 app.post('/api/v1/conferences/:id/presentation', upload.single('file'), async (req, res) => {
   const { id } = req.params;
+  if (!validConferenceId(id)) return res.status(400).json({ error: 'invalid_conference_id' });
   if (!req.file) return res.status(400).json({ error: 'file_required' });
 
   const confDir = conferenceDir(id);
@@ -107,12 +114,14 @@ app.post('/api/v1/conferences/:id/presentation', upload.single('file'), async (r
 });
 
 app.get('/api/v1/conferences/:id/presentation/slides', (req, res) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   const file = path.join(conferenceDir(req.params.id), 'src', 'slides.html');
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   res.sendFile(file);
 });
 
 app.get('/api/v1/conferences/:id/presentation/slides/preview', (req, res) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   const file = path.join(conferenceDir(req.params.id), 'src', 'slides.html');
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   try {
@@ -168,6 +177,7 @@ async function ensurePdf(conferenceId) {
 }
 
 app.get('/api/v1/conferences/:id/presentation/pdf', async (req, res) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   try {
     const file = await ensurePdf(req.params.id);
     if (!file) return res.status(404).json({ error: 'not_found' });
@@ -179,6 +189,7 @@ app.get('/api/v1/conferences/:id/presentation/pdf', async (req, res) => {
 });
 
 app.get('/api/v1/conferences/:id/presentation/status', (req, res) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   const confDir = conferenceDir(req.params.id);
   res.json({
     ready: fs.existsSync(path.join(confDir, 'src', 'slides.html')),
@@ -190,6 +201,7 @@ app.delete('/api/v1/conferences/:id/presentation', (req, res) => {
   if (!INTERNAL_API_KEY || key !== INTERNAL_API_KEY) {
     return res.status(403).json({ error: 'forbidden' });
   }
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   fs.rmSync(conferenceDir(req.params.id), { recursive: true, force: true });
   res.json({ status: 'deleted' });
 });
