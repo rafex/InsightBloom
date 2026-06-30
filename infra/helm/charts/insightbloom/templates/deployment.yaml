@@ -82,7 +82,7 @@ spec:
             {{- toYaml $.Values.startupProbe | nindent 12 }}
           {{- end }}
           resources:
-            {{- toYaml $.Values.resources | nindent 12 }}
+            {{- toYaml ($svc.resources | default $.Values.resources) | nindent 12 }}
           volumeMounts:
             - name: data
               mountPath: /data
