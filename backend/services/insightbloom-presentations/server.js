@@ -186,6 +186,10 @@ app.get('/api/v1/conferences/:id/presentation/status', (req, res) => {
 });
 
 app.delete('/api/v1/conferences/:id/presentation', (req, res) => {
+  const key = req.headers['x-internal-api-key'];
+  if (!INTERNAL_API_KEY || key !== INTERNAL_API_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
   fs.rmSync(conferenceDir(req.params.id), { recursive: true, force: true });
   res.json({ status: 'deleted' });
 });

@@ -10,4 +10,6 @@ public interface ConferenceMembershipRepository {
     boolean exists(String userUuid, String conferenceUuid);
 
     List<ConferenceMembership> findByUser(String userUuid);
+
+    void deleteByConference(String conferenceUuid);
 }

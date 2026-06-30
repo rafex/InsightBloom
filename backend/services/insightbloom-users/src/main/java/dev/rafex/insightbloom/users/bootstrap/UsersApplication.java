@@ -60,7 +60,7 @@ public class UsersApplication {
         final var tokenService = new TokenService(tokenRepo);
         final var friendlyIdService = new FriendlyIdService(conferenceRepo);
         final var cascadeDeletePort = new HttpCascadeDeleteClient(
-                ingestUrl, queryUrl, moderationUrl, presentationsUrl, surveyUrl);
+                ingestUrl, queryUrl, moderationUrl, presentationsUrl, surveyUrl, internalApiKey);
         final var smsPort = new TwilioSmsClient(twilioAccountSid, twilioAuthToken, twilioFromNumber);
         final var emailPort = new ZohoEmailClient(zohoSmtpHost, zohoSmtpPort, zohoUsername, zohoPassword, zohoFromAddress);
         final var surveyPort = new HttpSurveyClient(surveyUrl);
@@ -71,7 +71,7 @@ public class UsersApplication {
         final var createGuestUseCase = new CreateGuestUseCase(guestRepo, conferenceRepo, tokenService);
         final var validateTokenUseCase = new ValidateTokenUseCase(tokenService, userRepo, guestRepo);
         final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService);
-        final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo, cascadeDeletePort);
+        final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo, cascadeDeletePort, membershipRepo);
         final var registerUseCase = new RegisterUseCase(userRepo);
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
         final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);

@@ -74,4 +74,15 @@ public class SqliteConferenceMembershipRepository implements ConferenceMembershi
         }
         return result;
     }
+
+    @Override
+    public void deleteByConference(final String conferenceUuid) {
+        final String sql = "DELETE FROM conference_memberships WHERE conference_uuid = ?";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, conferenceUuid);
+            ps.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

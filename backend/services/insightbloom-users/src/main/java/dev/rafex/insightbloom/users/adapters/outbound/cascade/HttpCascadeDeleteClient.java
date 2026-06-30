@@ -12,10 +12,13 @@ import java.util.List;
 public class HttpCascadeDeleteClient implements CascadeDeletePort {
     private final HttpClient httpClient;
     private final List<String> deleteUrls;
+    private final String internalApiKey;
 
     public HttpCascadeDeleteClient(final String ingestUrl, final String queryUrl, final String moderationUrl,
-                                    final String presentationsUrl, final String surveyUrl) {
+                                    final String presentationsUrl, final String surveyUrl,
+                                    final String internalApiKey) {
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        this.internalApiKey = internalApiKey;
         this.deleteUrls = List.of(
                 ingestUrl + "/api/v1/conferences/%s/messages",
                 queryUrl + "/api/v1/conferences/%s/cloud",
@@ -31,6 +34,7 @@ public class HttpCascadeDeleteClient implements CascadeDeletePort {
                 final HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(String.format(template, conferenceUuid)))
                         .timeout(Duration.ofSeconds(10))
+                        .header("X-Internal-Api-Key", internalApiKey)
                         .DELETE()
                         .build();
                 httpClient.send(request, HttpResponse.BodyHandlers.discarding());

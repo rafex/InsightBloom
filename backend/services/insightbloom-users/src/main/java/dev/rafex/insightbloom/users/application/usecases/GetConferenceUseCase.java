@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.CascadeDeletePort;
+import dev.rafex.insightbloom.users.domain.ports.ConferenceMembershipRepository;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 
 import java.util.List;
@@ -10,10 +11,13 @@ import java.util.Optional;
 public class GetConferenceUseCase {
     private final ConferenceRepository conferenceRepository;
     private final CascadeDeletePort cascadeDeletePort;
+    private final ConferenceMembershipRepository membershipRepository;
 
-    public GetConferenceUseCase(ConferenceRepository conferenceRepository, CascadeDeletePort cascadeDeletePort) {
+    public GetConferenceUseCase(ConferenceRepository conferenceRepository, CascadeDeletePort cascadeDeletePort,
+                                 ConferenceMembershipRepository membershipRepository) {
         this.conferenceRepository = conferenceRepository;
         this.cascadeDeletePort = cascadeDeletePort;
+        this.membershipRepository = membershipRepository;
     }
 
     public Optional<Conference> byId(String uuid) {
@@ -58,6 +62,7 @@ public class GetConferenceUseCase {
             .filter(c -> c.getCreatedByUserUuid().equals(requestingUserUuid))
             .map(c -> {
                 conferenceRepository.delete(uuid);
+                membershipRepository.deleteByConference(uuid);
                 try {
                     cascadeDeletePort.deleteConferenceData(uuid);
                 } catch (final Exception e) {
