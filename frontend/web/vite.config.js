@@ -31,6 +31,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             // Slides de una presentación + sus assets estáticos (css/imágenes del
