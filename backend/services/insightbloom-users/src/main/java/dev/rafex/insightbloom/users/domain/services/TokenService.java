@@ -41,6 +41,10 @@ public class TokenService {
         tokenRepository.revokeAllForUser(userUuid);
     }
 
+    public void revokeToken(String tokenValue) {
+        tokenRepository.revokeByValue(tokenValue);
+    }
+
     private String generateTokenValue() {
         return UUID.randomUUID().toString().replace("-", "") +
                UUID.randomUUID().toString().replace("-", "");

@@ -63,6 +63,9 @@ startupProbe:
   failureThreshold: 30
   periodSeconds: 10
 
+networkPolicy:
+  enabled: true
+
 autoscaling:
   enabled: true
   minReplicas: 1

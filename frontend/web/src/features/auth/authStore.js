@@ -42,7 +42,16 @@ export function useAuthStore() {
     localStorage.setItem('ib_user_uuid', userUuid)
   }
 
-  function logout() {
+  async function logout() {
+    if (state.token) {
+      try {
+        await axios.post('/api/users/api/v1/auth/logout', {}, {
+          headers: { Authorization: `Bearer ${state.token}` }
+        })
+      } catch {
+        // best-effort: clear local state regardless of server response
+      }
+    }
     state.token = null
     state.role = null
     state.userUuid = null

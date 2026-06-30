@@ -1,0 +1,84 @@
+{{- if .Values.networkPolicy.enabled }}
+# Default-deny all ingress for every pod in the namespace, then re-open
+# only the traffic that is actually needed:
+#   • Frontend (web) is public-facing: accept from anywhere.
+#   • All other services are internal: accept only from pods in the same namespace.
+#   • NATS is internal: same rule.
+# This means even if an attacker bypasses nginx they still cannot reach backend
+# pods directly from outside the cluster.
+
+---
+# 1. Default-deny ingress for the whole release (all pods get this label pair).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-default-deny
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+
+---
+# 2. Re-open ingress for the frontend (web) from anywhere — it is the public entry point.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-allow-web-ingress
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+
+---
+# 3. Re-open ingress for all backend services from pods inside the same namespace.
+#    Covers: users → other services (cascade delete), nginx → backends, chat → backends.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-allow-intra-namespace
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "insightbloom.selectorLabels" . | nindent 14 }}
+
+---
+# 4. NATS is not part of the services range so it gets its own allow rule.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-allow-nats-intra
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: nats
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "insightbloom.selectorLabels" . | nindent 14 }}
+{{- end }}
