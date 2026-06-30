@@ -75,20 +75,21 @@ const router = createRouter({
   routes
 })
 
+const GUEST_ROUTES = ['/', '/login', '/register']
+
 router.beforeEach((to) => {
-  if (to.meta.requiresAuth) {
-    const token = localStorage.getItem('ib_token')
-    if (!token) return '/login'
-  }
-  const organizerOnlyPaths = ['/dashboard/conferences/new', '/dashboard/certificate-settings']
+  const token = localStorage.getItem('ib_token')
+
+  // Already authenticated → skip landing/login/register
+  if (token && GUEST_ROUTES.includes(to.path)) return '/dashboard'
+
+  if (to.meta.requiresAuth && !token) return '/login'
+
   const roles = (localStorage.getItem('ib_role') || '').split(',').map((r) => r.trim())
   const isOrganizerOrAdmin = roles.includes('organizer') || roles.includes('admin')
-  if (organizerOnlyPaths.includes(to.path) && !isOrganizerOrAdmin) {
-    return '/dashboard'
-  }
-  if (to.path === '/dashboard/admin/users' && !roles.includes('admin')) {
-    return '/dashboard'
-  }
+  const organizerOnlyPaths = ['/dashboard/conferences/new', '/dashboard/certificate-settings']
+  if (organizerOnlyPaths.includes(to.path) && !isOrganizerOrAdmin) return '/dashboard'
+  if (to.path === '/dashboard/admin/users' && !roles.includes('admin')) return '/dashboard'
 })
 
 export default router
