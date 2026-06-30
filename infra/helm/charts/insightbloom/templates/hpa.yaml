@@ -1,5 +1,8 @@
 {{- if .Values.autoscaling.enabled }}
 {{- range $name, $svc := .Values.services }}
+{{- $minReplicas := dig "autoscaling" "minReplicas" $.Values.autoscaling.minReplicas $svc }}
+{{- $maxReplicas := dig "autoscaling" "maxReplicas" $.Values.autoscaling.maxReplicas $svc }}
+{{- $cpuTarget  := dig "autoscaling" "targetCPUUtilizationPercentage" $.Values.autoscaling.targetCPUUtilizationPercentage $svc }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -12,15 +15,15 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "insightbloom.fullname" $ }}-{{ $name }}
-  minReplicas: {{ $.Values.autoscaling.minReplicas }}
-  maxReplicas: {{ $.Values.autoscaling.maxReplicas }}
+  minReplicas: {{ $minReplicas }}
+  maxReplicas: {{ $maxReplicas }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ $.Values.autoscaling.targetCPUUtilizationPercentage }}
+          averageUtilization: {{ $cpuTarget }}
 ---
 {{- end }}
 {{- end }}

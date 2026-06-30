@@ -83,11 +83,11 @@ nats:
   port: 4222
   resources:
     requests:
-      cpu: 15m
-      memory: 64Mi
+      cpu: 20m
+      memory: 96Mi
     limits:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 150m
+      memory: 192Mi
 
 ingress:
   enabled: true
@@ -133,6 +133,15 @@ services:
   users:
     repository: ghcr.io/rafex/insightbloom-users
     port: 8081
+    autoscaling:
+      targetCPUUtilizationPercentage: 50
+    resources:
+      requests:
+        cpu: 40m
+        memory: 192Mi
+      limits:
+        cpu: 350m
+        memory: 768Mi
     persistence:
       enabled: true
       size: 1Gi
@@ -199,6 +208,13 @@ services:
   query:
     repository: ghcr.io/rafex/insightbloom-query
     port: 8083
+    resources:
+      requests:
+        cpu: 25m
+        memory: 160Mi
+      limits:
+        cpu: 200m
+        memory: 512Mi
     persistence:
       enabled: true
       size: 1Gi
@@ -214,6 +230,15 @@ services:
   ingest:
     repository: ghcr.io/rafex/insightbloom-ingest
     port: 8082
+    autoscaling:
+      targetCPUUtilizationPercentage: 50
+    resources:
+      requests:
+        cpu: 40m
+        memory: 128Mi
+      limits:
+        cpu: 300m
+        memory: 512Mi
     persistence:
       enabled: true
       size: 1Gi
@@ -233,6 +258,13 @@ services:
   survey:
     repository: ghcr.io/rafex/insightbloom-survey
     port: 8086
+    resources:
+      requests:
+        cpu: 30m
+        memory: 160Mi
+      limits:
+        cpu: 250m
+        memory: 512Mi
     persistence:
       enabled: true
       size: 1Gi
@@ -251,6 +283,13 @@ services:
   presentations:
     repository: ghcr.io/rafex/insightbloom-presentations
     port: 8091
+    resources:
+      requests:
+        cpu: 30m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 640Mi
     persistence:
       enabled: true
       size: 2Gi
@@ -296,6 +335,13 @@ services:
   chat:
     repository: ghcr.io/rafex/insightbloom-chat
     port: 8090
+    resources:
+      requests:
+        cpu: 30m
+        memory: 192Mi
+      limits:
+        cpu: 250m
+        memory: 640Mi
     persistence:
       enabled: true
       size: 1Gi
@@ -324,6 +370,13 @@ services:
   telegram:
     repository: ghcr.io/rafex/insightbloom-telegram
     port: 8095
+    resources:
+      requests:
+        cpu: 20m
+        memory: 96Mi
+      limits:
+        cpu: 100m
+        memory: 256Mi
     persistence:
       enabled: true
       size: 1Gi
