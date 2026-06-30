@@ -41,7 +41,43 @@ spec:
     - {}
 
 ---
-# 3. Re-open ingress for all backend services from pods inside the same namespace.
+# 3a. Re-open ingress for chat from anywhere — it has its own ingress (ingressChat).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-allow-chat-ingress
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: chat
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+
+---
+# 3b. Re-open ingress for telegram from anywhere — it has its own ingress (ingressTelegram).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-allow-telegram-ingress
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: telegram
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+
+---
+# 4. Re-open ingress for all backend services from pods inside the same namespace.
 #    Covers: users → other services (cascade delete), nginx → backends, chat → backends.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -62,7 +98,7 @@ spec:
               {{- include "insightbloom.selectorLabels" . | nindent 14 }}
 
 ---
-# 4. NATS is not part of the services range so it gets its own allow rule.
+# 5. NATS is not part of the services range so it gets its own allow rule.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
