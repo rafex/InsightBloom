@@ -1,0 +1,56 @@
+{{- if .Values.backup.enabled }}
+{{- range $name, $svc := .Values.services }}
+{{- if and $svc.persistence $svc.persistence.enabled $svc.env.DB_PATH }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "insightbloom.fullname" $ }}-backup-{{ $name }}
+  labels:
+    {{- include "insightbloom.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: backup-{{ $name }}
+spec:
+  schedule: {{ $.Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "insightbloom.selectorLabels" $ | nindent 12 }}
+            app.kubernetes.io/component: backup-{{ $name }}
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: alpine:3
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  apk add -q sqlite
+                  DB_PATH={{ $svc.env.DB_PATH | quote }}
+                  BACKUP_DIR="$(dirname "$DB_PATH")/backups"
+                  mkdir -p "$BACKUP_DIR"
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  DEST="$BACKUP_DIR/{{ $name }}-$TIMESTAMP.db"
+                  sqlite3 "$DB_PATH" ".backup '$DEST'"
+                  echo "Backup written: $DEST"
+                  # Prune: keep only the newest N backups
+                  ls -t "$BACKUP_DIR"/{{ $name }}-*.db 2>/dev/null \
+                    | tail -n +{{ add1 $.Values.backup.retain }} \
+                    | xargs -r rm --
+                  echo "Done. Retained up to {{ $.Values.backup.retain }} backups."
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: {{ include "insightbloom.fullname" $ }}-{{ $name }}-data
+{{- end }}
+{{- end }}
+{{- end }}

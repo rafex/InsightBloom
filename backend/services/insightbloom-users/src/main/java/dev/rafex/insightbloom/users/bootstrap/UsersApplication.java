@@ -58,6 +58,7 @@ public class UsersApplication {
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
+        final var passwordService = new PasswordService();
         final var friendlyIdService = new FriendlyIdService(conferenceRepo);
         final var cascadeDeletePort = new HttpCascadeDeleteClient(
                 ingestUrl, queryUrl, moderationUrl, presentationsUrl, surveyUrl, internalApiKey);
@@ -67,17 +68,17 @@ public class UsersApplication {
         final var telegramNotifyPort = new HttpTelegramNotifyClient(telegramUrl, internalApiKey);
 
         // Use cases
-        final var loginUseCase = new LoginUseCase(userRepo, tokenService);
+        final var loginUseCase = new LoginUseCase(userRepo, tokenService, passwordService);
         final var createGuestUseCase = new CreateGuestUseCase(guestRepo, conferenceRepo, tokenService);
         final var validateTokenUseCase = new ValidateTokenUseCase(tokenService, userRepo, guestRepo);
         final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService);
         final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo, cascadeDeletePort, membershipRepo);
-        final var registerUseCase = new RegisterUseCase(userRepo);
+        final var registerUseCase = new RegisterUseCase(userRepo, passwordService);
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
         final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);
         final var getUserProfileUseCase = new GetUserProfileUseCase(userRepo);
         final var updateProfileUseCase = new UpdateProfileUseCase(userRepo);
-        final var changePasswordUseCase = new ChangePasswordUseCase(userRepo);
+        final var changePasswordUseCase = new ChangePasswordUseCase(userRepo, passwordService);
         final var joinConferenceUseCase = new JoinConferenceUseCase(getConferenceUseCase, membershipRepo);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
         final var generateCertificateUseCase = new GenerateCertificateUseCase(

@@ -66,6 +66,11 @@ startupProbe:
 networkPolicy:
   enabled: true
 
+backup:
+  enabled: true
+  schedule: "0 2 * * *"   # daily at 02:00 UTC
+  retain: 7                # keep last N backups per service
+
 autoscaling:
   enabled: true
   minReplicas: 1

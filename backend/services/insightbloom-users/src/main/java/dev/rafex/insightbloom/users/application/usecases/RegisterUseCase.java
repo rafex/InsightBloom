@@ -4,15 +4,18 @@ import dev.rafex.insightbloom.users.domain.model.SocialLink;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.model.UserRole;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
+import dev.rafex.insightbloom.users.domain.services.PasswordService;
 
 import java.util.List;
 import java.util.UUID;
 
 public class RegisterUseCase {
     private final UserRepository userRepository;
+    private final PasswordService passwordService;
 
-    public RegisterUseCase(final UserRepository userRepository) {
+    public RegisterUseCase(final UserRepository userRepository, final PasswordService passwordService) {
         this.userRepository = userRepository;
+        this.passwordService = passwordService;
     }
 
     public record Request(String displayName, String email, String phone, String password,
@@ -38,7 +41,7 @@ public class RegisterUseCase {
         final User user = new User(UUID.randomUUID().toString(), username, req.displayName(),
                 hasEmail ? req.email() : null, hasPhone ? req.phone() : null,
                 req.socialLinks(), false, false, UserRole.ATTENDEE);
-        user.setPasswordHash(LoginUseCase.sha256(req.password()));
+        user.setPasswordHash(passwordService.hash(req.password()));
         userRepository.save(user);
         return user;
     }

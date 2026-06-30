@@ -1,12 +1,15 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
+import dev.rafex.insightbloom.users.domain.services.PasswordService;
 
 public class ChangePasswordUseCase {
     private final UserRepository userRepository;
+    private final PasswordService passwordService;
 
-    public ChangePasswordUseCase(final UserRepository userRepository) {
+    public ChangePasswordUseCase(final UserRepository userRepository, final PasswordService passwordService) {
         this.userRepository = userRepository;
+        this.passwordService = passwordService;
     }
 
     public record Request(String currentPassword, String newPassword) {}
@@ -21,11 +24,11 @@ public class ChangePasswordUseCase {
             final boolean hasExistingPassword = currentHash != null && !currentHash.isBlank();
             if (hasExistingPassword) {
                 if (request.currentPassword() == null
-                        || !LoginUseCase.sha256(request.currentPassword()).equals(currentHash)) {
+                        || !passwordService.verify(request.currentPassword(), currentHash)) {
                     return false;
                 }
             }
-            u.setPasswordHash(LoginUseCase.sha256(request.newPassword()));
+            u.setPasswordHash(passwordService.hash(request.newPassword()));
             userRepository.save(u);
             return true;
         }).orElse(false);

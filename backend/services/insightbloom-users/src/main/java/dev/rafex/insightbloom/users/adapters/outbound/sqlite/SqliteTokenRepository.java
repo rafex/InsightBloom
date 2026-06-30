@@ -3,6 +3,7 @@ package dev.rafex.insightbloom.users.adapters.outbound.sqlite;
 import dev.rafex.insightbloom.users.domain.model.Token;
 import dev.rafex.insightbloom.users.domain.model.TokenKind;
 import dev.rafex.insightbloom.users.domain.ports.TokenRepository;
+import dev.rafex.insightbloom.users.domain.services.PasswordService;
 
 import java.sql.*;
 import java.time.Instant;
@@ -15,9 +16,15 @@ public class SqliteTokenRepository implements TokenRepository {
         this.db = db;
     }
 
+    // The raw token value is given to the client; only its SHA-256 hash is stored in the DB.
+    // This prevents token theft from a DB dump — the hash cannot be reversed.
+    private static String hashToken(final String rawToken) {
+        return PasswordService.sha256(rawToken);
+    }
+
     @Override
-    public void save(Token token) {
-        String sql = """
+    public void save(final Token token) {
+        final String sql = """
             INSERT INTO tokens (uuid, user_uuid, guest_user_uuid, token_kind, token_value, expires_at, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """;
@@ -26,56 +33,57 @@ public class SqliteTokenRepository implements TokenRepository {
             ps.setString(2, token.getUserUuid());
             ps.setString(3, token.getGuestUserUuid());
             ps.setString(4, token.getTokenKind().name());
-            ps.setString(5, token.getTokenValue());
+            ps.setString(5, hashToken(token.getTokenValue()));
             ps.setString(6, token.getExpiresAt().toString());
             ps.setString(7, token.getCreatedAt().toString());
             ps.executeUpdate();
-        } catch (SQLException e) {
+        } catch (final SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public Optional<Token> findByValue(String tokenValue) {
-        String sql = "SELECT * FROM tokens WHERE token_value = ?";
+    public Optional<Token> findByValue(final String tokenValue) {
+        final String sql = "SELECT * FROM tokens WHERE token_value = ?";
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, tokenValue);
-            ResultSet rs = ps.executeQuery();
+            ps.setString(1, hashToken(tokenValue));
+            final ResultSet rs = ps.executeQuery();
             if (rs.next()) {
-                String revokedStr = rs.getString("revoked_at");
+                final String revokedStr = rs.getString("revoked_at");
+                // Return a Token with the original (raw) token value so callers can still use it
                 return Optional.of(new Token(
                     rs.getString("uuid"), rs.getString("user_uuid"), rs.getString("guest_user_uuid"),
-                    TokenKind.valueOf(rs.getString("token_kind")), rs.getString("token_value"),
+                    TokenKind.valueOf(rs.getString("token_kind")), tokenValue,
                     parseInstant(rs.getString("expires_at")), parseInstant(rs.getString("created_at")),
                     revokedStr != null ? parseInstant(revokedStr) : null
                 ));
             }
-        } catch (SQLException e) {
+        } catch (final SQLException e) {
             throw new RuntimeException(e);
         }
         return Optional.empty();
     }
 
     @Override
-    public void revokeAllForUser(String userUuid) {
-        String sql = "UPDATE tokens SET revoked_at = ? WHERE user_uuid = ? AND revoked_at IS NULL";
+    public void revokeAllForUser(final String userUuid) {
+        final String sql = "UPDATE tokens SET revoked_at = ? WHERE user_uuid = ? AND revoked_at IS NULL";
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, Instant.now().toString());
             ps.setString(2, userUuid);
             ps.executeUpdate();
-        } catch (SQLException e) {
+        } catch (final SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public void revokeByValue(String tokenValue) {
-        String sql = "UPDATE tokens SET revoked_at = ? WHERE token_value = ? AND revoked_at IS NULL";
+    public void revokeByValue(final String tokenValue) {
+        final String sql = "UPDATE tokens SET revoked_at = ? WHERE token_value = ? AND revoked_at IS NULL";
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, Instant.now().toString());
-            ps.setString(2, tokenValue);
+            ps.setString(2, hashToken(tokenValue));
             ps.executeUpdate();
-        } catch (SQLException e) {
+        } catch (final SQLException e) {
             throw new RuntimeException(e);
         }
     }
