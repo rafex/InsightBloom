@@ -50,7 +50,7 @@ public class SurveyApplication {
         final var deactivateQuestionUseCase = new DeactivateQuestionUseCase(questionRepo);
         final var submitResponsesUseCase = new SubmitResponsesUseCase(questionRepo, responseRepo);
         final var getResultsUseCase = new GetResultsUseCase(questionRepo, responseRepo, usersPort);
-        final var suggestQuestionsUseCase = new SuggestQuestionsUseCase(llm, presentationsClient, JsonUtils.codec());
+        final var suggestQuestionsUseCase = new SuggestQuestionsUseCase(llm, presentationsClient, questionRepo, JsonUtils.codec());
         final var updateQuestionUseCase = new UpdateQuestionUseCase(questionRepo);
         final var purgeResponsesUseCase = new PurgeResponsesUseCase(responseRepo);
         final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(questionRepo, responseRepo);

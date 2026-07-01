@@ -15,7 +15,13 @@ public class HttpPresentationsClient implements PresentationsPort {
 
     public HttpPresentationsClient(final String baseUrl) {
         this.baseUrl = baseUrl;
-        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        // HTTP_1_1 forzado: el servidor de presentaciones es Express/Node, que no
+        // negocia el upgrade a h2c que el cliente JDK intenta por defecto (HTTP_2),
+        // dejando la conexion colgada/fallida sin excepcion visible.
+        this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
     }
 
     @Override
@@ -30,6 +36,7 @@ public class HttpPresentationsClient implements PresentationsPort {
             if (response.statusCode() != 200) return Optional.empty();
             return Optional.of(response.body());
         } catch (final java.io.IOException | InterruptedException e) {
+            System.err.println("HttpPresentationsClient.fetchMarkdown failed for " + conferenceId + ": " + e);
             return Optional.empty();
         }
     }

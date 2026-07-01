@@ -3,10 +3,12 @@ package dev.rafex.insightbloom.survey.application.usecases;
 import dev.rafex.ether.json.JsonCodec;
 import dev.rafex.insightbloom.survey.domain.ports.LlmPort;
 import dev.rafex.insightbloom.survey.domain.ports.PresentationsPort;
+import dev.rafex.insightbloom.survey.domain.ports.SurveyQuestionRepository;
 
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class SuggestQuestionsUseCase {
     private static final Pattern FRONTMATTER = Pattern.compile("^---.*?---\\s*", Pattern.DOTALL);
@@ -19,6 +21,10 @@ public class SuggestQuestionsUseCase {
             orador ni metadata). Basa las preguntas EXCLUSIVAMENTE en ese contenido visible: no
             inventes datos que no aparezcan en las diapositivas y no asumas informacion adicional.
             Propone preguntas variadas y relevantes sobre lo que se mostro.
+            Recibiras tambien la lista de preguntas que YA EXISTEN en el cuestionario. No repitas
+            ninguna de ellas ni generes preguntas semanticamente equivalentes (mismo hecho o
+            concepto preguntado de otra forma): cubre aspectos del contenido que esas preguntas
+            todavia no cubren.
             Responde UNICAMENTE con un arreglo JSON valido (sin texto adicional, sin markdown),
             donde cada elemento tiene esta forma exacta:
             {"text": "...", "type": "RATING|TEXT|MULTIPLE_CHOICE|OPEN_GRADED|CODE_GRADED|DRAG_DROP",
@@ -34,12 +40,14 @@ public class SuggestQuestionsUseCase {
 
     private final LlmPort llm;
     private final PresentationsPort presentations;
+    private final SurveyQuestionRepository questionRepo;
     private final JsonCodec jsonCodec;
 
     public SuggestQuestionsUseCase(final LlmPort llm, final PresentationsPort presentations,
-                                    final JsonCodec jsonCodec) {
+                                    final SurveyQuestionRepository questionRepo, final JsonCodec jsonCodec) {
         this.llm = llm;
         this.presentations = presentations;
+        this.questionRepo = questionRepo;
         this.jsonCodec = jsonCodec;
     }
 
@@ -52,9 +60,14 @@ public class SuggestQuestionsUseCase {
         final String markdown = presentations.fetchMarkdown(conferenceId)
                 .orElseThrow(() -> new IllegalArgumentException("presentation_not_found"));
         final String visibleContent = stripNonVisibleContent(markdown);
+        final String existingQuestions = questionRepo.findByConference(conferenceId, false).stream()
+                .map(q -> "- " + q.getText())
+                .collect(Collectors.joining("\n"));
 
         final String userPrompt = "Genera " + count
-                + " preguntas a partir del contenido visible de estas diapositivas:\n\n" + visibleContent;
+                + " preguntas a partir del contenido visible de estas diapositivas:\n\n" + visibleContent
+                + "\n\nPreguntas que YA EXISTEN en el cuestionario (no las repitas ni generes equivalentes):\n"
+                + (existingQuestions.isBlank() ? "(ninguna)" : existingQuestions);
         final String raw = llm.complete(SYSTEM_PROMPT, userPrompt);
         final String jsonArray = extractJsonArray(raw);
 
