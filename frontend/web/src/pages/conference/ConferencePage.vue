@@ -24,8 +24,11 @@
         router-link(:to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
         router-link(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
         router-link(:to="`/c/${friendlyId}/presentation`" active-class="active-tab") Presentación
-        a(:href="chatUrl" target="_blank" rel="noopener") Chat
+        a.tab-disabled(v-if="isAnonymous" title="Inicia sesión para acceder al chat") Chat
+        a(v-else :href="chatUrl" target="_blank" rel="noopener") Chat
         router-link(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
+    .anon-banner(v-if="isAnonymous")
+      span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
     router-view(:conference-id="conference.conferenceId || conference.uuid")
 
   QrCodeModal(v-if="showQr" :friendlyId="friendlyId" @close="showQr = false")
@@ -53,6 +56,7 @@ export default {
     const showQr     = ref(false)
 
     const auth = useAuthStore()
+    const isAnonymous = !auth.isAuthenticated() || auth.state.role === 'guest'
     const chatHost = location.hostname.startsWith('chat-') ? location.hostname : `chat-${location.hostname}`
     const chatParams = new URLSearchParams({ conference: friendlyId })
     if (auth.isAuthenticated() && auth.state.role !== 'guest') {
@@ -76,7 +80,7 @@ export default {
       }
     })
 
-    return { friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr }
+    return { friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr, isAnonymous }
   }
 }
 </script>
@@ -115,7 +119,29 @@ h1 { margin: 0; color: #1e1b4b; }
   border-color: #4f46e5;
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
 }
+.conf-tabs a.tab-disabled {
+  cursor: not-allowed;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  background: #f9fafb;
+}
+.conf-tabs a.tab-disabled:hover {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+}
 .conf-loading, .conf-error { padding: 40px; text-align: center; color: #6b7280; }
+
+.anon-banner {
+  margin: 16px 24px 0;
+  padding: 10px 16px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+.anon-banner :deep(a) { color: #4f46e5; font-weight: 600; text-decoration: none; }
+.anon-banner :deep(a):hover { text-decoration: underline; }
 
 @media (max-width: 640px) {
   .conf-header { padding: 16px; }
@@ -123,5 +149,6 @@ h1 { margin: 0; color: #1e1b4b; }
   .conf-tabs { flex-wrap: wrap; gap: 6px; }
   .conf-tabs a { padding: 7px 14px; font-size: 0.85rem; }
   .btn-qr { margin-left: 0; }
+  .anon-banner { margin: 12px 16px 0; }
 }
 </style>

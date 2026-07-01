@@ -1,7 +1,10 @@
 <template lang="pug">
-router-view
+div
+  router-view
+  CookieConsentBanner
 </template>
 
 <script>
-export default { name: 'App' }
+import CookieConsentBanner from '@/components/CookieConsentBanner.vue'
+export default { name: 'App', components: { CookieConsentBanner } }
 </script>
