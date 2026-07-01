@@ -14,8 +14,9 @@ export async function getAttendeesCount(conferenceId, token) {
   return res.data.data.count
 }
 
-export async function createConference(name, expiresAt, token, latitude, longitude, eventDate, venue, startTime, endTime) {
+export async function createConference(name, expiresAt, token, latitude, longitude, eventDate, venue, startTime, endTime, displayName) {
   const body = { name }
+  if (displayName) body.displayName = displayName
   if (expiresAt) body.expiresAt = expiresAt
   if (latitude != null) body.latitude = latitude
   if (longitude != null) body.longitude = longitude
@@ -24,6 +25,15 @@ export async function createConference(name, expiresAt, token, latitude, longitu
   if (startTime) body.startTime = startTime
   if (endTime) body.endTime = endTime
   const res = await axios.post('/api/users/api/v1/conferences', body, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return res.data.data
+}
+
+export async function updateConference(uuid, { displayName, venue, eventDate, startTime, endTime, latitude, longitude }, token) {
+  const res = await axios.put(`/api/users/api/v1/conferences/${uuid}`, {
+    displayName, venue, eventDate, startTime, endTime, latitude, longitude
+  }, {
     headers: { Authorization: `Bearer ${token}` }
   })
   return res.data.data

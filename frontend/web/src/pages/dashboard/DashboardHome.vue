@@ -45,6 +45,7 @@
         .conf-actions
           a.btn-outline(:href="`/c/${c.friendlyId}/doubts`" target="_blank") Ver nube
           button.btn-outline(@click="qrTarget = c") QR
+          router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editar
           router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Moderación
           router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
           router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar

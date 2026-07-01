@@ -90,4 +90,7 @@ public class Conference {
     public void setVenue(String venue) { this.venue = venue; }
     public void setStartTime(String startTime) { this.startTime = startTime; }
     public void setEndTime(String endTime) { this.endTime = endTime; }
+    public void setName(String name) { this.name = name; this.updatedAt = Instant.now(); }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 }

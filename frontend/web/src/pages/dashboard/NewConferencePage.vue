@@ -3,8 +3,14 @@
   h2 Nueva conferencia
   .form(v-if="!created")
     .form-group
-      label Nombre de la conferencia
+      label Nombre para compartir la conferencia
       input(v-model="name" type="text" placeholder="Conferencia IA 2026" @keyup.enter="create")
+      p.field-hint Se usa para generar el enlace público (ID amigable). No se podrá cambiar después.
+
+    .form-group
+      label Nombre a mostrar en el certificado (opcional)
+      input(v-model="displayName" type="text" placeholder="Conferencia de Inteligencia Artificial 2026")
+      p.field-hint Si lo dejas vacío, se usará el nombre para compartir. Se puede editar después.
 
     .form-group
       label Tiempo de vida
@@ -109,6 +115,7 @@ export default {
   components: { ConferenceMap },
   setup() {
     const name       = ref('')
+    const displayName = ref('')
     const error      = ref('')
     const loading    = ref(false)
     const created    = ref(null)
@@ -145,7 +152,8 @@ export default {
         const lat = (latitude.value != null && !isNaN(latitude.value)) ? latitude.value : null
         const lng = (longitude.value != null && !isNaN(longitude.value)) ? longitude.value : null
         created.value = await createConference(name.value.trim(), expiresAt, auth.state.token, lat, lng,
-          eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null)
+          eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null,
+          displayName.value.trim() || null)
       } catch (e) {
         error.value = e.response?.data?.error?.message || 'Error al crear la conferencia'
       } finally { loading.value = false }
@@ -156,12 +164,12 @@ export default {
     }
 
     function reset() {
-      name.value = ''; created.value = null; expiryMode.value = 'none';
+      name.value = ''; displayName.value = ''; created.value = null; expiryMode.value = 'none';
       customDate.value = ''; latitude.value = null; longitude.value = null
       eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
     }
 
-    return { name, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
+    return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
              eventDate, venue, startTime, endTime,
              expiryOptions: EXPIRY_OPTIONS, setExpiryMode, create, formatDate, reset }
   }
@@ -192,6 +200,7 @@ input:focus { outline: none; border-color: #4f46e5; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .coord-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
 .coord-hint { margin: 6px 0 0; font-size: 0.8rem; color: #9ca3af; }
+.field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
 .map-preview { margin-bottom: 20px; border-radius: 12px; overflow: hidden; }
 
 .btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }

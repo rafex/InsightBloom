@@ -15,7 +15,8 @@ public class CreateConferenceUseCase {
         this.friendlyIdService = friendlyIdService;
     }
 
-    public record CreateRequest(String name, String createdByUserUuid, String expiresAt, Double latitude, Double longitude,
+    public record CreateRequest(String name, String displayName, String createdByUserUuid, String expiresAt,
+                                Double latitude, Double longitude,
                                 String eventDate, String venue, String startTime, String endTime) {}
     public record CreateResult(String conferenceId, String friendlyId, String name, String status,
                                String expiresAt, Double latitude, Double longitude,
@@ -23,8 +24,9 @@ public class CreateConferenceUseCase {
 
     public CreateResult execute(CreateRequest request) {
         String friendlyId = friendlyIdService.generate(request.name());
+        String displayName = blankToNull(request.displayName()) != null ? request.displayName() : request.name();
         Instant expiresAt = parseInstant(request.expiresAt());
-        Conference conference = new Conference(friendlyId, request.name(), request.createdByUserUuid(),
+        Conference conference = new Conference(friendlyId, displayName, request.createdByUserUuid(),
                 expiresAt, request.latitude(), request.longitude());
         conference.setEventDate(blankToNull(request.eventDate()));
         conference.setVenue(blankToNull(request.venue()));

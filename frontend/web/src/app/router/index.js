@@ -42,6 +42,11 @@ const routes = [
       { path: 'certificate-settings', component: () => import('@/pages/dashboard/CertificateSettingsPage.vue') },
       { path: 'admin/users', component: () => import('@/pages/dashboard/AdminUsersPage.vue') },
       {
+        path: 'conferences/:conferenceId/edit',
+        component: () => import('@/pages/dashboard/EditConferencePage.vue'),
+        props: true
+      },
+      {
         path: 'conferences/:conferenceId/moderation/messages',
         component: () => import('@/pages/dashboard/ModerationMessagesPage.vue'),
         props: true

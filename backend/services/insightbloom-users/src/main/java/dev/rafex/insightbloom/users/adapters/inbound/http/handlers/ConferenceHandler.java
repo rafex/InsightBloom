@@ -10,6 +10,7 @@ import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseC
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.JoinConferenceUseCase;
+import dev.rafex.insightbloom.users.application.usecases.UpdateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 
 import java.nio.ByteBuffer;
@@ -26,6 +27,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GetConferenceHistoryUseCase getConferenceHistoryUseCase;
     private final GenerateCertificateUseCase generateCertificateUseCase;
     private final CountAttendeesUseCase countAttendeesUseCase;
+    private final UpdateConferenceUseCase updateConferenceUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -33,7 +35,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final JoinConferenceUseCase joinConferenceUseCase,
                              final GetConferenceHistoryUseCase getConferenceHistoryUseCase,
                              final GenerateCertificateUseCase generateCertificateUseCase,
-                             final CountAttendeesUseCase countAttendeesUseCase) {
+                             final CountAttendeesUseCase countAttendeesUseCase,
+                             final UpdateConferenceUseCase updateConferenceUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -41,6 +44,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.getConferenceHistoryUseCase = getConferenceHistoryUseCase;
         this.generateCertificateUseCase = generateCertificateUseCase;
         this.countAttendeesUseCase = countAttendeesUseCase;
+        this.updateConferenceUseCase = updateConferenceUseCase;
     }
 
     @Override
@@ -58,12 +62,12 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/history", Set.of("GET")),
                 Route.of("/{id}/certificate", Set.of("GET")),
                 Route.of("/{id}/attendees/count", Set.of("GET")),
-                Route.of("/{id}", Set.of("GET", "DELETE")));
+                Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
     }
 
     @Override
     public Set<String> supportedMethods() {
-        return Set.of("GET", "POST", "DELETE");
+        return Set.of("GET", "POST", "PUT", "DELETE");
     }
 
     @Override
@@ -107,6 +111,12 @@ public class ConferenceHandler extends BaseResourceHandler {
         return handleDelete(jx, jx.pathParam("id"));
     }
 
+    @Override
+    public boolean put(final HttpExchange x) {
+        final var jx = asJetty(x);
+        return handleUpdate(jx, jx.pathParam("id"));
+    }
+
     private boolean handleList(final JettyHttpExchange jx) {
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
@@ -133,7 +143,8 @@ public class ConferenceHandler extends BaseResourceHandler {
             final Double latitude = body.get("latitude") instanceof Number n ? n.doubleValue() : null;
             final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
             final var result = createConferenceUseCase.execute(new CreateConferenceUseCase.CreateRequest(
-                    (String) body.get("name"), v.subjectUuid(), (String) body.get("expiresAt"),
+                    (String) body.get("name"), (String) body.get("displayName"), v.subjectUuid(),
+                    (String) body.get("expiresAt"),
                     latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue"),
                     (String) body.get("startTime"), (String) body.get("endTime")));
             sendOk(jx, 201, result);
@@ -216,6 +227,30 @@ public class ConferenceHandler extends BaseResourceHandler {
             final boolean deleted = getConferenceUseCase.delete(id, v.subjectUuid());
             if (deleted) {
                 sendOk(jx, 200, Map.of("deleted", true));
+            } else {
+                sendError(jx, 404, "not_found", "Conference not found or not owned by you");
+            }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleUpdate(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final var body = parseBody(jx);
+            final Double latitude = body.get("latitude") instanceof Number n ? n.doubleValue() : null;
+            final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
+            final var updated = updateConferenceUseCase.execute(id, v.subjectUuid(),
+                    new UpdateConferenceUseCase.UpdateRequest((String) body.get("displayName"),
+                            (String) body.get("venue"), (String) body.get("eventDate"),
+                            (String) body.get("startTime"), (String) body.get("endTime"), latitude, longitude));
+            if (updated.isPresent()) {
+                sendOk(jx, 200, updated.get());
             } else {
                 sendError(jx, 404, "not_found", "Conference not found or not owned by you");
             }
