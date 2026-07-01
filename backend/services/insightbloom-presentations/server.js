@@ -13,6 +13,7 @@ const PREVIEW_SLIDE_LIMIT = 5;
 const PORT = process.env.PORT || 8091;
 const DATA_DIR = process.env.DATA_DIR || '/data';
 const USERS_URL = process.env.USERS_URL || 'http://insightbloom-users:8081';
+const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'https://insightbloom.v1.rafex.cloud';
 const NATS_URL = process.env.NATS_URL || '';
 const NATS_AUTH_TOKEN = process.env.NATS_AUTH_TOKEN || '';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || '';
@@ -22,9 +23,10 @@ const upload = multer({ dest: path.join(DATA_DIR, 'tmp'), limits: { fileSize: 10
 
 const app = express();
 
-// PDF se genera bajo demanda (corre Chromium headless vía Marp) y se cachea en disco;
-// este mapa deduplica generaciones concurrentes para la misma conferencia.
+// PDF/miniatura se generan bajo demanda (corren Chromium headless vía Marp) y se cachean en
+// disco; estos mapas deduplican generaciones concurrentes para la misma conferencia.
 const pdfGenerations = new Map();
+const thumbnailGenerations = new Map();
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -54,15 +56,30 @@ function findFile(rootDir, predicate, maxDepth = 4) {
   return null;
 }
 
-// Extrae `title:` del frontmatter YAML de Marp (delimitado por --- ... ---).
-// No se usa un parser YAML completo a propósito: solo interesa un campo escalar simple.
-function extractFrontmatterTitle(markdown) {
+// Extrae un campo escalar simple (title, description, ...) del frontmatter YAML de Marp
+// (delimitado por --- ... ---). No se usa un parser YAML completo a propósito.
+function extractFrontmatterField(markdown, field) {
   const match = markdown.match(/^---\s*\n([\s\S]*?)\n---/);
   if (!match) return null;
-  const titleLine = match[1].split('\n').find((line) => /^title\s*:/i.test(line));
-  if (!titleLine) return null;
-  const value = titleLine.replace(/^title\s*:\s*/i, '').trim();
+  const re = new RegExp(`^${field}\\s*:`, 'i');
+  const line = match[1].split('\n').find((l) => re.test(l));
+  if (!line) return null;
+  const value = line.replace(re, '').trim();
   return value.replace(/^["']|["']$/g, '') || null;
+}
+
+function extractFrontmatterTitle(markdown) {
+  return extractFrontmatterField(markdown, 'title');
+}
+
+function extractFrontmatterDescription(markdown) {
+  return extractFrontmatterField(markdown, 'description');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
 }
 
 async function deriveConferenceName(conferenceId, title) {
@@ -206,6 +223,40 @@ async function ensurePdf(conferenceId) {
   return generation;
 }
 
+async function ensureThumbnail(conferenceId) {
+  const confDir = conferenceDir(conferenceId);
+  const thumbnail = path.join(confDir, 'thumbnail.png');
+  if (fs.existsSync(thumbnail)) return thumbnail;
+
+  if (thumbnailGenerations.has(conferenceId)) return thumbnailGenerations.get(conferenceId);
+
+  const srcDir = path.join(confDir, 'src');
+  const mdFile = findFile(srcDir, (name) => name.toLowerCase().endsWith('.md'));
+  if (!mdFile) return null;
+  const themeFile = findFile(srcDir, (name, full) => name === 'theme.css' && full.includes(`${path.sep}css${path.sep}`));
+
+  const baseArgs = [mdFile, '--allow-local-files', '--image', 'png'];
+  if (themeFile) baseArgs.push('--theme', themeFile);
+
+  const generation = runMarp([...baseArgs, '-o', thumbnail])
+    .then(() => thumbnail)
+    .finally(() => thumbnailGenerations.delete(conferenceId));
+  thumbnailGenerations.set(conferenceId, generation);
+  return generation;
+}
+
+app.get('/api/v1/conferences/:id/presentation/thumbnail', async (req, res) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  try {
+    const file = await ensureThumbnail(req.params.id);
+    if (!file) return res.status(404).json({ error: 'not_found' });
+    res.sendFile(file);
+  } catch (err) {
+    console.error('thumbnail_generation_failed', err);
+    res.status(500).json({ error: 'thumbnail_generation_failed', message: err.message });
+  }
+});
+
 app.get('/api/v1/conferences/:id/presentation/pdf', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   try {
@@ -216,6 +267,66 @@ app.get('/api/v1/conferences/:id/presentation/pdf', async (req, res) => {
     console.error('pdf_generation_failed', err);
     res.status(500).json({ error: 'pdf_generation_failed', message: err.message });
   }
+});
+
+const FRIENDLY_ID_RE = /^[a-z0-9-]{1,64}$/i;
+
+// Página de previsualización para redes sociales (WhatsApp/Telegram/Facebook/etc.): estos
+// crawlers no ejecutan JS, así que la SPA no les sirve. nginx redirige aquí solo a los
+// user-agents conocidos de bots; los navegadores normales van directo a la SPA.
+app.get('/api/v1/share/:friendlyId', async (req, res) => {
+  const { friendlyId } = req.params;
+  if (!FRIENDLY_ID_RE.test(friendlyId)) return res.status(400).send('invalid_friendly_id');
+
+  const canonicalUrl = `${FRONTEND_BASE_URL}/c/${friendlyId}/presentation`;
+  let conference;
+  try {
+    const r = await fetch(`${USERS_URL}/api/v1/conferences/by-friendly/${friendlyId}`);
+    if (!r.ok) return res.redirect(302, canonicalUrl);
+    conference = (await r.json()).data;
+  } catch (err) {
+    console.error('share_lookup_failed', friendlyId, err.message);
+    return res.redirect(302, canonicalUrl);
+  }
+
+  const title = conference.name || friendlyId;
+  const srcDir = path.join(conferenceDir(conference.uuid), 'src');
+  const mdFile = findFile(srcDir, (name) => name.toLowerCase().endsWith('.md'));
+  const description = mdFile
+    ? (extractFrontmatterDescription(fs.readFileSync(mdFile, 'utf8')) || 'Presentación en InsightBloom')
+    : 'Presentación en InsightBloom';
+
+  const thumbnailPath = path.join(conferenceDir(conference.uuid), 'thumbnail.png');
+  let imageUrl = `${FRONTEND_BASE_URL}/pwa-512x512.png`;
+  if (fs.existsSync(thumbnailPath)) {
+    imageUrl = `${FRONTEND_BASE_URL}/api/presentations/api/v1/conferences/${conference.uuid}/presentation/thumbnail`;
+  } else if (mdFile) {
+    // Genera la miniatura en segundo plano para que la próxima vez que se comparta el
+    // enlace (o el crawler vuelva a pedirlo) ya esté lista; no bloquea esta respuesta.
+    ensureThumbnail(conference.uuid).catch((err) => console.error('thumbnail_bg_generation_failed', err.message));
+  }
+
+  res.type('html').send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(description)}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:image" content="${escapeHtml(imageUrl)}">
+<meta property="og:url" content="${escapeHtml(canonicalUrl)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeHtml(title)}">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${escapeHtml(imageUrl)}">
+<meta http-equiv="refresh" content="0;url=${escapeHtml(canonicalUrl)}">
+</head>
+<body>
+<p>Redirigiendo a <a href="${escapeHtml(canonicalUrl)}">${escapeHtml(canonicalUrl)}</a>&hellip;</p>
+</body>
+</html>`);
 });
 
 app.get('/api/v1/conferences/:id/presentation/status', (req, res) => {

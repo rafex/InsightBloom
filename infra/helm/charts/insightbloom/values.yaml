@@ -298,6 +298,7 @@ services:
       PORT: "8091"
       DATA_DIR: /data
       USERS_URL: http://insightbloom-users:8081
+      FRONTEND_BASE_URL: https://insightbloom.v1.rafex.cloud
       NATS_URL: nats://insightbloom-nats:4222
     secretEnv:
       - name: NATS_AUTH_TOKEN
