@@ -17,7 +17,7 @@ docker compose -f infra/compose/local.yml down
 ## K3s: dimensionamiento por Goldilocks
 
 El despliegue de Kubernetes usa el chart `infra/helm/charts/insightbloom`.
-El namespace operativo actual en Server1 es `mvps`.
+El namespace operativo actual en Server1 es `insightbloom`.
 
 El 2026-06-30 se ajustaron los recursos del chart con base en Goldilocks/VPA en
 modo recomendacion. La lectura mostro que los servicios de InsightBloom estaban
@@ -56,9 +56,9 @@ reduce CPU reservada y permite que el HPA escale antes cuando haya carga real.
 Validacion operativa en Server1:
 
 ```bash
-ssh my-k3s 'sudo kubectl get hpa -n mvps'
-ssh my-k3s 'sudo kubectl top pods -n mvps --containers'
-ssh my-k3s 'sudo kubectl get vpa -n mvps'
+ssh my-k3s 'sudo kubectl get hpa -n insightbloom'
+ssh my-k3s 'sudo kubectl top pods -n insightbloom --containers'
+ssh my-k3s 'sudo kubectl get vpa -n insightbloom'
 ```
 
 Despues de cada despliegue, espera al menos unas horas antes de tomar una nueva

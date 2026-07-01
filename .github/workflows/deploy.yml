@@ -18,7 +18,7 @@ on:
         type: string
 
 env:
-  K3S_NAMESPACE: mvps
+  K3S_NAMESPACE: insightbloom
   RELEASE_NAME: insightbloom
   CHART_PATH: ./infra/helm/charts/insightbloom
   SERVER_K3S: ${{ vars.SERVER_K3S }}
@@ -118,6 +118,10 @@ jobs:
       - name: Ensure namespace exists
         run: |
           kubectl get namespace "$K3S_NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$K3S_NAMESPACE"
+          kubectl label namespace "$K3S_NAMESPACE" \
+            goldilocks.fairwinds.com/enabled=true \
+            app.kubernetes.io/name=insightbloom \
+            --overwrite
 
       - name: Upsert admin auth secret in k3s
         env:

@@ -6,13 +6,13 @@
 # no existe en la tabla conferences).
 #
 # Uso:
-#   ./infra/scripts/fix-orphaned-memberships.sh [--namespace mvps] [--kubeconfig ~/.kube/config_k3s] [--dry-run]
+#   ./infra/scripts/fix-orphaned-memberships.sh [--namespace insightbloom] [--kubeconfig ~/.kube/config_k3s] [--dry-run]
 #
 # Requiere: kubectl, sqlite3 (local)
 
 set -euo pipefail
 
-NAMESPACE="mvps"
+NAMESPACE="insightbloom"
 KUBECONFIG_PATH="${KUBECONFIG:-$HOME/.kube/config_k3s}"
 DRY_RUN=false
 TMP_DB=$(mktemp /tmp/users-db-XXXXXX.db)

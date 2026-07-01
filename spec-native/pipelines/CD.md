@@ -7,7 +7,7 @@ Proceso de entrega y ambientes para InsightBloom.
 | Ambiente | Propósito | Infra | Trigger |
 |----------|-----------|-------|---------|
 | **Local** | Desarrollo | Docker Compose (`container/compose.yml`) | Manual (`just container-dev`) |
-| **K3s (mvps)** | Demo/staging | K3s + Helm | Push a `main` o tag `v*.*` |
+| **K3s (insightbloom)** | Demo/staging | K3s + Helm | Push a `main` o tag `v*.*` |
 | **GHCR** | Registro de imágenes | GitHub Container Registry | Push a `main` o tag `v*.*` |
 
 ## Workflows de CD
@@ -53,7 +53,7 @@ También ejecutable manualmente via `workflow_dispatch`.
 2. Reemplazar server del cluster con `SERVER_K3S` (variable)
 3. Instalar Helm
 4. Resolver tag de imagen
-5. Crear/asegurar namespace `mvps`
+5. Crear/asegurar namespace `insightbloom`
 6. Upsert de secrets en K3s:
    - `{release}-admin-auth`: username + password del admin
    - `{release}-chat-secrets`: LLM API key + chat secret key
@@ -63,7 +63,7 @@ También ejecutable manualmente via `workflow_dispatch`.
 8. Deploy con Helm:
    ```bash
    helm upgrade --install insightbloom infra/helm/charts/insightbloom \
-     --namespace mvps \
+     --namespace insightbloom \
      --set image.tag=<tag> \
      --atomic --wait --timeout 10m
    ```
@@ -92,7 +92,7 @@ También ejecutable manualmente via `workflow_dispatch`.
 ## Rollback
 
 ```bash
-helm rollback insightbloom --namespace mvps
+helm rollback insightbloom --namespace insightbloom
 ```
 
 ## Configuración de secretos

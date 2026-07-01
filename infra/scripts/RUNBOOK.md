@@ -2,7 +2,7 @@
 
 Scripts de operación para el cluster k3s de InsightBloom.
 
-**Namespace por defecto:** `mvps`  
+**Namespace por defecto:** `insightbloom`
 **Kubeconfig:** `~/.kube/config_k3s`
 
 ---
@@ -32,7 +32,7 @@ Síntoma visible: el asistente ve la conferencia como "DISPONIBLE" en "Mis confe
 |-------------|---------------|-----------|
 | `kubectl` | cualquiera | `kubectl version --client` |
 | `sqlite3` | 3.x | `sqlite3 --version` |
-| Acceso al cluster | — | `kubectl get pods -n mvps` |
+| Acceso al cluster | — | `kubectl get pods -n insightbloom` |
 
 ### Uso
 
@@ -45,7 +45,7 @@ Síntoma visible: el asistente ve la conferencia como "DISPONIBLE" en "Mis confe
 
 # 3. Con namespace o kubeconfig explícito
 ./infra/scripts/fix-orphaned-memberships.sh \
-  --namespace mvps \
+  --namespace insightbloom \
   --kubeconfig ~/.kube/config_k3s
 ```
 
@@ -60,14 +60,14 @@ Síntoma visible: el asistente ve la conferencia como "DISPONIBLE" en "Mis confe
 4. Muestra el diagnóstico y pide confirmación (omitido con --dry-run)
 5. DELETE FROM conference_memberships WHERE ...  (en la copia local)
 6. kubectl cp  /tmp/users-XXXXXX.db → pod:/data/users.db  (devuelve al pod)
-7. kubectl rollout restart deployment/insightbloom-users -n mvps
+7. kubectl rollout restart deployment/insightbloom-users -n insightbloom
 8. Espera a que el pod quede Running (timeout 60 s)
 ```
 
 ### Salida esperada (modo normal)
 
 ```
-Pod encontrado: insightbloom-users-68f4b6c956-ml6ht (namespace: mvps)
+Pod encontrado: insightbloom-users-68f4b6c956-ml6ht (namespace: insightbloom)
 Copiando /data/users.db desde el pod...
 
 === Diagnóstico ===
@@ -111,11 +111,11 @@ Si el restart falla o el pod no levanta, restaurar el DB que se copió antes de 
 
 ```bash
 # Obtener el pod nuevo
-POD=$(kubectl get pods -n mvps -l app.kubernetes.io/name=insightbloom-users \
+POD=$(kubectl get pods -n insightbloom -l app.kubernetes.io/name=insightbloom-users \
       -o jsonpath='{.items[0].metadata.name}')
 
 # Copiar el backup (si lo tienes) o forzar un rollback del deployment
-kubectl rollout undo deployment/insightbloom-users -n mvps
+kubectl rollout undo deployment/insightbloom-users -n insightbloom
 ```
 
 ---

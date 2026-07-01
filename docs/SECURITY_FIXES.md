@@ -173,7 +173,7 @@ const upload = multer({
 **Severidad**: Alta  
 **Archivo nuevo**: `infra/helm/charts/insightbloom/templates/network-policy.yaml`
 
-Sin NetworkPolicy, cualquier pod del clúster podía conectarse directamente a cualquier microservicio del namespace `mvps`, eludiendo el proxy nginx.
+Sin NetworkPolicy, cualquier pod del clúster podía conectarse directamente a cualquier microservicio del namespace operativo de InsightBloom, eludiendo el proxy nginx.
 
 **Corrección**: 4 NetworkPolicy aplicadas vía Helm:
 

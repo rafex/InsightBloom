@@ -129,7 +129,7 @@ Login, registro y OTP no tenían protección contra ataques de fuerza bruta.
 
 ### 🔴 ALTA — A2: Sin aislamiento de red entre pods ✅ CERRADO
 
-Todos los pods del namespace `mvps` podían recibir tráfico de cualquier origen — incluyendo pods comprometidos de otros namespaces.
+Todos los pods del namespace operativo de InsightBloom podían recibir tráfico de cualquier origen — incluyendo pods comprometidos de otros namespaces.
 
 **Corrección**: Helm template `network-policy.yaml` con 4 políticas:
 1. Default-deny ingress para todos los pods del release

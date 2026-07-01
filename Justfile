@@ -68,7 +68,8 @@ helm-lint:
 #   just deploy-k3s --dry-run                # solo validar, no aplicar
 deploy-k3s TAG="latest" DRY="":
     helm upgrade --install insightbloom infra/helm/charts/insightbloom \
-      --namespace mvps \
+      --namespace insightbloom \
+      --create-namespace \
       --set image.tag={{TAG}} \
       --atomic \
       --wait --timeout 10m \
@@ -82,7 +83,7 @@ create-user *ARGS:
     ./scripts/run/create-user.sh {{ARGS}}
 
 # Crea/actualiza usuario dentro de K3s (pod users). Pasar args después de --:
-#   just k3s-create-user -- --namespace default --release insightbloom --username admin --password x --role ORGANIZER
+#   just k3s-create-user -- --namespace insightbloom --release insightbloom --username admin --password x --role ORGANIZER
 k3s-create-user *ARGS:
     ./scripts/run/k3s-create-user.sh {{ARGS}}
 
