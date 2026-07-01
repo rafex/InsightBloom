@@ -54,6 +54,31 @@ function findFile(rootDir, predicate, maxDepth = 4) {
   return null;
 }
 
+// Extrae `title:` del frontmatter YAML de Marp (delimitado por --- ... ---).
+// No se usa un parser YAML completo a propósito: solo interesa un campo escalar simple.
+function extractFrontmatterTitle(markdown) {
+  const match = markdown.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (!match) return null;
+  const titleLine = match[1].split('\n').find((line) => /^title\s*:/i.test(line));
+  if (!titleLine) return null;
+  const value = titleLine.replace(/^title\s*:\s*/i, '').trim();
+  return value.replace(/^["']|["']$/g, '') || null;
+}
+
+async function deriveConferenceName(conferenceId, title) {
+  if (!title || !INTERNAL_API_KEY) return;
+  try {
+    const res = await fetch(`${USERS_URL}/api/v1/conferences/${conferenceId}/derive-name`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Internal-Auth': INTERNAL_API_KEY },
+      body: JSON.stringify({ title })
+    });
+    if (!res.ok) console.error('derive_conference_name_failed', conferenceId, res.status);
+  } catch (err) {
+    console.error('derive_conference_name_error', conferenceId, err.message);
+  }
+}
+
 function runMarp(args) {
   return new Promise((resolve, reject) => {
     const child = execFile(
@@ -100,6 +125,11 @@ app.post('/api/v1/conferences/:id/presentation', upload.single('file'), async (r
     await runMarp([...baseArgs, '-o', slidesHtml]);
     // El PDF (requiere Chromium headless vía Marp) se genera bajo demanda en el
     // endpoint /pdf, no aquí, para no pagar ese costo en cada subida.
+
+    // Completa el nombre de certificado con el title del frontmatter si el organizador
+    // no fijó uno explícito al crear/editar la conferencia (best-effort, no bloquea la subida).
+    const title = extractFrontmatterTitle(fs.readFileSync(mdFile, 'utf8'));
+    deriveConferenceName(id, title);
 
     res.json({
       ok: true,

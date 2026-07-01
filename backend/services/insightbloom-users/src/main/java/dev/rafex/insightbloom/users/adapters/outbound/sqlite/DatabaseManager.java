@@ -85,7 +85,8 @@ public class DatabaseManager {
                     event_date TEXT,
                     venue TEXT,
                     start_time TEXT,
-                    end_time TEXT
+                    end_time TEXT,
+                    name_auto_generated INTEGER NOT NULL DEFAULT 0
                 )
             """);
             // Migrations for existing databases
@@ -96,6 +97,9 @@ public class DatabaseManager {
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN start_time TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN end_time TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN venue TEXT"); } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN name_auto_generated INTEGER NOT NULL DEFAULT 0");
+            } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS otp_codes (

@@ -62,6 +62,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/history", Set.of("GET")),
                 Route.of("/{id}/certificate", Set.of("GET")),
                 Route.of("/{id}/attendees/count", Set.of("GET")),
+                Route.of("/{id}/derive-name", Set.of("POST")),
                 Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
     }
 
@@ -101,6 +102,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/join")) {
             return handleJoin(jx);
+        }
+        if (jx.path().endsWith("/derive-name")) {
+            return handleDeriveName(jx, jx.pathParam("id"));
         }
         return handleCreate(jx);
     }
@@ -254,6 +258,18 @@ public class ConferenceHandler extends BaseResourceHandler {
             } else {
                 sendError(jx, 404, "not_found", "Conference not found or not owned by you");
             }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleDeriveName(final JettyHttpExchange jx, final String id) {
+        if (!validInternalAuth(jx)) { sendError(jx, 403, "forbidden", "Internal access only"); return true; }
+        try {
+            final var body = parseBody(jx);
+            final var updated = updateConferenceUseCase.deriveNameFromPresentation(id, (String) body.get("title"));
+            sendOk(jx, 200, Map.of("updated", updated.isPresent()));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
