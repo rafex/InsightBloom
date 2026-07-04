@@ -27,7 +27,7 @@
         a.tab-disabled(v-if="isAnonymous" title="Inicia sesión para acceder al chat") Chat
         a(v-else :href="chatUrl" target="_blank" rel="noopener") Chat
         router-link(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
-    .anon-banner(v-if="isAnonymous")
+    .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
       span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
     router-view(:conference-id="conference.conferenceId || conference.uuid")
 
