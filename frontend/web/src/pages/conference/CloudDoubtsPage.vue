@@ -67,6 +67,7 @@ export default {
         await sendMessage({
           conferenceId: props.conferenceId,
           authorUuid: auth.state.userUuid,
+          authorKind: auth.state.role === 'guest' ? 'guest' : 'user',
           type: 'doubt',
           word: word.value.trim(),
           detail: detail.value.trim(),

@@ -41,7 +41,12 @@ public class HttpQueryClient implements QueryPort {
                 builder.header("X-Internal-Auth", internalKey);
             }
             HttpRequest req = builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
-            client.send(req, HttpResponse.BodyHandlers.ofString());
-        } catch (Exception e) { /* fire and forget */ }
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) {
+                System.err.println("HttpQueryClient.update failed: HTTP " + resp.statusCode() + " " + resp.body());
+            }
+        } catch (Exception e) {
+            System.err.println("HttpQueryClient.update error: " + e);
+        }
     }
 }

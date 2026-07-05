@@ -46,7 +46,10 @@ public class HttpModerationClient implements ModerationPort {
                 boolean db = data.get("detailBlocked").asBoolean();
                 return new EvaluationResult(wb, db);
             }
-        } catch (Exception e) { /* service unavailable */ }
+            System.err.println("HttpModerationClient.evaluate failed: HTTP " + resp.statusCode() + " " + resp.body());
+        } catch (Exception e) {
+            System.err.println("HttpModerationClient.evaluate error: " + e);
+        }
         return new EvaluationResult(false, false);
     }
 }

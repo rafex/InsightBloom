@@ -22,9 +22,11 @@ public class UpdateCloudUseCase {
         // Update cloud word
         CloudWord cloud = cloudRepo.findByConferenceAndWord(req.conferenceUuid(), req.wordNormalized(), type)
             .orElse(new CloudWord(req.conferenceUuid(), type, req.wordNormalized(), req.wordCanonical()));
+        // El ingest no lleva la cuenta histórica (cada mensaje se evalúa de forma aislada),
+        // así que se acumula aquí: cada llamada a update() representa una nueva mención.
         cloud.setWordCanonical(req.wordCanonical());
-        cloud.setRelevanceScore(req.relevanceScore());
-        cloud.setMessageCount(req.messageCount());
+        cloud.setMessageCount(cloud.getMessageCount() + 1);
+        cloud.setRelevanceScore(cloud.getRelevanceScore() + 1);
         cloud.setLastSeenAt(Instant.parse(req.receivedAt()));
         cloud.setVisible(req.wordVisible());
         cloudRepo.save(cloud);
