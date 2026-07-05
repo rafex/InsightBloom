@@ -283,6 +283,9 @@ services:
       - name: LLM_PROVIDER_API_KEY
         secretName: insightbloom-chat-secrets
         secretKey: llm-provider-api-key
+      - name: INTERNAL_API_KEY
+        secretName: insightbloom-internal-secrets
+        secretKey: internal-api-key
 
   presentations:
     repository: ghcr.io/rafex/insightbloom-presentations
