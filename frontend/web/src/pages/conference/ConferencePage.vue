@@ -25,7 +25,7 @@
         router-link(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
         router-link(:to="`/c/${friendlyId}/presentation`" active-class="active-tab") Presentación
         a.tab-disabled(v-if="isAnonymous" title="Inicia sesión para acceder al chat") Chat
-        a(v-else :href="chatUrl" target="_blank" rel="noopener") Chat
+        a.tab-secondary(v-else :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo (opcional)") Chat
         router-link(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
     .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
       span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
@@ -128,6 +128,18 @@ h1 { margin: 0; color: #1e1b4b; }
 .conf-tabs a.tab-disabled:hover {
   background: #f9fafb;
   border-color: #e5e7eb;
+}
+.conf-tabs a.tab-secondary {
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  background: #fff;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+.conf-tabs a.tab-secondary:hover {
+  color: #6b7280;
+  border-color: #d1d5db;
+  background: #f9fafb;
 }
 .conf-loading, .conf-error { padding: 40px; text-align: center; color: #6b7280; }
 
