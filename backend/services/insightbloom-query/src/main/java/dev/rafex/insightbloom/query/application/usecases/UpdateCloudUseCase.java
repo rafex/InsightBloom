@@ -2,11 +2,18 @@ package dev.rafex.insightbloom.query.application.usecases;
 import dev.rafex.insightbloom.query.domain.model.*;
 import dev.rafex.insightbloom.query.domain.ports.*;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 public class UpdateCloudUseCase {
     private final CloudWordRepository cloudRepo;
     private final WordTimelineRepository timelineRepo;
+    private final CloudEventBus eventBus;
     public UpdateCloudUseCase(CloudWordRepository cloudRepo, WordTimelineRepository timelineRepo) {
-        this.cloudRepo = cloudRepo; this.timelineRepo = timelineRepo;
+        this(cloudRepo, timelineRepo, null);
+    }
+    public UpdateCloudUseCase(CloudWordRepository cloudRepo, WordTimelineRepository timelineRepo,
+                               CloudEventBus eventBus) {
+        this.cloudRepo = cloudRepo; this.timelineRepo = timelineRepo; this.eventBus = eventBus;
     }
     public record UpdateRequest(
         String conferenceUuid, String wordNormalized, String wordCanonical,
@@ -30,6 +37,7 @@ public class UpdateCloudUseCase {
         cloud.setLastSeenAt(Instant.parse(req.receivedAt()));
         cloud.setVisible(req.wordVisible());
         cloudRepo.save(cloud);
+        publishUpdate(cloud);
         // Add timeline entry if not exists
         if (req.messageUuid() != null && timelineRepo.findByMessageUuid(req.messageUuid()).isEmpty()) {
             WordTimeline entry = new WordTimeline(
@@ -38,6 +46,22 @@ public class UpdateCloudUseCase {
                 Instant.parse(req.receivedAt())
             );
             timelineRepo.save(entry);
+        }
+    }
+
+    /** Best-effort — a NATS hiccup must not break the actual cloud update. */
+    private void publishUpdate(final CloudWord cloud) {
+        if (eventBus == null) return;
+        try {
+            final Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("wordNormalized", cloud.getWordNormalized());
+            payload.put("wordCanonical", cloud.getWordCanonical());
+            payload.put("relevanceScore", cloud.getRelevanceScore());
+            payload.put("messageCount", cloud.getMessageCount());
+            payload.put("visible", cloud.isVisible());
+            eventBus.publish(cloud.getConferenceUuid(), cloud.getMessageType(), payload);
+        } catch (final Exception ignored) {
+            // logged at the transport level (NatsCloudEventBus)
         }
     }
 }

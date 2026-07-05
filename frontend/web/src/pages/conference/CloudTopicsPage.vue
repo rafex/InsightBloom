@@ -30,7 +30,7 @@
 import WordCloud from '@/components/cloud/WordCloud.vue'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getTopicCloud } from '@/services/api/queryApi'
+import { streamTopicCloud } from '@/services/api/queryApi'
 import { sendMessage } from '@/services/api/ingestApi'
 import { useAuthStore } from '@/features/auth/authStore'
 export default {
@@ -51,11 +51,23 @@ export default {
     const sending = ref(false)
     const feedback = ref('')
     const feedbackClass = ref('')
-    let interval = null
-    async function load() {
+    let eventSource = null
+    function upsertWord(updated) {
+      const i = words.value.findIndex((w) => w.wordNormalized === updated.wordNormalized)
+      if (updated.visible === false) {
+        if (i !== -1) words.value.splice(i, 1)
+        return
+      }
+      if (i === -1) words.value.push(updated)
+      else words.value[i] = { ...words.value[i], ...updated }
+    }
+    function connectStream() {
       if (!props.conferenceId) return
-      try { words.value = await getTopicCloud(props.conferenceId) }
-      catch (e) { } finally { loading.value = false }
+      eventSource = streamTopicCloud(
+        props.conferenceId,
+        (snapshot) => { words.value = snapshot; loading.value = false },
+        (update) => upsertWord(update)
+      )
     }
     function onWordClick(word) {
       router.push(`/c/${friendlyId}/words/${encodeURIComponent(word.wordNormalized)}?type=topic`)
@@ -76,7 +88,6 @@ export default {
         word.value = ''; detail.value = ''
         feedback.value = 'Tema enviado.'
         feedbackClass.value = 'ok'
-        load()
       } catch (e) {
         feedback.value = 'No se pudo enviar. Intenta de nuevo.'
         feedbackClass.value = 'error'
@@ -87,9 +98,9 @@ export default {
     function resize() { cloudWidth.value = Math.min(window.innerWidth - 32, 1000) }
     onMounted(() => {
       resize(); window.addEventListener('resize', resize)
-      load(); interval = setInterval(load, 5000)
+      connectStream()
     })
-    onUnmounted(() => { clearInterval(interval); window.removeEventListener('resize', resize) })
+    onUnmounted(() => { if (eventSource) eventSource.close(); window.removeEventListener('resize', resize) })
     return {
       words, loading, cloudWidth, onWordClick, canSubmit, word, detail, sending,
       feedback, feedbackClass, submit

@@ -30,7 +30,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <!-- Ether -->
-    <ether.version>9.5.5</ether.version>
+    <ether.version>9.5.5-SNAPSHOT</ether.version>
 
     <!-- External -->
     <sqlite.version>3.47.1.0</sqlite.version>
