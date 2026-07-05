@@ -10,6 +10,7 @@
       :latitude="conference.latitude"
       :longitude="conference.longitude"
       :label="conference.name"
+      :flyer-url="conference.flyerBase64"
       @enter="dismissIntro"
     )
 

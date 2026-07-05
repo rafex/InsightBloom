@@ -39,12 +39,12 @@
             span(v-else) …
           td.actions-cell(data-label="Acciones")
             .conf-actions
-              a.btn-outline(:href="`/c/${c.friendlyId}/doubts`" target="_blank") Ver nube
-              button.btn-outline(@click="qrTarget = c") QR
+              a.btn-highlight(:href="`/c/${c.friendlyId}/presentation`" target="_blank") 🔴 Live
+              button.btn-highlight(@click="qrTarget = c") QR
               router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editar
               router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Moderación
               router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
+              router-link.btn-highlight(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
               router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
               button.btn-trash(@click="confirmDelete(c)" :disabled="c._deleting" title="Eliminar conferencia")
                 svg(xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
@@ -184,6 +184,13 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 
 .btn-ghost { display: inline-block; padding: 6px 12px; color: #6b7280; border: 1px solid #e5e7eb; border-radius: 8px; text-decoration: none; font-size: 0.78rem; }
 .btn-ghost:hover { background: #f3f4f6; color: #374151; }
+
+.btn-highlight {
+  display: inline-block; padding: 6px 14px; background: #4f46e5; color: #fff;
+  border: none; border-radius: 8px; text-decoration: none; font-size: 0.78rem;
+  font-weight: 600; cursor: pointer;
+}
+.btn-highlight:hover { background: #4338ca; }
 
 .btn-trash {
   display: inline-flex; align-items: center; justify-content: center;

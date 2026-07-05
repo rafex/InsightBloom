@@ -14,7 +14,7 @@ public class UpdateConferenceUseCase {
 
     public record UpdateRequest(String displayName, String venue, String eventDate, String startTime,
                                  String endTime, Double latitude, Double longitude,
-                                 String presentationSourceUrl) {}
+                                 String presentationSourceUrl, String flyerBase64) {}
 
     /** Actualiza todo excepto friendlyId y uuid. Solo el creador puede editar. */
     public Optional<Conference> execute(final String uuid, final String requestingUserUuid,
@@ -36,6 +36,9 @@ public class UpdateConferenceUseCase {
                     c.setLongitude(request.longitude());
                     if (request.presentationSourceUrl() != null) {
                         c.setPresentationSourceUrl(blankToNull(request.presentationSourceUrl()));
+                    }
+                    if (request.flyerBase64() != null) {
+                        c.setFlyerBase64(blankToNull(request.flyerBase64()));
                     }
                     conferenceRepository.save(c);
                     return c;

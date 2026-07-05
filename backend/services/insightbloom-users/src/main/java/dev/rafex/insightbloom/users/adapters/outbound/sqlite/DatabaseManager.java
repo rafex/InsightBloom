@@ -87,7 +87,8 @@ public class DatabaseManager {
                     start_time TEXT,
                     end_time TEXT,
                     name_auto_generated INTEGER NOT NULL DEFAULT 0,
-                    presentation_source_url TEXT
+                    presentation_source_url TEXT,
+                    flyer_base64 TEXT
                 )
             """);
             // Migrations for existing databases
@@ -103,6 +104,9 @@ public class DatabaseManager {
             } catch (SQLException ignored) {}
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN presentation_source_url TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN flyer_base64 TEXT");
             } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""

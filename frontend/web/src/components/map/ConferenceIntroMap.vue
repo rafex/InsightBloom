@@ -2,6 +2,10 @@
 .intro-overlay(:class="{ 'intro-out': leaving }")
   div#intro-map(ref="mapRef")
 
+  transition(name="flyer-fade")
+    .intro-flyer(v-if="flyerUrl && showFlyer")
+      img(:src="flyerUrl" alt="Flyer del evento")
+
   .intro-top
     .intro-name {{ label }}
     .intro-coords(v-if="latitude != null") {{ latitude.toFixed(4) }}, {{ longitude.toFixed(4) }}
@@ -48,13 +52,15 @@ export default {
   props: {
     latitude:  { type: Number, required: true },
     longitude: { type: Number, required: true },
-    label:     { type: String, default: '' }
+    label:     { type: String, default: '' },
+    flyerUrl:  { type: String, default: '' }
   },
   emits: ['enter'],
   setup(props, { emit }) {
     const mapRef      = ref(null)
     const markerReady = ref(false)
     const leaving     = ref(false)
+    const showFlyer   = ref(!!props.flyerUrl)
 
     let map    = null
     let marker = null
@@ -95,6 +101,7 @@ export default {
 
       // 2 s pause on Mexico → 3.5 s flyTo → show marker
       setTimeout(() => {
+        showFlyer.value = false
         map.flyTo([props.latitude, props.longitude], 13, {
           animate: true,
           duration: 3.5,
@@ -114,7 +121,7 @@ export default {
 
     onUnmounted(() => { if (map) { map.remove(); map = null } })
 
-    return { mapRef, markerReady, leaving }
+    return { mapRef, markerReady, leaving, showFlyer }
   }
 }
 </script>
@@ -151,6 +158,26 @@ export default {
   font-family: monospace;
   color: #a5b4fc;
 }
+
+.intro-flyer {
+  position: absolute;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15,23,42,0.55);
+  backdrop-filter: blur(2px);
+}
+.intro-flyer img {
+  max-width: min(90vw, 480px);
+  max-height: 70vh;
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+}
+.flyer-fade-enter-active { transition: opacity 0.4s; }
+.flyer-fade-leave-active { transition: opacity 0.8s; }
+.flyer-fade-enter-from, .flyer-fade-leave-to { opacity: 0; }
 
 .intro-hint {
   position: absolute;

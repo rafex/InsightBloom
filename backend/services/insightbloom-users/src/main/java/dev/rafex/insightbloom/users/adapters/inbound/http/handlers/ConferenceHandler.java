@@ -273,7 +273,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     new UpdateConferenceUseCase.UpdateRequest((String) body.get("displayName"),
                             (String) body.get("venue"), (String) body.get("eventDate"),
                             (String) body.get("startTime"), (String) body.get("endTime"), latitude, longitude,
-                            (String) body.get("presentationSourceUrl")));
+                            (String) body.get("presentationSourceUrl"), (String) body.get("flyerBase64")));
             if (updated.isPresent()) {
                 sendOk(jx, 200, updated.get());
             } else {

@@ -48,6 +48,14 @@
     .map-preview(v-if="latitude != null && longitude != null && !isNaN(latitude) && !isNaN(longitude)")
       ConferenceMap(:latitude="latitude" :longitude="longitude" :label="displayName || 'Conferencia'")
 
+    .form-group
+      label Flyer del evento (opcional)
+      p.field-hint Se muestra en la animación de mapa al entrar a la conferencia. No siempre se cuenta con uno.
+      input(type="file" accept="image/*" @change="onFlyerSelected")
+      .flyer-preview(v-if="flyerBase64")
+        img(:src="flyerBase64" alt="Flyer del evento")
+        button.btn-remove-flyer(type="button" @click="flyerBase64 = ''") Quitar flyer
+
     .error(v-if="saveError") {{ saveError }}
     .success(v-if="saved") Cambios guardados correctamente.
     .actions
@@ -83,6 +91,7 @@ export default {
     const endTime      = ref('')
     const latitude     = ref(null)
     const longitude    = ref(null)
+    const flyerBase64  = ref('')
 
     onMounted(async () => {
       try {
@@ -94,12 +103,21 @@ export default {
         endTime.value = conference.value.endTime || ''
         latitude.value = conference.value.latitude ?? null
         longitude.value = conference.value.longitude ?? null
+        flyerBase64.value = conference.value.flyerBase64 || ''
       } catch (e) {
         error.value = 'No se pudo cargar la conferencia.'
       } finally {
         loading.value = false
       }
     })
+
+    function onFlyerSelected(e) {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => { flyerBase64.value = reader.result }
+      reader.readAsDataURL(file)
+    }
 
     async function save() {
       saving.value = true; saveError.value = ''; saved.value = false
@@ -113,7 +131,8 @@ export default {
           startTime: startTime.value || null,
           endTime: endTime.value || null,
           latitude: lat,
-          longitude: lng
+          longitude: lng,
+          flyerBase64: flyerBase64.value
         }, auth.state.token)
         saved.value = true
       } catch (e) {
@@ -124,7 +143,8 @@ export default {
     }
 
     return { conference, loading, error, saving, saveError, saved, displayName,
-             eventDate, venue, startTime, endTime, latitude, longitude, save }
+             eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
+             onFlyerSelected, save }
   }
 }
 </script>
@@ -149,6 +169,11 @@ input:focus { outline: none; border-color: #4f46e5; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .coord-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
 .map-preview { margin-bottom: 20px; border-radius: 12px; overflow: hidden; }
+
+.flyer-preview { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
+.flyer-preview img { max-width: 160px; max-height: 160px; border-radius: 8px; border: 1px solid #e5e7eb; object-fit: cover; }
+.btn-remove-flyer { padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #dc2626; cursor: pointer; font-size: 0.85rem; }
+.btn-remove-flyer:hover { background: #fee2e2; }
 
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
