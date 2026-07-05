@@ -263,6 +263,82 @@ backup:
 
 ---
 
+## I1 — `INTERNAL_API_KEY` vacío rompía la autenticación interna entre microservicios
+
+**Severidad**: Crítica (incidente operativo, no vulnerabilidad de código)
+**Fecha**: 2026-07-05
+**Archivos involucrados**:
+- `.github/workflows/deploy.yml`
+- Secreto de Kubernetes `insightbloom-internal-secrets` (namespace `insightbloom`)
+- Secret de GitHub Actions `INTERNAL_API_KEY`
+
+### Qué pasó
+
+`validInternalAuth()` (ver **C2** arriba) compara el header `X-Internal-Auth` contra la env var `INTERNAL_API_KEY`, y fue diseñado para **fallar cerrado**: si la clave no está configurada, rechaza toda petición interna con 403 en vez de dejarla pasar. Ese diseño es correcto — el problema fue que la clave llevaba **vacía en producción desde que se creó el secreto** (2026-07-01), sin que nadie lo notara, porque el síntoma no es un error visible sino un silencio: los mensajes se aceptan (`HTTP 201`), pero nunca llegan a completarse en el servicio destino.
+
+Esto rompió, sin lanzar ningún error visible al usuario:
+- Las nubes de Dudas/Temas (`insightbloom-ingest` → `insightbloom-query`/`insightbloom-moderation`), reportado como *"ni por chat ni por el nuevo formulario registra dudas o temas"*.
+- Cualquier otra llamada `/internal/*` entre servicios (conteo de descargas, borrado en cascada de conferencias, derivación de nombre desde la presentación, etc.).
+
+**Causa raíz #1 (secreto nunca configurado)**: el secreto de Kubernetes se creó con el valor vacío y nadie lo notó porque el fallo es silencioso (`catch (Exception e) { /* fire and forget */ }` en los clientes HTTP internos — ver el fix de logging en `HttpQueryClient`/`HttpModerationClient` de `insightbloom-ingest`).
+
+**Causa raíz #2 (reincidencia tras el primer fix)**: `deploy.yml` tiene un paso que en **cada deploy** sobreescribe el secreto de Kubernetes a partir del secret de GitHub Actions `INTERNAL_API_KEY`:
+
+```yaml
+- name: Upsert internal service-to-service secret in k3s
+  env:
+    INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY }}
+  run: |
+    kubectl -n "$K3S_NAMESPACE" create secret generic "${RELEASE_NAME}-internal-secrets" \
+      --from-literal=internal-api-key="${INTERNAL_API_KEY:-}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+```
+
+El primer arreglo se aplicó **solo en el clúster** (`kubectl create secret ... | kubectl apply -f -`), pero nunca en el secret de GitHub Actions que este paso usa como fuente de verdad. El siguiente deploy automático (disparado por el propio push del fix de SSE) volvió a sobreescribir el secreto con el valor vacío de `secrets.INTERNAL_API_KEY`, que nunca se había configurado — reintroduciendo el mismo bug.
+
+### Corrección
+
+1. Generar una clave aleatoria fuerte: `openssl rand -hex 32`.
+2. Aplicarla al secreto del clúster (para efecto inmediato):
+   ```bash
+   kubectl create secret generic insightbloom-internal-secrets -n insightbloom \
+     --from-literal=internal-api-key=<valor> --dry-run=client -o yaml | kubectl apply -f -
+   ```
+3. **Persistirla como GitHub Actions secret** (esto es lo que evita la reincidencia, ya que `deploy.yml` la reaplica en cada deploy):
+   ```bash
+   gh secret set INTERNAL_API_KEY --repo rafex/InsightBloom --body "<mismo_valor>"
+   ```
+4. Reiniciar los deployments que la consumen: `users`, `stats`, `moderation`, `query`, `ingest`, `survey`, `web`, `telegram`, `presentations`.
+
+### Ejemplo de valor válido
+
+```
+INTERNAL_API_KEY=394ecb672b214aa0187e85ed7b359937758c9b21159b1709570f1b36b511b823
+```
+
+_(Este valor de ejemplo fue el usado para el primer fix del 2026-07-05 y ya fue rotado — no es válido en producción. Nunca documentar aquí el valor **actualmente activo**.)_
+
+Cualquier cadena aleatoria de alta entropía sirve (no tiene un formato especial que validar) — lo importante es generarla con un CSPRNG y no reutilizar valores predecibles como fechas, nombres de proyecto o placeholders (`changeme`, `secret123`, etc.). Generarla con:
+
+```bash
+openssl rand -hex 32
+```
+
+### Por qué no debe exponerse nunca
+
+`INTERNAL_API_KEY` es la **única barrera** entre "cualquier pod del clúster" y "cualquier endpoint `/internal/*`" en los ocho microservicios Java (ver **C1**/**C2** arriba: el borrado en cascada de una conferencia, la actualización de nubes de palabras, el registro de descargas, etc. son todos endpoints internos protegidos solo por este header). Si se filtra:
+
+- Alguien con esa clave y acceso de red al clúster (o, si `NetworkPolicy` no estuviera bien configurada — ver **A2** — incluso desde fuera) podría **borrar todos los datos de cualquier conferencia** vía los endpoints `DELETE /api/v1/conferences/{uuid}` de los cuatro servicios que los exponen.
+- Podría inyectar actualizaciones falsas en las nubes de palabras o el conteo de descargas de cualquier conferencia.
+- Al ser **una sola clave compartida por todos los servicios** (no una por servicio), su exposición compromete la autenticación interna de toda la plataforma de una vez, no solo de un microservicio.
+
+Por eso:
+- Nunca debe aparecer en logs, mensajes de commit, código fuente, ni en este documento con su valor real (el valor de ejemplo de arriba fue rotado inmediatamente después de escribir esto).
+- Debe vivir únicamente en: el secret de GitHub Actions (`repo secrets`, no `variables`) y el Secret de Kubernetes — nunca en `values.yaml` ni en ConfigMaps.
+- Si se sospecha una filtración, rotarla (repetir los pasos de corrección con un valor nuevo) invalida inmediatamente cualquier copia filtrada, sin necesidad de tocar código.
+
+---
+
 ## Commits asociados
 
 | Commit | Descripción | Items |
