@@ -55,6 +55,7 @@ public class UsersApplication {
         final var otpRepo = new SqliteOtpCodeRepository(db);
         final var membershipRepo = new SqliteConferenceMembershipRepository(db);
         final var certificateSettingsRepo = new SqliteCertificateSettingsRepository(db);
+        final var downloadEventRepo = new SqliteDownloadEventRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -90,6 +91,8 @@ public class UsersApplication {
         final var countAttendeesUseCase = new CountAttendeesUseCase(guestRepo);
         final var countRegisteredAttendeesUseCase = new CountRegisteredAttendeesUseCase(membershipRepo);
         final var updateConferenceUseCase = new UpdateConferenceUseCase(conferenceRepo);
+        final var recordDownloadUseCase = new RecordDownloadUseCase(downloadEventRepo);
+        final var getDownloadCountsUseCase = new GetDownloadCountsUseCase(downloadEventRepo);
         final var listUsersUseCase = new ListUsersUseCase(userRepo);
         final var adminUpdateUserUseCase = new AdminUpdateUserUseCase(userRepo);
         final var setUserStatusUseCase = new SetUserStatusUseCase(userRepo, tokenService);
@@ -101,7 +104,8 @@ public class UsersApplication {
                 registerUseCase, sendOtpUseCase, verifyOtpUseCase, logoutUseCase, refreshTokenUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,
-                countAttendeesUseCase, countRegisteredAttendeesUseCase, updateConferenceUseCase);
+                countAttendeesUseCase, countRegisteredAttendeesUseCase, updateConferenceUseCase,
+                recordDownloadUseCase, getDownloadCountsUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

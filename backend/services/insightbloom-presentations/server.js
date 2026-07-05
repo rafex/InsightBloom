@@ -96,6 +96,21 @@ async function deriveConferenceName(conferenceId, title) {
   }
 }
 
+// Registra una descarga de PDF (best-effort, no bloquea ni falla la descarga en curso).
+async function recordDownload(conferenceId, kind) {
+  if (!INTERNAL_API_KEY) return;
+  try {
+    const res = await fetch(`${USERS_URL}/api/v1/conferences/${conferenceId}/downloads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Internal-Auth': INTERNAL_API_KEY },
+      body: JSON.stringify({ kind })
+    });
+    if (!res.ok) console.error('record_download_failed', conferenceId, kind, res.status);
+  } catch (err) {
+    console.error('record_download_error', conferenceId, kind, err.message);
+  }
+}
+
 function runMarp(args) {
   return new Promise((resolve, reject) => {
     const child = execFile(
@@ -262,6 +277,7 @@ app.get('/api/v1/conferences/:id/presentation/pdf', async (req, res) => {
   try {
     const file = await ensurePdf(req.params.id);
     if (!file) return res.status(404).json({ error: 'not_found' });
+    recordDownload(req.params.id, 'presentation');
     res.download(file, 'presentacion.pdf');
   } catch (err) {
     console.error('pdf_generation_failed', err);

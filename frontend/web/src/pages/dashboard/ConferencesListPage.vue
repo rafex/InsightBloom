@@ -20,6 +20,7 @@
           th ID amigable
           th Estado
           th Expira
+          th Descargas
           th Acciones
       tbody
         tr(v-for="c in conferences" :key="c.uuid || c.conferenceId")
@@ -32,6 +33,10 @@
             span.expiry-text(v-if="c.expiresAt" :class="{ expired: isExpired(c.expiresAt) }")
               | {{ isExpired(c.expiresAt) ? 'Expiró ' : 'Expira ' }}{{ formatRelative(c.expiresAt) }}
             span(v-else) —
+          td(data-label="Descargas")
+            span.downloads-text(v-if="downloadCounts[c.uuid || c.conferenceId]")
+              | 🎓 {{ downloadCounts[c.uuid || c.conferenceId].certificate }} · 📄 {{ downloadCounts[c.uuid || c.conferenceId].presentation }}
+            span(v-else) …
           td.actions-cell(data-label="Acciones")
             .conf-actions
               a.btn-outline(:href="`/c/${c.friendlyId}/doubts`" target="_blank") Ver nube
@@ -62,7 +67,7 @@
 
 <script>
 import { ref, onMounted } from 'vue'
-import { getConferences, deleteConference } from '@/services/api/usersApi'
+import { getConferences, deleteConference, getDownloadCounts } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 
@@ -74,17 +79,33 @@ export default {
     const loading = ref(true)
     const deleteTarget = ref(null)
     const qrTarget = ref(null)
+    const downloadCounts = ref({})
     const auth = useAuthStore()
 
     onMounted(async () => {
       try {
-        if (auth.state.token) conferences.value = await getConferences(auth.state.token)
+        if (auth.state.token) {
+          conferences.value = await getConferences(auth.state.token)
+          loadDownloadCounts()
+        }
       } catch (e) {
         console.error('Error cargando conferencias', e)
       } finally {
         loading.value = false
       }
     })
+
+    async function loadDownloadCounts() {
+      const token = auth.state.token
+      await Promise.all(conferences.value.map(async (c) => {
+        const id = c.uuid || c.conferenceId
+        try {
+          downloadCounts.value[id] = await getDownloadCounts(id, token)
+        } catch (e) {
+          downloadCounts.value[id] = { certificate: 0, presentation: 0 }
+        }
+      }))
+    }
 
     function isExpired(iso) { return iso && new Date(iso) < new Date() }
 
@@ -119,7 +140,7 @@ export default {
     }
 
     return {
-      conferences, loading, deleteTarget, qrTarget,
+      conferences, loading, deleteTarget, qrTarget, downloadCounts,
       isExpired, formatRelative, confirmDelete, doDelete
     }
   }
@@ -151,6 +172,7 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 
 .expiry-text { color: #6b7280; font-size: 0.85rem; }
 .expiry-text.expired { color: #dc2626; font-weight: 600; }
+.downloads-text { color: #6b7280; font-size: 0.85rem; white-space: nowrap; }
 
 .conf-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 

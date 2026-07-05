@@ -10,7 +10,9 @@ import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase
 import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GetDownloadCountsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.JoinConferenceUseCase;
+import dev.rafex.insightbloom.users.application.usecases.RecordDownloadUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UpdateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 
@@ -30,6 +32,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final CountAttendeesUseCase countAttendeesUseCase;
     private final CountRegisteredAttendeesUseCase countRegisteredAttendeesUseCase;
     private final UpdateConferenceUseCase updateConferenceUseCase;
+    private final RecordDownloadUseCase recordDownloadUseCase;
+    private final GetDownloadCountsUseCase getDownloadCountsUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -39,7 +43,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GenerateCertificateUseCase generateCertificateUseCase,
                              final CountAttendeesUseCase countAttendeesUseCase,
                              final CountRegisteredAttendeesUseCase countRegisteredAttendeesUseCase,
-                             final UpdateConferenceUseCase updateConferenceUseCase) {
+                             final UpdateConferenceUseCase updateConferenceUseCase,
+                             final RecordDownloadUseCase recordDownloadUseCase,
+                             final GetDownloadCountsUseCase getDownloadCountsUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -49,6 +55,8 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.countAttendeesUseCase = countAttendeesUseCase;
         this.countRegisteredAttendeesUseCase = countRegisteredAttendeesUseCase;
         this.updateConferenceUseCase = updateConferenceUseCase;
+        this.recordDownloadUseCase = recordDownloadUseCase;
+        this.getDownloadCountsUseCase = getDownloadCountsUseCase;
     }
 
     @Override
@@ -67,6 +75,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/certificate", Set.of("GET")),
                 Route.of("/{id}/attendees/count", Set.of("GET")),
                 Route.of("/{id}/derive-name", Set.of("POST")),
+                Route.of("/{id}/downloads", Set.of("POST")),
+                Route.of("/{id}/downloads/count", Set.of("GET")),
                 Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
     }
 
@@ -94,6 +104,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/attendees/count")) {
             return handleAttendeesCount(jx, jx.pathParam("id"));
         }
+        if (path.endsWith("/downloads/count")) {
+            return handleDownloadCounts(jx, jx.pathParam("id"));
+        }
         final String id = jx.pathParam("id");
         if (id != null) {
             return handleGetById(jx, id);
@@ -109,6 +122,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/derive-name")) {
             return handleDeriveName(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/downloads")) {
+            return handleRecordDownload(jx, jx.pathParam("id"));
         }
         return handleCreate(jx);
     }
@@ -291,6 +307,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             final var result = generateCertificateUseCase.execute(conferenceId, v.subjectUuid(), token);
+            recordDownloadUseCase.execute(conferenceId, "certificate");
             jx.response().setStatus(200);
             jx.response().getHeaders().put("Content-Type", "application/pdf");
             jx.response().getHeaders().put("Content-Disposition", "attachment; filename=\"" + result.fileName() + "\"");
@@ -317,6 +334,35 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendOk(jx, Map.of(
                     "count", countAttendeesUseCase.execute(conferenceId),
                     "registered", countRegisteredAttendeesUseCase.execute(conferenceId)));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleRecordDownload(final JettyHttpExchange jx, final String id) {
+        if (!validInternalAuth(jx)) { sendError(jx, 403, "forbidden", "Internal access only"); return true; }
+        try {
+            final var body = parseBody(jx);
+            recordDownloadUseCase.execute(id, (String) body.get("kind"));
+            sendOk(jx, 200, Map.of("status", "recorded"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleDownloadCounts(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can view download counts");
+                return true;
+            }
+            final var counts = getDownloadCountsUseCase.execute(conferenceId);
+            sendOk(jx, Map.of("certificate", counts.certificate(), "presentation", counts.presentation()));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

@@ -147,6 +147,17 @@ public class DatabaseManager {
                     updated_at TEXT
                 )
             """);
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS download_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_download_conference ON download_events(conference_uuid, kind)");
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
         }

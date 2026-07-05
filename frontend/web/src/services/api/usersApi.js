@@ -21,6 +21,13 @@ export async function getRegisteredAttendeesCount(conferenceId, token) {
   return res.data.data.registered
 }
 
+export async function getDownloadCounts(conferenceId, token) {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/downloads/count`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return res.data.data
+}
+
 export async function createConference(name, expiresAt, token, latitude, longitude, eventDate, venue, startTime, endTime, displayName) {
   const body = { name }
   if (displayName) body.displayName = displayName
