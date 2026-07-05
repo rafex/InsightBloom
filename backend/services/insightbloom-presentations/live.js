@@ -11,21 +11,43 @@ const REMOTE_TOKEN_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
 /**
  * Sincronización en vivo del slide actual entre presentador y audiencia.
  *
- * Cada pod mantiene su propio estado en memoria (Map por conferencia) y reparte
- * directo a sus sockets locales sin depender de NATS — eso sigue funcionando
- * igual que antes con un solo pod. NATS se usa solo para que OTROS pods (si el
- * servicio corre con 2+ réplicas) también se enteren de los mismos eventos;
- * si la conexión a NATS falla o no está configurada, el servicio sigue
- * funcionando en modo "un solo pod" sin que nada se rompa.
+ * Cada pod mantiene un caché en memoria (Map por conferencia) y reparte
+ * directo a sus sockets locales sin depender de NATS para eso — eso sigue
+ * funcionando igual que antes con un solo pod. Pero el hash "fuente de verdad"
+ * se guarda en un KV de NATS JetStream (bucket `presentation_state`): así,
+ * si el pod de insightbloom-presentations se reinicia (deploy) o hay 2+
+ * réplicas, cualquier pod puede recuperar el slide actual al conectar en vez
+ * de asumir "sin presentación todavía" y mandar a la audiencia de vuelta al
+ * inicio. Si NATS/JetStream no está disponible, cae a memoria local (modo
+ * "un solo pod", igual que antes).
  */
 const HEARTBEAT_INTERVAL_MS = 30000;
 const HOSTNAME = process.env.HOSTNAME || 'local';
+const KV_BUCKET = 'presentation_state';
 
 const rooms = new Map();
 let usersUrlRef = null;
 let internalApiKeyRef = null;
 let nc = null; // conexión NATS (null si no está disponible)
+let kv = null; // KV de JetStream para el hash actual por conferencia (null si no está disponible)
 const sc = StringCodec();
+
+async function kvReadHash(conferenceId) {
+  if (!kv) return null;
+  try {
+    const entry = await kv.get(conferenceId);
+    return entry ? sc.decode(entry.value) : null;
+  } catch {
+    return null;
+  }
+}
+
+function kvWriteHash(conferenceId, hash) {
+  if (!kv) return;
+  kv.put(conferenceId, sc.encode(hash)).catch((err) => {
+    console.error('kv_put_failed', conferenceId, err.message);
+  });
+}
 
 function room(conferenceId) {
   if (!rooms.has(conferenceId)) {
@@ -104,10 +126,24 @@ async function connectNats(natsUrl, natsToken) {
     conn.closed().then((err) => {
       console.error('insightbloom-presentations: conexión a NATS cerrada', err || '');
       nc = null;
+      kv = null;
     });
     return conn;
   } catch (err) {
     console.error('insightbloom-presentations: no se pudo conectar a NATS, sigue en modo local:', err.message);
+    return null;
+  }
+}
+
+async function openKv(conn) {
+  if (!conn) return null;
+  try {
+    const js = conn.jetstream();
+    const bucket = await js.views.kv(KV_BUCKET, { history: 1 });
+    console.log('insightbloom-presentations: KV JetStream listo:', KV_BUCKET);
+    return bucket;
+  } catch (err) {
+    console.error('insightbloom-presentations: JetStream KV no disponible, sigue sin persistencia entre reinicios:', err.message);
     return null;
   }
 }
@@ -173,8 +209,9 @@ function attachLiveSync(server, { usersUrl, natsUrl, natsToken, internalApiKey }
   internalApiKeyRef = internalApiKey;
   const wss = new WebSocketServer({ noServer: true });
 
-  connectNats(natsUrl, natsToken).then((conn) => {
+  connectNats(natsUrl, natsToken).then(async (conn) => {
     nc = conn;
+    kv = await openKv(conn);
     subscribeWildcards();
   });
 
@@ -230,6 +267,7 @@ function attachLiveSync(server, { usersUrl, natsUrl, natsToken, internalApiKey }
           }
           if (msg && msg.type === 'slide' && typeof msg.hash === 'string') {
             r.currentHash = msg.hash;
+            kvWriteHash(conferenceId, msg.hash);
             const payload = JSON.stringify({ type: 'slide', hash: msg.hash });
             for (const a of r.audience) {
               if (a.readyState === a.OPEN) a.send(payload);
@@ -248,10 +286,16 @@ function attachLiveSync(server, { usersUrl, natsUrl, natsToken, internalApiKey }
     const audienceMatch = url.pathname.match(AUDIENCE_WS_RE);
     if (audienceMatch) {
       const conferenceId = audienceMatch[1];
-      wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.handleUpgrade(req, socket, head, async (ws) => {
         const r = room(conferenceId);
         r.audience.add(ws);
-        if (r.currentHash) {
+        // Si este pod no tiene el hash en memoria (recién reiniciado, o nunca
+        // recibió el evento local), lo recupera del KV de NATS antes de asumir
+        // que no hay presentación en curso.
+        if (!r.currentHash) {
+          r.currentHash = await kvReadHash(conferenceId);
+        }
+        if (r.currentHash && ws.readyState === ws.OPEN) {
           ws.send(JSON.stringify({ type: 'slide', hash: r.currentHash }));
         }
         publishBestEffort('presentation.' + conferenceId + '.audience-delta', { conferenceId, delta: 1 });

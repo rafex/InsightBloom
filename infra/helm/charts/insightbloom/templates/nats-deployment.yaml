@@ -28,7 +28,12 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
           args:
-            - 'exec nats-server --auth "$NATS_AUTH_TOKEN"'
+            # --jetstream: habilita el KV store usado para sincronizar el slide
+            # actual de cada presentación entre pods y sobrevivir a reinicios del
+            # pod de insightbloom-presentations (ver live.js). Store en /tmp: sin
+            # volumen persistente por ahora, alcanza con sobrevivir a reinicios
+            # del pod de presentaciones, que es mucho más frecuente que el de NATS.
+            - 'exec nats-server --auth "$NATS_AUTH_TOKEN" --jetstream --store_dir=/tmp/nats-jetstream'
           env:
             - name: NATS_AUTH_TOKEN
               valueFrom:

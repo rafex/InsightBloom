@@ -87,17 +87,32 @@ export default {
     }
 
     function onIframeLoad() {
+      // Si el iframe se recarga solo (hiccup de red, bespoke.js no persiste la
+      // posición al recargar), retoma la diapositiva donde estaba en vez de
+      // dejar que el deck vuelva al inicio y esa "vuelta al inicio" se
+      // propague a toda la audiencia en el próximo poll.
+      if (lastHash) {
+        try {
+          slidesFrame.value.contentWindow.location.hash = lastHash
+        } catch (e) { /* same-origin esperado; si falla, no hay sync */ }
+      }
       // bespoke.js (motor de Marp) navega con history.pushState/replaceState,
       // que no disparan 'hashchange' — por eso se hace polling del hash.
       if (hashPollTimer) return
-      lastHash = null
       hashPollTimer = setInterval(pollHash, HASH_POLL_MS)
     }
 
     function connectPresenterWs() {
       if (!props.conferenceId || !auth.state.token) return
       ws = new WebSocket(getPresenterWsUrl(props.conferenceId, auth.state.token))
-      ws.onopen = () => { wsConnected.value = true }
+      ws.onopen = () => {
+        wsConnected.value = true
+        // Resincroniza de inmediato tras reconectar (no esperar a que cambie
+        // el hash), por si el pod de presentaciones perdió el estado.
+        if (lastHash != null && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'slide', hash: lastHash }))
+        }
+      }
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data)
