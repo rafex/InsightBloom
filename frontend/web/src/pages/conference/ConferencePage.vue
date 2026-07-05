@@ -21,15 +21,17 @@
           span.location-coords {{ conference.latitude.toFixed(4) }}, {{ conference.longitude.toFixed(4) }}
         button.btn-qr(type="button" @click="showQr = true") 📱 Mostrar QR
       .conf-tabs
-        router-link(:to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
-        router-link(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
-        router-link(:to="`/c/${friendlyId}/presentation`" active-class="active-tab") Presentación
+        router-link#onboarding-tab-doubts(:to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
+        router-link#onboarding-tab-topics(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
+        router-link#onboarding-tab-presentation(:to="`/c/${friendlyId}/presentation`" active-class="active-tab") Presentación
         a.tab-disabled(v-if="isAnonymous" title="Inicia sesión para acceder al chat") Chat
         a.tab-secondary(v-else :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo (opcional)") Chat
-        router-link(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
+        router-link#onboarding-tab-survey(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
     .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
       span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
     router-view(:conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl")
+
+    OnboardingTour(storage-key="ib_onboarding_conference" :steps="attendeeTourSteps")
 
   QrCodeModal(v-if="showQr" :friendlyId="friendlyId" @close="showQr = false")
 </template>
@@ -38,14 +40,22 @@
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
+import OnboardingTour from '@/components/OnboardingTour.vue'
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getConferenceByFriendlyId } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
+const ATTENDEE_TOUR_STEPS = [
+  { selector: '#onboarding-tab-doubts', text: 'Aquí envías tus dudas sobre la charla — todos las ven en una nube de palabras en vivo.' },
+  { selector: '#onboarding-tab-topics', text: 'Aquí propones temas de interés para futuras conferencias.' },
+  { selector: '#onboarding-tab-presentation', text: 'Sigue la presentación en vivo, sincronizada con el presentador.' },
+  { selector: '#onboarding-tab-survey', text: 'Al terminar, responde la encuesta para obtener tu certificado.' }
+]
+
 export default {
   name: 'ConferencePage',
-  components: { AppHeader, ConferenceIntroMap, QrCodeModal },
+  components: { AppHeader, ConferenceIntroMap, QrCodeModal, OnboardingTour },
   setup() {
     const route      = useRoute()
     const friendlyId = route.params.friendlyId
@@ -57,6 +67,7 @@ export default {
 
     const auth = useAuthStore()
     const isAnonymous = !auth.isAuthenticated() || auth.state.role === 'guest'
+    const attendeeTourSteps = ATTENDEE_TOUR_STEPS
     const chatHost = location.hostname.startsWith('chat-') ? location.hostname : `chat-${location.hostname}`
     const chatParams = new URLSearchParams({ conference: friendlyId })
     if (auth.isAuthenticated() && auth.state.role !== 'guest') {
@@ -80,7 +91,10 @@ export default {
       }
     })
 
-    return { friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr, isAnonymous }
+    return {
+      friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
+      isAnonymous, attendeeTourSteps
+    }
   }
 }
 </script>

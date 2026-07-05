@@ -33,6 +33,8 @@
   .section(v-else)
     router-link.btn-secondary(to="/dashboard/conferences" id="onboarding-conferences-link") Ver todas tus conferencias →
 
+  OnboardingTour(storage-key="ib_onboarding_dashboard" :steps="organizerTourSteps")
+
 .dashboard-home(v-else)
   .dashboard-header
     h1 Mis conferencias
@@ -65,9 +67,16 @@ import { getConferences, getConferenceHistory, getRegisteredAttendeesCount } fro
 import { getResults } from '@/services/api/surveyApi'
 import { getPresentationStatus } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import OnboardingTour from '@/components/OnboardingTour.vue'
+
+const ORGANIZER_TOUR_STEPS = [
+  { selector: '#onboarding-new-conference', text: 'Crea tu primera conferencia aquí — te toma menos de un minuto.' },
+  { selector: '#onboarding-conferences-link', text: 'Aquí ves todas tus conferencias en una tabla, con acceso directo a Presentación, Encuesta, Moderación y más.' }
+]
 
 export default {
   name: 'DashboardHome',
+  components: { OnboardingTour },
   setup() {
     const conferences = ref([])
     const loading     = ref(true)
@@ -77,6 +86,7 @@ export default {
     const isOrganizer = auth.isOrganizer()
     const summary = ref({ registeredAttendees: 0, surveyResponses: 0, activePresentations: 0 })
     const summaryLoading = ref(true)
+    const organizerTourSteps = ORGANIZER_TOUR_STEPS
 
     async function loadSummary(confs, token) {
       summaryLoading.value = true
@@ -136,7 +146,7 @@ export default {
 
     return {
       conferences, loading, isOrganizer, history, loadingHistory,
-      summary, summaryLoading, formatDate
+      summary, summaryLoading, formatDate, organizerTourSteps
     }
   }
 }
