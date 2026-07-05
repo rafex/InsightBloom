@@ -85,4 +85,17 @@ public class SqliteConferenceMembershipRepository implements ConferenceMembershi
             throw new RuntimeException(e);
         }
     }
+
+    @Override
+    public long countByConference(final String conferenceUuid) {
+        final String sql = "SELECT COUNT(*) FROM conference_memberships WHERE conference_uuid = ?";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, conferenceUuid);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getLong(1) : 0L;
+            }
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

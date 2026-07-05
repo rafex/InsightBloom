@@ -23,21 +23,21 @@
           th Acciones
       tbody
         tr(v-for="u in filteredUsers" :key="u.uuid")
-          td
+          td(data-label="Usuario")
             strong {{ u.displayName || u.username }}
             .sub {{ u.username }}
-          td
+          td(data-label="Email / Teléfono")
             div {{ u.email || '—' }}
             .sub(v-if="u.phone") {{ u.phone }}
-          td
+          td(data-label="Rol")
             .roles-editor(v-if="editing === u.uuid")
               label(v-for="r in availableRoles" :key="r")
                 input(type="checkbox" :value="r" v-model="editForm.roles")
                 span {{ r }}
             span(v-else) {{ u.roles }}
-          td
+          td(data-label="Estado")
             span.status-badge(:class="u.status") {{ statusLabel(u.status) }}
-          td.actions
+          td.actions(data-label="Acciones")
             template(v-if="editing === u.uuid")
               input(v-model="editForm.displayName" placeholder="Nombre visible")
               input(v-model="editForm.email" placeholder="Email")
@@ -173,14 +173,14 @@ export default {
 </script>
 
 <style scoped>
-.admin-users-page { padding: 24px; max-width: 960px; }
+.admin-users-page { padding: 24px; max-width: 1280px; }
 h2 { color: #1e1b4b; margin-bottom: 20px; }
 .filters { margin-bottom: 16px; }
 select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
 .empty-state { text-align: center; color: #9ca3af; padding: 60px; }
 
 .table-scroll { overflow-x: auto; }
-.users-table { width: 100%; min-width: 720px; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
+.users-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
 .users-table th { text-align: left; padding: 10px 12px; background: #f9fafb; color: #6b7280; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
 .users-table td { padding: 10px 12px; border-top: 1px solid #f3f4f6; vertical-align: top; font-size: 0.88rem; }
 .sub { font-size: 0.78rem; color: #9ca3af; }
@@ -218,7 +218,25 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .btn-cancel { padding: 8px 18px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #374151; cursor: pointer; }
 .btn-confirm { padding: 8px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .admin-users-page { padding: 14px; }
+
+  /* Tabla -> tarjetas apiladas: evita el scroll horizontal interno en pantallas
+     angostas (el problema original: usuario/teléfono/email/acciones no cabían). */
+  .users-table thead { display: none; }
+  .users-table, .users-table tbody, .users-table tr, .users-table td {
+    display: block; width: 100%;
+  }
+  .users-table tr {
+    margin-bottom: 12px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 4px;
+  }
+  .users-table td {
+    border-top: none; padding: 8px 12px;
+  }
+  .users-table td::before {
+    content: attr(data-label); display: block; font-size: 0.7rem; font-weight: 600;
+    text-transform: uppercase; color: #9ca3af; margin-bottom: 4px;
+  }
+  .actions { min-width: 0; }
 }
 </style>

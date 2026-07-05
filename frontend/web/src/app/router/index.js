@@ -37,6 +37,7 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       { path: '', component: () => import('@/pages/dashboard/DashboardHome.vue') },
+      { path: 'conferences', component: () => import('@/pages/dashboard/ConferencesListPage.vue') },
       { path: 'conferences/new', component: () => import('@/pages/dashboard/NewConferencePage.vue') },
       { path: 'join', component: () => import('@/pages/dashboard/JoinConferencePage.vue') },
       { path: 'certificate-settings', component: () => import('@/pages/dashboard/CertificateSettingsPage.vue') },
@@ -92,7 +93,7 @@ router.beforeEach((to) => {
 
   const roles = (localStorage.getItem('ib_role') || '').split(',').map((r) => r.trim())
   const isOrganizerOrAdmin = roles.includes('organizer') || roles.includes('admin')
-  const organizerOnlyPaths = ['/dashboard/conferences/new', '/dashboard/certificate-settings']
+  const organizerOnlyPaths = ['/dashboard/conferences', '/dashboard/conferences/new', '/dashboard/certificate-settings']
   if (organizerOnlyPaths.includes(to.path) && !isOrganizerOrAdmin) return '/dashboard'
   if (to.path === '/dashboard/admin/users' && !roles.includes('admin')) return '/dashboard'
 })

@@ -12,4 +12,7 @@ public interface ConferenceMembershipRepository {
     List<ConferenceMembership> findByUser(String userUuid);
 
     void deleteByConference(String conferenceUuid);
+
+    /** Usuarios con cuenta (no invitados anónimos) que se unieron a esta conferencia. */
+    long countByConference(String conferenceUuid);
 }

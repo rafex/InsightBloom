@@ -5,6 +5,7 @@ import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.CountAttendeesUseCase;
+import dev.rafex.insightbloom.users.application.usecases.CountRegisteredAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
@@ -27,6 +28,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GetConferenceHistoryUseCase getConferenceHistoryUseCase;
     private final GenerateCertificateUseCase generateCertificateUseCase;
     private final CountAttendeesUseCase countAttendeesUseCase;
+    private final CountRegisteredAttendeesUseCase countRegisteredAttendeesUseCase;
     private final UpdateConferenceUseCase updateConferenceUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
@@ -36,6 +38,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GetConferenceHistoryUseCase getConferenceHistoryUseCase,
                              final GenerateCertificateUseCase generateCertificateUseCase,
                              final CountAttendeesUseCase countAttendeesUseCase,
+                             final CountRegisteredAttendeesUseCase countRegisteredAttendeesUseCase,
                              final UpdateConferenceUseCase updateConferenceUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
@@ -44,6 +47,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.getConferenceHistoryUseCase = getConferenceHistoryUseCase;
         this.generateCertificateUseCase = generateCertificateUseCase;
         this.countAttendeesUseCase = countAttendeesUseCase;
+        this.countRegisteredAttendeesUseCase = countRegisteredAttendeesUseCase;
         this.updateConferenceUseCase = updateConferenceUseCase;
     }
 
@@ -310,7 +314,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 403, "forbidden", "Only organizers can view attendee counts");
                 return true;
             }
-            sendOk(jx, Map.of("count", countAttendeesUseCase.execute(conferenceId)));
+            sendOk(jx, Map.of(
+                    "count", countAttendeesUseCase.execute(conferenceId),
+                    "registered", countRegisteredAttendeesUseCase.execute(conferenceId)));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
