@@ -53,6 +53,7 @@
     form.survey-form(v-else @submit.prevent="submit")
       .question(v-for="q in questions" :key="q.uuid")
         label {{ q.text }}
+          span.required-mark(v-if="q.required") &nbsp;*
 
         .rating(v-if="q.type === 'RATING' && q.ratingStyle !== 'EMOJIS'")
           button.star(
@@ -264,8 +265,20 @@ export default {
       } catch (e) { pdfReady.value = false }
     }
 
+    function isAnswered(q) {
+      if (q.type === 'DRAG_DROP') return true
+      if (q.type === 'MULTIPLE_CHOICE') return (answersText[q.uuid] || []).length > 0
+      if (q.type === 'RATING') return !!answers[q.uuid]?.rating
+      return !!(answersText[q.uuid] && answersText[q.uuid].trim())
+    }
+
     async function submit() {
       error.value = ''
+      const missing = questions.value.filter((q) => q.required && !isAnswered(q))
+      if (missing.length) {
+        error.value = `Falta responder: ${missing.map((q) => q.text).join(', ')}`
+        return
+      }
       submitting.value = true
       try {
         const payload = questions.value.map((q) => {
@@ -286,9 +299,13 @@ export default {
         submitted.value = true
         await loadCertificate()
       } catch (e) {
-        error.value = e.response?.status === 409
-          ? 'Ya habías respondido esta encuesta.'
-          : 'No se pudo enviar tu encuesta. Intenta de nuevo.'
+        if (e.response?.status === 409) {
+          error.value = 'Ya habías respondido esta encuesta.'
+        } else if (e.response?.data?.error?.code === 'required_question_missing') {
+          error.value = 'Falta responder alguna pregunta obligatoria.'
+        } else {
+          error.value = 'No se pudo enviar tu encuesta. Intenta de nuevo.'
+        }
       } finally {
         submitting.value = false
       }
@@ -326,6 +343,7 @@ h2 { color: #1e1b4b; margin-bottom: 16px; }
 .btn-outline-link { border: 1.5px solid #4f46e5; color: #4f46e5; }
 .question { margin-bottom: 24px; }
 .question label { display: block; font-weight: 600; color: #1e1b4b; margin-bottom: 8px; }
+.required-mark { color: #dc2626; }
 textarea {
   width: 100%; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px;
   font-size: 0.95rem; font-family: inherit; resize: vertical;

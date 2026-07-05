@@ -7,7 +7,9 @@ import dev.rafex.insightbloom.survey.domain.ports.SurveyQuestionRepository;
 import dev.rafex.insightbloom.survey.domain.ports.SurveyResponseRepository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class SubmitResponsesUseCase {
     private final SurveyQuestionRepository questionRepo;
@@ -33,6 +35,17 @@ public class SubmitResponsesUseCase {
         }
         if (req.userUuid() != null && responseRepo.existsByUserAndConference(req.conferenceUuid(), req.userUuid())) {
             throw new IllegalStateException("already_responded");
+        }
+        final Map<String, Answer> answersByQuestion = req.answers().stream()
+                .collect(Collectors.toMap(Answer::questionUuid, a -> a, (a, b) -> a));
+        final boolean missingRequired = questionRepo.findByConference(req.conferenceUuid(), true).stream()
+                .filter(SurveyQuestion::isRequired)
+                .anyMatch(q -> {
+                    final Answer a = answersByQuestion.get(q.getUuid());
+                    return a == null || ((a.text() == null || a.text().isBlank()) && a.rating() == null);
+                });
+        if (missingRequired) {
+            throw new IllegalArgumentException("required_question_missing");
         }
         final String respondentToken = UUID.randomUUID().toString();
         for (final Answer answer : req.answers()) {

@@ -13,16 +13,17 @@ public class CreateQuestionUseCase {
     public CreateQuestionUseCase(final SurveyQuestionRepository repo) { this.repo = repo; }
 
     public record Request(String conferenceUuid, String text, String type, List<String> options,
-                           String referenceAnswer, String ratingStyle, int orderIndex) {}
+                           String referenceAnswer, String ratingStyle, int orderIndex, Boolean required) {}
 
     public SurveyQuestion execute(final Request req) {
         if (req.text() == null || req.text().isBlank()) {
             throw new IllegalArgumentException("text_required");
         }
         final QuestionType type = QuestionType.valueOf((req.type() == null ? "TEXT" : req.type()).toUpperCase());
+        final boolean required = req.required() == null || req.required();
         final var question = new SurveyQuestion(
                 UUID.randomUUID().toString(), req.conferenceUuid(), req.text(), type, req.options(),
-                req.referenceAnswer(), req.ratingStyle(), req.orderIndex());
+                req.referenceAnswer(), req.ratingStyle(), req.orderIndex(), required);
         repo.save(question);
         return question;
     }

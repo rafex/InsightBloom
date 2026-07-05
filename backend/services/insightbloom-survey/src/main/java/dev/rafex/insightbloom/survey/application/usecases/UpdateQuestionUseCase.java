@@ -12,7 +12,7 @@ public class UpdateQuestionUseCase {
     public UpdateQuestionUseCase(final SurveyQuestionRepository repo) { this.repo = repo; }
 
     public record Request(String questionUuid, String text, String type, List<String> options,
-                           String referenceAnswer, String ratingStyle, Integer orderIndex) {}
+                           String referenceAnswer, String ratingStyle, Integer orderIndex, Boolean required) {}
 
     public SurveyQuestion execute(final Request req) {
         final SurveyQuestion question = repo.findByUuid(req.questionUuid())
@@ -22,7 +22,8 @@ public class UpdateQuestionUseCase {
         }
         final QuestionType type = QuestionType.valueOf((req.type() == null ? "TEXT" : req.type()).toUpperCase());
         final int orderIndex = req.orderIndex() == null ? question.getOrderIndex() : req.orderIndex();
-        question.update(req.text(), type, req.options(), req.referenceAnswer(), req.ratingStyle(), orderIndex);
+        final boolean required = req.required() == null ? question.isRequired() : req.required();
+        question.update(req.text(), type, req.options(), req.referenceAnswer(), req.ratingStyle(), orderIndex, required);
         repo.save(question);
         return question;
     }

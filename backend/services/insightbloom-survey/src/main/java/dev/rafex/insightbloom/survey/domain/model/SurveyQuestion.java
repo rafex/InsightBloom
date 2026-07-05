@@ -13,12 +13,13 @@ public class SurveyQuestion {
     private String ratingStyle;
     private int orderIndex;
     private boolean active;
+    private boolean required;
     private final Instant createdAt;
     private Instant updatedAt;
 
     public SurveyQuestion(final String uuid, final String conferenceUuid, final String text,
                            final QuestionType type, final List<String> options, final String referenceAnswer,
-                           final String ratingStyle, final int orderIndex) {
+                           final String ratingStyle, final int orderIndex, final boolean required) {
         this.uuid = uuid;
         this.conferenceUuid = conferenceUuid;
         this.text = text;
@@ -28,6 +29,7 @@ public class SurveyQuestion {
         this.ratingStyle = ratingStyle;
         this.orderIndex = orderIndex;
         this.active = true;
+        this.required = required;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
@@ -35,7 +37,7 @@ public class SurveyQuestion {
     public SurveyQuestion(final String uuid, final String conferenceUuid, final String text,
                            final QuestionType type, final List<String> options, final String referenceAnswer,
                            final String ratingStyle, final int orderIndex, final boolean active,
-                           final Instant createdAt, final Instant updatedAt) {
+                           final boolean required, final Instant createdAt, final Instant updatedAt) {
         this.uuid = uuid;
         this.conferenceUuid = conferenceUuid;
         this.text = text;
@@ -45,6 +47,7 @@ public class SurveyQuestion {
         this.ratingStyle = ratingStyle;
         this.orderIndex = orderIndex;
         this.active = active;
+        this.required = required;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -52,13 +55,15 @@ public class SurveyQuestion {
     public void deactivate() { this.active = false; this.updatedAt = Instant.now(); }
 
     public void update(final String text, final QuestionType type, final List<String> options,
-                        final String referenceAnswer, final String ratingStyle, final int orderIndex) {
+                        final String referenceAnswer, final String ratingStyle, final int orderIndex,
+                        final boolean required) {
         this.text = text;
         this.type = type;
         this.options = options;
         this.referenceAnswer = referenceAnswer;
         this.ratingStyle = ratingStyle;
         this.orderIndex = orderIndex;
+        this.required = required;
         this.updatedAt = Instant.now();
     }
 
@@ -71,6 +76,7 @@ public class SurveyQuestion {
     public String getRatingStyle() { return ratingStyle; }
     public int getOrderIndex() { return orderIndex; }
     public boolean isActive() { return active; }
+    public boolean isRequired() { return required; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

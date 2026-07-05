@@ -52,6 +52,9 @@ public class DatabaseManager {
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_responses", "grade_feedback", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_responses", "user_uuid", "TEXT");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_r_user ON survey_responses(conference_uuid, user_uuid)");
+            // Default 1 (obligatoria): preguntas ya creadas antes de este campo se
+            // comportan igual que hoy (se espera que se respondan todas).
+            ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "required", "INTEGER NOT NULL DEFAULT 1");
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to init survey db", e);
         }

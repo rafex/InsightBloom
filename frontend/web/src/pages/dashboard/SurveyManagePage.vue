@@ -94,6 +94,9 @@
       rows="3"
       placeholder="Criterios o solución esperada (la IA comparará el código contra esto)"
     )
+    label.required-check
+      input(type="checkbox" v-model="form.required")
+      span Obligatoria (el asistente debe responderla para poder enviar la encuesta)
     .form-actions
       button.btn-primary(:disabled="!form.text || saving" @click="save") {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Agregar') }}
       button.btn-ghost-sm(v-if="editingId" type="button" @click="cancelEdit") Cancelar
@@ -104,6 +107,7 @@
       .question-item-header
         span.q-icon {{ typeIcon(q.type) }}
         span.q-text {{ q.text }}
+          span.q-required(v-if="q.required" title="Obligatoria") &nbsp;*
         span.q-type {{ typeLabel(q.type) }}
       .q-preview(v-if="q.type === 'MULTIPLE_CHOICE' && q.options && q.options.length")
         span.chip(v-for="opt in q.options" :key="opt" :class="{ 'chip-ref': parseMultiSelect(q.referenceAnswer).includes(opt) }")
@@ -197,7 +201,7 @@ import ConferenceSubNav from './ConferenceSubNav.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 
 function emptyForm() {
-  return { text: '', type: 'RATING', ratingStyle: 'STARS', options: [], optionsCorrect: [], referenceAnswer: '' }
+  return { text: '', type: 'RATING', ratingStyle: 'STARS', options: [], optionsCorrect: [], referenceAnswer: '', required: true }
 }
 
 function parseMultiSelect(raw) {
@@ -417,7 +421,8 @@ export default {
         ratingStyle: form.value.ratingStyle || 'STARS',
         options,
         optionsCorrect: options.map(() => false),
-        referenceAnswer: s.type === 'MULTIPLE_CHOICE' ? '' : (s.referenceAnswer || '')
+        referenceAnswer: s.type === 'MULTIPLE_CHOICE' ? '' : (s.referenceAnswer || ''),
+        required: form.value.required
       }
       onTypeChange()
       improvements.value = []
@@ -434,7 +439,8 @@ export default {
         ratingStyle: q.ratingStyle || 'STARS',
         options,
         optionsCorrect: options.map((o) => correctSet.includes(o)),
-        referenceAnswer: q.type === 'MULTIPLE_CHOICE' ? '' : (q.referenceAnswer || '')
+        referenceAnswer: q.type === 'MULTIPLE_CHOICE' ? '' : (q.referenceAnswer || ''),
+        required: q.required !== false
       }
       onTypeChange()
       suggestions.value = []
@@ -468,7 +474,8 @@ export default {
           options,
           referenceAnswer,
           ratingStyle: form.value.type === 'RATING' ? form.value.ratingStyle : null,
-          orderIndex: questions.value.length
+          orderIndex: questions.value.length,
+          required: form.value.required
         }
         if (editingId.value) {
           await updateQuestion(props.conferenceId, editingId.value, payload, auth.state.token)
@@ -540,6 +547,9 @@ input, select, textarea {
   display: block; width: 100%; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px;
   margin-bottom: 10px; font-size: 0.9rem; font-family: inherit;
 }
+.required-check { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #374151; margin-bottom: 12px; }
+.required-check input { width: auto; margin: 0; }
+.q-required { color: #dc2626; font-weight: 700; }
 .form-actions { display: flex; gap: 10px; align-items: center; }
 .btn-primary {
   padding: 8px 18px; border: none; border-radius: 8px; background: #4f46e5; color: #fff;

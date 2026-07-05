@@ -149,9 +149,10 @@ public class SurveyHandler extends BaseResourceHandler {
                 final List<String> options = (List<String>) body.get("options");
                 final int orderIndex = body.get("orderIndex") == null ? 0
                         : ((Number) body.get("orderIndex")).intValue();
+                final Boolean required = (Boolean) body.get("required");
                 final var question = createQuestionUseCase.execute(new CreateQuestionUseCase.Request(
                         conferenceId, (String) body.get("text"), (String) body.get("type"), options,
-                        (String) body.get("referenceAnswer"), (String) body.get("ratingStyle"), orderIndex));
+                        (String) body.get("referenceAnswer"), (String) body.get("ratingStyle"), orderIndex, required));
                 sendOk(jx, question);
                 return true;
             }
@@ -160,9 +161,10 @@ public class SurveyHandler extends BaseResourceHandler {
                 final List<String> options = (List<String>) body.get("options");
                 final Integer orderIndex = body.get("orderIndex") == null ? null
                         : ((Number) body.get("orderIndex")).intValue();
+                final Boolean required = (Boolean) body.get("required");
                 final var question = updateQuestionUseCase.execute(new UpdateQuestionUseCase.Request(
                         jx.pathParam("questionId"), (String) body.get("text"), (String) body.get("type"), options,
-                        (String) body.get("referenceAnswer"), (String) body.get("ratingStyle"), orderIndex));
+                        (String) body.get("referenceAnswer"), (String) body.get("ratingStyle"), orderIndex, required));
                 sendOk(jx, question);
                 return true;
             }
