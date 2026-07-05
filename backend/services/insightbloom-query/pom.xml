@@ -15,10 +15,18 @@
   <name>InsightBloom Query Service</name>
 
   <dependencies>
-    <!-- HTTP server (Jetty 12 + all ether-http-* modules) -->
+    <!-- HTTP server (Jetty 12 + all ether-http-* modules). Pinned above the
+         monorepo-wide ether.version: this is the only service using the new
+         startEventStream() (SSE) API, released separately as 9.5.6. -->
     <dependency>
       <groupId>dev.rafex.ether.http</groupId>
       <artifactId>ether-http-jetty12</artifactId>
+      <version>${ether.http.sse.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.rafex.ether.http</groupId>
+      <artifactId>ether-http-core</artifactId>
+      <version>${ether.http.sse.version}</version>
     </dependency>
 
     <!-- JSON -->

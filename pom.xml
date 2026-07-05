@@ -30,7 +30,10 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <!-- Ether -->
-    <ether.version>9.5.5-SNAPSHOT</ether.version>
+    <ether.version>9.5.5</ether.version>
+    <!-- ether-http-core/ether-http-jetty12 sacaron un release aparte con soporte SSE
+         (startEventStream), usado hoy solo por insightbloom-query. -->
+    <ether.http.sse.version>9.5.6</ether.http.sse.version>
 
     <!-- External -->
     <sqlite.version>3.47.1.0</sqlite.version>
