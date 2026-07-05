@@ -30,9 +30,11 @@ export async function createConference(name, expiresAt, token, latitude, longitu
   return res.data.data
 }
 
-export async function updateConference(uuid, { displayName, venue, eventDate, startTime, endTime, latitude, longitude }, token) {
+export async function updateConference(uuid, {
+  displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl
+}, token) {
   const res = await axios.put(`/api/users/api/v1/conferences/${uuid}`, {
-    displayName, venue, eventDate, startTime, endTime, latitude, longitude
+    displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl
   }, {
     headers: { Authorization: `Bearer ${token}` }
   })

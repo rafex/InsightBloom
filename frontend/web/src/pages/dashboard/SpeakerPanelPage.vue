@@ -8,6 +8,7 @@
       span(v-if="wsConnected") 👀 {{ audienceCount }} conectados
       span(v-else) Conectando...
     .speaker-header-actions
+      a.btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
       button.btn-secondary(@click="showQr = true") Mostrar QR
       button.btn-secondary(@click="shareRemoteControl") Compartir control remoto
 
@@ -55,6 +56,7 @@ export default {
     const friendlyId = ref('')
     const showRemoteShare = ref(false)
     const remoteShareUrl = ref('')
+    const sourceUrl = ref('')
 
     let ws = null
     let wsRetryTimer = null
@@ -140,6 +142,7 @@ export default {
       try {
         const conf = await getConference(props.conferenceId, auth.state.token)
         friendlyId.value = conf?.friendlyId || ''
+        sourceUrl.value = conf?.presentationSourceUrl || ''
       } catch (e) { /* el botón de QR simplemente no aparece */ }
       try {
         const status = await getPresentationStatus(props.conferenceId)
@@ -162,7 +165,7 @@ export default {
     return {
       conferenceId: props.conferenceId, checkedStatus, ready, slidesUrl, slidesFrame,
       wsConnected, audienceCount, showQr, friendlyId, onIframeLoad, navigate,
-      showRemoteShare, remoteShareUrl, shareRemoteControl
+      showRemoteShare, remoteShareUrl, shareRemoteControl, sourceUrl
     }
   }
 }

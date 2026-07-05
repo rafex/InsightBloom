@@ -14,6 +14,10 @@
     h3 Subir presentación (.zip)
     p.hint Sube un ZIP con tu archivo Markdown de Marp, la carpeta assets/css/theme.css y assets/images. Se generará el slideshow y el PDF distribuible.
     input(type="file" accept=".zip" @change="onFileChange" ref="fileInput")
+    .form-group
+      label URL del repositorio o descarga (opcional)
+      input.source-input(v-model="sourceUrl" type="url" placeholder="https://github.com/usuario/repo")
+      p.field-hint Si la agregas, la audiencia verá un botón para ir al sitio de origen de la presentación.
     button.btn-primary(:disabled="!file || uploading" @click="upload")
       | {{ uploading ? 'Procesando (puede tardar)...' : 'Subir y generar' }}
     p.upload-error(v-if="error") {{ error }}
@@ -23,6 +27,7 @@
 <script>
 import { ref, onMounted } from 'vue'
 import { uploadPresentation, getPresentationStatus, getSlidesUrl, getPdfUrl } from '@/services/api/presentationsApi'
+import { getConference, updateConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import ConferenceSubNav from './ConferenceSubNav.vue'
 
@@ -40,6 +45,8 @@ export default {
     const ready = ref(false)
     const slidesUrl = ref('')
     const pdfUrl = ref('')
+    const sourceUrl = ref('')
+    let conference = null
 
     function onFileChange(e) {
       file.value = e.target.files[0] || null
@@ -59,6 +66,13 @@ export default {
       finally { checkedStatus.value = true }
     }
 
+    async function loadConference() {
+      try {
+        conference = await getConference(props.conferenceId, auth.state.token)
+        sourceUrl.value = conference?.presentationSourceUrl || ''
+      } catch (e) { /* el campo simplemente queda vacío */ }
+    }
+
     async function upload() {
       if (!file.value) return
       uploading.value = true
@@ -68,6 +82,19 @@ export default {
         await uploadPresentation(props.conferenceId, file.value, auth.state.token)
         success.value = true
         await refreshStatus()
+        // Actualiza la URL de origen junto con el resto de campos ya existentes de la
+        // conferencia (la API sobreescribe todo el conjunto, no solo el campo nuevo).
+        if (conference) {
+          await updateConference(props.conferenceId, {
+            venue: conference.venue,
+            eventDate: conference.eventDate,
+            startTime: conference.startTime,
+            endTime: conference.endTime,
+            latitude: conference.latitude,
+            longitude: conference.longitude,
+            presentationSourceUrl: sourceUrl.value.trim() || null
+          }, auth.state.token)
+        }
       } catch (e) {
         error.value = e.response?.data?.message || 'No se pudo generar la presentación. Verifica que el ZIP tenga un archivo .md.'
       } finally {
@@ -75,9 +102,15 @@ export default {
       }
     }
 
-    onMounted(refreshStatus)
+    onMounted(() => {
+      refreshStatus()
+      loadConference()
+    })
 
-    return { file, uploading, error, success, checkedStatus, ready, slidesUrl, pdfUrl, onFileChange, upload }
+    return {
+      file, uploading, error, success, checkedStatus, ready, slidesUrl, pdfUrl,
+      sourceUrl, onFileChange, upload
+    }
   }
 }
 </script>
@@ -91,6 +124,14 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 h3 { margin: 0 0 8px; color: #1e1b4b; }
 .hint { color: #6b7280; font-size: 0.88rem; margin-bottom: 12px; }
 input[type="file"] { display: block; margin-bottom: 12px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-weight: 600; font-size: 0.88rem; color: #374151; margin-bottom: 6px; }
+.source-input {
+  width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px;
+  font-size: 0.95rem; box-sizing: border-box;
+}
+.source-input:focus { outline: none; border-color: #4f46e5; }
+.field-hint { margin: 6px 0 0; font-size: 0.8rem; color: #9ca3af; }
 .btn-primary {
   padding: 10px 20px; border: none; border-radius: 8px; background: #4f46e5; color: #fff;
   font-weight: 600; cursor: pointer;

@@ -86,7 +86,8 @@ public class DatabaseManager {
                     venue TEXT,
                     start_time TEXT,
                     end_time TEXT,
-                    name_auto_generated INTEGER NOT NULL DEFAULT 0
+                    name_auto_generated INTEGER NOT NULL DEFAULT 0,
+                    presentation_source_url TEXT
                 )
             """);
             // Migrations for existing databases
@@ -99,6 +100,9 @@ public class DatabaseManager {
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN venue TEXT"); } catch (SQLException ignored) {}
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN name_auto_generated INTEGER NOT NULL DEFAULT 0");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN presentation_source_url TEXT");
             } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""

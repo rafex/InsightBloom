@@ -22,6 +22,7 @@
     iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides")
     .presentation-actions
       router-link.btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Descargar PDF
+      a.btn-secondary(v-if="presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
       router-link.btn-secondary(:to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
 </template>
 
@@ -36,7 +37,7 @@ const PREVIEW_SLIDE_LIMIT = 5
 
 export default {
   name: 'PresentationPage',
-  props: { conferenceId: String },
+  props: { conferenceId: String, presentationSourceUrl: String },
   setup(props) {
     const route = useRoute()
     const auth = useAuthStore()

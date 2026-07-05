@@ -29,7 +29,7 @@
         router-link(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
     .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
       span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
-    router-view(:conference-id="conference.conferenceId || conference.uuid")
+    router-view(:conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl")
 
   QrCodeModal(v-if="showQr" :friendlyId="friendlyId" @close="showQr = false")
 </template>
