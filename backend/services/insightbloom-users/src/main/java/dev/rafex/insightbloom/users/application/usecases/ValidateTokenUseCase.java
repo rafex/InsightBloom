@@ -21,24 +21,25 @@ public class ValidateTokenUseCase {
         this.guestUserRepository = guestUserRepository;
     }
 
-    public record ValidationResult(boolean valid, String subjectUuid, String kind, String role) {}
+    public record ValidationResult(boolean valid, String subjectUuid, String kind, String role, String expiresAt) {}
 
     public ValidationResult execute(String tokenValue) {
         Optional<Token> tokenOpt = tokenService.validate(tokenValue);
         if (tokenOpt.isEmpty()) {
-            return new ValidationResult(false, null, null, null);
+            return new ValidationResult(false, null, null, null, null);
         }
         Token token = tokenOpt.get();
+        final String expiresAt = token.getExpiresAt().toString();
 
         return switch (token.getTokenKind()) {
             case USER -> userRepository.findByUuid(token.getUserUuid())
                     .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-                    .map(u -> new ValidationResult(true, u.getUuid(), "user", UserRole.toCsv(u.getRoles())))
-                    .orElse(new ValidationResult(false, null, null, null));
+                    .map(u -> new ValidationResult(true, u.getUuid(), "user", UserRole.toCsv(u.getRoles()), expiresAt))
+                    .orElse(new ValidationResult(false, null, null, null, null));
             case GUEST -> guestUserRepository.findByUuid(token.getGuestUserUuid())
-                    .map(g -> new ValidationResult(true, g.getUuid(), "guest", "guest"))
-                    .orElse(new ValidationResult(false, null, null, null));
-            case WEBHOOK -> new ValidationResult(true, token.getUserUuid(), "webhook", "webhook");
+                    .map(g -> new ValidationResult(true, g.getUuid(), "guest", "guest", expiresAt))
+                    .orElse(new ValidationResult(false, null, null, null, null));
+            case WEBHOOK -> new ValidationResult(true, token.getUserUuid(), "webhook", "webhook", expiresAt);
         };
     }
 }

@@ -7,6 +7,7 @@ import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.application.usecases.LoginUseCase;
 import dev.rafex.insightbloom.users.application.usecases.LogoutUseCase;
+import dev.rafex.insightbloom.users.application.usecases.RefreshTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RegisterUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SendOtpUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
@@ -27,11 +28,12 @@ public class AuthHandler extends BaseResourceHandler {
     private final SendOtpUseCase sendOtpUseCase;
     private final VerifyOtpUseCase verifyOtpUseCase;
     private final LogoutUseCase logoutUseCase;
+    private final RefreshTokenUseCase refreshTokenUseCase;
 
     public AuthHandler(final LoginUseCase loginUseCase, final CreateGuestUseCase createGuestUseCase,
                        final ValidateTokenUseCase validateTokenUseCase, final RegisterUseCase registerUseCase,
                        final SendOtpUseCase sendOtpUseCase, final VerifyOtpUseCase verifyOtpUseCase,
-                       final LogoutUseCase logoutUseCase) {
+                       final LogoutUseCase logoutUseCase, final RefreshTokenUseCase refreshTokenUseCase) {
         this.loginUseCase = loginUseCase;
         this.createGuestUseCase = createGuestUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -39,6 +41,7 @@ public class AuthHandler extends BaseResourceHandler {
         this.sendOtpUseCase = sendOtpUseCase;
         this.verifyOtpUseCase = verifyOtpUseCase;
         this.logoutUseCase = logoutUseCase;
+        this.refreshTokenUseCase = refreshTokenUseCase;
     }
 
     @Override
@@ -51,6 +54,7 @@ public class AuthHandler extends BaseResourceHandler {
         return List.of(
                 Route.of("/login", Set.of("POST")),
                 Route.of("/logout", Set.of("POST")),
+                Route.of("/refresh", Set.of("POST")),
                 Route.of("/guest", Set.of("POST")),
                 Route.of("/validate", Set.of("GET")),
                 Route.of("/register", Set.of("POST")),
@@ -69,6 +73,7 @@ public class AuthHandler extends BaseResourceHandler {
         final String path = jx.path();
         if (path.endsWith("/login")) return handleLogin(jx);
         if (path.endsWith("/logout")) return handleLogout(jx);
+        if (path.endsWith("/refresh")) return handleRefresh(jx);
         if (path.endsWith("/guest")) return handleGuest(jx);
         if (path.endsWith("/register")) return handleRegister(jx);
         if (path.endsWith("/otp/send")) return handleSendOtp(jx);
@@ -190,6 +195,25 @@ public class AuthHandler extends BaseResourceHandler {
             sendOk(jx, 200, Map.of("status", "logged_out"));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", "Internal error");
+        }
+        return true;
+    }
+
+    private boolean handleRefresh(final JettyHttpExchange jx) {
+        final String auth = jx.request().getHeaders().get("Authorization");
+        if (auth == null || !auth.startsWith("Bearer ")) {
+            sendError(jx, 401, "token_missing", "Authorization header missing");
+            return true;
+        }
+        try {
+            final var result = refreshTokenUseCase.execute(auth.substring(7));
+            if (result.isPresent()) {
+                sendOk(jx, 200, result.get());
+            } else {
+                sendError(jx, 401, "token_invalid", "Token is invalid or expired");
+            }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
     }

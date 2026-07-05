@@ -93,10 +93,11 @@ public class UsersApplication {
         final var adminUpdateUserUseCase = new AdminUpdateUserUseCase(userRepo);
         final var setUserStatusUseCase = new SetUserStatusUseCase(userRepo, tokenService);
         final var logoutUseCase = new LogoutUseCase(tokenService);
+        final var refreshTokenUseCase = new RefreshTokenUseCase(tokenService, validateTokenUseCase);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
-                registerUseCase, sendOtpUseCase, verifyOtpUseCase, logoutUseCase);
+                registerUseCase, sendOtpUseCase, verifyOtpUseCase, logoutUseCase, refreshTokenUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,
                 countAttendeesUseCase, updateConferenceUseCase);

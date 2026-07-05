@@ -37,6 +37,17 @@ public class TokenService {
                 .filter(Token::isValid);
     }
 
+    /** Renueva un token vigente: revoca el actual y emite uno nuevo del mismo sujeto/tipo. */
+    public Optional<Token> reissue(String tokenValue) {
+        return validate(tokenValue).map(current -> {
+            tokenRepository.revokeByValue(tokenValue);
+            if (current.getTokenKind() == TokenKind.GUEST) {
+                return issueGuestToken(current.getGuestUserUuid());
+            }
+            return issueUserToken(current.getUserUuid(), current.getTokenKind());
+        });
+    }
+
     public void revokeAllForUser(String userUuid) {
         tokenRepository.revokeAllForUser(userUuid);
     }

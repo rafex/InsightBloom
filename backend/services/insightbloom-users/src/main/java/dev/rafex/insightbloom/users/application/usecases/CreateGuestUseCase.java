@@ -20,7 +20,7 @@ public class CreateGuestUseCase {
     }
 
     public record GuestRequest(String displayName, String deviceFingerprint, String conferenceUuid) {}
-    public record GuestResult(String token, String guestUuid, String displayName) {}
+    public record GuestResult(String token, String guestUuid, String displayName, String expiresAt) {}
 
     public GuestResult execute(GuestRequest request) {
         // Verify conference exists
@@ -31,6 +31,7 @@ public class CreateGuestUseCase {
         guestUserRepository.save(guest);
 
         Token token = tokenService.issueGuestToken(guest.getUuid());
-        return new GuestResult(token.getTokenValue(), guest.getUuid(), guest.getDisplayName());
+        return new GuestResult(token.getTokenValue(), guest.getUuid(), guest.getDisplayName(),
+                token.getExpiresAt().toString());
     }
 }

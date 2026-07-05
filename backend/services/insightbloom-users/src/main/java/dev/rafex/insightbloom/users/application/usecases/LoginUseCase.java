@@ -23,7 +23,7 @@ public class LoginUseCase {
     }
 
     public record LoginRequest(String username, String password) {}
-    public record LoginResult(String token, String userUuid, String role) {}
+    public record LoginResult(String token, String userUuid, String role, String expiresAt) {}
 
     public Optional<LoginResult> execute(final LoginRequest request) {
         if (request == null) return Optional.empty();
@@ -42,7 +42,8 @@ public class LoginUseCase {
             }
             final Token token = tokenService.issueUserToken(u.getUuid(), TokenKind.USER);
             return Optional.of(new LoginResult(token.getTokenValue(), u.getUuid(),
-                    dev.rafex.insightbloom.users.domain.model.UserRole.toCsv(u.getRoles())));
+                    dev.rafex.insightbloom.users.domain.model.UserRole.toCsv(u.getRoles()),
+                    token.getExpiresAt().toString()));
         });
     }
 

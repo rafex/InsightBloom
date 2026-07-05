@@ -22,7 +22,7 @@ public class VerifyOtpUseCase {
     }
 
     public record Request(String identifier, String code) {}
-    public record Result(String token, String userUuid, String role) {}
+    public record Result(String token, String userUuid, String role, String expiresAt) {}
 
     public Result execute(final Request req) {
         final var otpCode = otpCodeRepository.findLatestActive(req.identifier())
@@ -42,6 +42,7 @@ public class VerifyOtpUseCase {
         userRepository.save(user);
 
         final Token token = tokenService.issueUserToken(user.getUuid(), TokenKind.USER);
-        return new Result(token.getTokenValue(), user.getUuid(), UserRole.toCsv(user.getRoles()));
+        return new Result(token.getTokenValue(), user.getUuid(), UserRole.toCsv(user.getRoles()),
+                token.getExpiresAt().toString());
     }
 }
