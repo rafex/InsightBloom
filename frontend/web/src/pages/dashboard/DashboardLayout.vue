@@ -8,8 +8,7 @@
       nav
         router-link(to="/dashboard" @click="sidebarOpen = false") Inicio
         router-link(v-if="isOrganizer" to="/dashboard/conferences" @click="sidebarOpen = false") Conferencias
-        router-link(v-if="isOrganizer" to="/dashboard/conferences/new" @click="sidebarOpen = false") Nueva conferencia
-        router-link(v-else to="/dashboard/join" @click="sidebarOpen = false") Unirse a una conferencia
+        router-link(v-if="!isOrganizer" to="/dashboard/join" @click="sidebarOpen = false") Unirse a una conferencia
         router-link(v-if="isOrganizer" to="/dashboard/certificate-settings" @click="sidebarOpen = false") Diseño de certificado
         router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="sidebarOpen = false") Usuarios
         router-link(to="/profile" @click="sidebarOpen = false") Mi perfil
