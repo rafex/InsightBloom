@@ -107,6 +107,24 @@ public class SqliteConferenceMembershipRepository implements ConferenceMembershi
     }
 
     @Override
+    public long countDistinctUsersByConferences(final List<String> conferenceUuids) {
+        if (conferenceUuids == null || conferenceUuids.isEmpty()) return 0L;
+        final String placeholders = String.join(",", java.util.Collections.nCopies(conferenceUuids.size(), "?"));
+        final String sql = "SELECT COUNT(DISTINCT user_uuid) FROM conference_memberships "
+                + "WHERE conference_uuid IN (" + placeholders + ")";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            for (int i = 0; i < conferenceUuids.size(); i++) {
+                ps.setString(i + 1, conferenceUuids.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getLong(1) : 0L;
+            }
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public long countByConference(final String conferenceUuid) {
         final String sql = "SELECT COUNT(*) FROM conference_memberships WHERE conference_uuid = ?";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {

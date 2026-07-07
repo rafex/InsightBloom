@@ -63,7 +63,7 @@
 
 <script>
 import { ref, onMounted } from 'vue'
-import { getConferences, getConferenceHistory, getRegisteredAttendeesCount } from '@/services/api/usersApi'
+import { getConferences, getConferenceHistory, getUniqueRegisteredAttendeesCount } from '@/services/api/usersApi'
 import { getResults } from '@/services/api/surveyApi'
 import { getPresentationStatus } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -91,21 +91,22 @@ export default {
     async function loadSummary(confs, token) {
       summaryLoading.value = true
       try {
-        const perConference = await Promise.all(confs.map(async (c) => {
-          const id = c.uuid || c.conferenceId
-          const [registeredAttendees, results, presentation] = await Promise.all([
-            getRegisteredAttendeesCount(id, token).catch(() => 0),
-            getResults(id, token).then((r) => r.data || []).catch(() => []),
-            getPresentationStatus(id).catch(() => ({ ready: false }))
-          ])
-          return {
-            registeredAttendees,
-            surveyResponses: results.reduce((sum, q) => sum + (q.responseCount || 0), 0),
-            active: !!presentation.ready
-          }
-        }))
+        const [uniqueRegisteredAttendees, perConference] = await Promise.all([
+          getUniqueRegisteredAttendeesCount(token).catch(() => 0),
+          Promise.all(confs.map(async (c) => {
+            const id = c.uuid || c.conferenceId
+            const [results, presentation] = await Promise.all([
+              getResults(id, token).then((r) => r.data || []).catch(() => []),
+              getPresentationStatus(id).catch(() => ({ ready: false }))
+            ])
+            return {
+              surveyResponses: results.reduce((sum, q) => sum + (q.responseCount || 0), 0),
+              active: !!presentation.ready
+            }
+          }))
+        ])
         summary.value = {
-          registeredAttendees: perConference.reduce((s, c) => s + c.registeredAttendees, 0),
+          registeredAttendees: uniqueRegisteredAttendees,
           surveyResponses: perConference.reduce((s, c) => s + c.surveyResponses, 0),
           activePresentations: perConference.filter((c) => c.active).length
         }

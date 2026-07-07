@@ -17,4 +17,7 @@ public interface ConferenceMembershipRepository {
 
     /** Usuarios con cuenta (no invitados anónimos) que se unieron a esta conferencia. */
     long countByConference(String conferenceUuid);
+
+    /** Usuarios únicos (deduplicados) que se unieron a alguna de estas conferencias. */
+    long countDistinctUsersByConferences(java.util.List<String> conferenceUuids);
 }

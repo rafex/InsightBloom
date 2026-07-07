@@ -21,6 +21,14 @@ export async function getRegisteredAttendeesCount(conferenceId, token) {
   return res.data.data.registered
 }
 
+/** Personas únicas registradas en alguna conferencia del organizador (deduplicado). */
+export async function getUniqueRegisteredAttendeesCount(token) {
+  const res = await axios.get('/api/users/api/v1/conferences/attendees/registered-summary', {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  return res.data.data.uniqueRegisteredAttendees
+}
+
 export async function getDownloadCounts(conferenceId, token) {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/downloads/count`, {
     headers: { Authorization: `Bearer ${token}` }

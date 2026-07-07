@@ -6,6 +6,7 @@ import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.CountAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountRegisteredAttendeesUseCase;
+import dev.rafex.insightbloom.users.application.usecases.CountUniqueRegisteredAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
@@ -31,6 +32,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GenerateCertificateUseCase generateCertificateUseCase;
     private final CountAttendeesUseCase countAttendeesUseCase;
     private final CountRegisteredAttendeesUseCase countRegisteredAttendeesUseCase;
+    private final CountUniqueRegisteredAttendeesUseCase countUniqueRegisteredAttendeesUseCase;
     private final UpdateConferenceUseCase updateConferenceUseCase;
     private final RecordDownloadUseCase recordDownloadUseCase;
     private final GetDownloadCountsUseCase getDownloadCountsUseCase;
@@ -43,6 +45,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GenerateCertificateUseCase generateCertificateUseCase,
                              final CountAttendeesUseCase countAttendeesUseCase,
                              final CountRegisteredAttendeesUseCase countRegisteredAttendeesUseCase,
+                             final CountUniqueRegisteredAttendeesUseCase countUniqueRegisteredAttendeesUseCase,
                              final UpdateConferenceUseCase updateConferenceUseCase,
                              final RecordDownloadUseCase recordDownloadUseCase,
                              final GetDownloadCountsUseCase getDownloadCountsUseCase) {
@@ -54,6 +57,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.generateCertificateUseCase = generateCertificateUseCase;
         this.countAttendeesUseCase = countAttendeesUseCase;
         this.countRegisteredAttendeesUseCase = countRegisteredAttendeesUseCase;
+        this.countUniqueRegisteredAttendeesUseCase = countUniqueRegisteredAttendeesUseCase;
         this.updateConferenceUseCase = updateConferenceUseCase;
         this.recordDownloadUseCase = recordDownloadUseCase;
         this.getDownloadCountsUseCase = getDownloadCountsUseCase;
@@ -72,6 +76,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/by-short/{shortCode}", Set.of("GET")),
                 Route.of("/join", Set.of("POST")),
                 Route.of("/history", Set.of("GET")),
+                Route.of("/attendees/registered-summary", Set.of("GET")),
                 Route.of("/{id}/certificate", Set.of("GET")),
                 Route.of("/{id}/attendees/count", Set.of("GET")),
                 Route.of("/{id}/derive-name", Set.of("POST")),
@@ -97,6 +102,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/history")) {
             return handleHistory(jx);
+        }
+        if (path.endsWith("/attendees/registered-summary")) {
+            return handleRegisteredAttendeesSummary(jx);
         }
         if (path.endsWith("/certificate")) {
             return handleCertificate(jx, jx.pathParam("id"));
@@ -237,6 +245,23 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             sendOk(jx, 200, getConferenceHistoryUseCase.execute(v.subjectUuid()));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    /** Conteo de personas únicas (deduplicado) registradas en alguna conferencia del organizador. */
+    private boolean handleRegisteredAttendeesSummary(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can view attendee counts");
+                return true;
+            }
+            sendOk(jx, Map.of("uniqueRegisteredAttendees", countUniqueRegisteredAttendeesUseCase.execute(v.subjectUuid())));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

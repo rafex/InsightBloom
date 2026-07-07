@@ -92,6 +92,7 @@ public class UsersApplication {
         final var saveCertificateSettingsUseCase = new SaveCertificateSettingsUseCase(certificateSettingsRepo);
         final var countAttendeesUseCase = new CountAttendeesUseCase(guestRepo);
         final var countRegisteredAttendeesUseCase = new CountRegisteredAttendeesUseCase(membershipRepo);
+        final var countUniqueRegisteredAttendeesUseCase = new CountUniqueRegisteredAttendeesUseCase(conferenceRepo, membershipRepo);
         final var updateConferenceUseCase = new UpdateConferenceUseCase(conferenceRepo);
         final var recordDownloadUseCase = new RecordDownloadUseCase(downloadEventRepo);
         final var getDownloadCountsUseCase = new GetDownloadCountsUseCase(downloadEventRepo);
@@ -109,7 +110,8 @@ public class UsersApplication {
                 registerUseCase, sendOtpUseCase, verifyOtpUseCase, logoutUseCase, refreshTokenUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,
-                countAttendeesUseCase, countRegisteredAttendeesUseCase, updateConferenceUseCase,
+                countAttendeesUseCase, countRegisteredAttendeesUseCase, countUniqueRegisteredAttendeesUseCase,
+                updateConferenceUseCase,
                 recordDownloadUseCase, getDownloadCountsUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
