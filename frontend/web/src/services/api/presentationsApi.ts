@@ -2,11 +2,11 @@ import axios from 'axios'
 
 const BASE = '/api/presentations/api/v1'
 
-function authHeader(token) {
+function authHeader(token?: string | null) {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export async function uploadPresentation(conferenceId, file, token) {
+export async function uploadPresentation(conferenceId: string, file: Blob, token: string): Promise<unknown> {
   const form = new FormData()
   form.append('file', file)
   const res = await axios.post(`${BASE}/conferences/${conferenceId}/presentation`, form, {
@@ -15,41 +15,41 @@ export async function uploadPresentation(conferenceId, file, token) {
   return res.data
 }
 
-export async function getPresentationStatus(conferenceId) {
+export async function getPresentationStatus(conferenceId: string): Promise<{ ready: boolean, [key: string]: unknown }> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/presentation/status`)
   return res.data
 }
 
-export function getSlidesUrl(conferenceId) {
+export function getSlidesUrl(conferenceId: string): string {
   return `${BASE}/conferences/${conferenceId}/presentation/slides`
 }
 
-export function getSlidesPreviewUrl(conferenceId) {
+export function getSlidesPreviewUrl(conferenceId: string): string {
   return `${BASE}/conferences/${conferenceId}/presentation/slides/preview`
 }
 
-export function getPdfUrl(conferenceId) {
+export function getPdfUrl(conferenceId: string): string {
   return `${BASE}/conferences/${conferenceId}/presentation/pdf`
 }
 
-function wsBase() {
+function wsBase(): string {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   return `${proto}//${window.location.host}${BASE}`
 }
 
-export function getAudienceWsUrl(conferenceId) {
+export function getAudienceWsUrl(conferenceId: string): string {
   return `${wsBase()}/conferences/${conferenceId}/presentation/ws/audience`
 }
 
-export function getPresenterWsUrl(conferenceId, token) {
+export function getPresenterWsUrl(conferenceId: string, token: string): string {
   return `${wsBase()}/conferences/${conferenceId}/presentation/ws/presenter?token=${encodeURIComponent(token)}`
 }
 
-export function getRemoteWsUrl(conferenceId, remoteToken) {
+export function getRemoteWsUrl(conferenceId: string, remoteToken: string): string {
   return `${wsBase()}/conferences/${conferenceId}/presentation/ws/remote?token=${encodeURIComponent(remoteToken)}`
 }
 
-export async function createRemoteLinkToken(conferenceId, organizerToken) {
+export async function createRemoteLinkToken(conferenceId: string, organizerToken: string): Promise<string> {
   const res = await axios.post(
     `${BASE}/conferences/${conferenceId}/presentation/remote-token`,
     {},
