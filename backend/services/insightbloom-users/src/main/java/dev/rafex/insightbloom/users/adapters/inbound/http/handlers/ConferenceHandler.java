@@ -166,11 +166,12 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final Double latitude = body.get("latitude") instanceof Number n ? n.doubleValue() : null;
             final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
+            final Integer timezoneId = body.get("timezoneId") instanceof Number n ? n.intValue() : null;
             final var result = createConferenceUseCase.execute(new CreateConferenceUseCase.CreateRequest(
                     (String) body.get("name"), (String) body.get("displayName"), v.subjectUuid(),
                     (String) body.get("expiresAt"),
                     latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue"),
-                    (String) body.get("startTime"), (String) body.get("endTime")));
+                    (String) body.get("startTime"), (String) body.get("endTime"), timezoneId));
             sendOk(jx, 201, result);
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -269,11 +270,12 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final Double latitude = body.get("latitude") instanceof Number n ? n.doubleValue() : null;
             final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
+            final Integer timezoneId = body.get("timezoneId") instanceof Number n ? n.intValue() : null;
             final var updated = updateConferenceUseCase.execute(id, v.subjectUuid(),
                     new UpdateConferenceUseCase.UpdateRequest((String) body.get("displayName"),
                             (String) body.get("venue"), (String) body.get("eventDate"),
                             (String) body.get("startTime"), (String) body.get("endTime"), latitude, longitude,
-                            (String) body.get("presentationSourceUrl"), (String) body.get("flyerBase64")));
+                            (String) body.get("presentationSourceUrl"), (String) body.get("flyerBase64"), timezoneId));
             if (updated.isPresent()) {
                 sendOk(jx, 200, updated.get());
             } else {

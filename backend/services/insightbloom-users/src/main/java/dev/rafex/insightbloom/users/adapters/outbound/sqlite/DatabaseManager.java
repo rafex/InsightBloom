@@ -110,6 +110,24 @@ public class DatabaseManager {
             } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS timezones (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    iana_name TEXT NOT NULL UNIQUE,
+                    label TEXT NOT NULL,
+                    utc_offset_minutes INTEGER NOT NULL,
+                    is_default INTEGER NOT NULL DEFAULT 0
+                )
+            """);
+            seedTimezones(stmt);
+
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN timezone_id INTEGER");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN reminder_sent_at TEXT");
+            } catch (SQLException ignored) {}
+
+            stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS otp_codes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     uuid TEXT NOT NULL UNIQUE,
@@ -164,6 +182,50 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_download_conference ON download_events(conference_uuid, kind)");
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
+        }
+    }
+
+    /**
+     * Catálogo fijo de zonas horarias (offset fijo, sin horario de verano) para no depender de
+     * una librería de zonas horarias ni de reglas de DST al calcular recordatorios o generar
+     * archivos .ics. GMT-6 (América/Ciudad de México) es la zona por defecto.
+     */
+    private void seedTimezones(final Statement stmt) throws SQLException {
+        final Object[][] zones = {
+            {"Etc/GMT+12", "GMT-12", -720, 0},
+            {"Pacific/Midway", "GMT-11", -660, 0},
+            {"Pacific/Honolulu", "GMT-10 (Hawái)", -600, 0},
+            {"America/Anchorage", "GMT-9 (Alaska)", -540, 0},
+            {"America/Tijuana", "GMT-8 (Pacífico)", -480, 0},
+            {"America/Denver", "GMT-7 (Montaña)", -420, 0},
+            {"America/Mexico_City", "GMT-6 (Ciudad de México, Centroamérica)", -360, 1},
+            {"America/Chicago", "GMT-6 (Central EE. UU.)", -360, 0},
+            {"America/Bogota", "GMT-5 (Colombia, Perú, Ecuador)", -300, 0},
+            {"America/New_York", "GMT-5 (Este EE. UU.)", -300, 0},
+            {"America/Santiago", "GMT-4 (Chile)", -240, 0},
+            {"America/Caracas", "GMT-4 (Venezuela)", -240, 0},
+            {"America/Argentina/Buenos_Aires", "GMT-3 (Argentina, Uruguay)", -180, 0},
+            {"America/Sao_Paulo", "GMT-3 (Brasil)", -180, 0},
+            {"Atlantic/Azores", "GMT-1", -60, 0},
+            {"Europe/London", "GMT+0 (Londres)", 0, 0},
+            {"Europe/Madrid", "GMT+1 (España, Europa Central)", 60, 0},
+            {"Europe/Athens", "GMT+2 (Europa del Este)", 120, 0},
+            {"Asia/Dubai", "GMT+4", 240, 0},
+            {"Asia/Kolkata", "GMT+5:30 (India)", 330, 0},
+            {"Asia/Shanghai", "GMT+8 (China)", 480, 0},
+            {"Asia/Tokyo", "GMT+9 (Japón)", 540, 0},
+            {"Australia/Sydney", "GMT+10 (Australia Este)", 600, 0}
+        };
+        final String sql = "INSERT OR IGNORE INTO timezones (iana_name, label, utc_offset_minutes, is_default) "
+                + "VALUES (?, ?, ?, ?)";
+        try (var ps = stmt.getConnection().prepareStatement(sql)) {
+            for (final Object[] z : zones) {
+                ps.setString(1, (String) z[0]);
+                ps.setString(2, (String) z[1]);
+                ps.setInt(3, (Integer) z[2]);
+                ps.setInt(4, (Integer) z[3]);
+                ps.executeUpdate();
+            }
         }
     }
 }

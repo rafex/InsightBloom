@@ -12,4 +12,5 @@ public interface ConferenceRepository {
     Optional<Conference> findByShortCode(String shortCode);
     boolean existsByFriendlyId(String friendlyId);
     List<Conference> findByUser(String userUuid);
+    List<Conference> findPendingReminder();
 }

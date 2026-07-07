@@ -76,6 +76,26 @@ public class SqliteConferenceMembershipRepository implements ConferenceMembershi
     }
 
     @Override
+    public List<ConferenceMembership> findByConference(final String conferenceUuid) {
+        final String sql = "SELECT * FROM conference_memberships WHERE conference_uuid = ?";
+        final List<ConferenceMembership> result = new ArrayList<>();
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, conferenceUuid);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new ConferenceMembership(
+                            rs.getString("uuid"), rs.getString("user_uuid"), rs.getString("conference_uuid"),
+                            rs.getString("conference_name_snapshot"), rs.getString("conference_friendly_id_snapshot"),
+                            Instant.parse(rs.getString("joined_at"))));
+                }
+            }
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return result;
+    }
+
+    @Override
     public void deleteByConference(final String conferenceUuid) {
         final String sql = "DELETE FROM conference_memberships WHERE conference_uuid = ?";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {

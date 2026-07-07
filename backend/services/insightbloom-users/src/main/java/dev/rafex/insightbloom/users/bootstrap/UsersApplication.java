@@ -56,6 +56,7 @@ public class UsersApplication {
         final var membershipRepo = new SqliteConferenceMembershipRepository(db);
         final var certificateSettingsRepo = new SqliteCertificateSettingsRepository(db);
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
+        final var timezoneRepo = new SqliteTimezoneRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -72,7 +73,7 @@ public class UsersApplication {
         final var loginUseCase = new LoginUseCase(userRepo, tokenService, passwordService);
         final var createGuestUseCase = new CreateGuestUseCase(guestRepo, conferenceRepo, tokenService);
         final var validateTokenUseCase = new ValidateTokenUseCase(tokenService, userRepo, guestRepo);
-        final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService);
+        final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService, timezoneRepo);
         final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo, cascadeDeletePort, membershipRepo);
         final var registerUseCase = new RegisterUseCase(userRepo, passwordService);
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
@@ -80,7 +81,8 @@ public class UsersApplication {
         final var getUserProfileUseCase = new GetUserProfileUseCase(userRepo);
         final var updateProfileUseCase = new UpdateProfileUseCase(userRepo);
         final var changePasswordUseCase = new ChangePasswordUseCase(userRepo, passwordService);
-        final var joinConferenceUseCase = new JoinConferenceUseCase(getConferenceUseCase, membershipRepo);
+        final var joinConferenceUseCase = new JoinConferenceUseCase(
+                getConferenceUseCase, membershipRepo, userRepo, emailPort, timezoneRepo);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
         final var generateCertificateUseCase = new GenerateCertificateUseCase(
                 conferenceRepo, userRepo, surveyPort, certificateSettingsRepo);
@@ -98,6 +100,9 @@ public class UsersApplication {
         final var setUserStatusUseCase = new SetUserStatusUseCase(userRepo, tokenService);
         final var logoutUseCase = new LogoutUseCase(tokenService);
         final var refreshTokenUseCase = new RefreshTokenUseCase(tokenService, validateTokenUseCase);
+        final var listTimezonesUseCase = new ListTimezonesUseCase(timezoneRepo);
+        final var sendConferenceRemindersUseCase = new SendConferenceRemindersUseCase(
+                conferenceRepo, membershipRepo, userRepo, timezoneRepo, emailPort);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -113,6 +118,7 @@ public class UsersApplication {
                 getCertificateSettingsUseCase, saveCertificateSettingsUseCase, validateTokenUseCase);
         final var adminUserHandler = new AdminUserHandler(
                 listUsersUseCase, adminUpdateUserUseCase, setUserStatusUseCase, validateTokenUseCase);
+        final var timezoneHandler = new TimezoneHandler(listTimezonesUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -122,6 +128,7 @@ public class UsersApplication {
         routes.add("/api/v1/notify/*", notifyHandler);
         routes.add("/api/v1/certificate-settings/*", certificateSettingsHandler);
         routes.add("/api/v1/admin/users/*", adminUserHandler);
+        routes.add("/api/v1/timezones/*", timezoneHandler);
 
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();
@@ -131,6 +138,22 @@ public class UsersApplication {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try { runner.stop(); } catch (final Exception e) { e.printStackTrace(); }
         }));
+
+        // Recordatorio de conferencia 1h antes: revisa cada 5 min, sin CronJob/infra nueva —
+        // el estado (reminder_sent_at) vive en la propia tabla conferences, así que un reinicio
+        // del pod no reenvía ni pierde recordatorios pendientes.
+        final var reminderScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            final var t = new Thread(r, "conference-reminder-scheduler");
+            t.setDaemon(true);
+            return t;
+        });
+        reminderScheduler.scheduleAtFixedRate(() -> {
+            try {
+                sendConferenceRemindersUseCase.execute(java.time.Instant.now());
+            } catch (final Exception e) {
+                System.err.println("conference-reminder-scheduler: tick failed: " + e.getMessage());
+            }
+        }, 1, 5, java.util.concurrent.TimeUnit.MINUTES);
 
         runner.start();
         runner.await();

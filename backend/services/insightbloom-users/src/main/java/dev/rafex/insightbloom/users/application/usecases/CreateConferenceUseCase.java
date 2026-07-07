@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
+import dev.rafex.insightbloom.users.domain.ports.TimezoneRepository;
 import dev.rafex.insightbloom.users.domain.services.FriendlyIdService;
 
 import java.time.Instant;
@@ -9,18 +10,23 @@ import java.time.Instant;
 public class CreateConferenceUseCase {
     private final ConferenceRepository conferenceRepository;
     private final FriendlyIdService friendlyIdService;
+    private final TimezoneRepository timezoneRepository;
 
-    public CreateConferenceUseCase(ConferenceRepository conferenceRepository, FriendlyIdService friendlyIdService) {
+    public CreateConferenceUseCase(ConferenceRepository conferenceRepository, FriendlyIdService friendlyIdService,
+                                    TimezoneRepository timezoneRepository) {
         this.conferenceRepository = conferenceRepository;
         this.friendlyIdService = friendlyIdService;
+        this.timezoneRepository = timezoneRepository;
     }
 
     public record CreateRequest(String name, String displayName, String createdByUserUuid, String expiresAt,
                                 Double latitude, Double longitude,
-                                String eventDate, String venue, String startTime, String endTime) {}
+                                String eventDate, String venue, String startTime, String endTime,
+                                Integer timezoneId) {}
     public record CreateResult(String conferenceId, String friendlyId, String name, String status,
                                String expiresAt, Double latitude, Double longitude,
-                               String eventDate, String venue, String startTime, String endTime) {}
+                               String eventDate, String venue, String startTime, String endTime,
+                               Integer timezoneId) {}
 
     public CreateResult execute(CreateRequest request) {
         String friendlyId = friendlyIdService.generate(request.name());
@@ -34,6 +40,8 @@ public class CreateConferenceUseCase {
         conference.setVenue(blankToNull(request.venue()));
         conference.setStartTime(blankToNull(request.startTime()));
         conference.setEndTime(blankToNull(request.endTime()));
+        conference.setTimezoneId(request.timezoneId() != null ? request.timezoneId()
+                : timezoneRepository.findDefault().id());
         conferenceRepository.save(conference);
         return new CreateResult(
             conference.getUuid(), conference.getFriendlyId(),
@@ -41,7 +49,8 @@ public class CreateConferenceUseCase {
             expiresAt != null ? expiresAt.toString() : null,
             conference.getLatitude(), conference.getLongitude(),
             conference.getEventDate(), conference.getVenue(),
-            conference.getStartTime(), conference.getEndTime()
+            conference.getStartTime(), conference.getEndTime(),
+            conference.getTimezoneId()
         );
     }
 
