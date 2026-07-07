@@ -21,6 +21,16 @@
           span.location-icon 📍
           span.location-coords {{ conference.latitude.toFixed(4) }}, {{ conference.longitude.toFixed(4) }}
         button.btn-qr(type="button" @click="showQr = true") 📱 Mostrar QR
+      .conf-schedule(v-if="conference.eventDate")
+        span.schedule-icon 🗓️
+        span {{ formattedEventDate }}
+        span(v-if="conference.startTime") &nbsp;· {{ conference.startTime }}{{ conference.endTime ? ` - ${conference.endTime}` : '' }}
+        span(v-if="conference.venue") &nbsp;· {{ conference.venue }}
+        .calendar-dropdown(v-if="isUpcoming")
+          button.btn-calendar(type="button" @click="showCalendarMenu = !showCalendarMenu") 📅 Agregar a mi calendario
+          .calendar-menu(v-if="showCalendarMenu")
+            a(:href="googleCalendarUrl" target="_blank" rel="noopener" @click="showCalendarMenu = false") Google Calendar
+            button(type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
       .conf-tabs
         router-link#onboarding-tab-doubts(:to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
         router-link#onboarding-tab-topics(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
@@ -42,9 +52,10 @@ import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getConferenceByFriendlyId } from '@/services/api/usersApi'
+import { getConferenceByFriendlyId, getTimezones } from '@/services/api/usersApi'
+import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
 
 const ATTENDEE_TOUR_STEPS = [
@@ -65,6 +76,8 @@ export default {
     const error      = ref('')
     const showIntro  = ref(false)
     const showQr     = ref(false)
+    const timezones  = ref([])
+    const showCalendarMenu = ref(false)
 
     const auth = useAuthStore()
     const isAnonymous = !auth.isAuthenticated() || auth.state.role === 'guest'
@@ -80,9 +93,50 @@ export default {
       showIntro.value = false
     }
 
+    const utcOffsetMinutes = computed(() => {
+      const tz = timezones.value.find((t) => t.id === conference.value?.timezoneId)
+      return tz ? tz.utcOffsetMinutes : -360 // GMT-6 por defecto
+    })
+
+    const formattedEventDate = computed(() => {
+      if (!conference.value?.eventDate) return ''
+      const [y, m, d] = conference.value.eventDate.split('-').map(Number)
+      return new Date(y, m - 1, d).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+    })
+
+    const isUpcoming = computed(() => {
+      if (!conference.value?.eventDate) return false
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const [y, m, d] = conference.value.eventDate.split('-').map(Number)
+      return new Date(y, m - 1, d) >= today
+    })
+
+    function calendarOpts() {
+      return {
+        name: conference.value.name,
+        eventDate: conference.value.eventDate,
+        startTime: conference.value.startTime,
+        endTime: conference.value.endTime,
+        venue: conference.value.venue,
+        utcOffsetMinutes: utcOffsetMinutes.value
+      }
+    }
+
+    const googleCalendarUrl = computed(() => conference.value ? buildGoogleCalendarUrl(calendarOpts()) : '#')
+
+    function downloadCalendarFile() {
+      downloadIcs(calendarOpts())
+    }
+
     onMounted(async () => {
       try {
-        conference.value = await getConferenceByFriendlyId(friendlyId)
+        const [conf, tzList] = await Promise.all([
+          getConferenceByFriendlyId(friendlyId),
+          getTimezones().catch(() => [])
+        ])
+        conference.value = conf
+        timezones.value = tzList
         // Show intro only when conference has a location
         showIntro.value = conference.value?.latitude != null
       } catch (e) {
@@ -94,7 +148,8 @@ export default {
 
     return {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
-      isAnonymous, attendeeTourSteps
+      isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
+      googleCalendarUrl, downloadCalendarFile
     }
   }
 }
@@ -112,6 +167,29 @@ h1 { margin: 0; color: #1e1b4b; }
   background: #eef2ff; color: #4f46e5; font-weight: 600; font-size: 0.85rem; cursor: pointer;
 }
 .btn-qr:hover { background: #e0e7ff; }
+.conf-schedule {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+  font-size: 0.85rem; color: #4b5563; margin-bottom: 12px;
+}
+.schedule-icon { margin-right: 2px; }
+.calendar-dropdown { position: relative; margin-left: 12px; }
+.btn-calendar {
+  padding: 6px 14px; border-radius: 8px; border: 1.5px solid #4f46e5;
+  background: #fff; color: #4f46e5; font-weight: 600; font-size: 0.8rem; cursor: pointer;
+}
+.btn-calendar:hover { background: #eef2ff; }
+.calendar-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden; min-width: 200px;
+  display: flex; flex-direction: column;
+}
+.calendar-menu a, .calendar-menu button {
+  padding: 10px 16px; text-align: left; font-size: 0.85rem; color: #374151;
+  text-decoration: none; background: none; border: none; cursor: pointer; font-family: inherit;
+}
+.calendar-menu a:hover, .calendar-menu button:hover { background: #f3f4f6; }
+
 .conf-tabs { display: flex; gap: 8px; }
 .conf-tabs a {
   padding: 8px 20px;

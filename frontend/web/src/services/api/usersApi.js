@@ -28,7 +28,7 @@ export async function getDownloadCounts(conferenceId, token) {
   return res.data.data
 }
 
-export async function createConference(name, expiresAt, token, latitude, longitude, eventDate, venue, startTime, endTime, displayName) {
+export async function createConference(name, expiresAt, token, latitude, longitude, eventDate, venue, startTime, endTime, displayName, timezoneId) {
   const body = { name }
   if (displayName) body.displayName = displayName
   if (expiresAt) body.expiresAt = expiresAt
@@ -38,6 +38,7 @@ export async function createConference(name, expiresAt, token, latitude, longitu
   if (venue) body.venue = venue
   if (startTime) body.startTime = startTime
   if (endTime) body.endTime = endTime
+  if (timezoneId != null) body.timezoneId = timezoneId
   const res = await axios.post('/api/users/api/v1/conferences', body, {
     headers: { Authorization: `Bearer ${token}` }
   })
@@ -45,13 +46,20 @@ export async function createConference(name, expiresAt, token, latitude, longitu
 }
 
 export async function updateConference(uuid, {
-  displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl
+  displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
+  flyerBase64, timezoneId
 }, token) {
   const res = await axios.put(`/api/users/api/v1/conferences/${uuid}`, {
-    displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl
+    displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
+    flyerBase64, timezoneId
   }, {
     headers: { Authorization: `Bearer ${token}` }
   })
+  return res.data.data
+}
+
+export async function getTimezones() {
+  const res = await axios.get('/api/users/api/v1/timezones')
   return res.data.data
 }
 

@@ -37,6 +37,10 @@
         .coord-field
           span.coord-label Hora de fin
           input(v-model="endTime" type="time")
+      .coord-field(v-if="timezones.length")
+        span.coord-label Zona horaria
+        select(v-model.number="timezoneId")
+          option(v-for="tz in timezones" :key="tz.id" :value="tz.id") {{ tz.label }}
 
     .form-group
       label Sede (opcional)
@@ -96,9 +100,9 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
-import { createConference } from '@/services/api/usersApi'
+import { createConference, getTimezones } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 const EXPIRY_OPTIONS = [
@@ -127,7 +131,17 @@ export default {
     const venue      = ref('')
     const startTime  = ref('')
     const endTime    = ref('')
+    const timezones  = ref([])
+    const timezoneId = ref(null)
     const auth       = useAuthStore()
+
+    onMounted(async () => {
+      try {
+        timezones.value = await getTimezones()
+        const def = timezones.value.find((t) => t.isDefault)
+        if (def) timezoneId.value = def.id
+      } catch (e) { /* selector queda vacío, el backend igual usa su propio default */ }
+    })
 
     const minDate = computed(() => new Date().toISOString().slice(0, 16))
 
@@ -153,7 +167,7 @@ export default {
         const lng = (longitude.value != null && !isNaN(longitude.value)) ? longitude.value : null
         created.value = await createConference(name.value.trim(), expiresAt, auth.state.token, lat, lng,
           eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null,
-          displayName.value.trim() || null)
+          displayName.value.trim() || null, timezoneId.value)
       } catch (e) {
         error.value = e.response?.data?.error?.message || 'Error al crear la conferencia'
       } finally { loading.value = false }
@@ -170,7 +184,7 @@ export default {
     }
 
     return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
-             eventDate, venue, startTime, endTime,
+             eventDate, venue, startTime, endTime, timezones, timezoneId,
              expiryOptions: EXPIRY_OPTIONS, setExpiryMode, create, formatDate, reset }
   }
 }

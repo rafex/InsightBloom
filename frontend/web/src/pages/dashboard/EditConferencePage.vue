@@ -30,6 +30,10 @@
         .coord-field
           span.coord-label Hora de fin
           input(v-model="endTime" type="time")
+      .coord-field(v-if="timezones.length")
+        span.coord-label Zona horaria
+        select(v-model.number="timezoneId")
+          option(v-for="tz in timezones" :key="tz.id" :value="tz.id") {{ tz.label }}
 
     .form-group
       label Sede (opcional)
@@ -68,7 +72,7 @@
 <script>
 import { ref, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
-import { getConference, updateConference } from '@/services/api/usersApi'
+import { getConference, updateConference, getTimezones } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -92,10 +96,17 @@ export default {
     const latitude     = ref(null)
     const longitude    = ref(null)
     const flyerBase64  = ref('')
+    const timezones    = ref([])
+    const timezoneId   = ref(null)
 
     onMounted(async () => {
       try {
-        conference.value = await getConference(props.conferenceId, auth.state.token)
+        const [conf, tzList] = await Promise.all([
+          getConference(props.conferenceId, auth.state.token),
+          getTimezones()
+        ])
+        conference.value = conf
+        timezones.value = tzList
         displayName.value = conference.value.name || ''
         eventDate.value = conference.value.eventDate || ''
         venue.value = conference.value.venue || ''
@@ -104,6 +115,7 @@ export default {
         latitude.value = conference.value.latitude ?? null
         longitude.value = conference.value.longitude ?? null
         flyerBase64.value = conference.value.flyerBase64 || ''
+        timezoneId.value = conference.value.timezoneId ?? tzList.find((t) => t.isDefault)?.id ?? null
       } catch (e) {
         error.value = 'No se pudo cargar la conferencia.'
       } finally {
@@ -132,7 +144,8 @@ export default {
           endTime: endTime.value || null,
           latitude: lat,
           longitude: lng,
-          flyerBase64: flyerBase64.value
+          flyerBase64: flyerBase64.value,
+          timezoneId: timezoneId.value
         }, auth.state.token)
         saved.value = true
       } catch (e) {
@@ -144,7 +157,7 @@ export default {
 
     return { conference, loading, error, saving, saveError, saved, displayName,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
-             onFlyerSelected, save }
+             timezones, timezoneId, onFlyerSelected, save }
   }
 }
 </script>
