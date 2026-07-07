@@ -22,8 +22,8 @@ export function useSessionManager() {
   const auth = useAuthStore()
   const showWarning = ref(false)
   const secondsRemaining = ref(0)
-  let intervalId = null
-  let countdownId = null
+  let intervalId: ReturnType<typeof setInterval> | null = null
+  let countdownId: ReturnType<typeof setInterval> | null = null
 
   function clearCountdown() {
     if (countdownId) clearInterval(countdownId)
@@ -39,7 +39,7 @@ export function useSessionManager() {
     }
   }
 
-  function startCountdown(msRemaining) {
+  function startCountdown(msRemaining: number) {
     if (countdownId) return
     secondsRemaining.value = Math.max(0, Math.ceil(msRemaining / 1000))
     countdownId = setInterval(() => {

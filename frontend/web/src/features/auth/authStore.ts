@@ -1,21 +1,35 @@
 import { reactive } from 'vue'
 import axios from 'axios'
 
-const state = reactive({
+interface AuthState {
+  token: string | null
+  role: string | null
+  userUuid: string | null
+  expiresAt: string | null
+}
+
+const state: AuthState = reactive({
   token: localStorage.getItem('ib_token') || null,
   role: localStorage.getItem('ib_role') || null,
   userUuid: localStorage.getItem('ib_user_uuid') || null,
   expiresAt: localStorage.getItem('ib_expires_at') || null
 })
 
-function persistExpiresAt(expiresAt) {
+function persistExpiresAt(expiresAt?: string | null) {
   state.expiresAt = expiresAt || null
   if (expiresAt) localStorage.setItem('ib_expires_at', expiresAt)
   else localStorage.removeItem('ib_expires_at')
 }
 
+export interface SessionInfo {
+  token: string
+  role: string
+  userUuid: string
+  expiresAt?: string | null
+}
+
 export function useAuthStore() {
-  async function login(username, password) {
+  async function login(username: string, password: string): Promise<{ token: string, role: string, userUuid: string }> {
     const res = await axios.post('/api/users/api/v1/auth/login', { username, password })
     const { token, userUuid, role, expiresAt } = res.data.data
     state.token = token
@@ -28,7 +42,7 @@ export function useAuthStore() {
     return { token, role, userUuid }
   }
 
-  async function loginAsGuest(displayName, conferenceUuid, fingerprint) {
+  async function loginAsGuest(displayName: string, conferenceUuid: string, fingerprint: string): Promise<{ token: string }> {
     const res = await axios.post('/api/users/api/v1/auth/guest', {
       displayName, conferenceUuid, deviceFingerprint: fingerprint
     })
@@ -42,7 +56,7 @@ export function useAuthStore() {
     return { token }
   }
 
-  function setSession({ token, role, userUuid, expiresAt }) {
+  function setSession({ token, role, userUuid, expiresAt }: SessionInfo) {
     state.token = token
     state.role = role
     state.userUuid = userUuid
@@ -53,7 +67,7 @@ export function useAuthStore() {
   }
 
   /** Renueva el token actual de forma silenciosa; no lanza si falla (llamada best-effort). */
-  async function refresh() {
+  async function refresh(): Promise<boolean> {
     if (!state.token) return false
     try {
       const res = await axios.post('/api/users/api/v1/auth/refresh', {}, {
@@ -71,7 +85,7 @@ export function useAuthStore() {
     }
   }
 
-  async function logout() {
+  async function logout(): Promise<void> {
     if (state.token) {
       try {
         await axios.post('/api/users/api/v1/auth/logout', {}, {
@@ -90,11 +104,11 @@ export function useAuthStore() {
     persistExpiresAt(null)
   }
 
-  function roleList() { return (state.role || '').split(',').map((r) => r.trim()).filter(Boolean) }
-  function isAuthenticated() { return !!state.token }
-  function isOrganizer() { return roleList().some((r) => r === 'organizer' || r === 'admin') }
-  function isModerator() { return roleList().some((r) => r === 'organizer' || r === 'moderator' || r === 'admin') }
-  function isAdmin() { return roleList().includes('admin') }
+  function roleList(): string[] { return (state.role || '').split(',').map((r) => r.trim()).filter(Boolean) }
+  function isAuthenticated(): boolean { return !!state.token }
+  function isOrganizer(): boolean { return roleList().some((r) => r === 'organizer' || r === 'admin') }
+  function isModerator(): boolean { return roleList().some((r) => r === 'organizer' || r === 'moderator' || r === 'admin') }
+  function isAdmin(): boolean { return roleList().includes('admin') }
 
   return {
     state, login, loginAsGuest, logout, setSession, refresh,

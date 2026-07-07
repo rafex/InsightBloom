@@ -15,7 +15,7 @@ export const organizerContact = {
 
 // Construye el deep link de Telegram con un mensaje precargado mencionando
 // la conferencia (friendlyId o uuid) que el asistente acaba de calificar.
-export function telegramContactUrl(conferenceLabel) {
+export function telegramContactUrl(conferenceLabel: string): string {
   const username = organizerContact.telegram.replace('@', '')
   const message = `¡Hola me gustó tu conferencia ${conferenceLabel}!`
   return `https://t.me/${username}?text=${encodeURIComponent(message)}`

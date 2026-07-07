@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import axios from 'axios'
+import axios, { type AxiosError } from 'axios'
 import App from './App.vue'
 import router from './app/router'
 import 'animate.css'
@@ -9,7 +9,7 @@ import './styles/global.css'
 // pasar por authStore.logout() (evita re-disparar otra llamada autenticada).
 axios.interceptors.response.use(
   (res) => res,
-  (err) => {
+  (err: AxiosError) => {
     if (err.response?.status === 401) {
       localStorage.removeItem('ib_token')
       localStorage.removeItem('ib_role')

@@ -1,7 +1,9 @@
 // ThumbmarkJS fingerprint - loads from CDN or fallback UUID
-let _fingerprint = null
+declare const Thumbmark: { getFingerprint(): Promise<string> } | undefined
 
-export async function getFingerprint() {
+let _fingerprint: string | null = null
+
+export async function getFingerprint(): Promise<string> {
   if (_fingerprint) return _fingerprint
 
   try {

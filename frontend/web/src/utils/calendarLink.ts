@@ -1,7 +1,16 @@
 // Ayudantes puros para "Agregar a mi calendario". Sin librería de zonas horarias: la
 // conferencia ya trae un offset UTC fijo (sin DST) desde el catálogo de zonas horarias.
 
-function toUtcDate(eventDate, time, utcOffsetMinutes) {
+export interface CalendarEventInput {
+  name: string
+  eventDate: string
+  startTime: string
+  endTime?: string | null
+  venue?: string | null
+  utcOffsetMinutes?: number | null
+}
+
+function toUtcDate(eventDate: string, time: string | null | undefined, utcOffsetMinutes: number | null | undefined): Date {
   const [y, m, d] = eventDate.split('-').map(Number)
   const [h, mi] = (time || '00:00').split(':').map(Number)
   const fakeUtcMillis = Date.UTC(y, m - 1, d, h, mi)
@@ -9,19 +18,16 @@ function toUtcDate(eventDate, time, utcOffsetMinutes) {
   return new Date(fakeUtcMillis - offset * 60_000)
 }
 
-function formatUtc(date) {
+function formatUtc(date: Date): string {
   return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
 }
 
-function escapeIcsText(text) {
+function escapeIcsText(text: string | null | undefined): string {
   return String(text || '').replace(/[\\;,]/g, (c) => '\\' + c).replace(/\n/g, '\\n')
 }
 
-/**
- * @param {{name:string, eventDate:string, startTime:string, endTime?:string, venue?:string, utcOffsetMinutes?:number}} opts
- * @returns {string} contenido de un archivo .ics
- */
-export function buildIcs({ name, eventDate, startTime, endTime, venue, utcOffsetMinutes }) {
+/** Contenido de un archivo .ics para el evento dado. */
+export function buildIcs({ name, eventDate, startTime, endTime, venue, utcOffsetMinutes }: CalendarEventInput): string {
   const start = toUtcDate(eventDate, startTime, utcOffsetMinutes)
   const end = endTime
     ? toUtcDate(eventDate, endTime, utcOffsetMinutes)
@@ -44,7 +50,7 @@ export function buildIcs({ name, eventDate, startTime, endTime, venue, utcOffset
 }
 
 /** Dispara la descarga del .ics generado por {@link buildIcs}. */
-export function downloadIcs(opts) {
+export function downloadIcs(opts: CalendarEventInput): void {
   const ics = buildIcs(opts)
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -57,8 +63,8 @@ export function downloadIcs(opts) {
   URL.revokeObjectURL(url)
 }
 
-/** @returns {string} URL para "Añadir en Google Calendar" con los campos precargados. */
-export function buildGoogleCalendarUrl({ name, eventDate, startTime, endTime, venue, utcOffsetMinutes }) {
+/** URL para "Añadir en Google Calendar" con los campos precargados. */
+export function buildGoogleCalendarUrl({ name, eventDate, startTime, endTime, venue, utcOffsetMinutes }: CalendarEventInput): string {
   const start = toUtcDate(eventDate, startTime, utcOffsetMinutes)
   const end = endTime
     ? toUtcDate(eventDate, endTime, utcOffsetMinutes)
