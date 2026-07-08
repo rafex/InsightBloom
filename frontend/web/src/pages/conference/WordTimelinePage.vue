@@ -25,14 +25,14 @@ export default {
   name: 'WordTimelinePage',
   components: { TimelineItem },
   props: { conferenceId: String },
-  setup(props) {
+  setup(props: { conferenceId?: string }) {
     const route = useRoute()
     const friendlyId = route.params.friendlyId as string
     const word = route.params.word as string
     const wordDecoded = decodeURIComponent(word)
     const type = (route.query.type as string) || 'doubt'
     const typeLabel = type === 'doubt' ? 'Duda' : 'Tema'
-    const items = ref([])
+    const items = ref<any[]>([])
     const loading = ref(true)
     onMounted(async () => {
       if (!props.conferenceId) { loading.value = false; return }

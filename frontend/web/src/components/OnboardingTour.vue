@@ -28,7 +28,7 @@ export default {
   setup(props: { storageKey: string, steps: TourStep[] }) {
     const visible = ref(false)
     const stepIndex = ref(0)
-    const targetRect = ref(null)
+    const targetRect = ref<DOMRect | null>(null)
 
     function measure() {
       const step = props.steps[stepIndex.value]
@@ -39,7 +39,7 @@ export default {
 
     function updatePosition() { measure() }
 
-    async function tryStart(attemptsLeft) {
+    async function tryStart(attemptsLeft: number) {
       await nextTick()
       const firstSelector = props.steps[0]?.selector
       const found = firstSelector && document.querySelector(firstSelector)

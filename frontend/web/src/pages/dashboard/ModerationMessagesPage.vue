@@ -93,10 +93,33 @@ import { getWordTimeline } from '@/services/api/queryApi'
 import { getConference, getUserProfile } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
+interface ModMessageItem {
+  id?: string
+  messageId?: string
+  messageUuid?: string
+  uuid?: string
+  wordText?: string
+  word?: string
+  detailText?: string
+  detail?: string
+  detailVisible?: string
+  authorDisplayName?: string
+  authorUuid?: string
+  authorLabel?: string
+  receivedAt?: string
+  updatedAt?: string
+  detailStatus: string | null
+  answerText?: string
+  _loading: boolean
+  _answering?: boolean
+  _answerDraft?: string
+  [key: string]: unknown
+}
+
 export default {
   name: 'ModerationMessagesPage',
   props: { conferenceId: String },
-  setup(props) {
+  setup(props: { conferenceId?: string }) {
     const route = useRoute()
     const auth = useAuthStore()
 
@@ -104,19 +127,19 @@ export default {
     const wordNormalized = (route.query.wordNormalized as string) || ''
     const wordCanonical = (route.query.wordCanonical as string) || ''
 
-    const items = ref([])
+    const items = ref<ModMessageItem[]>([])
     const loading = ref(false)
     const page = ref(1)
     const totalPages = ref(1)
     const statusFilter = ref('')
     const conferenceName = ref('')
-    const authorNames = ref({})
+    const authorNames = ref<Record<string, string>>({})
 
     async function resolveAuthors() {
       const uuids = [...new Set(
         items.value.filter(i => !i.authorDisplayName).map(i => i.authorUuid)
       )]
-        .filter(uuid => uuid && uuid !== 'anonymous' && !(uuid in authorNames.value))
+        .filter((uuid): uuid is string => !!uuid && uuid !== 'anonymous' && !(uuid in authorNames.value))
       for (const uuid of uuids) {
         try {
           const profile = await getUserProfile(uuid)
@@ -141,15 +164,15 @@ export default {
         const merged = [
           ...(doubts.status === 'fulfilled' ? doubts.value || [] : []),
           ...(topics.status === 'fulfilled' ? topics.value || [] : [])
-        ].filter(m => {
+        ].filter((m: any) => {
           const id = m.messageId || m.uuid
           if (seen.has(id)) return false
           seen.add(id)
           return true
         })
         // Sort by receivedAt descending
-        merged.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
-        items.value = merged.map(m => ({ ...m, detailStatus: null, _loading: false }))
+        merged.sort((a: any, b: any) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+        items.value = merged.map((m: any) => ({ ...m, detailStatus: null, _loading: false }))
       } catch (e: any) { } finally { loading.value = false }
     }
 
@@ -158,61 +181,61 @@ export default {
       if (!props.conferenceId) return
       loading.value = true
       try {
-        const res = await getModerationMessages(props.conferenceId, page.value, 20, statusFilter.value, auth.state.token)
-        items.value = (res.data || []).map(m => ({ ...m, _loading: false }))
+        const res = await getModerationMessages(props.conferenceId, page.value, 20, statusFilter.value, auth.state.token as string)
+        items.value = (res.data || []).map((m: any) => ({ ...m, _loading: false }))
         totalPages.value = res.meta?.totalPages || 1
         resolveAuthors()
       } catch (e: any) { } finally { loading.value = false }
     }
 
-    function goToPage(p) { page.value = p; loadModMessages() }
+    function goToPage(p: number) { page.value = p; loadModMessages() }
 
-    async function censorDetail(item) {
+    async function censorDetail(item: ModMessageItem) {
       item._loading = true
-      const messageId = item.messageId || item.uuid
+      const messageId = (item.messageId || item.uuid) as string
       const detailTxt = item.detail || item.detailVisible || item.detailText || ''
       const wordTxt = item.word || item.wordText || wordCanonical || ''
       try {
         await censorMessage(
-          messageId, null, 'detail',
-          auth.state.token,
-          props.conferenceId, wordTxt, detailTxt
+          messageId, null as any, 'detail',
+          auth.state.token as string,
+          props.conferenceId as string, wordTxt, detailTxt
         )
         item.detailStatus = 'CENSURADO_MANUAL'
         item._loading = false
       } catch (e: any) { item._loading = false }
     }
 
-    async function restore(item) {
+    async function restore(item: ModMessageItem) {
       item._loading = true
-      const messageId = item.messageId || item.uuid
+      const messageId = (item.messageId || item.uuid) as string
       try {
-        await restoreMessage(messageId, auth.state.token, props.conferenceId)
+        await restoreMessage(messageId, auth.state.token as string, props.conferenceId as string)
         item.detailStatus = 'VISIBLE'
         item._loading = false
       } catch (e: any) { item._loading = false }
     }
 
-    async function deleteItem(item) {
+    async function deleteItem(item: ModMessageItem) {
       item._loading = true
-      const messageId = item.messageId || item.uuid
+      const messageId = (item.messageId || item.uuid) as string
       try {
-        await deleteMessage(messageId, auth.state.token, props.conferenceId)
+        await deleteMessage(messageId, auth.state.token as string, props.conferenceId as string)
         item.detailStatus = 'DELETED'
         item._loading = false
       } catch (e: any) { item._loading = false }
     }
 
-    function startAnswering(item) {
+    function startAnswering(item: ModMessageItem) {
       item._answerDraft = item.answerText || ''
       item._answering = true
     }
 
-    async function submitAnswer(item) {
+    async function submitAnswer(item: ModMessageItem) {
       item._loading = true
-      const messageId = item.uuid || item.messageId || item.messageUuid
+      const messageId = (item.uuid || item.messageId || item.messageUuid) as string
       try {
-        await answerMessage(messageId, item._answerDraft, auth.state.userUuid, auth.state.token, props.conferenceId)
+        await answerMessage(messageId, item._answerDraft as string, auth.state.userUuid as string, auth.state.token as string, props.conferenceId as string)
         item.answerText = item._answerDraft
         item._answering = false
       } finally {
@@ -220,18 +243,18 @@ export default {
       }
     }
 
-    function statusClass(s) {
+    function statusClass(s: string | null | undefined) {
       if (!s) return {}
       return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION', 'status-deleted': s === 'DELETED' }
     }
 
-    function statusLabel(s) {
+    function statusLabel(s: string | null | undefined): string {
       if (!s) return 'Visible'
-      const map = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente', DELETED: 'Eliminado' }
+      const map: Record<string, string> = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente', DELETED: 'Eliminado' }
       return map[s] || s
     }
 
-    function formatTime(ts) {
+    function formatTime(ts: string | undefined): string {
       if (!ts) return ''
       return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
     }
@@ -239,9 +262,9 @@ export default {
     onMounted(async () => {
       if (props.conferenceId) {
         try {
-          const conf = await getConference(props.conferenceId, auth.state.token)
+          const conf = await getConference(props.conferenceId, auth.state.token as string)
           conferenceName.value = conf?.name || props.conferenceId
-        } catch (e: any) { conferenceName.value = props.conferenceId }
+        } catch (e: any) { conferenceName.value = props.conferenceId as string }
       }
       if (wordNormalized) {
         loadWordTimeline()

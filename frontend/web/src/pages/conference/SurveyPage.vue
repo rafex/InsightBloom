@@ -114,7 +114,7 @@
 </template>
 
 <script lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, type PropType } from 'vue'
 import { useRoute } from 'vue-router'
 import { getQuestions, submitResponses, hasResponded } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl } from '@/services/api/presentationsApi'
@@ -125,26 +125,37 @@ import { useAuthStore } from '@/features/auth/authStore'
 const ORDER_SEP = ';;'
 const EMOJI_SCALE = ['😢', '😕', '😐', '🙂', '🤩']
 
+interface SurveyQuestion {
+  uuid: string
+  text: string
+  type: string
+  options?: string[]
+  required?: boolean
+  ratingStyle?: string
+}
+
+type PointerLikeEvent = MouseEvent | TouchEvent
+
 export default {
   name: 'SurveyPage',
-  props: { conferenceId: String },
-  setup(props) {
+  props: { conferenceId: { type: String as PropType<string | undefined>, default: undefined } },
+  setup(props: { conferenceId?: string }) {
     const route = useRoute()
     const auth = useAuthStore()
     const canParticipate = auth.isAuthenticated() && auth.state.role !== 'guest'
     const friendlyId = route.params.friendlyId as string
-    const questions = ref([])
+    const questions = ref<SurveyQuestion[]>([])
     const loading = ref(true)
     const submitting = ref(false)
     const submitted = ref(false)
     const error = ref('')
-    const answers = reactive({})
-    const answersText = reactive({})
-    const dragOrder = reactive({})
+    const answers = reactive<Record<string, { rating: number }>>({})
+    const answersText = reactive<Record<string, string | string[]>>({})
+    const dragOrder = reactive<Record<string, string[]>>({})
     const pdfReady = ref(false)
     const pdfUrl = ref('')
     const contact = organizerContact
-    const telegramUrl = telegramContactUrl(friendlyId || props.conferenceId)
+    const telegramUrl = telegramContactUrl(friendlyId || props.conferenceId || '')
     const emojiScale = EMOJI_SCALE
     const certLoading = ref(false)
     const certUrl = ref('')
@@ -155,7 +166,7 @@ export default {
       certLoading.value = true
       certError.value = ''
       try {
-        certUrl.value = await getCertificateBlobUrl(props.conferenceId, auth.state.token)
+        certUrl.value = await getCertificateBlobUrl(props.conferenceId as string, auth.state.token as string)
       } catch (e: any) {
         certError.value = 'No se pudo generar tu certificado todavía.'
       } finally {
@@ -163,37 +174,37 @@ export default {
       }
     }
 
-    const canvasRefs = {}
-    const drawState = {}
+    const canvasRefs: Record<string, HTMLCanvasElement> = {}
+    const drawState: Record<string, boolean> = {}
 
-    function setRating(questionUuid, n) {
+    function setRating(questionUuid: string, n: number) {
       answers[questionUuid] = { rating: n }
     }
 
-    function setCanvasRef(questionUuid, el) {
-      if (el) canvasRefs[questionUuid] = el
+    function setCanvasRef(questionUuid: string, el: Element | null) {
+      if (el) canvasRefs[questionUuid] = el as HTMLCanvasElement
     }
 
-    function canvasPos(canvas, evt) {
+    function canvasPos(canvas: HTMLCanvasElement, evt: PointerLikeEvent) {
       const rect = canvas.getBoundingClientRect()
-      const point = evt.touches ? evt.touches[0] : evt
+      const point = 'touches' in evt ? evt.touches[0] : evt
       return { x: point.clientX - rect.left, y: point.clientY - rect.top }
     }
 
-    function startDraw(questionUuid, evt) {
+    function startDraw(questionUuid: string, evt: PointerLikeEvent) {
       const canvas = canvasRefs[questionUuid]
       if (!canvas) return
-      const ctx = canvas.getContext('2d')
+      const ctx = canvas.getContext('2d')!
       const { x, y } = canvasPos(canvas, evt)
       drawState[questionUuid] = true
       ctx.beginPath()
       ctx.moveTo(x, y)
     }
 
-    function moveDraw(questionUuid, evt) {
+    function moveDraw(questionUuid: string, evt: PointerLikeEvent) {
       if (!drawState[questionUuid]) return
       const canvas = canvasRefs[questionUuid]
-      const ctx = canvas.getContext('2d')
+      const ctx = canvas.getContext('2d')!
       const { x, y } = canvasPos(canvas, evt)
       ctx.lineWidth = 2
       ctx.lineCap = 'round'
@@ -202,30 +213,30 @@ export default {
       ctx.stroke()
     }
 
-    function endDraw(questionUuid) {
+    function endDraw(questionUuid: string) {
       if (!drawState[questionUuid]) return
       drawState[questionUuid] = false
       const canvas = canvasRefs[questionUuid]
       answersText[questionUuid] = canvas.toDataURL('image/png')
     }
 
-    function clearCanvas(questionUuid) {
+    function clearCanvas(questionUuid: string) {
       const canvas = canvasRefs[questionUuid]
       if (!canvas) return
-      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+      canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
       answersText[questionUuid] = ''
     }
 
-    let dragFromIndex = null
-    function dragStart(questionUuid, idx) { dragFromIndex = idx }
-    function dragDrop(questionUuid, toIdx) {
+    let dragFromIndex: number | null = null
+    function dragStart(questionUuid: string, idx: number) { dragFromIndex = idx }
+    function dragDrop(questionUuid: string, toIdx: number) {
       if (dragFromIndex === null) return
       const list = dragOrder[questionUuid]
       const [moved] = list.splice(dragFromIndex, 1)
       list.splice(toIdx, 0, moved)
       dragFromIndex = null
     }
-    function moveItem(questionUuid, idx, delta) {
+    function moveItem(questionUuid: string, idx: number, delta: number) {
       const list = dragOrder[questionUuid]
       const newIdx = idx + delta
       if (newIdx < 0 || newIdx >= list.length) return
@@ -238,7 +249,7 @@ export default {
 
       if (canParticipate) {
         try {
-          const already = await hasResponded(props.conferenceId, auth.state.token)
+          const already = await hasResponded(props.conferenceId, auth.state.token as string)
           if (already) {
             submitted.value = true
             loading.value = false
@@ -265,11 +276,12 @@ export default {
       } catch (e: any) { pdfReady.value = false }
     }
 
-    function isAnswered(q) {
+    function isAnswered(q: SurveyQuestion): boolean {
       if (q.type === 'DRAG_DROP') return true
-      if (q.type === 'MULTIPLE_CHOICE') return (answersText[q.uuid] || []).length > 0
+      if (q.type === 'MULTIPLE_CHOICE') return ((answersText[q.uuid] as string[]) || []).length > 0
       if (q.type === 'RATING') return !!answers[q.uuid]?.rating
-      return !!(answersText[q.uuid] && answersText[q.uuid].trim())
+      const text = answersText[q.uuid] as string
+      return !!(text && text.trim())
     }
 
     async function submit() {
@@ -286,16 +298,16 @@ export default {
             return { questionUuid: q.uuid, text: (dragOrder[q.uuid] || []).join(ORDER_SEP), rating: null }
           }
           if (q.type === 'MULTIPLE_CHOICE') {
-            const selected = answersText[q.uuid] || []
+            const selected = (answersText[q.uuid] as string[]) || []
             return { questionUuid: q.uuid, text: selected.length ? JSON.stringify(selected) : null, rating: null }
           }
           return {
             questionUuid: q.uuid,
-            text: answersText[q.uuid] || null,
+            text: (answersText[q.uuid] as string) || null,
             rating: answers[q.uuid]?.rating || null
           }
         })
-        await submitResponses(props.conferenceId, payload, auth.state.token)
+        await submitResponses(props.conferenceId as string, payload, auth.state.token as string)
         submitted.value = true
         await loadCertificate()
       } catch (e: any) {

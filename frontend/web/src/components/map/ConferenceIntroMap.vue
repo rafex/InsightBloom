@@ -56,14 +56,14 @@ export default {
     flyerUrl:  { type: String, default: '' }
   },
   emits: ['enter'],
-  setup(props, { emit }) {
-    const mapRef      = ref(null)
+  setup(props: { latitude: number, longitude: number, label: string, flyerUrl: string }, { emit }: { emit: (event: 'enter') => void }) {
+    const mapRef      = ref<HTMLDivElement | null>(null)
     const markerReady = ref(false)
     const leaving     = ref(false)
     const showFlyer   = ref(!!props.flyerUrl)
 
-    let map    = null
-    let marker = null
+    let map: L.Map | null    = null
+    let marker: L.Marker | null = null
 
     const pinIcon = L.divIcon({
       className: '',
@@ -85,7 +85,7 @@ export default {
     }
 
     onMounted(() => {
-      map = L.map(mapRef.value, {
+      map = L.map(mapRef.value as HTMLDivElement, {
         zoomControl: false,
         attributionControl: true,
         dragging: false,
@@ -102,17 +102,17 @@ export default {
       // 2 s pause on Mexico → 3.5 s flyTo → show marker
       setTimeout(() => {
         showFlyer.value = false
-        map.flyTo([props.latitude, props.longitude], 13, {
+        map!.flyTo([props.latitude, props.longitude], 13, {
           animate: true,
           duration: 3.5,
           easeLinearity: 0.25
         })
 
         setTimeout(() => {
-          map.dragging.enable()
-          map.scrollWheelZoom.enable()
-          map.doubleClickZoom.enable()
-          marker = L.marker([props.latitude, props.longitude], { icon: pinIcon }).addTo(map)
+          map!.dragging.enable()
+          map!.scrollWheelZoom.enable()
+          map!.doubleClickZoom.enable()
+          marker = L.marker([props.latitude, props.longitude], { icon: pinIcon }).addTo(map!)
           marker.on('click', enter)
           markerReady.value = true
         }, 4200)

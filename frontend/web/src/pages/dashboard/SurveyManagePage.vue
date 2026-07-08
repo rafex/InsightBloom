@@ -200,11 +200,60 @@ import { useAuthStore } from '@/features/auth/authStore'
 import ConferenceSubNav from './ConferenceSubNav.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 
-function emptyForm() {
+interface SurveyForm {
+  text: string
+  type: string
+  ratingStyle: string
+  options: string[]
+  optionsCorrect: boolean[]
+  referenceAnswer: string
+  required: boolean
+}
+
+interface SurveyQuestionRow {
+  uuid: string
+  text: string
+  type: string
+  active?: boolean
+  options?: string[]
+  referenceAnswer?: string | null
+  ratingStyle?: string
+  required?: boolean
+}
+
+interface IndividualAnswer {
+  respondentName?: string
+  respondentUuid?: string
+  answerRating?: number | null
+  answerText?: string
+  gradeScore?: number | null
+  gradeFeedback?: string
+}
+
+interface SurveyResult {
+  questionUuid: string
+  text: string
+  type: string
+  responseCount: number
+  averageRating?: number | null
+  averageGradeScore?: number | null
+  ratingStyle?: string
+  counts?: Record<string, number>
+  individualAnswers?: IndividualAnswer[]
+}
+
+interface SuggestedQuestion {
+  text: string
+  type: string
+  options?: string[]
+  referenceAnswer?: string | null
+}
+
+function emptyForm(): SurveyForm {
   return { text: '', type: 'RATING', ratingStyle: 'STARS', options: [], optionsCorrect: [], referenceAnswer: '', required: true }
 }
 
-function parseMultiSelect(raw) {
+function parseMultiSelect(raw: string | null | undefined): string[] {
   if (!raw) return []
   try {
     const parsed = JSON.parse(raw)
@@ -213,7 +262,7 @@ function parseMultiSelect(raw) {
   return [raw]
 }
 
-const TYPE_ICONS = {
+const TYPE_ICONS: Record<string, string> = {
   RATING: '★', TEXT: '📝', MULTIPLE_CHOICE: '☑️', OPEN_GRADED: '💬',
   CODE_GRADED: '💻', CANVAS_DRAWING: '🎨', DRAG_DROP: '⇕'
 }
@@ -222,27 +271,27 @@ export default {
   name: 'SurveyManagePage',
   components: { ConferenceSubNav, BarChart },
   props: { conferenceId: String },
-  setup(props) {
+  setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
     const activeTab = ref('create')
-    const questions = ref([])
-    const results = ref([])
+    const questions = ref<SurveyQuestionRow[]>([])
+    const results = ref<SurveyResult[]>([])
     const saving = ref(false)
     const suggesting = ref(false)
     const suggestError = ref('')
-    const suggestions = ref([])
-    const selectedSuggestions = ref([])
+    const suggestions = ref<SuggestedQuestion[]>([])
+    const selectedSuggestions = ref<number[]>([])
     const addingSuggestions = ref(false)
     const improving = ref(false)
     const improveError = ref('')
-    const improvements = ref([])
-    const editingId = ref(null)
-    const form = ref(emptyForm())
-    const deleteTarget = ref(null)
-    const purgeTarget = ref(null)
-    const openDetail = ref({})
+    const improvements = ref<SuggestedQuestion[]>([])
+    const editingId = ref<string | null>(null)
+    const form = ref<SurveyForm>(emptyForm())
+    const deleteTarget = ref<SurveyQuestionRow | null>(null)
+    const purgeTarget = ref<SurveyResult | null>(null)
+    const openDetail = ref<Record<string, boolean>>({})
     const reviewOpen = ref(false)
-    const selectedForGrading = ref([])
+    const selectedForGrading = ref<string[]>([])
     const regradeAll = ref(false)
     const grading = ref(false)
     const gradeStatus = ref('')
@@ -264,7 +313,7 @@ export default {
       grading.value = true
       gradeStatus.value = ''
       try {
-        const res = await gradeResponses(props.conferenceId, selectedForGrading.value, auth.state.token, regradeAll.value)
+        const res = await gradeResponses(props.conferenceId as string, selectedForGrading.value, auth.state.token as string, regradeAll.value)
         const { graded, skipped } = res.data || {}
         gradeStatus.value = `Calificadas ${graded ?? 0}, omitidas ${skipped ?? 0}`
         reviewOpen.value = false
@@ -278,39 +327,39 @@ export default {
     }
 
     const EMOJI_SCALE = ['😢', '😕', '😐', '🙂', '🤩']
-    function ratingDisplay(ratingStyle, value) {
-      if (ratingStyle === 'EMOJIS') return EMOJI_SCALE[value - 1] || value
+    function ratingDisplay(ratingStyle: string | undefined, value: number): string {
+      if (ratingStyle === 'EMOJIS') return EMOJI_SCALE[value - 1] || String(value)
       return '★'.repeat(value) + '☆'.repeat(5 - value)
     }
 
-    function ratingChartData(r) {
+    function ratingChartData(r: SurveyResult) {
       const labels = r.ratingStyle === 'EMOJIS' ? EMOJI_SCALE : ['1★', '2★', '3★', '4★', '5★']
       const counts = [0, 0, 0, 0, 0]
       for (const a of r.individualAnswers || []) {
-        if (a.answerRating >= 1 && a.answerRating <= 5) counts[a.answerRating - 1]++
+        if (a.answerRating && a.answerRating >= 1 && a.answerRating <= 5) counts[a.answerRating - 1]++
       }
       return labels.map((label, i) => ({ label, value: counts[i] }))
     }
 
-    function choiceChartData(r) {
+    function choiceChartData(r: SurveyResult) {
       return Object.entries(r.counts || {}).map(([label, value]) => ({ label, value }))
     }
 
-    function toggleDetail(questionUuid) {
+    function toggleDetail(questionUuid: string) {
       openDetail.value = { ...openDetail.value, [questionUuid]: !openDetail.value[questionUuid] }
     }
 
-    function typeLabel(t) {
-      return {
+    function typeLabel(t: string): string {
+      return ({
         RATING: 'Calificación', TEXT: 'Texto libre', MULTIPLE_CHOICE: 'Opción múltiple',
         OPEN_GRADED: 'Abierta (IA)', CODE_GRADED: 'Código (IA)',
         CANVAS_DRAWING: 'Diagrama/dibujo', DRAG_DROP: 'Ordenar (drag and drop)'
-      }[t] || t
+      } as Record<string, string>)[t] || t
     }
 
-    function typeIcon(t) { return TYPE_ICONS[t] || '•' }
+    function typeIcon(t: string): string { return TYPE_ICONS[t] || '•' }
 
-    function isImage(text) {
+    function isImage(text: string | undefined): boolean {
       return typeof text === 'string' && text.startsWith('data:image')
     }
 
@@ -329,12 +378,12 @@ export default {
       form.value.optionsCorrect.push(false)
     }
 
-    function removeOption(idx) {
+    function removeOption(idx: number) {
       form.value.options.splice(idx, 1)
       form.value.optionsCorrect.splice(idx, 1)
     }
 
-    function moveOption(idx, delta) {
+    function moveOption(idx: number, delta: number) {
       const newIdx = idx + delta
       if (newIdx < 0 || newIdx >= form.value.options.length) return
       const [item] = form.value.options.splice(idx, 1)
@@ -347,10 +396,10 @@ export default {
       if (!props.conferenceId) return
       try {
         const qRes = await getQuestions(props.conferenceId, false)
-        questions.value = (qRes.data || []).filter((q) => q.active)
+        questions.value = (qRes.data || []).filter((q: SurveyQuestionRow) => q.active)
       } catch (e: any) { questions.value = [] }
       try {
-        const rRes = await getResults(props.conferenceId, auth.state.token)
+        const rRes = await getResults(props.conferenceId, auth.state.token as string)
         results.value = rRes.data || []
       } catch (e: any) { results.value = [] }
     }
@@ -359,7 +408,7 @@ export default {
       suggestError.value = ''
       suggesting.value = true
       try {
-        const res = await suggestQuestions(props.conferenceId, 5, auth.state.token)
+        const res = await suggestQuestions(props.conferenceId as string, 5, auth.state.token as string)
         suggestions.value = res.data || []
         selectedSuggestions.value = []
       } catch (e: any) {
@@ -383,7 +432,7 @@ export default {
             ratingStyle: s.type === 'RATING' ? 'STARS' : null,
             orderIndex: questions.value.length
           }
-          await createQuestion(props.conferenceId, payload, auth.state.token)
+          await createQuestion(props.conferenceId as string, payload, auth.state.token as string)
         }
         suggestions.value = []
         selectedSuggestions.value = []
@@ -399,12 +448,12 @@ export default {
       try {
         const isOptionsType = form.value.type === 'MULTIPLE_CHOICE' || form.value.type === 'DRAG_DROP'
         const options = isOptionsType ? form.value.options.map((o) => o.trim()).filter(Boolean) : null
-        const res = await improveQuestion(props.conferenceId, {
+        const res = await improveQuestion(props.conferenceId as string, {
           text: form.value.text,
           type: form.value.type,
           options,
           referenceAnswer: form.value.referenceAnswer || null
-        }, auth.state.token)
+        }, auth.state.token as string)
         improvements.value = res.data || []
       } catch (e: any) {
         improveError.value = 'No se pudo mejorar la pregunta con IA. Intenta de nuevo.'
@@ -413,7 +462,7 @@ export default {
       }
     }
 
-    function applyImprovement(s) {
+    function applyImprovement(s: SuggestedQuestion) {
       const options = s.options && s.options.length ? [...s.options] : []
       form.value = {
         text: s.text,
@@ -428,7 +477,7 @@ export default {
       improvements.value = []
     }
 
-    function startEdit(q) {
+    function startEdit(q: SurveyQuestionRow) {
       activeTab.value = 'create'
       editingId.value = q.uuid
       const options = q.options && q.options.length ? [...q.options] : []
@@ -478,9 +527,9 @@ export default {
           required: form.value.required
         }
         if (editingId.value) {
-          await updateQuestion(props.conferenceId, editingId.value, payload, auth.state.token)
+          await updateQuestion(props.conferenceId as string, editingId.value, payload, auth.state.token as string)
         } else {
-          await createQuestion(props.conferenceId, payload, auth.state.token)
+          await createQuestion(props.conferenceId as string, payload, auth.state.token as string)
         }
         editingId.value = null
         form.value = emptyForm()
@@ -492,23 +541,23 @@ export default {
       }
     }
 
-    function confirmDelete(q) { deleteTarget.value = q }
+    function confirmDelete(q: SurveyQuestionRow) { deleteTarget.value = q }
 
     async function doDelete() {
       const q = deleteTarget.value
       if (!q) return
       deleteTarget.value = null
-      await deactivateQuestion(props.conferenceId, q.uuid, auth.state.token)
+      await deactivateQuestion(props.conferenceId as string, q.uuid, auth.state.token as string)
       await load()
     }
 
-    function confirmPurge(r) { purgeTarget.value = r }
+    function confirmPurge(r: SurveyResult) { purgeTarget.value = r }
 
     async function doPurge() {
       const r = purgeTarget.value
       if (!r) return
       purgeTarget.value = null
-      await purgeResponses(props.conferenceId, r.questionUuid, auth.state.token)
+      await purgeResponses(props.conferenceId as string, r.questionUuid, auth.state.token as string)
       await load()
     }
 

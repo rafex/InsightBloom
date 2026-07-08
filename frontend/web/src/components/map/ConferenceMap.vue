@@ -37,10 +37,10 @@ export default {
     longitude: { type: Number, required: true },
     label:     { type: String, default: '' }
   },
-  setup(props) {
-    const mapRef = ref(null)
-    let map    = null
-    let marker = null
+  setup(props: { latitude: number, longitude: number, label: string }) {
+    const mapRef = ref<HTMLDivElement | null>(null)
+    let map: L.Map | null       = null
+    let marker: L.Marker | null = null
 
     const pinIcon = L.divIcon({
       className: '',
@@ -55,7 +55,7 @@ export default {
     })
 
     onMounted(() => {
-      map = L.map(mapRef.value, { zoomControl: true, scrollWheelZoom: false })
+      map = L.map(mapRef.value as HTMLDivElement, { zoomControl: true, scrollWheelZoom: false })
         .setView([props.latitude, props.longitude], 12)
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

@@ -11,12 +11,6 @@
     "jsx": "preserve",
 
     "strict": true,
-    // The 37 Options-API .vue components were just converted from JS and have no
-    // prop/data/method type annotations yet; noImplicitAny/strictNullChecks would
-    // fail ~500 times on them. Loosen these two during that incremental migration,
-    // then re-enable once components are typed component-by-component.
-    "noImplicitAny": false,
-    "strictNullChecks": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "skipLibCheck": true,

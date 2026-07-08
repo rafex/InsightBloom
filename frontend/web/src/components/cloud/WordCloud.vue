@@ -16,6 +16,17 @@ interface CloudWord {
   [key: string]: unknown
 }
 
+interface LayoutEntry {
+  text: string
+  size: number
+  color: string
+  weight: string
+  _word: CloudWord
+  x?: number
+  y?: number
+  rotate?: number
+}
+
 // Paleta de 10 colores vivos para la nube
 const PALETTE = [
   '#4f46e5', // indigo
@@ -39,8 +50,8 @@ export default {
   },
   emits: ['word-click'],
   setup(props: { words: CloudWord[], width: number, height: number }, { emit }: { emit: (event: 'word-click', word: CloudWord) => void }) {
-    const svgRef = ref(null)
-    let layoutInstance = null
+    const svgRef = ref<SVGSVGElement | null>(null)
+    let layoutInstance: ReturnType<typeof cloud> | null = null
 
     function render() {
       if (!svgRef.value || !props.words.length) return
@@ -56,8 +67,8 @@ export default {
         })
         .slice(0, 60)
 
-      const maxScore = d3.max(sorted, d => d.relevanceScore || 0) || 0
-      const maxCount = d3.max(sorted, d => d.messageCount || 0) || 0
+      const maxScore = d3.max(sorted, (d: CloudWord) => d.relevanceScore || 0) || 0
+      const maxCount = d3.max(sorted, (d: CloudWord) => d.messageCount || 0) || 0
       const n = sorted.length
 
       // Escala de tamaño de fuente
@@ -67,7 +78,7 @@ export default {
       else                   fontScale.domain([n - 1, 0])
 
       // Asignar tamaño y color por rank para que d3-cloud los use
-      const entries = sorted.map((word, i) => {
+      const entries: LayoutEntry[] = sorted.map((word, i) => {
         let size
         if (maxScore > 0)      size = fontScale(word.relevanceScore || 0)
         else if (maxCount > 0) size = fontScale(word.messageCount || 0)
@@ -87,17 +98,17 @@ export default {
 
       layoutInstance = cloud()
         .size([props.width, props.height])
-        .words(entries)
+        .words(entries as any)
         .padding(6)
         .rotate(() => (Math.random() < 0.15 ? 90 : 0))  // 85% horizontal, 15% vertical
         .font('system-ui, sans-serif')
-        .fontWeight(d => d.weight)
-        .fontSize(d => d.size)
-        .on('end', draw)
+        .fontWeight((d: any) => d.weight)
+        .fontSize((d: any) => d.size)
+        .on('end', draw as any)
         .start()
     }
 
-    function draw(words) {
+    function draw(words: LayoutEntry[]) {
       if (!svgRef.value) return
       const svg = d3.select(svgRef.value)
       svg.selectAll('*').remove()
@@ -111,15 +122,15 @@ export default {
         .append('text')
           .attr('text-anchor', 'middle')
           .attr('dominant-baseline', 'middle')
-          .attr('font-size', d => `${d.size}px`)
+          .attr('font-size', (d: any) => `${d.size}px`)
           .attr('font-family', 'system-ui, sans-serif')
-          .attr('font-weight', d => d.weight)
-          .attr('fill', d => d.color)
+          .attr('font-weight', (d: any) => d.weight)
+          .attr('fill', (d: any) => d.color)
           .attr('cursor', 'pointer')
-          .attr('transform', d => `translate(${d.x},${d.y}) rotate(${d.rotate})`)
+          .attr('transform', (d: any) => `translate(${d.x},${d.y}) rotate(${d.rotate})`)
           .style('user-select', 'none')
-          .text(d => d.text)
-          .on('click', (event, d) => emit('word-click', d._word))
+          .text((d: any) => d.text)
+          .on('click', (event: any, d: any) => emit('word-click', d._word))
           .on('mouseover', function (this: SVGTextElement) { d3.select(this).attr('opacity', 0.65) })
           .on('mouseout',  function (this: SVGTextElement) { d3.select(this).attr('opacity', 1) })
     }

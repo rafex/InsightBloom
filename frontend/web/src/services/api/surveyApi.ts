@@ -67,7 +67,7 @@ export async function hasResponded(conferenceId: string, token: string): Promise
   return res.data.data.responded
 }
 
-export async function getResults(conferenceId: string, token: string): Promise<{ data: unknown[] }> {
+export async function getResults(conferenceId: string, token: string): Promise<{ data: any[] }> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/results`, {
     headers: authHeader(token)
   })

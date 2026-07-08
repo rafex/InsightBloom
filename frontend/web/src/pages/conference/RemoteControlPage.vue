@@ -19,14 +19,14 @@ import { getRemoteWsUrl } from '@/services/api/presentationsApi'
 export default {
   name: 'RemoteControlPage',
   props: { conferenceId: String },
-  setup(props) {
+  setup(props: { conferenceId?: string }) {
     const route = useRoute()
     const token = route.query.token as string | null
     const wsConnected = ref(false)
     const invalid = ref(false)
 
-    let ws = null
-    let wsRetryTimer = null
+    let ws: WebSocket | null = null
+    let wsRetryTimer: ReturnType<typeof setTimeout> | null = null
     let wsClosedByUs = false
     let everConnected = false
 
@@ -40,10 +40,10 @@ export default {
         if (!everConnected) { invalid.value = true; return }
         wsRetryTimer = setTimeout(connect, 3000)
       }
-      ws.onerror = () => ws.close()
+      ws.onerror = () => ws!.close()
     }
 
-    function send(direction) {
+    function send(direction: 'prev' | 'next') {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'nav', direction }))
       }

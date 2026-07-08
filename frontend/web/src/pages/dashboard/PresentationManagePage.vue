@@ -28,6 +28,7 @@
 import { ref, onMounted } from 'vue'
 import { uploadPresentation, getPresentationStatus, getSlidesUrl, getPdfUrl } from '@/services/api/presentationsApi'
 import { getConference, updateConference } from '@/services/api/usersApi'
+import type { Conference } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import ConferenceSubNav from './ConferenceSubNav.vue'
 
@@ -35,9 +36,9 @@ export default {
   name: 'PresentationManagePage',
   components: { ConferenceSubNav },
   props: { conferenceId: String },
-  setup(props) {
+  setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
-    const file = ref(null)
+    const file = ref<File | null>(null)
     const uploading = ref(false)
     const error = ref('')
     const success = ref(false)
@@ -46,21 +47,21 @@ export default {
     const slidesUrl = ref('')
     const pdfUrl = ref('')
     const sourceUrl = ref('')
-    let conference = null
+    let conference: Conference | null = null
 
-    function onFileChange(e) {
-      file.value = e.target.files[0] || null
+    function onFileChange(e: Event) {
+      file.value = (e.target as HTMLInputElement).files?.[0] || null
       success.value = false
       error.value = ''
     }
 
     async function refreshStatus() {
       try {
-        const status = await getPresentationStatus(props.conferenceId)
+        const status = await getPresentationStatus(props.conferenceId as string)
         ready.value = !!status.ready
         if (ready.value) {
-          slidesUrl.value = getSlidesUrl(props.conferenceId)
-          pdfUrl.value = getPdfUrl(props.conferenceId)
+          slidesUrl.value = getSlidesUrl(props.conferenceId as string)
+          pdfUrl.value = getPdfUrl(props.conferenceId as string)
         }
       } catch (e: any) { ready.value = false }
       finally { checkedStatus.value = true }
@@ -68,8 +69,8 @@ export default {
 
     async function loadConference() {
       try {
-        conference = await getConference(props.conferenceId, auth.state.token)
-        sourceUrl.value = conference?.presentationSourceUrl || ''
+        conference = await getConference(props.conferenceId as string, auth.state.token as string)
+        sourceUrl.value = (conference?.presentationSourceUrl as string) || ''
       } catch (e: any) { /* el campo simplemente queda vacío */ }
     }
 
@@ -79,13 +80,13 @@ export default {
       error.value = ''
       success.value = false
       try {
-        await uploadPresentation(props.conferenceId, file.value, auth.state.token)
+        await uploadPresentation(props.conferenceId as string, file.value, auth.state.token as string)
         success.value = true
         await refreshStatus()
         // Actualiza la URL de origen junto con el resto de campos ya existentes de la
         // conferencia (la API sobreescribe todo el conjunto, no solo el campo nuevo).
         if (conference) {
-          await updateConference(props.conferenceId, {
+          await updateConference(props.conferenceId as string, {
             venue: conference.venue,
             eventDate: conference.eventDate,
             startTime: conference.startTime,
@@ -93,7 +94,7 @@ export default {
             latitude: conference.latitude,
             longitude: conference.longitude,
             presentationSourceUrl: sourceUrl.value.trim() || null
-          }, auth.state.token)
+          }, auth.state.token as string)
         }
       } catch (e: any) {
         error.value = e.response?.data?.message || 'No se pudo generar la presentación. Verifica que el ZIP tenga un archivo .md.'

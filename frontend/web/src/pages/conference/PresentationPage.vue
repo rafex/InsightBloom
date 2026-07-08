@@ -38,7 +38,7 @@ const PREVIEW_SLIDE_LIMIT = 5
 export default {
   name: 'PresentationPage',
   props: { conferenceId: String, presentationSourceUrl: String },
-  setup(props) {
+  setup(props: { conferenceId?: string, presentationSourceUrl?: string }) {
     const route = useRoute()
     const auth = useAuthStore()
     const canParticipate = auth.isAuthenticated() && auth.state.role !== 'guest'
@@ -48,22 +48,22 @@ export default {
     const slidesUrl = ref('')
     const timeUp = ref(false)
     const remainingSeconds = ref(ANONYMOUS_PREVIEW_SECONDS)
-    const slidesFrame = ref(null)
+    const slidesFrame = ref<HTMLIFrameElement | null>(null)
     const wsConnected = ref(false)
-    let timer = null
-    let ws = null
-    let wsRetryTimer = null
+    let timer: ReturnType<typeof setInterval> | null = null
+    let ws: WebSocket | null = null
+    let wsRetryTimer: ReturnType<typeof setTimeout> | null = null
     let wsClosedByUs = false
 
     function connectAudienceWs() {
       if (!props.conferenceId) return
       ws = new WebSocket(getAudienceWsUrl(props.conferenceId))
       ws.onopen = () => { wsConnected.value = true }
-      ws.onmessage = (event) => {
+      ws.onmessage = (event: MessageEvent) => {
         try {
           const msg = JSON.parse(event.data)
           if (msg.type === 'slide' && typeof msg.hash === 'string' && slidesFrame.value) {
-            slidesFrame.value.contentWindow.location.hash = msg.hash
+            slidesFrame.value.contentWindow!.location.hash = msg.hash
           }
         } catch (e: any) { /* ignorar mensajes malformados */ }
       }
@@ -72,7 +72,7 @@ export default {
         if (wsClosedByUs) return
         wsRetryTimer = setTimeout(connectAudienceWs, 3000)
       }
-      ws.onerror = () => ws.close()
+      ws.onerror = () => ws!.close()
     }
 
     onMounted(async () => {
@@ -93,7 +93,7 @@ export default {
         timer = setInterval(() => {
           remainingSeconds.value -= 1
           if (remainingSeconds.value <= 0) {
-            clearInterval(timer)
+            clearInterval(timer as ReturnType<typeof setInterval>)
             timeUp.value = true
           }
         }, 1000)

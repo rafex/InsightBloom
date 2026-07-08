@@ -68,7 +68,7 @@ import { ref, computed, onMounted } from 'vue'
 import { getCertificateSettings, saveCertificateSettings } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
-const FONT_MAP = { HELVETICA: 'Helvetica, Arial, sans-serif', TIMES_ROMAN: '"Times New Roman", serif', COURIER: '"Courier New", monospace' }
+const FONT_MAP: Record<string, string> = { HELVETICA: 'Helvetica, Arial, sans-serif', TIMES_ROMAN: '"Times New Roman", serif', COURIER: '"Courier New", monospace' }
 
 export default {
   name: 'CertificateSettingsPage',
@@ -96,8 +96,8 @@ export default {
       }
     })
 
-    function onLogoChange(evt) {
-      const file = evt.target.files?.[0]
+    function onLogoChange(evt: Event) {
+      const file = (evt.target as HTMLInputElement).files?.[0]
       if (!file) return
       const reader = new FileReader()
       reader.onload = () => { form.value.logoBase64 = reader.result as string }
@@ -109,7 +109,7 @@ export default {
       success.value = false
       saving.value = true
       try {
-        await saveCertificateSettings(form.value, auth.state.token)
+        await saveCertificateSettings(form.value, auth.state.token as string)
         success.value = true
       } catch (e: any) {
         error.value = 'No se pudo guardar la configuración.'

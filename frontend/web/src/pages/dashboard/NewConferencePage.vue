@@ -103,7 +103,10 @@
 import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import { createConference, getTimezones } from '@/services/api/usersApi'
+import type { Conference, Timezone } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+
+type ExpiryMode = 'none' | '1h' | '2h' | '4h' | '1d' | 'custom'
 
 const EXPIRY_OPTIONS = [
   { label: 'Sin límite', value: 'none' },
@@ -122,17 +125,17 @@ export default {
     const displayName = ref('')
     const error      = ref('')
     const loading    = ref(false)
-    const created    = ref(null)
-    const expiryMode = ref('none')
+    const created    = ref<Conference | null>(null)
+    const expiryMode = ref<ExpiryMode>('none')
     const customDate = ref('')
-    const latitude   = ref(null)
-    const longitude  = ref(null)
+    const latitude   = ref<number | null>(null)
+    const longitude  = ref<number | null>(null)
     const eventDate  = ref('')
     const venue      = ref('')
     const startTime  = ref('')
     const endTime    = ref('')
-    const timezones  = ref([])
-    const timezoneId = ref(null)
+    const timezones  = ref<Timezone[]>([])
+    const timezoneId = ref<number | null>(null)
     const auth       = useAuthStore()
 
     onMounted(async () => {
@@ -145,11 +148,11 @@ export default {
 
     const minDate = computed(() => new Date().toISOString().slice(0, 16))
 
-    function setExpiryMode(val) { expiryMode.value = val }
+    function setExpiryMode(val: ExpiryMode) { expiryMode.value = val }
 
-    function computeExpiresAt() {
+    function computeExpiresAt(): string | null {
       const now = Date.now()
-      const map = { '1h': 3600_000, '2h': 7200_000, '4h': 14400_000, '1d': 86400_000 }
+      const map: Record<string, number> = { '1h': 3600_000, '2h': 7200_000, '4h': 14400_000, '1d': 86400_000 }
       if (expiryMode.value === 'none') return null
       if (expiryMode.value === 'custom') {
         if (!customDate.value) return null
@@ -165,7 +168,7 @@ export default {
         const expiresAt = computeExpiresAt()
         const lat = (latitude.value != null && !isNaN(latitude.value)) ? latitude.value : null
         const lng = (longitude.value != null && !isNaN(longitude.value)) ? longitude.value : null
-        created.value = await createConference(name.value.trim(), expiresAt, auth.state.token, lat, lng,
+        created.value = await createConference(name.value.trim(), expiresAt, auth.state.token as string, lat, lng,
           eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null,
           displayName.value.trim() || null, timezoneId.value)
       } catch (e: any) {
@@ -173,7 +176,7 @@ export default {
       } finally { loading.value = false }
     }
 
-    function formatDate(iso) {
+    function formatDate(iso: string): string {
       return new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
     }
 

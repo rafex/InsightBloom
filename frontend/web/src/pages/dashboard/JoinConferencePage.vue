@@ -27,7 +27,7 @@ export default {
       error.value = ''
       loading.value = true
       try {
-        const conference = await joinConference(code.value.trim(), auth.state.token)
+        const conference = await joinConference(code.value.trim(), auth.state.token as string)
         router.push(`/c/${conference.friendlyId}/doubts`)
       } catch (e: any) {
         error.value = e.response?.status === 404

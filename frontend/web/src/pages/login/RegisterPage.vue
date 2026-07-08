@@ -62,7 +62,7 @@
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { register, sendOtp, verifyOtp } from '@/services/api/authApi'
+import { register, sendOtp, verifyOtp, type SocialLink } from '@/services/api/authApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -78,10 +78,12 @@ export default {
     const verifyChannel = ref('EMAIL')
     const verifyIdentifier = ref('')
 
-    const form = ref({ displayName: '', email: '', phone: '', password: '', socialLinks: [] })
+    const form = ref<{ displayName: string, email: string, phone: string, password: string, socialLinks: SocialLink[] }>(
+      { displayName: '', email: '', phone: '', password: '', socialLinks: [] }
+    )
 
     function addLink() { form.value.socialLinks.push({ platform: 'twitter', url: '' }) }
-    function removeLink(idx) { form.value.socialLinks.splice(idx, 1) }
+    function removeLink(idx: number) { form.value.socialLinks.splice(idx, 1) }
 
     async function submitRegister() {
       error.value = ''

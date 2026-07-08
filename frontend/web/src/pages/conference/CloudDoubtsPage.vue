@@ -30,15 +30,15 @@
 import WordCloud from '@/components/cloud/WordCloud.vue'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { streamDoubtCloud } from '@/services/api/queryApi'
+import { streamDoubtCloud, type CloudWord } from '@/services/api/queryApi'
 import { sendMessage } from '@/services/api/ingestApi'
 import { useAuthStore } from '@/features/auth/authStore'
 export default {
   name: 'CloudDoubtsPage',
   components: { WordCloud },
   props: { conferenceId: String },
-  setup(props) {
-    const words = ref([])
+  setup(props: { conferenceId?: string }) {
+    const words = ref<CloudWord[]>([])
     const loading = ref(true)
     const cloudWidth = ref(800)
     const route = useRoute()
@@ -51,8 +51,8 @@ export default {
     const sending = ref(false)
     const feedback = ref('')
     const feedbackClass = ref('')
-    let eventSource = null
-    function upsertWord(updated) {
+    let eventSource: EventSource | null = null
+    function upsertWord(updated: CloudWord) {
       const i = words.value.findIndex((w) => w.wordNormalized === updated.wordNormalized)
       if (updated.visible === false) {
         if (i !== -1) words.value.splice(i, 1)
@@ -69,16 +69,16 @@ export default {
         (update) => upsertWord(update)
       )
     }
-    function onWordClick(word) {
-      router.push(`/c/${friendlyId}/words/${encodeURIComponent(word.wordNormalized)}?type=doubt`)
+    function onWordClick(word: CloudWord) {
+      router.push(`/c/${friendlyId}/words/${encodeURIComponent(word.wordNormalized as string)}?type=doubt`)
     }
     async function submit() {
       if (!word.value.trim() || sending.value) return
       sending.value = true; feedback.value = ''
       try {
         await sendMessage({
-          conferenceId: props.conferenceId,
-          authorUuid: auth.state.userUuid,
+          conferenceId: props.conferenceId as string,
+          authorUuid: auth.state.userUuid as string,
           authorKind: auth.state.role === 'guest' ? 'guest' : 'user',
           type: 'doubt',
           word: word.value.trim(),

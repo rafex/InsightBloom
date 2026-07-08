@@ -19,14 +19,14 @@ import { useAuthStore } from '@/features/auth/authStore'
 export default {
   name: 'ConferenceSubNav',
   props: { conferenceId: String },
-  setup(props) {
+  setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
     const conferenceName = ref('')
 
     onMounted(async () => {
       if (!props.conferenceId) return
       try {
-        const c = await getConference(props.conferenceId, auth.state.token)
+        const c = await getConference(props.conferenceId, auth.state.token as string)
         conferenceName.value = c?.name || ''
       } catch (e: any) { conferenceName.value = '' }
     })

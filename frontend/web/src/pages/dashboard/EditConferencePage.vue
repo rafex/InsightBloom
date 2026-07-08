@@ -73,15 +73,16 @@
 import { ref, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import { getConference, updateConference, getTimezones } from '@/services/api/usersApi'
+import type { Conference, Timezone } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'EditConferencePage',
   components: { ConferenceMap },
   props: { conferenceId: String },
-  setup(props) {
+  setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
-    const conference   = ref(null)
+    const conference   = ref<Conference | null>(null)
     const loading      = ref(true)
     const error        = ref('')
     const saving       = ref(false)
@@ -93,27 +94,27 @@ export default {
     const venue        = ref('')
     const startTime    = ref('')
     const endTime      = ref('')
-    const latitude     = ref(null)
-    const longitude    = ref(null)
+    const latitude     = ref<number | null>(null)
+    const longitude    = ref<number | null>(null)
     const flyerBase64  = ref('')
-    const timezones    = ref([])
-    const timezoneId   = ref(null)
+    const timezones    = ref<Timezone[]>([])
+    const timezoneId   = ref<number | null>(null)
 
     onMounted(async () => {
       try {
         const [conf, tzList] = await Promise.all([
-          getConference(props.conferenceId, auth.state.token),
+          getConference(props.conferenceId as string, auth.state.token as string),
           getTimezones()
         ])
         conference.value = conf
         timezones.value = tzList
         displayName.value = conference.value.name || ''
-        eventDate.value = conference.value.eventDate || ''
-        venue.value = conference.value.venue || ''
-        startTime.value = conference.value.startTime || ''
-        endTime.value = conference.value.endTime || ''
-        latitude.value = conference.value.latitude ?? null
-        longitude.value = conference.value.longitude ?? null
+        eventDate.value = (conference.value.eventDate as string) || ''
+        venue.value = (conference.value.venue as string) || ''
+        startTime.value = (conference.value.startTime as string) || ''
+        endTime.value = (conference.value.endTime as string) || ''
+        latitude.value = (conference.value.latitude as number) ?? null
+        longitude.value = (conference.value.longitude as number) ?? null
         flyerBase64.value = conference.value.flyerBase64 || ''
         timezoneId.value = conference.value.timezoneId ?? tzList.find((t) => t.isDefault)?.id ?? null
       } catch (e: any) {
@@ -123,8 +124,8 @@ export default {
       }
     })
 
-    function onFlyerSelected(e) {
-      const file = e.target.files?.[0]
+    function onFlyerSelected(e: Event) {
+      const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
       const reader = new FileReader()
       reader.onload = () => { flyerBase64.value = reader.result as string }
@@ -136,7 +137,7 @@ export default {
       try {
         const lat = (latitude.value != null && !isNaN(latitude.value)) ? latitude.value : null
         const lng = (longitude.value != null && !isNaN(longitude.value)) ? longitude.value : null
-        conference.value = await updateConference(props.conferenceId, {
+        conference.value = await updateConference(props.conferenceId as string, {
           displayName: displayName.value.trim() || null,
           venue: venue.value.trim() || null,
           eventDate: eventDate.value || null,
@@ -146,7 +147,7 @@ export default {
           longitude: lng,
           flyerBase64: flyerBase64.value,
           timezoneId: timezoneId.value
-        }, auth.state.token)
+        }, auth.state.token as string)
         saved.value = true
       } catch (e: any) {
         saveError.value = e.response?.data?.error?.message || 'Error al guardar los cambios'

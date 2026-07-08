@@ -77,7 +77,7 @@ export default {
 
     onMounted(async () => {
       try {
-        const profile = await getUserProfile(auth.state.userUuid)
+        const profile = await getUserProfile(auth.state.userUuid as string)
         profileData.value = profile
         firstName.value = profile.firstName || ''
         lastName.value = profile.lastName || ''
@@ -93,7 +93,7 @@ export default {
       success.value = false
       saving.value = true
       try {
-        await updateUserProfile(auth.state.userUuid, { firstName: firstName.value, lastName: lastName.value }, auth.state.token)
+        await updateUserProfile(auth.state.userUuid as string, { firstName: firstName.value, lastName: lastName.value }, auth.state.token as string)
         success.value = true
       } catch (e: any) {
         error.value = 'No se pudo guardar tu perfil.'
@@ -107,7 +107,7 @@ export default {
       passwordSuccess.value = false
       changingPassword.value = true
       try {
-        await changePassword(auth.state.userUuid, { currentPassword: currentPassword.value, newPassword: newPassword.value }, auth.state.token)
+        await changePassword(auth.state.userUuid as string, { currentPassword: currentPassword.value, newPassword: newPassword.value }, auth.state.token as string)
         passwordSuccess.value = true
         currentPassword.value = ''
         newPassword.value = ''

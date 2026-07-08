@@ -55,6 +55,7 @@ import OnboardingTour from '@/components/OnboardingTour.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getConferenceByFriendlyId, getTimezones } from '@/services/api/usersApi'
+import type { Conference, Timezone } from '@/services/api/types'
 import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -71,12 +72,12 @@ export default {
   setup() {
     const route      = useRoute()
     const friendlyId = route.params.friendlyId as string
-    const conference = ref(null)
+    const conference = ref<Conference | null>(null)
     const loading    = ref(true)
     const error      = ref('')
     const showIntro  = ref(false)
     const showQr     = ref(false)
-    const timezones  = ref([])
+    const timezones  = ref<Timezone[]>([])
     const showCalendarMenu = ref(false)
 
     const auth = useAuthStore()
@@ -85,7 +86,7 @@ export default {
     const chatHost = location.hostname.startsWith('chat-') ? location.hostname : `chat-${location.hostname}`
     const chatParams = new URLSearchParams({ conference: friendlyId })
     if (auth.isAuthenticated() && auth.state.role !== 'guest') {
-      chatParams.set('ib_token', auth.state.token)
+      chatParams.set('ib_token', auth.state.token as string)
     }
     const chatUrl = `${location.protocol}//${chatHost}/?${chatParams.toString()}`
 
@@ -114,11 +115,11 @@ export default {
 
     function calendarOpts() {
       return {
-        name: conference.value.name,
-        eventDate: conference.value.eventDate,
-        startTime: conference.value.startTime,
-        endTime: conference.value.endTime,
-        venue: conference.value.venue,
+        name: conference.value!.name,
+        eventDate: conference.value!.eventDate as string,
+        startTime: conference.value!.startTime as string,
+        endTime: conference.value!.endTime as string | undefined,
+        venue: conference.value!.venue as string | undefined,
         utcOffsetMinutes: utcOffsetMinutes.value
       }
     }

@@ -64,6 +64,7 @@
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import { getConferences, getConferenceHistory, getUniqueRegisteredAttendeesCount } from '@/services/api/usersApi'
+import type { Conference, ConferenceHistoryEntry } from '@/services/api/types'
 import { getResults } from '@/services/api/surveyApi'
 import { getPresentationStatus } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -78,9 +79,9 @@ export default {
   name: 'DashboardHome',
   components: { OnboardingTour },
   setup() {
-    const conferences = ref([])
+    const conferences = ref<Conference[]>([])
     const loading     = ref(true)
-    const history = ref([])
+    const history = ref<ConferenceHistoryEntry[]>([])
     const loadingHistory = ref(true)
     const auth = useAuthStore()
     const isOrganizer = auth.isOrganizer()
@@ -88,19 +89,19 @@ export default {
     const summaryLoading = ref(true)
     const organizerTourSteps = ORGANIZER_TOUR_STEPS
 
-    async function loadSummary(confs, token) {
+    async function loadSummary(confs: Conference[], token: string) {
       summaryLoading.value = true
       try {
         const [uniqueRegisteredAttendees, perConference] = await Promise.all([
           getUniqueRegisteredAttendeesCount(token).catch(() => 0),
           Promise.all(confs.map(async (c) => {
-            const id = c.uuid || c.conferenceId
+            const id = (c.uuid || (c as any).conferenceId) as string
             const [results, presentation] = await Promise.all([
-              getResults(id, token).then((r) => r.data || []).catch(() => []),
+              getResults(id, token).then((r) => r.data || []).catch(() => [] as any[]),
               getPresentationStatus(id).catch(() => ({ ready: false }))
             ])
             return {
-              surveyResponses: results.reduce((sum, q) => sum + (q.responseCount || 0), 0),
+              surveyResponses: results.reduce((sum: number, q: any) => sum + (q.responseCount || 0), 0),
               active: !!presentation.ready
             }
           }))
@@ -140,7 +141,7 @@ export default {
       }
     })
 
-    function formatDate(iso) {
+    function formatDate(iso: string | null | undefined) {
       if (!iso) return ''
       return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
     }

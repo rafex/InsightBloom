@@ -70,16 +70,22 @@ import { ref, onMounted } from 'vue'
 import { getConferences, deleteConference, getDownloadCounts } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import QrCodeModal from '@/components/QrCodeModal.vue'
+import type { Conference, DownloadCounts } from '@/services/api/types'
+
+interface ConferenceRow extends Conference {
+  conferenceId?: string
+  _deleting?: boolean
+}
 
 export default {
   name: 'ConferencesListPage',
   components: { QrCodeModal },
   setup() {
-    const conferences = ref([])
+    const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)
-    const deleteTarget = ref(null)
-    const qrTarget = ref(null)
-    const downloadCounts = ref({})
+    const deleteTarget = ref<ConferenceRow | null>(null)
+    const qrTarget = ref<ConferenceRow | null>(null)
+    const downloadCounts = ref<Record<string, DownloadCounts>>({})
     const auth = useAuthStore()
 
     onMounted(async () => {
@@ -96,9 +102,9 @@ export default {
     })
 
     async function loadDownloadCounts() {
-      const token = auth.state.token
+      const token = auth.state.token as string
       await Promise.all(conferences.value.map(async (c) => {
-        const id = c.uuid || c.conferenceId
+        const id = (c.uuid || c.conferenceId) as string
         try {
           downloadCounts.value[id] = await getDownloadCounts(id, token)
         } catch (e: any) {
@@ -107,9 +113,9 @@ export default {
       }))
     }
 
-    function isExpired(iso) { return iso && new Date(iso) < new Date() }
+    function isExpired(iso: string | null | undefined): boolean { return !!iso && new Date(iso) < new Date() }
 
-    function formatRelative(iso) {
+    function formatRelative(iso: string): string {
       const diff = new Date(iso).getTime() - new Date().getTime()
       const abs = Math.abs(diff)
       const past = diff < 0
@@ -123,7 +129,7 @@ export default {
       return past ? `hace ${str}` : `en ${str}`
     }
 
-    function confirmDelete(c) { deleteTarget.value = c }
+    function confirmDelete(c: ConferenceRow) { deleteTarget.value = c }
 
     async function doDelete() {
       const c = deleteTarget.value
@@ -131,7 +137,7 @@ export default {
       c._deleting = true
       deleteTarget.value = null
       try {
-        await deleteConference(c.uuid || c.conferenceId, auth.state.token)
+        await deleteConference((c.uuid || c.conferenceId) as string, auth.state.token as string)
         conferences.value = conferences.value.filter((x) => (x.uuid || x.conferenceId) !== (c.uuid || c.conferenceId))
       } catch (e: any) {
         console.error('Error eliminando conferencia', e)

@@ -70,20 +70,33 @@ import { ref, computed, onMounted } from 'vue'
 import { listUsers, updateUser, banUser, unbanUser, deleteUserLogical } from '@/services/api/adminApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
+type ConfirmActionType = 'ban' | 'unban' | 'delete'
+
+interface AdminUserRow {
+  uuid: string
+  displayName?: string
+  username?: string
+  email?: string
+  phone?: string
+  roles?: string
+  status: string
+  [key: string]: unknown
+}
+
 export default {
   name: 'AdminUsersPage',
   setup() {
     const auth = useAuthStore()
-    const users = ref([])
+    const users = ref<AdminUserRow[]>([])
     const loading = ref(true)
     const page = ref(1)
     const totalPages = ref(1)
     const statusFilter = ref('')
-    const editing = ref(null)
+    const editing = ref<string | null>(null)
     const editForm = ref<{ displayName?: string, email?: string, phone?: string, roles: string[] }>({ roles: [] })
     const saving = ref(false)
-    const confirmTarget = ref(null)
-    const confirmAction_ = ref(null)
+    const confirmTarget = ref<AdminUserRow | null>(null)
+    const confirmAction_ = ref<ConfirmActionType | null>(null)
     const availableRoles = ['ATTENDEE', 'MODERATOR', 'ORGANIZER', 'ADMIN']
 
     const filteredUsers = computed(() =>
@@ -92,7 +105,7 @@ export default {
     async function load() {
       loading.value = true
       try {
-        const res = await listUsers(auth.state.token, page.value, 50)
+        const res = await listUsers(auth.state.token as string, page.value, 50)
         users.value = res.data || []
         totalPages.value = res.meta?.totalPages || 1
       } catch (e: any) {
@@ -102,13 +115,13 @@ export default {
       }
     }
 
-    function goToPage(p) { page.value = p; load() }
+    function goToPage(p: number) { page.value = p; load() }
 
-    function statusLabel(s) {
-      return { ACTIVE: 'Activo', BANNED: 'Baneado', DELETED: 'Eliminado', INACTIVE: 'Inactivo' }[s] || s
+    function statusLabel(s: string): string {
+      return ({ ACTIVE: 'Activo', BANNED: 'Baneado', DELETED: 'Eliminado', INACTIVE: 'Inactivo' } as Record<string, string>)[s] || s
     }
 
-    function startEdit(u) {
+    function startEdit(u: AdminUserRow) {
       editing.value = u.uuid
       editForm.value = {
         displayName: u.displayName || '',
@@ -118,11 +131,11 @@ export default {
       }
     }
 
-    async function saveEdit(u) {
+    async function saveEdit(u: AdminUserRow) {
       saving.value = true
       try {
         const payload = { ...editForm.value, roles: editForm.value.roles.join(',') }
-        const updated = await updateUser(u.uuid, payload, auth.state.token)
+        const updated = await updateUser(u.uuid, payload, auth.state.token as string)
         Object.assign(u, updated)
         editing.value = null
       } finally {
@@ -131,14 +144,14 @@ export default {
     }
 
     const confirmTitle = computed(() => {
-      const map = { ban: '¿Banear usuario?', unban: '¿Reactivar usuario?', delete: '¿Eliminar usuario?' }
+      const map: Record<ConfirmActionType, string> = { ban: '¿Banear usuario?', unban: '¿Reactivar usuario?', delete: '¿Eliminar usuario?' }
       return confirmAction_.value ? map[confirmAction_.value] : ''
     })
 
     const confirmMessage = computed(() => {
-      if (!confirmTarget.value) return ''
+      if (!confirmTarget.value || !confirmAction_.value) return ''
       const name = confirmTarget.value.displayName || confirmTarget.value.username
-      const map = {
+      const map: Record<ConfirmActionType, string> = {
         ban: `${name} no podrá iniciar sesión y sus sesiones activas se cerrarán de inmediato.`,
         unban: `${name} podrá volver a iniciar sesión normalmente.`,
         delete: `${name} se marcará como eliminado (eliminación lógica) y no podrá iniciar sesión. Sus datos se conservan.`
@@ -146,7 +159,7 @@ export default {
       return map[confirmAction_.value] || ''
     })
 
-    function confirmAction(u, action) {
+    function confirmAction(u: AdminUserRow, action: ConfirmActionType) {
       confirmTarget.value = u
       confirmAction_.value = action
     }
@@ -157,7 +170,7 @@ export default {
       confirmTarget.value = null
       if (!u || !action) return
       const fn = { ban: banUser, unban: unbanUser, delete: deleteUserLogical }[action]
-      const updated = await fn(u.uuid, auth.state.token)
+      const updated = await fn(u.uuid, auth.state.token as string)
       Object.assign(u, updated)
     }
 

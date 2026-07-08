@@ -68,12 +68,22 @@ import { useRouter } from 'vue-router'
 import { getModerationWords, censorWord, restoreWord, deleteWord } from '@/services/api/moderationApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+
+interface ModWordItem {
+  uuid: string
+  wordCanonical: string
+  wordNormalized: string
+  contentStatus: string
+  _loading: boolean
+  [key: string]: unknown
+}
+
 export default {
   name: 'ModerationWordsPage',
   components: { ModerationTable },
   props: { conferenceId: String },
-  setup(props) {
-    const words = ref([])
+  setup(props: { conferenceId?: string }) {
+    const words = ref<ModWordItem[]>([])
     const loading = ref(false)
     const page = ref(1)
     const totalPages = ref(1)
@@ -86,33 +96,33 @@ export default {
       if (!props.conferenceId) return
       loading.value = true
       try {
-        const res = await getModerationWords(props.conferenceId, page.value, 20, statusFilter.value, auth.state.token)
-        words.value = (res.data || []).map(w => ({ ...w, _loading: false }))
+        const res = await getModerationWords(props.conferenceId, page.value, 20, statusFilter.value, auth.state.token as string)
+        words.value = (res.data || []).map((w: any) => ({ ...w, _loading: false }))
         totalPages.value = res.meta?.totalPages || 1
       } catch (e: any) { } finally { loading.value = false }
     }
 
-    function goToPage(p) { page.value = p; load() }
+    function goToPage(p: number) { page.value = p; load() }
 
-    async function censor(item) {
+    async function censor(item: ModWordItem) {
       item._loading = true
-      try { await censorWord(item.uuid, null, auth.state.token, props.conferenceId); await load() }
+      try { await censorWord(item.uuid, null as any, auth.state.token as string, props.conferenceId as string); await load() }
       catch (e: any) { item._loading = false }
     }
 
-    async function restore(item) {
+    async function restore(item: ModWordItem) {
       item._loading = true
-      try { await restoreWord(item.uuid, auth.state.token, props.conferenceId); await load() }
+      try { await restoreWord(item.uuid, auth.state.token as string, props.conferenceId as string); await load() }
       catch (e: any) { item._loading = false }
     }
 
-    async function deleteItem(item) {
+    async function deleteItem(item: ModWordItem) {
       item._loading = true
-      try { await deleteWord(item.uuid, auth.state.token, props.conferenceId); await load() }
+      try { await deleteWord(item.uuid, auth.state.token as string, props.conferenceId as string); await load() }
       catch (e: any) { item._loading = false }
     }
 
-    function verMensajes(item) {
+    function verMensajes(item: ModWordItem) {
       const params = new URLSearchParams({
         wordNormalized: item.wordNormalized || item.wordCanonical,
         wordCanonical: item.wordCanonical
@@ -120,12 +130,12 @@ export default {
       router.push(`/dashboard/conferences/${props.conferenceId}/moderation/messages?${params}`)
     }
 
-    function statusClass(s) {
+    function statusClass(s: string | undefined) {
       return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION', 'status-deleted': s === 'DELETED' }
     }
 
-    function statusLabel(s) {
-      const map = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente', DELETED: 'Eliminado' }
+    function statusLabel(s: string): string {
+      const map: Record<string, string> = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente', DELETED: 'Eliminado' }
       return map[s] || s
     }
 
@@ -133,9 +143,9 @@ export default {
       load()
       if (props.conferenceId) {
         try {
-          const conf = await getConference(props.conferenceId, auth.state.token)
+          const conf = await getConference(props.conferenceId, auth.state.token as string)
           conferenceName.value = conf?.name || props.conferenceId
-        } catch (e: any) { conferenceName.value = props.conferenceId }
+        } catch (e: any) { conferenceName.value = props.conferenceId as string }
       }
     })
 

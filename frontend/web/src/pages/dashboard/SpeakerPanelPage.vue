@@ -35,7 +35,9 @@ import { useAuthStore } from '@/features/auth/authStore'
 import ConferenceSubNav from './ConferenceSubNav.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 
-const NAV_KEYS = {
+type NavDirection = 'next' | 'prev'
+
+const NAV_KEYS: Record<NavDirection, { key: string, keyCode: number }> = {
   next: { key: 'ArrowRight', keyCode: 39 },
   prev: { key: 'ArrowLeft', keyCode: 37 }
 }
@@ -44,12 +46,12 @@ export default {
   name: 'SpeakerPanelPage',
   components: { ConferenceSubNav, QrCodeModal },
   props: { conferenceId: String },
-  setup(props) {
+  setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
     const checkedStatus = ref(false)
     const ready = ref(false)
     const slidesUrl = ref('')
-    const slidesFrame = ref(null)
+    const slidesFrame = ref<HTMLIFrameElement | null>(null)
     const wsConnected = ref(false)
     const audienceCount = ref(0)
     const showQr = ref(false)
@@ -58,25 +60,25 @@ export default {
     const remoteShareUrl = ref('')
     const sourceUrl = ref('')
 
-    let ws = null
-    let wsRetryTimer = null
+    let ws: WebSocket | null = null
+    let wsRetryTimer: ReturnType<typeof setTimeout> | null = null
     let wsClosedByUs = false
-    let hashPollTimer = null
-    let lastHash = null
+    let hashPollTimer: ReturnType<typeof setInterval> | null = null
+    let lastHash: string | null = null
 
     const HASH_POLL_MS = 250
 
-    function navigate(direction) {
+    function navigate(direction: NavDirection) {
       const spec = NAV_KEYS[direction]
       if (!spec || !slidesFrame.value) return
       try {
-        const doc = slidesFrame.value.contentWindow.document
+        const doc = slidesFrame.value.contentWindow!.document
         doc.dispatchEvent(new KeyboardEvent('keydown', { key: spec.key, keyCode: spec.keyCode, which: spec.keyCode, bubbles: true }))
       } catch (e: any) { /* same-origin esperado; si falla, no hay sync */ }
     }
 
     function pollHash() {
-      let hash
+      let hash: string
       try {
         hash = slidesFrame.value?.contentWindow?.location?.hash || ''
       } catch (e: any) { return /* same-origin esperado; si falla, no hay sync */ }
@@ -95,7 +97,7 @@ export default {
       // propague a toda la audiencia en el próximo poll.
       if (lastHash) {
         try {
-          slidesFrame.value.contentWindow.location.hash = lastHash
+          slidesFrame.value!.contentWindow!.location.hash = lastHash
         } catch (e: any) { /* same-origin esperado; si falla, no hay sync */ }
       }
       // bespoke.js (motor de Marp) navega con history.pushState/replaceState,
@@ -115,7 +117,7 @@ export default {
           ws.send(JSON.stringify({ type: 'slide', hash: lastHash }))
         }
       }
-      ws.onmessage = (event) => {
+      ws.onmessage = (event: MessageEvent) => {
         try {
           const msg = JSON.parse(event.data)
           if (msg.type === 'count') audienceCount.value = msg.count
@@ -127,12 +129,12 @@ export default {
         if (wsClosedByUs) return
         wsRetryTimer = setTimeout(connectPresenterWs, 3000)
       }
-      ws.onerror = () => ws.close()
+      ws.onerror = () => ws!.close()
     }
 
     async function shareRemoteControl() {
       try {
-        const token = await createRemoteLinkToken(props.conferenceId, auth.state.token)
+        const token = await createRemoteLinkToken(props.conferenceId as string, auth.state.token as string)
         remoteShareUrl.value = `${window.location.origin}/c/${friendlyId.value}/remote?token=${token}`
         showRemoteShare.value = true
       } catch (e: any) { /* no se pudo generar el enlace */ }
@@ -140,15 +142,15 @@ export default {
 
     onMounted(async () => {
       try {
-        const conf = await getConference(props.conferenceId, auth.state.token)
+        const conf = await getConference(props.conferenceId as string, auth.state.token as string)
         friendlyId.value = conf?.friendlyId || ''
-        sourceUrl.value = conf?.presentationSourceUrl || ''
+        sourceUrl.value = (conf?.presentationSourceUrl as string) || ''
       } catch (e: any) { /* el botón de QR simplemente no aparece */ }
       try {
-        const status = await getPresentationStatus(props.conferenceId)
+        const status = await getPresentationStatus(props.conferenceId as string)
         ready.value = !!status.ready
         if (ready.value) {
-          slidesUrl.value = getSlidesUrl(props.conferenceId)
+          slidesUrl.value = getSlidesUrl(props.conferenceId as string)
           connectPresenterWs()
         }
       } catch (e: any) { ready.value = false }
