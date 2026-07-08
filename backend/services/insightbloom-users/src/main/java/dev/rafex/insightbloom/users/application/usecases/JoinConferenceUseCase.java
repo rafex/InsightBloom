@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.ConferenceMembership;
+import dev.rafex.insightbloom.users.domain.model.Reservation;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceMembershipRepository;
 import dev.rafex.insightbloom.users.domain.ports.EmailPort;
@@ -14,17 +15,23 @@ public class JoinConferenceUseCase {
     private final UserRepository userRepository;
     private final EmailPort emailPort;
     private final TimezoneRepository timezoneRepository;
+    private final ReserveGeneralUseCase reserveGeneralUseCase;
+    private final String frontendBaseUrl;
 
     public JoinConferenceUseCase(final GetConferenceUseCase getConferenceUseCase,
                                   final ConferenceMembershipRepository membershipRepository,
                                   final UserRepository userRepository,
                                   final EmailPort emailPort,
-                                  final TimezoneRepository timezoneRepository) {
+                                  final TimezoneRepository timezoneRepository,
+                                  final ReserveGeneralUseCase reserveGeneralUseCase,
+                                  final String frontendBaseUrl) {
         this.getConferenceUseCase = getConferenceUseCase;
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
         this.emailPort = emailPort;
         this.timezoneRepository = timezoneRepository;
+        this.reserveGeneralUseCase = reserveGeneralUseCase;
+        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     public Conference execute(final String userUuid, final String identifier) {
@@ -33,14 +40,25 @@ public class JoinConferenceUseCase {
         final boolean firstJoin = !membershipRepository.exists(userUuid, conference.getUuid());
         membershipRepository.recordJoin(new ConferenceMembership(
                 userUuid, conference.getUuid(), conference.getName(), conference.getFriendlyId()));
+
+        Reservation reservation = null;
+        // Modo SEATED no auto-reserva: el asistente debe elegir un asiento explícitamente.
+        if (firstJoin && "GENERAL".equals(conference.getSeatingMode())) {
+            try {
+                reservation = reserveGeneralUseCase.execute(conference.getUuid(), userUuid);
+            } catch (final Exception e) {
+                // si el aforo ya se llenó justo al unirse, el join igual procede sin boleto;
+                // el asistente verá el estado real al abrir "Mi boleto".
+            }
+        }
         if (firstJoin) {
-            sendConfirmationEmail(userUuid, conference);
+            sendConfirmationEmail(userUuid, conference, reservation);
         }
         return conference;
     }
 
     /** Best-effort: un fallo de correo nunca debe interrumpir el registro a la conferencia. */
-    private void sendConfirmationEmail(final String userUuid, final Conference conference) {
+    private void sendConfirmationEmail(final String userUuid, final Conference conference, final Reservation reservation) {
         try {
             if (!emailPort.isEnabled()) return;
             final User user = userRepository.findByUuid(userUuid).orElse(null);
@@ -48,17 +66,21 @@ public class JoinConferenceUseCase {
 
             final String schedule = describeSchedule(conference);
             final String subject = "Te has apuntado a la conferencia " + conference.getName();
+            final String ticketLine = reservation != null
+                    ? "\nTu boleto: " + frontendBaseUrl + "/c/" + conference.getFriendlyId() + "/ticket\n"
+                    : "";
             final String body = """
                     ¡Hola!
 
                     Confirmamos tu registro en "%s".
-                    %s%s
+                    %s%s%s
                     Nos vemos ahí.
                     """.formatted(
                     conference.getName(),
                     schedule.isBlank() ? "" : "\n" + schedule + "\n",
                     conference.getVenue() != null && !conference.getVenue().isBlank()
-                            ? "\nSede: " + conference.getVenue() + "\n" : "");
+                            ? "\nSede: " + conference.getVenue() + "\n" : "",
+                    ticketLine);
             emailPort.send(user.getEmail(), subject, body);
         } catch (final Exception e) {
             // best-effort

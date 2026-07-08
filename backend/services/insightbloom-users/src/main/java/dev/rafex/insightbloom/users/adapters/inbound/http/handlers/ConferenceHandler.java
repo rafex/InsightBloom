@@ -4,6 +4,8 @@ import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
+import dev.rafex.insightbloom.users.application.usecases.CancelReservationUseCase;
+import dev.rafex.insightbloom.users.application.usecases.CheckInTicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountRegisteredAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountUniqueRegisteredAttendeesUseCase;
@@ -12,10 +14,15 @@ import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseC
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetDownloadCountsUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GetMyTicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.JoinConferenceUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ListReservationsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RecordDownloadUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ReserveGeneralUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetSeatingModeUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UpdateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
+import dev.rafex.insightbloom.users.domain.model.Reservation;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -36,6 +43,12 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final UpdateConferenceUseCase updateConferenceUseCase;
     private final RecordDownloadUseCase recordDownloadUseCase;
     private final GetDownloadCountsUseCase getDownloadCountsUseCase;
+    private final SetSeatingModeUseCase setSeatingModeUseCase;
+    private final ReserveGeneralUseCase reserveGeneralUseCase;
+    private final GetMyTicketUseCase getMyTicketUseCase;
+    private final CancelReservationUseCase cancelReservationUseCase;
+    private final ListReservationsUseCase listReservationsUseCase;
+    private final CheckInTicketUseCase checkInTicketUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -48,7 +61,13 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final CountUniqueRegisteredAttendeesUseCase countUniqueRegisteredAttendeesUseCase,
                              final UpdateConferenceUseCase updateConferenceUseCase,
                              final RecordDownloadUseCase recordDownloadUseCase,
-                             final GetDownloadCountsUseCase getDownloadCountsUseCase) {
+                             final GetDownloadCountsUseCase getDownloadCountsUseCase,
+                             final SetSeatingModeUseCase setSeatingModeUseCase,
+                             final ReserveGeneralUseCase reserveGeneralUseCase,
+                             final GetMyTicketUseCase getMyTicketUseCase,
+                             final CancelReservationUseCase cancelReservationUseCase,
+                             final ListReservationsUseCase listReservationsUseCase,
+                             final CheckInTicketUseCase checkInTicketUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -61,6 +80,12 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.updateConferenceUseCase = updateConferenceUseCase;
         this.recordDownloadUseCase = recordDownloadUseCase;
         this.getDownloadCountsUseCase = getDownloadCountsUseCase;
+        this.setSeatingModeUseCase = setSeatingModeUseCase;
+        this.reserveGeneralUseCase = reserveGeneralUseCase;
+        this.getMyTicketUseCase = getMyTicketUseCase;
+        this.cancelReservationUseCase = cancelReservationUseCase;
+        this.listReservationsUseCase = listReservationsUseCase;
+        this.checkInTicketUseCase = checkInTicketUseCase;
     }
 
     @Override
@@ -82,6 +107,10 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/derive-name", Set.of("POST")),
                 Route.of("/{id}/downloads", Set.of("POST")),
                 Route.of("/{id}/downloads/count", Set.of("GET")),
+                Route.of("/{id}/seating", Set.of("PUT")),
+                Route.of("/{id}/reservations", Set.of("GET", "POST")),
+                Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
+                Route.of("/{id}/reservations/check-in", Set.of("POST")),
                 Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
     }
 
@@ -115,6 +144,12 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/downloads/count")) {
             return handleDownloadCounts(jx, jx.pathParam("id"));
         }
+        if (path.endsWith("/reservations/me")) {
+            return handleGetMyTicket(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/reservations")) {
+            return handleListReservations(jx, jx.pathParam("id"));
+        }
         final String id = jx.pathParam("id");
         if (id != null) {
             return handleGetById(jx, id);
@@ -134,18 +169,30 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/downloads")) {
             return handleRecordDownload(jx, jx.pathParam("id"));
         }
+        if (jx.path().endsWith("/reservations/check-in")) {
+            return handleCheckIn(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/reservations")) {
+            return handleReserve(jx, jx.pathParam("id"));
+        }
         return handleCreate(jx);
     }
 
     @Override
     public boolean delete(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/reservations/me")) {
+            return handleCancelReservation(jx, jx.pathParam("id"));
+        }
         return handleDelete(jx, jx.pathParam("id"));
     }
 
     @Override
     public boolean put(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/seating")) {
+            return handleSetSeating(jx, jx.pathParam("id"));
+        }
         return handleUpdate(jx, jx.pathParam("id"));
     }
 
@@ -390,6 +437,122 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             final var counts = getDownloadCountsUseCase.execute(conferenceId);
             sendOk(jx, Map.of("certificate", counts.certificate(), "presentation", counts.presentation()));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSetSeating(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can configure seating");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String seatingMode = (String) body.get("seatingMode");
+            final Integer capacity = body.get("capacity") instanceof Number n ? n.intValue() : null;
+            final var updated = setSeatingModeUseCase.execute(id, v.subjectUuid(), seatingMode, capacity);
+            if (updated.isPresent()) {
+                sendOk(jx, 200, updated.get());
+            } else {
+                sendError(jx, 404, "not_found", "Conference not found or not owned by you");
+            }
+        } catch (final IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), "No se puede cambiar el modo de asientos con reservas activas");
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleReserve(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final Reservation reservation = reserveGeneralUseCase.execute(id, v.subjectUuid());
+            sendOk(jx, 201, reservation);
+        } catch (final IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), "No hay cupo disponible para esta conferencia");
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleGetMyTicket(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            getMyTicketUseCase.execute(id, v.subjectUuid()).ifPresentOrElse(
+                    r -> sendOk(jx, 200, r),
+                    () -> sendError(jx, 404, "no_ticket", "No tienes un boleto para esta conferencia"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleCancelReservation(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final boolean cancelled = cancelReservationUseCase.execute(id, v.subjectUuid());
+            sendOk(jx, 200, Map.of("cancelled", cancelled));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleListReservations(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can view the reservation list");
+                return true;
+            }
+            listReservationsUseCase.execute(id, v.subjectUuid()).ifPresentOrElse(
+                    list -> sendOk(jx, 200, list),
+                    () -> sendError(jx, 404, "not_found", "Conference not found or not owned by you"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleCheckIn(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can check in tickets");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String ticketCode = (String) body.get("ticketCode");
+            final var reservation = checkInTicketUseCase.execute(id, ticketCode);
+            sendOk(jx, 200, reservation);
+        } catch (final IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), "Este boleto ya fue registrado");
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), "Boleto no encontrado para esta conferencia");
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

@@ -25,6 +25,10 @@ public class Conference {
     private String flyerBase64; // imagen promocional opcional (data URL), nullable
     private Integer timezoneId; // FK a timezones, nullable (se resuelve al default si no se envía)
     private Instant reminderSentAt; // marca cuándo se envió el recordatorio de 1h antes, nullable
+    private String seatingMode = "NONE"; // NONE | GENERAL | SEATED
+    private Integer capacity; // aforo máximo, solo relevante en modo GENERAL
+    private int reservedCount; // contador atómico de reservas activas en modo GENERAL
+    private String venueMapBase64; // imagen del recinto (data URL) para modo SEATED, nullable
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -98,6 +102,14 @@ public class Conference {
     public String getFlyerBase64() { return flyerBase64; }
     public Integer getTimezoneId() { return timezoneId; }
     public Instant getReminderSentAt() { return reminderSentAt; }
+    public String getSeatingMode() { return seatingMode; }
+    public Integer getCapacity() { return capacity; }
+    public int getReservedCount() { return reservedCount; }
+    public String getVenueMapBase64() { return venueMapBase64; }
+    public void setSeatingMode(String seatingMode) { this.seatingMode = seatingMode; }
+    public void setCapacity(Integer capacity) { this.capacity = capacity; }
+    public void setReservedCount(int reservedCount) { this.reservedCount = reservedCount; }
+    public void setVenueMapBase64(String venueMapBase64) { this.venueMapBase64 = venueMapBase64; }
     public void setEventDate(String eventDate) { this.eventDate = eventDate; }
     public void setVenue(String venue) { this.venue = venue; }
     public void setStartTime(String startTime) { this.startTime = startTime; }

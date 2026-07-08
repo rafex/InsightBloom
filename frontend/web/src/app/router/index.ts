@@ -34,7 +34,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'words/:word', component: () => import('@/pages/conference/WordTimelinePage.vue') },
       { path: 'presentation', component: () => import('@/pages/conference/PresentationPage.vue') },
       { path: 'remote', component: () => import('@/pages/conference/RemoteControlPage.vue') },
-      { path: 'survey', component: () => import('@/pages/conference/SurveyPage.vue') }
+      { path: 'survey', component: () => import('@/pages/conference/SurveyPage.vue') },
+      { path: 'ticket', component: () => import('@/pages/conference/TicketPage.vue') }
     ]
   },
   {
@@ -76,6 +77,11 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'conferences/:conferenceId/survey',
         component: () => import('@/pages/dashboard/SurveyManagePage.vue'),
+        props: true
+      },
+      {
+        path: 'conferences/:conferenceId/check-in',
+        component: () => import('@/pages/dashboard/CheckInScannerPage.vue'),
         props: true
       }
     ]

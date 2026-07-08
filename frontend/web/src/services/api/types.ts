@@ -6,6 +6,8 @@ export interface Timezone {
   isDefault: boolean
 }
 
+export type SeatingMode = 'NONE' | 'GENERAL' | 'SEATED'
+
 export interface Conference {
   uuid: string
   friendlyId: string
@@ -22,7 +24,24 @@ export interface Conference {
   flyerBase64?: string | null
   timezoneId?: number | null
   expiresAt?: string | null
+  seatingMode?: SeatingMode
+  capacity?: number | null
+  reservedCount?: number
+  venueMapBase64?: string | null
   [key: string]: unknown
+}
+
+export type ReservationStatus = 'RESERVED' | 'CHECKED_IN'
+
+export interface Reservation {
+  uuid: string
+  conferenceUuid: string
+  userUuid: string
+  seatUuid?: string | null
+  ticketCode: string
+  status: ReservationStatus
+  createdAt: string
+  checkedInAt?: string | null
 }
 
 export interface ConferenceHistoryEntry {

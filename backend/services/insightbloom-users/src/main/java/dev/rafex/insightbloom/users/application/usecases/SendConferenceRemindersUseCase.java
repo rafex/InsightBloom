@@ -6,6 +6,7 @@ import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceMembershipRepository;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.EmailPort;
+import dev.rafex.insightbloom.users.domain.ports.ReservationRepository;
 import dev.rafex.insightbloom.users.domain.ports.TimezoneRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 
@@ -29,17 +30,23 @@ public class SendConferenceRemindersUseCase {
     private final UserRepository userRepository;
     private final TimezoneRepository timezoneRepository;
     private final EmailPort emailPort;
+    private final ReservationRepository reservationRepository;
+    private final String frontendBaseUrl;
 
     public SendConferenceRemindersUseCase(final ConferenceRepository conferenceRepository,
                                            final ConferenceMembershipRepository membershipRepository,
                                            final UserRepository userRepository,
                                            final TimezoneRepository timezoneRepository,
-                                           final EmailPort emailPort) {
+                                           final EmailPort emailPort,
+                                           final ReservationRepository reservationRepository,
+                                           final String frontendBaseUrl) {
         this.conferenceRepository = conferenceRepository;
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
         this.timezoneRepository = timezoneRepository;
         this.emailPort = emailPort;
+        this.reservationRepository = reservationRepository;
+        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     public void execute(final Instant now) {
@@ -62,20 +69,33 @@ public class SendConferenceRemindersUseCase {
                 final User user = userRepository.findByUuid(membership.getUserUuid()).orElse(null);
                 if (user == null || user.getEmail() == null || user.getEmail().isBlank()) continue;
                 final String subject = "Tu conferencia " + conference.getName() + " empieza en 1 hora";
+                final String ticketLine = ticketReminderLine(conference, membership.getUserUuid());
                 final String body = """
                         ¡Hola!
 
                         Recordatorio: "%s" empieza en aproximadamente 1 hora.
-                        %s
+                        %s%s
                         Nos vemos ahí.
                         """.formatted(conference.getName(),
                         conference.getVenue() != null && !conference.getVenue().isBlank()
-                                ? "\nSede: " + conference.getVenue() + "\n" : "");
+                                ? "\nSede: " + conference.getVenue() + "\n" : "",
+                        ticketLine);
                 emailPort.send(user.getEmail(), subject, body);
             } catch (final Exception e) {
                 // best-effort: un fallo por asistente no debe frenar al resto
             }
         }
+    }
+
+    /** Agrega el link al boleto cuando la conferencia usa reservas; nudge a elegir asiento si aún falta. */
+    private String ticketReminderLine(final Conference conference, final String userUuid) {
+        if ("NONE".equals(conference.getSeatingMode())) return "";
+        final var reservation = reservationRepository.findByConferenceAndUser(conference.getUuid(), userUuid);
+        final String ticketUrl = frontendBaseUrl + "/c/" + conference.getFriendlyId() + "/ticket";
+        if (reservation.isPresent()) {
+            return "\nTu boleto: " + ticketUrl + "\n";
+        }
+        return "\nAún no has elegido tu asiento: " + ticketUrl + "\n";
     }
 
     private Instant resolveStartInstant(final Conference conference) {

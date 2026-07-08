@@ -38,9 +38,10 @@
         a.tab-disabled(v-if="isAnonymous" title="Inicia sesión para acceder al chat") Chat
         a.tab-secondary(v-else :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo (opcional)") Chat
         router-link#onboarding-tab-survey(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
+        router-link(v-if="conference.seatingMode && conference.seatingMode !== 'NONE'" :to="`/c/${friendlyId}/ticket`" active-class="active-tab") 🎟️ Mi boleto
     .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
       span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
-    router-view(:conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl")
+    router-view(:conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode")
 
     OnboardingTour(storage-key="ib_onboarding_conference" :steps="attendeeTourSteps")
 

@@ -21,8 +21,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     public void save(Conference conference) {
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
@@ -47,6 +47,11 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             if (conference.getTimezoneId() != null) ps.setInt(18, conference.getTimezoneId());
             else ps.setNull(18, Types.INTEGER);
             ps.setString(19, conference.getReminderSentAt() != null ? conference.getReminderSentAt().toString() : null);
+            ps.setString(20, conference.getSeatingMode());
+            if (conference.getCapacity() != null) ps.setInt(21, conference.getCapacity());
+            else ps.setNull(21, Types.INTEGER);
+            ps.setInt(22, conference.getReservedCount());
+            ps.setString(23, conference.getVenueMapBase64());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -143,7 +148,35 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         final int timezoneId = rs.getInt("timezone_id");
         conference.setTimezoneId(rs.wasNull() ? null : timezoneId);
         conference.setReminderSentAt(parseInstantNullable(rs.getString("reminder_sent_at")));
+        conference.setSeatingMode(rs.getString("seating_mode") != null ? rs.getString("seating_mode") : "NONE");
+        final int capacity = rs.getInt("capacity");
+        conference.setCapacity(rs.wasNull() ? null : capacity);
+        conference.setReservedCount(rs.getInt("reserved_count"));
+        conference.setVenueMapBase64(rs.getString("venue_map_base64"));
         return conference;
+    }
+
+    @Override
+    public boolean tryIncrementReservedCount(String conferenceUuid) {
+        final String sql = "UPDATE conferences SET reserved_count = reserved_count + 1 "
+                + "WHERE uuid = ? AND capacity IS NOT NULL AND reserved_count < capacity";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, conferenceUuid);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void decrementReservedCount(String conferenceUuid) {
+        final String sql = "UPDATE conferences SET reserved_count = MAX(0, reserved_count - 1) WHERE uuid = ?";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, conferenceUuid);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private Optional<Conference> query(String sql, String param) {

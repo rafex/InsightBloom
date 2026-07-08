@@ -126,6 +126,35 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN reminder_sent_at TEXT");
             } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN seating_mode TEXT NOT NULL DEFAULT 'NONE'");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN capacity INTEGER");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN reserved_count INTEGER NOT NULL DEFAULT 0");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN venue_map_base64 TEXT");
+            } catch (SQLException ignored) {}
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS reservations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    user_uuid TEXT NOT NULL,
+                    seat_uuid TEXT,
+                    ticket_code TEXT NOT NULL UNIQUE,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    checked_in_at TEXT,
+                    UNIQUE(conference_uuid, seat_uuid)
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_reservations_conference ON reservations(conference_uuid)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_reservations_user ON reservations(user_uuid)");
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS otp_codes (

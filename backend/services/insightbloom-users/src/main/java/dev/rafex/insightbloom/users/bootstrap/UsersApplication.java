@@ -57,6 +57,7 @@ public class UsersApplication {
         final var certificateSettingsRepo = new SqliteCertificateSettingsRepository(db);
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
         final var timezoneRepo = new SqliteTimezoneRepository(db);
+        final var reservationRepo = new SqliteReservationRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -81,8 +82,15 @@ public class UsersApplication {
         final var getUserProfileUseCase = new GetUserProfileUseCase(userRepo);
         final var updateProfileUseCase = new UpdateProfileUseCase(userRepo);
         final var changePasswordUseCase = new ChangePasswordUseCase(userRepo, passwordService);
+        final var setSeatingModeUseCase = new SetSeatingModeUseCase(conferenceRepo, reservationRepo);
+        final var reserveGeneralUseCase = new ReserveGeneralUseCase(conferenceRepo, reservationRepo);
+        final var getMyTicketUseCase = new GetMyTicketUseCase(reservationRepo);
+        final var cancelReservationUseCase = new CancelReservationUseCase(reservationRepo, conferenceRepo);
+        final var listReservationsUseCase = new ListReservationsUseCase(conferenceRepo, reservationRepo);
+        final var checkInTicketUseCase = new CheckInTicketUseCase(reservationRepo);
         final var joinConferenceUseCase = new JoinConferenceUseCase(
-                getConferenceUseCase, membershipRepo, userRepo, emailPort, timezoneRepo);
+                getConferenceUseCase, membershipRepo, userRepo, emailPort, timezoneRepo,
+                reserveGeneralUseCase, frontendBaseUrl);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
         final var generateCertificateUseCase = new GenerateCertificateUseCase(
                 conferenceRepo, userRepo, surveyPort, certificateSettingsRepo);
@@ -103,7 +111,7 @@ public class UsersApplication {
         final var refreshTokenUseCase = new RefreshTokenUseCase(tokenService, validateTokenUseCase);
         final var listTimezonesUseCase = new ListTimezonesUseCase(timezoneRepo);
         final var sendConferenceRemindersUseCase = new SendConferenceRemindersUseCase(
-                conferenceRepo, membershipRepo, userRepo, timezoneRepo, emailPort);
+                conferenceRepo, membershipRepo, userRepo, timezoneRepo, emailPort, reservationRepo, frontendBaseUrl);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -112,7 +120,9 @@ public class UsersApplication {
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,
                 countAttendeesUseCase, countRegisteredAttendeesUseCase, countUniqueRegisteredAttendeesUseCase,
                 updateConferenceUseCase,
-                recordDownloadUseCase, getDownloadCountsUseCase);
+                recordDownloadUseCase, getDownloadCountsUseCase,
+                setSeatingModeUseCase, reserveGeneralUseCase, getMyTicketUseCase, cancelReservationUseCase,
+                listReservationsUseCase, checkInTicketUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

@@ -13,4 +13,14 @@ public interface ConferenceRepository {
     boolean existsByFriendlyId(String friendlyId);
     List<Conference> findByUser(String userUuid);
     List<Conference> findPendingReminder();
+
+    /**
+     * Incrementa atómicamente reserved_count solo si aún no se alcanzó capacity, evitando
+     * sobre-reservar en modo GENERAL sin necesidad de locks de aplicación.
+     * @return true si el incremento tuvo éxito (había cupo), false si ya estaba lleno.
+     */
+    boolean tryIncrementReservedCount(String conferenceUuid);
+
+    /** Libera un cupo (usado al cancelar una reserva en modo GENERAL). */
+    void decrementReservedCount(String conferenceUuid);
 }

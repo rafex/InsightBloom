@@ -52,6 +52,24 @@
     .map-preview(v-if="latitude != null && longitude != null && !isNaN(latitude) && !isNaN(longitude)")
       ConferenceMap(:latitude="latitude" :longitude="longitude" :label="displayName || 'Conferencia'")
 
+    .form-group.tickets-group
+      label Boletos
+      p.field-hint Elige cómo se registran los asistentes: sin control, con aforo, o con mapa de asientos.
+      select(v-model="seatingMode")
+        option(value="NONE") Ninguno (solo unirse)
+        option(value="GENERAL") Aforo (cupo limitado, sin asiento)
+        option(value="SEATED") Con asientos (mapa del recinto)
+      .coord-field(v-if="seatingMode === 'GENERAL'")
+        span.coord-label Aforo máximo
+        input(v-model.number="capacity" type="number" min="1" placeholder="100")
+      p.field-hint(v-if="seatingMode === 'SEATED'") El editor de mapa de asientos se agrega en la Fase 2.
+      button.btn-outline(type="button" @click="saveSeating" :disabled="savingSeating")
+        span(v-if="savingSeating") Guardando...
+        span(v-else) Guardar configuración de boletos
+      p.success(v-if="seatingSaved") Configuración de boletos guardada.
+      p.error(v-if="seatingError") {{ seatingError }}
+      router-link.btn-outline(v-if="seatingMode !== 'NONE'" :to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
+
     .form-group
       label Flyer del evento (opcional)
       p.field-hint Se muestra en la animación de mapa al entrar a la conferencia. No siempre se cuenta con uno.
@@ -72,8 +90,8 @@
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
-import { getConference, updateConference, getTimezones } from '@/services/api/usersApi'
-import type { Conference, Timezone } from '@/services/api/types'
+import { getConference, updateConference, getTimezones, setSeatingMode } from '@/services/api/usersApi'
+import type { Conference, Timezone, SeatingMode } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -99,6 +117,11 @@ export default {
     const flyerBase64  = ref('')
     const timezones    = ref<Timezone[]>([])
     const timezoneId   = ref<number | null>(null)
+    const seatingMode  = ref<SeatingMode>('NONE')
+    const capacity     = ref<number | null>(null)
+    const savingSeating = ref(false)
+    const seatingSaved  = ref(false)
+    const seatingError  = ref('')
 
     onMounted(async () => {
       try {
@@ -117,6 +140,8 @@ export default {
         longitude.value = (conference.value.longitude as number) ?? null
         flyerBase64.value = conference.value.flyerBase64 || ''
         timezoneId.value = conference.value.timezoneId ?? tzList.find((t) => t.isDefault)?.id ?? null
+        seatingMode.value = (conference.value.seatingMode as SeatingMode) || 'NONE'
+        capacity.value = conference.value.capacity ?? null
       } catch (e: any) {
         error.value = 'No se pudo cargar la conferencia.'
       } finally {
@@ -156,9 +181,26 @@ export default {
       }
     }
 
+    async function saveSeating() {
+      savingSeating.value = true; seatingError.value = ''; seatingSaved.value = false
+      try {
+        conference.value = await setSeatingMode(
+          props.conferenceId as string, seatingMode.value,
+          seatingMode.value === 'GENERAL' ? capacity.value : null,
+          auth.state.token as string
+        )
+        seatingSaved.value = true
+      } catch (e: any) {
+        seatingError.value = e.response?.data?.error?.message || 'No se pudo guardar la configuración de boletos'
+      } finally {
+        savingSeating.value = false
+      }
+    }
+
     return { conference, loading, error, saving, saveError, saved, displayName,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
-             timezones, timezoneId, onFlyerSelected, save }
+             timezones, timezoneId, onFlyerSelected, save,
+             seatingMode, capacity, savingSeating, seatingSaved, seatingError, saveSeating }
   }
 }
 </script>
@@ -179,6 +221,7 @@ input:focus { outline: none; border-color: #4f46e5; }
 }
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
 
+.tickets-group select { padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; margin-bottom: 10px; }
 .coords-row { display: flex; gap: 12px; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .coord-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }

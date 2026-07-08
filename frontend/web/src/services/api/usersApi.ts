@@ -1,7 +1,8 @@
 import axios from 'axios'
 import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
-  DownloadCounts, CertificateSettings, Timezone, UserProfile
+  DownloadCounts, CertificateSettings, Timezone, UserProfile,
+  SeatingMode, Reservation
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -143,5 +144,43 @@ export async function getCertificateSettings(): Promise<CertificateSettings> {
 
 export async function saveCertificateSettings(settings: CertificateSettings, token: string): Promise<CertificateSettings> {
   const res = await axios.put('/api/users/api/v1/certificate-settings', settings, authHeader(token))
+  return res.data.data
+}
+
+export async function setSeatingMode(
+  conferenceId: string, seatingMode: SeatingMode, capacity: number | null, token: string
+): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/seating`,
+    { seatingMode, capacity }, authHeader(token))
+  return res.data.data
+}
+
+export async function reserveGeneral(conferenceId: string, token: string): Promise<Reservation> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/reservations`, {}, authHeader(token))
+  return res.data.data
+}
+
+export async function getMyTicket(conferenceId: string, token: string): Promise<Reservation | null> {
+  try {
+    const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/reservations/me`, authHeader(token))
+    return res.data.data
+  } catch (e: any) {
+    if (e.response?.status === 404) return null
+    throw e
+  }
+}
+
+export async function cancelReservation(conferenceId: string, token: string): Promise<void> {
+  await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/reservations/me`, authHeader(token))
+}
+
+export async function listReservations(conferenceId: string, token: string): Promise<Reservation[]> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/reservations`, authHeader(token))
+  return res.data.data
+}
+
+export async function checkInTicket(conferenceId: string, ticketCode: string, token: string): Promise<Reservation> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/reservations/check-in`,
+    { ticketCode }, authHeader(token))
   return res.data.data
 }
