@@ -16,7 +16,7 @@
       router-view
 </template>
 
-<script>
+<script lang="ts">
 import { ref } from 'vue'
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { useAuthStore } from '@/features/auth/authStore'

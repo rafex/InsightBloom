@@ -6,7 +6,7 @@
   button.btn-accept(type="button" @click="accept") Entendido
 </template>
 
-<script>
+<script lang="ts">
 import { ref } from 'vue'
 
 const STORAGE_KEY = 'ib_cookie_consent'

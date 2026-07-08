@@ -65,7 +65,7 @@
         button.btn-confirm(@click="runConfirmedAction") Confirmar
 </template>
 
-<script>
+<script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { listUsers, updateUser, banUser, unbanUser, deleteUserLogical } from '@/services/api/adminApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -80,7 +80,7 @@ export default {
     const totalPages = ref(1)
     const statusFilter = ref('')
     const editing = ref(null)
-    const editForm = ref({})
+    const editForm = ref<{ displayName?: string, email?: string, phone?: string, roles: string[] }>({ roles: [] })
     const saving = ref(false)
     const confirmTarget = ref(null)
     const confirmAction_ = ref(null)
@@ -95,7 +95,7 @@ export default {
         const res = await listUsers(auth.state.token, page.value, 50)
         users.value = res.data || []
         totalPages.value = res.meta?.totalPages || 1
-      } catch (e) {
+      } catch (e: any) {
         users.value = []
       } finally {
         loading.value = false

@@ -63,7 +63,7 @@
           p.preview-meta(v-if="form.showIssuedDate" :style="{ fontFamily: previewFontFamily }") Fecha de emisión: 26/06/2026
 </template>
 
-<script>
+<script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getCertificateSettings, saveCertificateSettings } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -89,7 +89,7 @@ export default {
       try {
         const settings = await getCertificateSettings()
         form.value = { ...form.value, ...settings, logoBase64: settings.logoBase64 || '' }
-      } catch (e) {
+      } catch (e: any) {
         error.value = 'No se pudo cargar la configuración.'
       } finally {
         loading.value = false
@@ -100,7 +100,7 @@ export default {
       const file = evt.target.files?.[0]
       if (!file) return
       const reader = new FileReader()
-      reader.onload = () => { form.value.logoBase64 = reader.result }
+      reader.onload = () => { form.value.logoBase64 = reader.result as string }
       reader.readAsDataURL(file)
     }
 
@@ -111,7 +111,7 @@ export default {
       try {
         await saveCertificateSettings(form.value, auth.state.token)
         success.value = true
-      } catch (e) {
+      } catch (e: any) {
         error.value = 'No se pudo guardar la configuración.'
       } finally {
         saving.value = false

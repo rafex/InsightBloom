@@ -5,7 +5,7 @@ div
   SessionExpiryModal(:show="showWarning" :seconds="secondsRemaining" @keep-connected="keepConnected")
 </template>
 
-<script>
+<script lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue'
 import CookieConsentBanner from '@/components/CookieConsentBanner.vue'
 import SessionExpiryModal from '@/components/SessionExpiryModal.vue'

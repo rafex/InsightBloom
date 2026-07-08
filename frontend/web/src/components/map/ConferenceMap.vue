@@ -3,7 +3,7 @@
   div(ref="mapRef" style="width:100%;height:100%")
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'

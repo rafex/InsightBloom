@@ -11,16 +11,21 @@
         span(v-else) Entendido
 </template>
 
-<script>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+<script lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, type PropType } from 'vue'
+
+interface TourStep {
+  selector: string
+  text: string
+}
 
 export default {
   name: 'OnboardingTour',
   props: {
     storageKey: { type: String, required: true },
-    steps: { type: Array, required: true } // [{ selector, text }]
+    steps: { type: Array as PropType<TourStep[]>, required: true }
   },
-  setup(props) {
+  setup(props: { storageKey: string, steps: TourStep[] }) {
     const visible = ref(false)
     const stepIndex = ref(0)
     const targetRect = ref(null)

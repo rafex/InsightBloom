@@ -11,7 +11,7 @@
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/survey`") Encuesta
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted } from 'vue'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -28,7 +28,7 @@ export default {
       try {
         const c = await getConference(props.conferenceId, auth.state.token)
         conferenceName.value = c?.name || ''
-      } catch (e) { conferenceName.value = '' }
+      } catch (e: any) { conferenceName.value = '' }
     })
 
     return { conferenceName }

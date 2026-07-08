@@ -65,7 +65,7 @@
   QrCodeModal(v-if="qrTarget" :friendlyId="qrTarget.friendlyId" @close="qrTarget = null")
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted } from 'vue'
 import { getConferences, deleteConference, getDownloadCounts } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -88,7 +88,7 @@ export default {
           conferences.value = await getConferences(auth.state.token)
           loadDownloadCounts()
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error('Error cargando conferencias', e)
       } finally {
         loading.value = false
@@ -101,7 +101,7 @@ export default {
         const id = c.uuid || c.conferenceId
         try {
           downloadCounts.value[id] = await getDownloadCounts(id, token)
-        } catch (e) {
+        } catch (e: any) {
           downloadCounts.value[id] = { certificate: 0, presentation: 0 }
         }
       }))
@@ -110,7 +110,7 @@ export default {
     function isExpired(iso) { return iso && new Date(iso) < new Date() }
 
     function formatRelative(iso) {
-      const diff = new Date(iso) - new Date()
+      const diff = new Date(iso).getTime() - new Date().getTime()
       const abs = Math.abs(diff)
       const past = diff < 0
       const mins = Math.floor(abs / 60_000)
@@ -133,7 +133,7 @@ export default {
       try {
         await deleteConference(c.uuid || c.conferenceId, auth.state.token)
         conferences.value = conferences.value.filter((x) => (x.uuid || x.conferenceId) !== (c.uuid || c.conferenceId))
-      } catch (e) {
+      } catch (e: any) {
         console.error('Error eliminando conferencia', e)
         c._deleting = false
       }

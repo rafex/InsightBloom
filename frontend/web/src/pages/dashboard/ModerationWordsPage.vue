@@ -61,7 +61,7 @@
         button.btn-sm.btn-secondary(@click="verMensajes(item)") Ver mensajes
 </template>
 
-<script>
+<script lang="ts">
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -89,7 +89,7 @@ export default {
         const res = await getModerationWords(props.conferenceId, page.value, 20, statusFilter.value, auth.state.token)
         words.value = (res.data || []).map(w => ({ ...w, _loading: false }))
         totalPages.value = res.meta?.totalPages || 1
-      } catch (e) { } finally { loading.value = false }
+      } catch (e: any) { } finally { loading.value = false }
     }
 
     function goToPage(p) { page.value = p; load() }
@@ -97,19 +97,19 @@ export default {
     async function censor(item) {
       item._loading = true
       try { await censorWord(item.uuid, null, auth.state.token, props.conferenceId); await load() }
-      catch (e) { item._loading = false }
+      catch (e: any) { item._loading = false }
     }
 
     async function restore(item) {
       item._loading = true
       try { await restoreWord(item.uuid, auth.state.token, props.conferenceId); await load() }
-      catch (e) { item._loading = false }
+      catch (e: any) { item._loading = false }
     }
 
     async function deleteItem(item) {
       item._loading = true
       try { await deleteWord(item.uuid, auth.state.token, props.conferenceId); await load() }
-      catch (e) { item._loading = false }
+      catch (e: any) { item._loading = false }
     }
 
     function verMensajes(item) {
@@ -135,7 +135,7 @@ export default {
         try {
           const conf = await getConference(props.conferenceId, auth.state.token)
           conferenceName.value = conf?.name || props.conferenceId
-        } catch (e) { conferenceName.value = props.conferenceId }
+        } catch (e: any) { conferenceName.value = props.conferenceId }
       }
     })
 

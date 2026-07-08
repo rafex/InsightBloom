@@ -2,11 +2,16 @@ import axios from 'axios'
 
 const BASE = '/api/moderation/api/v1'
 
+export interface Paginated<T> {
+  data: T[]
+  meta: { page: number, pageSize: number, total: number, totalPages?: number, [key: string]: unknown }
+}
+
 function authHeader(token?: string | null) {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export async function getModerationWords(conferenceId: string, page = 1, pageSize = 50, status = '', token?: string): Promise<unknown> {
+export async function getModerationWords(conferenceId: string, page = 1, pageSize = 50, status = '', token?: string): Promise<Paginated<any>> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/moderation/words`, {
     params: { page, pageSize, ...(status ? { status } : {}) },
     headers: authHeader(token)
@@ -14,7 +19,7 @@ export async function getModerationWords(conferenceId: string, page = 1, pageSiz
   return res.data
 }
 
-export async function getModerationMessages(conferenceId: string, page = 1, pageSize = 50, status = '', token?: string): Promise<unknown> {
+export async function getModerationMessages(conferenceId: string, page = 1, pageSize = 50, status = '', token?: string): Promise<Paginated<any>> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/moderation/messages`, {
     params: { page, pageSize, ...(status ? { status } : {}) },
     headers: authHeader(token)

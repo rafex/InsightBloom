@@ -49,7 +49,7 @@
           span(v-else) Cambiar contraseña
 </template>
 
-<script>
+<script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref, onMounted } from 'vue'
 import { getUserProfile, updateUserProfile, changePassword } from '@/services/api/usersApi'
@@ -81,7 +81,7 @@ export default {
         profileData.value = profile
         firstName.value = profile.firstName || ''
         lastName.value = profile.lastName || ''
-      } catch (e) {
+      } catch (e: any) {
         error.value = 'No se pudo cargar tu perfil.'
       } finally {
         loading.value = false
@@ -95,7 +95,7 @@ export default {
       try {
         await updateUserProfile(auth.state.userUuid, { firstName: firstName.value, lastName: lastName.value }, auth.state.token)
         success.value = true
-      } catch (e) {
+      } catch (e: any) {
         error.value = 'No se pudo guardar tu perfil.'
       } finally {
         saving.value = false
@@ -111,7 +111,7 @@ export default {
         passwordSuccess.value = true
         currentPassword.value = ''
         newPassword.value = ''
-      } catch (e) {
+      } catch (e: any) {
         passwordError.value = e.response?.status === 400
           ? 'La contraseña actual es incorrecta.'
           : 'No se pudo cambiar tu contraseña.'

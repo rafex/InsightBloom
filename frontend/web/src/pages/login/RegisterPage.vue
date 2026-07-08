@@ -58,7 +58,7 @@
         router-link.btn-primary-link(to="/") Ir al inicio
 </template>
 
-<script>
+<script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -99,7 +99,7 @@ export default {
         await register({ ...form.value, socialLinks })
         await sendOtpWithFallback()
         step.value = 'verify'
-      } catch (e) {
+      } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'No se pudo crear la cuenta. Intenta de nuevo.'
       } finally {
         loading.value = false
@@ -115,7 +115,7 @@ export default {
           verifyIdentifier.value = form.value.email
           await sendOtp(verifyIdentifier.value, 'EMAIL')
           return
-        } catch (e) {
+        } catch (e: any) {
           if (!form.value.phone) throw e
         }
       }
@@ -129,7 +129,7 @@ export default {
       loading.value = true
       try {
         await sendOtp(verifyIdentifier.value, verifyChannel.value)
-      } catch (e) {
+      } catch (e: any) {
         error.value = 'No se pudo reenviar el código.'
       } finally {
         loading.value = false
@@ -145,7 +145,7 @@ export default {
         auth.setSession(result)
         step.value = 'done'
         setTimeout(() => router.push('/'), 1500)
-      } catch (e) {
+      } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Código inválido o expirado.'
       } finally {
         loading.value = false

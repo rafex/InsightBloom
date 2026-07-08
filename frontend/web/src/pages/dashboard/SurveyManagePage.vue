@@ -193,7 +193,7 @@
       p.no-responses(v-if="!r.responseCount") Sin respuestas todavía
 </template>
 
-<script>
+<script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -209,7 +209,7 @@ function parseMultiSelect(raw) {
   try {
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed)) return parsed
-  } catch (e) { /* formato anterior: string plano */ }
+  } catch (e: any) { /* formato anterior: string plano */ }
   return [raw]
 }
 
@@ -270,7 +270,7 @@ export default {
         reviewOpen.value = false
         selectedForGrading.value = []
         await load()
-      } catch (e) {
+      } catch (e: any) {
         gradeStatus.value = 'No se pudo calificar (¿está configurado el proveedor de IA?)'
       } finally {
         grading.value = false
@@ -348,11 +348,11 @@ export default {
       try {
         const qRes = await getQuestions(props.conferenceId, false)
         questions.value = (qRes.data || []).filter((q) => q.active)
-      } catch (e) { questions.value = [] }
+      } catch (e: any) { questions.value = [] }
       try {
         const rRes = await getResults(props.conferenceId, auth.state.token)
         results.value = rRes.data || []
-      } catch (e) { results.value = [] }
+      } catch (e: any) { results.value = [] }
     }
 
     async function suggest() {
@@ -362,7 +362,7 @@ export default {
         const res = await suggestQuestions(props.conferenceId, 5, auth.state.token)
         suggestions.value = res.data || []
         selectedSuggestions.value = []
-      } catch (e) {
+      } catch (e: any) {
         suggestError.value = 'No se pudieron generar sugerencias (¿hay una presentación subida?)'
       } finally {
         suggesting.value = false
@@ -406,7 +406,7 @@ export default {
           referenceAnswer: form.value.referenceAnswer || null
         }, auth.state.token)
         improvements.value = res.data || []
-      } catch (e) {
+      } catch (e: any) {
         improveError.value = 'No se pudo mejorar la pregunta con IA. Intenta de nuevo.'
       } finally {
         improving.value = false

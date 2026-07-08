@@ -26,7 +26,7 @@
       router-link.btn-secondary(:to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPresentationStatus, getSlidesUrl, getSlidesPreviewUrl, getAudienceWsUrl } from '@/services/api/presentationsApi'
@@ -42,7 +42,7 @@ export default {
     const route = useRoute()
     const auth = useAuthStore()
     const canParticipate = auth.isAuthenticated() && auth.state.role !== 'guest'
-    const friendlyId = route.params.friendlyId
+    const friendlyId = route.params.friendlyId as string
     const loading = ref(true)
     const ready = ref(false)
     const slidesUrl = ref('')
@@ -65,7 +65,7 @@ export default {
           if (msg.type === 'slide' && typeof msg.hash === 'string' && slidesFrame.value) {
             slidesFrame.value.contentWindow.location.hash = msg.hash
           }
-        } catch (e) { /* ignorar mensajes malformados */ }
+        } catch (e: any) { /* ignorar mensajes malformados */ }
       }
       ws.onclose = () => {
         wsConnected.value = false
@@ -86,7 +86,7 @@ export default {
             : getSlidesPreviewUrl(props.conferenceId)
           connectAudienceWs()
         }
-      } catch (e) { ready.value = false }
+      } catch (e: any) { ready.value = false }
       finally { loading.value = false }
 
       if (!canParticipate) {

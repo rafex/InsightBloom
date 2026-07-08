@@ -16,7 +16,7 @@
       .hint-arrow ▼
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'

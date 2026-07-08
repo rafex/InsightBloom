@@ -10,12 +10,12 @@ export interface AdminUserUpdate {
   displayName?: string | null
   email?: string | null
   phone?: string | null
-  roles?: string[]
+  roles?: string
   firstName?: string | null
   lastName?: string | null
 }
 
-export async function listUsers(token: string, page = 1, pageSize = 50): Promise<{ data: unknown[], total?: number }> {
+export async function listUsers(token: string, page = 1, pageSize = 50): Promise<{ data: any[], meta?: { totalPages?: number, [key: string]: unknown } }> {
   const res = await axios.get(BASE, { params: { page, pageSize }, headers: authHeader(token) })
   return res.data
 }

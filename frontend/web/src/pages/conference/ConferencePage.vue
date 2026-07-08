@@ -47,7 +47,7 @@
   QrCodeModal(v-if="showQr" :friendlyId="friendlyId" @close="showQr = false")
 </template>
 
-<script>
+<script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
@@ -70,7 +70,7 @@ export default {
   components: { AppHeader, ConferenceIntroMap, QrCodeModal, OnboardingTour },
   setup() {
     const route      = useRoute()
-    const friendlyId = route.params.friendlyId
+    const friendlyId = route.params.friendlyId as string
     const conference = ref(null)
     const loading    = ref(true)
     const error      = ref('')
@@ -139,7 +139,7 @@ export default {
         timezones.value = tzList
         // Show intro only when conference has a location
         showIntro.value = conference.value?.latitude != null
-      } catch (e) {
+      } catch (e: any) {
         error.value = 'Conferencia no encontrada. Verifica el ID.'
       } finally {
         loading.value = false

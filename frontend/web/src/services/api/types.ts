@@ -52,6 +52,14 @@ export interface DownloadCounts {
 }
 
 export interface CertificateSettings {
+  logoBase64?: string
+  fontFamily?: string
+  titleFontSize?: number
+  bodyFontSize?: number
+  primaryColorHex?: string
+  showVenue?: boolean
+  showSchedule?: boolean
+  showIssuedDate?: boolean
   [key: string]: unknown
 }
 

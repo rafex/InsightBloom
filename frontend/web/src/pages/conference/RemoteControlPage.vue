@@ -11,7 +11,7 @@
     button.btn-nav(:disabled="!wsConnected" @click="send('next')") Siguiente →
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { getRemoteWsUrl } from '@/services/api/presentationsApi'
@@ -21,7 +21,7 @@ export default {
   props: { conferenceId: String },
   setup(props) {
     const route = useRoute()
-    const token = route.query.token
+    const token = route.query.token as string | null
     const wsConnected = ref(false)
     const invalid = ref(false)
 

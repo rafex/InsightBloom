@@ -109,7 +109,7 @@ export async function updateUserProfile(
   return res.data.data
 }
 
-export async function joinConference(identifier: string, token: string): Promise<unknown> {
+export async function joinConference(identifier: string, token: string): Promise<Conference> {
   const res = await axios.post('/api/users/api/v1/conferences/join', { identifier }, authHeader(token))
   return res.data.data
 }

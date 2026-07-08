@@ -16,7 +16,7 @@
   .timeline-loading(v-if="loading") Cargando timeline...
 </template>
 
-<script>
+<script lang="ts">
 import TimelineItem from '@/components/timeline/TimelineItem.vue'
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
@@ -27,17 +27,17 @@ export default {
   props: { conferenceId: String },
   setup(props) {
     const route = useRoute()
-    const friendlyId = route.params.friendlyId
-    const word = route.params.word
+    const friendlyId = route.params.friendlyId as string
+    const word = route.params.word as string
     const wordDecoded = decodeURIComponent(word)
-    const type = route.query.type || 'doubt'
+    const type = (route.query.type as string) || 'doubt'
     const typeLabel = type === 'doubt' ? 'Duda' : 'Tema'
     const items = ref([])
     const loading = ref(true)
     onMounted(async () => {
       if (!props.conferenceId) { loading.value = false; return }
       try { items.value = await getWordTimeline(props.conferenceId, wordDecoded, type) }
-      catch (e) { } finally { loading.value = false }
+      catch (e: any) { } finally { loading.value = false }
     })
     return { friendlyId, word, wordDecoded, type, typeLabel, items, loading, conferenceId: props.conferenceId }
   }

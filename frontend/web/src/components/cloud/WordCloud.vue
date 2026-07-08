@@ -3,10 +3,18 @@
   svg(ref="svgRef" :width="width" :height="height")
 </template>
 
-<script>
-import { ref, onMounted, watch } from 'vue'
+<script lang="ts">
+import { ref, onMounted, watch, type PropType } from 'vue'
 import * as d3 from 'd3'
 import cloud from 'd3-cloud'
+
+interface CloudWord {
+  relevanceScore?: number
+  messageCount?: number
+  wordCanonical?: string
+  wordNormalized?: string
+  [key: string]: unknown
+}
 
 // Paleta de 10 colores vivos para la nube
 const PALETTE = [
@@ -25,12 +33,12 @@ const PALETTE = [
 export default {
   name: 'WordCloud',
   props: {
-    words: { type: Array, default: () => [] },
+    words: { type: Array as PropType<CloudWord[]>, default: () => [] },
     width: { type: Number, default: 800 },
     height: { type: Number, default: 500 },
   },
   emits: ['word-click'],
-  setup(props, { emit }) {
+  setup(props: { words: CloudWord[], width: number, height: number }, { emit }: { emit: (event: 'word-click', word: CloudWord) => void }) {
     const svgRef = ref(null)
     let layoutInstance = null
 
@@ -112,8 +120,8 @@ export default {
           .style('user-select', 'none')
           .text(d => d.text)
           .on('click', (event, d) => emit('word-click', d._word))
-          .on('mouseover', function() { d3.select(this).attr('opacity', 0.65) })
-          .on('mouseout',  function() { d3.select(this).attr('opacity', 1) })
+          .on('mouseover', function (this: SVGTextElement) { d3.select(this).attr('opacity', 0.65) })
+          .on('mouseout',  function (this: SVGTextElement) { d3.select(this).attr('opacity', 1) })
     }
 
     onMounted(render)

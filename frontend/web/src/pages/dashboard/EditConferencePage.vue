@@ -69,7 +69,7 @@
       router-link.btn-outline(:to="`/dashboard`") Volver al dashboard
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import { getConference, updateConference, getTimezones } from '@/services/api/usersApi'
@@ -116,7 +116,7 @@ export default {
         longitude.value = conference.value.longitude ?? null
         flyerBase64.value = conference.value.flyerBase64 || ''
         timezoneId.value = conference.value.timezoneId ?? tzList.find((t) => t.isDefault)?.id ?? null
-      } catch (e) {
+      } catch (e: any) {
         error.value = 'No se pudo cargar la conferencia.'
       } finally {
         loading.value = false
@@ -127,7 +127,7 @@ export default {
       const file = e.target.files?.[0]
       if (!file) return
       const reader = new FileReader()
-      reader.onload = () => { flyerBase64.value = reader.result }
+      reader.onload = () => { flyerBase64.value = reader.result as string }
       reader.readAsDataURL(file)
     }
 
@@ -148,7 +148,7 @@ export default {
           timezoneId: timezoneId.value
         }, auth.state.token)
         saved.value = true
-      } catch (e) {
+      } catch (e: any) {
         saveError.value = e.response?.data?.error?.message || 'Error al guardar los cambios'
       } finally {
         saving.value = false

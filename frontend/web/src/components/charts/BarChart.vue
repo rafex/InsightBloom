@@ -9,18 +9,23 @@ svg.bar-chart(:viewBox="`0 0 ${width} ${height}`" preserveAspectRatio="xMidYMid 
     text.bar-label(:x="bar.x + barWidth / 2" :y="height - 4" text-anchor="middle") {{ bar.label }}
 </template>
 
-<script>
-import { computed } from 'vue'
+<script lang="ts">
+import { computed, type PropType } from 'vue'
+
+interface BarDatum {
+  label: string
+  value: number
+}
 
 export default {
   name: 'BarChart',
   props: {
-    data: { type: Array, required: true }, // [{ label, value }]
+    data: { type: Array as PropType<BarDatum[]>, required: true },
     width: { type: Number, default: 320 },
     height: { type: Number, default: 140 },
     color: { type: String, default: '#4f46e5' }
   },
-  setup(props) {
+  setup(props: { data: BarDatum[], width: number, height: number, color: string }) {
     const chartHeight = props.height - 24
     const barWidth = computed(() => Math.max(16, (props.width / Math.max(props.data.length, 1)) - 12))
 

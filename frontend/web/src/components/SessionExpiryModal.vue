@@ -6,7 +6,7 @@
     button.btn-primary(type="button" @click="$emit('keep-connected')") Seguir conectado
 </template>
 
-<script>
+<script lang="ts">
 export default {
   name: 'SessionExpiryModal',
   props: {

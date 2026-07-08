@@ -16,7 +16,7 @@ export interface SurveyQuestionInput {
   required?: boolean
 }
 
-export async function getQuestions(conferenceId: string, onlyActive = true): Promise<unknown> {
+export async function getQuestions(conferenceId: string, onlyActive = true): Promise<{ data: any[] }> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/questions`, {
     params: { onlyActive }
   })
@@ -39,7 +39,7 @@ export async function updateQuestion(conferenceId: string, questionId: string, q
   return res.data
 }
 
-export async function suggestQuestions(conferenceId: string, count: number, token: string): Promise<unknown> {
+export async function suggestQuestions(conferenceId: string, count: number, token: string): Promise<{ data: any[] }> {
   const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/questions/suggest`,
     { count },
     { headers: authHeader(token) })
@@ -85,14 +85,14 @@ export async function improveQuestion(
   conferenceId: string,
   { text, type, options, referenceAnswer }: Pick<SurveyQuestionInput, 'text' | 'type' | 'options' | 'referenceAnswer'>,
   token: string
-): Promise<unknown> {
+): Promise<{ data: any }> {
   const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/questions/improve`,
     { text, type, options, referenceAnswer },
     { headers: authHeader(token) })
   return res.data
 }
 
-export async function gradeResponses(conferenceId: string, questionUuids: string[], token: string, regrade = false): Promise<unknown> {
+export async function gradeResponses(conferenceId: string, questionUuids: string[], token: string, regrade = false): Promise<{ data: { graded?: number, skipped?: number } }> {
   const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/grade`,
     { questionUuids, regrade },
     { headers: authHeader(token) })

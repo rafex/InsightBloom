@@ -8,7 +8,7 @@
   p.error(v-if="error") {{ error }}
 </template>
 
-<script>
+<script lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { joinConference } from '@/services/api/usersApi'
@@ -29,7 +29,7 @@ export default {
       try {
         const conference = await joinConference(code.value.trim(), auth.state.token)
         router.push(`/c/${conference.friendlyId}/doubts`)
-      } catch (e) {
+      } catch (e: any) {
         error.value = e.response?.status === 404
           ? 'Esta conferencia ya no se encuentra disponible o el código es incorrecto.'
           : 'No se pudo unir a la conferencia. Intenta de nuevo.'

@@ -27,7 +27,7 @@
   QrCodeModal(v-if="showRemoteShare" :url="remoteShareUrl" @close="showRemoteShare = false")
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { getPresentationStatus, getSlidesUrl, getPresenterWsUrl, createRemoteLinkToken } from '@/services/api/presentationsApi'
 import { getConference } from '@/services/api/usersApi'
@@ -72,14 +72,14 @@ export default {
       try {
         const doc = slidesFrame.value.contentWindow.document
         doc.dispatchEvent(new KeyboardEvent('keydown', { key: spec.key, keyCode: spec.keyCode, which: spec.keyCode, bubbles: true }))
-      } catch (e) { /* same-origin esperado; si falla, no hay sync */ }
+      } catch (e: any) { /* same-origin esperado; si falla, no hay sync */ }
     }
 
     function pollHash() {
       let hash
       try {
         hash = slidesFrame.value?.contentWindow?.location?.hash || ''
-      } catch (e) { return /* same-origin esperado; si falla, no hay sync */ }
+      } catch (e: any) { return /* same-origin esperado; si falla, no hay sync */ }
       if (hash !== lastHash) {
         lastHash = hash
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -96,7 +96,7 @@ export default {
       if (lastHash) {
         try {
           slidesFrame.value.contentWindow.location.hash = lastHash
-        } catch (e) { /* same-origin esperado; si falla, no hay sync */ }
+        } catch (e: any) { /* same-origin esperado; si falla, no hay sync */ }
       }
       // bespoke.js (motor de Marp) navega con history.pushState/replaceState,
       // que no disparan 'hashchange' — por eso se hace polling del hash.
@@ -120,7 +120,7 @@ export default {
           const msg = JSON.parse(event.data)
           if (msg.type === 'count') audienceCount.value = msg.count
           else if (msg.type === 'nav') navigate(msg.direction)
-        } catch (e) { /* ignorar */ }
+        } catch (e: any) { /* ignorar */ }
       }
       ws.onclose = () => {
         wsConnected.value = false
@@ -135,7 +135,7 @@ export default {
         const token = await createRemoteLinkToken(props.conferenceId, auth.state.token)
         remoteShareUrl.value = `${window.location.origin}/c/${friendlyId.value}/remote?token=${token}`
         showRemoteShare.value = true
-      } catch (e) { /* no se pudo generar el enlace */ }
+      } catch (e: any) { /* no se pudo generar el enlace */ }
     }
 
     onMounted(async () => {
@@ -143,7 +143,7 @@ export default {
         const conf = await getConference(props.conferenceId, auth.state.token)
         friendlyId.value = conf?.friendlyId || ''
         sourceUrl.value = conf?.presentationSourceUrl || ''
-      } catch (e) { /* el botón de QR simplemente no aparece */ }
+      } catch (e: any) { /* el botón de QR simplemente no aparece */ }
       try {
         const status = await getPresentationStatus(props.conferenceId)
         ready.value = !!status.ready
@@ -151,7 +151,7 @@ export default {
           slidesUrl.value = getSlidesUrl(props.conferenceId)
           connectPresenterWs()
         }
-      } catch (e) { ready.value = false }
+      } catch (e: any) { ready.value = false }
       finally { checkedStatus.value = true }
     })
 

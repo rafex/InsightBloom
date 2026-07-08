@@ -10,16 +10,27 @@
     p.answer-text {{ answer }}
 </template>
 
-<script>
+<script lang="ts">
 import { getMessageAnswer } from '@/services/api/moderationApi'
+import type { PropType } from 'vue'
+
+interface TimelineMessage {
+  messageId?: string
+  uuid?: string
+  receivedAt?: string
+  author?: { displayName?: string, kind?: string }
+  detail?: string
+  detailVisible?: string
+  [key: string]: unknown
+}
 
 export default {
   name: 'TimelineItem',
   props: {
-    item: { type: Object, required: true },
+    item: { type: Object as PropType<TimelineMessage>, required: true },
     conferenceId: { type: String, default: '' }
   },
-  data() {
+  data(): { answer: string | null } {
     return { answer: null }
   },
   computed: {
@@ -33,9 +44,9 @@ export default {
     const messageId = this.item.messageId || this.item.uuid
     if (!messageId || !this.conferenceId) return
     try {
-      const result = await getMessageAnswer(messageId, this.conferenceId)
+      const result = await getMessageAnswer(messageId, this.conferenceId) as { answer?: string } | undefined
       this.answer = result?.answer || null
-    } catch (e) { /* sin respuesta aún */ }
+    } catch (e: any) { /* sin respuesta aún */ }
   }
 }
 </script>

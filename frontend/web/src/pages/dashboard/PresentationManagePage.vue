@@ -24,7 +24,7 @@
     p.upload-success(v-if="success") ¡Presentación generada correctamente!
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted } from 'vue'
 import { uploadPresentation, getPresentationStatus, getSlidesUrl, getPdfUrl } from '@/services/api/presentationsApi'
 import { getConference, updateConference } from '@/services/api/usersApi'
@@ -62,7 +62,7 @@ export default {
           slidesUrl.value = getSlidesUrl(props.conferenceId)
           pdfUrl.value = getPdfUrl(props.conferenceId)
         }
-      } catch (e) { ready.value = false }
+      } catch (e: any) { ready.value = false }
       finally { checkedStatus.value = true }
     }
 
@@ -70,7 +70,7 @@ export default {
       try {
         conference = await getConference(props.conferenceId, auth.state.token)
         sourceUrl.value = conference?.presentationSourceUrl || ''
-      } catch (e) { /* el campo simplemente queda vacío */ }
+      } catch (e: any) { /* el campo simplemente queda vacío */ }
     }
 
     async function upload() {
@@ -95,7 +95,7 @@ export default {
             presentationSourceUrl: sourceUrl.value.trim() || null
           }, auth.state.token)
         }
-      } catch (e) {
+      } catch (e: any) {
         error.value = e.response?.data?.message || 'No se pudo generar la presentación. Verifica que el ZIP tenga un archivo .md.'
       } finally {
         uploading.value = false

@@ -13,7 +13,7 @@
     button(@click="$emit('page', currentPage + 1)" :disabled="currentPage >= totalPages") Siguiente &raquo;
 </template>
 
-<script>
+<script lang="ts">
 export default {
   name: 'ModerationTable',
   props: {

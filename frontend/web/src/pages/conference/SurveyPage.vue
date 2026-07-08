@@ -113,7 +113,7 @@
       p.survey-error(v-if="error") {{ error }}
 </template>
 
-<script>
+<script lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getQuestions, submitResponses, hasResponded } from '@/services/api/surveyApi'
@@ -132,7 +132,7 @@ export default {
     const route = useRoute()
     const auth = useAuthStore()
     const canParticipate = auth.isAuthenticated() && auth.state.role !== 'guest'
-    const friendlyId = route.params.friendlyId
+    const friendlyId = route.params.friendlyId as string
     const questions = ref([])
     const loading = ref(true)
     const submitting = ref(false)
@@ -156,7 +156,7 @@ export default {
       certError.value = ''
       try {
         certUrl.value = await getCertificateBlobUrl(props.conferenceId, auth.state.token)
-      } catch (e) {
+      } catch (e: any) {
         certError.value = 'No se pudo generar tu certificado todavía.'
       } finally {
         certLoading.value = false
@@ -245,7 +245,7 @@ export default {
             await loadCertificate()
             return
           }
-        } catch (e) { /* best-effort: if the check fails, fall through to the form */ }
+        } catch (e: any) { /* best-effort: if the check fails, fall through to the form */ }
       }
 
       try {
@@ -255,14 +255,14 @@ export default {
           if (q.type === 'DRAG_DROP') dragOrder[q.uuid] = [...(q.options || [])]
           else if (q.type === 'MULTIPLE_CHOICE') answersText[q.uuid] = []
         }
-      } catch (e) { questions.value = [] }
+      } catch (e: any) { questions.value = [] }
       finally { loading.value = false }
 
       try {
         const status = await getPresentationStatus(props.conferenceId)
         pdfReady.value = !!status.ready
         if (pdfReady.value) pdfUrl.value = getPdfUrl(props.conferenceId)
-      } catch (e) { pdfReady.value = false }
+      } catch (e: any) { pdfReady.value = false }
     }
 
     function isAnswered(q) {
@@ -298,7 +298,7 @@ export default {
         await submitResponses(props.conferenceId, payload, auth.state.token)
         submitted.value = true
         await loadCertificate()
-      } catch (e) {
+      } catch (e: any) {
         if (e.response?.status === 409) {
           error.value = 'Ya habías respondido esta encuesta.'
         } else if (e.response?.data?.error?.code === 'required_question_missing') {

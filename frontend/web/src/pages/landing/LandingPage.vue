@@ -19,7 +19,7 @@
         router-link(to="/login")  Inicia sesión aquí
 </template>
 
-<script>
+<script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'

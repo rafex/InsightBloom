@@ -85,7 +85,7 @@
     button(@click="goToPage(page + 1)" :disabled="page >= totalPages") ›
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { getModerationMessages, censorMessage, restoreMessage, deleteMessage, answerMessage } from '@/services/api/moderationApi'
@@ -101,8 +101,8 @@ export default {
     const auth = useAuthStore()
 
     // Word filter comes from query params (set by ModerationWordsPage)
-    const wordNormalized = route.query.wordNormalized || ''
-    const wordCanonical = route.query.wordCanonical || ''
+    const wordNormalized = (route.query.wordNormalized as string) || ''
+    const wordCanonical = (route.query.wordCanonical as string) || ''
 
     const items = ref([])
     const loading = ref(false)
@@ -121,7 +121,7 @@ export default {
         try {
           const profile = await getUserProfile(uuid)
           authorNames.value = { ...authorNames.value, [uuid]: profile?.displayName || profile?.email || profile?.phone || 'Anónimo' }
-        } catch (e) {
+        } catch (e: any) {
           authorNames.value = { ...authorNames.value, [uuid]: 'Anónimo' }
         }
       }
@@ -148,9 +148,9 @@ export default {
           return true
         })
         // Sort by receivedAt descending
-        merged.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
+        merged.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
         items.value = merged.map(m => ({ ...m, detailStatus: null, _loading: false }))
-      } catch (e) { } finally { loading.value = false }
+      } catch (e: any) { } finally { loading.value = false }
     }
 
     // ── Global moderation messages view ──────────────────────────────────────
@@ -162,7 +162,7 @@ export default {
         items.value = (res.data || []).map(m => ({ ...m, _loading: false }))
         totalPages.value = res.meta?.totalPages || 1
         resolveAuthors()
-      } catch (e) { } finally { loading.value = false }
+      } catch (e: any) { } finally { loading.value = false }
     }
 
     function goToPage(p) { page.value = p; loadModMessages() }
@@ -180,7 +180,7 @@ export default {
         )
         item.detailStatus = 'CENSURADO_MANUAL'
         item._loading = false
-      } catch (e) { item._loading = false }
+      } catch (e: any) { item._loading = false }
     }
 
     async function restore(item) {
@@ -190,7 +190,7 @@ export default {
         await restoreMessage(messageId, auth.state.token, props.conferenceId)
         item.detailStatus = 'VISIBLE'
         item._loading = false
-      } catch (e) { item._loading = false }
+      } catch (e: any) { item._loading = false }
     }
 
     async function deleteItem(item) {
@@ -200,7 +200,7 @@ export default {
         await deleteMessage(messageId, auth.state.token, props.conferenceId)
         item.detailStatus = 'DELETED'
         item._loading = false
-      } catch (e) { item._loading = false }
+      } catch (e: any) { item._loading = false }
     }
 
     function startAnswering(item) {
@@ -241,7 +241,7 @@ export default {
         try {
           const conf = await getConference(props.conferenceId, auth.state.token)
           conferenceName.value = conf?.name || props.conferenceId
-        } catch (e) { conferenceName.value = props.conferenceId }
+        } catch (e: any) { conferenceName.value = props.conferenceId }
       }
       if (wordNormalized) {
         loadWordTimeline()

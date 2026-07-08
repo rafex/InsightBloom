@@ -99,7 +99,7 @@
       button.btn-primary(@click="reset") Crear otra
 </template>
 
-<script>
+<script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import { createConference, getTimezones } from '@/services/api/usersApi'
@@ -140,7 +140,7 @@ export default {
         timezones.value = await getTimezones()
         const def = timezones.value.find((t) => t.isDefault)
         if (def) timezoneId.value = def.id
-      } catch (e) { /* selector queda vacío, el backend igual usa su propio default */ }
+      } catch (e: any) { /* selector queda vacío, el backend igual usa su propio default */ }
     })
 
     const minDate = computed(() => new Date().toISOString().slice(0, 16))
@@ -168,7 +168,7 @@ export default {
         created.value = await createConference(name.value.trim(), expiresAt, auth.state.token, lat, lng,
           eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null,
           displayName.value.trim() || null, timezoneId.value)
-      } catch (e) {
+      } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Error al crear la conferencia'
       } finally { loading.value = false }
     }

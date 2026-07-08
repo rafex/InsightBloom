@@ -21,7 +21,7 @@ export async function getTopicCloud(conferenceId: string): Promise<CloudWord[]> 
   return res.data.data
 }
 
-export async function getWordTimeline(conferenceId: string, word: string, type: string): Promise<unknown> {
+export async function getWordTimeline(conferenceId: string, word: string, type: string): Promise<any[]> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/words/${encodeURIComponent(word)}/timeline`, {
     params: { type }
   })

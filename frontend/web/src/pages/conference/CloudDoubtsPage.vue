@@ -26,7 +26,7 @@
   .cloud-loading(v-if="loading") Cargando dudas...
 </template>
 
-<script>
+<script lang="ts">
 import WordCloud from '@/components/cloud/WordCloud.vue'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -43,7 +43,7 @@ export default {
     const cloudWidth = ref(800)
     const route = useRoute()
     const router = useRouter()
-    const friendlyId = route.params.friendlyId
+    const friendlyId = route.params.friendlyId as string
     const auth = useAuthStore()
     const canSubmit = auth.isAuthenticated() && auth.state.role !== 'guest'
     const word = ref('')
@@ -88,7 +88,7 @@ export default {
         word.value = ''; detail.value = ''
         feedback.value = 'Duda enviada.'
         feedbackClass.value = 'ok'
-      } catch (e) {
+      } catch (e: any) {
         feedback.value = 'No se pudo enviar. Intenta de nuevo.'
         feedbackClass.value = 'error'
       } finally {

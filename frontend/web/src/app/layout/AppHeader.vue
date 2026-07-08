@@ -11,7 +11,7 @@ header.app-header
       router-link(v-else to="/login") Entrar
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/features/auth/authStore'
 import { useRouter } from 'vue-router'

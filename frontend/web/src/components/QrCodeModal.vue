@@ -7,7 +7,7 @@
     button.btn-secondary(@click="$emit('close')") Cerrar
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted } from 'vue'
 import QRCode from 'qrcode'
 
@@ -25,7 +25,7 @@ export default {
     onMounted(async () => {
       try {
         await QRCode.toCanvas(qrCanvas.value, publicUrl.value, { width: 220 })
-      } catch (e) { /* sin QR si falla */ }
+      } catch (e: any) { /* sin QR si falla */ }
     })
 
     return { qrCanvas, publicUrl }

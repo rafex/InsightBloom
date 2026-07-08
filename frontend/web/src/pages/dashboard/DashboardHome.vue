@@ -61,7 +61,7 @@
         p.unavailable-note(v-else) Esta conferencia ya no se encuentra disponible.
 </template>
 
-<script>
+<script lang="ts">
 import { ref, onMounted } from 'vue'
 import { getConferences, getConferenceHistory, getUniqueRegisteredAttendeesCount } from '@/services/api/usersApi'
 import { getResults } from '@/services/api/surveyApi'
@@ -124,7 +124,7 @@ export default {
             if (conferences.value.length) loadSummary(conferences.value, token)
             else summaryLoading.value = false
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error('Error cargando conferencias', e)
         } finally {
           loading.value = false
@@ -132,7 +132,7 @@ export default {
       } else {
         try {
           if (token) history.value = await getConferenceHistory(token)
-        } catch (e) {
+        } catch (e: any) {
           console.error('Error cargando historial', e)
         } finally {
           loadingHistory.value = false

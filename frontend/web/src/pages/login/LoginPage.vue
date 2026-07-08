@@ -18,7 +18,7 @@
       p.register-hint ¿No tienes cuenta? #[router-link(to="/register") Regístrate]
 </template>
 
-<script>
+<script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -42,7 +42,7 @@ export default {
       try {
         await auth.login(username.value.trim(), password.value)
         router.push('/dashboard')
-      } catch (e) {
+      } catch (e: any) {
         error.value = 'Credenciales inválidas o error de conexión'
       } finally {
         loading.value = false
