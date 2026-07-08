@@ -56,7 +56,7 @@ export function downloadIcs(opts: CalendarEventInput): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${(opts.name || 'conferencia').replace(/[^\w\-]+/g, '_')}.ics`
+  a.download = `${(opts.name || 'conferencia').replace(/[^\w-]+/g, '_')}.ics`
   document.body.appendChild(a)
   a.click()
   a.remove()

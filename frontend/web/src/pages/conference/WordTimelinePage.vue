@@ -39,7 +39,7 @@ export default {
       try { items.value = await getWordTimeline(props.conferenceId, wordDecoded, type) }
       catch (e: any) { } finally { loading.value = false }
     })
-    return { friendlyId, word, wordDecoded, type, typeLabel, items, loading, conferenceId: props.conferenceId }
+    return { friendlyId, word, wordDecoded, type, typeLabel, items, loading }
   }
 }
 </script>

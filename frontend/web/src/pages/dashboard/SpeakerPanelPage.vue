@@ -165,7 +165,7 @@ export default {
     })
 
     return {
-      conferenceId: props.conferenceId, checkedStatus, ready, slidesUrl, slidesFrame,
+      checkedStatus, ready, slidesUrl, slidesFrame,
       wsConnected, audienceCount, showQr, friendlyId, onIframeLoad, navigate,
       showRemoteShare, remoteShareUrl, shareRemoteControl, sourceUrl
     }

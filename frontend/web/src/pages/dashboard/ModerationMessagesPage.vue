@@ -86,7 +86,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getModerationMessages, censorMessage, restoreMessage, deleteMessage, answerMessage } from '@/services/api/moderationApi'
 import { getWordTimeline } from '@/services/api/queryApi'
@@ -276,7 +276,6 @@ export default {
     return {
       items, loading, page, totalPages, statusFilter, conferenceName, authorNames,
       wordNormalized, wordCanonical,
-      conferenceId: props.conferenceId,
       loadModMessages, goToPage, censorDetail, restore, deleteItem, startAnswering, submitAnswer,
       statusClass, statusLabel, formatTime
     }
