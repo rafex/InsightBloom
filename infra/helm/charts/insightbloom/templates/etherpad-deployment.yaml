@@ -47,17 +47,26 @@ spec:
             - name: http
               containerPort: {{ .Values.etherpad.port }}
               protocol: TCP
+          # startupProbe con presupuesto amplio (hasta 10 min): con DB_TYPE=sqlite, Etherpad
+          # compila el driver nativo de SQLite (node-gyp) en el primer arranque, lo que puede
+          # tardar mucho mas que el resto de servicios de la plataforma. Mientras el
+          # startupProbe no pase, liveness/readiness NO se evaluan — sin esto, el liveness
+          # probe mataba el contenedor a los 15s, antes de que terminara de arrancar.
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            failureThreshold: 40
+            periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
               port: http
-            initialDelaySeconds: 15
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /
               port: http
-            initialDelaySeconds: 10
             periodSeconds: 10
           resources:
             {{- toYaml .Values.etherpad.resources | nindent 12 }}
