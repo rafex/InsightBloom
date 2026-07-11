@@ -42,6 +42,12 @@
         select(v-model.number="timezoneId")
           option(v-for="tz in timezones" :key="tz.id" :value="tz.id") {{ tz.label }}
 
+    .form-group(v-if="eventTypes.length")
+      label Tipo de evento
+      select(v-model="eventTypeKey")
+        option(v-for="t in eventTypes" :key="t.key" :value="t.key") {{ t.name }}
+      p.field-hint Determina qué herramientas están disponibles (boletos, encuestas, videollamada...). Se puede cambiar después.
+
     .form-group
       label Sede (opcional)
       input(v-model="venue" type="text" placeholder="Auditorio, ciudad...")
@@ -102,8 +108,8 @@
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
-import { createConference, getTimezones } from '@/services/api/usersApi'
-import type { Conference, Timezone } from '@/services/api/types'
+import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
+import type { Conference, Timezone, EventType } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 type ExpiryMode = 'none' | '1h' | '2h' | '4h' | '1d' | 'custom'
@@ -136,6 +142,8 @@ export default {
     const endTime    = ref('')
     const timezones  = ref<Timezone[]>([])
     const timezoneId = ref<number | null>(null)
+    const eventTypes = ref<EventType[]>([])
+    const eventTypeKey = ref('conference')
     const auth       = useAuthStore()
 
     onMounted(async () => {
@@ -144,6 +152,9 @@ export default {
         const def = timezones.value.find((t) => t.isDefault)
         if (def) timezoneId.value = def.id
       } catch (e: any) { /* selector queda vacío, el backend igual usa su propio default */ }
+      try {
+        eventTypes.value = await getActiveEventTypes()
+      } catch (e: any) { /* selector queda vacío, el backend igual usa su propio default "conference" */ }
     })
 
     const minDate = computed(() => new Date().toISOString().slice(0, 16))
@@ -170,7 +181,7 @@ export default {
         const lng = (longitude.value != null && !isNaN(longitude.value)) ? longitude.value : null
         created.value = await createConference(name.value.trim(), expiresAt, auth.state.token as string, lat, lng,
           eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null,
-          displayName.value.trim() || null, timezoneId.value)
+          displayName.value.trim() || null, timezoneId.value, eventTypeKey.value)
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Error al crear la conferencia'
       } finally { loading.value = false }
@@ -187,7 +198,7 @@ export default {
     }
 
     return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
-             eventDate, venue, startTime, endTime, timezones, timezoneId,
+             eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey,
              expiryOptions: EXPIRY_OPTIONS, setExpiryMode, create, formatDate, reset }
   }
 }

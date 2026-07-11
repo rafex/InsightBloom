@@ -269,7 +269,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                     (String) body.get("name"), (String) body.get("displayName"), v.subjectUuid(),
                     (String) body.get("expiresAt"),
                     latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue"),
-                    (String) body.get("startTime"), (String) body.get("endTime"), timezoneId));
+                    (String) body.get("startTime"), (String) body.get("endTime"), timezoneId,
+                    (String) body.get("eventTypeKey")));
             sendOk(jx, 201, result);
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());

@@ -32,12 +32,12 @@
             a(:href="googleCalendarUrl" target="_blank" rel="noopener" @click="showCalendarMenu = false") Google Calendar
             button(type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
       .conf-tabs
-        router-link#onboarding-tab-doubts(:to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
-        router-link#onboarding-tab-topics(:to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
-        router-link#onboarding-tab-presentation(:to="`/c/${friendlyId}/presentation`" active-class="active-tab") Presentación
-        a.tab-disabled(v-if="isAnonymous" title="Inicia sesión para acceder al chat") Chat
-        a.tab-secondary(v-else :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo (opcional)") Chat
-        router-link#onboarding-tab-survey(:to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
+        router-link#onboarding-tab-doubts(v-if="hasCapability('WORD_CLOUD')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
+        router-link#onboarding-tab-topics(v-if="hasCapability('WORD_CLOUD')" :to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
+        router-link#onboarding-tab-presentation(v-if="hasCapability('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab") Presentación
+        a.tab-disabled(v-if="hasCapability('CHAT_BOT') && isAnonymous" title="Inicia sesión para acceder al chat") Chat
+        a.tab-secondary(v-else-if="hasCapability('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo (opcional)") Chat
+        router-link#onboarding-tab-survey(v-if="hasCapability('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
         router-link(v-if="conference.seatingMode && conference.seatingMode !== 'NONE'" :to="`/c/${friendlyId}/ticket`" active-class="active-tab") 🎟️ Mi boleto
     .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
       span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
@@ -55,8 +55,8 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getConferenceByFriendlyId, getTimezones } from '@/services/api/usersApi'
-import type { Conference, Timezone } from '@/services/api/types'
+import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
+import type { Conference, Timezone, EventCapability } from '@/services/api/types'
 import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -80,6 +80,13 @@ export default {
     const showQr     = ref(false)
     const timezones  = ref<Timezone[]>([])
     const showCalendarMenu = ref(false)
+    const capabilities = ref<Set<string>>(new Set())
+
+    function hasCapability(capability: EventCapability): boolean {
+      // Sin catálogo cargado (aún cargando o falló), no se ocultan pestañas — evita parpadeo
+      // y deja que el backend siga siendo la fuente de verdad autoritativa (409 si no aplica).
+      return capabilities.value.size === 0 || capabilities.value.has(capability)
+    }
 
     const auth = useAuthStore()
     const isAnonymous = !auth.isAuthenticated() || auth.state.role === 'guest'
@@ -133,12 +140,15 @@ export default {
 
     onMounted(async () => {
       try {
-        const [conf, tzList] = await Promise.all([
+        const [conf, tzList, eventTypes] = await Promise.all([
           getConferenceByFriendlyId(friendlyId),
-          getTimezones().catch(() => [])
+          getTimezones().catch(() => []),
+          getActiveEventTypes().catch(() => [])
         ])
         conference.value = conf
         timezones.value = tzList
+        const eventType = eventTypes.find((t) => t.key === conf.eventTypeKey)
+        if (eventType) capabilities.value = new Set(eventType.capabilities)
         // Show intro only when conference has a location
         showIntro.value = conference.value?.latitude != null
       } catch (e: any) {
@@ -151,7 +161,7 @@ export default {
     return {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
-      googleCalendarUrl, downloadCalendarFile
+      googleCalendarUrl, downloadCalendarFile, hasCapability
     }
   }
 }

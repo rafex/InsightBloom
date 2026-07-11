@@ -46,7 +46,8 @@ export async function createConference(
   startTime?: string | null,
   endTime?: string | null,
   displayName?: string | null,
-  timezoneId?: number | null
+  timezoneId?: number | null,
+  eventTypeKey?: string | null
 ): Promise<Conference> {
   const body: Record<string, unknown> = { name }
   if (displayName) body.displayName = displayName
@@ -58,6 +59,7 @@ export async function createConference(
   if (startTime) body.startTime = startTime
   if (endTime) body.endTime = endTime
   if (timezoneId != null) body.timezoneId = timezoneId
+  if (eventTypeKey) body.eventTypeKey = eventTypeKey
   const res = await axios.post('/api/users/api/v1/conferences', body, authHeader(token))
   return res.data.data
 }

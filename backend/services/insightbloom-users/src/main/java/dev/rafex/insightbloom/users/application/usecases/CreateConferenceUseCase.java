@@ -22,11 +22,11 @@ public class CreateConferenceUseCase {
     public record CreateRequest(String name, String displayName, String createdByUserUuid, String expiresAt,
                                 Double latitude, Double longitude,
                                 String eventDate, String venue, String startTime, String endTime,
-                                Integer timezoneId) {}
+                                Integer timezoneId, String eventTypeKey) {}
     public record CreateResult(String conferenceId, String friendlyId, String name, String status,
                                String expiresAt, Double latitude, Double longitude,
                                String eventDate, String venue, String startTime, String endTime,
-                               Integer timezoneId) {}
+                               Integer timezoneId, String eventTypeKey) {}
 
     public CreateResult execute(CreateRequest request) {
         String friendlyId = friendlyIdService.generate(request.name());
@@ -42,6 +42,9 @@ public class CreateConferenceUseCase {
         conference.setEndTime(blankToNull(request.endTime()));
         conference.setTimezoneId(request.timezoneId() != null ? request.timezoneId()
                 : timezoneRepository.findDefault().id());
+        if (blankToNull(request.eventTypeKey()) != null) {
+            conference.setEventTypeKey(request.eventTypeKey());
+        }
         conferenceRepository.save(conference);
         return new CreateResult(
             conference.getUuid(), conference.getFriendlyId(),
@@ -50,7 +53,7 @@ public class CreateConferenceUseCase {
             conference.getLatitude(), conference.getLongitude(),
             conference.getEventDate(), conference.getVenue(),
             conference.getStartTime(), conference.getEndTime(),
-            conference.getTimezoneId()
+            conference.getTimezoneId(), conference.getEventTypeKey()
         );
     }
 
