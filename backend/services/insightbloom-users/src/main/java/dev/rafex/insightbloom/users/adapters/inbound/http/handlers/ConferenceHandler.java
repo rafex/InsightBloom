@@ -17,6 +17,7 @@ import dev.rafex.insightbloom.users.application.usecases.GetConferenceSeatMapUse
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetDownloadCountsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetMyTicketUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GetOrCreateEventPadUseCase;
 import dev.rafex.insightbloom.users.application.usecases.JoinConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListReservationsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RecordDownloadUseCase;
@@ -65,6 +66,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final ReserveSeatUseCase reserveSeatUseCase;
     private final SetEventTypeUseCase setEventTypeUseCase;
     private final EventCapabilityGuard eventCapabilityGuard;
+    private final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -89,7 +91,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GetConferenceSeatMapUseCase getConferenceSeatMapUseCase,
                              final ReserveSeatUseCase reserveSeatUseCase,
                              final SetEventTypeUseCase setEventTypeUseCase,
-                             final EventCapabilityGuard eventCapabilityGuard) {
+                             final EventCapabilityGuard eventCapabilityGuard,
+                             final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -114,6 +117,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.reserveSeatUseCase = reserveSeatUseCase;
         this.setEventTypeUseCase = setEventTypeUseCase;
         this.eventCapabilityGuard = eventCapabilityGuard;
+        this.getOrCreateEventPadUseCase = getOrCreateEventPadUseCase;
     }
 
     @Override
@@ -142,6 +146,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
                 Route.of("/{id}/reservations/check-in", Set.of("POST")),
+                Route.of("/{id}/notes", Set.of("GET")),
                 Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
     }
 
@@ -183,6 +188,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/seats")) {
             return handleGetSeatMap(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/notes")) {
+            return handleGetNotes(jx, jx.pathParam("id"));
         }
         final String id = jx.pathParam("id");
         if (id != null) {
@@ -515,6 +523,25 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 409, e.getMessage(), "No se puede cambiar el modo de asientos con reservas activas");
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleGetNotes(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (!hasCapability(id, EventCapability.COLLAB_NOTES)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita notas colaborativas");
+                return true;
+            }
+            getOrCreateEventPadUseCase.execute(id).ifPresentOrElse(
+                    pad -> sendOk(jx, 200, pad),
+                    () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

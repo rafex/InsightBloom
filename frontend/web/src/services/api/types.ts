@@ -14,6 +14,11 @@ export type EventCapability =
 
 export interface IntegrationConfig {
   drawioBaseUrl?: string | null
+  etherpadBaseUrl?: string | null
+}
+
+export interface EventNotesPad {
+  padId: string
 }
 
 export interface EventType {

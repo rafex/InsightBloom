@@ -134,6 +134,51 @@ spec:
           {{- end }}
     {{- end }}
 {{- end }}
+{{- if .Values.ingressEtherpad.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-etherpad
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+    app.kubernetes.io/component: etherpad
+  {{- with .Values.ingressEtherpad.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingressEtherpad.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingressEtherpad.tls }}
+  tls:
+    {{- range .Values.ingressEtherpad.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingressEtherpad.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- with .pathType }}
+            pathType: {{ . }}
+            {{- end }}
+            backend:
+              service:
+                name: {{ include "insightbloom.fullname" $ }}-etherpad
+                port:
+                  number: {{ $.Values.etherpad.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}
 {{- if .Values.ingressTelegram.enabled }}
 ---
 {{- $telegramSvc := .Values.services.telegram }}

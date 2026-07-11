@@ -241,6 +241,9 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN event_type_key TEXT NOT NULL DEFAULT 'conference'");
             } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN notes_purged_at TEXT");
+            } catch (SQLException ignored) {}
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
         }

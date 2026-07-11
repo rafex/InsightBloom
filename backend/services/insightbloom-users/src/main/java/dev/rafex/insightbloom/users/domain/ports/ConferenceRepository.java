@@ -14,6 +14,9 @@ public interface ConferenceRepository {
     List<Conference> findByUser(String userUuid);
     List<Conference> findPendingReminder();
 
+    /** Eventos con fecha/hora de fin conocida cuyo pad de Etherpad aun no se ha purgado (ver DEC-0020). */
+    List<Conference> findPendingNotesPurge();
+
     /**
      * Incrementa atómicamente reserved_count solo si aún no se alcanzó capacity, evitando
      * sobre-reservar en modo GENERAL sin necesidad de locks de aplicación.

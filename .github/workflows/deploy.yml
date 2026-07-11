@@ -188,6 +188,22 @@ jobs:
             --from-literal=internal-api-key="${INTERNAL_API_KEY:-}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Upsert etherpad secrets in k3s
+        env:
+          ETHERPAD_API_KEY: ${{ secrets.ETHERPAD_API_KEY }}
+        run: |
+          if [ -z "$ETHERPAD_API_KEY" ]; then
+            echo "::error::Missing required secret: ETHERPAD_API_KEY"
+            echo "Create it in GitHub repo settings: Settings → Secrets and variables → Actions"
+            echo "Value: any random string (ej. 'openssl rand -hex 32') — must be a fixed, known"
+            echo "value so insightbloom-users can call Etherpad's HTTP API; otherwise Etherpad"
+            echo "would auto-generate its own random key on first boot, unknown to the backend."
+            exit 1
+          fi
+          kubectl -n "$K3S_NAMESPACE" create secret generic "${RELEASE_NAME}-etherpad-secrets" \
+            --from-literal=api-key="$ETHERPAD_API_KEY" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Upsert NATS auth secret in k3s
         env:
           NATS_AUTH_TOKEN: ${{ secrets.NATS_AUTH_TOKEN }}

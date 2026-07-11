@@ -39,6 +39,7 @@
         a.tab-secondary(v-else-if="hasCapability('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo (opcional)") Chat
         router-link#onboarding-tab-survey(v-if="hasCapability('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
         router-link(v-if="hasCapability('DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab") Diagramas
+        router-link(v-if="hasCapability('COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab") Notas
         router-link(v-if="conference.seatingMode && conference.seatingMode !== 'NONE'" :to="`/c/${friendlyId}/ticket`" active-class="active-tab") 🎟️ Mi boleto
     .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
       span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.

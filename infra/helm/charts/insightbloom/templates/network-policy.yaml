@@ -96,6 +96,25 @@ spec:
     - {}
 
 ---
+# 3d. Re-open ingress for etherpad from anywhere — embedded via iframe directly by the
+#     attendee's browser, so it needs its own public ingress (ingressEtherpad) like drawio.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-allow-etherpad-ingress
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: etherpad
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+
+---
 # 4. Re-open ingress for all backend services from pods inside the same namespace.
 #    Covers: users → other services (cascade delete), nginx → backends, chat → backends.
 apiVersion: networking.k8s.io/v1

@@ -110,6 +110,29 @@ drawio:
       cpu: 300m
       memory: 512Mi
 
+# Etherpad tambien es una instancia compartida (multi-tenant), pero a diferencia de
+# drawio SI persiste datos del lado del servidor: un pad por evento (padID = event.uuid),
+# en SQLite sobre un PVC dedicado. Replica unica y fija (ver nota en el Deployment) —
+# los pads son efimeros por diseño (TTL = fin del evento + 1h, job de limpieza en
+# insightbloom-users, ver DEC-0020), asi que no necesita la robustez de un motor
+# externo como Postgres.
+etherpad:
+  enabled: true
+  repository: etherpad/etherpad
+  tag: "2.3.1"
+  port: 9001
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: local-path
+  resources:
+    requests:
+      cpu: 30m
+      memory: 192Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
+
 ingress:
   enabled: true
   className: haproxy
@@ -162,6 +185,19 @@ ingressDrawio:
           pathType: Prefix
   tls: []
 
+ingressEtherpad:
+  enabled: true
+  className: haproxy
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    ingress.kubernetes.io/backend-protocol: "http"
+  hosts:
+    - host: etherpad-insightbloom.v1.rafex.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
 # ── Services ───────────────────────────────────────────────────────────────────
 services:
   users:
@@ -190,6 +226,7 @@ services:
       SURVEY_URL: http://insightbloom-survey:8086
       TELEGRAM_URL: http://insightbloom-telegram:8095
       DRAWIO_BASE_URL: https://drawio-insightbloom.v1.rafex.cloud
+      ETHERPAD_BASE_URL: https://etherpad-insightbloom.v1.rafex.cloud
       TWILIO_ACCOUNT_SID: ""
       TWILIO_FROM_NUMBER: ""
       ZOHO_SMTP_HOST: "smtppro.zoho.com"
@@ -206,6 +243,9 @@ services:
       - name: INTERNAL_API_KEY
         secretName: insightbloom-internal-secrets
         secretKey: internal-api-key
+      - name: ETHERPAD_API_KEY
+        secretName: insightbloom-etherpad-secrets
+        secretKey: api-key
 
   stats:
     repository: ghcr.io/rafex/insightbloom-stats

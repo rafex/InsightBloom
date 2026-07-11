@@ -17,12 +17,14 @@ import java.util.Set;
 public class IntegrationConfigHandler extends BaseResourceHandler {
 
     private final String drawioBaseUrl;
+    private final String etherpadBaseUrl;
 
-    public IntegrationConfigHandler(final String drawioBaseUrl) {
+    public IntegrationConfigHandler(final String drawioBaseUrl, final String etherpadBaseUrl) {
         this.drawioBaseUrl = drawioBaseUrl;
+        this.etherpadBaseUrl = etherpadBaseUrl;
     }
 
-    public record IntegrationConfigView(String drawioBaseUrl) {}
+    public record IntegrationConfigView(String drawioBaseUrl, String etherpadBaseUrl) {}
 
     @Override
     protected String basePath() {
@@ -42,7 +44,7 @@ public class IntegrationConfigHandler extends BaseResourceHandler {
     @Override
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
-        sendOk(jx, new IntegrationConfigView(drawioBaseUrl));
+        sendOk(jx, new IntegrationConfigView(drawioBaseUrl, etherpadBaseUrl));
         return true;
     }
 }

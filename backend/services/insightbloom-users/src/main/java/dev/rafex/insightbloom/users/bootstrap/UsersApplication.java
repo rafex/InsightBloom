@@ -25,6 +25,8 @@ public class UsersApplication {
         final String telegramUrl = System.getenv().getOrDefault("TELEGRAM_URL", "http://insightbloom-telegram:8095");
         final String internalApiKey = System.getenv().getOrDefault("INTERNAL_API_KEY", "");
         final String drawioBaseUrl = System.getenv().getOrDefault("DRAWIO_BASE_URL", "");
+        final String etherpadBaseUrl = System.getenv().getOrDefault("ETHERPAD_BASE_URL", "");
+        final String etherpadApiKey = System.getenv().getOrDefault("ETHERPAD_API_KEY", "");
 
         final String twilioAccountSid = System.getenv().getOrDefault("TWILIO_ACCOUNT_SID", "");
         final String twilioAuthToken = System.getenv().getOrDefault("TWILIO_AUTH_TOKEN", "");
@@ -72,6 +74,8 @@ public class UsersApplication {
         final var emailPort = new ZohoEmailClient(zohoSmtpHost, zohoSmtpPort, zohoUsername, zohoPassword, zohoFromAddress);
         final var surveyPort = new HttpSurveyClient(surveyUrl);
         final var telegramNotifyPort = new HttpTelegramNotifyClient(telegramUrl, internalApiKey);
+        final var etherpadPort = new dev.rafex.insightbloom.users.adapters.outbound.etherpadclient.HttpEtherpadPort(
+                etherpadBaseUrl, etherpadApiKey);
 
         // Use cases
         final var loginUseCase = new LoginUseCase(userRepo, tokenService, passwordService);
@@ -124,8 +128,11 @@ public class UsersApplication {
         final var setEventTypeActiveUseCase = new SetEventTypeActiveUseCase(eventTypeRepo);
         final var sendConferenceRemindersUseCase = new SendConferenceRemindersUseCase(
                 conferenceRepo, membershipRepo, userRepo, timezoneRepo, emailPort, reservationRepo, frontendBaseUrl);
+        final var purgeExpiredEventNotesUseCase = new PurgeExpiredEventNotesUseCase(
+                conferenceRepo, timezoneRepo, etherpadPort);
         final var eventCapabilityGuard = new dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard(eventTypeRepo);
         final var setEventTypeUseCase = new SetEventTypeUseCase(conferenceRepo, eventTypeRepo, reservationRepo);
+        final var getOrCreateEventPadUseCase = new GetOrCreateEventPadUseCase(conferenceRepo, etherpadPort);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -138,7 +145,7 @@ public class UsersApplication {
                 setSeatingModeUseCase, reserveGeneralUseCase, getMyTicketUseCase, cancelReservationUseCase,
                 listReservationsUseCase, checkInTicketUseCase,
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
-                setEventTypeUseCase, eventCapabilityGuard);
+                setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
@@ -150,7 +157,7 @@ public class UsersApplication {
         final var eventTypeHandler = new EventTypeHandler(listEventTypesUseCase, createEventTypeUseCase,
                 updateEventTypeUseCase, setEventTypeActiveUseCase, validateTokenUseCase);
         final var eventCapabilityHandler = new EventCapabilityHandler();
-        final var integrationConfigHandler = new IntegrationConfigHandler(drawioBaseUrl);
+        final var integrationConfigHandler = new IntegrationConfigHandler(drawioBaseUrl, etherpadBaseUrl);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -187,6 +194,11 @@ public class UsersApplication {
                 sendConferenceRemindersUseCase.execute(java.time.Instant.now());
             } catch (final Exception e) {
                 System.err.println("conference-reminder-scheduler: tick failed: " + e.getMessage());
+            }
+            try {
+                purgeExpiredEventNotesUseCase.execute(java.time.Instant.now());
+            } catch (final Exception e) {
+                System.err.println("event-notes-purge-scheduler: tick failed: " + e.getMessage());
             }
         }, 1, 5, java.util.concurrent.TimeUnit.MINUTES);
 

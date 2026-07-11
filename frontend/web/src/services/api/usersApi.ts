@@ -2,7 +2,7 @@ import axios from 'axios'
 import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
-  SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig
+  SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -258,5 +258,11 @@ export async function setEventTypeActive(uuid: string, active: boolean, token: s
 /** URLs publicas de las integraciones self-hosted configuradas (drawio, etc.), sin credenciales. */
 export async function getIntegrationConfig(): Promise<IntegrationConfig> {
   const res = await axios.get('/api/users/api/v1/integrations')
+  return res.data.data
+}
+
+/** Crea (perezosamente) y devuelve el pad de Etherpad del evento. */
+export async function getEventNotes(conferenceId: string, token: string): Promise<EventNotesPad> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/notes`, authHeader(token))
   return res.data.data
 }

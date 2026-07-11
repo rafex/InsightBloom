@@ -227,34 +227,48 @@ hasta el primer despliegue real en K3s — no verificable sin un cluster.
 
 ### TASK-0033: Helm chart Etherpad self-hosted + API key
 
-**Estado:** todo
+**Estado:** done
 **Owner:** —
 **Dependencias:** ninguna
-**Archivos esperados:** `infra/helm/charts/etherpad/`, Kubernetes secret
-para la API key (nunca versionada en el repo, ver NFR-007).
+**Archivos esperados:**
+`infra/helm/charts/insightbloom/templates/etherpad-deployment.yaml`,
+`etherpad-service.yaml`, `etherpad-pvc.yaml` (instancia unica compartida,
+SQLite sobre PVC — ver DEC-0020; replica fija en 1, sin HPA, porque
+Etherpad mantiene el estado de edicion en vivo en memoria del proceso),
+`ingress.yaml` (bloque `ingressEtherpad`), `network-policy.yaml` (regla de
+ingress publico), `values.yaml` (`etherpad:` + `ingressEtherpad:`),
+`.github/workflows/deploy.yml` (step "Upsert etherpad secrets in k3s",
+falla el deploy si falta el secret `ETHERPAD_API_KEY` — nunca versionado
+en el repo, ver NFR-007; se monta como `/opt/etherpad-lite/APIKEY.txt` via
+`subPath` en vez de usar dirtydb).
 **Criterio de cierre:** se puede crear un pad via la API HTTP de Etherpad
 usando la API key generada al desplegar.
-**Validacion:** `helm template` + prueba manual con `curl` contra la API.
+**Validacion:** `helm lint`/`helm template` verificados en verde. Prueba
+manual con `curl` contra la API **pendiente** hasta el primer despliegue
+real en K3s.
 
 ## Fase 4 — Integracion backend + frontend
 
 ### TASK-0040: Configuracion de URLs/credenciales de integraciones self-hosted
 
-**Estado:** parcial (slice de drawio hecho; Jitsi/Excalidraw/Etherpad pendientes)
+**Estado:** parcial (drawio + Etherpad hechos; Jitsi/Excalidraw pendientes)
 **Owner:** —
 **Dependencias:** TASK-0030, TASK-0031, TASK-0032, TASK-0033
 **Archivos esperados:** `UsersApplication.java` (variables de entorno
 `JITSI_SELF_HOSTED_DOMAIN`, `EXCALIDRAW_BASE_URL`, `DRAWIO_BASE_URL` ✅,
-`ETHERPAD_BASE_URL`, `ETHERPAD_API_KEY`), Helm `values.yaml` +
+`ETHERPAD_BASE_URL` ✅, `ETHERPAD_API_KEY` ✅), Helm `values.yaml` +
 `deploy.yml` para inyectarlas.
 **Criterio de cierre:** el backend expone estas URLs (sin exponer la API
 key de Etherpad) via un endpoint de configuracion publica que el frontend
-consulta para armar los `iframe`. ✅ Hecho para drawio:
+consulta para armar los `iframe`. ✅ Hecho para drawio y Etherpad:
 `IntegrationConfigHandler` (`GET /api/v1/integrations`) devuelve
-`drawioBaseUrl`; queda extender el mismo handler con los campos de
-Jitsi/Excalidraw/Etherpad cuando se implementen.
+`drawioBaseUrl` y `etherpadBaseUrl` (nunca `ETHERPAD_API_KEY`, que solo
+vive como `secretEnv` de `insightbloom-users`); queda extender el mismo
+handler con los campos de Jitsi/Excalidraw cuando se implementen.
 **Validacion:** `mvn -o test` + revision manual de que la API key nunca
-aparece en una respuesta HTTP.
+aparece en una respuesta HTTP — confirmado: `IntegrationConfigView` solo
+expone `drawioBaseUrl`/`etherpadBaseUrl`, `ETHERPAD_API_KEY` solo se lee
+para pasarlo al constructor de `HttpEtherpadPort`, nunca a una vista.
 
 ### TASK-0041: Campo `videoProvider` + endpoint de configuracion de Jitsi por evento
 
@@ -272,22 +286,27 @@ evento; cambiarlo no requiere reiniciar nada.
 
 ### TASK-0042: `EtherpadClient` + creacion perezosa de pad por evento
 
-**Estado:** todo
+**Estado:** done (falta solo la prueba manual contra la instancia real desplegada)
 **Owner:** —
 **Dependencias:** TASK-0040
 **Archivos esperados:** `domain/ports/EtherpadPort.java`,
 `adapters/outbound/etherpadclient/HttpEtherpadPort.java`,
 `application/usecases/GetOrCreateEventPadUseCase.java` (crea el pad con
 `padID = event.uuid` en el primer acceso, idempotente), ruta
-`GET /{id}/notes` (gateada por `COLLAB_NOTES`).
+`GET /{id}/notes` (gateada por `COLLAB_NOTES`). Tambien se agrego
+`PurgeExpiredEventNotesUseCase` (no estaba en el alcance original de esta
+tarea, pero es necesario para cerrar DEC-0020): borra el pad cuando
+`event.eventDate + event.endTime + 1h` ya paso, marcado via la nueva
+columna `notes_purged_at` para no reintentar cada tick; corre en el mismo
+scheduler in-process que `SendConferenceRemindersUseCase`.
 **Criterio de cierre:** el primer asistente que abre "Notas" crea el pad;
 los siguientes reutilizan el mismo pad sin duplicarlo.
-**Validacion:** test con fake de `EtherpadPort` + prueba manual contra la
-instancia real desplegada en TASK-0033.
+**Validacion:** `mvn -o test` en verde (0 regresiones). Prueba manual
+contra la instancia real desplegada en TASK-0033 **pendiente**.
 
 ### TASK-0043: Pestañas frontend "Videollamada", "Pizarra", "Diagramas", "Notas"
 
-**Estado:** parcial (slice de drawio hecho; Videollamada/Pizarra/Notas pendientes)
+**Estado:** parcial (Diagramas + Notas hechas; Videollamada/Pizarra pendientes)
 **Owner:** —
 **Dependencias:** TASK-0022, TASK-0041, TASK-0042
 **Archivos esperados:**
@@ -298,11 +317,14 @@ opciones de UI),
 `iframe` con la sala derivada del `uuid`),
 `pages/conference/DiagrammingPage.vue` ✅ (embebe drawio en `iframe`,
 degrada con mensaje claro si `drawioBaseUrl` no esta configurado — NFR-006),
-`pages/conference/CollabNotesPage.vue` (embebe Etherpad en `iframe` usando
-la URL del pad obtenida via TASK-0042),
-`app/router/index.ts` ✅ (ruta `/c/:friendlyId/diagrams` agregada),
-`ConferencePage.vue` ✅ (pestaña "Diagramas" gateada por `DIAGRAMMING`,
-mismo patron de TASK-0022; faltan las otras 3 pestañas).
+`pages/conference/CollabNotesPage.vue` ✅ (embebe Etherpad en `iframe`
+usando la URL del pad obtenida via TASK-0042, degrada igual que Diagramas
+si `etherpadBaseUrl` no esta configurado o la llamada a `/notes` falla),
+`app/router/index.ts` ✅ (rutas `/c/:friendlyId/diagrams` y `/notes`
+agregadas),
+`ConferencePage.vue` ✅ (pestañas "Diagramas" y "Notas" gateadas por
+`DIAGRAMMING`/`COLLAB_NOTES`, mismo patron de TASK-0022; faltan
+Videollamada y Pizarra).
 **Criterio de cierre:** cada pestaña solo aparece si su capacidad esta
 activa; si la integracion self-hosted correspondiente no responde, se
 muestra un mensaje claro (NFR-006) en vez de una pantalla en blanco.
