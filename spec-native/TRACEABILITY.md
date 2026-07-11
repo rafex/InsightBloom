@@ -9,6 +9,7 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | SPEC-MAIN | spec | ARCHITECTURE.md, STACK.md, DECISIONS.md | Spec activa principal |
 | SPEC-MOD-DASH | spec | SPEC-MAIN | Dashboard de moderación |
 | SPEC-BACKEND-CONTRACTS | spec | ARCHITECTURE.md, DECISIONS.md | Contratos entre servicios |
+| SPEC-EVENT-TYPES-CATALOG | spec | ARCHITECTURE.md, DECISIONS.md, ROADMAP.md, ROLES.md | Catalogo de tipos de evento admin-managed (draft) |
 | DEC-0001 | decision | ARCHITECTURE.md | SQLite como persistencia |
 | DEC-0002 | decision | ARCHITECTURE.md | Microservicios separados |
 | DEC-0003 | decision | ARCHITECTURE.md | UUID externos, serial internos |
@@ -24,6 +25,10 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | DEC-0013 | decision | STACK.md, pipelines/CD.md | OTP dual Twilio + Zoho |
 | DEC-0014 | decision | STACK.md, backend/services/insightbloom-survey | LLM para survey |
 | DEC-0015 | decision | spec-native/*, AGENTS.md, opencode.json | Migración SpecNative v0.7 |
+| DEC-0016 | decision | SPEC-EVENT-TYPES-CATALOG | Catalogo de tipos de evento gateado por capacidades (proposed) |
+| DEC-0017 | decision | SPEC-EVENT-TYPES-CATALOG, STACK.md | Jitsi/Excalidraw/drawio/Etherpad self-hosted en K3s (proposed) |
+| DEC-0018 | decision | SPEC-EVENT-TYPES-CATALOG, backend/services/insightbloom-survey | SurveyJS como motor alternativo (proposed, licencia pendiente) |
+| DEC-0019 | decision | SPEC-EVENT-TYPES-CATALOG, backend/services/insightbloom-users | seatmap-canvas como motor de mapa alternativo (proposed, mantenimiento pendiente) |
 | SEC-001 | security | agents/SECURITY.md | Auditoría de seguridad (7 hallazgos) |
 | DIAG-001 | diagnostic | agents/DIAGNOSE.md | Diagnóstico del proyecto 2026-06-26 |
 
@@ -36,6 +41,7 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | main | specs/main/SPEC.md | — | active |
 | moderation-dashboard | specs/moderation-dashboard/SPEC.md | — | done |
 | backend-contracts | specs/backend-contracts/SPEC.md | — | draft |
+| event-types-catalog | specs/event-types-catalog/SPEC.md | 0/0/0 (ver tasks/event-types-catalog/TASKS.md) | draft |
 
 ---
 

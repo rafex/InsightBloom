@@ -9,6 +9,7 @@ Cada iniciativa tiene su propia carpeta con `SPEC.md`.
 | — | [main](./main/SPEC.md) | active | team |
 | — | [moderation-dashboard](./moderation-dashboard/SPEC.md) | draft | team |
 | — | [backend-contracts](./backend-contracts/SPEC.md) | draft | team |
+| — | [event-types-catalog](./event-types-catalog/SPEC.md) | draft | team |
 
 ## Cómo crear una nueva iniciativa
 

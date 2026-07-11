@@ -19,6 +19,30 @@ Direccion del proyecto en el tiempo. Actualizado post-PoC, fase producto.
 
 ## Mas adelante (futuro)
 
+- Catalogo de tipos de evento administrado por `ADMIN` (conferencia, taller,
+  standup, concierto...), cada uno habilitando ciertas capacidades de la
+  plataforma: boletos, mapa de asientos, encuestas, presentaciones, nube de
+  palabras, chat, videollamada/transmision (Jitsi publico `meet.jit.si` o
+  self-hosted en K3s), pizarra colaborativa (Excalidraw self-hosted),
+  diagramas (drawio self-hosted), notas colaborativas (Etherpad
+  self-hosted), un motor de encuestas alternativo con editor visual
+  (SurveyJS, ademas del motor propio) y un motor de mapa de asientos
+  alternativo para recintos con distribucion real de filas/butacas
+  (seatmap-canvas, ademas del editor de marcadores libres actual). Ver
+  `specs/event-types-catalog/SPEC.md` (draft).
+- IDE web con ejecucion aislada de codigo (Java, Python, JavaScript, Rust) y
+  previsualizacion estatica HTML/CSS, como una capacidad mas del catalogo
+  de tipos de evento (ej. para "Taller"). Bloqueado hasta definir las reglas
+  de seguridad de ejecucion de codigo — sin spec todavia. Nota de direccion
+  a evaluar cuando se priorice: `code-server` (coder/code-server) vs
+  `openvscode-server` (gitpod-io/openvscode-server) como base del IDE en
+  vez de un motor de ejecucion a medida por lenguaje (ver Excludes de
+  `specs/event-types-catalog/SPEC.md`).
+- Motor de certificados alternativo con **pdfme** (generador + diseñador
+  visual de plantillas PDF, MIT), como alternativa al configurador de
+  certificados actual. Capacidad `CERTIFICATE_PDFME` reservada en el
+  catalogo de `event-types-catalog`, sin iniciativa de implementacion
+  propia todavia.
 - Analitica avanzada de participacion.
 - Recomendaciones o agrupaciones semanticas avanzadas.
 - Soporte multi-conferencia desde una misma interfaz de organizador.
@@ -44,8 +68,10 @@ Direccion del proyecto en el tiempo. Actualizado post-PoC, fase producto.
 - Docker Compose con 9 servicios, healthchecks, volumenes.
 - CI/CD con GitHub Actions (build, test, publish, deploy).
 - Migracion de documentacion a SpecNative v0.7.
+- Reservas de boletos gratuitas con QR y check-in (modo GENERAL, aforo).
+- Reserva de asiento especifico via mapa del recinto (modo SEATED).
 
 ## No hacer por ahora
 
-- Ticketing, pagos o registro masivo de asistentes.
+- Cobro o pagos sobre reservas/boletos.
 - Clustering semantico avanzado por IA.

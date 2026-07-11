@@ -340,3 +340,136 @@ Registrar una decision cuando cambie:
   la migracion es incremental — los documentos se actualizan progresivamente
   para reflejar el codigo real.
 - Reemplaza: `none`
+
+### DEC-0016 - Catalogo de tipos de evento administrado por ADMIN, gateado por capacidades
+
+- Fecha: 2026-07-10
+- Estado: proposed
+- Contexto:
+  con la llegada de boletos digitales, la plataforma puede soportar mas
+  formatos de evento que solo "conferencia" (taller, standup, concierto,
+  tocada...). Fijar estos tipos como un enum cerrado en codigo obligaria a
+  un release por cada tipo nuevo, y el organizador no es quien deberia
+  decidir que "tecnologias" trae cada tipo — esa es una decision de
+  plataforma que le corresponde al rol `ADMIN` (DEC-0011).
+- Decision:
+  el catalogo de **capacidades** (boletos con aforo, mapa de asientos,
+  encuestas, presentaciones, nube de palabras, chat, videollamada Jitsi,
+  pizarra Excalidraw, diagramas drawio, notas Etherpad, y a futuro IDE de
+  codigo) vive fijo en codigo como enum. El catalogo de **tipos de evento**
+  (que combinacion de capacidades trae cada tipo) es administrado por
+  `ADMIN` en runtime, persistido en una tabla `event_types` nueva.
+  `Conference` gana una referencia (`event_type_key`) a un tipo del
+  catalogo, con `"conference"` como valor por defecto sembrado y aplicado a
+  todo evento existente (compatibilidad hacia atras automatica, mismo
+  patron que `seating_mode`). Las rutas y la UI gatean por capacidad
+  (`hasCapability(X)`), nunca comparando el tipo de evento por nombre.
+- Consecuencias:
+  agregar un tipo de evento nuevo (ej. "Concierto") es una operacion de
+  `ADMIN` en runtime, sin release;
+  agregar una capacidad nueva (ej. `CODE_IDE` cuando se definan sus reglas
+  de seguridad) sigue siendo un cambio de codigo acotado a un enum + su
+  gate, sin tocar el modelo de `EventType`;
+  toda conferencia existente sigue funcionando igual sin migracion manual;
+  la ejecucion de codigo (capacidad `CODE_IDE`) queda explicitamente fuera
+  de esta decision — se definira por separado cuando el usuario fije las
+  reglas de seguridad de ejecucion.
+- Reemplaza: `none`
+
+### DEC-0017 - Colaboracion en vivo (Jitsi, Excalidraw, drawio, Etherpad) autoalojada en K3s, con Jitsi dual
+
+- Fecha: 2026-07-10
+- Estado: proposed
+- Contexto:
+  eventos remotos o con transmision necesitan videollamada, y talleres o
+  standups se benefician de pizarra, diagramas y notas compartidas en vivo.
+  El proyecto ya opera su propio K3s con Helm para todos sus servicios y
+  prefiere no depender de SaaS de pago para herramientas que tienen
+  alternativa open source auto-alojable.
+- Decision:
+  Excalidraw, drawio y Etherpad se despliegan como instancias propias en el
+  K3s del proyecto, cada una con su propio Helm chart. Jitsi se soporta en
+  dos modalidades simultaneas y seleccionables por el organizador: la
+  instancia publica `meet.jit.si` (cero infraestructura, sujeta a limites
+  de terceros) y una instancia propia self-hosted en el mismo K3s (Helm
+  chart de Jitsi Meet). El nombre de sala/pad de cada integracion se deriva
+  deterministicamente del `uuid` del evento, sin necesidad de coordinacion
+  manual entre asistentes.
+- Consecuencias:
+  el proyecto gana 4 piezas de infraestructura nuevas para operar y
+  actualizar (mas Helm charts, mas pods, mas superficie de monitoreo);
+  el organizador puede elegir Jitsi publico para una prueba rapida sin
+  esperar infraestructura propia, o self-hosted cuando necesite mas control
+  o volumen sin los limites de `meet.jit.si`;
+  ninguna de estas integraciones persiste contenido en la base de datos de
+  InsightBloom en su primera version (drawio no guarda el diagrama, Jitsi
+  no graba) — ver Excludes del spec para el detalle;
+  las credenciales (API key de Etherpad, si se agrega JWT de Jitsi
+  self-hosted mas adelante) se inyectan por variable de entorno y
+  Kubernetes secret, nunca versionadas (mismo criterio que DEC-0013).
+- Reemplaza: `none`
+
+### DEC-0018 - SurveyJS como motor de encuestas alternativo, no reemplazo
+
+- Fecha: 2026-07-10
+- Estado: proposed
+- Contexto:
+  el motor de encuestas propio (`insightbloom-survey`) cubre tipos de
+  pregunta basicos y calificacion LLM opcional (DEC-0014). SurveyJS ofrece
+  un editor visual (drag-and-drop) y un modelo de pregunta mas amplio, util
+  para organizadores que quieren armar encuestas complejas sin depender del
+  editor propio.
+- Decision:
+  el organizador elige, por encuesta, un `engine` (`NATIVE` o `SURVEYJS`),
+  fijo despues de creada. Ambos motores viven dentro de
+  `insightbloom-survey` y comparten la misma asociacion evento/asistente y
+  el mismo dashboard de resultados; una encuesta `SURVEYJS` persiste su
+  definicion como el JSON schema nativo de `survey-core`. **Pendiente**:
+  confirmar antes de implementar (TASK-0050) si `survey-creator-*` (el
+  editor visual) se puede usar en produccion sin costo ni marca de agua
+  bajo la licencia vigente de SurveyJS; si no, la primera version solo
+  ofrece el render (`survey-core`/`survey-js-ui`) sobre un schema
+  editado/importado a mano, sin editor visual.
+- Consecuencias:
+  el organizador gana una alternativa mas rica para encuestas complejas sin
+  perder el motor propio ya construido;
+  se duplica el esfuerzo de mantenimiento entre dos motores de encuesta;
+  la calificacion automatica con LLM (DEC-0014) sigue disponible solo para
+  `NATIVE` en esta primera version;
+  el estado `proposed` debe pasar a `accepted` una vez resuelto el punto de
+  licencia pendiente.
+- Reemplaza: `none`
+
+### DEC-0019 - seatmap-canvas como motor alternativo de mapa de asientos, no reemplazo
+
+- Fecha: 2026-07-10
+- Estado: proposed
+- Contexto:
+  el editor de mapa de asientos de la Fase 2 de ticketing (`FREEFORM`,
+  marcadores libres sobre una imagen) sirve para recintos sin layout fijo,
+  pero no representa bien un recinto con asientos numerados reales (teatro,
+  auditorio, sala de cine), donde el organizador necesita definir filas y
+  secciones, no solo puntos sueltos.
+- Decision:
+  para `TICKETING_SEATED`, el organizador elige un `venueMapEngine`:
+  `FREEFORM` (existente, sigue siendo el default) o `SEATMAP_CANVAS`,
+  basado en la libreria `alisaitteke/seatmap-canvas` (MIT), que modela
+  filas/secciones/butacas numeradas. Ambos motores comparten el mismo
+  mecanismo de reserva y concurrencia ya construido
+  (`ReserveSeatUseCase` + `UNIQUE(conference_uuid, seat_uuid)`); solo
+  cambia como se define y renderiza el layout, no como se reserva un
+  asiento. **Pendiente**: confirmar antes de implementar (TASK-0060) que
+  `seatmap-canvas` sigue mantenido y es viable integrar en el stack Vue 3
+  actual (es una libreria canvas vanilla-JS, requiere un wrapper).
+- Consecuencias:
+  el organizador con un recinto real gana un editor mas fiel a la
+  distribucion fisica del lugar, sin perder `FREEFORM` para casos sin
+  layout fijo;
+  se agrega una dependencia externa de un proyecto de mantenimiento no
+  garantizado — si deja de ser viable, `FREEFORM` sigue siendo el camino
+  soportado por defecto;
+  el modelo de datos de `venue_seats` debe seguir siendo compatible con
+  ambos motores sin duplicar la logica de reserva ya construida;
+  el estado `proposed` debe pasar a `accepted` una vez confirmado el punto
+  de mantenimiento/compatibilidad pendiente.
+- Reemplaza: `none`
