@@ -44,13 +44,17 @@
             span(v-else) …
           td.actions-cell(data-label="Acciones")
             .conf-actions
-              a.btn-highlight(:href="`/c/${c.friendlyId}/presentation`" target="_blank") 🔴 Live
               button.btn-highlight(@click="qrTarget = c") QR
               router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editar
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Moderación
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
-              router-link.btn-highlight(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
+              template(v-if="hasCapability(c, 'PRESENTATION')")
+                a.btn-highlight(:href="`/c/${c.friendlyId}/presentation`" target="_blank") 🔴 Live
+                router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
+                router-link.btn-highlight(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
+              router-link.btn-ghost(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Moderación
+              router-link.btn-ghost(v-if="hasCapability(c, 'SURVEY')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
+              template(v-if="c.seatingMode && c.seatingMode !== 'NONE'")
+                router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/check-in`") Check-in
+                router-link.btn-ghost(v-if="c.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/venue-map`") Mapa de asientos
               button.btn-trash(@click="confirmDelete(c)" :disabled="c._deleting" title="Eliminar conferencia")
                 svg(xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
                   polyline(points="3 6 5 6 21 6")
@@ -75,7 +79,7 @@ import { ref, onMounted } from 'vue'
 import { getConferences, deleteConference, getDownloadCounts, getActiveEventTypes } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import QrCodeModal from '@/components/QrCodeModal.vue'
-import type { Conference, DownloadCounts, EventType } from '@/services/api/types'
+import type { Conference, DownloadCounts, EventType, EventCapability } from '@/services/api/types'
 
 interface ConferenceRow extends Conference {
   conferenceId?: string
@@ -113,6 +117,14 @@ export default {
 
     function eventTypeName(key?: string): string {
       return eventTypes.value.find((t) => t.key === key)?.name || key || '—'
+    }
+
+    function hasCapability(c: ConferenceRow, capability: EventCapability): boolean {
+      // Catálogo aún no cargado (o falló): no ocultar acciones — el backend sigue siendo el
+      // gate autoritativo (409 capability_not_available), esto solo evita parpadeo/falsos negativos.
+      if (eventTypes.value.length === 0) return true
+      const type = eventTypes.value.find((t) => t.key === c.eventTypeKey)
+      return type ? type.capabilities.includes(capability) : true
     }
 
     async function loadDownloadCounts() {
@@ -161,7 +173,7 @@ export default {
 
     return {
       conferences, loading, deleteTarget, qrTarget, downloadCounts, isAdmin,
-      isExpired, formatRelative, confirmDelete, doDelete, eventTypeName
+      isExpired, formatRelative, confirmDelete, doDelete, eventTypeName, hasCapability
     }
   }
 }
