@@ -26,6 +26,11 @@ spec:
       serviceAccountName: {{ include "insightbloom.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        # fsGroup asegura que los volumenes (incluido el emptyDir de "var" de abajo) queden
+        # escribibles por el uid no-root del contenedor. Sin esto, Etherpad falla al arrancar
+        # con EACCES al intentar escribir var/installed_plugins.json (ese directorio, parte
+        # de la imagen, no es escribible por el uid 1000 forzado por .Values.securityContext).
+        fsGroup: {{ .Values.securityContext.runAsUser | default 1000 }}
       containers:
         - name: etherpad
           securityContext:
@@ -80,6 +85,11 @@ spec:
               mountPath: /opt/etherpad-lite/APIKEY.txt
               subPath: APIKEY.txt
               readOnly: true
+            # var/ guarda bookkeeping de plugins (installed_plugins.json, etc.) que Etherpad
+            # necesita poder escribir al arrancar; no es parte de /data (efimero esta bien,
+            # se regenera solo).
+            - name: var
+              mountPath: /opt/etherpad-lite/var
       volumes:
         - name: data
           {{- if .Values.etherpad.persistence.enabled }}
@@ -94,4 +104,6 @@ spec:
             items:
               - key: api-key
                 path: APIKEY.txt
+        - name: var
+          emptyDir: {}
 {{- end }}
