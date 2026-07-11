@@ -52,6 +52,17 @@
     .map-preview(v-if="latitude != null && longitude != null && !isNaN(latitude) && !isNaN(longitude)")
       ConferenceMap(:latitude="latitude" :longitude="longitude" :label="displayName || 'Conferencia'")
 
+    .form-group(v-if="eventTypes.length")
+      label Tipo de evento
+      select(v-model="eventTypeKey")
+        option(v-for="t in eventTypes" :key="t.key" :value="t.key") {{ t.name }}
+      p.field-hint Determina qué herramientas están disponibles (boletos, encuestas, videollamada...).
+      button.btn-outline(type="button" @click="saveEventType" :disabled="savingEventType")
+        span(v-if="savingEventType") Guardando...
+        span(v-else) Guardar tipo de evento
+      p.success(v-if="eventTypeSaved") Tipo de evento actualizado.
+      p.error(v-if="eventTypeError") {{ eventTypeError }}
+
     .form-group.tickets-group
       label Boletos
       p.field-hint Elige cómo se registran los asistentes: sin control, con aforo, o con mapa de asientos.
@@ -91,8 +102,8 @@
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
-import { getConference, updateConference, getTimezones, setSeatingMode } from '@/services/api/usersApi'
-import type { Conference, Timezone, SeatingMode } from '@/services/api/types'
+import { getConference, updateConference, getTimezones, setSeatingMode, getActiveEventTypes, setEventType } from '@/services/api/usersApi'
+import type { Conference, Timezone, SeatingMode, EventType } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -123,15 +134,23 @@ export default {
     const savingSeating = ref(false)
     const seatingSaved  = ref(false)
     const seatingError  = ref('')
+    const eventTypes    = ref<EventType[]>([])
+    const eventTypeKey  = ref('conference')
+    const savingEventType = ref(false)
+    const eventTypeSaved  = ref(false)
+    const eventTypeError  = ref('')
 
     onMounted(async () => {
       try {
-        const [conf, tzList] = await Promise.all([
+        const [conf, tzList, types] = await Promise.all([
           getConference(props.conferenceId as string, auth.state.token as string),
-          getTimezones()
+          getTimezones(),
+          getActiveEventTypes()
         ])
         conference.value = conf
         timezones.value = tzList
+        eventTypes.value = types
+        eventTypeKey.value = conference.value.eventTypeKey || 'conference'
         displayName.value = conference.value.name || ''
         eventDate.value = (conference.value.eventDate as string) || ''
         venue.value = (conference.value.venue as string) || ''
@@ -198,10 +217,23 @@ export default {
       }
     }
 
+    async function saveEventType() {
+      savingEventType.value = true; eventTypeError.value = ''; eventTypeSaved.value = false
+      try {
+        conference.value = await setEventType(props.conferenceId as string, eventTypeKey.value, auth.state.token as string)
+        eventTypeSaved.value = true
+      } catch (e: any) {
+        eventTypeError.value = e.response?.data?.error?.message || 'No se pudo guardar el tipo de evento'
+      } finally {
+        savingEventType.value = false
+      }
+    }
+
     return { conference, loading, error, saving, saveError, saved, displayName,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
              timezones, timezoneId, onFlyerSelected, save,
-             seatingMode, capacity, savingSeating, seatingSaved, seatingError, saveSeating }
+             seatingMode, capacity, savingSeating, seatingSaved, seatingError, saveSeating,
+             eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType }
   }
 }
 </script>

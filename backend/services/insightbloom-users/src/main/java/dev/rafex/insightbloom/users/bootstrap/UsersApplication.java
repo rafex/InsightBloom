@@ -59,6 +59,7 @@ public class UsersApplication {
         final var timezoneRepo = new SqliteTimezoneRepository(db);
         final var reservationRepo = new SqliteReservationRepository(db);
         final var venueSeatRepo = new SqliteVenueSeatRepository(db);
+        final var eventTypeRepo = new SqliteEventTypeRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -116,8 +117,14 @@ public class UsersApplication {
         final var logoutUseCase = new LogoutUseCase(tokenService);
         final var refreshTokenUseCase = new RefreshTokenUseCase(tokenService, validateTokenUseCase);
         final var listTimezonesUseCase = new ListTimezonesUseCase(timezoneRepo);
+        final var listEventTypesUseCase = new ListEventTypesUseCase(eventTypeRepo);
+        final var createEventTypeUseCase = new CreateEventTypeUseCase(eventTypeRepo);
+        final var updateEventTypeUseCase = new UpdateEventTypeUseCase(eventTypeRepo);
+        final var setEventTypeActiveUseCase = new SetEventTypeActiveUseCase(eventTypeRepo);
         final var sendConferenceRemindersUseCase = new SendConferenceRemindersUseCase(
                 conferenceRepo, membershipRepo, userRepo, timezoneRepo, emailPort, reservationRepo, frontendBaseUrl);
+        final var eventCapabilityGuard = new dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard(eventTypeRepo);
+        final var setEventTypeUseCase = new SetEventTypeUseCase(conferenceRepo, eventTypeRepo, reservationRepo);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -129,7 +136,8 @@ public class UsersApplication {
                 recordDownloadUseCase, getDownloadCountsUseCase,
                 setSeatingModeUseCase, reserveGeneralUseCase, getMyTicketUseCase, cancelReservationUseCase,
                 listReservationsUseCase, checkInTicketUseCase,
-                setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase);
+                setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
+                setEventTypeUseCase, eventCapabilityGuard);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
@@ -138,6 +146,9 @@ public class UsersApplication {
         final var adminUserHandler = new AdminUserHandler(
                 listUsersUseCase, adminUpdateUserUseCase, setUserStatusUseCase, validateTokenUseCase);
         final var timezoneHandler = new TimezoneHandler(listTimezonesUseCase);
+        final var eventTypeHandler = new EventTypeHandler(listEventTypesUseCase, createEventTypeUseCase,
+                updateEventTypeUseCase, setEventTypeActiveUseCase, validateTokenUseCase);
+        final var eventCapabilityHandler = new EventCapabilityHandler();
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -148,6 +159,8 @@ public class UsersApplication {
         routes.add("/api/v1/certificate-settings/*", certificateSettingsHandler);
         routes.add("/api/v1/admin/users/*", adminUserHandler);
         routes.add("/api/v1/timezones/*", timezoneHandler);
+        routes.add("/api/v1/event-types/*", eventTypeHandler);
+        routes.add("/api/v1/event-capabilities/*", eventCapabilityHandler);
 
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();

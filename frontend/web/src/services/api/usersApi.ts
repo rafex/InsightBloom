@@ -2,7 +2,7 @@ import axios from 'axios'
 import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
-  SeatingMode, Reservation, VenueSeat
+  SeatingMode, Reservation, VenueSeat, EventType, EventCapability
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -208,5 +208,47 @@ export async function getConferenceSeatMap(conferenceId: string, token: string):
 export async function reserveSeat(conferenceId: string, seatUuid: string, token: string): Promise<Reservation> {
   const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/reservations`,
     { seatUuid }, authHeader(token))
+  return res.data.data
+}
+
+export async function setEventType(conferenceId: string, eventTypeKey: string, token: string): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/event-type`,
+    { eventTypeKey }, authHeader(token))
+  return res.data.data
+}
+
+/** Tipos de evento activos, para el selector del organizador al crear/editar un evento. */
+export async function getActiveEventTypes(): Promise<EventType[]> {
+  const res = await axios.get('/api/users/api/v1/event-types')
+  return res.data.data
+}
+
+/** Catálogo completo (incluye inactivos), solo para ADMIN. */
+export async function getAllEventTypes(token: string): Promise<EventType[]> {
+  const res = await axios.get('/api/users/api/v1/event-types/all', authHeader(token))
+  return res.data.data
+}
+
+export async function getEventCapabilities(): Promise<EventCapability[]> {
+  const res = await axios.get('/api/users/api/v1/event-capabilities')
+  return res.data.data
+}
+
+export async function createEventType(
+  key: string, name: string, description: string | null, capabilities: EventCapability[], token: string
+): Promise<EventType> {
+  const res = await axios.post('/api/users/api/v1/event-types', { key, name, description, capabilities }, authHeader(token))
+  return res.data.data
+}
+
+export async function updateEventType(
+  uuid: string, name: string, description: string | null, capabilities: EventCapability[], token: string
+): Promise<EventType> {
+  const res = await axios.put(`/api/users/api/v1/event-types/${uuid}`, { name, description, capabilities }, authHeader(token))
+  return res.data.data
+}
+
+export async function setEventTypeActive(uuid: string, active: boolean, token: string): Promise<EventType> {
+  const res = await axios.put(`/api/users/api/v1/event-types/${uuid}/active`, { active }, authHeader(token))
   return res.data.data
 }

@@ -222,8 +222,58 @@ public class DatabaseManager {
                 )
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_download_conference ON download_events(conference_uuid, kind)");
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS event_types (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    key TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    capabilities TEXT NOT NULL,
+                    active INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """);
+            seedEventTypes(stmt);
+
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN event_type_key TEXT NOT NULL DEFAULT 'conference'");
+            } catch (SQLException ignored) {}
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
+        }
+    }
+
+    /**
+     * Sembrado inicial del catálogo de tipos de evento: "conference" reune todas las capacidades
+     * ya existentes en la plataforma (compatibilidad hacia atrás — toda conferencia existente
+     * apunta a este key por default) y "workshop" ofrece el mismo conjunto salvo CODE_IDE, que
+     * todavía no existe como capacidad (queda bloqueada hasta definir sus reglas de seguridad).
+     */
+    private void seedEventTypes(final Statement stmt) throws SQLException {
+        final String allCapabilities = "TICKETING_GENERAL,TICKETING_SEATED,SURVEY,PRESENTATION,"
+                + "WORD_CLOUD,CHAT_BOT,VIDEO_CONFERENCE,WHITEBOARD,DIAGRAMMING,COLLAB_NOTES";
+        final Object[][] eventTypes = {
+            {"conference", "Conferencia", "Evento con boletos, encuestas, presentación, nube de palabras, chat y videollamada.", allCapabilities},
+            {"workshop", "Taller", "Evento colaborativo con boletos, encuestas, pizarra, diagramas y notas compartidas.", allCapabilities}
+        };
+        final String sql = "INSERT OR IGNORE INTO event_types "
+                + "(uuid, key, name, description, capabilities, active, created_at, updated_at) "
+                + "VALUES (?, ?, ?, ?, ?, 1, ?, ?)";
+        try (var ps = stmt.getConnection().prepareStatement(sql)) {
+            for (final Object[] t : eventTypes) {
+                final String now = java.time.Instant.now().toString();
+                ps.setString(1, java.util.UUID.randomUUID().toString());
+                ps.setString(2, (String) t[0]);
+                ps.setString(3, (String) t[1]);
+                ps.setString(4, (String) t[2]);
+                ps.setString(5, (String) t[3]);
+                ps.setString(6, now);
+                ps.setString(7, now);
+                ps.executeUpdate();
+            }
         }
     }
 

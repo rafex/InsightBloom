@@ -8,6 +8,19 @@ export interface Timezone {
 
 export type SeatingMode = 'NONE' | 'GENERAL' | 'SEATED'
 
+export type EventCapability =
+  | 'TICKETING_GENERAL' | 'TICKETING_SEATED' | 'SURVEY' | 'PRESENTATION' | 'WORD_CLOUD'
+  | 'CHAT_BOT' | 'VIDEO_CONFERENCE' | 'WHITEBOARD' | 'DIAGRAMMING' | 'COLLAB_NOTES'
+
+export interface EventType {
+  uuid: string
+  key: string
+  name: string
+  description?: string | null
+  capabilities: EventCapability[]
+  active: boolean
+}
+
 export interface Conference {
   uuid: string
   friendlyId: string
@@ -28,6 +41,7 @@ export interface Conference {
   capacity?: number | null
   reservedCount?: number
   venueMapBase64?: string | null
+  eventTypeKey?: string
   [key: string]: unknown
 }
 

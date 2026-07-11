@@ -21,8 +21,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     public void save(Conference conference) {
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
@@ -52,6 +52,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             else ps.setNull(21, Types.INTEGER);
             ps.setInt(22, conference.getReservedCount());
             ps.setString(23, conference.getVenueMapBase64());
+            ps.setString(24, conference.getEventTypeKey());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -153,6 +154,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.setCapacity(rs.wasNull() ? null : capacity);
         conference.setReservedCount(rs.getInt("reserved_count"));
         conference.setVenueMapBase64(rs.getString("venue_map_base64"));
+        final String eventTypeKey = rs.getString("event_type_key");
+        conference.setEventTypeKey(eventTypeKey != null ? eventTypeKey : "conference");
         return conference;
     }
 

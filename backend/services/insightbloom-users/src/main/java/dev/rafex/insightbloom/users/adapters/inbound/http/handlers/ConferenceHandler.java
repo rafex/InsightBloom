@@ -22,11 +22,15 @@ import dev.rafex.insightbloom.users.application.usecases.ListReservationsUseCase
 import dev.rafex.insightbloom.users.application.usecases.RecordDownloadUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ReserveGeneralUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ReserveSeatUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetEventTypeUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSeatingModeUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetVenueMapUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UpdateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
+import dev.rafex.insightbloom.users.domain.model.Conference;
+import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Reservation;
+import dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard;
 
 import java.util.ArrayList;
 
@@ -59,6 +63,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final DefineVenueSeatsUseCase defineVenueSeatsUseCase;
     private final GetConferenceSeatMapUseCase getConferenceSeatMapUseCase;
     private final ReserveSeatUseCase reserveSeatUseCase;
+    private final SetEventTypeUseCase setEventTypeUseCase;
+    private final EventCapabilityGuard eventCapabilityGuard;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -81,7 +87,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final SetVenueMapUseCase setVenueMapUseCase,
                              final DefineVenueSeatsUseCase defineVenueSeatsUseCase,
                              final GetConferenceSeatMapUseCase getConferenceSeatMapUseCase,
-                             final ReserveSeatUseCase reserveSeatUseCase) {
+                             final ReserveSeatUseCase reserveSeatUseCase,
+                             final SetEventTypeUseCase setEventTypeUseCase,
+                             final EventCapabilityGuard eventCapabilityGuard) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -104,6 +112,8 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.defineVenueSeatsUseCase = defineVenueSeatsUseCase;
         this.getConferenceSeatMapUseCase = getConferenceSeatMapUseCase;
         this.reserveSeatUseCase = reserveSeatUseCase;
+        this.setEventTypeUseCase = setEventTypeUseCase;
+        this.eventCapabilityGuard = eventCapabilityGuard;
     }
 
     @Override
@@ -126,6 +136,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/downloads", Set.of("POST")),
                 Route.of("/{id}/downloads/count", Set.of("GET")),
                 Route.of("/{id}/seating", Set.of("PUT")),
+                Route.of("/{id}/event-type", Set.of("PUT")),
                 Route.of("/{id}/venue-map", Set.of("PUT")),
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
@@ -215,6 +226,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/seating")) {
             return handleSetSeating(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/event-type")) {
+            return handleSetEventType(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/venue-map")) {
             return handleSetVenueMap(jx, jx.pathParam("id"));
@@ -483,6 +497,12 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             final var body = parseBody(jx);
             final String seatingMode = (String) body.get("seatingMode");
+            final EventCapability requiredCapability = "SEATED".equals(seatingMode) ? EventCapability.TICKETING_SEATED
+                    : "GENERAL".equals(seatingMode) ? EventCapability.TICKETING_GENERAL : null;
+            if (requiredCapability != null && !hasCapability(id, requiredCapability)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita este modo de boletos");
+                return true;
+            }
             final Integer capacity = body.get("capacity") instanceof Number n ? n.intValue() : null;
             final var updated = setSeatingModeUseCase.execute(id, v.subjectUuid(), seatingMode, capacity);
             if (updated.isPresent()) {
@@ -500,6 +520,39 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
+    private boolean handleSetEventType(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can change the event type");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String eventTypeKey = (String) body.get("eventTypeKey");
+            final var updated = setEventTypeUseCase.execute(id, v.subjectUuid(), eventTypeKey);
+            if (updated.isPresent()) {
+                sendOk(jx, 200, updated.get());
+            } else {
+                sendError(jx, 404, "not_found", "Conference not found or not owned by you");
+            }
+        } catch (final IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), "No se puede cambiar el tipo de evento con reservas de asiento activas");
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean hasCapability(final String conferenceId, final EventCapability capability) {
+        return getConferenceUseCase.byId(conferenceId)
+                .map(c -> eventCapabilityGuard.hasCapability(c, capability))
+                .orElse(false);
+    }
+
     private boolean handleReserve(final JettyHttpExchange jx, final String id) {
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
@@ -508,6 +561,12 @@ public class ConferenceHandler extends BaseResourceHandler {
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             final var body = parseBody(jx);
             final String seatUuid = (String) body.get("seatUuid");
+            final EventCapability requiredCapability = seatUuid != null
+                    ? EventCapability.TICKETING_SEATED : EventCapability.TICKETING_GENERAL;
+            if (!hasCapability(id, requiredCapability)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita boletos");
+                return true;
+            }
             final Reservation reservation = seatUuid != null
                     ? reserveSeatUseCase.execute(id, v.subjectUuid(), seatUuid)
                     : reserveGeneralUseCase.execute(id, v.subjectUuid());
@@ -603,6 +662,10 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 403, "forbidden", "Only organizers can configure the venue map");
                 return true;
             }
+            if (!hasCapability(id, EventCapability.TICKETING_SEATED)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita mapa de asientos");
+                return true;
+            }
             final var body = parseBody(jx);
             final String imageBase64 = (String) body.get("imageBase64");
             final var updated = setVenueMapUseCase.execute(id, v.subjectUuid(), imageBase64);
@@ -625,6 +688,10 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
                 sendError(jx, 403, "forbidden", "Only organizers can configure seats");
+                return true;
+            }
+            if (!hasCapability(id, EventCapability.TICKETING_SEATED)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita mapa de asientos");
                 return true;
             }
             final var body = parseBody(jx);
