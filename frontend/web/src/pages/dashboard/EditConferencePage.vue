@@ -62,13 +62,14 @@
       .coord-field(v-if="seatingMode === 'GENERAL'")
         span.coord-label Aforo máximo
         input(v-model.number="capacity" type="number" min="1" placeholder="100")
-      p.field-hint(v-if="seatingMode === 'SEATED'") El editor de mapa de asientos se agrega en la Fase 2.
       button.btn-outline(type="button" @click="saveSeating" :disabled="savingSeating")
         span(v-if="savingSeating") Guardando...
         span(v-else) Guardar configuración de boletos
       p.success(v-if="seatingSaved") Configuración de boletos guardada.
       p.error(v-if="seatingError") {{ seatingError }}
-      router-link.btn-outline(v-if="seatingMode !== 'NONE'" :to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
+      .ticket-links(v-if="seatingMode !== 'NONE'")
+        router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
+        router-link.btn-outline(v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
 
     .form-group
       label Flyer del evento (opcional)
@@ -232,6 +233,7 @@ input:focus { outline: none; border-color: #4f46e5; }
 .btn-remove-flyer { padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #dc2626; cursor: pointer; font-size: 0.85rem; }
 .btn-remove-flyer:hover { background: #fee2e2; }
 
+.ticket-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }

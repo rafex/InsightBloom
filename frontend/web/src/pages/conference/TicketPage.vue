@@ -22,20 +22,30 @@
       span(v-else) Reservar mi lugar
     p.ticket-error(v-if="error") {{ error }}
 
-  .ticket-seated-pending(v-else-if="seatingMode === 'SEATED'")
-    p El selector de asientos llega en la siguiente fase. Por ahora contacta al organizador para tu asiento.
+  .ticket-seated-picker(v-else-if="seatingMode === 'SEATED'")
+    p(v-if="!venueMapUrl") El organizador aún no ha publicado el mapa de asientos.
+    template(v-else)
+      p Elige tu asiento en el mapa.
+      SeatMapPicker(:image-url="venueMapUrl" :seats="seatMap" v-model="selectedSeat")
+      button.btn-primary(type="button" @click="reserveSelectedSeat" :disabled="!selectedSeat || reserving")
+        span(v-if="reserving") Reservando...
+        span(v-else) Reservar este asiento
+      p.ticket-error(v-if="error") {{ error }}
 </template>
 
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import TicketQr from '@/components/TicketQr.vue'
-import { getMyTicket, reserveGeneral, cancelReservation } from '@/services/api/usersApi'
-import type { Reservation, SeatingMode } from '@/services/api/types'
+import SeatMapPicker from '@/components/SeatMapPicker.vue'
+import {
+  getMyTicket, reserveGeneral, cancelReservation, getConference, getConferenceSeatMap, reserveSeat
+} from '@/services/api/usersApi'
+import type { Reservation, SeatingMode, VenueSeat } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'TicketPage',
-  components: { TicketQr },
+  components: { TicketQr, SeatMapPicker },
   props: {
     conferenceId: { type: String, default: '' },
     seatingMode: { type: String as () => SeatingMode | undefined, default: undefined }
@@ -47,6 +57,9 @@ export default {
     const reserving = ref(false)
     const cancelling = ref(false)
     const error = ref('')
+    const venueMapUrl = ref('')
+    const seatMap = ref<VenueSeat[]>([])
+    const selectedSeat = ref<string | null>(null)
 
     async function load() {
       if (!props.conferenceId || !props.seatingMode || props.seatingMode === 'NONE') {
@@ -55,6 +68,14 @@ export default {
       }
       try {
         ticket.value = await getMyTicket(props.conferenceId, auth.state.token as string)
+        if (!ticket.value && props.seatingMode === 'SEATED') {
+          const [conf, seats] = await Promise.all([
+            getConference(props.conferenceId, auth.state.token as string),
+            getConferenceSeatMap(props.conferenceId, auth.state.token as string)
+          ])
+          venueMapUrl.value = conf.venueMapBase64 || ''
+          seatMap.value = seats
+        }
       } catch (e: any) { /* se muestra la opción de reservar de todas formas */ }
       finally { loading.value = false }
     }
@@ -72,6 +93,24 @@ export default {
       }
     }
 
+    async function reserveSelectedSeat() {
+      if (!selectedSeat.value) return
+      reserving.value = true; error.value = ''
+      try {
+        ticket.value = await reserveSeat(props.conferenceId as string, selectedSeat.value, auth.state.token as string)
+      } catch (e: any) {
+        error.value = e.response?.status === 409
+          ? 'Ese asiento ya fue tomado, elige otro.'
+          : 'No se pudo reservar el asiento. Intenta de nuevo.'
+        if (e.response?.status === 409 && props.conferenceId) {
+          seatMap.value = await getConferenceSeatMap(props.conferenceId, auth.state.token as string)
+          selectedSeat.value = null
+        }
+      } finally {
+        reserving.value = false
+      }
+    }
+
     async function cancel() {
       cancelling.value = true
       try {
@@ -84,7 +123,10 @@ export default {
 
     onMounted(load)
 
-    return { loading, ticket, reserving, cancelling, error, reserve, cancel }
+    return {
+      loading, ticket, reserving, cancelling, error, reserve, cancel,
+      venueMapUrl, seatMap, selectedSeat, reserveSelectedSeat
+    }
   }
 }
 </script>
@@ -113,5 +155,6 @@ export default {
 }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .ticket-error { color: #dc2626; margin-top: 12px; font-size: 0.9rem; }
-.ticket-seated-pending { text-align: center; color: #6b7280; padding: 40px 24px; }
+.ticket-seated-picker { padding: 20px 0; text-align: center; }
+.ticket-seated-picker .btn-primary { margin-top: 16px; }
 </style>

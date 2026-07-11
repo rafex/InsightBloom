@@ -41,6 +41,28 @@ public class SqliteReservationRepository implements ReservationRepository {
     }
 
     @Override
+    public void insertNew(final Reservation reservation) {
+        final String sql = """
+            INSERT INTO reservations
+                (uuid, conference_uuid, user_uuid, seat_uuid, ticket_code, status, created_at, checked_in_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """;
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, reservation.getUuid());
+            ps.setString(2, reservation.getConferenceUuid());
+            ps.setString(3, reservation.getUserUuid());
+            ps.setString(4, reservation.getSeatUuid());
+            ps.setString(5, reservation.getTicketCode());
+            ps.setString(6, reservation.getStatus().name());
+            ps.setString(7, reservation.getCreatedAt().toString());
+            ps.setString(8, reservation.getCheckedInAt() != null ? reservation.getCheckedInAt().toString() : null);
+            ps.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
+
+    @Override
     public void delete(final String uuid) {
         final String sql = "DELETE FROM reservations WHERE uuid = ?";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {

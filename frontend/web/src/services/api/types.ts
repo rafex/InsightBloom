@@ -44,6 +44,14 @@ export interface Reservation {
   checkedInAt?: string | null
 }
 
+export interface VenueSeat {
+  uuid: string
+  label: string
+  x: number
+  y: number
+  occupied: boolean
+}
+
 export interface ConferenceHistoryEntry {
   conferenceUuid: string
   friendlyId?: string

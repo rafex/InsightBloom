@@ -2,7 +2,7 @@ import axios from 'axios'
 import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
-  SeatingMode, Reservation
+  SeatingMode, Reservation, VenueSeat
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -182,5 +182,31 @@ export async function listReservations(conferenceId: string, token: string): Pro
 export async function checkInTicket(conferenceId: string, ticketCode: string, token: string): Promise<Reservation> {
   const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/reservations/check-in`,
     { ticketCode }, authHeader(token))
+  return res.data.data
+}
+
+export async function setVenueMap(conferenceId: string, imageBase64: string, token: string): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/venue-map`,
+    { imageBase64 }, authHeader(token))
+  return res.data.data
+}
+
+export async function defineVenueSeats(
+  conferenceId: string,
+  seats: Array<{ uuid?: string | null, label: string, x: number, y: number }>,
+  token: string
+): Promise<VenueSeat[]> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/seats`, { seats }, authHeader(token))
+  return res.data.data
+}
+
+export async function getConferenceSeatMap(conferenceId: string, token: string): Promise<VenueSeat[]> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/seats`, authHeader(token))
+  return res.data.data
+}
+
+export async function reserveSeat(conferenceId: string, seatUuid: string, token: string): Promise<Reservation> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/reservations`,
+    { seatUuid }, authHeader(token))
   return res.data.data
 }

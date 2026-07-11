@@ -58,6 +58,7 @@ public class UsersApplication {
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
         final var timezoneRepo = new SqliteTimezoneRepository(db);
         final var reservationRepo = new SqliteReservationRepository(db);
+        final var venueSeatRepo = new SqliteVenueSeatRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -88,6 +89,11 @@ public class UsersApplication {
         final var cancelReservationUseCase = new CancelReservationUseCase(reservationRepo, conferenceRepo);
         final var listReservationsUseCase = new ListReservationsUseCase(conferenceRepo, reservationRepo);
         final var checkInTicketUseCase = new CheckInTicketUseCase(reservationRepo);
+        final var setVenueMapUseCase = new SetVenueMapUseCase(conferenceRepo);
+        final var defineVenueSeatsUseCase = new DefineVenueSeatsUseCase(conferenceRepo, venueSeatRepo, reservationRepo);
+        final var getConferenceSeatMapUseCase = new GetConferenceSeatMapUseCase(venueSeatRepo, reservationRepo);
+        final var reserveSeatUseCase = new ReserveSeatUseCase(
+                conferenceRepo, reservationRepo, venueSeatRepo, userRepo, emailPort, frontendBaseUrl);
         final var joinConferenceUseCase = new JoinConferenceUseCase(
                 getConferenceUseCase, membershipRepo, userRepo, emailPort, timezoneRepo,
                 reserveGeneralUseCase, frontendBaseUrl);
@@ -122,7 +128,8 @@ public class UsersApplication {
                 updateConferenceUseCase,
                 recordDownloadUseCase, getDownloadCountsUseCase,
                 setSeatingModeUseCase, reserveGeneralUseCase, getMyTicketUseCase, cancelReservationUseCase,
-                listReservationsUseCase, checkInTicketUseCase);
+                listReservationsUseCase, checkInTicketUseCase,
+                setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

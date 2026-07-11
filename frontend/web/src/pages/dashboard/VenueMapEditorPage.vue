@@ -1,0 +1,129 @@
+<template lang="pug">
+.venue-map-page
+  ConferenceSubNav(:conferenceId="conferenceId")
+  h2 Mapa de asientos
+
+  .loading-text(v-if="loading") Cargando...
+  template(v-else)
+    .form-group
+      label Imagen del recinto
+      p.field-hint Sube una foto o plano del lugar; luego haz clic sobre ella para colocar cada asiento.
+      input(type="file" accept="image/*" @change="onImageSelected")
+      button.btn-outline(v-if="imageBase64" type="button" @click="saveMap" :disabled="savingMap") Guardar imagen
+
+    template(v-if="imageBase64")
+      p.field-hint Haz clic sobre el mapa para agregar un asiento. Clic en un asiento para eliminarlo.
+      SeatMapPicker(:image-url="imageBase64" :seats="seats" editable @add-seat="addSeat")
+      .seat-list(v-if="seats.length")
+        .seat-row(v-for="seat in seats" :key="seat.uuid")
+          input.seat-label(v-model="seat.label" type="text" placeholder="Etiqueta, ej. A1")
+          button.btn-remove(type="button" @click="removeSeat(seat)") Quitar
+      button.btn-primary(type="button" @click="saveSeats" :disabled="savingSeats")
+        span(v-if="savingSeats") Guardando...
+        span(v-else) Guardar asientos
+      p.success(v-if="seatsSaved") Asientos guardados.
+      p.error(v-if="seatsError") {{ seatsError }}
+</template>
+
+<script lang="ts">
+import { ref, onMounted } from 'vue'
+import ConferenceSubNav from './ConferenceSubNav.vue'
+import SeatMapPicker from '@/components/SeatMapPicker.vue'
+import { getConference, setVenueMap, getConferenceSeatMap, defineVenueSeats } from '@/services/api/usersApi'
+import type { VenueSeat } from '@/services/api/types'
+import { useAuthStore } from '@/features/auth/authStore'
+
+interface EditableSeat { uuid: string | null, label: string, x: number, y: number, occupied: boolean }
+
+export default {
+  name: 'VenueMapEditorPage',
+  components: { ConferenceSubNav, SeatMapPicker },
+  props: { conferenceId: { type: String, default: '' } },
+  setup(props: { conferenceId?: string }) {
+    const auth = useAuthStore()
+    const loading = ref(true)
+    const imageBase64 = ref('')
+    const seats = ref<EditableSeat[]>([])
+    const savingMap = ref(false)
+    const savingSeats = ref(false)
+    const seatsSaved = ref(false)
+    const seatsError = ref('')
+    let seatCounter = 0
+
+    onMounted(async () => {
+      try {
+        const [conf, seatMap] = await Promise.all([
+          getConference(props.conferenceId as string, auth.state.token as string),
+          getConferenceSeatMap(props.conferenceId as string, auth.state.token as string)
+        ])
+        imageBase64.value = conf.venueMapBase64 || ''
+        seats.value = seatMap.map((s: VenueSeat) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: s.occupied }))
+      } finally {
+        loading.value = false
+      }
+    })
+
+    function onImageSelected(e: Event) {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => { imageBase64.value = reader.result as string }
+      reader.readAsDataURL(file)
+    }
+
+    async function saveMap() {
+      savingMap.value = true
+      try {
+        await setVenueMap(props.conferenceId as string, imageBase64.value, auth.state.token as string)
+      } finally {
+        savingMap.value = false
+      }
+    }
+
+    function addSeat({ x, y }: { x: number, y: number }) {
+      seatCounter += 1
+      seats.value.push({ uuid: null, label: `Asiento ${seatCounter}`, x, y, occupied: false })
+    }
+
+    function removeSeat(target: EditableSeat) {
+      seats.value = seats.value.filter((s) => s !== target)
+    }
+
+    async function saveSeats() {
+      savingSeats.value = true; seatsError.value = ''; seatsSaved.value = false
+      try {
+        const payload = seats.value.map((s) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y }))
+        const saved = await defineVenueSeats(props.conferenceId as string, payload, auth.state.token as string)
+        seats.value = saved.map((s) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: false }))
+        seatsSaved.value = true
+      } catch (e: any) {
+        seatsError.value = e.response?.data?.error?.message || 'No se pudieron guardar los asientos'
+      } finally {
+        savingSeats.value = false
+      }
+    }
+
+    return {
+      loading, imageBase64, seats, savingMap, savingSeats, seatsSaved, seatsError,
+      onImageSelected, saveMap, addSeat, removeSeat, saveSeats
+    }
+  }
+}
+</script>
+
+<style scoped>
+.venue-map-page { padding: 24px; max-width: 640px; margin: 0 auto; }
+h2 { color: #1e1b4b; margin-bottom: 16px; }
+.loading-text { color: #6b7280; }
+.form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.field-hint { margin: 0; font-size: 0.8rem; color: #9ca3af; }
+.seat-list { margin: 16px 0; display: flex; flex-direction: column; gap: 6px; }
+.seat-row { display: flex; gap: 8px; align-items: center; }
+.seat-label { flex: 1; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; }
+.btn-remove { padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; color: #dc2626; cursor: pointer; font-size: 0.8rem; }
+.btn-outline { padding: 8px 18px; border: 1.5px solid #4f46e5; color: #4f46e5; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.9rem; margin-top: 4px; }
+.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.error { color: #dc2626; font-size: 0.9rem; }
+.success { color: #166534; font-size: 0.9rem; }
+</style>
