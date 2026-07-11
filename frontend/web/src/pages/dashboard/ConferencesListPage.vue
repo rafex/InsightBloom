@@ -1,22 +1,25 @@
 <template lang="pug">
 .conferences-list-page
   .list-header
-    h1 Conferencias
-    router-link.btn-primary(to="/dashboard/conferences/new") + Nueva conferencia
+    h1 Eventos
+    .header-actions
+      router-link.btn-outline(v-if="isAdmin" to="/dashboard/admin/event-types") Tipos de evento
+      router-link.btn-primary(to="/dashboard/conferences/new") + Nuevo evento
 
   .section(v-if="loading")
-    .loading-text Cargando conferencias...
+    .loading-text Cargando eventos...
 
   .section(v-else-if="conferences.length === 0")
     .empty-state
-      p Aún no tienes conferencias.
-      router-link.btn-primary(to="/dashboard/conferences/new") Crear la primera
+      p Aún no tienes eventos.
+      router-link.btn-primary(to="/dashboard/conferences/new") Crear el primero
 
   .table-scroll(v-else)
     table.conferences-table
       thead
         tr
           th Nombre
+          th Tipo
           th ID amigable
           th Estado
           th Expira
@@ -25,6 +28,8 @@
       tbody
         tr(v-for="c in conferences" :key="c.uuid || c.conferenceId")
           td(data-label="Nombre") {{ c.name }}
+          td(data-label="Tipo")
+            span.type-badge {{ eventTypeName(c.eventTypeKey) }}
           td(data-label="ID amigable")
             span.friendly-id {{ c.friendlyId }}
           td(data-label="Estado")
@@ -67,10 +72,10 @@
 
 <script lang="ts">
 import { ref, onMounted } from 'vue'
-import { getConferences, deleteConference, getDownloadCounts } from '@/services/api/usersApi'
+import { getConferences, deleteConference, getDownloadCounts, getActiveEventTypes } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import QrCodeModal from '@/components/QrCodeModal.vue'
-import type { Conference, DownloadCounts } from '@/services/api/types'
+import type { Conference, DownloadCounts, EventType } from '@/services/api/types'
 
 interface ConferenceRow extends Conference {
   conferenceId?: string
@@ -86,7 +91,9 @@ export default {
     const deleteTarget = ref<ConferenceRow | null>(null)
     const qrTarget = ref<ConferenceRow | null>(null)
     const downloadCounts = ref<Record<string, DownloadCounts>>({})
+    const eventTypes = ref<EventType[]>([])
     const auth = useAuthStore()
+    const isAdmin = auth.isAdmin()
 
     onMounted(async () => {
       try {
@@ -99,7 +106,14 @@ export default {
       } finally {
         loading.value = false
       }
+      try {
+        eventTypes.value = await getActiveEventTypes()
+      } catch (e: any) { /* la columna Tipo cae a la clave cruda si el catálogo no carga */ }
     })
+
+    function eventTypeName(key?: string): string {
+      return eventTypes.value.find((t) => t.key === key)?.name || key || '—'
+    }
 
     async function loadDownloadCounts() {
       const token = auth.state.token as string
@@ -146,8 +160,8 @@ export default {
     }
 
     return {
-      conferences, loading, deleteTarget, qrTarget, downloadCounts,
-      isExpired, formatRelative, confirmDelete, doDelete
+      conferences, loading, deleteTarget, qrTarget, downloadCounts, isAdmin,
+      isExpired, formatRelative, confirmDelete, doDelete, eventTypeName
     }
   }
 }
@@ -157,6 +171,8 @@ export default {
 .conferences-list-page { padding: 32px 24px; max-width: 1200px; }
 .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
 h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
+.header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.type-badge { font-size: 0.75rem; background: #e0e7ff; color: #4338ca; padding: 3px 10px; border-radius: 10px; font-weight: 600; }
 
 .section { margin-bottom: 32px; }
 .loading-text { color: #6b7280; }
