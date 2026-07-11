@@ -185,6 +185,10 @@ ingressDrawio:
           pathType: Prefix
   tls: []
 
+# Allowlist explicito de paths, NO "/" catch-all: /api/1/* (API administrativa, usada solo
+# por insightbloom-users vía el Service interno) y /admin/* (panel de administracion de
+# Etherpad) quedan deliberadamente fuera de esta lista y por lo tanto inalcanzables desde
+# internet — solo se exponen publicamente los paths que la UI del pad realmente necesita.
 ingressEtherpad:
   enabled: true
   className: haproxy
@@ -194,7 +198,13 @@ ingressEtherpad:
   hosts:
     - host: etherpad-insightbloom.v1.rafex.cloud
       paths:
-        - path: /
+        - path: /p
+          pathType: Prefix
+        - path: /static
+          pathType: Prefix
+        - path: /socket.io
+          pathType: Prefix
+        - path: /pluginfw
           pathType: Prefix
   tls: []
 
