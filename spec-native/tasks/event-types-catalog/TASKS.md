@@ -2,6 +2,22 @@
 
 Derivado de `spec-native/specs/event-types-catalog/SPEC.md`.
 
+## Orden recomendado de ejecución
+
+Ver sección "Complexity Ranking & Execution Order" en SPEC.md para el análisis de complejidad.  
+**Resumen:**
+
+1. **Fase 0 + 1** (TASK-0001 a TASK-0012): Catálogo de EventType + wiring. Prerequisito de todo lo demás.
+2. **drawio** (parte de Fase 3/4): TASK-0031 + TASK-0041. Demuestra capability gating.
+3. **Etherpad** (parte de Fase 3/4): TASK-0030 + TASK-0040. Poco más que drawio.
+4. **Jitsi público** (parte de Fase 3/4, solo `meet.jit.si`): **adelantarlo** — no esperar al self-hosted. TASK-0032 + TASK-0042 con solo la instancia pública, sin el Helm chart de Jitsi self-hosted.
+5. **Excalidraw** (parte de Fase 3/4): TASK-0033 + TASK-0043. Colaboración en vivo, más fricción.
+6. **SurveyJS** (Fase 5): TASK-0050 a TASK-0054. Encuestas alternativas, riesgo de licencia.
+7. **seatmap-canvas** (Fase 6): TASK-0060 a TASK-0065. Alternativa a FREEFORM, mantenedor único.
+8. **Jitsi self-hosted** (parte de Fase 3/4, JVB + NAT/TURN): **al final**. Riesgo de infraestructura más alto; `meet.jit.si` es funcional como fallback.
+
+Con la ejecución de los pasos 1-4 tienes un tipo de evento "Taller remoto" completamente funcional (boletos GENERAL, videollamada pública, pizarra colaborativa, notas compartidas) sin tocar infraestructura operativamente riesgosa.
+
 Nota: la capacidad `CODE_IDE` (IDE web + ejecucion de codigo del taller)
 esta fuera de esta iniciativa. No crear tareas para ella hasta que el
 usuario defina las reglas de seguridad de ejecucion; en ese momento se abre

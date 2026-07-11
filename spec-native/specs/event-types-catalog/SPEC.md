@@ -425,6 +425,93 @@ sin que el codigo compare contra nombres de tipo especificos.
   libre — mitigacion: soportar reutilizar/clonar una distribucion ya creada
   para otro evento en el mismo recinto (FR-023).
 
+## Complexity Ranking & Execution Order
+
+Análisis de complejidad técnica de las seis iniciativas activas de esta especificación, ordenadas de menos a más compleja. Esta clasificación es fundamental para secuenciar la implementación y para evaluar el riesgo operativo/de infraestructura de cada uno.
+
+### 1. EventType Catalog (10 tareas) — **La más fácil**
+Patrón completamente conocido en el codebase:
+- `EventType` entity + `SqliteEventTypeRepository` = calcado de `Conference` (repository pattern ya probado).
+- Casos de uso CRUD reutilizan el patron `*UseCase` + validaciones de negocio existentes.
+- Rutas HTTP = patron `*Handler` probado cien veces (validar token, 401 si invalido, ejecutar use case, responder 200/error).
+- Seed/migracion = try/catch ignore de SQLite, mismo que `conferences`.
+- Es prerequisito de todo lo demás (sin EventType no hay gates de capacidad).
+
+**Riesgo:** bajo.
+
+### 2. drawio + Etherpad
+**drawio:** sencillo porque:
+- Un Helm chart de una imagen oficial (diagrams.net), sin personalizacion compleja.
+- Un iframe que embebe `https://drawio-url/#?embed=1&noExitBtn=1` (el editor sin botones de salida).
+- No requiere persistencia en el backend (el usuario exporta/descarga desde drawio mismo).
+- Una pestaña que carga el iframe, sin state complejo.
+
+**Etherpad:** un poco más que drawio pero sin sorpresas:
+- Helm chart + API key generada al desplegar.
+- Un cliente HTTP pequeño que llama a `/api/1.2.1/createPad?padID=event-uuid` (lazy pad creation).
+- Un iframe que embebe el pad `https://etherpad-url/p/event-uuid`.
+- Estado: una columna de URL base de Etherpad (env var) y un try/catch en el handler si no responde.
+
+**Complejidad:** media-baja. No hay UX riesgosa (no es un editor custom), no hay almacenamiento propio de datos en esos servicios.
+
+### 3. Excalidraw Self-hosted
+Más fricción de la que aparenta inicialmente:
+- La colaboracion en vivo requiere un segundo servicio: `excalidraw-room` (un servicio WebSocket separado para compartir cambios entre sesiones).
+- La imagen oficial de Excalidraw no viene configurada para apuntar a un room server propio — suele requerir un rebuild con variables de entorno en build-time, o un reverse proxy + rewriting de URLs.
+- Hay dos caminos: (a) pre-buildear la imagen de Excalidraw con la URL del room server baked-in, o (b) servir Excalidraw desde un reverse proxy que reescriba las llamadas al room server.
+- El iframe es sencillo (`<iframe src="https://excalidraw-url/#room=..."></iframe>`), pero la configuracion previa no lo es.
+- Testing: dos sesiones concurrentes editando la misma pizarra, confirmando que los cambios se propagan en vivo — sin esto, parece funcionar pero la colaboracion esta rota.
+
+**Complejidad:** media. Riesgo operativo en la configuracion de Helm + build de imagen.
+
+### 4. SurveyJS (5 tareas) — **Complejidad media**
+Dos costos reales:
+1. **Incógnita de licencia:** `survey-creator-core` y `survey-creator-js` (el editor visual drag-and-drop) tienen historicamente un modelo de uso gratuito con marca de agua. Hay que confirmar la licencia vigente antes de iniciar implementacion (TASK-0050 puede cambiar de alcance según el resultado).
+2. **Peso del bundle:** SurveyJS es una libreria grande (survey-core + survey-js-ui + opcionalemente survey-creator). El bundle final del frontend puede aumentar significativamente. No hay forma de evitarlo si se quiere el editor visual — la alternativa es ofrecer solo el render (sin editor) y que los organizadores editen JSON a mano, pero eso es menos util.
+
+El resto es recto: persistencia de la definicion como JSON schema de SurveyJS en la BD existente (`insightbloom-survey`), render via componente de SurveyJS en la misma pagina de encuesta actual, resultados en el mismo dashboard de resultados (con posible diferencia de formato en el detalle).
+
+**Complejidad media, con riesgo no-tecnico (licencia).**
+
+### 5. seatmap-canvas (6 tareas) — **Complejidad media-alta, con riesgo de dependencia**
+Depende de una libreria muy especializada:
+- `seatmap-canvas` (alisaitteke/seatmap-canvas, vanilla-JS/D3) es un proyecto de un solo mantenedor, no un producto con soporte comercial.
+- Necesita un wrapper delgado en Vue (similar al ya hecho para `qrcode` o `qr-scanner`).
+- El modelo de datos (filas/secciones/butacas numeradas) es muy distinto al actual (pares x/y sueltos). Hay que mapear entre ambos sin romper compatibilidad con `FREEFORM` ni con `ReserveSeatUseCase`.
+- Una falla temprana (TASK-0060, verificacion de mantenimiento) puede descartar la libreria completamente, obligando a evaluar alternativas (construir custom, usar otra libreria).
+- La configuracion del recinto es mas compleja que `FREEFORM` (no solo clic libre) — hay que interfacear con filas/secciones como concepto, no como coordenadas.
+
+**Complejidad media-alta, con riesgo de dependencia (single maintainer).**
+
+### 6. Jitsi Self-hosted — **La más compleja de las iniciativas activas**
+El riesgo es principalmente **infraestructura, no codigo**:
+- Jitsi Meet no es un pod simple: son 4-5 componentes:
+  - **web**: el frontend Vue/React (el UI que ve el usuario).
+  - **prosody**: XMPP server para la señalización/presencia.
+  - **jicofo**: Jitsi Conference Focus, orquesta el flujo de medios.
+  - **JVB** (Jitsi Videobridge): RTC media router, procesa audio/video en tiempo real.
+- El **JVB necesita UDP puerto 10000 expuesto** a la red publica (o al menos a los clientes). En K3s significa:
+  - `hostPort: 10000` (inseguro — cada pod que intente usarlo falla si el puerto ya está ocupado).
+  - `NodePort` tipo UDP + configuracion de red del cluster.
+  - Dentro de esto, hay STUN/TURN: si los clientes no pueden ver directamente el JVB (NAT, firewall), necesitan un servidor TURN para relayar el media.
+- La primera version usa `meet.jit.si` publico (trivial, solo iframe), lo que permite validar el flujo de capacidades + UI.
+- El self-hosted queda **al final** porque si falla, todavia hay una ruta publica funcional (`meet.jit.si`), y hay tiempo para resolver la configuracion de red.
+
+**Complejidad alta, con riesgo de infraestructura (NAT, STUN/TURN, cluster networking).**
+
+### Orden de ejecución recomendado
+
+**1. EventType Catalog** (Fase 0 + 1) — fundación sin la cual nada funciona.  
+**2. drawio** (parte de Fase 3 + 4) — mas facil que Etherpad, demuestra capability gating temprano.  
+**3. Etherpad** (parte de Fase 3 + 4) — poco mas que drawio.  
+**4. Jitsi público** (parte de Fase 3 + 4, solo iframe de meet.jit.si) — **adelantarlo de su fase**, antes de tocarel self-hosted. Con EventType + drawio/Etherpad/Jitsi-público ya tienes valor demostrable rápido: un tipo de evento "Taller remoto" completamente funcional sin tocar infraestructura riesgosa.  
+**5. Excalidraw** — colaboracion en vivo, pero con friccion de configuracion. Ya hay confianza en Helm charts tras drawio/Etherpad/Jitsi.  
+**6. SurveyJS** — encuestas alternativas. Riesgo de licencia resuelto en TASK-0050; si hay problema, se posterga.  
+**7. seatmap-canvas** — verificacion de mantenimiento (TASK-0060) puede descartarla, pero `FREEFORM` ya es totalmente funcional como fallback.  
+**8. Jitsi Self-hosted** — **al final**, cuando la infraestructura del cluster este estable y haya tiempo para resolver NAT/TURN. La ruta publica `meet.jit.si` sigue funcionando como fallback.
+
+Esta secuencia tiene una ventaja crítica: **rapidez de valor demostrable** (pasos 1-4 = tipo de evento funcional en ~3-4 semanas) antes de tocar lo riesgoso (infraestructura, dependencias frágiles).
+
 ## Execution Plan
 -> `tasks/event-types-catalog/TASKS.md`
 
