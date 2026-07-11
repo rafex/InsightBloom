@@ -24,6 +24,7 @@ public class UsersApplication {
         final String surveyUrl = System.getenv().getOrDefault("SURVEY_URL", "http://insightbloom-survey:8086");
         final String telegramUrl = System.getenv().getOrDefault("TELEGRAM_URL", "http://insightbloom-telegram:8095");
         final String internalApiKey = System.getenv().getOrDefault("INTERNAL_API_KEY", "");
+        final String drawioBaseUrl = System.getenv().getOrDefault("DRAWIO_BASE_URL", "");
 
         final String twilioAccountSid = System.getenv().getOrDefault("TWILIO_ACCOUNT_SID", "");
         final String twilioAuthToken = System.getenv().getOrDefault("TWILIO_AUTH_TOKEN", "");
@@ -149,6 +150,7 @@ public class UsersApplication {
         final var eventTypeHandler = new EventTypeHandler(listEventTypesUseCase, createEventTypeUseCase,
                 updateEventTypeUseCase, setEventTypeActiveUseCase, validateTokenUseCase);
         final var eventCapabilityHandler = new EventCapabilityHandler();
+        final var integrationConfigHandler = new IntegrationConfigHandler(drawioBaseUrl);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -161,6 +163,7 @@ public class UsersApplication {
         routes.add("/api/v1/timezones/*", timezoneHandler);
         routes.add("/api/v1/event-types/*", eventTypeHandler);
         routes.add("/api/v1/event-capabilities/*", eventCapabilityHandler);
+        routes.add("/api/v1/integrations/*", integrationConfigHandler);
 
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();

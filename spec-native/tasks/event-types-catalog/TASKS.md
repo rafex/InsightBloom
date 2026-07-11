@@ -210,13 +210,20 @@ ven los cambios del otro en vivo.
 
 ### TASK-0032: Helm chart drawio self-hosted
 
-**Estado:** todo
+**Estado:** done
 **Owner:** —
 **Dependencias:** ninguna
-**Archivos esperados:** `infra/helm/charts/drawio/`
+**Archivos esperados:** `infra/helm/charts/insightbloom/templates/drawio-deployment.yaml`,
+`drawio-service.yaml`, `drawio-hpa.yaml` (instancia compartida, no chart
+separado — sigue el mismo patron ya usado para NATS dentro del chart
+principal, ver DEC-0020), `ingress.yaml` (bloque `ingressDrawio`),
+`network-policy.yaml` (regla de ingress publico para drawio), `values.yaml`
+(`drawio:` + `ingressDrawio:`).
 **Criterio de cierre:** el editor de drawio carga embebido sin errores de
 consola (revisar cabeceras `X-Frame-Options`/CSP si aplica).
-**Validacion:** `helm template` + prueba manual.
+**Validacion:** `helm template` + `helm lint` verificados en verde. Prueba
+manual de carga del iframe (headers `X-Frame-Options`/CSP) **pendiente**
+hasta el primer despliegue real en K3s — no verificable sin un cluster.
 
 ### TASK-0033: Helm chart Etherpad self-hosted + API key
 
@@ -233,16 +240,19 @@ usando la API key generada al desplegar.
 
 ### TASK-0040: Configuracion de URLs/credenciales de integraciones self-hosted
 
-**Estado:** todo
+**Estado:** parcial (slice de drawio hecho; Jitsi/Excalidraw/Etherpad pendientes)
 **Owner:** —
 **Dependencias:** TASK-0030, TASK-0031, TASK-0032, TASK-0033
 **Archivos esperados:** `UsersApplication.java` (variables de entorno
-`JITSI_SELF_HOSTED_DOMAIN`, `EXCALIDRAW_BASE_URL`, `DRAWIO_BASE_URL`,
+`JITSI_SELF_HOSTED_DOMAIN`, `EXCALIDRAW_BASE_URL`, `DRAWIO_BASE_URL` ✅,
 `ETHERPAD_BASE_URL`, `ETHERPAD_API_KEY`), Helm `values.yaml` +
 `deploy.yml` para inyectarlas.
 **Criterio de cierre:** el backend expone estas URLs (sin exponer la API
 key de Etherpad) via un endpoint de configuracion publica que el frontend
-consulta para armar los `iframe`.
+consulta para armar los `iframe`. ✅ Hecho para drawio:
+`IntegrationConfigHandler` (`GET /api/v1/integrations`) devuelve
+`drawioBaseUrl`; queda extender el mismo handler con los campos de
+Jitsi/Excalidraw/Etherpad cuando se implementen.
 **Validacion:** `mvn -o test` + revision manual de que la API key nunca
 aparece en una respuesta HTTP.
 
@@ -277,7 +287,7 @@ instancia real desplegada en TASK-0033.
 
 ### TASK-0043: Pestañas frontend "Videollamada", "Pizarra", "Diagramas", "Notas"
 
-**Estado:** todo
+**Estado:** parcial (slice de drawio hecho; Videollamada/Pizarra/Notas pendientes)
 **Owner:** —
 **Dependencias:** TASK-0022, TASK-0041, TASK-0042
 **Archivos esperados:**
@@ -286,12 +296,13 @@ IFrame API, no un `<iframe>` crudo, para poder pasar el nombre de sala y
 opciones de UI),
 `pages/conference/WhiteboardPage.vue` (embebe Excalidraw self-hosted en
 `iframe` con la sala derivada del `uuid`),
-`pages/conference/DiagrammingPage.vue` (embebe drawio en `iframe`),
+`pages/conference/DiagrammingPage.vue` ✅ (embebe drawio en `iframe`,
+degrada con mensaje claro si `drawioBaseUrl` no esta configurado — NFR-006),
 `pages/conference/CollabNotesPage.vue` (embebe Etherpad en `iframe` usando
 la URL del pad obtenida via TASK-0042),
-`app/router/index.ts` (rutas nuevas bajo `/c/:friendlyId`),
-`ConferencePage.vue` (pestañas condicionadas por capacidad, mismo patron
-de TASK-0022).
+`app/router/index.ts` ✅ (ruta `/c/:friendlyId/diagrams` agregada),
+`ConferencePage.vue` ✅ (pestaña "Diagramas" gateada por `DIAGRAMMING`,
+mismo patron de TASK-0022; faltan las otras 3 pestañas).
 **Criterio de cierre:** cada pestaña solo aparece si su capacidad esta
 activa; si la integracion self-hosted correspondiente no responde, se
 muestra un mensaje claro (NFR-006) en vez de una pantalla en blanco.

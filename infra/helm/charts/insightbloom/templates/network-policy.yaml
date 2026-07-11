@@ -77,6 +77,25 @@ spec:
     - {}
 
 ---
+# 3c. Re-open ingress for drawio from anywhere — embedded via iframe directly by the
+#     attendee's browser, so it needs its own public ingress (ingressDrawio) like chat/telegram.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-allow-drawio-ingress
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: drawio
+  policyTypes:
+    - Ingress
+  ingress:
+    - {}
+
+---
 # 4. Re-open ingress for all backend services from pods inside the same namespace.
 #    Covers: users → other services (cascade delete), nginx → backends, chat → backends.
 apiVersion: networking.k8s.io/v1

@@ -473,3 +473,61 @@ Registrar una decision cuando cambie:
   el estado `proposed` debe pasar a `accepted` una vez confirmado el punto
   de mantenimiento/compatibilidad pendiente.
 - Reemplaza: `none`
+
+### DEC-0020 - Instancias compartidas (multi-tenant) para drawio/Etherpad/Jitsi/Excalidraw, con TTL de datos por evento
+
+- Fecha: 2026-07-11
+- Estado: accepted
+- Contexto:
+  antes de implementar los 4 Helm charts self-hosted de DEC-0017 (Jitsi,
+  Excalidraw, drawio, Etherpad) habia que decidir el modelo de aislamiento:
+  ¿un Deployment compartido para toda la plataforma, o un pod dedicado por
+  evento, nacido bajo demanda y destruido al terminar? Las 4 herramientas
+  ya soportan multiplexar varias salas/documentos dentro de un mismo
+  proceso (room name o padID derivado del `uuid` del evento), asi que un
+  pod por evento agregaria overhead operativo (mas pods, arranques en frio)
+  sin ganar aislamiento real, ya que ninguna de las 4 necesita aislamiento
+  de proceso por evento — solo aislamiento de *datos/sala*, que ya resuelven
+  por diseño.
+- Decision:
+  cada una de las 4 herramientas se despliega como **un unico Deployment
+  compartido** para toda la plataforma (no un pod por evento), multiplexando
+  eventos por un identificador derivado del `uuid` del evento:
+  - drawio: stateless total, no persiste nada del lado del servidor — no
+    hay dato que aislar.
+  - Etherpad: multiplexa `pads` por `padID = event.uuid` en una sola
+    instancia.
+  - Jitsi: multiplexa salas por nombre de sala derivado del `uuid` en una
+    sola instancia (prosody/jicofo/JVB).
+  - Excalidraw: el room-server (`excalidraw-room`) multiplexa salas en
+    memoria dentro de un solo proceso.
+  Cada Deployment compartido escala con un `HorizontalPodAutoscaler` propio
+  (min/max replicas, disparado por CPU/memoria) — no hay scale-to-zero via
+  KEDA, para no agregar una dependencia nueva al cluster solo por ahorrar un
+  pod idle. El JVB de Jitsi es el mas sensible a este min/max porque procesa
+  video en tiempo real.
+  La efimeridad de los datos se resuelve a nivel de *dato*, no de pod: TTL =
+  `event.eventDate + event.endTime + 1 hora` de margen. Etherpad necesita un
+  job periodico (mismo patron de scheduler in-process que
+  `SendConferenceRemindersUseCase`) que borre pads de eventos vencidos via su
+  API HTTP. drawio y Jitsi no necesitan limpieza porque no persisten nada del
+  lado del servidor. Excalidraw queda pendiente de verificar en su propia
+  tarea de implementacion si `excalidraw-room` ya limpia salas inactivas o si
+  hace falta agregarlo.
+- Consecuencias:
+  se reutiliza el mismo patron de Helm ya usado para NATS (Deployment +
+  Service dedicados, fuera del loop generico de `.Values.services`, con su
+  propio Ingress publico cuando la herramienta se embebe directamente en el
+  navegador del asistente, como ya ocurre con chat/telegram);
+  el costo operativo es mucho menor que un pod por evento (una sola imagen
+  corriendo, autoscaling normal de Kubernetes, sin necesidad de un
+  orquestador de ciclo de vida por evento);
+  se introduce la necesidad de un job de limpieza de pads de Etherpad, que
+  no existia antes en la plataforma — sigue el mismo patron de scheduler ya
+  probado, sin infraestructura nueva;
+  si alguna de las 4 herramientas resulta no soportar multiplexado
+  confiable en produccion (por ejemplo, degradacion de Jitsi con muchas
+  salas concurrentes en una sola instancia), se reevaluaria un modelo hibrido
+  (pods dedicados solo para esa herramienta) como iteracion futura — no
+  bloquea la implementacion actual.
+- Reemplaza: `none`

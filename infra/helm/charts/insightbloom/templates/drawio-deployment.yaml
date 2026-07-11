@@ -1,0 +1,50 @@
+{{- if .Values.drawio.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-drawio
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+    app.kubernetes.io/component: drawio
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.drawio.replicaCount | default 1 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: drawio
+  template:
+    metadata:
+      labels:
+        {{- include "insightbloom.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: drawio
+    spec:
+      serviceAccountName: {{ include "insightbloom.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: drawio
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.drawio.repository }}:{{ .Values.drawio.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: {{ .Values.drawio.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.drawio.resources | nindent 12 }}
+{{- end }}

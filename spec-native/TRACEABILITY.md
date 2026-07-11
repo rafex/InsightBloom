@@ -29,6 +29,7 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | DEC-0017 | decision | SPEC-EVENT-TYPES-CATALOG, STACK.md | Jitsi/Excalidraw/drawio/Etherpad self-hosted en K3s (proposed) |
 | DEC-0018 | decision | SPEC-EVENT-TYPES-CATALOG, backend/services/insightbloom-survey | SurveyJS como motor alternativo (proposed, licencia pendiente) |
 | DEC-0019 | decision | SPEC-EVENT-TYPES-CATALOG, backend/services/insightbloom-users | seatmap-canvas como motor de mapa alternativo (proposed, mantenimiento pendiente) |
+| DEC-0020 | decision | SPEC-EVENT-TYPES-CATALOG, infra/helm/charts/insightbloom | Instancias compartidas + HPA + TTL de datos para drawio/Etherpad/Jitsi/Excalidraw (accepted) |
 | SEC-001 | security | agents/SECURITY.md | Auditoría de seguridad (7 hallazgos) |
 | DIAG-001 | diagnostic | agents/DIAGNOSE.md | Diagnóstico del proyecto 2026-06-26 |
 

@@ -2,7 +2,7 @@ import axios from 'axios'
 import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
-  SeatingMode, Reservation, VenueSeat, EventType, EventCapability
+  SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -252,5 +252,11 @@ export async function updateEventType(
 
 export async function setEventTypeActive(uuid: string, active: boolean, token: string): Promise<EventType> {
   const res = await axios.put(`/api/users/api/v1/event-types/${uuid}/active`, { active }, authHeader(token))
+  return res.data.data
+}
+
+/** URLs publicas de las integraciones self-hosted configuradas (drawio, etc.), sin credenciales. */
+export async function getIntegrationConfig(): Promise<IntegrationConfig> {
+  const res = await axios.get('/api/users/api/v1/integrations')
   return res.data.data
 }

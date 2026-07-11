@@ -89,6 +89,51 @@ spec:
           {{- end }}
     {{- end }}
 {{- end }}
+{{- if .Values.ingressDrawio.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-drawio
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+    app.kubernetes.io/component: drawio
+  {{- with .Values.ingressDrawio.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingressDrawio.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingressDrawio.tls }}
+  tls:
+    {{- range .Values.ingressDrawio.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingressDrawio.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- with .pathType }}
+            pathType: {{ . }}
+            {{- end }}
+            backend:
+              service:
+                name: {{ include "insightbloom.fullname" $ }}-drawio
+                port:
+                  number: {{ $.Values.drawio.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}
 {{- if .Values.ingressTelegram.enabled }}
 ---
 {{- $telegramSvc := .Values.services.telegram }}

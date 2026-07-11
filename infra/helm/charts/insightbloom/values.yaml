@@ -89,6 +89,27 @@ nats:
       cpu: 150m
       memory: 192Mi
 
+# drawio es una instancia compartida (multi-tenant) para toda la plataforma, no un
+# pod por evento: el editor es completamente stateless (no persiste diagramas del
+# lado del servidor), así que no hay nada que aislar por evento — ver DEC-0020.
+drawio:
+  enabled: true
+  repository: jgraph/drawio
+  tag: "24.7.17"
+  port: 8080
+  replicaCount: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60
+  resources:
+    requests:
+      cpu: 30m
+      memory: 192Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
 ingress:
   enabled: true
   className: haproxy
@@ -128,6 +149,19 @@ ingressTelegram:
           pathType: Prefix
   tls: []
 
+ingressDrawio:
+  enabled: true
+  className: haproxy
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    ingress.kubernetes.io/backend-protocol: "http"
+  hosts:
+    - host: drawio-insightbloom.v1.rafex.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
 # ── Services ───────────────────────────────────────────────────────────────────
 services:
   users:
@@ -155,6 +189,7 @@ services:
       PRESENTATIONS_URL: http://insightbloom-presentations:8091
       SURVEY_URL: http://insightbloom-survey:8086
       TELEGRAM_URL: http://insightbloom-telegram:8095
+      DRAWIO_BASE_URL: https://drawio-insightbloom.v1.rafex.cloud
       TWILIO_ACCOUNT_SID: ""
       TWILIO_FROM_NUMBER: ""
       ZOHO_SMTP_HOST: "smtppro.zoho.com"

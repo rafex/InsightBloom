@@ -12,6 +12,10 @@ export type EventCapability =
   | 'TICKETING_GENERAL' | 'TICKETING_SEATED' | 'SURVEY' | 'PRESENTATION' | 'WORD_CLOUD'
   | 'CHAT_BOT' | 'VIDEO_CONFERENCE' | 'WHITEBOARD' | 'DIAGRAMMING' | 'COLLAB_NOTES'
 
+export interface IntegrationConfig {
+  drawioBaseUrl?: string | null
+}
+
 export interface EventType {
   uuid: string
   key: string

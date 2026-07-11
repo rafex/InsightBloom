@@ -35,7 +35,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'presentation', component: () => import('@/pages/conference/PresentationPage.vue') },
       { path: 'remote', component: () => import('@/pages/conference/RemoteControlPage.vue') },
       { path: 'survey', component: () => import('@/pages/conference/SurveyPage.vue') },
-      { path: 'ticket', component: () => import('@/pages/conference/TicketPage.vue') }
+      { path: 'ticket', component: () => import('@/pages/conference/TicketPage.vue') },
+      { path: 'diagrams', component: () => import('@/pages/conference/DiagrammingPage.vue') }
     ]
   },
   {
