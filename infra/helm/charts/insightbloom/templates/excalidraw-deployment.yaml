@@ -21,12 +21,15 @@ spec:
         app.kubernetes.io/component: excalidraw
     spec:
       serviceAccountName: {{ include "insightbloom.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: excalidraw
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+          # La imagen oficial (nginx:alpine con el build estatico de Excalidraw) espera correr
+          # como root: su master de nginx necesita bindear el puerto 80 (privilegiado) y
+          # bajar privilegios a un usuario "nginx" (uid 101) para los workers via su propio
+          # directive "user nginx;" — forzar el securityContext no-root/uid-1000 compartido de
+          # la plataforma (ver .Values.securityContext) rompe el mkdir de sus directorios de
+          # cache temporal (EACCES), verificado en vivo contra la imagen real. Se deja sin
+          # override de securityContext, a diferencia del resto de servicios de este chart.
           image: "{{ .Values.excalidraw.repository }}:{{ .Values.excalidraw.tag }}"
           imagePullPolicy: IfNotPresent
           ports:
