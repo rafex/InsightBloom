@@ -34,6 +34,11 @@ public class Conference {
     private String diagramXml; // ultimo XML guardado del diagrama de drawio, nullable
     private Instant diagramUpdatedAt; // nullable
     private Instant diagramPurgedAt; // marca cuándo se purgó el diagrama por TTL, nullable
+    private String sandboxVariant; // python|java|web, solo si CODE_IDE habilitada, nullable
+    private Integer sandboxPoolSize; // tamaño del pool de sandboxes, nullable
+    private Integer sandboxInternetEnabled; // 0|1, por defecto 0
+    private String sandboxExtraPackages; // paquetes adicionales a instalar, nullable
+    private String sandboxRemoteGitUrl; // URL de remoto git del profesor, nullable
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -141,4 +146,14 @@ public class Conference {
     public void setFlyerBase64(String flyerBase64) { this.flyerBase64 = flyerBase64; }
     public void setTimezoneId(Integer timezoneId) { this.timezoneId = timezoneId; }
     public void setReminderSentAt(Instant reminderSentAt) { this.reminderSentAt = reminderSentAt; }
+    public String getSandboxVariant() { return sandboxVariant; }
+    public Integer getSandboxPoolSize() { return sandboxPoolSize; }
+    public Integer getSandboxInternetEnabled() { return sandboxInternetEnabled; }
+    public String getSandboxExtraPackages() { return sandboxExtraPackages; }
+    public String getSandboxRemoteGitUrl() { return sandboxRemoteGitUrl; }
+    public void setSandboxVariant(String sandboxVariant) { this.sandboxVariant = sandboxVariant; }
+    public void setSandboxPoolSize(Integer sandboxPoolSize) { this.sandboxPoolSize = sandboxPoolSize; }
+    public void setSandboxInternetEnabled(Integer sandboxInternetEnabled) { this.sandboxInternetEnabled = sandboxInternetEnabled; }
+    public void setSandboxExtraPackages(String sandboxExtraPackages) { this.sandboxExtraPackages = sandboxExtraPackages; }
+    public void setSandboxRemoteGitUrl(String sandboxRemoteGitUrl) { this.sandboxRemoteGitUrl = sandboxRemoteGitUrl; }
 }
