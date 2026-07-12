@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
 declare global {
   interface Window {
@@ -47,6 +47,11 @@ export default {
       if (!props.conferenceId) { loading.value = false; return }
       try {
         await loadJitsiScript()
+        // El contenedor #jitsi-container solo existe en el DOM una vez loading=false
+        // (v-else en el template) — hay que esperar el siguiente tick del render antes
+        // de buscarlo, o parentNode llega null y Jitsi no se adjunta a nada.
+        loading.value = false
+        await nextTick()
         // Sala derivada deterministicamente del uuid del evento (FR-011): todos los
         // asistentes llegan a la misma sala sin coordinacion manual.
         const roomName = `insightbloom-${props.conferenceId}`
@@ -60,7 +65,6 @@ export default {
         })
       } catch (e: any) {
         // degrada silenciosamente: el contenedor queda vacio, no rompe el resto del evento
-      } finally {
         loading.value = false
       }
     })
