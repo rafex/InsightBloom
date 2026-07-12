@@ -15,5 +15,6 @@ public enum EventCapability {
     VIDEO_CONFERENCE,
     WHITEBOARD,
     DIAGRAMMING,
-    COLLAB_NOTES
+    COLLAB_NOTES,
+    CODE_IDE
 }
