@@ -5,6 +5,7 @@ import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.AssignSandboxUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GenerateWorkspaceDownloadUrlUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 
@@ -15,13 +16,16 @@ import java.util.Set;
 public class SandboxHandler extends BaseResourceHandler {
     private final AssignSandboxUseCase assignSandboxUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
+    private final GenerateWorkspaceDownloadUrlUseCase generateWorkspaceDownloadUrlUseCase;
     private final String gatewayBaseUrl; // ej. "https://ide-insightbloom.v1.rafex.cloud"
 
     public SandboxHandler(final AssignSandboxUseCase assignSandboxUseCase,
                          final ValidateTokenUseCase validateTokenUseCase,
+                         final GenerateWorkspaceDownloadUrlUseCase generateWorkspaceDownloadUrlUseCase,
                          final String gatewayBaseUrl) {
         this.assignSandboxUseCase = assignSandboxUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
+        this.generateWorkspaceDownloadUrlUseCase = generateWorkspaceDownloadUrlUseCase;
         this.gatewayBaseUrl = gatewayBaseUrl;
     }
 
@@ -33,13 +37,14 @@ public class SandboxHandler extends BaseResourceHandler {
     @Override
     public List<Route> routes() {
         return List.of(
-            Route.of("/{id}/sandbox", Set.of("GET"))
+            Route.of("/{id}/sandbox", Set.of("GET")),
+            Route.of("/{id}/sandbox/download", Set.of("POST"))
         );
     }
 
     @Override
     public Set<String> supportedMethods() {
-        return Set.of("GET");
+        return Set.of("GET", "POST");
     }
 
     @Override
@@ -47,6 +52,15 @@ public class SandboxHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/sandbox")) {
             return handleGetSandbox(jx, jx.pathParam("id"));
+        }
+        return false;
+    }
+
+    @Override
+    public boolean post(final HttpExchange x) {
+        final var jx = asJetty(x);
+        if (jx.path().endsWith("/sandbox/download")) {
+            return handleDownloadRequest(jx, jx.pathParam("id"));
         }
         return false;
     }
@@ -93,5 +107,40 @@ public class SandboxHandler extends BaseResourceHandler {
     private String extractToken(final JettyHttpExchange jx) {
         final String auth = jx.request().getHeaders().get("Authorization");
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
+    }
+
+    private boolean handleDownloadRequest(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+
+            final var downloadInfo = generateWorkspaceDownloadUrlUseCase.execute(conferenceId, v.subjectUuid());
+
+            final Map<String, Object> response = Map.of(
+                "sandboxUuid", downloadInfo.sandboxUuid,
+                "downloadUrl", downloadInfo.downloadUrl,
+                "expiresInSeconds", downloadInfo.expiresInSeconds
+            );
+            sendOk(jx, 200, response);
+            return true;
+        } catch (final IllegalArgumentException e) {
+            if ("sandbox_not_assigned".equals(e.getMessage())) {
+                sendError(jx, 404, "sandbox_not_assigned", "No sandbox assigned");
+            } else {
+                sendError(jx, 400, "invalid_request", e.getMessage());
+            }
+            return true;
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", "Internal server error");
+            return true;
+        }
     }
 }

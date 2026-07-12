@@ -73,6 +73,7 @@ public class UsersApplication {
         final var eventTypeRepo = new SqliteEventTypeRepository(db);
         final var roleRepo = new SqliteRoleRepository(db);
         final var eventRoleRepo = new SqliteEventRoleRepository(db);
+        final var sandboxRepo = new SqliteSandboxRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -162,6 +163,10 @@ public class UsersApplication {
         final var generateSeatLayoutUseCase = new GenerateSeatLayoutUseCase(llmClient, JacksonJsonCodec.defaultCodec());
         final var getChatAiSettingUseCase = new GetChatAiSettingUseCase(platformSettingsRepo);
         final var setChatAiSettingUseCase = new SetChatAiSettingUseCase(platformSettingsRepo);
+        final String gatewayBaseUrl = System.getenv().getOrDefault("GATEWAY_BASE_URL", "https://ide-insightbloom.v1.rafex.cloud");
+        final var assignSandboxUseCase = new AssignSandboxUseCase(sandboxRepo, conferenceRepo);
+        final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, gatewayBaseUrl);
+        final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -198,11 +203,14 @@ public class UsersApplication {
         final var permissionHandler = new PermissionHandler();
         final var platformSettingsHandler = new PlatformSettingsHandler(
                 getChatAiSettingUseCase, setChatAiSettingUseCase, validateTokenUseCase);
+        final var sandboxHandler = new SandboxHandler(
+                assignSandboxUseCase, validateTokenUseCase, generateWorkspaceDownloadUrlUseCase, gatewayBaseUrl);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/auth/*", authHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
+        routes.add("/api/v1/conferences/*", sandboxHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);
         routes.add("/api/v1/certificate-settings/*", certificateSettingsHandler);
