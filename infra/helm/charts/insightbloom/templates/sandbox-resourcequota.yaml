@@ -41,12 +41,6 @@ spec:
     max:
       cpu: "{{ .Values.sandbox.resources.limits.cpu }}"
       memory: "{{ .Values.sandbox.resources.limits.memory }}"
-    default:
-      cpu: "{{ .Values.sandbox.resources.limits.cpu }}"
-      memory: "{{ .Values.sandbox.resources.limits.memory }}"
-    defaultRequest:
-      cpu: "{{ .Values.sandbox.resources.requests.cpu }}"
-      memory: "{{ .Values.sandbox.resources.requests.memory }}"
   - type: Container
     min:
       cpu: 50m
