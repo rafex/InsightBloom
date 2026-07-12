@@ -21,9 +21,10 @@ Con la ejecución de los pasos 1-4 tienes un tipo de evento "Taller remoto" comp
 **Progreso:** 1 ✅ · 2 (drawio) ✅ · 3 (Etherpad) ✅ · 4 (Jitsi público) ✅ · 5 (Excalidraw) parcial (editor sin colaboracion en vivo) · 6-8 pendientes.
 
 Nota: la capacidad `CODE_IDE` (IDE web + ejecucion de codigo del taller)
-esta fuera de esta iniciativa. No crear tareas para ella hasta que el
-usuario defina las reglas de seguridad de ejecucion; en ese momento se abre
-una iniciativa nueva que solo agrega una capacidad al catalogo fijo.
+se definio y planifico como iniciativa propia — ver DEC-0023 y
+`spec-native/tasks/code-ide-sandboxes/TASKS.md`. No se agregan tareas
+para ella aqui; solo el enum `EventCapability` se toca (TASK-0001 de
+esa iniciativa), sin otro impacto en esta iniciativa.
 
 ## Fase 0 — Catalogo de capacidades + EventType (backend)
 

@@ -618,3 +618,65 @@ Registrar una decision cuando cambie:
     gating sigue viviendo en el frontend/backend de la app, sin cambios.
   - `AUTH_VALIDATE_URL`/`GATEWAY_ROUTES`/`GATEWAY_LOGIN_URL` configurables por env var,
     mismo patron que el resto de servicios del chart.
+
+### DEC-0023 - IDE web en sandbox (code-server) por asistente, pool fijo sin RBAC de pods
+
+- Fecha: 2026-07-12
+- Estado: accepted
+- Contexto:
+  `event-types-catalog` (DEC-0016) dejo la capacidad `CODE_IDE` explicitamente fuera de
+  alcance hasta definir reglas de seguridad de ejecucion: es la unica capacidad de la
+  plataforma que implicaria ejecutar codigo arbitrario de asistentes en un contenedor con
+  terminal real, la superficie de ataque mas sensible posible hacia el cluster. Se evaluaron
+  dos IDEs web equivalentes (code-server de Coder vs. OpenVSCode Server de Gitpod, ambos
+  MIT, ambos VS Code sobre Open VSX) y dos modelos de aprovisionamiento (pool fijo
+  pre-creado vs. creacion dinamica de pods bajo demanda).
+- Decision:
+  - **code-server** sobre OpenVSCode Server: trae autenticacion propia (password por
+    sandbox, defensa en profundidad detras de la sesion de InsightBloom), esta disenado
+    para self-host detras de reverse proxy (el caso exacto de este proyecto), y tiene mayor
+    madurez de comunidad para ese escenario. OpenVSCode Server esta pensado para vivir
+    embebido dentro de Gitpod, con auth minima (solo un token en la URL) y documentacion de
+    self-host mas escasa.
+  - **Pool fijo, no dinamico**: al habilitar `CODE_IDE` para un taller, el organizador define
+    `sandbox_pool_size`; Helm/el backend pre-crea ese numero de pods, y el backend solo
+    *asigna* un sandbox libre a cada asistente (primer-uno-libre, `UNIQUE` en SQLite, mismo
+    patron que `reservations`). **Ningun componente de la aplicacion tiene RBAC de
+    Kubernetes para crear/eliminar pods en runtime** — es la decision que mas reduce la
+    superficie de ataque: un servicio comprometido no puede escalar creando pods arbitrarios.
+    El nodo actual (12 CPU/32 GB) soporta ~15-18 sandboxes Java concurrentes (el caso mas
+    pesado, JVM + language server) o ~25-30 Python/web sin hardware adicional; escala mayor
+    es una decision operativa por evento (unir un nodo agente temporal), no parte de esta
+    iniciativa.
+  - Imagen propia `insightbloom-sandbox` (Alpine minima, no-root uid 1000, mismo estandar de
+    hardening ya aplicado al resto de la plataforma) con tres variantes (`python`, `java`,
+    `web`) construidas sobre la misma base; git/make/just/sqlite3 preinstalados; extension de
+    Open VSX (nunca del Marketplace oficial de Microsoft, cuyos terminos no permiten forks de
+    VS Code) para visualizar tablas SQLite.
+  - `internet_enabled` es una **bandera por taller, cambiable en cualquier momento sin
+    reiniciar sandboxes activos** — implementada como `NetworkPolicy` a nivel de evento
+    (deny-all por defecto; egress a un proxy con allowlist de PyPI/npm/Maven Central/GitHub
+    solo cuando esta en `true`), nunca egress abierto sin filtro. Namespace dedicado
+    `insightbloom-sandboxes`, aislado del resto del cluster (los sandboxes nunca alcanzan
+    `insightbloom-users` ni ningun otro Service interno, con o sin internet habilitado).
+  - Lista de paquetes adicionales por taller (texto declarativo, una entrada por linea) se
+    instala una sola vez al aprovisionar el pool, nunca en caliente durante la sesion del
+    asistente — evita que sea un vector de ejecucion arbitraria.
+  - Acceso exclusivo via `insightbloom-tools-gateway` (DEC-0022), que requiere extenderse
+    para soportar upgrade a WebSocket antes de poder enrutar code-server (VS Code web no
+    tiene fallback a long-polling, a diferencia del socket.io de Etherpad).
+  - Flujo de git de punta a punta dentro del sandbox: repo local inicializado por defecto, o
+    clonado de un remoto publico que el profesor indica; el alumno agrega su propio remoto y
+    hace push con sus propias credenciales (la plataforma nunca gestiona ni ve credenciales
+    git de terceros). Boton de descarga del workspace como zip para quien no use git.
+- Consecuencias:
+  - Detalle completo de fases, tareas y criterios de cierre en
+    `spec-native/specs/code-ide-sandboxes/SPEC.md` y
+    `spec-native/tasks/code-ide-sandboxes/TASKS.md`.
+  - Queda fuera de esta iniciativa (ver SPEC, Non-Goals): pool dinamico con RBAC delegado,
+    persistencia del workspace mas alla del TTL del evento, instalacion de software en vivo
+    mas alla de lo declarado por el organizador, colaboracion en tiempo real dentro de un
+    mismo sandbox, y autenticacion git federada.
+  - La nota en `spec-native/tasks/event-types-catalog/TASKS.md` que marcaba `CODE_IDE` como
+    fuera de alcance se actualiza para apuntar a esta iniciativa.
+- Reemplaza: `none`
