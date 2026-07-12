@@ -662,6 +662,13 @@ Registrar una decision cuando cambie:
   - Lista de paquetes adicionales por taller (texto declarativo, una entrada por linea) se
     instala una sola vez al aprovisionar el pool, nunca en caliente durante la sesion del
     asistente — evita que sea un vector de ejecucion arbitraria.
+  - **Auth reutilizada, no nueva**: el unico portero real es la sesion de InsightBloom ya
+    existente (`ib_token`/`ib_gw` via `insightbloom-tools-gateway`, DEC-0022) — solo un
+    usuario registrado y con sesion valida llega a ver un sandbox, mismo patron exacto que
+    ya gatea drawio/Etherpad/Excalidraw. El password propio de code-server, si se usa, es un
+    secreto interno autogenerado por sandbox que el backend/gateway inyecta de forma
+    transparente; nunca una segunda pantalla de login ni una credencial que el asistente
+    deba conocer o gestionar. No se construye un sistema de auth independiente para el IDE.
   - Acceso exclusivo via `insightbloom-tools-gateway` (DEC-0022), que requiere extenderse
     para soportar upgrade a WebSocket antes de poder enrutar code-server (VS Code web no
     tiene fallback a long-polling, a diferencia del socket.io de Etherpad).

@@ -183,7 +183,8 @@ patrón ya usado en Fase 1 de ticketing) + `mvn -o test`.
 **Owner:** —
 **Dependencias:** TASK-0030, TASK-0020
 **Archivos esperados:** ruta `GET /api/v1/conferences/{id}/sandbox` en
-`ConferenceHandler.java` (requiere capacidad `CODE_IDE`, devuelve la URL
+`ConferenceHandler.java` (requiere token de sesión valido — mismo guard
+que el resto de `ConferenceHandler` — y capacidad `CODE_IDE`; devuelve la URL
 del gateway con `?ib_token=` para el slot asignado o lo asigna si no
 tiene uno todavía).
 **Criterio de cierre:** un asistente autenticado obtiene una URL

@@ -91,7 +91,16 @@ hardening de imágenes).
   hecho (ver Dependencies).
 - Acceso a cada sandbox exclusivamente vía `insightbloom-tools-gateway`
   (mismo patrón de sesión `ib_token`/`ib_gw` que las demás herramientas,
-  DEC-0022) — sin Ingress público directo al pod del sandbox.
+  DEC-0022) — sin Ingress público directo al pod del sandbox. **Esta es
+  la única puerta de entrada real**: solo un usuario registrado con
+  sesión válida de InsightBloom llega a ver un sandbox; sin sesión, la
+  misma página 401 "inicia sesión" que ya muestran drawio/Etherpad/
+  Excalidraw (ver Functional Requirements, FR-011). El password propio
+  de code-server (si se usa) es un secreto interno generado por el
+  backend por sandbox, nunca expuesto ni gestionado por el usuario — el
+  gateway lo inyecta de forma transparente al proxear la sesión ya
+  autenticada; no es una segunda pantalla de login ni una credencial que
+  el asistente deba recordar.
 - Extensión del gateway para soportar upgrade a WebSocket (requisito
   técnico duro: VS Code web no tiene fallback sin websocket, a
   diferencia del socket.io de Etherpad) — ver Dependencies.
@@ -163,6 +172,13 @@ hardening de imágenes).
 - FR-010: ningún sandbox tiene alcance de red hacia otros pods de
   InsightBloom (base de datos, otros microservicios) bajo ninguna
   configuración de `internet_enabled`.
+- FR-011: solo un usuario **registrado y con sesión válida** de
+  InsightBloom puede llegar a ver o usar un sandbox — se reutiliza
+  exactamente la misma autenticación que ya gatea drawio/Etherpad/
+  Excalidraw (`ib_token`/`ib_gw` vía `insightbloom-tools-gateway`,
+  DEC-0022), sin un sistema de login independiente para el IDE. Un
+  visitante sin sesión que llegue a la URL directa del gateway para un
+  sandbox ve la misma página de "inicia sesión", nunca el IDE.
 
 ## Non-functional Requirements
 - NFR-001: ningún componente de la plataforma (backend, gateway,
@@ -236,6 +252,16 @@ hardening de imágenes).
   cualquier otro Service de InsightBloom
 - **Then** la conexión es rechazada por la `NetworkPolicy` del
   namespace `insightbloom-sandboxes`.
+
+### Scenario 7 — Sin sesión no hay acceso al IDE
+- **Given** un visitante sin sesión de InsightBloom (o con sesión
+  vencida) que obtiene o adivina la URL directa de un sandbox a través
+  del gateway
+- **When** intenta abrirla
+- **Then** ve la misma página de "inicia sesión en InsightBloom" que ya
+  muestran drawio/Etherpad/Excalidraw, sin llegar nunca al IDE ni al pod
+  del sandbox — no existe una vía de acceso al sandbox que no pase por
+  la sesión de la plataforma.
 
 ## Dependencies
 - `event-types-catalog` (DEC-0016): `CODE_IDE` se agrega al mismo enum
