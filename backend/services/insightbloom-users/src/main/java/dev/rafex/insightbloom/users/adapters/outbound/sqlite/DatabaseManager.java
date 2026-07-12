@@ -138,6 +138,21 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN venue_map_base64 TEXT");
             } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_variant TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_pool_size INTEGER");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_internet_enabled INTEGER NOT NULL DEFAULT 0");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_extra_packages TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_remote_git_url TEXT");
+            } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS reservations (
