@@ -144,6 +144,9 @@ public class UsersApplication {
         final var eventCapabilityGuard = new dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard(eventTypeRepo);
         final var setEventTypeUseCase = new SetEventTypeUseCase(conferenceRepo, eventTypeRepo, reservationRepo);
         final var getOrCreateEventPadUseCase = new GetOrCreateEventPadUseCase(conferenceRepo, etherpadPort);
+        final var getEventDiagramUseCase = new GetEventDiagramUseCase(conferenceRepo);
+        final var saveEventDiagramUseCase = new SaveEventDiagramUseCase(conferenceRepo);
+        final var purgeExpiredEventDiagramsUseCase = new PurgeExpiredEventDiagramsUseCase(conferenceRepo, timezoneRepo);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -157,7 +160,8 @@ public class UsersApplication {
                 listReservationsUseCase, checkInTicketUseCase,
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
                 setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase,
-                assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase);
+                assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
+                getEventDiagramUseCase, saveEventDiagramUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
@@ -216,6 +220,11 @@ public class UsersApplication {
                 purgeExpiredEventNotesUseCase.execute(java.time.Instant.now());
             } catch (final Exception e) {
                 System.err.println("event-notes-purge-scheduler: tick failed: " + e.getMessage());
+            }
+            try {
+                purgeExpiredEventDiagramsUseCase.execute(java.time.Instant.now());
+            } catch (final Exception e) {
+                System.err.println("event-diagram-purge-scheduler: tick failed: " + e.getMessage());
             }
         }, 1, 5, java.util.concurrent.TimeUnit.MINUTES);
 

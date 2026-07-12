@@ -31,6 +31,9 @@ public class Conference {
     private String venueMapBase64; // imagen del recinto (data URL) para modo SEATED, nullable
     private String eventTypeKey = "conference"; // FK a event_types.key; toda conferencia existente cae aquí
     private Instant notesPurgedAt; // marca cuándo se borró el pad de Etherpad (TTL, ver DEC-0020), nullable
+    private String diagramXml; // ultimo XML guardado del diagrama de drawio, nullable
+    private Instant diagramUpdatedAt; // nullable
+    private Instant diagramPurgedAt; // marca cuándo se purgó el diagrama por TTL, nullable
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -110,6 +113,16 @@ public class Conference {
     public String getVenueMapBase64() { return venueMapBase64; }
     public String getEventTypeKey() { return eventTypeKey; }
     public Instant getNotesPurgedAt() { return notesPurgedAt; }
+    public String getDiagramXml() { return diagramXml; }
+    public Instant getDiagramUpdatedAt() { return diagramUpdatedAt; }
+    public Instant getDiagramPurgedAt() { return diagramPurgedAt; }
+    public void setDiagramXml(String diagramXml) { this.diagramXml = diagramXml; this.diagramUpdatedAt = Instant.now(); }
+    /** Usado solo por el repositorio al reconstruir la entidad desde la BD (no actualiza updatedAt). */
+    public void restoreDiagramXml(String diagramXml, Instant diagramUpdatedAt) {
+        this.diagramXml = diagramXml;
+        this.diagramUpdatedAt = diagramUpdatedAt;
+    }
+    public void setDiagramPurgedAt(Instant diagramPurgedAt) { this.diagramPurgedAt = diagramPurgedAt; }
     public void setSeatingMode(String seatingMode) { this.seatingMode = seatingMode; }
     public void setCapacity(Integer capacity) { this.capacity = capacity; }
     public void setReservedCount(int reservedCount) { this.reservedCount = reservedCount; }

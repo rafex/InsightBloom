@@ -21,8 +21,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     public void save(Conference conference) {
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_updated_at, diagram_purged_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
@@ -54,6 +54,9 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(23, conference.getVenueMapBase64());
             ps.setString(24, conference.getEventTypeKey());
             ps.setString(25, conference.getNotesPurgedAt() != null ? conference.getNotesPurgedAt().toString() : null);
+            ps.setString(26, conference.getDiagramXml());
+            ps.setString(27, conference.getDiagramUpdatedAt() != null ? conference.getDiagramUpdatedAt().toString() : null);
+            ps.setString(28, conference.getDiagramPurgedAt() != null ? conference.getDiagramPurgedAt().toString() : null);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -158,6 +161,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         final String eventTypeKey = rs.getString("event_type_key");
         conference.setEventTypeKey(eventTypeKey != null ? eventTypeKey : "conference");
         conference.setNotesPurgedAt(parseInstantNullable(rs.getString("notes_purged_at")));
+        conference.restoreDiagramXml(rs.getString("diagram_xml"), parseInstantNullable(rs.getString("diagram_updated_at")));
+        conference.setDiagramPurgedAt(parseInstantNullable(rs.getString("diagram_purged_at")));
         return conference;
     }
 
@@ -167,6 +172,21 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         final String sql = """
             SELECT * FROM conferences
             WHERE event_date IS NOT NULL AND end_time IS NOT NULL AND notes_purged_at IS NULL
+        """;
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) list.add(map(rs));
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return list;
+    }
+
+    @Override
+    public List<Conference> findPendingDiagramPurge() {
+        final List<Conference> list = new ArrayList<>();
+        final String sql = """
+            SELECT * FROM conferences
+            WHERE event_date IS NOT NULL AND end_time IS NOT NULL AND diagram_purged_at IS NULL
+              AND diagram_xml IS NOT NULL
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {

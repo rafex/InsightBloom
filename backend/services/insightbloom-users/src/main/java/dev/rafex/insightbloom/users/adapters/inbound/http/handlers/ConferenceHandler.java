@@ -16,6 +16,7 @@ import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUse
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceSeatMapUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetDownloadCountsUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GetEventDiagramUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetMyTicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetOrCreateEventPadUseCase;
 import dev.rafex.insightbloom.users.application.usecases.AssignEventRoleUseCase;
@@ -29,6 +30,7 @@ import dev.rafex.insightbloom.users.application.usecases.ReserveSeatUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetEventTypeUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSeatingModeUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetVenueMapUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SaveEventDiagramUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UpdateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.domain.model.Conference;
@@ -73,6 +75,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final AssignEventRoleUseCase assignEventRoleUseCase;
     private final ListEventRolesUseCase listEventRolesUseCase;
     private final RemoveEventRoleUseCase removeEventRoleUseCase;
+    private final GetEventDiagramUseCase getEventDiagramUseCase;
+    private final SaveEventDiagramUseCase saveEventDiagramUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -101,7 +105,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase,
                              final AssignEventRoleUseCase assignEventRoleUseCase,
                              final ListEventRolesUseCase listEventRolesUseCase,
-                             final RemoveEventRoleUseCase removeEventRoleUseCase) {
+                             final RemoveEventRoleUseCase removeEventRoleUseCase,
+                             final GetEventDiagramUseCase getEventDiagramUseCase,
+                             final SaveEventDiagramUseCase saveEventDiagramUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -130,6 +136,8 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.assignEventRoleUseCase = assignEventRoleUseCase;
         this.listEventRolesUseCase = listEventRolesUseCase;
         this.removeEventRoleUseCase = removeEventRoleUseCase;
+        this.getEventDiagramUseCase = getEventDiagramUseCase;
+        this.saveEventDiagramUseCase = saveEventDiagramUseCase;
     }
 
     @Override
@@ -159,6 +167,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
                 Route.of("/{id}/reservations/check-in", Set.of("POST")),
                 Route.of("/{id}/notes", Set.of("GET")),
+                Route.of("/{id}/diagram", Set.of("GET", "PUT")),
                 Route.of("/{id}/roles", Set.of("GET", "POST")),
                 Route.of("/{id}/roles/{userUuid}", Set.of("DELETE")),
                 Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
@@ -205,6 +214,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/notes")) {
             return handleGetNotes(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/diagram")) {
+            return handleGetDiagram(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/roles")) {
             return handleListEventRoles(jx, jx.pathParam("id"));
@@ -266,6 +278,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/seats")) {
             return handleDefineSeats(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/diagram")) {
+            return handleSaveDiagram(jx, jx.pathParam("id"));
         }
         return handleUpdate(jx, jx.pathParam("id"));
     }
@@ -565,6 +580,48 @@ public class ConferenceHandler extends BaseResourceHandler {
             getOrCreateEventPadUseCase.execute(id).ifPresentOrElse(
                     pad -> sendOk(jx, 200, pad),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleGetDiagram(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (!hasCapability(id, EventCapability.DIAGRAMMING)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita diagramas");
+                return true;
+            }
+            getEventDiagramUseCase.execute(id).ifPresentOrElse(
+                    diagram -> sendOk(jx, 200, diagram),
+                    () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSaveDiagram(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (!hasCapability(id, EventCapability.DIAGRAMMING)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita diagramas");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String xml = (String) body.get("xml");
+            if (saveEventDiagramUseCase.execute(id, xml != null ? xml : "")) {
+                sendOk(jx, 200, java.util.Map.of("saved", true));
+            } else {
+                sendError(jx, 404, "conference_not_found", "Conference not found");
+            }
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
