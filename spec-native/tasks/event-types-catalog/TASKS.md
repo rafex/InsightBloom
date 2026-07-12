@@ -18,6 +18,8 @@ Ver sección "Complexity Ranking & Execution Order" en SPEC.md para el análisis
 
 Con la ejecución de los pasos 1-4 tienes un tipo de evento "Taller remoto" completamente funcional (boletos GENERAL, videollamada pública, pizarra colaborativa, notas compartidas) sin tocar infraestructura operativamente riesgosa.
 
+**Progreso:** 1 ✅ · 2 (drawio) ✅ · 3 (Etherpad) ✅ · 4 (Jitsi público) ✅ · 5-8 pendientes.
+
 Nota: la capacidad `CODE_IDE` (IDE web + ejecucion de codigo del taller)
 esta fuera de esta iniciativa. No crear tareas para ella hasta que el
 usuario defina las reglas de seguridad de ejecucion; en ese momento se abre
@@ -272,7 +274,7 @@ para pasarlo al constructor de `HttpEtherpadPort`, nunca a una vista.
 
 ### TASK-0041: Campo `videoProvider` + endpoint de configuracion de Jitsi por evento
 
-**Estado:** todo
+**Estado:** diferido — solo `JITSI_PUBLIC` implementado (sin campo `videoProvider`)
 **Owner:** —
 **Dependencias:** TASK-0040
 **Archivos esperados:** `Conference.java` (`videoProvider`:
@@ -283,6 +285,13 @@ TASK-0011).
 **Criterio de cierre:** el organizador elige el proveedor de Jitsi para su
 evento; cambiarlo no requiere reiniciar nada.
 **Validacion:** test unitario + prueba manual.
+**Nota (2026-07-11):** siguiendo el orden recomendado, se adelanto Jitsi
+publico sin esperar a self-hosted (ver TASK-0043). Como todavia no existe
+un segundo proveedor, no hay nada que elegir: no se agrego el campo
+`videoProvider` ni el endpoint. `VideoConferencePage.vue` apunta siempre a
+`meet.jit.si`. Esta tarea se retoma cuando se implemente Jitsi
+self-hosted (ultimo paso del orden recomendado) y el organizador
+efectivamente tenga dos proveedores entre los que elegir.
 
 ### TASK-0042: `EtherpadClient` + creacion perezosa de pad por evento
 
@@ -306,13 +315,14 @@ contra la instancia real desplegada en TASK-0033 **pendiente**.
 
 ### TASK-0043: Pestañas frontend "Videollamada", "Pizarra", "Diagramas", "Notas"
 
-**Estado:** parcial (Diagramas + Notas hechas; Videollamada/Pizarra pendientes)
+**Estado:** parcial (Videollamada + Diagramas + Notas hechas; Pizarra pendiente)
 **Owner:** —
 **Dependencias:** TASK-0022, TASK-0041, TASK-0042
 **Archivos esperados:**
-`pages/conference/VideoConferencePage.vue` (embebe Jitsi via su
-IFrame API, no un `<iframe>` crudo, para poder pasar el nombre de sala y
-opciones de UI),
+`pages/conference/VideoConferencePage.vue` ✅ (embebe Jitsi via su
+IFrame API cargando `external_api.js` dinamicamente — no un `<iframe>`
+crudo —, sala derivada del `uuid` del evento: `insightbloom-{uuid}`, solo
+`meet.jit.si` por ahora, ver nota en TASK-0041),
 `pages/conference/WhiteboardPage.vue` (embebe Excalidraw self-hosted en
 `iframe` con la sala derivada del `uuid`),
 `pages/conference/DiagrammingPage.vue` ✅ (embebe drawio en `iframe`,
@@ -320,11 +330,11 @@ degrada con mensaje claro si `drawioBaseUrl` no esta configurado — NFR-006),
 `pages/conference/CollabNotesPage.vue` ✅ (embebe Etherpad en `iframe`
 usando la URL del pad obtenida via TASK-0042, degrada igual que Diagramas
 si `etherpadBaseUrl` no esta configurado o la llamada a `/notes` falla),
-`app/router/index.ts` ✅ (rutas `/c/:friendlyId/diagrams` y `/notes`
-agregadas),
-`ConferencePage.vue` ✅ (pestañas "Diagramas" y "Notas" gateadas por
-`DIAGRAMMING`/`COLLAB_NOTES`, mismo patron de TASK-0022; faltan
-Videollamada y Pizarra).
+`app/router/index.ts` ✅ (rutas `/c/:friendlyId/video`, `/diagrams` y
+`/notes` agregadas),
+`ConferencePage.vue` ✅ (pestañas "Videollamada", "Diagramas" y "Notas"
+gateadas por `VIDEO_CONFERENCE`/`DIAGRAMMING`/`COLLAB_NOTES`, mismo patron
+de TASK-0022; falta Pizarra).
 **Criterio de cierre:** cada pestaña solo aparece si su capacidad esta
 activa; si la integracion self-hosted correspondiente no responde, se
 muestra un mensaje claro (NFR-006) en vez de una pantalla en blanco.
