@@ -1,7 +1,10 @@
-{{- if .Values.sandbox.enabled }}
+{{- if false }}
 # TASK-0012: Template para Pods de sandbox (pool-fixed architecture)
 #
-# NOTA IMPORTANTE: Este template es EJEMPLAR/DOCUMENTATIVO.
+# NOTA IMPORTANTE: Este template es EJEMPLAR/DOCUMENTATIVO. Se gatea con `if false` a propósito:
+# nunca debe aplicarse como recurso real (image "insightbloom-code-ide:python" no existe, es un
+# placeholder), ver postmortem del deploy roto por ImagePullBackOff del pod "sandbox-example-slot-1"
+# bloqueando `helm upgrade --wait` (2026-07-12).
 # La arquitectura pool-fixed NO usa un Deployment controlado por Helm.
 # En su lugar, el backend (insightbloom-users, Fase 3) crea pods individuales dinámicamente
 # cuando se configura un evento con CODE_IDE habilitada.
