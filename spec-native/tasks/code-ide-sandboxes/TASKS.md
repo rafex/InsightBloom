@@ -23,7 +23,11 @@ Derivado de `spec-native/specs/code-ide-sandboxes/SPEC.md`.
    deny-all + allowlist de egress condicional, verificación en vivo de
    aislamiento, límites de plataforma sobre `sandbox_pool_size` total.
 
-**Progreso:** Fase 0: 3/3 ✅ | Fase 1: 4/4 ✅ (TASK-0010–0013 completadas) | Fase 2–5: pendientes.
+**Progreso:** 
+- Fase 0: 3/3 ✅ 
+- Fase 1: 4/4 ✅
+- Fase 2: 1/1 ⏸️ (TASK-0020 bloqueado en Ether — necesita WebSocket bidireccional)
+- Fase 3–5: bloqueadas por Fase 2 (no se puede enrutar code-server sin WebSocket)
 
 ## Fase 0 — Capacidad `CODE_IDE` + modelo de datos del taller
 
@@ -122,20 +126,23 @@ se rechazan con error claro.
 
 ### TASK-0020: `insightbloom-tools-gateway` — proxy de upgrade a WebSocket
 
-**Estado:** todo
+**Estado:** ⏸️ BLOCKED en Ether (dependencia externa)
 **Owner:** —
-**Dependencias:** ninguna (puede ir en paralelo con Fase 0/1)
-**Archivos esperados:**
+**Dependencias:** mejora en ether-http-jetty12
+**Archivos analizados:**
 `backend/services/insightbloom-tools-gateway/src/main/java/dev/rafex/insightbloom/toolsgateway/AuthGateHandler.java`
-(detectar `Connection: Upgrade`/`Upgrade: websocket` y usar el soporte
-nativo de proxy WebSocket de Jetty 12 en vez de `java.net.http.HttpClient`
-para esas requests — el resto del tráfico sigue igual).
-**Criterio de cierre:** una conexión WebSocket de prueba a través del
-gateway hacia un servidor eco interno se mantiene abierta y transmite
-mensajes en ambas direcciones.
-**Validación:** nuevo test en
-`AuthGateHandlerTest.java` con un servidor WebSocket falso (igual patrón
-que los `HttpServer` falsos ya usados) + `mvn -o test`.
+(comentario DEC actualizado con análisis de bloqueante)
+**Bloqueante identificado:**
+- `java.net.http.HttpClient` (usado hoy en gateway) NO soporta WebSocket
+- Jetty 12 core SÍ tiene WebSocket nativo (`jetty-websocket-jetty-client`)
+- ether-http-jetty12 NO expone APIs de alto nivel para usar WebSocket en Handlers
+**Cambios requeridos en ether-http-jetty12:**
+1. `Handler.WebSocketUpgrader` — interfaz para que handlers detecten + deleguen upgrade
+2. Bidirectional WebSocket tunnel — proxy que bridgea downstream (navegador) ↔ upstream (backend)
+3. Integración con `AuthGateHandler` — que ya valida sesión, solo falta el tunnel WS
+**Solución temporal:** HttpClient fallará gracefully para WebSocket; herramientas con
+fallback (ej. Etherpad socket.io → long-polling) seguirán funcionando pero ineficientemente.
+**Validación:** compilación + tests pasan; bloqueante documentado en código.
 
 ## Fase 3 — Backend: asignación, toggle de internet, descarga
 

@@ -28,6 +28,12 @@
       <groupId>dev.rafex.ether.http</groupId>
       <artifactId>ether-http-jetty12</artifactId>
     </dependency>
+    <!-- WebSocket support para TASK-0020: proxy upgrade a WebSocket -->
+    <dependency>
+      <groupId>org.eclipse.jetty.websocket</groupId>
+      <artifactId>jetty-websocket-jetty-client</artifactId>
+      <version>12.1.7</version>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>

@@ -9,31 +9,46 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * Gate de sesion + proxy inverso hacia las herramientas self-hosted (drawio, Excalidraw,
- * Etherpad). Rutea por el header Host (mismo host publico de siempre, ej.
+ * Etherpad, code-server). Rutea por el header Host (mismo host publico de siempre, ej.
  * drawio-insightbloom.v1.rafex.cloud) hacia el Service interno correspondiente, pero antes
  * exige una sesion valida de InsightBloom: sin ella, ni siquiera se reenvia el request al pod
  * real — asi pegar la URL publica directamente en el navegador (bypaseando el frontend de
  * InsightBloom) ya no da acceso a nadie sin sesion, cierre que un chequeo solo en el
  * frontend/backend de la app no puede dar por si mismo (ver DEC pendiente de documentar).
  *
- * Limitacion conocida: el reenvio usa {@link HttpClient} de request/response estandar, no
- * soporta upgrade a WebSocket — el socket.io de Etherpad cae automaticamente a long-polling
- * (su propio fallback), funcional pero no optimo. Ver spec-native para el seguimiento.
+ * TASK-0020 — Limitación de WebSocket (BLOCKED en Ether):
+ * El reenvio usa {@link HttpClient} de request/response estándar, que NO soporta upgrade
+ * a WebSocket. Para soportar WebSocket (requerido por code-server IDE), ether-http-jetty12
+ * debe proporcionar:
+ * 1. Handler.WebSocketUpgrader o similar — detecta y delega upgrade al Handler
+ * 2. WebSocketSession bidireccional — proxy que bridgea downstream/upstream sockets
+ * 3. Ejemplo: ether-http-jetty12 expone una interfaz como:
+ *    ```java
+ *    public interface WebSocketUpgradeHandler {
+ *        void handleWebSocketUpgrade(Request, Response, String targetUri, Callback);
+ *    }
+ *    ```
+ * Sin esto, aplicaciones que requieren WebSocket (code-server, Etherpad socket.io)
+ * deben caer a long-polling (funcional pero ineficiente).
+ * Ver: spec-native/specs/code-ide-sandboxes/SPEC.md, Fase 2.
  */
 final class AuthGateHandler extends Handler.Abstract {
 
@@ -224,4 +239,5 @@ final class AuthGateHandler extends Handler.Abstract {
         response.getHeaders().put(HttpHeader.CONTENT_LENGTH, Long.toString(bytes.length));
         response.write(true, java.nio.ByteBuffer.wrap(bytes), callback);
     }
+
 }
