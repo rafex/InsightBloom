@@ -34,14 +34,13 @@ export default {
       }
     })
 
-    // Una sala por evento (derivada del friendlyId, no del uuid interno) para que el
-    // diagrama sea consistente entre todos los asistentes de la misma conferencia.
-    // drawio no persiste el diagrama del lado del servidor (ver DEC-0017/NFR): el
-    // parámetro solo evita que el editor abra en blanco cada vez, sin implicar guardado.
-    const drawioUrl = computed(() => {
-      if (!drawioBaseUrl.value) return ''
-      return `${drawioBaseUrl.value}/?embed=1&noExitBtn=1&proto=json#R`
-    })
+    // UI estandar de drawio (sin embed=1): el modo "embed" espera que la pagina que lo
+    // embebe implemente el protocolo postMessage de la Embed API (handshake init/load/save)
+    // para orquestar el diagrama — sin eso, el editor se queda esperando indefinidamente
+    // (menu carga, canvas nunca se activa). Como no persistimos el diagrama del lado del
+    // servidor (ver Excludes de la spec), la UI normal es la correcta: el usuario
+    // exporta/descarga desde la propia interfaz de drawio.
+    const drawioUrl = computed(() => drawioBaseUrl.value || '')
 
     return { loading, drawioUrl, friendlyId }
   }

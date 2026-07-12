@@ -185,10 +185,14 @@ ingressDrawio:
           pathType: Prefix
   tls: []
 
-# Allowlist explicito de paths, NO "/" catch-all: /api/1/* (API administrativa, usada solo
-# por insightbloom-users vía el Service interno) y /admin/* (panel de administracion de
-# Etherpad) quedan deliberadamente fuera de esta lista y por lo tanto inalcanzables desde
-# internet — solo se exponen publicamente los paths que la UI del pad realmente necesita.
+# Se intento un allowlist explicito de paths (excluyendo /api y /admin) pero Kubernetes
+# Prefix pathType hace match por segmento completo de "/", no por prefijo de caracteres:
+# el bootstrap JS del cliente de Etherpad se sirve en la raiz con nombre dinamico
+# (ej. /padbootstrap-<hash>.min.js), que NO matchea ningun prefijo de segmento razonable,
+# asi que el allowlist rompia la carga del pad (404 en ese script). Se revierte a "/"
+# catch-all, igual que drawio: /api/1/* sigue protegido por el apikey (64 hex, no
+# adivinable) y /admin requiere su propio login de Etherpad — misma superficie de riesgo
+# ya aceptada para drawio, que tampoco tiene autenticacion propia en su endpoint publico.
 ingressEtherpad:
   enabled: true
   className: haproxy
@@ -198,13 +202,7 @@ ingressEtherpad:
   hosts:
     - host: etherpad-insightbloom.v1.rafex.cloud
       paths:
-        - path: /p
-          pathType: Prefix
-        - path: /static
-          pathType: Prefix
-        - path: /socket.io
-          pathType: Prefix
-        - path: /pluginfw
+        - path: /
           pathType: Prefix
   tls: []
 
