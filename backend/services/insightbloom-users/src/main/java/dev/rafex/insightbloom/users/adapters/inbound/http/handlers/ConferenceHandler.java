@@ -1,5 +1,6 @@
 package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
+import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
@@ -81,6 +82,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SaveEventDiagramUseCase saveEventDiagramUseCase;
     private final GenerateJaasTokenUseCase generateJaasTokenUseCase;
     private final GenerateSeatLayoutUseCase generateSeatLayoutUseCase;
+    private final SetSandboxConfigUseCase setSandboxConfigUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -113,7 +115,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GetEventDiagramUseCase getEventDiagramUseCase,
                              final SaveEventDiagramUseCase saveEventDiagramUseCase,
                              final GenerateJaasTokenUseCase generateJaasTokenUseCase,
-                             final GenerateSeatLayoutUseCase generateSeatLayoutUseCase) {
+                             final GenerateSeatLayoutUseCase generateSeatLayoutUseCase,
+                             final SetSandboxConfigUseCase setSandboxConfigUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -146,6 +149,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.saveEventDiagramUseCase = saveEventDiagramUseCase;
         this.generateJaasTokenUseCase = generateJaasTokenUseCase;
         this.generateSeatLayoutUseCase = generateSeatLayoutUseCase;
+        this.setSandboxConfigUseCase = setSandboxConfigUseCase;
     }
 
     @Override
@@ -171,6 +175,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/event-type", Set.of("PUT")),
                 Route.of("/{id}/venue-map", Set.of("PUT")),
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
+                Route.of("/{id}/sandbox-config", Set.of("PUT")),
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
@@ -291,6 +296,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/venue-map")) {
             return handleSetVenueMap(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/sandbox-config")) {
+            return handleSetSandboxConfig(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/seats")) {
             return handleDefineSeats(jx, jx.pathParam("id"));
@@ -954,6 +962,31 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             sendOk(jx, 200, getConferenceSeatMapUseCase.execute(id));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSetSandboxConfig(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can configure sandboxes");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String sandboxVariant = (String) body.get("sandboxVariant");
+            final Integer sandboxPoolSize = (Integer) body.get("sandboxPoolSize");
+            final String sandboxExtraPackages = (String) body.get("sandboxExtraPackages");
+            final String sandboxRemoteGitUrl = (String) body.get("sandboxRemoteGitUrl");
+            final var result = setSandboxConfigUseCase.execute(id, sandboxVariant, sandboxPoolSize,
+                sandboxExtraPackages, sandboxRemoteGitUrl);
+            sendOk(jx, 200, result);
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
