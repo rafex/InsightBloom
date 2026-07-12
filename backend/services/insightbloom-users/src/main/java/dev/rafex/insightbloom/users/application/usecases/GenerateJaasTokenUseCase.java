@@ -66,7 +66,10 @@ public class GenerateJaasTokenUseCase {
         final ObjectNode header = MAPPER.createObjectNode();
         header.put("alg", "RS256");
         header.put("typ", "JWT");
-        header.put("kid", apiKeyId);
+        // JaaS exige que el kid tenga el formato "{appId}/{apiKeyId}" — el kid "suelto" (solo
+        // el uuid de la key) hace que el backend de JaaS rechace el token con
+        // "Key ID (kid) does not match sub" ya que no puede resolver la clave publica asociada.
+        header.put("kid", appId + "/" + apiKeyId);
 
         final ObjectNode userNode = MAPPER.createObjectNode();
         userNode.put("id", userUuid);
