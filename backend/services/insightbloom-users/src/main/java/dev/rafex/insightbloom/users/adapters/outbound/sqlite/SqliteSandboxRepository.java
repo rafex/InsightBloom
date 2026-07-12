@@ -129,6 +129,18 @@ public class SqliteSandboxRepository implements SandboxRepository {
         }
     }
 
+    @Override
+    public int deleteExpired(final Instant now) {
+        try (final Connection conn = databaseManager.getConnection();
+             final PreparedStatement stmt = conn.prepareStatement(
+                "DELETE FROM sandbox_assignments WHERE expires_at < ?")) {
+            stmt.setString(1, now.toString());
+            return stmt.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to delete expired sandboxes", e);
+        }
+    }
+
     private Sandbox mapRowToSandbox(final ResultSet rs) throws SQLException {
         final String assignedAtStr = rs.getString("assigned_at");
         final Instant assignedAt = assignedAtStr != null ? Instant.parse(assignedAtStr) : null;

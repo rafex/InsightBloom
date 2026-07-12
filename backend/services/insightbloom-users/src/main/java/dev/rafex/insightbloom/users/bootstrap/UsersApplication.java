@@ -167,6 +167,7 @@ public class UsersApplication {
         final var assignSandboxUseCase = new AssignSandboxUseCase(sandboxRepo, conferenceRepo);
         final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, gatewayBaseUrl);
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo);
+        final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -255,6 +256,14 @@ public class UsersApplication {
                 purgeExpiredEventDiagramsUseCase.execute(java.time.Instant.now());
             } catch (final Exception e) {
                 System.err.println("event-diagram-purge-scheduler: tick failed: " + e.getMessage());
+            }
+            try {
+                final int deleted = purgeSandboxPoolUseCase.execute(java.time.Instant.now());
+                if (deleted > 0) {
+                    System.out.println("sandbox-pool-purge-scheduler: deleted " + deleted + " expired sandboxes");
+                }
+            } catch (final Exception e) {
+                System.err.println("sandbox-pool-purge-scheduler: tick failed: " + e.getMessage());
             }
         }, 1, 5, java.util.concurrent.TimeUnit.MINUTES);
 

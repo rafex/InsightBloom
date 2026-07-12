@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.domain.ports;
 
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,4 +18,6 @@ public interface SandboxRepository {
     Optional<Sandbox> findByConferenceAndUser(String conferenceUuid, String userUuid);
 
     void deleteByConferenceUuid(String conferenceUuid);
+
+    int deleteExpired(Instant now);
 }
