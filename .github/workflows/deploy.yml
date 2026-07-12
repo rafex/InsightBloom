@@ -290,7 +290,7 @@ jobs:
         continue-on-error: true
         run: |
           for svc in users stats moderation query ingest chat telegram web survey presentations; do
-            kubectl -n "$K3S_NAMESPACE" rollout status "deployment/${RELEASE_NAME}-${svc}" --timeout=180s || true
+            kubectl -n "$K3S_NAMESPACE" rollout status "deployment/${RELEASE_NAME}-${svc}" --timeout=10m || true
           done
 
       - name: Dump diagnostics on failed deploy
