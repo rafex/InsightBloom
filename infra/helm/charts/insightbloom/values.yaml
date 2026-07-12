@@ -567,6 +567,56 @@ services:
         secretName: insightbloom-internal-secrets
         secretKey: internal-api-key
 
+# Code-IDE Sandboxes (TASK-0012)
+# Pool fijo de pods de code-server pre-creados por evento.
+# Namespace aparte: insightbloom-sandboxes (aislamiento de red + resource quota).
+# Nota: cada evento tiene su propio pool (configurado en Conference.sandboxPoolSize).
+# Estos defaults se usan en Helm templates pero son sobrescritos por el backend
+# cuando crea/actualiza eventos con CODE_IDE habilitada.
+sandbox:
+  enabled: true
+  namespace: insightbloom-sandboxes
+  # Limite de pool size TOTAL para la plataforma (todos los eventos combinados)
+  # Se enforza via ResourceQuota en el namespace
+  poolMaxTotalPerPlatform: 200
+  # Imagen base y variantes — imagen es elegida según Conference.sandboxVariant
+  images:
+    base: insightbloom-code-ide
+    variants:
+      python:
+        tag: python
+        pullPolicy: Always
+      java:
+        tag: java
+        pullPolicy: Always
+      web:
+        tag: web
+        pullPolicy: Always
+  # Recursos por pod de sandbox (modestos para desarrollo)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  # Port en que arranca code-server dentro del pod
+  port: 8080
+  # Security context (no-root, drop capabilities)
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+    capabilities:
+      drop:
+        - ALL
+  # Cada sandbox es efímero (se destruye al vencer el evento)
+  # TTL: se purga via PurgeExpiredSandboxPoolsUseCase (TASK-0034)
+  ttlSecondsAfterEventExpiry: 3600  # 1h después del fin del evento
+
 nodeSelector: {}
 tolerations: []
 affinity: {}

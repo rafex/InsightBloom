@@ -1,0 +1,11 @@
+{{- if .Values.sandbox.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.sandbox.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "insightbloom.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: insightbloom
+    purpose: code-ide-sandboxes
+{{- end }}

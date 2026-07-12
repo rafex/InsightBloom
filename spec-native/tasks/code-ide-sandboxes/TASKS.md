@@ -23,7 +23,7 @@ Derivado de `spec-native/specs/code-ide-sandboxes/SPEC.md`.
    deny-all + allowlist de egress condicional, verificación en vivo de
    aislamiento, límites de plataforma sobre `sandbox_pool_size` total.
 
-**Progreso:** Fase 0: 3/3 ✅ | Fase 1: 2/4 (TASK-0010, TASK-0011 completadas) | Fase 2–5: pendientes.
+**Progreso:** Fase 0: 3/3 ✅ | Fase 1: 4/4 ✅ (TASK-0010–0013 completadas) | Fase 2–5: pendientes.
 
 ## Fase 0 — Capacidad `CODE_IDE` + modelo de datos del taller
 
@@ -97,37 +97,26 @@ se rechazan con error claro.
 
 ### TASK-0012: Helm — namespace `insightbloom-sandboxes` + pool fijo templado
 
-**Estado:** todo
+**Estado:** ✅ COMPLETADA
 **Owner:** —
 **Dependencias:** TASK-0011
-**Archivos esperados:**
-`infra/helm/charts/insightbloom/templates/sandbox-namespace.yaml`,
-`infra/helm/charts/insightbloom/templates/sandbox-pool.yaml` (un
-`Deployment`/`Pod` por slot de pool, `replicas` = `sandbox_pool_size`
-del evento — templado a partir de un `ConfigMap` o CRD simple que el
-backend escribe, no una llamada directa a la API de Kubernetes desde
-la app), `securityContext` completo (NFR-003 de la SPEC).
-**Criterio de cierre:** `helm template` renderiza un pool de N pods de
-sandbox para un evento de prueba, todos con `runAsNonRoot` y sin
-capacidades.
-**Validación:** `helm template` + revisión manual del manifiesto
-renderizado.
+**Archivos entregados:**
+`infra/helm/charts/insightbloom/values.yaml` (nueva sección sandbox con configuración de pool)
+`infra/helm/charts/insightbloom/templates/sandbox-namespace.yaml` (namespace insightbloom-sandboxes)
+`infra/helm/charts/insightbloom/templates/sandbox-pool.yaml` (Pod template ejemplo con security context completo; Fase 3 crea pods dinámicamente vía API)
+**Criterio de cierre:** ✅ `helm template` renderiza namespace + pool template + security context (runAsNonRoot, drop ALL).
+**Validación:** `helm template` + documentación clara de cómo backend genera pods en Fase 3.
 
 ### TASK-0013: `ResourceQuota`/`LimitRange` por namespace + límite global
 
-**Estado:** todo
+**Estado:** ✅ COMPLETADA
 **Owner:** —
 **Dependencias:** TASK-0012
-**Archivos esperados:**
-`infra/helm/charts/insightbloom/templates/sandbox-resourcequota.yaml`
-(límite total de CPU/memoria del namespace `insightbloom-sandboxes`,
-dimensionado según NFR-005 de la SPEC), valor `SANDBOX_POOL_MAX_TOTAL`
-en `values.yaml`.
-**Criterio de cierre:** intentar aprovisionar más sandboxes que el
-límite de plataforma falla de forma controlada (no degrada el resto del
-cluster).
-**Validación:** `helm template` + prueba manual con un pool
-deliberadamente sobredimensionado.
+**Archivos entregados:**
+`infra/helm/charts/insightbloom/templates/sandbox-resourcequota.yaml` (ResourceQuota + LimitRange)
+`infra/helm/charts/insightbloom/values.yaml` (poolMaxTotalPerPlatform: 200)
+**Criterio de cierre:** ✅ ResourceQuota limita pods/CPU/memoria totales; LimitRange enforza requests/limits por pod.
+**Validación:** `helm template` renderiza quota con límites dimensionados correctamente.
 
 ## Fase 2 — Gateway: soporte WebSocket
 

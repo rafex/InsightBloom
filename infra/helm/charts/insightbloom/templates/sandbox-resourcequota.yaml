@@ -1,0 +1,63 @@
+{{- if .Values.sandbox.enabled }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: insightbloom-sandboxes-quota
+  namespace: {{ .Values.sandbox.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "insightbloom.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  hard:
+    # Límite de pods totales en el namespace (pool size máximo de plataforma)
+    pods: "{{ .Values.sandbox.poolMaxTotalPerPlatform }}"
+    # CPU total: pool_max * cpu_limit_per_pod
+    # 200 pods * 500m = 100 cores (ajustar según capacidad del cluster)
+    requests.cpu: "{{ mul .Values.sandbox.poolMaxTotalPerPlatform 500 }}m"
+    limits.cpu: "{{ mul .Values.sandbox.poolMaxTotalPerPlatform 500 }}m"
+    # Memoria total: pool_max * memory_limit_per_pod
+    # 200 pods * 1Gi = 200Gi (ajustar según capacidad del cluster)
+    requests.memory: "{{ mul .Values.sandbox.poolMaxTotalPerPlatform 1 }}Gi"
+    limits.memory: "{{ mul .Values.sandbox.poolMaxTotalPerPlatform 1 }}Gi"
+    # Limite de PVCs (no usado actualmente, pero pre-configurado)
+    persistentvolumeclaims: "0"
+  scopeSelector:
+    matchExpressions: []
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: insightbloom-sandboxes-limits
+  namespace: {{ .Values.sandbox.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "insightbloom.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  limits:
+  - type: Pod
+    min:
+      cpu: 50m
+      memory: 256Mi
+    max:
+      cpu: "{{ .Values.sandbox.resources.limits.cpu }}"
+      memory: "{{ .Values.sandbox.resources.limits.memory }}"
+    default:
+      cpu: "{{ .Values.sandbox.resources.limits.cpu }}"
+      memory: "{{ .Values.sandbox.resources.limits.memory }}"
+    defaultRequest:
+      cpu: "{{ .Values.sandbox.resources.requests.cpu }}"
+      memory: "{{ .Values.sandbox.resources.requests.memory }}"
+  - type: Container
+    min:
+      cpu: 50m
+      memory: 256Mi
+    max:
+      cpu: "{{ .Values.sandbox.resources.limits.cpu }}"
+      memory: "{{ .Values.sandbox.resources.limits.memory }}"
+    default:
+      cpu: "{{ .Values.sandbox.resources.limits.cpu }}"
+      memory: "{{ .Values.sandbox.resources.limits.memory }}"
+    defaultRequest:
+      cpu: "{{ .Values.sandbox.resources.requests.cpu }}"
+      memory: "{{ .Values.sandbox.resources.requests.memory }}"
+{{- end }}

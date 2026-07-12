@@ -1,0 +1,158 @@
+{{- if .Values.sandbox.enabled }}
+# TASK-0012: Template para Pods de sandbox (pool-fixed architecture)
+#
+# NOTA IMPORTANTE: Este template es EJEMPLAR/DOCUMENTATIVO.
+# La arquitectura pool-fixed NO usa un Deployment controlado por Helm.
+# En su lugar, el backend (insightbloom-users, Fase 3) crea pods individuales dinámicamente
+# cuando se configura un evento con CODE_IDE habilitada.
+#
+# Este template sirve como referencia de cómo se vería un Pod de sandbox
+# y puede ser usado por el backend para generar la especificación de forma programática.
+#
+# Características de seguridad (NFR-003 de la SPEC):
+# - runAsNonRoot: true (usuario coder, uid 1000)
+# - capabilities.drop: ALL (sin capacidades)
+# - seccompProfile: RuntimeDefault (sin syscalls peligrosos)
+# - No se expone SSH, Docker socket, o acceso privilegiado
+# - Volumen de workspace efímero (emptyDir)
+# - Volumen de /home/coder/db para SQLite (emptyDir también, efímero)
+
+# Ejemplo: Pod de sandbox para el evento {eventId}, slot {slotNumber}
+# En Fase 3, el backend crea esto vía Kubernetes API (no Helm).
+# Nombre del pod: sandbox-{eventId}-{slotNumber}
+# Nota: Se usa Pod directo (no Deployment) para máximo control sobre cada instancia.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: {{ .Values.sandbox.namespace }}
+  # En Fase 3: dynamically set por el backend
+  name: "sandbox-example-slot-1"
+  labels:
+    app.kubernetes.io/name: {{ include "insightbloom.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: sandbox
+    sandbox-type: "example"  # en Fase 3: será el eventId
+    sandbox-variant: "python"  # en Fase 3: será Conference.sandboxVariant
+    sandbox-slot: "1"  # en Fase 3: será el número de slot (0 a pool_size-1)
+spec:
+  serviceAccountName: "default"
+  automountServiceAccountToken: false
+  restartPolicy: Never  # Sin reintentos automáticos; si falla, se destruye (TTL)
+
+  # Security context completo (NFR-003)
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: {{ .Values.sandbox.securityContext.runAsUser }}
+    runAsGroup: {{ .Values.sandbox.securityContext.runAsGroup }}
+    fsGroup: {{ .Values.sandbox.securityContext.fsGroup }}
+    seccompProfile:
+      type: {{ .Values.sandbox.securityContext.seccompProfile.type }}
+    capabilities:
+      drop:
+        - ALL
+
+  containers:
+  - name: code-server
+    # Imagen: elegida según Conference.sandboxVariant
+    # Aquí un ejemplo con "python" — en Fase 3 se templatizan todas las variantes
+    image: "{{ .Values.sandbox.images.base }}:{{ .Values.sandbox.images.variants.python.tag }}"
+    imagePullPolicy: {{ .Values.sandbox.images.variants.python.pullPolicy }}
+
+    ports:
+    - name: http
+      containerPort: {{ .Values.sandbox.port }}
+      protocol: TCP
+
+    # Security context por contenedor (completo)
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: {{ .Values.sandbox.securityContext.runAsUser }}
+      readOnlyRootFilesystem: false  # Workspace es writable (efímero, seguro)
+      capabilities:
+        drop:
+          - ALL
+
+    # Resources (modestos para desarrollo, ajustables según carga)
+    resources:
+      requests:
+        cpu: {{ .Values.sandbox.resources.requests.cpu }}
+        memory: {{ .Values.sandbox.resources.requests.memory }}
+      limits:
+        cpu: {{ .Values.sandbox.resources.limits.cpu }}
+        memory: {{ .Values.sandbox.resources.limits.memory }}
+
+    # Volúmenes: workspace + db (ambos efímeros, se pierden al destruir el pod)
+    volumeMounts:
+    - name: workspace
+      mountPath: /home/coder/workspace
+    - name: database
+      mountPath: /home/coder/db
+
+    # Probes de salud (básicos; code-server no expone un /health endpoint, así que se usa TCP)
+    livenessProbe:
+      tcpSocket:
+        port: {{ .Values.sandbox.port }}
+      initialDelaySeconds: 10
+      periodSeconds: 30
+      failureThreshold: 3
+
+    readinessProbe:
+      tcpSocket:
+        port: {{ .Values.sandbox.port }}
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 2
+
+    # Límite de tiempo de arranque (el boot puede tardar)
+    startupProbe:
+      tcpSocket:
+        port: {{ .Values.sandbox.port }}
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 30  # Esperar hasta 5 minutos
+
+  # Volúmenes efímeros (se pierden al destruir el pod — por diseño)
+  volumes:
+  - name: workspace
+    emptyDir: {}
+  - name: database
+    emptyDir: {}
+
+  # Tolerations/affinity vacíos (se pueden customizar en Fase 3 según necesidad)
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # TTL de auto-destrucción: TASK-0034 (PurgeExpiredSandboxPoolsUseCase)
+  # En Fase 3, el backend seteará ttlSecondsAfterFinished basado en Conference.expiresAt
+  # Ejemplo: 3600 segundos (1h) después de que el evento expire
+  # Sintaxis: Ver https://kubernetes.io/docs/concepts/workloads/controllers/ttl-after-finished/
+  # Para Pods Sin controller (no via Job), TTL se enforza manualmente vía scheduler
+  # El backend es responsable de borrar los pods vencidos.
+
+---
+# TEMPLATE DOCUMENTACIÓN PARA FASE 3:
+#
+# En Fase 3 (AssignSandboxUseCase + backend), el algoritmo será:
+#
+# 1. El organizador crea/configura un evento con CODE_IDE + pool_size (ej. pool_size=5)
+# 2. SetSandboxConfigUseCase valida pool_size ≤ SANDBOX_POOL_MAX_PER_EVENT (env var)
+# 3. Backend (Java/Kubernetes API client) crea 5 Pods de sandbox:
+#    - Nombres: sandbox-{eventUuid}-0, sandbox-{eventUuid}-1, ..., sandbox-{eventUuid}-4
+#    - Labels: sandbox-type={eventUuid}, sandbox-variant={python|java|web}, sandbox-slot={0-4}
+#    - Namespace: insightbloom-sandboxes
+#    - Security context: copiar de arriba
+# 4. Un asistente se une al evento → AssignSandboxUseCase busca el primer pod libre
+#    (usando UPDATE atómico en tabla sandbox_assignments)
+# 5. El pod es asignado al usuario; gateway redirige a él vía ib_token
+# 6. Al vencer el evento (ttl_seconds después de Conference.expiresAt),
+#    PurgeExpiredSandboxPoolsUseCase borra todos los Pods del evento.
+#
+# El backend usa la clase Fabric8Kubernetes (o similar) para crear/borrar Pods:
+#   kubernetesClient.pods()
+#     .inNamespace("insightbloom-sandboxes")
+#     .create(pod);
+
+{{- end }}
