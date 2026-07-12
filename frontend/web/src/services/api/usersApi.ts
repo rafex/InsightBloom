@@ -3,7 +3,7 @@ import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
   SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
-  Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken
+  Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -358,4 +358,14 @@ export async function assignEventRole(
 
 export async function removeEventRole(conferenceId: string, userUuid: string, token: string): Promise<void> {
   await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/roles/${userUuid}`, authHeader(token))
+}
+
+export async function getSandbox(conferenceId: string, token?: string | null): Promise<SandboxInfo> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox`, authHeader(token))
+  return res.data.data
+}
+
+export async function generateWorkspaceDownloadUrl(conferenceId: string, token?: string | null): Promise<WorkspaceDownloadInfo> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/download`, {}, authHeader(token))
+  return res.data.data
 }

@@ -155,3 +155,17 @@ export interface UserProfile {
   phone?: string | null
   [key: string]: unknown
 }
+
+export interface SandboxInfo {
+  sandboxUuid: string
+  sandboxSlot: number
+  gatewayUrl: string
+  sandboxPath: string
+  expiresInSeconds?: number
+}
+
+export interface WorkspaceDownloadInfo {
+  sandboxUuid: string
+  downloadUrl: string
+  expiresInSeconds: number
+}
