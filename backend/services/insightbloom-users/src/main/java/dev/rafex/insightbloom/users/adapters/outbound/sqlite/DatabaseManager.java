@@ -305,6 +305,22 @@ public class DatabaseManager {
                     updated_at TEXT
                 )
             """);
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS sandbox_assignments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    sandbox_slot INTEGER NOT NULL,
+                    user_uuid TEXT,
+                    assigned_at TEXT,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    UNIQUE(conference_uuid, sandbox_slot)
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_conference ON sandbox_assignments(conference_uuid)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_user ON sandbox_assignments(user_uuid)");
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
         }
