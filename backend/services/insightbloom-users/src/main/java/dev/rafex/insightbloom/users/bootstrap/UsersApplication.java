@@ -27,6 +27,9 @@ public class UsersApplication {
         final String drawioBaseUrl = System.getenv().getOrDefault("DRAWIO_BASE_URL", "");
         final String etherpadBaseUrl = System.getenv().getOrDefault("ETHERPAD_BASE_URL", "");
         final String etherpadApiKey = System.getenv().getOrDefault("ETHERPAD_API_KEY", "");
+        final String jaasAppId = System.getenv().getOrDefault("JAAS_APP_ID", "");
+        final String jaasApiKeyId = System.getenv().getOrDefault("JAAS_API_KEY_ID", "");
+        final String jaasPrivateKeyBase64 = System.getenv().getOrDefault("JAAS_PRIVATE_KEY", "");
 
         final String twilioAccountSid = System.getenv().getOrDefault("TWILIO_ACCOUNT_SID", "");
         final String twilioAuthToken = System.getenv().getOrDefault("TWILIO_AUTH_TOKEN", "");
@@ -147,6 +150,8 @@ public class UsersApplication {
         final var getEventDiagramUseCase = new GetEventDiagramUseCase(conferenceRepo);
         final var saveEventDiagramUseCase = new SaveEventDiagramUseCase(conferenceRepo);
         final var purgeExpiredEventDiagramsUseCase = new PurgeExpiredEventDiagramsUseCase(conferenceRepo, timezoneRepo);
+        final var generateJaasTokenUseCase = new GenerateJaasTokenUseCase(
+                jaasAppId, jaasApiKeyId, jaasPrivateKeyBase64, eventPermissionGuard, userRepo);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -161,7 +166,7 @@ public class UsersApplication {
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
                 setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase,
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
-                getEventDiagramUseCase, saveEventDiagramUseCase);
+                getEventDiagramUseCase, saveEventDiagramUseCase, generateJaasTokenUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
@@ -173,7 +178,7 @@ public class UsersApplication {
         final var eventTypeHandler = new EventTypeHandler(listEventTypesUseCase, createEventTypeUseCase,
                 updateEventTypeUseCase, setEventTypeActiveUseCase, validateTokenUseCase);
         final var eventCapabilityHandler = new EventCapabilityHandler();
-        final var integrationConfigHandler = new IntegrationConfigHandler(drawioBaseUrl, etherpadBaseUrl);
+        final var integrationConfigHandler = new IntegrationConfigHandler(drawioBaseUrl, etherpadBaseUrl, jaasAppId);
         final var roleHandler = new RoleHandler(listRolesUseCase, createRoleUseCase, updateRoleUseCase,
                 setRoleActiveUseCase, validateTokenUseCase);
         final var permissionHandler = new PermissionHandler();

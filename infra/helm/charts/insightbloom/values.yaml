@@ -254,6 +254,15 @@ services:
       - name: ETHERPAD_API_KEY
         secretName: insightbloom-etherpad-secrets
         secretKey: api-key
+      - name: JAAS_APP_ID
+        secretName: insightbloom-jaas-secrets
+        secretKey: app-id
+      - name: JAAS_API_KEY_ID
+        secretName: insightbloom-jaas-secrets
+        secretKey: api-key-id
+      - name: JAAS_PRIVATE_KEY
+        secretName: insightbloom-jaas-secrets
+        secretKey: private-key
 
   stats:
     repository: ghcr.io/rafex/insightbloom-stats

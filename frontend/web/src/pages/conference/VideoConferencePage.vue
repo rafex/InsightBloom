@@ -9,6 +9,8 @@
 
 <script lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { getIntegrationConfig, getJaasToken } from '@/services/api/usersApi'
+import { useAuthStore } from '@/features/auth/authStore'
 
 declare global {
   interface Window {
@@ -19,13 +21,13 @@ declare global {
 }
 
 const JITSI_PUBLIC_DOMAIN = 'meet.jit.si'
-const JITSI_SCRIPT_URL = `https://${JITSI_PUBLIC_DOMAIN}/external_api.js`
+const JAAS_DOMAIN = '8x8.vc'
 
-function loadJitsiScript(): Promise<void> {
+function loadJitsiScript(scriptUrl: string): Promise<void> {
   if (window.JitsiMeetExternalAPI) return Promise.resolve()
   return new Promise((resolve, reject) => {
     const script = document.createElement('script')
-    script.src = JITSI_SCRIPT_URL
+    script.src = scriptUrl
     script.async = true
     script.onload = () => resolve()
     script.onerror = () => reject(new Error('No se pudo cargar el script de Jitsi'))
@@ -39,27 +41,41 @@ export default {
     conferenceId: { type: String, default: '' }
   },
   setup(props: { conferenceId?: string }) {
+    const auth = useAuthStore()
     const loading = ref(true)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let api: { dispose: () => void } | null = null
 
     onMounted(async () => {
       if (!props.conferenceId) { loading.value = false; return }
       try {
-        await loadJitsiScript()
+        // JaaS (8x8.vc) requiere un JWT firmado para unirse — a cambio no tiene el limite de
+        // 5 minutos que meet.jit.si impone a integraciones embebidas de terceros (ver
+        // DEC-0020/TASK-0041). Si no hay credenciales de JaaS configuradas en este despliegue,
+        // se recae en meet.jit.si publico sin token (con ese limite conocido).
+        const config = await getIntegrationConfig()
+        const jaas = config.jaasAppId
+          ? await getJaasToken(props.conferenceId as string, auth.state.token as string).catch(() => null)
+          : null
+
+        const domain = jaas ? JAAS_DOMAIN : JITSI_PUBLIC_DOMAIN
+        const roomName = jaas ? `${jaas.appId}/${jaas.roomName}` : `insightbloom-${props.conferenceId}`
+        const scriptUrl = jaas
+          ? `https://${JAAS_DOMAIN}/${jaas.appId}/external_api.js`
+          : `https://${JITSI_PUBLIC_DOMAIN}/external_api.js`
+
+        await loadJitsiScript(scriptUrl)
         // El contenedor #jitsi-container solo existe en el DOM una vez loading=false
         // (v-else en el template) — hay que esperar el siguiente tick del render antes
         // de buscarlo, o parentNode llega null y Jitsi no se adjunta a nada.
         loading.value = false
         await nextTick()
-        // Sala derivada deterministicamente del uuid del evento (FR-011): todos los
-        // asistentes llegan a la misma sala sin coordinacion manual.
-        const roomName = `insightbloom-${props.conferenceId}`
-        api = new window.JitsiMeetExternalAPI!(JITSI_PUBLIC_DOMAIN, {
+
+        api = new window.JitsiMeetExternalAPI!(domain, {
           roomName,
           parentNode: document.querySelector('#jitsi-container'),
           width: '100%',
           height: '100%',
+          jwt: jaas ? jaas.token : undefined,
           configOverwrite: { prejoinPageEnabled: false },
           interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false }
         })

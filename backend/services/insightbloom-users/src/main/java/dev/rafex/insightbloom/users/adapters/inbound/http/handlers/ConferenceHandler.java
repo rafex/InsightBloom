@@ -16,6 +16,7 @@ import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUse
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceSeatMapUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetDownloadCountsUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GenerateJaasTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetEventDiagramUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetMyTicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetOrCreateEventPadUseCase;
@@ -77,6 +78,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final RemoveEventRoleUseCase removeEventRoleUseCase;
     private final GetEventDiagramUseCase getEventDiagramUseCase;
     private final SaveEventDiagramUseCase saveEventDiagramUseCase;
+    private final GenerateJaasTokenUseCase generateJaasTokenUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -107,7 +109,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final ListEventRolesUseCase listEventRolesUseCase,
                              final RemoveEventRoleUseCase removeEventRoleUseCase,
                              final GetEventDiagramUseCase getEventDiagramUseCase,
-                             final SaveEventDiagramUseCase saveEventDiagramUseCase) {
+                             final SaveEventDiagramUseCase saveEventDiagramUseCase,
+                             final GenerateJaasTokenUseCase generateJaasTokenUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -138,6 +141,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.removeEventRoleUseCase = removeEventRoleUseCase;
         this.getEventDiagramUseCase = getEventDiagramUseCase;
         this.saveEventDiagramUseCase = saveEventDiagramUseCase;
+        this.generateJaasTokenUseCase = generateJaasTokenUseCase;
     }
 
     @Override
@@ -168,6 +172,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/reservations/check-in", Set.of("POST")),
                 Route.of("/{id}/notes", Set.of("GET")),
                 Route.of("/{id}/diagram", Set.of("GET", "PUT")),
+                Route.of("/{id}/jaas-token", Set.of("GET")),
                 Route.of("/{id}/roles", Set.of("GET", "POST")),
                 Route.of("/{id}/roles/{userUuid}", Set.of("DELETE")),
                 Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
@@ -217,6 +222,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/diagram")) {
             return handleGetDiagram(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/jaas-token")) {
+            return handleGetJaasToken(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/roles")) {
             return handleListEventRoles(jx, jx.pathParam("id"));
@@ -622,6 +630,25 @@ public class ConferenceHandler extends BaseResourceHandler {
             } else {
                 sendError(jx, 404, "conference_not_found", "Conference not found");
             }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleGetJaasToken(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (!hasCapability(id, EventCapability.VIDEO_CONFERENCE)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita videollamada");
+                return true;
+            }
+            generateJaasTokenUseCase.execute(id, v.subjectUuid(), v.role()).ifPresentOrElse(
+                    jaasToken -> sendOk(jx, 200, jaasToken),
+                    () -> sendError(jx, 404, "jaas_not_configured", "JaaS no esta configurado en este despliegue"));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

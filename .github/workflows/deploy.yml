@@ -204,6 +204,25 @@ jobs:
             --from-literal=api-key="$ETHERPAD_API_KEY" \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Upsert JaaS secrets in k3s
+        env:
+          JAAS_APP_ID: ${{ secrets.JAAS_APP_ID }}
+          JAAS_API_KEY_ID: ${{ secrets.JAAS_API_KEY_ID }}
+          JAAS_PRIVATE_KEY: ${{ secrets.JAAS_PRIVATE_KEY }}
+        run: |
+          # Opcional: sin estas credenciales, la pestana de Videollamada recae en meet.jit.si
+          # publico (con su limite de 5 min para embeds de terceros). JAAS_PRIVATE_KEY va en
+          # base64 (la clave PEM completa, base64-encodeada antes de subirla como secret) para
+          # evitar problemas de saltos de linea en el shell; insightbloom-users la decodifica.
+          if [ -z "$JAAS_APP_ID" ] || [ -z "$JAAS_PRIVATE_KEY" ]; then
+            echo "::warning::JAAS_APP_ID/JAAS_PRIVATE_KEY not set — video tab will fall back to public meet.jit.si (5 min limit)"
+          fi
+          kubectl -n "$K3S_NAMESPACE" create secret generic "${RELEASE_NAME}-jaas-secrets" \
+            --from-literal=app-id="${JAAS_APP_ID:-}" \
+            --from-literal=api-key-id="${JAAS_API_KEY_ID:-}" \
+            --from-literal=private-key="${JAAS_PRIVATE_KEY:-}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Upsert NATS auth secret in k3s
         env:
           NATS_AUTH_TOKEN: ${{ secrets.NATS_AUTH_TOKEN }}

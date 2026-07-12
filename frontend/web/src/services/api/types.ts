@@ -15,6 +15,13 @@ export type EventCapability =
 export interface IntegrationConfig {
   drawioBaseUrl?: string | null
   etherpadBaseUrl?: string | null
+  jaasAppId?: string | null
+}
+
+export interface JaasToken {
+  token: string
+  appId: string
+  roomName: string
 }
 
 export interface EventNotesPad {

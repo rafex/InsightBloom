@@ -3,7 +3,7 @@ import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
   SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
-  Role, RoleScopeValue, PermissionValue, EventRoleAssignment
+  Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -277,6 +277,12 @@ export async function getEventDiagram(conferenceId: string, token: string): Prom
 /** Guarda (reemplaza) el XML del diagrama de drawio del evento. */
 export async function saveEventDiagram(conferenceId: string, xml: string, token: string): Promise<void> {
   await axios.put(`/api/users/api/v1/conferences/${conferenceId}/diagram`, { xml }, authHeader(token))
+}
+
+/** Token JWT firmado para unirse a la sala de JaaS (8x8.vc) de este evento, si esta configurado. */
+export async function getJaasToken(conferenceId: string, token: string): Promise<JaasToken> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/jaas-token`, authHeader(token))
+  return res.data.data
 }
 
 /** Roles activos, opcionalmente filtrados por alcance (para el selector del Host al asignar roles de evento). */
