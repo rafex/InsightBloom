@@ -205,7 +205,8 @@ public class UsersApplication {
         final var platformSettingsHandler = new PlatformSettingsHandler(
                 getChatAiSettingUseCase, setChatAiSettingUseCase, validateTokenUseCase);
         final var sandboxHandler = new SandboxHandler(
-                assignSandboxUseCase, validateTokenUseCase, generateWorkspaceDownloadUrlUseCase, gatewayBaseUrl);
+                assignSandboxUseCase, validateTokenUseCase, generateWorkspaceDownloadUrlUseCase,
+                setSandboxConfigUseCase, gatewayBaseUrl);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
