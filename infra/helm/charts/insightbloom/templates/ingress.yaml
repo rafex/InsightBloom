@@ -127,10 +127,12 @@ spec:
             pathType: {{ . }}
             {{- end }}
             backend:
+              # Repuntado al gateway autenticador (no directo al pod de drawio): exige sesion
+              # de InsightBloom antes de reenviar el request. Ver Values.services.toolsgateway.
               service:
-                name: {{ include "insightbloom.fullname" $ }}-drawio
+                name: {{ include "insightbloom.fullname" $ }}-toolsgateway
                 port:
-                  number: {{ $.Values.drawio.port }}
+                  number: {{ $.Values.services.toolsgateway.port }}
           {{- end }}
     {{- end }}
 {{- end }}
@@ -173,9 +175,9 @@ spec:
             {{- end }}
             backend:
               service:
-                name: {{ include "insightbloom.fullname" $ }}-excalidraw
+                name: {{ include "insightbloom.fullname" $ }}-toolsgateway
                 port:
-                  number: {{ $.Values.excalidraw.port }}
+                  number: {{ $.Values.services.toolsgateway.port }}
           {{- end }}
     {{- end }}
 {{- end }}
@@ -218,9 +220,9 @@ spec:
             {{- end }}
             backend:
               service:
-                name: {{ include "insightbloom.fullname" $ }}-etherpad
+                name: {{ include "insightbloom.fullname" $ }}-toolsgateway
                 port:
-                  number: {{ $.Values.etherpad.port }}
+                  number: {{ $.Values.services.toolsgateway.port }}
           {{- end }}
     {{- end }}
 {{- end }}

@@ -77,57 +77,23 @@ spec:
     - {}
 
 ---
-# 3c. Re-open ingress for drawio from anywhere — embedded via iframe directly by the
-#     attendee's browser, so it needs its own public ingress (ingressDrawio) like chat/telegram.
+# 3c. drawio/Etherpad/Excalidraw ya NO tienen ingress publico directo: sus Ingress
+#     (ingressDrawio/ingressEtherpad/ingressExcalidraw) apuntan al Service de
+#     insightbloom-tools-gateway, que exige sesion de InsightBloom antes de reenviar el
+#     request al pod real. Solo el gateway necesita ingress publico; drawio/Etherpad/
+#     Excalidraw solo son alcanzables desde otros pods del namespace (regla 4, intra-namespace)
+#     — asi que pegar su URL directo en el navegador sin pasar por el gateway ya no funciona.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "insightbloom.fullname" . }}-allow-drawio-ingress
+  name: {{ include "insightbloom.fullname" . }}-allow-toolsgateway-ingress
   labels:
     {{- include "insightbloom.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
       {{- include "insightbloom.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: drawio
-  policyTypes:
-    - Ingress
-  ingress:
-    - {}
-
----
-# 3d. Re-open ingress for etherpad from anywhere — embedded via iframe directly by the
-#     attendee's browser, so it needs its own public ingress (ingressEtherpad) like drawio.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ include "insightbloom.fullname" . }}-allow-etherpad-ingress
-  labels:
-    {{- include "insightbloom.labels" . | nindent 4 }}
-spec:
-  podSelector:
-    matchLabels:
-      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: etherpad
-  policyTypes:
-    - Ingress
-  ingress:
-    - {}
-
----
-# 3e. Re-open ingress for excalidraw from anywhere — embedded via iframe directly by the
-#     attendee's browser, so it needs its own public ingress (ingressExcalidraw) like drawio.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ include "insightbloom.fullname" . }}-allow-excalidraw-ingress
-  labels:
-    {{- include "insightbloom.labels" . | nindent 4 }}
-spec:
-  podSelector:
-    matchLabels:
-      {{- include "insightbloom.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: excalidraw
+      app.kubernetes.io/component: toolsgateway
   policyTypes:
     - Ingress
   ingress:

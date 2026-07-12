@@ -244,6 +244,34 @@ ingressEtherpad:
 
 # ── Services ───────────────────────────────────────────────────────────────────
 services:
+  # Proxy autenticador delante de drawio/Excalidraw/Etherpad: exige sesion de InsightBloom
+  # antes de reenviar cualquier request al pod real de la herramienta — asi pegar la URL
+  # publica directamente (bypaseando el frontend) ya no da acceso a nadie sin sesion.
+  # GATEWAY_ROUTES se completa en deploy.yml/values del ingress (mismos hosts que
+  # ingressDrawio/ingressExcalidraw/ingressEtherpad ya usan).
+  toolsgateway:
+    repository: ghcr.io/rafex/insightbloom-tools-gateway
+    port: 8090
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 3
+      targetCPUUtilizationPercentage: 60
+    resources:
+      requests:
+        cpu: 20m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 384Mi
+    env:
+      PORT: "8090"
+      AUTH_VALIDATE_URL: http://insightbloom-users:8081/api/v1/auth/validate
+      GATEWAY_LOGIN_URL: https://insightbloom.v1.rafex.cloud/login
+      GATEWAY_ROUTES: >-
+        drawio-insightbloom.v1.rafex.cloud=http://insightbloom-drawio:8080,
+        excalidraw-insightbloom.v1.rafex.cloud=http://insightbloom-excalidraw:80,
+        etherpad-insightbloom.v1.rafex.cloud=http://insightbloom-etherpad:9001
+
   users:
     repository: ghcr.io/rafex/insightbloom-users
     port: 8081

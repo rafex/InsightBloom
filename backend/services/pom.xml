@@ -22,5 +22,6 @@
     <module>insightbloom-query</module>
     <module>insightbloom-ingest</module>
     <module>insightbloom-survey</module>
+    <module>insightbloom-tools-gateway</module>
   </modules>
 </project>

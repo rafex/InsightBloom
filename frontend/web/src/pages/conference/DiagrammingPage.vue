@@ -47,9 +47,14 @@ export default {
     // canvas se queda esperando indefinidamente (ver bug previo, ya corregido). Guardamos el XML
     // en el backend (columna efimera, TTL igual que notas/DEC-0020) para poder descargarlo y
     // distribuirlo despues, sin depender de que drawio persista nada del lado del servidor.
+    // drawio ya no tiene ingress publico propio: esta detras de insightbloom-tools-gateway,
+    // que exige sesion de InsightBloom antes de reenviar el request al pod real (evita que
+    // pegar la URL directo en el navegador de acceso sin login). ib_token en la query arranca
+    // esa sesion en el primer request; el gateway responde con una cookie para el resto.
     const drawioUrl = computed(() => {
       if (!drawioBaseUrl.value) return ''
-      return `${drawioBaseUrl.value}/?embed=1&proto=json&spin=1&noSaveBtn=0&saveAndExit=0`
+      const token = auth.state.token ? `&ib_token=${encodeURIComponent(auth.state.token)}` : ''
+      return `${drawioBaseUrl.value}/?embed=1&proto=json&spin=1&noSaveBtn=0&saveAndExit=0${token}`
     })
 
     function postToFrame(message: Record<string, unknown>) {

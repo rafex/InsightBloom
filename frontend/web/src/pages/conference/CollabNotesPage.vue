@@ -30,7 +30,10 @@ export default {
           getEventNotes(props.conferenceId, auth.state.token as string)
         ])
         if (config.etherpadBaseUrl) {
-          padUrl.value = `${config.etherpadBaseUrl}/p/${pad.padId}`
+          // Etherpad esta detras de insightbloom-tools-gateway (exige sesion antes de
+          // reenviar el request al pod real) — ib_token arranca esa sesion en el primer request.
+          const token = auth.state.token ? `?ib_token=${encodeURIComponent(auth.state.token)}` : ''
+          padUrl.value = `${config.etherpadBaseUrl}/p/${pad.padId}${token}`
         }
       } catch (e: any) {
         padUrl.value = ''

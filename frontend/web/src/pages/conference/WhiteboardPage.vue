@@ -10,6 +10,7 @@
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getIntegrationConfig } from '@/services/api/usersApi'
+import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'WhiteboardPage',
@@ -17,6 +18,7 @@ export default {
     conferenceId: { type: String, default: '' }
   },
   setup() {
+    const auth = useAuthStore()
     const loading = ref(true)
     const excalidrawBaseUrl = ref('')
 
@@ -36,7 +38,13 @@ export default {
     // desde su UI. La colaboracion en vivo (excalidraw-room) queda deferida — la imagen
     // oficial necesita la URL del websocket "horneada" en build-time, no configurable via
     // env var en runtime (ver values.yaml, comentario sobre TASK-0031).
-    const excalidrawUrl = computed(() => excalidrawBaseUrl.value || '')
+    // Excalidraw esta detras de insightbloom-tools-gateway (exige sesion antes de reenviar
+    // el request al pod real) — ib_token arranca esa sesion en el primer request.
+    const excalidrawUrl = computed(() => {
+      if (!excalidrawBaseUrl.value) return ''
+      const token = auth.state.token ? `?ib_token=${encodeURIComponent(auth.state.token)}` : ''
+      return `${excalidrawBaseUrl.value}/${token}`
+    })
 
     return { loading, excalidrawUrl }
   }

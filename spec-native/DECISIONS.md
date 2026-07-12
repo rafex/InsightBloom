@@ -579,3 +579,42 @@ Registrar una decision cuando cambie:
   confianza que ya se deposita en `ADMIN` hoy — se revisaria si hace
   falta separarlo en una iteracion futura.
 - Reemplaza: `none`
+
+### DEC-0022 - Proxy autenticador (insightbloom-tools-gateway) delante de drawio/Excalidraw/Etherpad
+
+- Fecha: 2026-07-12
+- Estado: accepted
+- Contexto:
+  drawio, Excalidraw y Etherpad se exponen via Ingress publico propio (DEC-0017/DEC-0020),
+  sin autenticacion a nivel de esos servicios — cualquiera con la URL exacta (ej.
+  `drawio-insightbloom.v1.rafex.cloud`) podia usarlos directamente, sin pasar por el login
+  de InsightBloom ni por el gating de capacidades del frontend. Un chequeo solo en el
+  frontend/backend de la app (como el ya existente para drawio via `getEventDiagram`) no
+  cierra este hueco: no impide pegar la URL del servicio directamente en el navegador.
+- Decision:
+  nuevo servicio `insightbloom-tools-gateway` (Jetty 12 core `Handler` de bajo nivel +
+  `java.net.http.HttpClient` del JDK para el reenvio — sin jetty-proxy/jetty-servlet, no
+  compatibles en las versiones cacheadas para Jetty 12) que se interpone entre el Ingress
+  publico y los pods reales de drawio/Excalidraw/Etherpad:
+  - Rutea por el header `Host` (mismo host publico de siempre) hacia el Service interno
+    correspondiente (`GATEWAY_ROUTES`, mapa host→target).
+  - Exige sesion de InsightBloom antes de reenviar cualquier request: primer acceso trae
+    `?ib_token=<token>` en la query (mismo patron ya usado para chat), el gateway lo valida
+    contra `GET /api/v1/auth/validate` de insightbloom-users y, si es valido, emite una
+    cookie de sesion propia (`ib_gw`, HttpOnly/Secure/SameSite=Lax, TTL 4h) cacheada en
+    memoria — evita revalidar el token en cada sub-recurso (JS/CSS/XHR) del iframe.
+    Sin token ni cookie valida: pagina HTML 401 "inicia sesion", sin tocar el pod real.
+  - Los Ingress de drawio/Excalidraw/Etherpad (`ingressDrawio`/`ingressExcalidraw`/
+    `ingressEtherpad`) ahora apuntan al Service del gateway, no al de la herramienta — los
+    Services de las herramientas ya no tienen ingress publico (NetworkPolicy ajustada:
+    se retiran las 3 reglas "allow-X-ingress" abiertas a internet y se agrega una sola
+    "allow-toolsgateway-ingress"), asi que solo son alcanzables desde otros pods del
+    namespace.
+- Consecuencias:
+  - Limitacion conocida: el reenvio via `HttpClient` de request/response estandar no
+    soporta upgrade a WebSocket — el socket.io de Etherpad cae a su fallback de
+    long-polling (funcional, no optimo).
+  - No valida capacidad de evento (`EventCapability`) en el gateway, solo sesion — ese
+    gating sigue viviendo en el frontend/backend de la app, sin cambios.
+  - `AUTH_VALIDATE_URL`/`GATEWAY_ROUTES`/`GATEWAY_LOGIN_URL` configurables por env var,
+    mismo patron que el resto de servicios del chart.
