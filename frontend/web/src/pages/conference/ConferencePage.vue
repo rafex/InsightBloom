@@ -1,6 +1,6 @@
 <template lang="pug">
 .conference-page
-  AppHeader
+  AppHeader(v-if="!headerCollapsed")
   .conf-loading(v-if="loading") Cargando conferencia...
   .conf-error(v-else-if="error") {{ error }}
   template(v-else-if="conference")
@@ -14,34 +14,58 @@
       @enter="dismissIntro"
     )
 
-    .conf-header
-      .conf-title-row
-        h1 {{ conference.name }}
-        .conf-location(v-if="conference.latitude != null")
-          span.location-icon 📍
-          span.location-coords {{ conference.latitude.toFixed(4) }}, {{ conference.longitude.toFixed(4) }}
-        button.btn-qr(type="button" @click="showQr = true") 📱 Mostrar QR
-      .conf-schedule(v-if="conference.eventDate")
-        span.schedule-icon 🗓️
-        span {{ formattedEventDate }}
-        span(v-if="conference.startTime") &nbsp;· {{ conference.startTime }}{{ conference.endTime ? ` - ${conference.endTime}` : '' }}
-        span(v-if="conference.venue") &nbsp;· {{ conference.venue }}
-        .calendar-dropdown(v-if="isUpcoming")
-          button.btn-calendar(type="button" @click="showCalendarMenu = !showCalendarMenu") 📅 Agregar a mi calendario
-          .calendar-menu(v-if="showCalendarMenu")
-            a(:href="googleCalendarUrl" target="_blank" rel="noopener" @click="showCalendarMenu = false") Google Calendar
-            button(type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
-      .conf-tabs
-        router-link#onboarding-tab-doubts(v-if="hasCapability('WORD_CLOUD')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab") Dudas
-        router-link#onboarding-tab-topics(v-if="hasCapability('WORD_CLOUD')" :to="`/c/${friendlyId}/topics`" active-class="active-tab") Temas
-        router-link#onboarding-tab-presentation(v-if="hasCapability('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab") Presentación
-        a.tab-disabled(v-if="hasCapability('CHAT_BOT') && isAnonymous" title="Inicia sesión para acceder al chat") Chat
-        a.tab-secondary(v-else-if="hasCapability('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo (opcional)") Chat
-        router-link#onboarding-tab-survey(v-if="hasCapability('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab") Encuesta
-        router-link(v-if="hasCapability('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab") Videollamada
-        router-link(v-if="hasCapability('DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab") Diagramas
-        router-link(v-if="hasCapability('COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab") Notas
-        router-link(v-if="conference.seatingMode && conference.seatingMode !== 'NONE'" :to="`/c/${friendlyId}/ticket`" active-class="active-tab") 🎟️ Mi boleto
+    .conf-header(:class="{ collapsed: headerCollapsed }")
+      button.btn-collapse-toggle(type="button" @click="headerCollapsed = !headerCollapsed" :title="headerCollapsed ? 'Mostrar cabecera' : 'Ocultar cabecera y dar más espacio'")
+        span(v-if="headerCollapsed") {{ conference.name }} ▾
+        span(v-else) ▴ Compactar
+      template(v-if="!headerCollapsed")
+        .conf-title-row
+          h1 {{ conference.name }}
+          .conf-location(v-if="conference.latitude != null")
+            span.location-icon 📍
+            span.location-coords {{ conference.latitude.toFixed(4) }}, {{ conference.longitude.toFixed(4) }}
+          button.btn-qr(type="button" @click="showQr = true") 📱 Mostrar QR
+        .conf-schedule(v-if="conference.eventDate")
+          span.schedule-icon 🗓️
+          span {{ formattedEventDate }}
+          span(v-if="conference.startTime") &nbsp;· {{ conference.startTime }}{{ conference.endTime ? ` - ${conference.endTime}` : '' }}
+          span(v-if="conference.venue") &nbsp;· {{ conference.venue }}
+          .calendar-dropdown(v-if="isUpcoming")
+            button.btn-calendar(type="button" @click="showCalendarMenu = !showCalendarMenu") 📅 Agregar a mi calendario
+            .calendar-menu(v-if="showCalendarMenu")
+              a(:href="googleCalendarUrl" target="_blank" rel="noopener" @click="showCalendarMenu = false") Google Calendar
+              button(type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
+      nav.conf-toolbar
+        router-link#onboarding-tab-doubts.tool-btn(v-if="hasCapability('WORD_CLOUD')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab" title="Dudas")
+          span.tool-icon ❓
+          span.tool-label Dudas
+        router-link#onboarding-tab-topics.tool-btn(v-if="hasCapability('WORD_CLOUD')" :to="`/c/${friendlyId}/topics`" active-class="active-tab" title="Temas")
+          span.tool-icon 💡
+          span.tool-label Temas
+        router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
+          span.tool-icon 📽️
+          span.tool-label Presentación
+        a.tool-btn.tab-disabled(v-if="hasCapability('CHAT_BOT') && isAnonymous" title="Inicia sesión para acceder al chat")
+          span.tool-icon 💬
+          span.tool-label Chat
+        a.tool-btn.tab-secondary(v-else-if="hasCapability('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo (opcional)")
+          span.tool-icon 💬
+          span.tool-label Chat
+        router-link#onboarding-tab-survey.tool-btn(v-if="hasCapability('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
+          span.tool-icon 📝
+          span.tool-label Encuesta
+        router-link.tool-btn(v-if="hasCapability('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
+          span.tool-icon 🎥
+          span.tool-label Videollamada
+        router-link.tool-btn(v-if="hasCapability('DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
+          span.tool-icon 🧩
+          span.tool-label Diagramas
+        router-link.tool-btn(v-if="hasCapability('COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
+          span.tool-icon 🗒️
+          span.tool-label Notas
+        router-link.tool-btn(v-if="conference.seatingMode && conference.seatingMode !== 'NONE'" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
+          span.tool-icon 🎟️
+          span.tool-label Mi boleto
     .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
       span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
     router-view(:conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode")
@@ -56,12 +80,17 @@ import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
 import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
+
+// Rutas de herramientas de "lienzo" (presentación, diagramas, notas, video) donde el espacio
+// vertical importa mas que el titulo/horario del evento — se colapsa la cabecera por defecto,
+// el usuario puede reabrirla con el boton toggle.
+const TOOL_ROUTE_SUFFIXES = ['/presentation', '/diagrams', '/notes', '/video']
 
 const ATTENDEE_TOUR_STEPS = [
   { selector: '#onboarding-tab-doubts', text: 'Aquí envías tus dudas sobre la charla — todos las ven en una nube de palabras en vivo.' },
@@ -84,6 +113,11 @@ export default {
     const timezones  = ref<Timezone[]>([])
     const showCalendarMenu = ref(false)
     const capabilities = ref<Set<string>>(new Set())
+    const headerCollapsed = ref(TOOL_ROUTE_SUFFIXES.some((s) => route.path.endsWith(s)))
+
+    watch(() => route.path, (newPath) => {
+      headerCollapsed.value = TOOL_ROUTE_SUFFIXES.some((s) => newPath.endsWith(s))
+    })
 
     function hasCapability(capability: EventCapability): boolean {
       // Sin catálogo cargado (aún cargando o falló), no se ocultan pestañas — evita parpadeo
@@ -164,7 +198,7 @@ export default {
     return {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
-      googleCalendarUrl, downloadCalendarFile, hasCapability
+      googleCalendarUrl, downloadCalendarFile, hasCapability, headerCollapsed
     }
   }
 }
@@ -205,49 +239,47 @@ h1 { margin: 0; color: #1e1b4b; }
 }
 .calendar-menu a:hover, .calendar-menu button:hover { background: #f3f4f6; }
 
-.conf-tabs { display: flex; gap: 8px; }
-.conf-tabs a {
-  padding: 8px 20px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.95rem;
-  border: 2px solid #c7d2fe;
-  background: #fff;
+.btn-collapse-toggle {
+  border: none; background: none; cursor: pointer; color: #6b7280; font-size: 0.78rem;
+  font-weight: 600; padding: 2px 4px; margin-bottom: 6px;
+}
+.btn-collapse-toggle:hover { color: #4f46e5; }
+.conf-header.collapsed { padding: 8px 24px; }
+.conf-header.collapsed .btn-collapse-toggle { margin-bottom: 4px; font-size: 0.9rem; color: #1e1b4b; }
+
+.conf-toolbar { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+.tool-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; min-width: 56px; padding: 6px 8px;
+  border-radius: 8px; text-decoration: none;
+  border: 1.5px solid transparent;
   color: #4f46e5;
   transition: all 0.15s ease;
+  flex-shrink: 0;
 }
-.conf-tabs a:hover:not(.active-tab) {
+.tool-icon { font-size: 1.1rem; line-height: 1; }
+.tool-label { font-size: 0.65rem; font-weight: 600; white-space: nowrap; }
+.tool-btn:hover:not(.active-tab) {
   background: #eef2ff;
   border-color: #a5b4fc;
 }
-.conf-tabs a.active-tab {
+.tool-btn.active-tab {
   background: #4f46e5;
   color: #ffffff !important;
   border-color: #4f46e5;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
 }
-.conf-tabs a.tab-disabled {
+.tool-btn.tab-disabled {
   cursor: not-allowed;
   color: #9ca3af;
-  border-color: #e5e7eb;
-  background: #f9fafb;
 }
-.conf-tabs a.tab-disabled:hover {
-  background: #f9fafb;
-  border-color: #e5e7eb;
-}
-.conf-tabs a.tab-secondary {
+.tool-btn.tab-secondary {
   color: #9ca3af;
-  border-color: #e5e7eb;
-  background: #fff;
   font-weight: 500;
-  font-size: 0.85rem;
 }
-.conf-tabs a.tab-secondary:hover {
+.tool-btn.tab-secondary:hover {
   color: #6b7280;
-  border-color: #d1d5db;
   background: #f9fafb;
+  border-color: #e5e7eb;
 }
 .conf-loading, .conf-error { padding: 40px; text-align: center; color: #6b7280; }
 
@@ -266,8 +298,8 @@ h1 { margin: 0; color: #1e1b4b; }
 @media (max-width: 640px) {
   .conf-header { padding: 16px; }
   h1 { font-size: 1.4rem; }
-  .conf-tabs { flex-wrap: wrap; gap: 6px; }
-  .conf-tabs a { padding: 7px 14px; font-size: 0.85rem; }
+  .tool-btn { min-width: 48px; padding: 5px 6px; }
+  .tool-label { font-size: 0.6rem; }
   .btn-qr { margin-left: 0; }
   .anon-banner { margin: 12px 16px 0; }
 }
