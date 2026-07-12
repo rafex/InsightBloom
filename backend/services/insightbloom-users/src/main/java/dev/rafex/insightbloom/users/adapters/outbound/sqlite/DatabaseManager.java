@@ -371,7 +371,7 @@ public class DatabaseManager {
      */
     private void seedEventTypes(final Statement stmt) throws SQLException {
         final String allCapabilities = "TICKETING_GENERAL,TICKETING_SEATED,SURVEY,PRESENTATION,"
-                + "WORD_CLOUD,CHAT_BOT,VIDEO_CONFERENCE,WHITEBOARD,DIAGRAMMING,COLLAB_NOTES";
+                + "WORD_CLOUD,CHAT_BOT,VIDEO_CONFERENCE,WHITEBOARD,DIAGRAMMING,COLLAB_NOTES,CODE_IDE";
         final Object[][] eventTypes = {
             {"conference", "Conferencia", "Evento con boletos, encuestas, presentación, nube de palabras, chat y videollamada.", allCapabilities},
             {"workshop", "Taller", "Evento colaborativo con boletos, encuestas, pizarra, diagramas y notas compartidas.", allCapabilities}
