@@ -21,6 +21,31 @@ export interface EventNotesPad {
   padId: string
 }
 
+export type RoleScopeValue = 'PLATFORM' | 'EVENT'
+
+export type PermissionValue =
+  | 'MANAGE_USERS' | 'MANAGE_EVENT_TYPES' | 'HOST_EVENT' | 'MANAGE_EVENT_SETTINGS'
+  | 'ASSIGN_EVENT_ROLES' | 'MODERATE_CONTENT' | 'CHECK_IN' | 'MANAGE_PRESENTATION'
+  | 'MANAGE_SURVEY' | 'MANAGE_CERTIFICATE' | 'VIDEO_MODERATE'
+
+export interface Role {
+  uuid: string
+  key: string
+  name: string
+  description?: string | null
+  scope: RoleScopeValue
+  permissions: PermissionValue[]
+  active: boolean
+}
+
+export interface EventRoleAssignment {
+  userUuid: string
+  displayName?: string | null
+  email?: string | null
+  roleKey: string
+  assignedAt: string
+}
+
 export interface EventType {
   uuid: string
   key: string

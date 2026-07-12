@@ -53,6 +53,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'certificate-settings', component: () => import('@/pages/dashboard/CertificateSettingsPage.vue') },
       { path: 'admin/users', component: () => import('@/pages/dashboard/AdminUsersPage.vue') },
       { path: 'admin/event-types', component: () => import('@/pages/dashboard/EventTypesAdminPage.vue') },
+      { path: 'admin/roles', component: () => import('@/pages/dashboard/RolesAdminPage.vue') },
       {
         path: 'conferences/:conferenceId/edit',
         component: () => import('@/pages/dashboard/EditConferencePage.vue'),
@@ -118,6 +119,7 @@ router.beforeEach((to) => {
   if (organizerOnlyPaths.includes(to.path) && !isOrganizerOrAdmin) return '/dashboard'
   if (to.path === '/dashboard/admin/users' && !roles.includes('admin')) return '/dashboard'
   if (to.path === '/dashboard/admin/event-types' && !roles.includes('admin')) return '/dashboard'
+  if (to.path === '/dashboard/admin/roles' && !roles.includes('admin')) return '/dashboard'
 })
 
 export default router

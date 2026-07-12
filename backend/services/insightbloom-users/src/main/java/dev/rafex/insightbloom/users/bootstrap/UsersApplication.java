@@ -63,6 +63,8 @@ public class UsersApplication {
         final var reservationRepo = new SqliteReservationRepository(db);
         final var venueSeatRepo = new SqliteVenueSeatRepository(db);
         final var eventTypeRepo = new SqliteEventTypeRepository(db);
+        final var roleRepo = new SqliteRoleRepository(db);
+        final var eventRoleRepo = new SqliteEventRoleRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -81,7 +83,7 @@ public class UsersApplication {
         final var loginUseCase = new LoginUseCase(userRepo, tokenService, passwordService);
         final var createGuestUseCase = new CreateGuestUseCase(guestRepo, conferenceRepo, tokenService);
         final var validateTokenUseCase = new ValidateTokenUseCase(tokenService, userRepo, guestRepo);
-        final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService, timezoneRepo);
+        final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService, timezoneRepo, eventRoleRepo);
         final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo, cascadeDeletePort, membershipRepo);
         final var registerUseCase = new RegisterUseCase(userRepo, passwordService);
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
@@ -126,6 +128,15 @@ public class UsersApplication {
         final var createEventTypeUseCase = new CreateEventTypeUseCase(eventTypeRepo);
         final var updateEventTypeUseCase = new UpdateEventTypeUseCase(eventTypeRepo);
         final var setEventTypeActiveUseCase = new SetEventTypeActiveUseCase(eventTypeRepo);
+        final var listRolesUseCase = new ListRolesUseCase(roleRepo);
+        final var createRoleUseCase = new CreateRoleUseCase(roleRepo);
+        final var updateRoleUseCase = new UpdateRoleUseCase(roleRepo);
+        final var setRoleActiveUseCase = new SetRoleActiveUseCase(roleRepo);
+        final var eventPermissionGuard = new dev.rafex.insightbloom.users.domain.services.EventPermissionGuard(
+                eventRoleRepo, roleRepo);
+        final var assignEventRoleUseCase = new AssignEventRoleUseCase(eventRoleRepo, roleRepo, userRepo, eventPermissionGuard);
+        final var listEventRolesUseCase = new ListEventRolesUseCase(eventRoleRepo, userRepo, eventPermissionGuard);
+        final var removeEventRoleUseCase = new RemoveEventRoleUseCase(eventRoleRepo, conferenceRepo, eventPermissionGuard);
         final var sendConferenceRemindersUseCase = new SendConferenceRemindersUseCase(
                 conferenceRepo, membershipRepo, userRepo, timezoneRepo, emailPort, reservationRepo, frontendBaseUrl);
         final var purgeExpiredEventNotesUseCase = new PurgeExpiredEventNotesUseCase(
@@ -145,7 +156,8 @@ public class UsersApplication {
                 setSeatingModeUseCase, reserveGeneralUseCase, getMyTicketUseCase, cancelReservationUseCase,
                 listReservationsUseCase, checkInTicketUseCase,
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
-                setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase);
+                setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase,
+                assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
@@ -158,6 +170,9 @@ public class UsersApplication {
                 updateEventTypeUseCase, setEventTypeActiveUseCase, validateTokenUseCase);
         final var eventCapabilityHandler = new EventCapabilityHandler();
         final var integrationConfigHandler = new IntegrationConfigHandler(drawioBaseUrl, etherpadBaseUrl);
+        final var roleHandler = new RoleHandler(listRolesUseCase, createRoleUseCase, updateRoleUseCase,
+                setRoleActiveUseCase, validateTokenUseCase);
+        final var permissionHandler = new PermissionHandler();
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -171,6 +186,8 @@ public class UsersApplication {
         routes.add("/api/v1/event-types/*", eventTypeHandler);
         routes.add("/api/v1/event-capabilities/*", eventCapabilityHandler);
         routes.add("/api/v1/integrations/*", integrationConfigHandler);
+        routes.add("/api/v1/roles/*", roleHandler);
+        routes.add("/api/v1/permissions/*", permissionHandler);
 
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();

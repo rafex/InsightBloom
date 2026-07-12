@@ -2,7 +2,8 @@ import axios from 'axios'
 import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
-  SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad
+  SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
+  Role, RoleScopeValue, PermissionValue, EventRoleAssignment
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -265,4 +266,59 @@ export async function getIntegrationConfig(): Promise<IntegrationConfig> {
 export async function getEventNotes(conferenceId: string, token: string): Promise<EventNotesPad> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/notes`, authHeader(token))
   return res.data.data
+}
+
+/** Roles activos, opcionalmente filtrados por alcance (para el selector del Host al asignar roles de evento). */
+export async function getActiveRoles(scope?: RoleScopeValue): Promise<Role[]> {
+  const res = await axios.get('/api/users/api/v1/roles', { params: scope ? { scope } : {} })
+  return res.data.data
+}
+
+/** Catálogo completo (incluye inactivos), solo para quien tenga MANAGE_USERS. */
+export async function getAllRoles(token: string): Promise<Role[]> {
+  const res = await axios.get('/api/users/api/v1/roles/all', authHeader(token))
+  return res.data.data
+}
+
+export async function getPermissionsCatalog(): Promise<PermissionValue[]> {
+  const res = await axios.get('/api/users/api/v1/permissions')
+  return res.data.data
+}
+
+export async function createRole(
+  key: string, name: string, description: string | null, scope: RoleScopeValue,
+  permissions: PermissionValue[], token: string
+): Promise<Role> {
+  const res = await axios.post('/api/users/api/v1/roles', { key, name, description, scope, permissions }, authHeader(token))
+  return res.data.data
+}
+
+export async function updateRole(
+  uuid: string, name: string, description: string | null, permissions: PermissionValue[], token: string
+): Promise<Role> {
+  const res = await axios.put(`/api/users/api/v1/roles/${uuid}`, { name, description, permissions }, authHeader(token))
+  return res.data.data
+}
+
+export async function setRoleActive(uuid: string, active: boolean, token: string): Promise<Role> {
+  const res = await axios.put(`/api/users/api/v1/roles/${uuid}/active`, { active }, authHeader(token))
+  return res.data.data
+}
+
+/** Lista los roles asignados a un evento; el backend devuelve 403 si quien pide no tiene ASSIGN_EVENT_ROLES. */
+export async function getEventRoles(conferenceId: string, token: string): Promise<EventRoleAssignment[]> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/roles`, authHeader(token))
+  return res.data.data
+}
+
+export async function assignEventRole(
+  conferenceId: string, userIdentifier: string, roleKey: string, token: string
+): Promise<EventRoleAssignment> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/roles`,
+    { userIdentifier, roleKey }, authHeader(token))
+  return res.data.data
+}
+
+export async function removeEventRole(conferenceId: string, userUuid: string, token: string): Promise<void> {
+  await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/roles/${userUuid}`, authHeader(token))
 }

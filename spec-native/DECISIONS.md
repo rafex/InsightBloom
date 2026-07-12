@@ -531,3 +531,51 @@ Registrar una decision cuando cambie:
   (pods dedicados solo para esa herramienta) como iteracion futura — no
   bloquea la implementacion actual.
 - Reemplaza: `none`
+
+### DEC-0021 - Esquema de permisos y roles administrables (plataforma + por evento)
+
+- Fecha: 2026-07-11
+- Estado: accepted
+- Contexto:
+  el modelo de roles plano (`UserRole`: ADMIN, ORGANIZER, MODERATOR,
+  GUEST, ATTENDEE, un solo nivel global) no distingue entre quien
+  administra usuarios y quien solo deberia administrar el catalogo de
+  tipos de evento, ni permite que el creador de un evento delegue tareas
+  (moderar, hacer check-in, presentar) a otra persona solo para ESE
+  evento sin volverla organizador global. Esto ya se habia identificado
+  y pospuesto deliberadamente en la Fase 1 de ticketing ("no se
+  introduce un rol nuevo de staff en esta primera version").
+- Decision:
+  se generaliza en dos jerarquias independientes, siguiendo el mismo
+  patron ya usado para `EventType` (DEC-0016): un catalogo fijo de
+  **permisos** vive en codigo (`MANAGE_USERS`, `MANAGE_EVENT_TYPES`,
+  `HOST_EVENT`, `MANAGE_EVENT_SETTINGS`, `ASSIGN_EVENT_ROLES`,
+  `MODERATE_CONTENT`, `CHECK_IN`, `MANAGE_PRESENTATION`, `MANAGE_SURVEY`,
+  `MANAGE_CERTIFICATE`, `VIDEO_MODERATE`), y el `ADMIN` administra
+  **roles** como combinaciones configurables de esos permisos, con un
+  alcance `PLATFORM` (global) o `EVENT` (por evento especifico). El
+  creador de un evento recibe automaticamente el rol `host` para ese
+  evento (con `ASSIGN_EVENT_ROLES`), y puede asignar otros roles de
+  alcance `EVENT` (`moderator`, `checkin_staff`, `guest_presenter`,
+  `survey_manager`) a otras personas solo para ese evento. Un usuario con
+  el rol de plataforma `system_admin` tiene bypass total sobre cualquier
+  evento sin necesidad de una fila explicita.
+  La aplicacion real de `VIDEO_MODERATE` en la videollamada de Jitsi
+  queda pospuesta hasta que exista Jitsi self-hosted con JWT (DEC-0017);
+  `meet.jit.si` publico no permite asignar moderador de forma confiable
+  via API. El dato queda listo en `event_roles` desde ahora.
+- Consecuencias:
+  el `ADMIN` puede crear roles nuevos (ej. "Coordinador de Staff")
+  combinando permisos existentes sin requerir un release del backend;
+  las rutas existentes migran gradualmente a chequeo por permiso
+  especifico en vez de "es organizador dueño", sin romper su
+  comportamiento actual para conferencias ya creadas (solo se migra una
+  parte en esta iteracion, ver SPEC Excludes);
+  `UserRole` (ADMIN/ORGANIZER/MODERATOR/GUEST/ATTENDEE) sigue existiendo
+  sin cambios para compatibilidad — los roles de plataforma nuevos son
+  adicionales, no un reemplazo;
+  el permiso de administrar el catalogo de roles vive bajo el mismo
+  `MANAGE_USERS` que usuarios (no un permiso dedicado), mismo nivel de
+  confianza que ya se deposita en `ADMIN` hoy — se revisaria si hace
+  falta separarlo en una iteracion futura.
+- Reemplaza: `none`

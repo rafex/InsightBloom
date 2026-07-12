@@ -18,6 +18,9 @@ import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetDownloadCountsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetMyTicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetOrCreateEventPadUseCase;
+import dev.rafex.insightbloom.users.application.usecases.AssignEventRoleUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ListEventRolesUseCase;
+import dev.rafex.insightbloom.users.application.usecases.RemoveEventRoleUseCase;
 import dev.rafex.insightbloom.users.application.usecases.JoinConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListReservationsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RecordDownloadUseCase;
@@ -67,6 +70,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SetEventTypeUseCase setEventTypeUseCase;
     private final EventCapabilityGuard eventCapabilityGuard;
     private final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase;
+    private final AssignEventRoleUseCase assignEventRoleUseCase;
+    private final ListEventRolesUseCase listEventRolesUseCase;
+    private final RemoveEventRoleUseCase removeEventRoleUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -92,7 +98,10 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final ReserveSeatUseCase reserveSeatUseCase,
                              final SetEventTypeUseCase setEventTypeUseCase,
                              final EventCapabilityGuard eventCapabilityGuard,
-                             final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase) {
+                             final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase,
+                             final AssignEventRoleUseCase assignEventRoleUseCase,
+                             final ListEventRolesUseCase listEventRolesUseCase,
+                             final RemoveEventRoleUseCase removeEventRoleUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -118,6 +127,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.setEventTypeUseCase = setEventTypeUseCase;
         this.eventCapabilityGuard = eventCapabilityGuard;
         this.getOrCreateEventPadUseCase = getOrCreateEventPadUseCase;
+        this.assignEventRoleUseCase = assignEventRoleUseCase;
+        this.listEventRolesUseCase = listEventRolesUseCase;
+        this.removeEventRoleUseCase = removeEventRoleUseCase;
     }
 
     @Override
@@ -147,6 +159,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
                 Route.of("/{id}/reservations/check-in", Set.of("POST")),
                 Route.of("/{id}/notes", Set.of("GET")),
+                Route.of("/{id}/roles", Set.of("GET", "POST")),
+                Route.of("/{id}/roles/{userUuid}", Set.of("DELETE")),
                 Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
     }
 
@@ -192,6 +206,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/notes")) {
             return handleGetNotes(jx, jx.pathParam("id"));
         }
+        if (path.endsWith("/roles")) {
+            return handleListEventRoles(jx, jx.pathParam("id"));
+        }
         final String id = jx.pathParam("id");
         if (id != null) {
             return handleGetById(jx, id);
@@ -217,6 +234,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/reservations")) {
             return handleReserve(jx, jx.pathParam("id"));
         }
+        if (jx.path().endsWith("/roles")) {
+            return handleAssignEventRole(jx, jx.pathParam("id"));
+        }
         return handleCreate(jx);
     }
 
@@ -225,6 +245,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/reservations/me")) {
             return handleCancelReservation(jx, jx.pathParam("id"));
+        }
+        if (jx.path().contains("/roles/")) {
+            return handleRemoveEventRole(jx, jx.pathParam("id"), jx.pathParam("userUuid"));
         }
         return handleDelete(jx, jx.pathParam("id"));
     }
@@ -542,6 +565,60 @@ public class ConferenceHandler extends BaseResourceHandler {
             getOrCreateEventPadUseCase.execute(id).ifPresentOrElse(
                     pad -> sendOk(jx, 200, pad),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleListEventRoles(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            listEventRolesUseCase.execute(id, v.subjectUuid(), v.role()).ifPresentOrElse(
+                    roles -> sendOk(jx, 200, roles),
+                    () -> sendError(jx, 403, "forbidden", "No tienes permiso para ver los roles de este evento"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleAssignEventRole(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final var body = parseBody(jx);
+            final var assignment = assignEventRoleUseCase.execute(id, v.subjectUuid(), v.role(),
+                    (String) body.get("userIdentifier"), (String) body.get("roleKey"));
+            sendOk(jx, 201, assignment);
+        } catch (final SecurityException e) {
+            sendError(jx, 403, "forbidden", "No tienes permiso para asignar roles en este evento");
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, "user_not_found".equals(e.getMessage()) || "role_not_found".equals(e.getMessage()) ? 404 : 400,
+                    e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleRemoveEventRole(final JettyHttpExchange jx, final String id, final String userUuid) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            removeEventRoleUseCase.execute(id, v.subjectUuid(), v.role(), userUuid);
+            sendOk(jx, 200, Map.of("removed", true));
+        } catch (final SecurityException e) {
+            sendError(jx, 403, "forbidden", "No tienes permiso para quitar roles en este evento");
+        } catch (final IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), "No se puede quitar al Host original del evento");
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

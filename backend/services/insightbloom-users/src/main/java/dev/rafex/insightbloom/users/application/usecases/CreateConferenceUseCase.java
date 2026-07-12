@@ -1,22 +1,28 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
+import dev.rafex.insightbloom.users.domain.model.EventRole;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
+import dev.rafex.insightbloom.users.domain.ports.EventRoleRepository;
 import dev.rafex.insightbloom.users.domain.ports.TimezoneRepository;
 import dev.rafex.insightbloom.users.domain.services.FriendlyIdService;
 
 import java.time.Instant;
 
 public class CreateConferenceUseCase {
+    private static final String HOST_ROLE_KEY = "host";
+
     private final ConferenceRepository conferenceRepository;
     private final FriendlyIdService friendlyIdService;
     private final TimezoneRepository timezoneRepository;
+    private final EventRoleRepository eventRoleRepository;
 
     public CreateConferenceUseCase(ConferenceRepository conferenceRepository, FriendlyIdService friendlyIdService,
-                                    TimezoneRepository timezoneRepository) {
+                                    TimezoneRepository timezoneRepository, EventRoleRepository eventRoleRepository) {
         this.conferenceRepository = conferenceRepository;
         this.friendlyIdService = friendlyIdService;
         this.timezoneRepository = timezoneRepository;
+        this.eventRoleRepository = eventRoleRepository;
     }
 
     public record CreateRequest(String name, String displayName, String createdByUserUuid, String expiresAt,
@@ -46,6 +52,8 @@ public class CreateConferenceUseCase {
             conference.setEventTypeKey(request.eventTypeKey());
         }
         conferenceRepository.save(conference);
+        // El creador se vuelve Host automaticamente (FR-004, DEC-0021) — sin accion manual.
+        eventRoleRepository.save(new EventRole(conference.getUuid(), request.createdByUserUuid(), HOST_ROLE_KEY));
         return new CreateResult(
             conference.getUuid(), conference.getFriendlyId(),
             conference.getName(), conference.getStatus().name().toLowerCase(),

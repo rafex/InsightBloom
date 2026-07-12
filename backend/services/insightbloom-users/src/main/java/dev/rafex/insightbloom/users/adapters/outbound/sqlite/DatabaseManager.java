@@ -244,8 +244,74 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN notes_purged_at TEXT");
             } catch (SQLException ignored) {}
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS roles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    key TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    scope TEXT NOT NULL,
+                    permissions TEXT NOT NULL,
+                    active INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """);
+            seedRoles(stmt);
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS event_roles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    event_uuid TEXT NOT NULL,
+                    user_uuid TEXT NOT NULL,
+                    role_key TEXT NOT NULL,
+                    assigned_at TEXT NOT NULL,
+                    UNIQUE(event_uuid, user_uuid)
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_event_roles_event ON event_roles(event_uuid)");
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
+        }
+    }
+
+    /**
+     * Sembrado inicial del catálogo de roles (DEC-0021): 3 de alcance PLATFORM
+     * (system_admin, event_type_admin, organizer) y 5 de alcance EVENT (host, moderator,
+     * checkin_staff, guest_presenter, survey_manager). El creador de un evento recibe la fila
+     * `host` automaticamente (ver CreateConferenceUseCase); `system_admin` tiene bypass total
+     * sobre cualquier evento sin necesidad de una fila en event_roles (ver EventPermissionGuard).
+     */
+    private void seedRoles(final Statement stmt) throws SQLException {
+        final Object[][] roles = {
+            {"system_admin", "Administrador de sistema", "PLATFORM", "MANAGE_USERS,MANAGE_EVENT_TYPES"},
+            {"event_type_admin", "Administrador de tipos de evento", "PLATFORM", "MANAGE_EVENT_TYPES"},
+            {"organizer", "Organizador", "PLATFORM", "HOST_EVENT"},
+            {"host", "Host/Anfitrión", "EVENT",
+                "MANAGE_EVENT_SETTINGS,ASSIGN_EVENT_ROLES,MODERATE_CONTENT,CHECK_IN,MANAGE_PRESENTATION,MANAGE_SURVEY,MANAGE_CERTIFICATE,VIDEO_MODERATE"},
+            {"moderator", "Moderador", "EVENT", "MODERATE_CONTENT,VIDEO_MODERATE"},
+            {"checkin_staff", "Staff de acceso", "EVENT", "CHECK_IN"},
+            {"guest_presenter", "Presentador invitado", "EVENT", "MANAGE_PRESENTATION"},
+            {"survey_manager", "Encargado de encuesta", "EVENT", "MANAGE_SURVEY"}
+        };
+        final String sql = "INSERT OR IGNORE INTO roles "
+                + "(uuid, key, name, description, scope, permissions, active, created_at, updated_at) "
+                + "VALUES (?, ?, ?, NULL, ?, ?, 1, ?, ?)";
+        try (var ps = stmt.getConnection().prepareStatement(sql)) {
+            for (final Object[] r : roles) {
+                final String now = java.time.Instant.now().toString();
+                ps.setString(1, java.util.UUID.randomUUID().toString());
+                ps.setString(2, (String) r[0]);
+                ps.setString(3, (String) r[1]);
+                ps.setString(4, (String) r[2]);
+                ps.setString(5, (String) r[3]);
+                ps.setString(6, now);
+                ps.setString(7, now);
+                ps.executeUpdate();
+            }
         }
     }
 

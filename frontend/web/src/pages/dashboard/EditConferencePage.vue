@@ -82,6 +82,22 @@
         router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
         router-link.btn-outline(v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
 
+    .form-group.roles-group(v-if="canManageRoles")
+      label Roles del evento
+      p.field-hint Asigna moderadores, staff de acceso u otros roles a personas solo para este evento.
+      .roles-list(v-if="eventRoles.length")
+        .role-row(v-for="r in eventRoles" :key="r.userUuid")
+          span.role-person {{ r.displayName || r.email || r.userUuid }}
+          span.role-badge {{ roleName(r.roleKey) }}
+          button.btn-remove(type="button" @click="removeRole(r.userUuid)") Quitar
+      .assign-row
+        input(v-model="assignIdentifier" type="text" placeholder="Email o usuario")
+        select(v-model="assignRoleKey")
+          option(v-for="role in assignableRoles" :key="role.key" :value="role.key") {{ role.name }}
+        button.btn-outline(type="button" @click="assignRole" :disabled="assigning") Asignar
+      p.success(v-if="roleAssigned") Rol asignado.
+      p.error(v-if="roleError") {{ roleError }}
+
     .form-group
       label Flyer del evento (opcional)
       p.field-hint Se muestra en la animación de mapa al entrar a la conferencia. No siempre se cuenta con uno.
@@ -102,8 +118,11 @@
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
-import { getConference, updateConference, getTimezones, setSeatingMode, getActiveEventTypes, setEventType } from '@/services/api/usersApi'
-import type { Conference, Timezone, SeatingMode, EventType } from '@/services/api/types'
+import {
+  getConference, updateConference, getTimezones, setSeatingMode, getActiveEventTypes, setEventType,
+  getEventRoles, getActiveRoles, assignEventRole, removeEventRole
+} from '@/services/api/usersApi'
+import type { Conference, Timezone, SeatingMode, EventType, EventRoleAssignment, Role } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -139,6 +158,14 @@ export default {
     const savingEventType = ref(false)
     const eventTypeSaved  = ref(false)
     const eventTypeError  = ref('')
+    const eventRoles      = ref<EventRoleAssignment[]>([])
+    const assignableRoles = ref<Role[]>([])
+    const canManageRoles  = ref(false)
+    const assignIdentifier = ref('')
+    const assignRoleKey   = ref('')
+    const assigning       = ref(false)
+    const roleAssigned    = ref(false)
+    const roleError       = ref('')
 
     onMounted(async () => {
       try {
@@ -167,7 +194,51 @@ export default {
       } finally {
         loading.value = false
       }
+
+      // La seccion de roles solo aparece si el backend confirma que el usuario actual
+      // tiene ASSIGN_EVENT_ROLES sobre este evento (403 = no la muestra, sin error visible).
+      try {
+        const [roles, activeEventRoles] = await Promise.all([
+          getEventRoles(props.conferenceId as string, auth.state.token as string),
+          getActiveRoles('EVENT')
+        ])
+        eventRoles.value = roles
+        assignableRoles.value = activeEventRoles
+        assignRoleKey.value = activeEventRoles[0]?.key || ''
+        canManageRoles.value = true
+      } catch (e: any) {
+        canManageRoles.value = false
+      }
     })
+
+    function roleName(key: string): string {
+      return assignableRoles.value.find((r) => r.key === key)?.name || key
+    }
+
+    async function assignRole() {
+      if (!assignIdentifier.value.trim() || !assignRoleKey.value) return
+      assigning.value = true; roleError.value = ''; roleAssigned.value = false
+      try {
+        await assignEventRole(props.conferenceId as string, assignIdentifier.value.trim(),
+          assignRoleKey.value, auth.state.token as string)
+        eventRoles.value = await getEventRoles(props.conferenceId as string, auth.state.token as string)
+        assignIdentifier.value = ''
+        roleAssigned.value = true
+      } catch (e: any) {
+        roleError.value = e.response?.data?.error?.message || 'No se pudo asignar el rol'
+      } finally {
+        assigning.value = false
+      }
+    }
+
+    async function removeRole(userUuid: string) {
+      try {
+        await removeEventRole(props.conferenceId as string, userUuid, auth.state.token as string)
+        eventRoles.value = eventRoles.value.filter((r) => r.userUuid !== userUuid)
+      } catch (e: any) {
+        roleError.value = e.response?.data?.error?.message || 'No se pudo quitar el rol'
+      }
+    }
 
     function onFlyerSelected(e: Event) {
       const file = (e.target as HTMLInputElement).files?.[0]
@@ -233,7 +304,9 @@ export default {
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
              timezones, timezoneId, onFlyerSelected, save,
              seatingMode, capacity, savingSeating, seatingSaved, seatingError, saveSeating,
-             eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType }
+             eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
+             eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
+             roleAssigned, roleError, roleName, assignRole, removeRole }
   }
 }
 </script>
@@ -266,6 +339,15 @@ input:focus { outline: none; border-color: #4f46e5; }
 .btn-remove-flyer:hover { background: #fee2e2; }
 
 .ticket-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+.roles-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.role-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #f9fafb; border-radius: 8px; }
+.role-person { flex: 1; font-size: 0.85rem; color: #374151; }
+.role-badge { font-size: 0.72rem; background: #e0e7ff; color: #4338ca; padding: 2px 10px; border-radius: 10px; font-weight: 600; }
+.btn-remove { padding: 4px 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; color: #dc2626; cursor: pointer; font-size: 0.78rem; }
+.assign-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.assign-row input, .assign-row select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
+.assign-row input { flex: 1; min-width: 160px; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
