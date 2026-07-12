@@ -1,0 +1,40 @@
+# TASK-0010: Base Dockerfile para sandboxes IDE
+# Alpine minimal + code-server + SQLite + Git
+# Variantes python/java/web se construyen a partir de este (TASK-0011)
+
+FROM alpine:3.19
+WORKDIR /home/coder
+
+# Instalar dependencias base: Node (para code-server), Git, SQLite, curl, ca-certificates
+RUN apk add --no-cache \
+    nodejs npm \
+    git \
+    sqlite \
+    curl \
+    ca-certificates \
+    python3 \
+    py3-pip \
+    bash \
+    dumb-init
+
+# Instalar code-server globalmente desde npm
+RUN npm install -g code-server
+
+# Crear usuario no-root 'coder' (evita ejecutar como root en el pod)
+RUN addgroup -g 1000 coder && \
+    adduser -D -u 1000 -G coder -h /home/coder coder && \
+    chown -R coder:coder /home/coder
+
+# Cambiar a usuario no-root
+USER coder
+
+# Crear directorios para workspace y databases
+RUN mkdir -p /home/coder/workspace /home/coder/db
+
+# code-server escucha por defecto en puerto 8080 (sin seguridad propia — se usa ib_token del gateway)
+EXPOSE 8080
+
+# Punto de entrada: dumb-init protege contra procesos zombies; code-server sin auth
+# (autenticación delegada al gateway via ib_token en cookie/header)
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "/home/coder/workspace", "--disable-auth"]

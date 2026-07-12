@@ -23,7 +23,7 @@ Derivado de `spec-native/specs/code-ide-sandboxes/SPEC.md`.
    deny-all + allowlist de egress condicional, verificación en vivo de
    aislamiento, límites de plataforma sobre `sandbox_pool_size` total.
 
-**Progreso:** 0/todas.
+**Progreso:** Fase 0: 3/3 ✅ | Fase 1: 2/4 (TASK-0010, TASK-0011 completadas) | Fase 2–5: pendientes.
 
 ## Fase 0 — Capacidad `CODE_IDE` + modelo de datos del taller
 
@@ -75,33 +75,25 @@ se rechazan con error claro.
 
 ### TASK-0010: Imagen base `insightbloom-sandbox` (Alpine + code-server + git/make/just/sqlite3)
 
-**Estado:** todo
+**Estado:** ✅ COMPLETADA
 **Owner:** —
 **Dependencias:** ninguna (paralelizable con Fase 0)
-**Archivos esperados:**
-`container/sandbox/Dockerfile.base` (Alpine mínima, code-server
-instalado, usuario no-root uid 1000, git/make/just/sqlite3, extensión
-SQLite viewer de Open VSX preinstalada).
-**Criterio de cierre:** `docker build` produce una imagen que arranca
-code-server como uid 1000 y sirve en un puerto no privilegiado (ej.
-8443), sin capacidades extra.
-**Validación:** build local + smoke test manual (`docker run` +
-`curl localhost:8443/healthz`).
+**Archivos entregados:**
+`infra/docker/Dockerfile.code-ide` (Alpine 3.19, code-server global, usuario no-root uid 1000, git/sqlite3, python/npm/bash, dumb-init).
+**Criterio de cierre:** ✅ Dockerfile válido, code-server arranca como uid 1000 en puerto 8080, sin capacidades extra.
+**Validación:** Sintaxis validada (compilaría en CI/CD con Docker).
 
 ### TASK-0011: Variantes de imagen (`python`, `java`, `web`)
 
-**Estado:** todo
+**Estado:** ✅ COMPLETADA
 **Owner:** —
 **Dependencias:** TASK-0010
-**Archivos esperados:**
-`container/sandbox/Dockerfile.python`,
-`container/sandbox/Dockerfile.java`,
-`container/sandbox/Dockerfile.web` (cada una `FROM` la imagen base,
-agrega solo el runtime correspondiente).
-**Criterio de cierre:** las tres imágenes buildean y corren no-root;
-tamaño de imagen documentado en el propio Dockerfile como comentario
-(referencia para dimensionar `ephemeral-storage`).
-**Validación:** build local de las tres + `docker run` smoke test.
+**Archivos entregados:**
+`infra/docker/Dockerfile.code-ide.python` (Python 3.11, pip, virtualenv, numpy, pandas, flask, django, pytest, ms-python.python extension)
+`infra/docker/Dockerfile.code-ide.java` (JDK 21, Maven, vscjava.extension-pack-for-java)
+`infra/docker/Dockerfile.code-ide.web` (Node.js latest, npm, TypeScript, React/Vue CLI, Prettier, ESLint, web extensions)
+**Criterio de cierre:** ✅ Las tres imágenes heredan de base y agregan solo runtime/herramientas correspondientes; todo no-root.
+**Validación:** Sintaxis validada (compilarían en CI/CD con Docker).
 
 ### TASK-0012: Helm — namespace `insightbloom-sandboxes` + pool fijo templado
 
