@@ -36,6 +36,11 @@ LLM_PROVIDER_MODEL    = os.getenv("LLM_PROVIDER_MODEL", "openai/gpt-oss-120b")
 GUARDRAIL_MODEL = os.getenv("ROBERTO_GUARDRAIL_MODEL", "openai/gpt-oss-safeguard-20b")
 
 PRESENTATIONS_URL = os.getenv("PRESENTATIONS_URL", "http://localhost:8091")
+USERS_URL = os.getenv("USERS_URL", "http://localhost:8081")
+
+# Cuánto tiempo (segundos) se reutiliza el valor del kill switch de IA del panel admin,
+# para no pegarle a insightbloom-users en cada mensaje del chat.
+_CHAT_AI_SETTING_CACHE_TTL = 30
 
 _DEFAULT_SYSTEM_PROMPT = """\
 Eres Roberto. Eres un ser humano que está participando en el chat grupal de un evento o conferencia.
@@ -90,6 +95,7 @@ class Roberto:
     def __init__(self):
         self._history: list[dict] = []
         self._presentation_cache: dict[str, tuple[float, str]] = {}
+        self._chat_ai_enabled_cache: tuple[float, bool] | None = None
         self._client: AsyncOpenAI | None = (
             AsyncOpenAI(api_key=LLM_PROVIDER_API_KEY, base_url=LLM_PROVIDER_BASE_URL)
             if LLM_PROVIDER_API_KEY
@@ -104,6 +110,8 @@ class Roberto:
                              conference_id: str | None = None) -> None:
         """Evalúa si Roberto debe responder al mensaje y lo hace de forma asíncrona."""
         if not self._client:
+            return
+        if not await self._is_ai_enabled():
             return
         if sender == "Roberto":
             return
@@ -124,6 +132,8 @@ class Roberto:
         """Roberto puede comentar (40 % de probabilidad) cuando llega un evento de InsightBloom."""
         if not self._client or random.random() > 0.40:
             return
+        if not await self._is_ai_enabled():
+            return
         kind_es = "duda" if kind in ("doubt", "DOUBT") else "tema"
         prompt = (
             f'Alguien acaba de enviar la {kind_es} "{word}" al sistema de la conferencia. '
@@ -133,6 +143,27 @@ class Roberto:
         await self._call_api([{"role": "user", "content": prompt}], manager, conference_id)
 
     # ── Internos ────────────────────────────────────────────────────────────
+
+    async def _is_ai_enabled(self) -> bool:
+        """Consulta (con cache corta) el kill switch de IA del panel administrativo — permite
+        cortar rápido el uso de IA en el chat ante un intento de abuso, sin redeploy. El
+        endpoint es público (solo expone un booleano, sin datos sensibles). Fail-open: si la
+        consulta falla, se asume habilitado, para no dejar a Roberto en silencio total por un
+        problema ajeno (ej. insightbloom-users no disponible momentáneamente)."""
+        now = asyncio.get_event_loop().time()
+        cached = self._chat_ai_enabled_cache
+        if cached and (now - cached[0]) < _CHAT_AI_SETTING_CACHE_TTL:
+            return cached[1]
+        enabled = True
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                r = await client.get(f"{USERS_URL}/api/v1/settings/chat-ai")
+                if r.status_code == 200:
+                    enabled = bool(r.json().get("data", {}).get("chatAiEnabled", True))
+        except Exception as exc:
+            log.info("No se pudo consultar chat_ai_enabled, se asume habilitado: %s", exc)
+        self._chat_ai_enabled_cache = (now, enabled)
+        return enabled
 
     def _remember(self, role: str, content: str) -> None:
         self._history.append({"role": role, "content": content})

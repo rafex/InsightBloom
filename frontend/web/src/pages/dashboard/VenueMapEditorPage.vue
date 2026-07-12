@@ -11,25 +11,35 @@
       input(type="file" accept="image/*" @change="onImageSelected")
       button.btn-outline(v-if="imageBase64" type="button" @click="saveMap" :disabled="savingMap") Guardar imagen
 
+    .form-group
+      label Generar asientos con IA
+      p.field-hint Describe el recinto: medidas, distancias, referencias (escenario, pasillos, entrada) y figuras geométricas (filas, semicírculo, herradura). El resultado es una propuesta que puedes editar antes de guardar.
+      textarea.ai-description(v-model="aiDescription" rows="3" placeholder="Ej. Salón rectangular de 10x8 metros, 8 filas de 10 asientos con pasillo central, escenario al frente")
+      button.btn-outline(type="button" @click="generateWithAi" :disabled="generatingAi || !aiDescription.trim()")
+        span(v-if="generatingAi") Generando...
+        span(v-else) ✨ Generar con IA
+      p.error(v-if="aiError") {{ aiError }}
+
     template(v-if="imageBase64")
       p.field-hint Haz clic sobre el mapa para agregar un asiento. Clic en un asiento para eliminarlo.
       SeatMapPicker(:image-url="imageBase64" :seats="seats" editable @add-seat="addSeat")
-      .seat-list(v-if="seats.length")
-        .seat-row(v-for="seat in seats" :key="seat.uuid")
-          input.seat-label(v-model="seat.label" type="text" placeholder="Etiqueta, ej. A1")
-          button.btn-remove(type="button" @click="removeSeat(seat)") Quitar
-      button.btn-primary(type="button" @click="saveSeats" :disabled="savingSeats")
-        span(v-if="savingSeats") Guardando...
-        span(v-else) Guardar asientos
-      p.success(v-if="seatsSaved") Asientos guardados.
-      p.error(v-if="seatsError") {{ seatsError }}
+
+    .seat-list(v-if="seats.length")
+      .seat-row(v-for="seat in seats" :key="seat.uuid || seat.label")
+        input.seat-label(v-model="seat.label" type="text" placeholder="Etiqueta, ej. A1")
+        button.btn-remove(type="button" @click="removeSeat(seat)") Quitar
+    button.btn-primary(v-if="seats.length" type="button" @click="saveSeats" :disabled="savingSeats")
+      span(v-if="savingSeats") Guardando...
+      span(v-else) Guardar asientos
+    p.success(v-if="seatsSaved") Asientos guardados.
+    p.error(v-if="seatsError") {{ seatsError }}
 </template>
 
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import ConferenceSubNav from './ConferenceSubNav.vue'
 import SeatMapPicker from '@/components/SeatMapPicker.vue'
-import { getConference, setVenueMap, getConferenceSeatMap, defineVenueSeats } from '@/services/api/usersApi'
+import { getConference, setVenueMap, getConferenceSeatMap, defineVenueSeats, generateSeatLayout } from '@/services/api/usersApi'
 import type { VenueSeat } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -48,6 +58,9 @@ export default {
     const savingSeats = ref(false)
     const seatsSaved = ref(false)
     const seatsError = ref('')
+    const aiDescription = ref('')
+    const generatingAi = ref(false)
+    const aiError = ref('')
     let seatCounter = 0
 
     onMounted(async () => {
@@ -89,6 +102,21 @@ export default {
       seats.value = seats.value.filter((s) => s !== target)
     }
 
+    async function generateWithAi() {
+      generatingAi.value = true; aiError.value = ''
+      try {
+        const generated = await generateSeatLayout(props.conferenceId as string, aiDescription.value, auth.state.token as string)
+        seats.value = generated.map((s) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: false }))
+        seatsSaved.value = false
+      } catch (e: any) {
+        aiError.value = e.response?.status === 503
+          ? 'La generación por IA no está configurada en este despliegue.'
+          : (e.response?.data?.error?.message || 'No se pudo generar el layout con IA')
+      } finally {
+        generatingAi.value = false
+      }
+    }
+
     async function saveSeats() {
       savingSeats.value = true; seatsError.value = ''; seatsSaved.value = false
       try {
@@ -105,7 +133,8 @@ export default {
 
     return {
       loading, imageBase64, seats, savingMap, savingSeats, seatsSaved, seatsError,
-      onImageSelected, saveMap, addSeat, removeSeat, saveSeats
+      aiDescription, generatingAi, aiError,
+      onImageSelected, saveMap, addSeat, removeSeat, saveSeats, generateWithAi
     }
   }
 }
@@ -117,6 +146,7 @@ h2 { color: #1e1b4b; margin-bottom: 16px; }
 .loading-text { color: #6b7280; }
 .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
 .field-hint { margin: 0; font-size: 0.8rem; color: #9ca3af; }
+.ai-description { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; }
 .seat-list { margin: 16px 0; display: flex; flex-direction: column; gap: 6px; }
 .seat-row { display: flex; gap: 8px; align-items: center; }
 .seat-label { flex: 1; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; }

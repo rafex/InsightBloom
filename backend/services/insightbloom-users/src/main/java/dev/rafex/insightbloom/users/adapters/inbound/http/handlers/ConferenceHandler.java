@@ -12,6 +12,7 @@ import dev.rafex.insightbloom.users.application.usecases.CountUniqueRegisteredAt
 import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.DefineVenueSeatsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GenerateSeatLayoutUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceSeatMapUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
@@ -79,6 +80,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GetEventDiagramUseCase getEventDiagramUseCase;
     private final SaveEventDiagramUseCase saveEventDiagramUseCase;
     private final GenerateJaasTokenUseCase generateJaasTokenUseCase;
+    private final GenerateSeatLayoutUseCase generateSeatLayoutUseCase;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -110,7 +112,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final RemoveEventRoleUseCase removeEventRoleUseCase,
                              final GetEventDiagramUseCase getEventDiagramUseCase,
                              final SaveEventDiagramUseCase saveEventDiagramUseCase,
-                             final GenerateJaasTokenUseCase generateJaasTokenUseCase) {
+                             final GenerateJaasTokenUseCase generateJaasTokenUseCase,
+                             final GenerateSeatLayoutUseCase generateSeatLayoutUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -142,6 +145,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.getEventDiagramUseCase = getEventDiagramUseCase;
         this.saveEventDiagramUseCase = saveEventDiagramUseCase;
         this.generateJaasTokenUseCase = generateJaasTokenUseCase;
+        this.generateSeatLayoutUseCase = generateSeatLayoutUseCase;
     }
 
     @Override
@@ -166,6 +170,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/seating", Set.of("PUT")),
                 Route.of("/{id}/event-type", Set.of("PUT")),
                 Route.of("/{id}/venue-map", Set.of("PUT")),
+                Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
@@ -250,6 +255,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/reservations/check-in")) {
             return handleCheckIn(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/venue-map/generate-seats")) {
+            return handleGenerateSeatLayout(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/reservations")) {
             return handleReserve(jx, jx.pathParam("id"));
@@ -870,6 +878,33 @@ public class ConferenceHandler extends BaseResourceHandler {
     }
 
     @SuppressWarnings("unchecked")
+    private boolean handleGenerateSeatLayout(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can generate a seat layout");
+                return true;
+            }
+            if (!hasCapability(id, EventCapability.TICKETING_SEATED)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita mapa de asientos");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String description = (String) body.get("description");
+            final var seats = generateSeatLayoutUseCase.execute(description);
+            sendOk(jx, 200, Map.of("seats", seats));
+        } catch (final IllegalStateException e) {
+            sendError(jx, 503, "llm_not_configured", "La generacion por IA no esta configurada en este despliegue");
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, "bad_request", e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 502, "llm_invalid_response", e.getMessage());
+        }
+        return true;
+    }
+
     private boolean handleDefineSeats(final JettyHttpExchange jx, final String id) {
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }

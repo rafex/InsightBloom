@@ -12,6 +12,7 @@
         router-link(v-if="isOrganizer" to="/dashboard/certificate-settings" @click="sidebarOpen = false") Diseño de certificado
         router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="sidebarOpen = false") Usuarios
         router-link(v-if="isAdmin" to="/dashboard/admin/roles" @click="sidebarOpen = false") Roles
+        router-link(v-if="isAdmin" to="/dashboard/admin/chat" @click="sidebarOpen = false") Chat
         router-link(to="/profile" @click="sidebarOpen = false") Mi perfil
     main.dashboard-main
       router-view

@@ -203,6 +203,16 @@ export async function defineVenueSeats(
   return res.data.data
 }
 
+export async function generateSeatLayout(
+  conferenceId: string,
+  description: string,
+  token: string
+): Promise<Array<{ uuid: string | null, label: string, x: number, y: number }>> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/venue-map/generate-seats`,
+    { description }, authHeader(token))
+  return res.data.data.seats
+}
+
 export async function getConferenceSeatMap(conferenceId: string, token: string): Promise<VenueSeat[]> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/seats`, authHeader(token))
   return res.data.data
@@ -320,6 +330,16 @@ export async function updateRole(
 export async function setRoleActive(uuid: string, active: boolean, token: string): Promise<Role> {
   const res = await axios.put(`/api/users/api/v1/roles/${uuid}/active`, { active }, authHeader(token))
   return res.data.data
+}
+
+export async function getChatAiSetting(): Promise<boolean> {
+  const res = await axios.get('/api/users/api/v1/settings/chat-ai')
+  return res.data.data.chatAiEnabled
+}
+
+export async function setChatAiSetting(chatAiEnabled: boolean, token: string): Promise<boolean> {
+  const res = await axios.put('/api/users/api/v1/settings/chat-ai', { chatAiEnabled }, authHeader(token))
+  return res.data.data.chatAiEnabled
 }
 
 /** Lista los roles asignados a un evento; el backend devuelve 403 si quien pide no tiene ASSIGN_EVENT_ROLES. */

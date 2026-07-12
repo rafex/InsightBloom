@@ -306,7 +306,12 @@ services:
       ZOHO_SMTP_PORT: "465"
       ZOHO_SMTP_USERNAME: ""
       ZOHO_FROM_ADDRESS: ""
+      LLM_PROVIDER_BASE_URL: "https://api.groq.com/openai/v1"
+      LLM_PROVIDER_MODEL: "openai/gpt-oss-120b"
     secretEnv:
+      - name: LLM_PROVIDER_API_KEY
+        secretName: insightbloom-chat-secrets
+        secretKey: llm-provider-api-key
       - name: TWILIO_AUTH_TOKEN
         secretName: insightbloom-users-secrets
         secretKey: twilio-auth-token

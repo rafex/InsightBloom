@@ -282,6 +282,14 @@ public class DatabaseManager {
                 )
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_event_roles_event ON event_roles(event_uuid)");
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS platform_settings (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    chat_ai_enabled INTEGER NOT NULL DEFAULT 1,
+                    updated_at TEXT
+                )
+            """);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
         }
