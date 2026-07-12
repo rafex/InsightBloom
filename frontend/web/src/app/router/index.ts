@@ -38,7 +38,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'ticket', component: () => import('@/pages/conference/TicketPage.vue') },
       { path: 'diagrams', component: () => import('@/pages/conference/DiagrammingPage.vue') },
       { path: 'notes', component: () => import('@/pages/conference/CollabNotesPage.vue') },
-      { path: 'video', component: () => import('@/pages/conference/VideoConferencePage.vue') }
+      { path: 'video', component: () => import('@/pages/conference/VideoConferencePage.vue') },
+      { path: 'whiteboard', component: () => import('@/pages/conference/WhiteboardPage.vue') }
     ]
   },
   {

@@ -25,6 +25,7 @@ public class UsersApplication {
         final String telegramUrl = System.getenv().getOrDefault("TELEGRAM_URL", "http://insightbloom-telegram:8095");
         final String internalApiKey = System.getenv().getOrDefault("INTERNAL_API_KEY", "");
         final String drawioBaseUrl = System.getenv().getOrDefault("DRAWIO_BASE_URL", "");
+        final String excalidrawBaseUrl = System.getenv().getOrDefault("EXCALIDRAW_BASE_URL", "");
         final String etherpadBaseUrl = System.getenv().getOrDefault("ETHERPAD_BASE_URL", "");
         final String etherpadApiKey = System.getenv().getOrDefault("ETHERPAD_API_KEY", "");
         final String jaasAppId = System.getenv().getOrDefault("JAAS_APP_ID", "");
@@ -178,7 +179,8 @@ public class UsersApplication {
         final var eventTypeHandler = new EventTypeHandler(listEventTypesUseCase, createEventTypeUseCase,
                 updateEventTypeUseCase, setEventTypeActiveUseCase, validateTokenUseCase);
         final var eventCapabilityHandler = new EventCapabilityHandler();
-        final var integrationConfigHandler = new IntegrationConfigHandler(drawioBaseUrl, etherpadBaseUrl, jaasAppId);
+        final var integrationConfigHandler = new IntegrationConfigHandler(
+                drawioBaseUrl, etherpadBaseUrl, jaasAppId, excalidrawBaseUrl);
         final var roleHandler = new RoleHandler(listRolesUseCase, createRoleUseCase, updateRoleUseCase,
                 setRoleActiveUseCase, validateTokenUseCase);
         final var permissionHandler = new PermissionHandler();

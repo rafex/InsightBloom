@@ -1,0 +1,19 @@
+{{- if .Values.excalidraw.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-excalidraw
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+    app.kubernetes.io/component: excalidraw
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.excalidraw.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "insightbloom.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: excalidraw
+{{- end }}

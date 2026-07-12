@@ -16,6 +16,7 @@ export interface IntegrationConfig {
   drawioBaseUrl?: string | null
   etherpadBaseUrl?: string | null
   jaasAppId?: string | null
+  excalidrawBaseUrl?: string | null
 }
 
 export interface JaasToken {

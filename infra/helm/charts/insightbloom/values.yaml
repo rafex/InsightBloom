@@ -133,6 +133,29 @@ etherpad:
       cpu: 250m
       memory: 512Mi
 
+# Excalidraw self-hosted (TASK-0031): igual que drawio, stateless total del lado del
+# servidor — la app oficial guarda el dibujo en localStorage/exportacion del navegador.
+# Colaboracion en vivo (excalidraw-room) queda deferida (ver DEC-0020): la imagen oficial
+# necesita la URL del websocket "baked in" en build-time, no configurable via env var en
+# runtime; se resuelve en una tarea aparte si se decide construir una imagen propia.
+excalidraw:
+  enabled: true
+  repository: excalidraw/excalidraw
+  tag: "latest"
+  port: 80
+  replicaCount: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 60
+  resources:
+    requests:
+      cpu: 30m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+
 ingress:
   enabled: true
   className: haproxy
@@ -180,6 +203,19 @@ ingressDrawio:
     ingress.kubernetes.io/backend-protocol: "http"
   hosts:
     - host: drawio-insightbloom.v1.rafex.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+ingressExcalidraw:
+  enabled: true
+  className: haproxy
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    ingress.kubernetes.io/backend-protocol: "http"
+  hosts:
+    - host: excalidraw-insightbloom.v1.rafex.cloud
       paths:
         - path: /
           pathType: Prefix
@@ -234,6 +270,7 @@ services:
       SURVEY_URL: http://insightbloom-survey:8086
       TELEGRAM_URL: http://insightbloom-telegram:8095
       DRAWIO_BASE_URL: https://drawio-insightbloom.v1.rafex.cloud
+      EXCALIDRAW_BASE_URL: https://excalidraw-insightbloom.v1.rafex.cloud
       ETHERPAD_BASE_URL: https://etherpad-insightbloom.v1.rafex.cloud
       TWILIO_ACCOUNT_SID: ""
       TWILIO_FROM_NUMBER: ""

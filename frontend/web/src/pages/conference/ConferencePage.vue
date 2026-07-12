@@ -60,6 +60,9 @@
         router-link.tool-btn(v-if="hasCapability('DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
           span.tool-icon 🧩
           span.tool-label Diagramas
+        router-link.tool-btn(v-if="hasCapability('WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
+          span.tool-icon 🖍️
+          span.tool-label Pizarra
         router-link.tool-btn(v-if="hasCapability('COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
           span.tool-icon 🗒️
           span.tool-label Notas
@@ -90,7 +93,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 // Rutas de herramientas de "lienzo" (presentación, diagramas, notas, video) donde el espacio
 // vertical importa mas que el titulo/horario del evento — se colapsa la cabecera por defecto,
 // el usuario puede reabrirla con el boton toggle.
-const TOOL_ROUTE_SUFFIXES = ['/presentation', '/diagrams', '/notes', '/video']
+const TOOL_ROUTE_SUFFIXES = ['/presentation', '/diagrams', '/notes', '/video', '/whiteboard']
 
 const ATTENDEE_TOUR_STEPS = [
   { selector: '#onboarding-tab-doubts', text: 'Aquí envías tus dudas sobre la charla — todos las ven en una nube de palabras en vivo.' },

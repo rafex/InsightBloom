@@ -19,14 +19,18 @@ public class IntegrationConfigHandler extends BaseResourceHandler {
     private final String drawioBaseUrl;
     private final String etherpadBaseUrl;
     private final String jaasAppId;
+    private final String excalidrawBaseUrl;
 
-    public IntegrationConfigHandler(final String drawioBaseUrl, final String etherpadBaseUrl, final String jaasAppId) {
+    public IntegrationConfigHandler(final String drawioBaseUrl, final String etherpadBaseUrl,
+                                     final String jaasAppId, final String excalidrawBaseUrl) {
         this.drawioBaseUrl = drawioBaseUrl;
         this.etherpadBaseUrl = etherpadBaseUrl;
         this.jaasAppId = jaasAppId;
+        this.excalidrawBaseUrl = excalidrawBaseUrl;
     }
 
-    public record IntegrationConfigView(String drawioBaseUrl, String etherpadBaseUrl, String jaasAppId) {}
+    public record IntegrationConfigView(String drawioBaseUrl, String etherpadBaseUrl, String jaasAppId,
+                                         String excalidrawBaseUrl) {}
 
     @Override
     protected String basePath() {
@@ -46,7 +50,7 @@ public class IntegrationConfigHandler extends BaseResourceHandler {
     @Override
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
-        sendOk(jx, new IntegrationConfigView(drawioBaseUrl, etherpadBaseUrl, jaasAppId));
+        sendOk(jx, new IntegrationConfigView(drawioBaseUrl, etherpadBaseUrl, jaasAppId, excalidrawBaseUrl));
         return true;
     }
 }

@@ -18,7 +18,7 @@ Ver sección "Complexity Ranking & Execution Order" en SPEC.md para el análisis
 
 Con la ejecución de los pasos 1-4 tienes un tipo de evento "Taller remoto" completamente funcional (boletos GENERAL, videollamada pública, pizarra colaborativa, notas compartidas) sin tocar infraestructura operativamente riesgosa.
 
-**Progreso:** 1 ✅ · 2 (drawio) ✅ · 3 (Etherpad) ✅ · 4 (Jitsi público) ✅ · 5-8 pendientes.
+**Progreso:** 1 ✅ · 2 (drawio) ✅ · 3 (Etherpad) ✅ · 4 (Jitsi público) ✅ · 5 (Excalidraw) parcial (editor sin colaboracion en vivo) · 6-8 pendientes.
 
 Nota: la capacidad `CODE_IDE` (IDE web + ejecucion de codigo del taller)
 esta fuera de esta iniciativa. No crear tareas para ella hasta que el
@@ -202,13 +202,28 @@ navegadores contra la instancia propia en K3s.
 
 ### TASK-0031: Helm chart Excalidraw self-hosted (editor + servidor de colaboracion)
 
-**Estado:** todo
+**Estado:** parcial (editor desplegado; excalidraw-room/colaboracion en vivo diferida)
 **Owner:** —
 **Dependencias:** ninguna
-**Archivos esperados:** `infra/helm/charts/excalidraw/`
-**Criterio de cierre:** dos sesiones en la misma sala derivada de un `uuid`
-ven los cambios del otro en vivo.
-**Validacion:** `helm template` + prueba manual.
+**Archivos esperados:**
+`infra/helm/charts/insightbloom/templates/excalidraw-deployment.yaml`,
+`excalidraw-service.yaml`, `excalidraw-hpa.yaml` (mismo patron que drawio:
+instancia compartida, stateless, HPA min1/max3, fuera del loop generico de
+`.Values.services`), `ingress.yaml` (bloque `ingressExcalidraw`),
+`network-policy.yaml` (regla de ingress publico), `values.yaml`
+(`excalidraw:` + `ingressExcalidraw:`).
+**Criterio de cierre:** el editor de Excalidraw carga embebido sin errores
+de consola. La colaboracion en vivo (`excalidraw-room`) queda **fuera de
+alcance de esta iteracion**: la imagen oficial de Excalidraw necesita la
+URL del websocket "horneada" en build-time (variable Vite compilada en el
+bundle), no configurable via env var en runtime — requeriria construir una
+imagen propia (Dockerfile + build de `excalidraw-app` desde codigo fuente)
+o un reverse proxy que reescriba URLs, ambos fuera del patron de "usar la
+imagen oficial tal cual" seguido para drawio/Etherpad. Se documenta como
+deuda tecnica, no como bug.
+**Validacion:** `helm template` + `helm lint` verificados en verde. Prueba
+manual de carga del iframe **pendiente** hasta el primer despliegue real en
+K3s — no verificable sin un cluster.
 
 ### TASK-0032: Helm chart drawio self-hosted
 
@@ -253,20 +268,23 @@ real en K3s.
 
 ### TASK-0040: Configuracion de URLs/credenciales de integraciones self-hosted
 
-**Estado:** parcial (drawio + Etherpad hechos; Jitsi/Excalidraw pendientes)
+**Estado:** parcial (drawio + Etherpad + Excalidraw + JaaS hechos; Jitsi
+self-hosted pendiente)
 **Owner:** —
 **Dependencias:** TASK-0030, TASK-0031, TASK-0032, TASK-0033
 **Archivos esperados:** `UsersApplication.java` (variables de entorno
-`JITSI_SELF_HOSTED_DOMAIN`, `EXCALIDRAW_BASE_URL`, `DRAWIO_BASE_URL` ✅,
-`ETHERPAD_BASE_URL` ✅, `ETHERPAD_API_KEY` ✅), Helm `values.yaml` +
-`deploy.yml` para inyectarlas.
-**Criterio de cierre:** el backend expone estas URLs (sin exponer la API
-key de Etherpad) via un endpoint de configuracion publica que el frontend
-consulta para armar los `iframe`. ✅ Hecho para drawio y Etherpad:
-`IntegrationConfigHandler` (`GET /api/v1/integrations`) devuelve
-`drawioBaseUrl` y `etherpadBaseUrl` (nunca `ETHERPAD_API_KEY`, que solo
-vive como `secretEnv` de `insightbloom-users`); queda extender el mismo
-handler con los campos de Jitsi/Excalidraw cuando se implementen.
+`JITSI_SELF_HOSTED_DOMAIN`, `EXCALIDRAW_BASE_URL` ✅, `DRAWIO_BASE_URL` ✅,
+`ETHERPAD_BASE_URL` ✅, `ETHERPAD_API_KEY` ✅, `JAAS_APP_ID`/`JAAS_API_KEY_ID`/
+`JAAS_PRIVATE_KEY` ✅ — alternativa a Jitsi self-hosted, ver TASK-0041),
+Helm `values.yaml` + `deploy.yml` para inyectarlas.
+**Criterio de cierre:** el backend expone estas URLs (sin exponer
+credenciales) via un endpoint de configuracion publica que el frontend
+consulta para armar los `iframe`. ✅ Hecho para drawio, Etherpad,
+Excalidraw y JaaS: `IntegrationConfigHandler` (`GET /api/v1/integrations`)
+devuelve `drawioBaseUrl`, `etherpadBaseUrl`, `excalidrawBaseUrl` y
+`jaasAppId` (nunca `ETHERPAD_API_KEY` ni `JAAS_PRIVATE_KEY`, que solo viven
+como `secretEnv` de `insightbloom-users`); queda solo el campo de Jitsi
+self-hosted si se implementa mas adelante.
 **Validacion:** `mvn -o test` + revision manual de que la API key nunca
 aparece en una respuesta HTTP — confirmado: `IntegrationConfigView` solo
 expone `drawioBaseUrl`/`etherpadBaseUrl`, `ETHERPAD_API_KEY` solo se lee
@@ -315,16 +333,20 @@ contra la instancia real desplegada en TASK-0033 **pendiente**.
 
 ### TASK-0043: Pestañas frontend "Videollamada", "Pizarra", "Diagramas", "Notas"
 
-**Estado:** parcial (Videollamada + Diagramas + Notas hechas; Pizarra pendiente)
+**Estado:** parcial (Videollamada + Diagramas + Notas + Pizarra hechas;
+Pizarra sin colaboracion en vivo, ver TASK-0031)
 **Owner:** —
 **Dependencias:** TASK-0022, TASK-0041, TASK-0042
 **Archivos esperados:**
 `pages/conference/VideoConferencePage.vue` ✅ (embebe Jitsi via su
 IFrame API cargando `external_api.js` dinamicamente — no un `<iframe>`
-crudo —, sala derivada del `uuid` del evento: `insightbloom-{uuid}`, solo
-`meet.jit.si` por ahora, ver nota en TASK-0041),
-`pages/conference/WhiteboardPage.vue` (embebe Excalidraw self-hosted en
-`iframe` con la sala derivada del `uuid`),
+crudo —, sala derivada del `uuid` del evento: `insightbloom-{uuid}`, con
+JaaS/8x8.vc + JWT firmado si esta configurado, o `meet.jit.si` publico
+como fallback — ver nota en TASK-0041),
+`pages/conference/WhiteboardPage.vue` ✅ (embebe Excalidraw self-hosted en
+`iframe`, sin protocolo de embed — a diferencia de drawio, la app oficial
+no lo necesita —, degrada con mensaje claro si `excalidrawBaseUrl` no
+esta configurado; sin colaboracion en vivo por ahora, ver TASK-0031),
 `pages/conference/DiagrammingPage.vue` ✅ (embebe drawio en `iframe`,
 degrada con mensaje claro si `drawioBaseUrl` no esta configurado — NFR-006),
 `pages/conference/CollabNotesPage.vue` ✅ (embebe Etherpad en `iframe`
