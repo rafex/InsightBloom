@@ -85,8 +85,6 @@ export default {
         postToFrame({ action: 'load', xml: savedXml, autosave: 1 })
       } else if (msg.event === 'autosave' || msg.event === 'save') {
         if (typeof msg.xml === 'string') persist(msg.xml)
-      } else if (msg.event === 'export') {
-        if (typeof msg.data === 'string') persist(msg.data)
       }
     }
 

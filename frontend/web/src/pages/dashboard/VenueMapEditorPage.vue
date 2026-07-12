@@ -5,13 +5,18 @@
 
   .loading-text(v-if="loading") Cargando...
   template(v-else)
-    .form-group
+    .tabs-selector
+      button.tab-btn(:class="{active: activeTab === 'image'}" @click="activeTab = 'image'") 📷 Subir imagen
+      button.tab-btn(:class="{active: activeTab === 'ai'}" @click="activeTab = 'ai'") ✨ Generar con IA
+      button.tab-btn(:class="{active: activeTab === 'canvas'}" @click="activeTab = 'canvas'") 📐 Editor manual
+
+    .form-group(v-show="activeTab === 'image'")
       label Imagen del recinto
       p.field-hint Sube una foto o plano del lugar; luego haz clic sobre ella para colocar cada asiento.
       input(type="file" accept="image/*" @change="onImageSelected")
       button.btn-outline(v-if="imageBase64" type="button" @click="saveMap" :disabled="savingMap") Guardar imagen
 
-    .form-group
+    .form-group(v-show="activeTab === 'ai'")
       label Generar asientos con IA
       p.field-hint Describe el recinto: medidas, distancias, referencias (escenario, pasillos, entrada) y figuras geométricas (filas, semicírculo, herradura). El resultado es una propuesta que puedes editar antes de guardar.
       textarea.ai-description(v-model="aiDescription" rows="3" placeholder="Ej. Salón rectangular de 10x8 metros, 8 filas de 10 asientos con pasillo central, escenario al frente")
@@ -19,6 +24,9 @@
         span(v-if="generatingAi") Generando...
         span(v-else) ✨ Generar con IA
       p.error(v-if="aiError") {{ aiError }}
+
+    .form-group(v-show="activeTab === 'canvas'")
+      VenueMapCanvasEditor(v-if="showingCanvasEditor" @save="applyCanvasSeats" @cancel="showingCanvasEditor = false")
 
     template(v-if="imageBase64")
       p.field-hint Haz clic sobre el mapa para agregar un asiento. Clic en un asiento para eliminarlo.
@@ -39,6 +47,7 @@
 import { ref, onMounted } from 'vue'
 import ConferenceSubNav from './ConferenceSubNav.vue'
 import SeatMapPicker from '@/components/SeatMapPicker.vue'
+import VenueMapCanvasEditor from '@/components/VenueMapCanvasEditor.vue'
 import { getConference, setVenueMap, getConferenceSeatMap, defineVenueSeats, generateSeatLayout } from '@/services/api/usersApi'
 import type { VenueSeat } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -47,7 +56,7 @@ interface EditableSeat { uuid: string | null, label: string, x: number, y: numbe
 
 export default {
   name: 'VenueMapEditorPage',
-  components: { ConferenceSubNav, SeatMapPicker },
+  components: { ConferenceSubNav, SeatMapPicker, VenueMapCanvasEditor },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -61,6 +70,8 @@ export default {
     const aiDescription = ref('')
     const generatingAi = ref(false)
     const aiError = ref('')
+    const activeTab = ref('image')
+    const showingCanvasEditor = ref(true)
     let seatCounter = 0
 
     onMounted(async () => {
@@ -131,19 +142,34 @@ export default {
       }
     }
 
+    function applyCanvasSeats(canvasSeats: any[]) {
+      seats.value = canvasSeats.map((s, idx) => ({
+        uuid: null,
+        label: s.label || `Asiento ${idx + 1}`,
+        x: s.x,
+        y: s.y,
+        occupied: false
+      }))
+      showingCanvasEditor.value = true
+    }
+
     return {
       loading, imageBase64, seats, savingMap, savingSeats, seatsSaved, seatsError,
-      aiDescription, generatingAi, aiError,
-      onImageSelected, saveMap, addSeat, removeSeat, saveSeats, generateWithAi
+      aiDescription, generatingAi, aiError, activeTab, showingCanvasEditor,
+      onImageSelected, saveMap, addSeat, removeSeat, saveSeats, generateWithAi, applyCanvasSeats
     }
   }
 }
 </script>
 
 <style scoped>
-.venue-map-page { padding: 24px; max-width: 640px; margin: 0 auto; }
+.venue-map-page { padding: 24px; max-width: 900px; margin: 0 auto; }
 h2 { color: #1e1b4b; margin-bottom: 16px; }
 .loading-text { color: #6b7280; }
+.tabs-selector { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #e5e7eb; }
+.tab-btn { padding: 12px 16px; background: none; border: none; border-bottom: 3px solid transparent; color: #6b7280; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+.tab-btn:hover { color: #4f46e5; }
+.tab-btn.active { color: #4f46e5; border-bottom-color: #4f46e5; }
 .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
 .field-hint { margin: 0; font-size: 0.8rem; color: #9ca3af; }
 .ai-description { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; }
