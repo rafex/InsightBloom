@@ -174,6 +174,9 @@ public class UsersApplication {
                 registerUseCase, sendOtpUseCase, verifyOtpUseCase, logoutUseCase, refreshTokenUseCase);
         final int maxPoolSizePerEvent = Integer.parseInt(System.getenv().getOrDefault("SANDBOX_POOL_MAX_PER_EVENT", "50"));
         final var setSandboxConfigUseCase = new SetSandboxConfigUseCase(conferenceRepo, maxPoolSizePerEvent);
+        final var sandboxHandler = new SandboxHandler(
+                assignSandboxUseCase, validateTokenUseCase, generateWorkspaceDownloadUrlUseCase,
+                setSandboxConfigUseCase, gatewayBaseUrl);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,
                 countAttendeesUseCase, countRegisteredAttendeesUseCase, countUniqueRegisteredAttendeesUseCase,
@@ -185,7 +188,7 @@ public class UsersApplication {
                 setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase,
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
                 getEventDiagramUseCase, saveEventDiagramUseCase, generateJaasTokenUseCase, generateSeatLayoutUseCase,
-                setSandboxConfigUseCase);
+                setSandboxConfigUseCase, sandboxHandler);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
@@ -204,15 +207,11 @@ public class UsersApplication {
         final var permissionHandler = new PermissionHandler();
         final var platformSettingsHandler = new PlatformSettingsHandler(
                 getChatAiSettingUseCase, setChatAiSettingUseCase, validateTokenUseCase);
-        final var sandboxHandler = new SandboxHandler(
-                assignSandboxUseCase, validateTokenUseCase, generateWorkspaceDownloadUrlUseCase,
-                setSandboxConfigUseCase, gatewayBaseUrl);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/auth/*", authHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
-        routes.add("/api/v1/conferences/*", sandboxHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);
         routes.add("/api/v1/certificate-settings/*", certificateSettingsHandler);

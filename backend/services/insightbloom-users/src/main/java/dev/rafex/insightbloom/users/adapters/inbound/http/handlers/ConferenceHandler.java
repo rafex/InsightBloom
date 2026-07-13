@@ -83,6 +83,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GenerateJaasTokenUseCase generateJaasTokenUseCase;
     private final GenerateSeatLayoutUseCase generateSeatLayoutUseCase;
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
+    private final SandboxHandler sandboxHandler;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -116,7 +117,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final SaveEventDiagramUseCase saveEventDiagramUseCase,
                              final GenerateJaasTokenUseCase generateJaasTokenUseCase,
                              final GenerateSeatLayoutUseCase generateSeatLayoutUseCase,
-                             final SetSandboxConfigUseCase setSandboxConfigUseCase) {
+                             final SetSandboxConfigUseCase setSandboxConfigUseCase,
+                             final SandboxHandler sandboxHandler) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -150,6 +152,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.generateJaasTokenUseCase = generateJaasTokenUseCase;
         this.generateSeatLayoutUseCase = generateSeatLayoutUseCase;
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
+        this.sandboxHandler = sandboxHandler;
     }
 
     @Override
@@ -176,6 +179,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/venue-map", Set.of("PUT")),
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/sandbox-config", Set.of("PUT")),
+                Route.of("/{id}/sandbox", Set.of("GET")),
+                Route.of("/{id}/sandbox/download", Set.of("POST")),
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
@@ -239,6 +244,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/roles")) {
             return handleListEventRoles(jx, jx.pathParam("id"));
         }
+        if (path.endsWith("/sandbox")) {
+            return sandboxHandler.get(x);
+        }
         final String id = jx.pathParam("id");
         if (id != null) {
             return handleGetById(jx, id);
@@ -269,6 +277,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/roles")) {
             return handleAssignEventRole(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/sandbox/download")) {
+            return sandboxHandler.post(x);
         }
         return handleCreate(jx);
     }
