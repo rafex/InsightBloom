@@ -1,5 +1,6 @@
-{{- if .Values.autoscaling.enabled }}
 {{- range $name, $svc := .Values.services }}
+{{- $enabled := dig "autoscaling" "enabled" $.Values.autoscaling.enabled $svc }}
+{{- if $enabled }}
 {{- $minReplicas := dig "autoscaling" "minReplicas" $.Values.autoscaling.minReplicas $svc }}
 {{- $maxReplicas := dig "autoscaling" "maxReplicas" $.Values.autoscaling.maxReplicas $svc }}
 {{- $cpuTarget  := dig "autoscaling" "targetCPUUtilizationPercentage" $.Values.autoscaling.targetCPUUtilizationPercentage $svc }}

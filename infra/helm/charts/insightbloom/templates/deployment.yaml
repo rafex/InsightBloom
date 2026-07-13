@@ -7,8 +7,9 @@ metadata:
     {{- include "insightbloom.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
 spec:
-  {{- if not $.Values.autoscaling.enabled }}
-  replicas: {{ $.Values.replicaCount }}
+  {{- $autoscalingEnabled := dig "autoscaling" "enabled" $.Values.autoscaling.enabled $svc }}
+  {{- if not $autoscalingEnabled }}
+  replicas: {{ dig "replicaCount" $.Values.replicaCount $svc }}
   {{- end }}
   selector:
     matchLabels:
