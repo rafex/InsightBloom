@@ -616,7 +616,7 @@ sandbox:
   poolMaxTotalPerPlatform: 200
   # Imagen base y variantes — imagen es elegida según Conference.sandboxVariant
   images:
-    base: insightbloom-code-ide
+    base: ghcr.io/rafex/insightbloom-code-ide
     variants:
       python:
         tag: python

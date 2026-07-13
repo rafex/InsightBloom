@@ -1,7 +1,7 @@
 # TASK-0011: Variante Java
 # Extiende base code-ide con JDK 21, Maven, y herramientas Java
 
-FROM insightbloom-code-ide:base
+FROM ghcr.io/rafex/insightbloom-code-ide:base
 
 USER root
 

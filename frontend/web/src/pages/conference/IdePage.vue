@@ -8,6 +8,9 @@
     .ide-status
       div(v-if="loading" class="loading-spinner") Cargando sandbox...
       div(v-else-if="error" class="error-message") {{ error }}
+      div(v-else-if="sandbox && sandbox.status === 'PENDING'" class="loading-spinner")
+        p 🔧 Preparando tu ambiente de desarrollo...
+        p.hint Esto puede tardar hasta un par de minutos la primera vez.
       template(v-else-if="sandbox")
         .sandbox-info
           .info-row
@@ -35,10 +38,13 @@
 </template>
 
 <script lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getSandbox, generateWorkspaceDownloadUrl } from '@/services/api/usersApi'
 import type { SandboxInfo } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+
+const POLL_INTERVAL_MS = 3000
+const POLL_TIMEOUT_MS = 5 * 60_000
 
 export default {
   name: 'IdePage',
@@ -55,6 +61,13 @@ export default {
     const downloadingWorkspace = ref(false)
     const urlCopied = ref(false)
     const auth = useAuthStore()
+    let pollTimer: ReturnType<typeof setTimeout> | null = null
+    let pollDeadline = 0
+
+    function stopPolling() {
+      if (pollTimer) clearTimeout(pollTimer)
+      pollTimer = null
+    }
 
     const formattedExpiry = computed(() => {
       if (!sandbox.value?.expiresInSeconds) return 'N/A'
@@ -64,7 +77,7 @@ export default {
       return `${minutes}m`
     })
 
-    async function loadSandbox() {
+    async function loadSandbox(isPoll = false) {
       if (!auth.state.token) {
         error.value = 'No autenticado'
         loading.value = false
@@ -72,17 +85,34 @@ export default {
       }
 
       try {
-        loading.value = true
+        if (!isPoll) loading.value = true
         sandbox.value = await getSandbox(props.conferenceId, auth.state.token)
+        if (sandbox.value?.status === 'PENDING') {
+          schedulePoll()
+        } else {
+          stopPolling()
+        }
       } catch (e: any) {
         if (e.message?.includes('404')) {
           sandbox.value = null
         } else {
           error.value = e.message || 'Error al cargar el sandbox'
         }
+        stopPolling()
       } finally {
         loading.value = false
       }
+    }
+
+    function schedulePoll() {
+      if (pollDeadline === 0) pollDeadline = Date.now() + POLL_TIMEOUT_MS
+      if (Date.now() >= pollDeadline) {
+        stopPolling()
+        error.value = 'El sandbox está tardando más de lo esperado. Intenta recargar la página.'
+        return
+      }
+      stopPolling()
+      pollTimer = setTimeout(() => loadSandbox(true), POLL_INTERVAL_MS)
     }
 
     async function downloadWorkspace() {
@@ -110,6 +140,10 @@ export default {
 
     onMounted(() => {
       loadSandbox()
+    })
+
+    onBeforeUnmount(() => {
+      stopPolling()
     })
 
     return {

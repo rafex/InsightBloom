@@ -9,6 +9,7 @@ import dev.rafex.insightbloom.users.application.usecases.GenerateWorkspaceDownlo
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
+import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 
 import java.util.List;
 import java.util.Map;
@@ -19,17 +20,20 @@ public class SandboxHandler extends BaseResourceHandler {
     private final ValidateTokenUseCase validateTokenUseCase;
     private final GenerateWorkspaceDownloadUrlUseCase generateWorkspaceDownloadUrlUseCase;
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
+    private final SandboxOrchestrator sandboxOrchestrator;
     private final String gatewayBaseUrl; // ej. "https://ide-insightbloom.v1.rafex.cloud"
 
     public SandboxHandler(final AssignSandboxUseCase assignSandboxUseCase,
                          final ValidateTokenUseCase validateTokenUseCase,
                          final GenerateWorkspaceDownloadUrlUseCase generateWorkspaceDownloadUrlUseCase,
                          final SetSandboxConfigUseCase setSandboxConfigUseCase,
+                         final SandboxOrchestrator sandboxOrchestrator,
                          final String gatewayBaseUrl) {
         this.assignSandboxUseCase = assignSandboxUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
         this.generateWorkspaceDownloadUrlUseCase = generateWorkspaceDownloadUrlUseCase;
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
+        this.sandboxOrchestrator = sandboxOrchestrator;
         this.gatewayBaseUrl = gatewayBaseUrl;
     }
 
@@ -94,10 +98,15 @@ public class SandboxHandler extends BaseResourceHandler {
 
             final Sandbox sandbox = assignSandboxUseCase.execute(conferenceId, v.subjectUuid());
 
-            // Respuesta: info del sandbox + URL base del gateway
+            // "Running" del Pod real -> READY; cualquier otra fase (o null si aun no hay Pod
+            // visible) -> PENDING, el frontend hace polling hasta que cambie.
+            final String phase = sandboxOrchestrator.getPhase(sandbox.podName());
+            final String status = "Running".equals(phase) ? "READY" : "PENDING";
+
             final Map<String, Object> response = Map.of(
                 "sandboxUuid", sandbox.getUuid(),
                 "sandboxSlot", sandbox.getSandboxSlot(),
+                "status", status,
                 "gatewayUrl", gatewayBaseUrl,
                 "sandboxPath", "/"
             );

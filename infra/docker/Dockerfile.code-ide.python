@@ -1,7 +1,7 @@
 # TASK-0011: Variante Python
 # Extiende base code-ide con Python 3, pip, y dependencias comunes
 
-FROM insightbloom-code-ide:base
+FROM ghcr.io/rafex/insightbloom-code-ide:base
 
 USER root
 

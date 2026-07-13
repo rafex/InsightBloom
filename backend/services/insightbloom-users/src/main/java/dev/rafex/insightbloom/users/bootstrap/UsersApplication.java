@@ -165,10 +165,25 @@ public class UsersApplication {
         final var setChatAiSettingUseCase = new SetChatAiSettingUseCase(platformSettingsRepo);
         final var setChatSettingsUseCase = new SetChatSettingsUseCase(platformSettingsRepo);
         final String gatewayBaseUrl = System.getenv().getOrDefault("GATEWAY_BASE_URL", "https://ide-insightbloom.v1.rafex.cloud");
-        final var assignSandboxUseCase = new AssignSandboxUseCase(sandboxRepo, conferenceRepo);
+        final var sandboxOrchestrator = new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient(
+                JacksonJsonCodec.defaultCodec(),
+                System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"),
+                System.getenv().getOrDefault("SANDBOX_IMAGE_BASE", "ghcr.io/rafex/insightbloom-code-ide"),
+                System.getenv().getOrDefault("SANDBOX_CPU_REQUEST", "100m"),
+                System.getenv().getOrDefault("SANDBOX_MEMORY_REQUEST", "512Mi"),
+                System.getenv().getOrDefault("SANDBOX_CPU_LIMIT", "500m"),
+                System.getenv().getOrDefault("SANDBOX_MEMORY_LIMIT", "1Gi"),
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PORT", "8080")),
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_UID", "1000")),
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_GID", "1000")),
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_FSGROUP", "1000")));
+        final long sandboxTtlSecondsAfterEventExpiry =
+                Long.parseLong(System.getenv().getOrDefault("SANDBOX_TTL_SECONDS_AFTER_EVENT_EXPIRY", "3600"));
+        final var assignSandboxUseCase = new AssignSandboxUseCase(
+                sandboxRepo, conferenceRepo, sandboxOrchestrator, sandboxTtlSecondsAfterEventExpiry);
         final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, gatewayBaseUrl);
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo);
-        final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo);
+        final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -177,7 +192,7 @@ public class UsersApplication {
         final var setSandboxConfigUseCase = new SetSandboxConfigUseCase(conferenceRepo, maxPoolSizePerEvent);
         final var sandboxHandler = new SandboxHandler(
                 assignSandboxUseCase, validateTokenUseCase, generateWorkspaceDownloadUrlUseCase,
-                setSandboxConfigUseCase, gatewayBaseUrl);
+                setSandboxConfigUseCase, sandboxOrchestrator, gatewayBaseUrl);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,
                 countAttendeesUseCase, countRegisteredAttendeesUseCase, countUniqueRegisteredAttendeesUseCase,

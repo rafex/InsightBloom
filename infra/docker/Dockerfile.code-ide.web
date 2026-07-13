@@ -1,7 +1,7 @@
 # TASK-0011: Variante Web (HTML/JS/CSS)
 # Extiende base code-ide con Node.js/npm completo + herramientas web
 
-FROM insightbloom-code-ide:base
+FROM ghcr.io/rafex/insightbloom-code-ide:base
 
 USER root
 

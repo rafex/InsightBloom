@@ -156,9 +156,12 @@ export interface UserProfile {
   [key: string]: unknown
 }
 
+export type SandboxStatus = 'PENDING' | 'READY'
+
 export interface SandboxInfo {
   sandboxUuid: string
   sandboxSlot: number
+  status: SandboxStatus
   gatewayUrl: string
   sandboxPath: string
   expiresInSeconds?: number

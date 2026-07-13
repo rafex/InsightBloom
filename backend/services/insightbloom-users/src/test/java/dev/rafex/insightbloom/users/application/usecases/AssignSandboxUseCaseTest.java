@@ -3,12 +3,13 @@ package dev.rafex.insightbloom.users.application.usecases;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
+import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AssignSandboxUseCaseTest {
     private SandboxRepository sandboxRepoMock;
     private ConferenceRepository conferenceRepoMock;
+    private SandboxOrchestrator orchestratorMock;
     private AssignSandboxUseCase useCase;
     private Conference testConf;
 
@@ -23,36 +25,45 @@ class AssignSandboxUseCaseTest {
     void setup() {
         sandboxRepoMock = Mockito.mock(SandboxRepository.class);
         conferenceRepoMock = Mockito.mock(ConferenceRepository.class);
-        useCase = new AssignSandboxUseCase(sandboxRepoMock, conferenceRepoMock);
+        orchestratorMock = Mockito.mock(SandboxOrchestrator.class);
+        useCase = new AssignSandboxUseCase(sandboxRepoMock, conferenceRepoMock, orchestratorMock, 3600);
         testConf = new Conference("test1", "Test Conference", "user-org-1");
+        testConf.setSandboxPoolSize(2);
     }
 
     @Test
-    void testAssignSandboxSuccess() {
-        // Arrange: evento existe, hay un slot libre
+    void testAssignSandboxCreatesPodAndSaves() {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
-        final var unassignedSlot = new Sandbox("conf-1", 2, Instant.now().plusSeconds(3600));
-        Mockito.when(sandboxRepoMock.findUnassignedSlotForConference("conf-1"))
-            .thenReturn(Optional.of(unassignedSlot));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
 
-        // Act
         final var result = useCase.execute("conf-1", "user-student-1");
 
-        // Assert
         assertNotNull(result);
         assertEquals("user-student-1", result.getUserUuid());
-        assertTrue(result.isAssigned());
-        assertNotNull(result.getAssignedAt());
+        assertEquals(0, result.getSandboxSlot());
+        Mockito.verify(orchestratorMock).createSandbox(
+                Mockito.eq(result.podName()), Mockito.eq("python"), Mockito.isNull(), Mockito.isNull(), Mockito.eq(false));
         Mockito.verify(sandboxRepoMock).save(Mockito.any(Sandbox.class));
     }
 
     @Test
-    void testAssignSandboxConferenceNotFound() {
-        // Arrange
-        Mockito.when(conferenceRepoMock.findByUuid("nonexistent"))
-            .thenReturn(Optional.empty());
+    void testAssignSandboxReusesExisting() {
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        final var existing = new Sandbox("conf-1", 0, "user-student-1", java.time.Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.of(existing));
 
-        // Act & Assert
+        final var result = useCase.execute("conf-1", "user-student-1");
+
+        assertSame(existing, result);
+        Mockito.verifyNoInteractions(orchestratorMock);
+        Mockito.verify(sandboxRepoMock, Mockito.never()).save(Mockito.any());
+    }
+
+    @Test
+    void testAssignSandboxConferenceNotFound() {
+        Mockito.when(conferenceRepoMock.findByUuid("nonexistent")).thenReturn(Optional.empty());
+
         final var ex = assertThrows(IllegalArgumentException.class,
             () -> useCase.execute("nonexistent", "user-student-1"));
         assertEquals("conference_not_found", ex.getMessage());
@@ -60,54 +71,43 @@ class AssignSandboxUseCaseTest {
 
     @Test
     void testAssignSandboxPoolFull() {
-        // Arrange: evento existe pero todos los slots están asignados
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
-        Mockito.when(sandboxRepoMock.findUnassignedSlotForConference("conf-1"))
-            .thenReturn(Optional.empty());
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
+        final var slot0 = new Sandbox("conf-1", 0, "user-a", java.time.Instant.now().plusSeconds(3600));
+        final var slot1 = new Sandbox("conf-1", 1, "user-b", java.time.Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(slot0, slot1));
 
-        // Act & Assert
         final var ex = assertThrows(IllegalArgumentException.class,
             () -> useCase.execute("conf-1", "user-student-1"));
         assertEquals("sandbox_pool_full", ex.getMessage());
+        Mockito.verifyNoInteractions(orchestratorMock);
     }
 
     @Test
-    void testAssignSandboxConcurrencyCollision() {
-        // Arrange: slot libre inicialmente, pero UNIQUE constraint falla al guardar
-        // (simula que otro user asignó el mismo slot justo antes)
+    void testAssignSandboxConcurrencyCollisionRollsBackPod() {
+        // Slot libre segun el conteo, pero el INSERT falla (otro request gano la carrera)
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
-        final var slot = new Sandbox("conf-1", 1, Instant.now().plusSeconds(3600));
-        Mockito.when(sandboxRepoMock.findUnassignedSlotForConference("conf-1"))
-            .thenReturn(Optional.of(slot));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
         Mockito.doThrow(new RuntimeException("UNIQUE constraint failed"))
             .when(sandboxRepoMock).save(Mockito.any());
 
-        // Act & Assert
         final var ex = assertThrows(IllegalArgumentException.class,
             () -> useCase.execute("conf-1", "user-student-1"));
         assertEquals("sandbox_pool_full", ex.getMessage());
+        Mockito.verify(orchestratorMock).deleteSandbox(Mockito.anyString());
     }
 
     @Test
-    void testAssignSandboxToMultipleUsersIndependent() {
-        // Arrange: dos usuarios, dos slots diferentes
+    void testAssignSandboxKubernetesNotConfigured() {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
-        final var slot1 = new Sandbox("conf-1", 0, Instant.now().plusSeconds(3600));
-        final var slot2 = new Sandbox("conf-1", 1, Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
+        Mockito.doThrow(new IllegalStateException("kubernetes_not_configured"))
+            .when(orchestratorMock).createSandbox(Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.anyBoolean());
 
-        // Primera llamada: devuelve slot 0
-        Mockito.when(sandboxRepoMock.findUnassignedSlotForConference("conf-1"))
-            .thenReturn(Optional.of(slot1))
-            .thenReturn(Optional.of(slot2));
-
-        // Act
-        final var result1 = useCase.execute("conf-1", "user-1");
-        final var result2 = useCase.execute("conf-1", "user-2");
-
-        // Assert
-        assertEquals("user-1", result1.getUserUuid());
-        assertEquals("user-2", result2.getUserUuid());
-        assertEquals(0, result1.getSandboxSlot());
-        assertEquals(1, result2.getSandboxSlot());
+        final var ex = assertThrows(IllegalArgumentException.class,
+            () -> useCase.execute("conf-1", "user-student-1"));
+        assertEquals("sandbox_unavailable", ex.getMessage());
     }
 }

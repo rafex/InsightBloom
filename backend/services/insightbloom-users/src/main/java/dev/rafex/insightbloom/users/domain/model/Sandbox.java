@@ -7,17 +7,18 @@ public class Sandbox {
     private final String uuid;
     private final String conferenceUuid;
     private final int sandboxSlot; // 0 a (pool_size - 1)
-    private String userUuid; // nullable — sin asignar inicialmente
-    private Instant assignedAt; // nullable
+    private final String userUuid;
+    private final Instant assignedAt;
     private final Instant createdAt;
     private final Instant expiresAt; // basado en Conference.expiresAt + ttlSecondsAfterEventExpiry
 
-    public Sandbox(final String conferenceUuid, final int sandboxSlot, final Instant expiresAt) {
+    /** Fase 3: el Pod se crea junto con la fila, ya asignado — no hay "slot vacío" intermedio. */
+    public Sandbox(final String conferenceUuid, final int sandboxSlot, final String userUuid, final Instant expiresAt) {
         this.uuid = UUID.randomUUID().toString();
         this.conferenceUuid = conferenceUuid;
         this.sandboxSlot = sandboxSlot;
-        this.userUuid = null;
-        this.assignedAt = null;
+        this.userUuid = userUuid;
+        this.assignedAt = Instant.now();
         this.createdAt = Instant.now();
         this.expiresAt = expiresAt;
     }
@@ -42,12 +43,13 @@ public class Sandbox {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getExpiresAt() { return expiresAt; }
 
-    public boolean isAssigned() {
-        return userUuid != null;
+    /** Nombre determinístico del recurso K8s (Pod+Service) — no se persiste, se recalcula siempre. */
+    public String podName() {
+        return podName(conferenceUuid, sandboxSlot);
     }
 
-    public void assignToUser(final String userUuid) {
-        this.userUuid = userUuid;
-        this.assignedAt = Instant.now();
+    public static String podName(final String conferenceUuid, final int sandboxSlot) {
+        final String compact = conferenceUuid.replace("-", "");
+        return "sandbox-" + compact.substring(0, Math.min(8, compact.length())) + "-" + sandboxSlot;
     }
 }

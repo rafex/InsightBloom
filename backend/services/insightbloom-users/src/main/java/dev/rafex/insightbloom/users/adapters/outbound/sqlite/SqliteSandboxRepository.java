@@ -23,7 +23,7 @@ public class SqliteSandboxRepository implements SandboxRepository {
     public void save(final Sandbox sandbox) {
         try (final Connection conn = databaseManager.getConnection();
              final PreparedStatement stmt = conn.prepareStatement("""
-                INSERT OR REPLACE INTO sandbox_assignments (
+                INSERT INTO sandbox_assignments (
                     uuid, conference_uuid, sandbox_slot, user_uuid, assigned_at,
                     created_at, expires_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -79,23 +79,22 @@ public class SqliteSandboxRepository implements SandboxRepository {
     }
 
     @Override
-    public Optional<Sandbox> findUnassignedSlotForConference(final String conferenceUuid) {
+    public List<Sandbox> findExpired(final Instant now) {
+        final List<Sandbox> sandboxes = new ArrayList<>();
         try (final Connection conn = databaseManager.getConnection();
              final PreparedStatement stmt = conn.prepareStatement(
                 "SELECT uuid, conference_uuid, sandbox_slot, user_uuid, assigned_at, created_at, expires_at " +
-                "FROM sandbox_assignments " +
-                "WHERE conference_uuid = ? AND user_uuid IS NULL " +
-                "ORDER BY sandbox_slot ASC LIMIT 1")) {
-            stmt.setString(1, conferenceUuid);
+                "FROM sandbox_assignments WHERE expires_at < ?")) {
+            stmt.setString(1, now.toString());
             try (final ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return Optional.of(mapRowToSandbox(rs));
+                while (rs.next()) {
+                    sandboxes.add(mapRowToSandbox(rs));
                 }
             }
         } catch (final SQLException e) {
-            throw new RuntimeException("Failed to find unassigned sandbox slot", e);
+            throw new RuntimeException("Failed to find expired sandboxes", e);
         }
-        return Optional.empty();
+        return sandboxes;
     }
 
     @Override

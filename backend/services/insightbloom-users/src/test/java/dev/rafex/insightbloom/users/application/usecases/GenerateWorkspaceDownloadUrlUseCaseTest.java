@@ -21,8 +21,7 @@ class GenerateWorkspaceDownloadUrlUseCaseTest {
         sandboxRepoMock = Mockito.mock(SandboxRepository.class);
         useCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepoMock, "https://ide.example.com");
 
-        testSandbox = new Sandbox("conf-1", 0, Instant.now().plusSeconds(3600));
-        testSandbox.assignToUser("user-1");
+        testSandbox = new Sandbox("conf-1", 0, "user-1", Instant.now().plusSeconds(3600));
     }
 
     @Test
