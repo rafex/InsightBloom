@@ -49,7 +49,17 @@ public class Sandbox {
     }
 
     public static String podName(final String conferenceUuid, final int sandboxSlot) {
+        return "sandbox-" + conferenceLabel(conferenceUuid) + "-" + sandboxSlot;
+    }
+
+    /**
+     * Valor de la label {@code sandbox-conference} que comparten todos los Pods de un mismo
+     * evento — permite que la NetworkPolicy de "internet habilitado" (Fase 3c,
+     * SetSandboxInternetUseCase) seleccione todos los sandboxes del evento con un solo recurso,
+     * sin importar cuantos slots tenga el pool.
+     */
+    public static String conferenceLabel(final String conferenceUuid) {
         final String compact = conferenceUuid.replace("-", "");
-        return "sandbox-" + compact.substring(0, Math.min(8, compact.length())) + "-" + sandboxSlot;
+        return compact.substring(0, Math.min(8, compact.length()));
     }
 }

@@ -84,6 +84,11 @@ export interface Conference {
   reservedCount?: number
   venueMapBase64?: string | null
   eventTypeKey?: string
+  sandboxVariant?: string | null
+  sandboxPoolSize?: number | null
+  sandboxInternetEnabled?: number | null
+  sandboxExtraPackages?: string | null
+  sandboxRemoteGitUrl?: string | null
   [key: string]: unknown
 }
 

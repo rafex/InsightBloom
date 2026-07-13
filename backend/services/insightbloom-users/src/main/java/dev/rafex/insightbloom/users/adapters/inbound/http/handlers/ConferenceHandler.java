@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetSandboxInternetUseCase;
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
@@ -83,6 +84,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GenerateJaasTokenUseCase generateJaasTokenUseCase;
     private final GenerateSeatLayoutUseCase generateSeatLayoutUseCase;
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
+    private final SetSandboxInternetUseCase setSandboxInternetUseCase;
     private final SandboxHandler sandboxHandler;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
@@ -118,6 +120,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GenerateJaasTokenUseCase generateJaasTokenUseCase,
                              final GenerateSeatLayoutUseCase generateSeatLayoutUseCase,
                              final SetSandboxConfigUseCase setSandboxConfigUseCase,
+                             final SetSandboxInternetUseCase setSandboxInternetUseCase,
                              final SandboxHandler sandboxHandler) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
@@ -152,6 +155,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.generateJaasTokenUseCase = generateJaasTokenUseCase;
         this.generateSeatLayoutUseCase = generateSeatLayoutUseCase;
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
+        this.setSandboxInternetUseCase = setSandboxInternetUseCase;
         this.sandboxHandler = sandboxHandler;
     }
 
@@ -179,6 +183,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/venue-map", Set.of("PUT")),
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/sandbox-config", Set.of("PUT")),
+                Route.of("/{id}/sandbox-internet", Set.of("PUT")),
                 Route.of("/{id}/sandbox", Set.of("GET")),
                 Route.of("/{id}/sandbox/download", Set.of("POST")),
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
@@ -310,6 +315,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/sandbox-config")) {
             return handleSetSandboxConfig(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/sandbox-internet")) {
+            return handleSetSandboxInternet(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/seats")) {
             return handleDefineSeats(jx, jx.pathParam("id"));
@@ -995,6 +1003,29 @@ public class ConferenceHandler extends BaseResourceHandler {
             final String sandboxRemoteGitUrl = (String) body.get("sandboxRemoteGitUrl");
             final var result = setSandboxConfigUseCase.execute(id, sandboxVariant, sandboxPoolSize,
                 sandboxExtraPackages, sandboxRemoteGitUrl);
+            sendOk(jx, 200, result);
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSetSandboxInternet(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can configure sandboxes");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final Object rawValue = body.get("internetEnabled");
+            final int internetEnabled = (rawValue instanceof Boolean b) ? (b ? 1 : 0)
+                    : ((Number) rawValue).intValue();
+            final var result = setSandboxInternetUseCase.execute(id, internetEnabled);
             sendOk(jx, 200, result);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());

@@ -43,7 +43,8 @@ class AssignSandboxUseCaseTest {
         assertEquals("user-student-1", result.getUserUuid());
         assertEquals(0, result.getSandboxSlot());
         Mockito.verify(orchestratorMock).createSandbox(
-                Mockito.eq(result.podName()), Mockito.eq("python"), Mockito.isNull(), Mockito.isNull(), Mockito.eq(false));
+                Mockito.eq(result.podName()), Mockito.eq("conf-1"), Mockito.eq("python"),
+                Mockito.isNull(), Mockito.isNull(), Mockito.eq(false));
         Mockito.verify(sandboxRepoMock).save(Mockito.any(Sandbox.class));
     }
 
@@ -104,7 +105,8 @@ class AssignSandboxUseCaseTest {
         Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
         Mockito.doThrow(new IllegalStateException("kubernetes_not_configured"))
-            .when(orchestratorMock).createSandbox(Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.anyBoolean());
+            .when(orchestratorMock).createSandbox(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
+                    Mockito.any(), Mockito.any(), Mockito.anyBoolean());
 
         final var ex = assertThrows(IllegalArgumentException.class,
             () -> useCase.execute("conf-1", "user-student-1"));

@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.outbound.kubernetes;
 
 import dev.rafex.ether.json.JsonCodec;
+import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 
 import java.io.ByteArrayInputStream;
@@ -88,13 +89,48 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     }
 
     @Override
-    public void createSandbox(final String podName, final String variant, final String extraPackages,
-                               final String remoteGitUrl, final boolean internetEnabled) {
+    public void createSandbox(final String podName, final String conferenceUuid, final String variant,
+                               final String extraPackages, final String remoteGitUrl, final boolean internetEnabled) {
         requireEnabled();
-        final String podJson = jsonCodec.toJson(buildPodBody(podName, variant, extraPackages, remoteGitUrl));
+        final String podJson = jsonCodec.toJson(buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
         final String serviceJson = jsonCodec.toJson(buildServiceBody(podName));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
+        if (internetEnabled) {
+            allowInternetEgress(Sandbox.conferenceLabel(conferenceUuid));
+        }
+    }
+
+    @Override
+    public void allowInternetEgress(final String conferenceLabel) {
+        requireEnabled();
+        final String policyJson = jsonCodec.toJson(buildEgressAllowBody(conferenceLabel));
+        postIgnoringConflict("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
+                policyJson, "networkpolicy " + egressPolicyName(conferenceLabel));
+    }
+
+    @Override
+    public void denyInternetEgress(final String conferenceLabel) {
+        requireEnabled();
+        deleteIgnoring404("/apis/networking.k8s.io/v1/namespaces/" + namespace
+                + "/networkpolicies/" + egressPolicyName(conferenceLabel));
+    }
+
+    private static String egressPolicyName(final String conferenceLabel) {
+        return "sandbox-egress-" + conferenceLabel;
+    }
+
+    private Map<String, Object> buildEgressAllowBody(final String conferenceLabel) {
+        return Map.of(
+                "apiVersion", "networking.k8s.io/v1",
+                "kind", "NetworkPolicy",
+                "metadata", Map.of("name", egressPolicyName(conferenceLabel), "namespace", namespace),
+                "spec", Map.of(
+                        "podSelector", Map.of("matchLabels", Map.of("sandbox-conference", conferenceLabel)),
+                        "policyTypes", List.of("Egress"),
+                        // Egress abierto: el default-deny egress del namespace (sandbox-networkpolicy.yaml)
+                        // ya bloquea todo lo demas; esta policy solo re-abre para los pods de este evento.
+                        "egress", List.of(Map.of())));
     }
 
     @Override
@@ -122,13 +158,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         return podName + "-svc";
     }
 
-    private Map<String, Object> buildPodBody(final String podName, final String variant,
+    private Map<String, Object> buildPodBody(final String podName, final String conferenceUuid, final String variant,
                                               final String extraPackages, final String remoteGitUrl) {
         final Map<String, Object> labels = Map.of(
                 "app.kubernetes.io/part-of", "insightbloom",
                 "app.kubernetes.io/component", "sandbox",
                 "sandbox-pod", podName,
-                "sandbox-variant", variant);
+                "sandbox-variant", variant,
+                "sandbox-conference", Sandbox.conferenceLabel(conferenceUuid));
 
         final List<Map<String, Object>> env = new ArrayList<>();
         if (extraPackages != null && !extraPackages.isBlank()) {

@@ -1,0 +1,35 @@
+{{- if .Values.sandbox.enabled }}
+# Fase 3c del IDE: por defecto, ningun sandbox tiene salida a internet — solo puede resolver DNS
+# (para que code-server arranque y el pod funcione) y hablar con otros pods del propio namespace
+# (el Service que insightbloom-toolsgateway usa para llegar a el). El toggle "internet habilitado"
+# por evento (SetSandboxInternetUseCase) crea/borra una NetworkPolicy adicional
+# (sandbox-egress-{conferenceLabel}, ver KubernetesPodClient) que re-abre el egress solo para los
+# pods de ese evento — el resto de los sandboxes de la plataforma quedan sin salida.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sandbox-default-deny-egress
+  namespace: {{ .Values.sandbox.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "insightbloom.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS (kube-dns/CoreDNS vive en kube-system) — sin esto ni siquiera resuelve nombres internos.
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Resto de pods del propio namespace de sandboxes (ej. si en el futuro se necesitan hablar
+    # entre si) — no incluye el namespace principal de insightbloom a proposito.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.sandbox.namespace }}
+{{- end }}

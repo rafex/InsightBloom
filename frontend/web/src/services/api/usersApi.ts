@@ -159,6 +159,27 @@ export async function setSeatingMode(
   return res.data.data
 }
 
+export async function setSandboxConfig(
+  conferenceId: string,
+  sandboxVariant: string,
+  sandboxPoolSize: number | null,
+  sandboxExtraPackages: string | null,
+  sandboxRemoteGitUrl: string | null,
+  token: string
+): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/sandbox-config`,
+    { sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl }, authHeader(token))
+  return res.data.data
+}
+
+export async function setSandboxInternet(
+  conferenceId: string, internetEnabled: boolean, token: string
+): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/sandbox-internet`,
+    { internetEnabled }, authHeader(token))
+  return res.data.data
+}
+
 export async function reserveGeneral(conferenceId: string, token: string): Promise<Reservation> {
   const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/reservations`, {}, authHeader(token))
   return res.data.data

@@ -82,6 +82,32 @@
         router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
         router-link.btn-outline(v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
 
+    .form-group.sandbox-group
+      label IDE de código
+      p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE de código" (solo aplica si el tipo de evento tiene esa capacidad).
+      select(v-model="sandboxVariant")
+        option(value="python") Python
+        option(value="java") Java
+        option(value="web") Web (HTML/JS/CSS)
+      .coord-field
+        span.coord-label Sandboxes concurrentes por evento
+        input(v-model.number="sandboxPoolSize" type="number" min="1" placeholder="1")
+      .coord-field
+        span.coord-label Paquetes adicionales (opcional)
+        input(v-model="sandboxExtraPackages" type="text" placeholder="numpy pandas")
+      .coord-field
+        span.coord-label Repositorio git remoto (opcional)
+        input(v-model="sandboxRemoteGitUrl" type="text" placeholder="https://github.com/...")
+      button.btn-outline(type="button" @click="saveSandboxConfig" :disabled="savingSandboxConfig")
+        span(v-if="savingSandboxConfig") Guardando...
+        span(v-else) Guardar configuración del IDE
+      p.success(v-if="sandboxConfigSaved") Configuración del IDE guardada.
+      p.error(v-if="sandboxConfigError") {{ sandboxConfigError }}
+      label.toggle-row
+        input(type="checkbox" v-model="sandboxInternetEnabled" @change="saveSandboxInternet" :disabled="savingSandboxInternet")
+        span Permitir acceso a internet desde los sandboxes
+      p.field-hint Por defecto los sandboxes no tienen salida a internet (solo el workspace local). Actívalo si el ejercicio necesita instalar paquetes o clonar repositorios en vivo.
+
     .form-group.roles-group(v-if="canManageRoles")
       label Roles del evento
       p.field-hint Asigna moderadores, staff de acceso u otros roles a personas solo para este evento.
@@ -120,7 +146,7 @@ import { ref, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import {
   getConference, updateConference, getTimezones, setSeatingMode, getActiveEventTypes, setEventType,
-  getEventRoles, getActiveRoles, assignEventRole, removeEventRole
+  getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet
 } from '@/services/api/usersApi'
 import type { Conference, Timezone, SeatingMode, EventType, EventRoleAssignment, Role } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -153,6 +179,15 @@ export default {
     const savingSeating = ref(false)
     const seatingSaved  = ref(false)
     const seatingError  = ref('')
+    const sandboxVariant = ref('python')
+    const sandboxPoolSize = ref<number | null>(1)
+    const sandboxExtraPackages = ref('')
+    const sandboxRemoteGitUrl = ref('')
+    const sandboxInternetEnabled = ref(false)
+    const savingSandboxConfig = ref(false)
+    const sandboxConfigSaved = ref(false)
+    const sandboxConfigError = ref('')
+    const savingSandboxInternet = ref(false)
     const eventTypes    = ref<EventType[]>([])
     const eventTypeKey  = ref('conference')
     const savingEventType = ref(false)
@@ -189,6 +224,11 @@ export default {
         timezoneId.value = conference.value.timezoneId ?? tzList.find((t) => t.isDefault)?.id ?? null
         seatingMode.value = (conference.value.seatingMode as SeatingMode) || 'NONE'
         capacity.value = conference.value.capacity ?? null
+        sandboxVariant.value = conference.value.sandboxVariant || 'python'
+        sandboxPoolSize.value = conference.value.sandboxPoolSize ?? 1
+        sandboxExtraPackages.value = conference.value.sandboxExtraPackages || ''
+        sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''
+        sandboxInternetEnabled.value = conference.value.sandboxInternetEnabled === 1
       } catch (e: any) {
         error.value = 'No se pudo cargar la conferencia.'
       } finally {
@@ -288,6 +328,36 @@ export default {
       }
     }
 
+    async function saveSandboxConfig() {
+      savingSandboxConfig.value = true; sandboxConfigError.value = ''; sandboxConfigSaved.value = false
+      try {
+        conference.value = await setSandboxConfig(
+          props.conferenceId as string, sandboxVariant.value, sandboxPoolSize.value,
+          sandboxExtraPackages.value.trim() || null, sandboxRemoteGitUrl.value.trim() || null,
+          auth.state.token as string
+        )
+        sandboxConfigSaved.value = true
+      } catch (e: any) {
+        sandboxConfigError.value = e.response?.data?.error?.message || 'No se pudo guardar la configuración del IDE'
+      } finally {
+        savingSandboxConfig.value = false
+      }
+    }
+
+    async function saveSandboxInternet() {
+      savingSandboxInternet.value = true
+      try {
+        conference.value = await setSandboxInternet(
+          props.conferenceId as string, sandboxInternetEnabled.value, auth.state.token as string
+        )
+      } catch (e: any) {
+        sandboxInternetEnabled.value = !sandboxInternetEnabled.value
+        sandboxConfigError.value = e.response?.data?.error?.message || 'No se pudo cambiar el acceso a internet'
+      } finally {
+        savingSandboxInternet.value = false
+      }
+    }
+
     async function saveEventType() {
       savingEventType.value = true; eventTypeError.value = ''; eventTypeSaved.value = false
       try {
@@ -304,6 +374,9 @@ export default {
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
              timezones, timezoneId, onFlyerSelected, save,
              seatingMode, capacity, savingSeating, seatingSaved, seatingError, saveSeating,
+             sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl, sandboxInternetEnabled,
+             savingSandboxConfig, sandboxConfigSaved, sandboxConfigError, savingSandboxInternet,
+             saveSandboxConfig, saveSandboxInternet,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
              eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
              roleAssigned, roleError, roleName, assignRole, removeRole }
@@ -320,6 +393,8 @@ input[type="text"], input[type="date"], input[type="time"], input[type="number"]
   padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem;
 }
 input:focus { outline: none; border-color: #4f46e5; }
+.toggle-row { display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: pointer; margin-top: 4px; }
+.toggle-row input { width: auto; }
 
 .readonly-group .readonly-value {
   padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 8px;

@@ -182,7 +182,7 @@ public class UsersApplication {
         final var assignSandboxUseCase = new AssignSandboxUseCase(
                 sandboxRepo, conferenceRepo, sandboxOrchestrator, sandboxTtlSecondsAfterEventExpiry);
         final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, gatewayBaseUrl);
-        final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo);
+        final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo, sandboxOrchestrator);
         final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
         final var resolveSandboxTargetUseCase = new ResolveSandboxTargetUseCase(
                 validateTokenUseCase, sandboxRepo,
@@ -208,7 +208,7 @@ public class UsersApplication {
                 setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase,
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
                 getEventDiagramUseCase, saveEventDiagramUseCase, generateJaasTokenUseCase, generateSeatLayoutUseCase,
-                setSandboxConfigUseCase, sandboxHandler);
+                setSandboxConfigUseCase, setSandboxInternetUseCase, sandboxHandler);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

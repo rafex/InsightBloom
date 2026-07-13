@@ -69,7 +69,7 @@ public class AssignSandboxUseCase {
         final Sandbox sandbox = new Sandbox(conferenceUuid, slot, userUuid, expiresAt);
 
         try {
-            sandboxOrchestrator.createSandbox(sandbox.podName(), variant,
+            sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, variant,
                 conference.getSandboxExtraPackages(), conference.getSandboxRemoteGitUrl(), internetEnabled);
         } catch (final IllegalStateException e) {
             if ("kubernetes_not_configured".equals(e.getMessage())) {
