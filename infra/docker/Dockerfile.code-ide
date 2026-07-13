@@ -2,7 +2,9 @@
 # Alpine minimal + code-server + SQLite + Git
 # Variantes python/java/web se construyen a partir de este (TASK-0011)
 
-FROM alpine:3.19
+# Alpine 3.21 empaqueta Node 22.x — code-server 4.x exige node v22 en su postinstall (falla
+# duro con "code-server currently requires node v22" en Alpine 3.19, que trae node 20).
+FROM alpine:3.21
 WORKDIR /home/coder
 
 # Instalar dependencias base: Node (para code-server), Git, SQLite, curl, ca-certificates
