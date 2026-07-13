@@ -2,6 +2,18 @@
 # Alpine minimal + code-server + SQLite + Git
 # Variantes python/java/web se construyen a partir de este (TASK-0011)
 
+# ---- Etapa de build: instala code-server con npm en una imagen descartable ----
+# code-server (empaqueta VS Code completo, cientos de dependencias) falla de forma
+# sistemática al instalarse con `npm install -g` como usuario no-root con un prefix
+# npm no estándar (NPM_CONFIG_PREFIX): npm/cacache corrompe la extracción de tarballs
+# vía hardlinks bajo BuildKit en ese escenario (reproducido 3/3 veces, ~400 paquetes
+# afectados por corrida). node:22-alpine con la configuración estándar de npm (root,
+# prefix por defecto /usr/local) no tiene ese problema. Esta etapa nunca llega a la
+# imagen final — solo se copian los artefactos ya instalados.
+FROM node:22-alpine AS code-server-builder
+RUN npm install -g code-server
+
+# ---- Imagen final: runtime mínimo, no-root ----
 # Alpine 3.21 empaqueta Node 22.x — code-server 4.x exige node v22 en su postinstall (falla
 # duro con "code-server currently requires node v22" en Alpine 3.19, que trae node 20).
 FROM alpine:3.21
@@ -19,33 +31,25 @@ RUN apk add --no-cache \
     bash \
     dumb-init
 
-# Crear usuario no-root 'coder' ANTES de instalar code-server: su postinstall no debe
-# correr con privilegios de root (evita ejecutar código de postinstall como root en el build).
+# Crear usuario no-root 'coder' (evita ejecutar como root en el pod)
 RUN addgroup -g 1000 coder && \
     adduser -D -u 1000 -G coder -h /home/coder coder && \
     chown -R coder:coder /home/coder
 
-# Prefix npm global escribible por 'coder', para poder instalar paquetes globales sin root
+# Copiar code-server ya instalado desde la etapa de build (nunca se ejecuta npm install
+# en la imagen final; el postinstall de code-server corrió en la etapa descartable, no aquí)
+COPY --from=code-server-builder /usr/local/lib/node_modules/code-server /usr/local/lib/node_modules/code-server
+COPY --from=code-server-builder /usr/local/bin/code-server /usr/local/bin/code-server
+
+# Prefix npm global escribible por 'coder': lo usan las variantes (python/java/web) para
+# instalar sus propios paquetes globales (typescript, extensiones, etc.) sin necesitar root.
+# code-server en sí NO se instala con este mecanismo (ver etapa de build arriba).
 ENV NPM_CONFIG_PREFIX=/home/coder/.npm-global
 ENV PATH=/home/coder/.npm-global/bin:$PATH
 RUN mkdir -p /home/coder/.npm-global && chown coder:coder /home/coder/.npm-global
 
 # Cambiar a usuario no-root
 USER coder
-
-# Instalar code-server como 'coder' (su postinstall corre con permisos normales, sin --unsafe-perm).
-# code-server empaqueta VS Code completo (miles de archivos pequeños); bajo alta concurrencia
-# de descargas npm puede corromper tarballs en extracción (ENOENT intermitente en CI). Se baja
-# la concurrencia y se agregan reintentos explícitos del install completo para tolerarlo.
-RUN npm config set maxsockets 3 && \
-    npm config set fetch-retries 5 && \
-    npm config set fetch-retry-mintimeout 5000 && \
-    for i in 1 2 3; do \
-        npm install -g code-server && break; \
-        echo "npm install -g code-server failed (attempt $i), retrying..."; \
-        rm -rf /home/coder/.npm-global/lib/node_modules/code-server; \
-        [ "$i" = 3 ] && exit 1; \
-    done
 
 # Crear directorios para workspace y databases
 RUN mkdir -p /home/coder/workspace /home/coder/db
