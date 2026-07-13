@@ -28,6 +28,11 @@
       <groupId>dev.rafex.ether.http</groupId>
       <artifactId>ether-http-jetty12</artifactId>
     </dependency>
+    <!-- Fase 3b del IDE: parsear la respuesta JSON de /internal/sandbox-target -->
+    <dependency>
+      <groupId>dev.rafex.ether.json</groupId>
+      <artifactId>ether-json</artifactId>
+    </dependency>
     <!-- TASK-0020: proxy de WebSocket (Etherpad socket.io, code-server) -->
     <dependency>
       <groupId>dev.rafex.ether.websocket</groupId>

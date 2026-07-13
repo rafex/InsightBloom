@@ -184,6 +184,10 @@ public class UsersApplication {
         final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, gatewayBaseUrl);
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo);
         final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
+        final var resolveSandboxTargetUseCase = new ResolveSandboxTargetUseCase(
+                validateTokenUseCase, sandboxRepo,
+                System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"),
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PORT", "8080")));
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -223,10 +227,12 @@ public class UsersApplication {
         final var permissionHandler = new PermissionHandler();
         final var platformSettingsHandler = new PlatformSettingsHandler(
                 getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase, validateTokenUseCase);
+        final var internalSandboxTargetHandler = new InternalSandboxTargetHandler(resolveSandboxTargetUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/auth/*", authHandler);
+        routes.add("/internal/sandbox-target/*", internalSandboxTargetHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);

@@ -242,6 +242,22 @@ ingressEtherpad:
           pathType: Prefix
   tls: []
 
+# Fase 3b del IDE: mismo host usado en services.toolsgateway.env.GATEWAY_IDE_HOST — a
+# diferencia de drawio/Etherpad, el gateway no tiene un target fijo para este host, lo
+# resuelve por-sesion contra el sandbox del usuario.
+ingressIde:
+  enabled: true
+  className: haproxy
+  annotations:
+    ingress.kubernetes.io/ssl-redirect: "false"
+    ingress.kubernetes.io/backend-protocol: "http"
+  hosts:
+    - host: ide-insightbloom.v1.rafex.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
 # ── Services ───────────────────────────────────────────────────────────────────
 services:
   # Proxy autenticador delante de drawio/Excalidraw/Etherpad: exige sesion de InsightBloom
@@ -271,6 +287,15 @@ services:
         drawio-insightbloom.v1.rafex.cloud=http://insightbloom-drawio:8080,
         excalidraw-insightbloom.v1.rafex.cloud=http://insightbloom-excalidraw:80,
         etherpad-insightbloom.v1.rafex.cloud=http://insightbloom-etherpad:9001
+      # Fase 3b del IDE: unico host sin target fijo — AuthGateHandler lo resuelve por-sesion
+      # contra insightbloom-users (ver GATEWAY_SANDBOX_RESOLVE_URL). Mismo host que
+      # ingressIde.hosts.
+      GATEWAY_IDE_HOST: ide-insightbloom.v1.rafex.cloud
+      GATEWAY_SANDBOX_RESOLVE_URL: http://insightbloom-users:8081/internal/sandbox-target
+    secretEnv:
+      - name: INTERNAL_API_KEY
+        secretName: insightbloom-internal-secrets
+        secretKey: internal-api-key
 
   users:
     repository: ghcr.io/rafex/insightbloom-users

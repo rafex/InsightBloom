@@ -24,13 +24,21 @@ public final class GatewayApplication {
         final String loginUrl = System.getenv().getOrDefault(
                 "GATEWAY_LOGIN_URL", "https://insightbloom.v1.rafex.cloud/login");
         final Map<String, String> routes = parseRoutes(System.getenv().getOrDefault("GATEWAY_ROUTES", ""));
+        // Fase 3b del IDE: ruteo dinamico por-sesion hacia el sandbox de cada usuario — null si
+        // GATEWAY_IDE_HOST no esta configurado (el gateway sigue funcionando igual sin esto,
+        // solo con los targets estaticos de GATEWAY_ROUTES).
+        final String ideHost = System.getenv("GATEWAY_IDE_HOST");
+        final String sandboxResolveUrl = System.getenv().getOrDefault(
+                "GATEWAY_SANDBOX_RESOLVE_URL", "http://insightbloom-users:8081/internal/sandbox-target");
+        final String internalApiKey = System.getenv("INTERNAL_API_KEY");
 
         final Server server = new Server();
         final ServerConnector connector = new ServerConnector(server);
         connector.setPort(port);
         server.addConnector(connector);
 
-        final AuthGateHandler authGateHandler = new AuthGateHandler(routes, authValidateUrl, loginUrl);
+        final AuthGateHandler authGateHandler = new AuthGateHandler(
+                routes, authValidateUrl, loginUrl, ideHost, sandboxResolveUrl, internalApiKey);
         // El upgrade de WebSocket (Etherpad socket.io, code-server) se intercepta antes que
         // el AuthGateHandler HTTP; las requests que no son upgrade caen al AuthGateHandler
         // sin cambios (WebSocketUpgradeHandler.handle delega al wrapped Handler si no aplica).

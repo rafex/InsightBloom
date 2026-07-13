@@ -40,14 +40,15 @@ final class WebSocketProxyCreator implements WebSocketCreator {
     public Object createWebSocket(final ServerUpgradeRequest request, final ServerUpgradeResponse response,
                                    final Callback callback) throws Exception {
         final String host = AuthGateHandler.hostOf(request);
-        final String target = routesByHost.get(host);
-        if (target == null) {
+        final boolean isIdeHost = authGate.isIdeHost(host);
+        final String staticTarget = routesByHost.get(host);
+        if (!isIdeHost && staticTarget == null) {
             response.setStatus(502);
             callback.succeeded();
             return null;
         }
 
-        final AuthGateHandler.AuthResult auth = authGate.checkAuth(request);
+        final AuthGateHandler.AuthResult auth = authGate.checkAuth(request, host, isIdeHost);
         if (!auth.authenticated()) {
             response.setStatus(401);
             callback.succeeded();
@@ -61,6 +62,13 @@ final class WebSocketProxyCreator implements WebSocketCreator {
                     .sameSite(HttpCookie.SameSite.LAX)
                     .maxAge(AuthGateHandler.SESSION_TTL.toSeconds())
                     .build());
+        }
+
+        final String target = isIdeHost ? auth.dynamicTarget() : staticTarget;
+        if (target == null) {
+            response.setStatus(502);
+            callback.succeeded();
+            return null;
         }
 
         final String wsTarget = target.replaceFirst("^http", "ws");

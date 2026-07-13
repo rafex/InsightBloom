@@ -226,6 +226,53 @@ spec:
           {{- end }}
     {{- end }}
 {{- end }}
+{{- if .Values.ingressIde.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "insightbloom.fullname" . }}-ide
+  labels:
+    {{- include "insightbloom.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ide
+  {{- with .Values.ingressIde.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingressIde.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingressIde.tls }}
+  tls:
+    {{- range .Values.ingressIde.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingressIde.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- with .pathType }}
+            pathType: {{ . }}
+            {{- end }}
+            backend:
+              # Mismo gateway autenticador que drawio/Etherpad, pero aca el target no es fijo:
+              # AuthGateHandler lo resuelve por-sesion contra el sandbox del usuario (Fase 3b).
+              service:
+                name: {{ include "insightbloom.fullname" $ }}-toolsgateway
+                port:
+                  number: {{ $.Values.services.toolsgateway.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}
 {{- if .Values.ingressTelegram.enabled }}
 ---
 {{- $telegramSvc := .Values.services.telegram }}

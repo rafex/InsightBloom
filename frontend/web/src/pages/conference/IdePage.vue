@@ -24,12 +24,12 @@
             .value {{ formattedExpiry }}
 
         .ide-actions
-          a.btn-primary(v-if="sandbox.gatewayUrl" :href="sandbox.gatewayUrl" target="_blank" rel="noopener")
+          a.btn-primary(v-if="fullGatewayUrl" :href="fullGatewayUrl" target="_blank" rel="noopener")
             span 🚀 Abrir IDE en navegador
           button.btn-secondary(@click="downloadWorkspace" :disabled="downloadingWorkspace")
             span(v-if="!downloadingWorkspace") 📥 Descargar workspace
             span(v-else) Descargando...
-          button.btn-tertiary(@click="copyGatewayUrl" :title="`Copiar: ${sandbox.gatewayUrl}`")
+          button.btn-tertiary(@click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
             span {{ urlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
 
       div(v-else class="no-sandbox")
@@ -75,6 +75,15 @@ export default {
       const minutes = Math.floor((sandbox.value.expiresInSeconds % 3600) / 60)
       if (hours > 0) return `${hours}h ${minutes}m`
       return `${minutes}m`
+    })
+
+    // Fase 3b: el gateway (ide-insightbloom...) no tiene un target fijo — resuelve por-sesion
+    // contra el sandbox del usuario a partir de ib_token + conferenceId en la query string
+    // (ver AuthGateHandler.checkAuth / ResolveSandboxTargetUseCase).
+    const fullGatewayUrl = computed(() => {
+      if (!sandbox.value?.gatewayUrl || !auth.state.token) return ''
+      const params = new URLSearchParams({ ib_token: auth.state.token, conferenceId: props.conferenceId })
+      return `${sandbox.value.gatewayUrl}?${params.toString()}`
     })
 
     async function loadSandbox(isPoll = false) {
@@ -132,8 +141,8 @@ export default {
     }
 
     function copyGatewayUrl() {
-      if (!sandbox.value?.gatewayUrl) return
-      navigator.clipboard.writeText(sandbox.value.gatewayUrl)
+      if (!fullGatewayUrl.value) return
+      navigator.clipboard.writeText(fullGatewayUrl.value)
       urlCopied.value = true
       setTimeout(() => { urlCopied.value = false }, 2000)
     }
@@ -148,7 +157,7 @@ export default {
 
     return {
       sandbox, loading, error, downloadingWorkspace, urlCopied,
-      formattedExpiry, downloadWorkspace, copyGatewayUrl
+      formattedExpiry, fullGatewayUrl, downloadWorkspace, copyGatewayUrl
     }
   }
 }

@@ -1,5 +1,7 @@
 package dev.rafex.insightbloom.toolsgateway;
 
+import dev.rafex.ether.json.JacksonJsonCodec;
+import dev.rafex.ether.json.JsonCodec;
 import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
@@ -44,6 +46,7 @@ import java.util.logging.Logger;
 final class AuthGateHandler extends Handler.Abstract {
 
     private static final Logger LOGGER = Logger.getLogger(AuthGateHandler.class.getName());
+    private static final JsonCodec JSON_CODEC = JacksonJsonCodec.defaultCodec();
     static final String SESSION_COOKIE = "ib_gw";
     static final Duration SESSION_TTL = Duration.ofHours(4);
     private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
@@ -53,13 +56,30 @@ final class AuthGateHandler extends Handler.Abstract {
     private final Map<String, String> routesByHost;
     private final String authValidateUrl;
     private final String loginUrl;
+    private final String ideHost;
+    private final String sandboxResolveUrl;
+    private final String internalApiKey;
     private final SessionCache sessionCache = new SessionCache();
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
     AuthGateHandler(final Map<String, String> routesByHost, final String authValidateUrl, final String loginUrl) {
+        this(routesByHost, authValidateUrl, loginUrl, null, null, null);
+    }
+
+    /**
+     * Fase 3b del IDE: {@code ideHost}/{@code sandboxResolveUrl}/{@code internalApiKey} habilitan
+     * ruteo dinamico por-sesion (el sandbox de cada usuario, a diferencia del target fijo por
+     * host que usan drawio/Etherpad/Excalidraw) — si {@code ideHost} es null, el gateway se
+     * comporta exactamente igual que antes (solo targets estaticos de {@code routesByHost}).
+     */
+    AuthGateHandler(final Map<String, String> routesByHost, final String authValidateUrl, final String loginUrl,
+                     final String ideHost, final String sandboxResolveUrl, final String internalApiKey) {
         this.routesByHost = routesByHost;
         this.authValidateUrl = authValidateUrl;
         this.loginUrl = loginUrl;
+        this.ideHost = ideHost;
+        this.sandboxResolveUrl = sandboxResolveUrl;
+        this.internalApiKey = internalApiKey;
     }
 
     @Override
@@ -69,13 +89,14 @@ final class AuthGateHandler extends Handler.Abstract {
             return true;
         }
         final String host = hostOf(request);
-        final String target = routesByHost.get(host);
-        if (target == null) {
+        final boolean isIdeHost = host.equals(ideHost);
+        final String staticTarget = routesByHost.get(host);
+        if (!isIdeHost && staticTarget == null) {
             writeSimpleResponse(request, response, callback, 502, "Herramienta no reconocida.");
             return true;
         }
 
-        final AuthResult auth = checkAuth(request);
+        final AuthResult auth = checkAuth(request, host, isIdeHost);
         if (!auth.authenticated()) {
             writeLoginRequired(request, response, callback);
             return true;
@@ -90,6 +111,12 @@ final class AuthGateHandler extends Handler.Abstract {
                     .build());
         }
 
+        final String target = isIdeHost ? auth.dynamicTarget() : staticTarget;
+        if (target == null) {
+            writeSimpleResponse(request, response, callback, 502, "Sandbox no disponible.");
+            return true;
+        }
+
         try {
             proxy(request, response, callback, target);
         } catch (final Exception e) {
@@ -99,22 +126,44 @@ final class AuthGateHandler extends Handler.Abstract {
         return true;
     }
 
-    record AuthResult(boolean authenticated, String newSessionId) {}
+    record AuthResult(boolean authenticated, String newSessionId, String dynamicTarget) {}
 
-    AuthResult checkAuth(final Request request) {
+    boolean isIdeHost(final String host) {
+        return host.equals(ideHost);
+    }
+
+    String staticTarget(final String host) {
+        return routesByHost.get(host);
+    }
+
+    AuthResult checkAuth(final Request request, final String host, final boolean isIdeHost) {
         for (final HttpCookie cookie : Request.getCookies(request)) {
-            if (SESSION_COOKIE.equals(cookie.getName()) && sessionCache.isValid(cookie.getValue())) {
-                return new AuthResult(true, null);
+            if (SESSION_COOKIE.equals(cookie.getName())) {
+                final String dynamicTarget = sessionCache.dynamicTarget(cookie.getValue());
+                if (sessionCache.isValid(cookie.getValue())) {
+                    return new AuthResult(true, null, dynamicTarget);
+                }
             }
         }
         final String token = queryParam(request, "ib_token");
         if (token == null || token.isBlank()) {
-            return new AuthResult(false, null);
+            return new AuthResult(false, null, null);
+        }
+        if (isIdeHost) {
+            final String conferenceId = queryParam(request, "conferenceId");
+            if (conferenceId == null || conferenceId.isBlank()) {
+                return new AuthResult(false, null, null);
+            }
+            final String target = resolveSandboxTarget(token, conferenceId);
+            if (target == null) {
+                return new AuthResult(false, null, null);
+            }
+            return new AuthResult(true, sessionCache.mint(SESSION_TTL, target), target);
         }
         if (isTokenValid(token)) {
-            return new AuthResult(true, sessionCache.mint(SESSION_TTL));
+            return new AuthResult(true, sessionCache.mint(SESSION_TTL), null);
         }
-        return new AuthResult(false, null);
+        return new AuthResult(false, null, null);
     }
 
     private boolean isTokenValid(final String token) {
@@ -129,6 +178,29 @@ final class AuthGateHandler extends Handler.Abstract {
         } catch (final Exception e) {
             LOGGER.log(Level.WARNING, "token validation call failed", e);
             return false;
+        }
+    }
+
+    /** null si el token es invalido, el usuario no tiene sandbox activo, o el llamado falla. */
+    private String resolveSandboxTarget(final String token, final String conferenceId) {
+        if (sandboxResolveUrl == null || internalApiKey == null) return null;
+        try {
+            final String uri = sandboxResolveUrl
+                    + "?token=" + java.net.URLEncoder.encode(token, StandardCharsets.UTF_8)
+                    + "&conferenceId=" + java.net.URLEncoder.encode(conferenceId, StandardCharsets.UTF_8);
+            final HttpRequest resolveRequest = HttpRequest.newBuilder(URI.create(uri))
+                    .header("X-Internal-Auth", internalApiKey)
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+            final HttpResponse<String> resp = httpClient.send(resolveRequest, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) return null;
+            final var node = JSON_CODEC.readTree(resp.body());
+            final var target = JSON_CODEC.at(node, "/data/target");
+            return target.isMissingNode() || target.isNull() ? null : target.asText();
+        } catch (final Exception e) {
+            LOGGER.log(Level.WARNING, "sandbox target resolution failed", e);
+            return null;
         }
     }
 
