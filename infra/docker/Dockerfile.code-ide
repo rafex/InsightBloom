@@ -20,7 +20,9 @@ RUN apk add --no-cache \
     dumb-init
 
 # Instalar code-server globalmente desde npm
-RUN npm install -g code-server
+# --unsafe-perm: el postinstall de code-server rechaza correr como root sin este flag
+# (el build corre como root; el usuario 'coder' no-root se crea después, más abajo)
+RUN npm install -g --unsafe-perm code-server
 
 # Crear usuario no-root 'coder' (evita ejecutar como root en el pod)
 RUN addgroup -g 1000 coder && \
