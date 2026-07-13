@@ -5,8 +5,9 @@
     h2 Presentar
     .speaker-status
       span.live-dot(:class="{ connected: wsConnected }")
-      span(v-if="wsConnected") 👀 {{ audienceCount }} conectados
+      span(v-if="wsConnected") 👀 {{ audienceCount }} viendo la presentación ahora
       span(v-else) Conectando...
+      span.registered-count(v-if="registeredCount !== null") · 👥 {{ registeredCount }} registrados al evento
     .speaker-header-actions
       a.btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
       button.btn-secondary(@click="showQr = true") Mostrar QR
@@ -30,7 +31,7 @@
 <script lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { getPresentationStatus, getSlidesUrl, getPresenterWsUrl, createRemoteLinkToken } from '@/services/api/presentationsApi'
-import { getConference } from '@/services/api/usersApi'
+import { getConference, getRegisteredAttendeesCount } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import ConferenceSubNav from './ConferenceSubNav.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
@@ -54,6 +55,7 @@ export default {
     const slidesFrame = ref<HTMLIFrameElement | null>(null)
     const wsConnected = ref(false)
     const audienceCount = ref(0)
+    const registeredCount = ref<number | null>(null)
     const showQr = ref(false)
     const friendlyId = ref('')
     const showRemoteShare = ref(false)
@@ -147,6 +149,9 @@ export default {
         sourceUrl.value = (conf?.presentationSourceUrl as string) || ''
       } catch (e: any) { /* el botón de QR simplemente no aparece */ }
       try {
+        registeredCount.value = await getRegisteredAttendeesCount(props.conferenceId as string, auth.state.token as string)
+      } catch (e: any) { /* el contador simplemente no aparece */ }
+      try {
         const status = await getPresentationStatus(props.conferenceId as string)
         ready.value = !!status.ready
         if (ready.value) {
@@ -166,7 +171,7 @@ export default {
 
     return {
       checkedStatus, ready, slidesUrl, slidesFrame,
-      wsConnected, audienceCount, showQr, friendlyId, onIframeLoad, navigate,
+      wsConnected, audienceCount, registeredCount, showQr, friendlyId, onIframeLoad, navigate,
       showRemoteShare, remoteShareUrl, shareRemoteControl, sourceUrl
     }
   }
@@ -178,7 +183,8 @@ export default {
 .speaker-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .speaker-header-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 h2 { margin: 0; color: #1e1b4b; }
-.speaker-status { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #374151; font-weight: 600; }
+.speaker-status { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #374151; font-weight: 600; flex-wrap: wrap; }
+.registered-count { color: #6b7280; font-weight: 500; }
 .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; }
 .live-dot.connected { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
 .hint { color: #6b7280; font-size: 0.85rem; margin-bottom: 10px; }

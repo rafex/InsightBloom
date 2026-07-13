@@ -38,9 +38,9 @@ GUARDRAIL_MODEL = os.getenv("ROBERTO_GUARDRAIL_MODEL", "openai/gpt-oss-safeguard
 PRESENTATIONS_URL = os.getenv("PRESENTATIONS_URL", "http://localhost:8091")
 USERS_URL = os.getenv("USERS_URL", "http://localhost:8081")
 
-# Cuánto tiempo (segundos) se reutiliza el valor del kill switch de IA del panel admin,
-# para no pegarle a insightbloom-users en cada mensaje del chat.
-_CHAT_AI_SETTING_CACHE_TTL = 30
+# Cuánto tiempo (segundos) se reutilizan los ajustes del panel admin (kill switch, prompt,
+# temperatura), para no pegarle a insightbloom-users en cada mensaje del chat.
+_CHAT_SETTINGS_CACHE_TTL = 30
 
 _DEFAULT_SYSTEM_PROMPT = """\
 Eres Roberto. Eres un ser humano que está participando en el chat grupal de un evento o conferencia.
@@ -59,9 +59,12 @@ otros participantes a compartir sus dudas o temas con el comando correspondiente
 SIEMPRE de palabra, nunca tú mismo escribiendo "/dudas" o "#temas".
 """
 
-# Configurable vía variable de entorno (inyectada por el workflow de GitHub Actions)
-# para poder ajustar la personalidad/reglas de Roberto sin tocar código.
-SYSTEM_PROMPT = os.getenv("ROBERTO_SYSTEM_PROMPT") or _DEFAULT_SYSTEM_PROMPT
+# Fallback si el panel admin no tiene un prompt propio configurado (chatSystemPrompt=null) y
+# tampoco hay override por variable de entorno (compatibilidad con despliegues previos a que el
+# panel admin controlara esto — ver AdminChatSettingsPage.vue en el dashboard de InsightBloom,
+# que es ahora la forma recomendada de ajustar prompt/temperatura, sin necesidad de redeploy).
+_ENV_SYSTEM_PROMPT = os.getenv("ROBERTO_SYSTEM_PROMPT") or _DEFAULT_SYSTEM_PROMPT
+_DEFAULT_TEMPERATURE = 0.88
 
 GUARDRAIL_SYSTEM_PROMPT = """\
 Eres un revisor de seguridad para un bot de chat llamado Roberto, que finge ser un humano
@@ -95,7 +98,7 @@ class Roberto:
     def __init__(self):
         self._history: list[dict] = []
         self._presentation_cache: dict[str, tuple[float, str]] = {}
-        self._chat_ai_enabled_cache: tuple[float, bool] | None = None
+        self._chat_settings_cache: tuple[float, dict] | None = None
         self._client: AsyncOpenAI | None = (
             AsyncOpenAI(api_key=LLM_PROVIDER_API_KEY, base_url=LLM_PROVIDER_BASE_URL)
             if LLM_PROVIDER_API_KEY
@@ -111,7 +114,7 @@ class Roberto:
         """Evalúa si Roberto debe responder al mensaje y lo hace de forma asíncrona."""
         if not self._client:
             return
-        if not await self._is_ai_enabled():
+        if not (await self._get_chat_settings())["enabled"]:
             return
         if sender == "Roberto":
             return
@@ -132,7 +135,7 @@ class Roberto:
         """Roberto puede comentar (40 % de probabilidad) cuando llega un evento de InsightBloom."""
         if not self._client or random.random() > 0.40:
             return
-        if not await self._is_ai_enabled():
+        if not (await self._get_chat_settings())["enabled"]:
             return
         kind_es = "duda" if kind in ("doubt", "DOUBT") else "tema"
         prompt = (
@@ -144,26 +147,32 @@ class Roberto:
 
     # ── Internos ────────────────────────────────────────────────────────────
 
-    async def _is_ai_enabled(self) -> bool:
-        """Consulta (con cache corta) el kill switch de IA del panel administrativo — permite
-        cortar rápido el uso de IA en el chat ante un intento de abuso, sin redeploy. El
-        endpoint es público (solo expone un booleano, sin datos sensibles). Fail-open: si la
-        consulta falla, se asume habilitado, para no dejar a Roberto en silencio total por un
-        problema ajeno (ej. insightbloom-users no disponible momentáneamente)."""
+    async def _get_chat_settings(self) -> dict:
+        """Consulta (con cache corta) el kill switch de IA, el prompt de sistema y la
+        temperatura, todos controlables desde AdminChatSettingsPage.vue en el panel
+        administrativo — permite ajustarlos o cortar el uso de IA en el chat sin redeploy. El
+        endpoint es público (no expone datos sensibles). Fail-open: si la consulta falla, se
+        asume habilitado con los defaults embebidos, para no dejar a Roberto en silencio total
+        por un problema ajeno (ej. insightbloom-users no disponible momentáneamente)."""
         now = asyncio.get_event_loop().time()
-        cached = self._chat_ai_enabled_cache
-        if cached and (now - cached[0]) < _CHAT_AI_SETTING_CACHE_TTL:
+        cached = self._chat_settings_cache
+        if cached and (now - cached[0]) < _CHAT_SETTINGS_CACHE_TTL:
             return cached[1]
-        enabled = True
+        settings = {"enabled": True, "system_prompt": _ENV_SYSTEM_PROMPT, "temperature": _DEFAULT_TEMPERATURE}
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
                 r = await client.get(f"{USERS_URL}/api/v1/settings/chat-ai")
                 if r.status_code == 200:
-                    enabled = bool(r.json().get("data", {}).get("chatAiEnabled", True))
+                    data = r.json().get("data", {})
+                    settings["enabled"] = bool(data.get("chatAiEnabled", True))
+                    settings["system_prompt"] = data.get("chatSystemPrompt") or _ENV_SYSTEM_PROMPT
+                    settings["temperature"] = data.get("chatTemperature")
+                    if settings["temperature"] is None:
+                        settings["temperature"] = _DEFAULT_TEMPERATURE
         except Exception as exc:
-            log.info("No se pudo consultar chat_ai_enabled, se asume habilitado: %s", exc)
-        self._chat_ai_enabled_cache = (now, enabled)
-        return enabled
+            log.info("No se pudo consultar la configuracion del chat, se asumen los defaults: %s", exc)
+        self._chat_settings_cache = (now, settings)
+        return settings
 
     def _remember(self, role: str, content: str) -> None:
         self._history.append({"role": role, "content": content})
@@ -209,7 +218,8 @@ class Roberto:
     async def _call_api(self, messages: list[dict], manager: "ConnectionManager",
                          conference_id: str | None = None) -> None:
         try:
-            system_content = SYSTEM_PROMPT
+            settings = await self._get_chat_settings()
+            system_content = settings["system_prompt"]
             presentation = await self._get_presentation_context(conference_id)
             if presentation:
                 system_content += (
@@ -222,7 +232,7 @@ class Roberto:
                 model=LLM_PROVIDER_MODEL,
                 messages=[{"role": "system", "content": system_content}, *messages],
                 max_tokens=150,
-                temperature=0.88,
+                temperature=settings["temperature"],
             )
             reply = resp.choices[0].message.content.strip()
 

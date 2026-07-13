@@ -110,7 +110,7 @@ log "OK — conference uuid=${CONF_UUID} friendlyId=${FRIENDLY_ID}"
 # ── 4. Verificar lectura por friendlyId ─────────────────────────────────────
 log "Verificando lectura por friendlyId..."
 READ_RESP="$(curl -sS "${BASE_URL}/api/v1/conferences/by-friendly/${FRIENDLY_ID}")"
-READ_UUID="$(echo "$READ_RESP" | jq -r '.data.conferenceId // empty')"
+READ_UUID="$(echo "$READ_RESP" | jq -r '.data.uuid // empty')"
 [[ "$READ_UUID" == "$CONF_UUID" ]] || fail "la lectura por friendlyId no devolvio el mismo evento. Respuesta: $READ_RESP"
 log "OK — lectura consistente"
 

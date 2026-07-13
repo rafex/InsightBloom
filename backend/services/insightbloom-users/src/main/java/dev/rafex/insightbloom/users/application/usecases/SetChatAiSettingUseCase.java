@@ -11,7 +11,7 @@ public class SetChatAiSettingUseCase {
     }
 
     public PlatformSettings execute(final boolean chatAiEnabled) {
-        final PlatformSettings s = new PlatformSettings();
+        final PlatformSettings s = repository.get();
         s.setChatAiEnabled(chatAiEnabled);
         repository.save(s);
         return s;

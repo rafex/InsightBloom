@@ -6,6 +6,7 @@ import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.GetChatAiSettingUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetChatAiSettingUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetChatSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 
 import java.util.List;
@@ -21,13 +22,16 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
 
     private final GetChatAiSettingUseCase getChatAiSettingUseCase;
     private final SetChatAiSettingUseCase setChatAiSettingUseCase;
+    private final SetChatSettingsUseCase setChatSettingsUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
 
     public PlatformSettingsHandler(final GetChatAiSettingUseCase getChatAiSettingUseCase,
                                     final SetChatAiSettingUseCase setChatAiSettingUseCase,
+                                    final SetChatSettingsUseCase setChatSettingsUseCase,
                                     final ValidateTokenUseCase validateTokenUseCase) {
         this.getChatAiSettingUseCase = getChatAiSettingUseCase;
         this.setChatAiSettingUseCase = setChatAiSettingUseCase;
+        this.setChatSettingsUseCase = setChatSettingsUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
     }
 
@@ -51,7 +55,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         try {
             final var settings = getChatAiSettingUseCase.execute();
-            sendOk(jx, Map.of("chatAiEnabled", settings.isChatAiEnabled()));
+            sendOk(jx, toView(settings));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -71,12 +75,25 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             }
             final var body = parseBody(jx);
             final boolean chatAiEnabled = !Boolean.FALSE.equals(body.get("chatAiEnabled"));
-            final var settings = setChatAiSettingUseCase.execute(chatAiEnabled);
-            sendOk(jx, Map.of("chatAiEnabled", settings.isChatAiEnabled()));
+            setChatAiSettingUseCase.execute(chatAiEnabled);
+            final String chatSystemPrompt = (String) body.get("chatSystemPrompt");
+            final Double chatTemperature = body.get("chatTemperature") instanceof Number n ? n.doubleValue() : null;
+            final var settings = setChatSettingsUseCase.execute(chatSystemPrompt, chatTemperature);
+            sendOk(jx, toView(settings));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private static Map<String, Object> toView(final dev.rafex.insightbloom.users.domain.model.PlatformSettings s) {
+        final Map<String, Object> view = new java.util.HashMap<>();
+        view.put("chatAiEnabled", s.isChatAiEnabled());
+        view.put("chatSystemPrompt", s.getChatSystemPrompt());
+        view.put("chatTemperature", s.getChatTemperature());
+        return view;
     }
 
     private String extractToken(final JettyHttpExchange jx) {

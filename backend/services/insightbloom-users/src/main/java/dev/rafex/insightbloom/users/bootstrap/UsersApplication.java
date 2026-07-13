@@ -163,6 +163,7 @@ public class UsersApplication {
         final var generateSeatLayoutUseCase = new GenerateSeatLayoutUseCase(llmClient, JacksonJsonCodec.defaultCodec());
         final var getChatAiSettingUseCase = new GetChatAiSettingUseCase(platformSettingsRepo);
         final var setChatAiSettingUseCase = new SetChatAiSettingUseCase(platformSettingsRepo);
+        final var setChatSettingsUseCase = new SetChatSettingsUseCase(platformSettingsRepo);
         final String gatewayBaseUrl = System.getenv().getOrDefault("GATEWAY_BASE_URL", "https://ide-insightbloom.v1.rafex.cloud");
         final var assignSandboxUseCase = new AssignSandboxUseCase(sandboxRepo, conferenceRepo);
         final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, gatewayBaseUrl);
@@ -206,7 +207,7 @@ public class UsersApplication {
                 setRoleActiveUseCase, validateTokenUseCase);
         final var permissionHandler = new PermissionHandler();
         final var platformSettingsHandler = new PlatformSettingsHandler(
-                getChatAiSettingUseCase, setChatAiSettingUseCase, validateTokenUseCase);
+                getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase, validateTokenUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();

@@ -305,6 +305,12 @@ public class DatabaseManager {
                     updated_at TEXT
                 )
             """);
+            try {
+                stmt.executeUpdate("ALTER TABLE platform_settings ADD COLUMN chat_system_prompt TEXT");
+            } catch (final SQLException ignored) { /* columna ya existe */ }
+            try {
+                stmt.executeUpdate("ALTER TABLE platform_settings ADD COLUMN chat_temperature REAL");
+            } catch (final SQLException ignored) { /* columna ya existe */ }
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS sandbox_assignments (

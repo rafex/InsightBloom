@@ -169,3 +169,9 @@ export interface WorkspaceDownloadInfo {
   downloadUrl: string
   expiresInSeconds: number
 }
+
+export interface ChatSettings {
+  chatAiEnabled: boolean
+  chatSystemPrompt: string | null
+  chatTemperature: number | null
+}

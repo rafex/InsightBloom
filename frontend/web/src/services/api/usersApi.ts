@@ -3,7 +3,8 @@ import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
   SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
-  Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo
+  Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
+  ChatSettings
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -337,9 +338,23 @@ export async function getChatAiSetting(): Promise<boolean> {
   return res.data.data.chatAiEnabled
 }
 
+export async function getChatSettings(): Promise<ChatSettings> {
+  const res = await axios.get('/api/users/api/v1/settings/chat-ai')
+  return res.data.data
+}
+
 export async function setChatAiSetting(chatAiEnabled: boolean, token: string): Promise<boolean> {
   const res = await axios.put('/api/users/api/v1/settings/chat-ai', { chatAiEnabled }, authHeader(token))
   return res.data.data.chatAiEnabled
+}
+
+/** Actualiza el prompt de sistema y/o la temperatura de Roberto sin tocar el kill switch chatAiEnabled. */
+export async function setChatSettings(
+  chatAiEnabled: boolean, chatSystemPrompt: string | null, chatTemperature: number | null, token: string
+): Promise<ChatSettings> {
+  const res = await axios.put('/api/users/api/v1/settings/chat-ai',
+    { chatAiEnabled, chatSystemPrompt, chatTemperature }, authHeader(token))
+  return res.data.data
 }
 
 /** Lista los roles asignados a un evento; el backend devuelve 403 si quien pide no tiene ASSIGN_EVENT_ROLES. */
