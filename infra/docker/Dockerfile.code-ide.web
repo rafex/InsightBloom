@@ -3,7 +3,9 @@
 
 FROM ghcr.io/rafex/insightbloom-code-ide:base
 
-USER root
+# No se necesita 'apk' en esta variante, así que no hace falta volver a root en ningún
+# momento: todo corre como 'coder' (heredado de la base), usando el prefix npm de
+# usuario ya configurado ahí — mismo hardening que code-server en la imagen base.
 
 # Node.js y npm ya están en la base, pero se actualiza a versión latest
 RUN npm install -g npm@latest
@@ -30,8 +32,6 @@ RUN code-server --install-extension esbenp.prettier-vscode \
     --install-extension dsznajder.es7-react-js-snippets \
     --install-extension bradlc.vscode-tailwindcss \
     --install-extension ecmel.vscode-html-css
-
-USER coder
 
 # Workspace y db directorios (heredados de base)
 EXPOSE 8080

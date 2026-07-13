@@ -19,18 +19,22 @@ RUN apk add --no-cache \
     bash \
     dumb-init
 
-# Instalar code-server globalmente desde npm
-# --unsafe-perm: el postinstall de code-server rechaza correr como root sin este flag
-# (el build corre como root; el usuario 'coder' no-root se crea después, más abajo)
-RUN npm install -g --unsafe-perm code-server
-
-# Crear usuario no-root 'coder' (evita ejecutar como root en el pod)
+# Crear usuario no-root 'coder' ANTES de instalar code-server: su postinstall no debe
+# correr con privilegios de root (evita ejecutar código de postinstall como root en el build).
 RUN addgroup -g 1000 coder && \
     adduser -D -u 1000 -G coder -h /home/coder coder && \
     chown -R coder:coder /home/coder
 
+# Prefix npm global escribible por 'coder', para poder instalar paquetes globales sin root
+ENV NPM_CONFIG_PREFIX=/home/coder/.npm-global
+ENV PATH=/home/coder/.npm-global/bin:$PATH
+RUN mkdir -p /home/coder/.npm-global && chown coder:coder /home/coder/.npm-global
+
 # Cambiar a usuario no-root
 USER coder
+
+# Instalar code-server como 'coder' (su postinstall corre con permisos normales, sin --unsafe-perm)
+RUN npm install -g code-server
 
 # Crear directorios para workspace y databases
 RUN mkdir -p /home/coder/workspace /home/coder/db

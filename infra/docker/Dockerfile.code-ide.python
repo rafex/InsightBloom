@@ -28,12 +28,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
     black \
     pylint
 
+# Volver a 'coder' apenas termina lo que requiere root (apk/pip system-wide): extensiones
+# y el venv se crean como usuario no-root, igual que code-server en la imagen base.
+USER coder
+
 # Instalar extensión Python para code-server
 RUN code-server --install-extension ms-python.python \
     --install-extension ms-python.vscode-pylance \
     --install-extension ms-python.debugpy
-
-USER coder
 
 # Crear ambiente virtual default
 RUN python3 -m venv /home/coder/.venv

@@ -11,14 +11,16 @@ RUN apk add --no-cache \
     openjdk21 \
     maven
 
+# Volver a 'coder' apenas termina lo que requiere root (apk): extensiones y directorios
+# se instalan/crean como usuario no-root, igual que code-server en la imagen base.
+USER coder
+
 # Instalar extensiones Java para code-server
 RUN code-server --install-extension vscjava.extension-pack-for-java \
     --install-extension vscjava.vscode-maven
 
 # Crear directorio para proyectos Maven
 RUN mkdir -p /home/coder/.m2
-
-USER coder
 
 # Workspace, db, y Maven cache directorios
 EXPOSE 8080
