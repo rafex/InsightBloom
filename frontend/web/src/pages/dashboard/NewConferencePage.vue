@@ -1,15 +1,15 @@
 <template lang="pug">
 .new-conf-page
-  h2 Nueva conferencia
+  h2 Nuevo evento
   .form(v-if="!created")
     .form-group
-      label Nombre para compartir la conferencia
-      input(v-model="name" type="text" placeholder="Conferencia IA 2026" @keyup.enter="create")
+      label Nombre para compartir el evento
+      input(v-model="name" type="text" placeholder="Evento IA 2026" @keyup.enter="create")
       p.field-hint Se usa para generar el enlace público (ID amigable). No se podrá cambiar después.
 
     .form-group
       label Nombre a mostrar en el certificado (opcional)
-      input(v-model="displayName" type="text" placeholder="Conferencia de Inteligencia Artificial 2026")
+      input(v-model="displayName" type="text" placeholder="Evento de Inteligencia Artificial 2026")
       p.field-hint Si lo dejas vacío, se usará el nombre para compartir. Se puede editar después.
 
     .form-group
@@ -61,18 +61,18 @@
         .coord-field
           span.coord-label Longitud
           input(v-model.number="longitude" type="number" step="0.000001" min="-180" max="180" placeholder="-99.1332")
-      p.coord-hint Coordenadas del lugar donde se realiza la conferencia
+      p.coord-hint Coordenadas del lugar donde se realiza el evento
 
     .map-preview(v-if="latitude != null && longitude != null && !isNaN(latitude) && !isNaN(longitude)")
-      ConferenceMap(:latitude="latitude" :longitude="longitude" :label="name || 'Conferencia'")
+      ConferenceMap(:latitude="latitude" :longitude="longitude" :label="name || 'Evento'")
 
     .error(v-if="error") {{ error }}
     button.btn-primary(@click="create" :disabled="loading || !name.trim()")
       span(v-if="loading") Creando...
-      span(v-else) Crear conferencia
+      span(v-else) Crear evento
 
   .created-info.animate__animated.animate__fadeIn(v-else)
-    h3 ¡Conferencia creada!
+    h3 ¡Evento creado!
     .info-row
       span Nombre:
       strong {{ created.name }}
@@ -183,7 +183,7 @@ export default {
           eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null,
           displayName.value.trim() || null, timezoneId.value, eventTypeKey.value)
       } catch (e: any) {
-        error.value = e.response?.data?.error?.message || 'Error al crear la conferencia'
+        error.value = e.response?.data?.error?.message || 'Error al crear el evento'
       } finally { loading.value = false }
     }
 

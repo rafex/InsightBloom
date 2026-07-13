@@ -275,7 +275,13 @@ services:
   users:
     repository: ghcr.io/rafex/insightbloom-users
     port: 8081
+    # Fijo a 1 replica: persiste en SQLite sobre un PVC (single-writer). Escalar por encima de 1
+    # (el HPA global por defecto permite hasta 5) causa escrituras concurrentes de dos JVMs sobre
+    # el mismo archivo .db y errores intermitentes tipo "SQLITE_BUSY: database is locked" en
+    # endpoints de escritura (ej. POST /conferences) — visto en produccion 2026-07-13.
     autoscaling:
+      minReplicas: 1
+      maxReplicas: 1
       targetCPUUtilizationPercentage: 50
     resources:
       requests:
@@ -337,6 +343,10 @@ services:
   stats:
     repository: ghcr.io/rafex/insightbloom-stats
     port: 8085
+    # Fijo a 1 replica: SQLite sobre PVC, single-writer (mismo motivo que insightbloom-users).
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 1
     persistence:
       enabled: true
       size: 1Gi
@@ -353,6 +363,10 @@ services:
   moderation:
     repository: ghcr.io/rafex/insightbloom-moderation
     port: 8084
+    # Fijo a 1 replica: SQLite sobre PVC, single-writer (mismo motivo que insightbloom-users).
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 1
     persistence:
       enabled: true
       size: 1Gi
@@ -370,6 +384,10 @@ services:
   query:
     repository: ghcr.io/rafex/insightbloom-query
     port: 8083
+    # Fijo a 1 replica: SQLite sobre PVC, single-writer (mismo motivo que insightbloom-users).
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 1
     resources:
       requests:
         cpu: 25m
@@ -396,7 +414,10 @@ services:
   ingest:
     repository: ghcr.io/rafex/insightbloom-ingest
     port: 8082
+    # Fijo a 1 replica: mismo motivo que insightbloom-users (SQLite sobre PVC, single-writer).
     autoscaling:
+      minReplicas: 1
+      maxReplicas: 1
       targetCPUUtilizationPercentage: 50
     resources:
       requests:
@@ -424,6 +445,10 @@ services:
   survey:
     repository: ghcr.io/rafex/insightbloom-survey
     port: 8086
+    # Fijo a 1 replica: SQLite sobre PVC, single-writer (mismo motivo que insightbloom-users).
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 1
     resources:
       requests:
         cpu: 30m
@@ -452,6 +477,10 @@ services:
   presentations:
     repository: ghcr.io/rafex/insightbloom-presentations
     port: 8091
+    # Fijo a 1 replica: SQLite sobre PVC, single-writer (mismo motivo que insightbloom-users).
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 1
     resources:
       requests:
         cpu: 30m
@@ -505,6 +534,10 @@ services:
   chat:
     repository: ghcr.io/rafex/insightbloom-chat
     port: 8090
+    # Fijo a 1 replica: SQLite sobre PVC, single-writer (mismo motivo que insightbloom-users).
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 1
     resources:
       requests:
         cpu: 30m
@@ -540,6 +573,10 @@ services:
   telegram:
     repository: ghcr.io/rafex/insightbloom-telegram
     port: 8095
+    # Fijo a 1 replica: SQLite sobre PVC, single-writer (mismo motivo que insightbloom-users).
+    autoscaling:
+      minReplicas: 1
+      maxReplicas: 1
     resources:
       requests:
         cpu: 20m
