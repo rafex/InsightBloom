@@ -33,8 +33,19 @@ RUN mkdir -p /home/coder/.npm-global && chown coder:coder /home/coder/.npm-globa
 # Cambiar a usuario no-root
 USER coder
 
-# Instalar code-server como 'coder' (su postinstall corre con permisos normales, sin --unsafe-perm)
-RUN npm install -g code-server
+# Instalar code-server como 'coder' (su postinstall corre con permisos normales, sin --unsafe-perm).
+# code-server empaqueta VS Code completo (miles de archivos pequeños); bajo alta concurrencia
+# de descargas npm puede corromper tarballs en extracción (ENOENT intermitente en CI). Se baja
+# la concurrencia y se agregan reintentos explícitos del install completo para tolerarlo.
+RUN npm config set maxsockets 3 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 5000 && \
+    for i in 1 2 3; do \
+        npm install -g code-server && break; \
+        echo "npm install -g code-server failed (attempt $i), retrying..."; \
+        rm -rf /home/coder/.npm-global/lib/node_modules/code-server; \
+        [ "$i" = 3 ] && exit 1; \
+    done
 
 # Crear directorios para workspace y databases
 RUN mkdir -p /home/coder/workspace /home/coder/db
