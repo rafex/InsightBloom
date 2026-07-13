@@ -622,6 +622,13 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ── Sandbox IDE images (TASK-0010/0011, Fase 3) ─────────────────────────────
+  # Deliberadamente NO esta en el `needs:` de deploy-after-publish: un fallo aca
+  # (ej. code-server subiendo su requisito de version de Node) no debe bloquear
+  # el deploy de los servicios de la aplicacion real, que no dependen de esta
+  # imagen para funcionar. Postmortem 2026-07-13: el primer intento de agregarla
+  # a `needs:` hizo que "Deploy to k3s" se saltara entero (incluyendo web/users
+  # ya compilados y listos) porque este job fallo — el pipeline de deploy no
+  # debe tener como bloqueante algo fuera del camino critico de produccion.
   # No usan el patron "1 job = 1 imagen": python/java/web se construyen FROM la
   # imagen base (ghcr.io/rafex/insightbloom-code-ide:base), asi que la base debe
   # pushearse primero y las variantes se construyen despues, en el mismo job,
@@ -773,7 +780,6 @@ jobs:
       - build-and-push-ingest
       - build-and-push-chat
       - build-and-push-telegram
-      - build-and-push-code-ide
       - build-and-push-web
       - build-and-push-survey
       - build-and-push-presentations
