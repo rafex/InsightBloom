@@ -155,8 +155,7 @@ final class AuthGateHandler extends Handler.Abstract {
         // herramientas (JS/CSS/HTML) son de tamaño modesto, y esto evita la ambiguedad de
         // framing de Content-Length/chunked al mezclar HttpClient (upstream) con el streaming
         // Content.Sink de Jetty 12 al escribir antes de conocer el tamano total.
-        final HttpResponse<byte[]> upstreamResponse = httpClient.send(
-                upstreamBuilder.build(), HttpResponse.BodyHandlers.ofByteArray());
+        final HttpResponse<byte[]> upstreamResponse = sendWithRetry(upstreamBuilder.build());
 
         response.setStatus(upstreamResponse.statusCode());
         final HttpFields.Mutable outHeaders = response.getHeaders();
@@ -169,6 +168,26 @@ final class AuthGateHandler extends Handler.Abstract {
         outHeaders.put(HttpHeader.CONTENT_LENGTH, Long.toString(bodyBytes.length));
 
         response.write(true, java.nio.ByteBuffer.wrap(bodyBytes), callback);
+    }
+
+    /**
+     * El pool de conexiones de {@link HttpClient} reutiliza conexiones keep-alive hacia el
+     * upstream (ej. Etherpad/Node); si el servidor cierra una conexion inactiva justo antes de
+     * que el pool la reuse, el intento falla con {@code EOFException}/"header parser received
+     * no bytes" (carrera clasica de conexion obsoleta, ver logs de produccion 2026-07-12/13).
+     * Un reintento agarra una conexion nueva y resuelve la carrera. Solo se reintenta para
+     * metodos idempotentes sin cuerpo: el cuerpo de POST/PUT viene de un InputStream de la
+     * request original que ya se habria consumido parcialmente en el primer intento.
+     */
+    private HttpResponse<byte[]> sendWithRetry(final HttpRequest upstreamRequest)
+            throws IOException, InterruptedException {
+        final boolean retryable = "GET".equals(upstreamRequest.method()) || "HEAD".equals(upstreamRequest.method());
+        try {
+            return httpClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
+        } catch (final IOException e) {
+            if (!retryable) throw e;
+            return httpClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
+        }
     }
 
     private static String stripIbToken(final String rawQuery) {
