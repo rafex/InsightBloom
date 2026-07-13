@@ -34,27 +34,18 @@ import java.util.logging.Logger;
  * InsightBloom) ya no da acceso a nadie sin sesion, cierre que un chequeo solo en el
  * frontend/backend de la app no puede dar por si mismo (ver DEC pendiente de documentar).
  *
- * TASK-0020 — Limitación de WebSocket (BLOCKED en Ether):
- * El reenvio usa {@link HttpClient} de request/response estándar, que NO soporta upgrade
- * a WebSocket. Para soportar WebSocket (requerido por code-server IDE), ether-http-jetty12
- * debe proporcionar:
- * 1. Handler.WebSocketUpgrader o similar — detecta y delega upgrade al Handler
- * 2. WebSocketSession bidireccional — proxy que bridgea downstream/upstream sockets
- * 3. Ejemplo: ether-http-jetty12 expone una interfaz como:
- *    ```java
- *    public interface WebSocketUpgradeHandler {
- *        void handleWebSocketUpgrade(Request, Response, String targetUri, Callback);
- *    }
- *    ```
- * Sin esto, aplicaciones que requieren WebSocket (code-server, Etherpad socket.io)
- * deben caer a long-polling (funcional pero ineficiente).
- * Ver: spec-native/specs/code-ide-sandboxes/SPEC.md, Fase 2.
+ * El reenvio HTTP usa {@link HttpClient} de request/response estándar, que no soporta upgrade
+ * a WebSocket (Etherpad socket.io, code-server) — eso lo maneja {@link WebSocketProxyCreator}
+ * en paralelo, montado sobre el mismo {@code Server} vía
+ * {@code WebSocketUpgradeHandler.from(server, ...)} (ver {@link GatewayApplication}),
+ * reutilizando {@link #checkAuth(Request)} para exigir la misma sesion de InsightBloom antes
+ * del upgrade (ver postmortem TASK-0020, resuelto con ether-websocket-proxy-jetty12 9.5.5).
  */
 final class AuthGateHandler extends Handler.Abstract {
 
     private static final Logger LOGGER = Logger.getLogger(AuthGateHandler.class.getName());
-    private static final String SESSION_COOKIE = "ib_gw";
-    private static final Duration SESSION_TTL = Duration.ofHours(4);
+    static final String SESSION_COOKIE = "ib_gw";
+    static final Duration SESSION_TTL = Duration.ofHours(4);
     private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
             "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
             "te", "trailers", "transfer-encoding", "upgrade", "content-length", "host");
@@ -108,9 +99,9 @@ final class AuthGateHandler extends Handler.Abstract {
         return true;
     }
 
-    private record AuthResult(boolean authenticated, String newSessionId) {}
+    record AuthResult(boolean authenticated, String newSessionId) {}
 
-    private AuthResult checkAuth(final Request request) {
+    AuthResult checkAuth(final Request request) {
         for (final HttpCookie cookie : Request.getCookies(request)) {
             if (SESSION_COOKIE.equals(cookie.getName()) && sessionCache.isValid(cookie.getValue())) {
                 return new AuthResult(true, null);
@@ -205,7 +196,7 @@ final class AuthGateHandler extends Handler.Abstract {
         return null;
     }
 
-    private static String hostOf(final Request request) {
+    static String hostOf(final Request request) {
         final String hostHeader = request.getHeaders().get(HttpHeader.HOST);
         if (hostHeader == null) return "";
         final int colon = hostHeader.indexOf(':');

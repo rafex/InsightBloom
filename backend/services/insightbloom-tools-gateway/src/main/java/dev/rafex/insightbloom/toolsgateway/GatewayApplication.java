@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.toolsgateway;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.websocket.server.WebSocketUpgradeHandler;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +29,15 @@ public final class GatewayApplication {
         final ServerConnector connector = new ServerConnector(server);
         connector.setPort(port);
         server.addConnector(connector);
-        server.setHandler(new AuthGateHandler(routes, authValidateUrl, loginUrl));
+
+        final AuthGateHandler authGateHandler = new AuthGateHandler(routes, authValidateUrl, loginUrl);
+        // El upgrade de WebSocket (Etherpad socket.io, code-server) se intercepta antes que
+        // el AuthGateHandler HTTP; las requests que no son upgrade caen al AuthGateHandler
+        // sin cambios (WebSocketUpgradeHandler.handle delega al wrapped Handler si no aplica).
+        final WebSocketUpgradeHandler wsHandler = WebSocketUpgradeHandler.from(server, container ->
+                container.addMapping("/*", new WebSocketProxyCreator(routes, authGateHandler)));
+        wsHandler.setHandler(authGateHandler);
+        server.setHandler(wsHandler);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {

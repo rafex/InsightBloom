@@ -28,10 +28,16 @@
       <groupId>dev.rafex.ether.http</groupId>
       <artifactId>ether-http-jetty12</artifactId>
     </dependency>
-    <!-- WebSocket support para TASK-0020: proxy upgrade a WebSocket -->
+    <!-- TASK-0020: proxy de WebSocket (Etherpad socket.io, code-server) -->
+    <dependency>
+      <groupId>dev.rafex.ether.websocket</groupId>
+      <artifactId>ether-websocket-proxy-jetty12</artifactId>
+    </dependency>
+    <!-- Servidor WebSocket nativo de Jetty (WebSocketUpgradeHandler) para montar el upgrade
+         sobre nuestro Server crudo existente, junto al AuthGateHandler HTTP. -->
     <dependency>
       <groupId>org.eclipse.jetty.websocket</groupId>
-      <artifactId>jetty-websocket-jetty-client</artifactId>
+      <artifactId>jetty-websocket-jetty-server</artifactId>
       <version>12.1.7</version>
     </dependency>
     <dependency>
