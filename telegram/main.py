@@ -14,6 +14,7 @@ Flujo saliente (InsightBloom → Telegram), service-to-service:
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -46,3 +47,9 @@ app.include_router(internal.router)
 @app.get("/health")
 async def health():
     return {"ok": True}
+
+
+@app.get("/version")
+async def version():
+    return {"service": "telegram", "version": os.getenv("APP_VERSION", "dev"),
+            "gitSha": os.getenv("GIT_SHA", "unknown")}

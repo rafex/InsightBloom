@@ -5,6 +5,7 @@ import dev.rafex.ether.http.jetty12.JettyServerConfig;
 import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.ether.json.JsonUtils;
+import dev.rafex.insightbloom.common.http.VersionHandler;
 import dev.rafex.insightbloom.query.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.query.adapters.outbound.nats.NatsCloudEventBus;
 import dev.rafex.insightbloom.query.adapters.outbound.sqlite.*;
@@ -54,6 +55,7 @@ public class QueryApplication {
         routes.add("/internal/update/*", updateHandler);
         routes.add("/internal/visibility/*", visibilityHandler);
         routes.add("/internal/message-visibility/*", messageVisibilityHandler);
+        routes.add("/version", new VersionHandler("insightbloom-query"));
 
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();

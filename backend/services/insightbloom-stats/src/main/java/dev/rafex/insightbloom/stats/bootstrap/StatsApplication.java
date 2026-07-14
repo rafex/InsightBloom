@@ -4,6 +4,7 @@ import dev.rafex.ether.http.jetty12.routing.JettyRouteRegistry;
 import dev.rafex.ether.http.jetty12.JettyServerConfig;
 import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.json.JacksonJsonCodec;
+import dev.rafex.insightbloom.common.http.VersionHandler;
 import dev.rafex.insightbloom.stats.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.stats.adapters.outbound.sqlite.*;
 import dev.rafex.insightbloom.stats.adapters.outbound.usersclient.HttpUsersClient;
@@ -30,6 +31,7 @@ public class StatsApplication {
         final var routes = new JettyRouteRegistry();
         routes.add("/internal/recalc/*", recalcHandler);
         routes.add("/api/v1/conferences/*", statsHandler);
+        routes.add("/version", new VersionHandler("insightbloom-stats"));
 
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();

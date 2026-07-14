@@ -4,6 +4,7 @@ import dev.rafex.ether.http.jetty12.routing.JettyRouteRegistry;
 import dev.rafex.ether.http.jetty12.JettyServerConfig;
 import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.json.JacksonJsonCodec;
+import dev.rafex.insightbloom.common.http.VersionHandler;
 import dev.rafex.insightbloom.ingest.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.ingest.adapters.outbound.moderationclient.HttpModerationClient;
 import dev.rafex.insightbloom.ingest.adapters.outbound.queryclient.HttpQueryClient;
@@ -41,6 +42,7 @@ public class IngestApplication {
 
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/*", ingestHandler);
+        routes.add("/version", new VersionHandler("insightbloom-ingest"));
 
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();

@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
@@ -86,6 +87,18 @@ final class AuthGateHandler extends Handler.Abstract {
     public boolean handle(final Request request, final Response response, final Callback callback) {
         if ("/health".equals(request.getHttpURI().getPath())) {
             writeSimpleResponse(request, response, callback, 200, "OK");
+            return true;
+        }
+        if ("/version".equals(request.getHttpURI().getPath())) {
+            final Properties gp = new Properties();
+            try (var is = getClass().getClassLoader().getResourceAsStream("git.properties")) {
+                if (is != null) gp.load(is);
+            } catch (final IOException ignored) { }
+            final String json = "{\"service\":\"tools-gateway\""
+                + ",\"version\":\"" + System.getenv().getOrDefault("APP_VERSION", "dev") + "\""
+                + ",\"gitSha\":\"" + gp.getProperty("git.commit.id.abbrev", "unknown") + "\""
+                + ",\"buildTime\":\"" + gp.getProperty("git.build.time", "unknown") + "\"}";
+            writeSimpleResponse(request, response, callback, 200, json);
             return true;
         }
         final String host = hostOf(request);

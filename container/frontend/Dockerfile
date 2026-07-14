@@ -11,6 +11,10 @@ RUN npm ci --prefer-offline
 
 # Copia fuentes y construye
 COPY frontend/web/ ./
+ARG VITE_APP_VERSION=dev
+ARG VITE_GIT_SHA=unknown
+ENV VITE_APP_VERSION=${VITE_APP_VERSION}
+ENV VITE_GIT_SHA=${VITE_GIT_SHA}
 RUN npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import dev.rafex.ether.http.jetty12.routing.JettyRouteRegistry;
 import dev.rafex.ether.http.jetty12.JettyServerConfig;
 import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.json.JacksonJsonCodec;
+import dev.rafex.insightbloom.common.http.VersionHandler;
 import dev.rafex.insightbloom.moderation.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.moderation.adapters.outbound.notifyclient.HttpNotifyClient;
 import dev.rafex.insightbloom.moderation.adapters.outbound.queryclient.HttpQueryPort;
@@ -52,6 +53,7 @@ public class ModerationApplication {
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/conferences/*", conferenceModerationHandler);
         routes.add("/internal/evaluate/*", evaluateHandler);
+        routes.add("/version", new VersionHandler("insightbloom-moderation"));
 
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();

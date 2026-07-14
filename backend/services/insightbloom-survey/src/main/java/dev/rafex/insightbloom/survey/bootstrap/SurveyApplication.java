@@ -5,6 +5,7 @@ import dev.rafex.ether.http.jetty12.JettyServerConfig;
 import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.ether.json.JsonUtils;
+import dev.rafex.insightbloom.common.http.VersionHandler;
 import dev.rafex.insightbloom.survey.adapters.inbound.http.handlers.SurveyHandler;
 import dev.rafex.insightbloom.survey.adapters.outbound.llm.GroqLlmClient;
 import dev.rafex.insightbloom.survey.adapters.outbound.presentations.HttpPresentationsClient;
@@ -65,6 +66,7 @@ public class SurveyApplication {
 
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/conferences/*", surveyHandler);
+        routes.add("/version", new VersionHandler("insightbloom-survey"));
 
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();

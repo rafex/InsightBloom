@@ -17,6 +17,7 @@ Comandos en chat:
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -78,6 +79,12 @@ app.include_router(websocket.router)
 @app.get("/health")
 async def health():
     return {"ok": True}
+
+
+@app.get("/version")
+async def version():
+    return {"service": "chat", "version": os.getenv("APP_VERSION", "dev"),
+            "gitSha": os.getenv("GIT_SHA", "unknown")}
 
 
 _STATIC_DIR = Path(__file__).parent / "static"

@@ -42,6 +42,8 @@ FROM eclipse-temurin:25-jre-alpine AS runtime
 ARG SERVICE=insightbloom-users
 ARG SERVICE_PORT=8081
 ARG VERSION=0.1.0-SNAPSHOT
+ARG APP_VERSION=dev
+ARG GIT_SHA=unknown
 
 WORKDIR /app
 
@@ -62,6 +64,8 @@ USER 1000
 # Variables de entorno con defaults del servicio
 ENV PORT=${SERVICE_PORT}
 ENV DB_PATH=/data/service.db
+ENV APP_VERSION=${APP_VERSION}
+ENV GIT_SHA=${GIT_SHA}
 
 # Volumen para la base de datos SQLite
 VOLUME ["/data"]

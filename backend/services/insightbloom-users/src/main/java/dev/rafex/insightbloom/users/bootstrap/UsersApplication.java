@@ -4,6 +4,7 @@ import dev.rafex.ether.http.jetty12.routing.JettyRouteRegistry;
 import dev.rafex.ether.http.jetty12.JettyServerConfig;
 import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.json.JacksonJsonCodec;
+import dev.rafex.insightbloom.common.http.VersionHandler;
 import dev.rafex.insightbloom.users.adapters.inbound.http.handlers.*;
 import dev.rafex.insightbloom.users.adapters.outbound.cascade.HttpCascadeDeleteClient;
 import dev.rafex.insightbloom.users.adapters.outbound.sqlite.*;
@@ -252,6 +253,7 @@ public class UsersApplication {
         routes.add("/api/v1/roles/*", roleHandler);
         routes.add("/api/v1/permissions/*", permissionHandler);
         routes.add("/api/v1/settings/*", platformSettingsHandler);
+        routes.add("/version", new VersionHandler("insightbloom-users"));
 
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();
