@@ -19,8 +19,8 @@ RUN apk add --no-cache \
     libffi-dev \
     openssl-dev
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir \
+RUN pip install --no-cache-dir --upgrade pip --break-system-packages && \
+    pip install --no-cache-dir --break-system-packages \
     virtualenv \
     jupyter \
     numpy \
