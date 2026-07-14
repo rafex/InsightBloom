@@ -38,17 +38,20 @@ WORKDIR /home/coder
 # Extensiones de las 3 variantes preinstaladas en una sola imagen "ide" universal
 # (java+maven, python+pylance, web/prettier/eslint/volar/react/tailwind) — code-server
 # es el mismo binario para las 3, solo cambia el contenedor 'runtime' al que se conecta la terminal
-RUN code-server --install-extension vscjava.extension-pack-for-java \
-    --install-extension vscjava.vscode-maven \
-    --install-extension ms-python.python \
-    --install-extension ms-python.vscode-pylance \
-    --install-extension ms-python.debugpy \
-    --install-extension esbenp.prettier-vscode \
-    --install-extension dbaeumer.vscode-eslint \
-    --install-extension vue.volar \
-    --install-extension dsznajder.es7-react-js-snippets \
-    --install-extension bradlc.vscode-tailwindcss \
-    --install-extension ecmel.vscode-html-css
+RUN for ext in \
+      vscjava.extension-pack-for-java \
+      vscjava.vscode-maven \
+      ms-python.python \
+      ms-python.vscode-pylance \
+      ms-python.debugpy \
+      esbenp.prettier-vscode \
+      dbaeumer.vscode-eslint \
+      vue.volar \
+      dsznajder.es7-react-js-snippets \
+      bradlc.vscode-tailwindcss \
+      ecmel.vscode-html-css; do \
+        code-server --install-extension "$ext" || echo "WARN: extension $ext skipped"; \
+    done
 
 # Perfil de terminal por defecto: en vez de un shell local, conecta vía socat al servidor
 # PTY-over-TCP que expone el contenedor 'runtime' en 127.0.0.1:7681 (loopback intra-Pod,
