@@ -371,6 +371,12 @@ app.post('/api/v1/conferences/:id/presentation/remote-token', async (req, res) =
   res.json({ token: remoteToken });
 });
 
+app.get('/version', (_req, res) => res.json({
+  service: 'insightbloom-presentations',
+  version: process.env.APP_VERSION || 'dev',
+  gitSha: process.env.GIT_SHA || 'unknown',
+}));
+
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 const server = http.createServer(app);

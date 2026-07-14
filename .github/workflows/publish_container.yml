@@ -79,6 +79,8 @@ jobs:
           build-args: |
             SERVICE=insightbloom-users
             SERVICE_PORT=8081
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -142,6 +144,8 @@ jobs:
           build-args: |
             SERVICE=insightbloom-tools-gateway
             SERVICE_PORT=8090
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -207,6 +211,8 @@ jobs:
           build-args: |
             SERVICE=insightbloom-stats
             SERVICE_PORT=8085
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -270,6 +276,8 @@ jobs:
           build-args: |
             SERVICE=insightbloom-survey
             SERVICE_PORT=8086
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -318,6 +326,9 @@ jobs:
         with:
           context: backend/services/insightbloom-presentations
           file: backend/services/insightbloom-presentations/Dockerfile
+          build-args: |
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -383,6 +394,8 @@ jobs:
           build-args: |
             SERVICE=insightbloom-moderation
             SERVICE_PORT=8084
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -448,6 +461,8 @@ jobs:
           build-args: |
             SERVICE=insightbloom-query
             SERVICE_PORT=8083
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -513,6 +528,8 @@ jobs:
           build-args: |
             SERVICE=insightbloom-ingest
             SERVICE_PORT=8082
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -562,6 +579,9 @@ jobs:
         with:
           context: chat
           file: chat/Dockerfile
+          build-args: |
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -611,6 +631,9 @@ jobs:
         with:
           context: telegram
           file: telegram/Dockerfile
+          build-args: |
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
@@ -729,6 +752,9 @@ jobs:
         with:
           context: .
           file: container/frontend/Dockerfile
+          build-args: |
+            VITE_APP_VERSION=${{ steps.image_tag.outputs.value }}
+            VITE_GIT_SHA=${{ github.sha }}
           push: true
           provenance: false
           sbom: false
