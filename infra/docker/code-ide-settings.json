@@ -1,0 +1,9 @@
+{
+  "terminal.integrated.profiles.linux": {
+    "runtime": {
+      "path": "/usr/bin/socat",
+      "args": ["STDIO", "TCP:127.0.0.1:7681"]
+    }
+  },
+  "terminal.integrated.defaultProfile.linux": "runtime"
+}

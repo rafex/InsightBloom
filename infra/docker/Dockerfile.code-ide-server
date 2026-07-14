@@ -1,0 +1,67 @@
+# TASK-0010/Fase 4: imagen "ide" — solo code-server, contenedor separado del runtime
+# Debian (no Alpine): code-server publica releases standalone precompiladas para glibc
+# (node-pty y demás nativos de VS Code están linkeados contra glibc); Alpine no tiene esas
+# releases y el propio install.sh oficial de code-server cae a `npm install` en Alpine/FreeBSD,
+# lo cual resultó sistemáticamente en corrupción de tarballs npm/cacache bajo BuildKit en CI
+# (ver postmortem 2026-07-13/14). En Debian se instala el binario standalone directo — sin npm,
+# sin postinstall, versión fijada.
+FROM debian:12-slim
+
+ARG CODE_SERVER_VERSION=4.117.0
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    socat \
+    dumb-init \
+    git \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Descargar y extraer el release standalone oficial (sin npm, sin scripts de postinstall)
+RUN curl -fsSL "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz" \
+    -o /tmp/code-server.tar.gz && \
+    mkdir -p /usr/local/lib/code-server && \
+    tar -xzf /tmp/code-server.tar.gz -C /usr/local/lib/code-server --strip-components=1 && \
+    ln -s /usr/local/lib/code-server/bin/code-server /usr/local/bin/code-server && \
+    rm /tmp/code-server.tar.gz
+
+# Usuario no-root 'coder' (mismo uid/gid 1000 que el contenedor 'runtime', clave para que
+# el volumen 'workspace' compartido entre ambos contenedores del Pod tenga permisos consistentes)
+RUN groupadd -g 1000 coder && \
+    useradd -m -u 1000 -g 1000 -d /home/coder -s /bin/bash coder && \
+    chown -R coder:coder /home/coder
+
+USER coder
+WORKDIR /home/coder
+
+# Extensiones de las 3 variantes preinstaladas en una sola imagen "ide" universal
+# (java+maven, python+pylance, web/prettier/eslint/volar/react/tailwind) — code-server
+# es el mismo binario para las 3, solo cambia el contenedor 'runtime' al que se conecta la terminal
+RUN code-server --install-extension vscjava.extension-pack-for-java \
+    --install-extension vscjava.vscode-maven \
+    --install-extension ms-python.python \
+    --install-extension ms-python.vscode-pylance \
+    --install-extension ms-python.debugpy \
+    --install-extension esbenp.prettier-vscode \
+    --install-extension dbaeumer.vscode-eslint \
+    --install-extension vue.volar \
+    --install-extension dsznajder.es7-react-js-snippets \
+    --install-extension bradlc.vscode-tailwindcss \
+    --install-extension ecmel.vscode-html-css
+
+# Perfil de terminal por defecto: en vez de un shell local, conecta vía socat al servidor
+# PTY-over-TCP que expone el contenedor 'runtime' en 127.0.0.1:7681 (loopback intra-Pod,
+# ambos contenedores comparten namespace de red — no atraviesa el CNI ni las NetworkPolicy)
+RUN mkdir -p /home/coder/.local/share/code-server/User
+COPY --chown=coder:coder code-ide-settings.json /home/coder/.local/share/code-server/User/settings.json
+
+RUN mkdir -p /home/coder/workspace /home/coder/db
+
+# code-server escucha por defecto en puerto 8080 (sin seguridad propia — se usa ib_token del gateway)
+EXPOSE 8080
+
+# Punto de entrada: dumb-init protege contra procesos zombies; code-server sin auth
+# (autenticación delegada al gateway via ib_token en cookie/header)
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "/home/coder/workspace", "--disable-auth"]

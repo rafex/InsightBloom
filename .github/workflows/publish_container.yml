@@ -621,22 +621,37 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── Sandbox IDE images (TASK-0010/0011, Fase 3) ─────────────────────────────
+  # ── Sandbox IDE images (TASK-0010/0011, Fase 3; Fase 4: split ide/runtime) ──
   # Deliberadamente NO esta en el `needs:` de deploy-after-publish: un fallo aca
-  # (ej. code-server subiendo su requisito de version de Node) no debe bloquear
-  # el deploy de los servicios de la aplicacion real, que no dependen de esta
-  # imagen para funcionar. Postmortem 2026-07-13: el primer intento de agregarla
-  # a `needs:` hizo que "Deploy to k3s" se saltara entero (incluyendo web/users
-  # ya compilados y listos) porque este job fallo — el pipeline de deploy no
-  # debe tener como bloqueante algo fuera del camino critico de produccion.
-  # No usan el patron "1 job = 1 imagen": python/java/web se construyen FROM la
-  # imagen base (ghcr.io/rafex/insightbloom-code-ide:base), asi que la base debe
-  # pushearse primero y las variantes se construyen despues, en el mismo job,
-  # para que el FROM resuelva contra lo que se acaba de publicar.
+  # no debe bloquear el deploy de los servicios de la aplicacion real, que no
+  # dependen de esta imagen para funcionar. Postmortem 2026-07-13: el primer
+  # intento de agregarla a `needs:` hizo que "Deploy to k3s" se saltara entero
+  # (incluyendo web/users ya compilados y listos) porque este job fallo.
+  # Fase 4 (2026-07-14): se separo la imagen "ide" (Debian, solo code-server via
+  # release standalone — sin npm) del "runtime" por variante (Alpine, solo
+  # toolchain). Ninguna de las 4 imagenes depende de otra via FROM, asi que se
+  # construyen en paralelo como matriz (antes era secuencial porque python/java/web
+  # extendian FROM la imagen base).
   build-and-push-code-ide:
-    name: Build and push code-ide (base + variantes)
+    name: Build and push code-ide (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ide-server
+            file: infra/docker/Dockerfile.code-ide-server
+            tag: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide-server:latest
+          - name: runtime-python
+            file: infra/docker/Dockerfile.code-ide-runtime.python
+            tag: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide-runtime:python
+          - name: runtime-java
+            file: infra/docker/Dockerfile.code-ide-runtime.java
+            tag: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide-runtime:java
+          - name: runtime-web
+            file: infra/docker/Dockerfile.code-ide-runtime.web
+            tag: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide-runtime:web
     steps:
       - uses: actions/checkout@v6
 
@@ -650,57 +665,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push base
+      - name: Build and push
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: infra/docker/Dockerfile.code-ide
+          file: ${{ matrix.file }}
           push: true
           provenance: false
           sbom: false
           platforms: linux/amd64
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide:base
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push python variant
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: infra/docker/Dockerfile.code-ide.python
-          push: true
-          provenance: false
-          sbom: false
-          platforms: linux/amd64
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide:python
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push java variant
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: infra/docker/Dockerfile.code-ide.java
-          push: true
-          provenance: false
-          sbom: false
-          platforms: linux/amd64
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide:java
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push web variant
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: infra/docker/Dockerfile.code-ide.web
-          push: true
-          provenance: false
-          sbom: false
-          platforms: linux/amd64
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide:web
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ matrix.tag }}
+          cache-from: type=gha,scope=code-ide-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=code-ide-${{ matrix.name }}
 
   # ── Frontend ─────────────────────────────────────────────────────────────────
   build-and-push-web:
