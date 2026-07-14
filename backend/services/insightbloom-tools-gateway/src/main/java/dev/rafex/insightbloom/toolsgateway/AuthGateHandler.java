@@ -247,9 +247,10 @@ final class AuthGateHandler extends Handler.Abstract {
      * upstream (ej. Etherpad/Node); si el servidor cierra una conexion inactiva justo antes de
      * que el pool la reuse, el intento falla con {@code EOFException}/"header parser received
      * no bytes" (carrera clasica de conexion obsoleta, ver logs de produccion 2026-07-12/13).
-     * Un reintento agarra una conexion nueva y resuelve la carrera. Solo se reintenta para
-     * metodos idempotentes sin cuerpo: el cuerpo de POST/PUT viene de un InputStream de la
-     * request original que ya se habria consumido parcialmente en el primer intento.
+     * El reintento agrega {@code Connection: close} para forzar una nueva conexion TCP en vez
+     * de reusar la conexion stale del pool. Solo se reintenta para metodos idempotentes sin
+     * cuerpo: el cuerpo de POST/PUT viene de un InputStream de la request original que ya se
+     * habria consumido parcialmente en el primer intento.
      */
     private HttpResponse<byte[]> sendWithRetry(final HttpRequest upstreamRequest)
             throws IOException, InterruptedException {
@@ -258,7 +259,10 @@ final class AuthGateHandler extends Handler.Abstract {
             return httpClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
         } catch (final IOException e) {
             if (!retryable) throw e;
-            return httpClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
+            final HttpRequest retryRequest = HttpRequest.newBuilder(upstreamRequest, (name, value) -> true)
+                    .header("Connection", "close")
+                    .build();
+            return httpClient.send(retryRequest, HttpResponse.BodyHandlers.ofByteArray());
         }
     }
 

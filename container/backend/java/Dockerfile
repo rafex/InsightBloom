@@ -72,6 +72,7 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=4 \
   CMD wget -qO- http://localhost:${PORT}/health || exit 1
 
 ENTRYPOINT ["java", \
+            "-Djdk.httpclient.keepalive.timeout=5", \
             "-XX:+UseContainerSupport", \
             "-XX:MaxRAMPercentage=75.0", \
             "-jar", "app.jar"]
