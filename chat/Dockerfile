@@ -22,6 +22,11 @@ COPY static/ ./static/
 RUN useradd -m -u 1000 chat && chown -R chat:chat /app
 USER chat
 
+ARG APP_VERSION=dev
+ARG GIT_SHA=unknown
+ENV APP_VERSION=${APP_VERSION}
+ENV GIT_SHA=${GIT_SHA}
+
 ENV DB_PATH=/data/chat.db
 VOLUME ["/data"]
 
