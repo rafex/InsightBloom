@@ -54,7 +54,7 @@ RUN code-server --install-extension vscjava.extension-pack-for-java \
 # PTY-over-TCP que expone el contenedor 'runtime' en 127.0.0.1:7681 (loopback intra-Pod,
 # ambos contenedores comparten namespace de red — no atraviesa el CNI ni las NetworkPolicy)
 RUN mkdir -p /home/coder/.local/share/code-server/User
-COPY --chown=coder:coder code-ide-settings.json /home/coder/.local/share/code-server/User/settings.json
+COPY --chown=coder:coder infra/docker/code-ide-settings.json /home/coder/.local/share/code-server/User/settings.json
 
 RUN mkdir -p /home/coder/workspace /home/coder/db
 
