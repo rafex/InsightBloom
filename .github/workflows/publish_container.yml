@@ -642,16 +642,16 @@ jobs:
         include:
           - name: ide-server
             file: infra/docker/Dockerfile.code-ide-server
-            tag: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide-server:latest
+            tag: ghcr.io/rafex/insightbloom-code-ide-server:latest
           - name: runtime-python
             file: infra/docker/Dockerfile.code-ide-runtime.python
-            tag: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide-runtime:python
+            tag: ghcr.io/rafex/insightbloom-code-ide-runtime:python
           - name: runtime-java
             file: infra/docker/Dockerfile.code-ide-runtime.java
-            tag: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide-runtime:java
+            tag: ghcr.io/rafex/insightbloom-code-ide-runtime:java
           - name: runtime-web
             file: infra/docker/Dockerfile.code-ide-runtime.web
-            tag: ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-code-ide-runtime:web
+            tag: ghcr.io/rafex/insightbloom-code-ide-runtime:web
     steps:
       - uses: actions/checkout@v6
 
