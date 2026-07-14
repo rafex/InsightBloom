@@ -62,22 +62,33 @@ spec:
                   key: {{ .secretKey }}
             {{- end }}
             {{- if eq $name "users" }}
-            # Fase 3 del IDE: insightbloom-users crea los Pods/Services de sandbox directo
+            # Fase 3/4 del IDE: insightbloom-users crea los Pods/Services de sandbox directo
             # contra el API de Kubernetes (ver KubernetesPodClient) — mismos valores que
             # .Values.sandbox usa para el ResourceQuota/LimitRange del namespace, para que
-            # el spec de Pod que arma el backend nunca exceda esos limites.
+            # el spec de Pod que arma el backend nunca exceda esos limites. Fase 4: cada Pod
+            # tiene 2 contenedores (ide + runtime), cada uno con su propia imagen y recursos.
             - name: SANDBOX_NAMESPACE
               value: {{ $.Values.sandbox.namespace | quote }}
-            - name: SANDBOX_IMAGE_BASE
-              value: {{ $.Values.sandbox.images.base | quote }}
-            - name: SANDBOX_CPU_REQUEST
-              value: {{ $.Values.sandbox.resources.requests.cpu | quote }}
-            - name: SANDBOX_MEMORY_REQUEST
-              value: {{ $.Values.sandbox.resources.requests.memory | quote }}
-            - name: SANDBOX_CPU_LIMIT
-              value: {{ $.Values.sandbox.resources.limits.cpu | quote }}
-            - name: SANDBOX_MEMORY_LIMIT
-              value: {{ $.Values.sandbox.resources.limits.memory | quote }}
+            - name: SANDBOX_SERVER_IMAGE
+              value: {{ $.Values.sandbox.images.server | quote }}
+            - name: SANDBOX_RUNTIME_IMAGE_BASE
+              value: {{ $.Values.sandbox.images.runtimeBase | quote }}
+            - name: SANDBOX_IDE_CPU_REQUEST
+              value: {{ $.Values.sandbox.resources.ide.requests.cpu | quote }}
+            - name: SANDBOX_IDE_MEMORY_REQUEST
+              value: {{ $.Values.sandbox.resources.ide.requests.memory | quote }}
+            - name: SANDBOX_IDE_CPU_LIMIT
+              value: {{ $.Values.sandbox.resources.ide.limits.cpu | quote }}
+            - name: SANDBOX_IDE_MEMORY_LIMIT
+              value: {{ $.Values.sandbox.resources.ide.limits.memory | quote }}
+            - name: SANDBOX_RUNTIME_CPU_REQUEST
+              value: {{ $.Values.sandbox.resources.runtime.requests.cpu | quote }}
+            - name: SANDBOX_RUNTIME_MEMORY_REQUEST
+              value: {{ $.Values.sandbox.resources.runtime.requests.memory | quote }}
+            - name: SANDBOX_RUNTIME_CPU_LIMIT
+              value: {{ $.Values.sandbox.resources.runtime.limits.cpu | quote }}
+            - name: SANDBOX_RUNTIME_MEMORY_LIMIT
+              value: {{ $.Values.sandbox.resources.runtime.limits.memory | quote }}
             - name: SANDBOX_PORT
               value: {{ $.Values.sandbox.port | quote }}
             - name: SANDBOX_UID

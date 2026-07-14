@@ -639,9 +639,11 @@ sandbox:
   # Limite de pool size TOTAL para la plataforma (todos los eventos combinados)
   # Se enforza via ResourceQuota en el namespace
   poolMaxTotalPerPlatform: 200
-  # Imagen base y variantes — imagen es elegida según Conference.sandboxVariant
+  # Fase 4: cada Pod de sandbox tiene 2 contenedores — "ide" (code-server, imagen unica Debian)
+  # y "runtime" (toolchain, imagen Alpine por variante segun Conference.sandboxVariant).
   images:
-    base: ghcr.io/rafex/insightbloom-code-ide
+    server: ghcr.io/rafex/insightbloom-code-ide-server:latest
+    runtimeBase: ghcr.io/rafex/insightbloom-code-ide-runtime
     variants:
       python:
         tag: python
@@ -652,14 +654,29 @@ sandbox:
       web:
         tag: web
         pullPolicy: Always
-  # Recursos por pod de sandbox (modestos para desarrollo)
+  # Recursos por contenedor (modestos para desarrollo). "ide" es liviano (solo sirve el editor);
+  # "runtime" es mas generoso (compila/ejecuta el codigo del usuario).
   resources:
-    requests:
-      cpu: 100m
-      memory: 512Mi
-    limits:
-      cpu: 500m
-      memory: 1Gi
+    ide:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 250m
+        memory: 512Mi
+    runtime:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    # Suma de ide.limits + runtime.limits — usado por el LimitRange (tipo Pod) del namespace de
+    # sandboxes; no se deriva automaticamente (son quantities de K8s, no numeros planos), se
+    # mantiene sincronizado a mano si se cambian los limites de arriba.
+    podLimits:
+      cpu: 750m
+      memory: 1536Mi
   # Port en que arranca code-server dentro del pod
   port: 8080
   # Security context (no-root, drop capabilities)

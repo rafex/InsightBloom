@@ -33,9 +33,16 @@ import javax.net.ssl.TrustManagerFactory;
  * en insightbloom-survey; solo se necesitan 5 verbos REST (crear/borrar/leer Pod, crear/borrar
  * Service), no vale la pena la dependencia pesada de un SDK generado.
  *
- * El spec de Pod replica exactamente lo documentado (pero nunca renderizado) en
+ * Fase 4: el Pod tiene dos contenedores — {@code ide} (code-server, imagen Debian fija) y
+ * {@code runtime} (toolchain por variante, imagen Alpine). La terminal integrada de code-server
+ * se conecta al contenedor {@code runtime} vía un servidor socat en {@code 127.0.0.1:7681}
+ * (loopback intra-Pod, nunca expuesto via Service) — ver {@code code-ide-settings.json}. El
+ * {@code Service} del Pod sigue enrutando solo al puerto del contenedor {@code ide}.
+ *
+ * El spec de Pod replica el hardening documentado (pero nunca renderizado) en
  * {@code infra/helm/charts/insightbloom/templates/sandbox-pool.yaml}: non-root, sin capabilities,
- * seccomp RuntimeDefault, sin montar el token del ServiceAccount dentro del propio sandbox.
+ * seccomp RuntimeDefault, sin montar el token del ServiceAccount dentro del propio sandbox (en
+ * ninguno de los dos contenedores).
  *
  * Fase 3 (ver plan de implementacion): RBAC (Role+RoleBinding en el namespace
  * insightbloom-sandboxes) es lo que autoriza a insightbloom-users a crear/borrar estos recursos —
@@ -45,33 +52,37 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private static final Logger LOGGER = Logger.getLogger(KubernetesPodClient.class.getName());
     private static final Path TOKEN_PATH = Path.of("/var/run/secrets/kubernetes.io/serviceaccount/token");
     private static final Path CA_PATH = Path.of("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt");
+    /** Puerto del servidor socat del contenedor runtime — solo loopback intra-Pod, nunca via Service. */
+    private static final int RUNTIME_PORT = 7681;
+
+    /** Límites de recursos de un contenedor del Pod de sandbox. */
+    public record ContainerResources(String cpuRequest, String memoryRequest, String cpuLimit, String memoryLimit) {
+    }
 
     private final HttpClient httpClient;
     private final String apiBaseUrl;
     private final String token;
     private final JsonCodec jsonCodec;
     private final String namespace;
-    private final String imageBase;
-    private final String cpuRequest;
-    private final String memoryRequest;
-    private final String cpuLimit;
-    private final String memoryLimit;
+    private final String serverImage;
+    private final String runtimeImageBase;
+    private final ContainerResources ideResources;
+    private final ContainerResources runtimeResources;
     private final int port;
     private final int uid;
     private final int gid;
     private final int fsGroup;
 
-    public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace, final String imageBase,
-                                final String cpuRequest, final String memoryRequest,
-                                final String cpuLimit, final String memoryLimit,
+    public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
+                                final String serverImage, final String runtimeImageBase,
+                                final ContainerResources ideResources, final ContainerResources runtimeResources,
                                 final int port, final int uid, final int gid, final int fsGroup) {
         this.jsonCodec = jsonCodec;
         this.namespace = namespace;
-        this.imageBase = imageBase;
-        this.cpuRequest = cpuRequest;
-        this.memoryRequest = memoryRequest;
-        this.cpuLimit = cpuLimit;
-        this.memoryLimit = memoryLimit;
+        this.serverImage = serverImage;
+        this.runtimeImageBase = runtimeImageBase;
+        this.ideResources = ideResources;
+        this.runtimeResources = runtimeResources;
         this.port = port;
         this.uid = uid;
         this.gid = gid;
@@ -167,37 +178,43 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "sandbox-variant", variant,
                 "sandbox-conference", Sandbox.conferenceLabel(conferenceUuid));
 
-        final List<Map<String, Object>> env = new ArrayList<>();
+        final List<Map<String, Object>> runtimeEnv = new ArrayList<>();
         if (extraPackages != null && !extraPackages.isBlank()) {
-            env.add(Map.of("name", "EXTRA_PACKAGES", "value", extraPackages));
+            runtimeEnv.add(Map.of("name", "EXTRA_PACKAGES", "value", extraPackages));
         }
         if (remoteGitUrl != null && !remoteGitUrl.isBlank()) {
-            env.add(Map.of("name", "REMOTE_GIT_URL", "value", remoteGitUrl));
+            runtimeEnv.add(Map.of("name", "REMOTE_GIT_URL", "value", remoteGitUrl));
         }
 
-        final Map<String, Object> containerSecurityContext = new LinkedHashMap<>();
-        containerSecurityContext.put("allowPrivilegeEscalation", false);
-        containerSecurityContext.put("runAsNonRoot", true);
-        containerSecurityContext.put("runAsUser", uid);
-        containerSecurityContext.put("readOnlyRootFilesystem", false);
-        containerSecurityContext.put("capabilities", Map.of("drop", List.of("ALL")));
-
-        final Map<String, Object> container = new LinkedHashMap<>();
-        container.put("name", "code-server");
-        container.put("image", imageBase + ":" + variant);
-        container.put("imagePullPolicy", "Always");
-        container.put("ports", List.of(Map.of("name", "http", "containerPort", port, "protocol", "TCP")));
-        if (!env.isEmpty()) container.put("env", env);
-        container.put("securityContext", containerSecurityContext);
-        container.put("resources", Map.of(
-                "requests", Map.of("cpu", cpuRequest, "memory", memoryRequest),
-                "limits", Map.of("cpu", cpuLimit, "memory", memoryLimit)));
-        container.put("volumeMounts", List.of(
+        final List<Map<String, Object>> volumeMounts = List.of(
                 Map.of("name", "workspace", "mountPath", "/home/coder/workspace"),
-                Map.of("name", "database", "mountPath", "/home/coder/db")));
-        container.put("readinessProbe", tcpProbe(5, 10, 2));
-        container.put("livenessProbe", tcpProbe(10, 30, 3));
-        container.put("startupProbe", tcpProbe(5, 10, 30));
+                Map.of("name", "database", "mountPath", "/home/coder/db"));
+
+        final Map<String, Object> ideContainer = new LinkedHashMap<>();
+        ideContainer.put("name", "ide");
+        ideContainer.put("image", serverImage);
+        ideContainer.put("imagePullPolicy", "Always");
+        ideContainer.put("ports", List.of(Map.of("name", "http", "containerPort", port, "protocol", "TCP")));
+        ideContainer.put("securityContext", containerSecurityContext());
+        ideContainer.put("resources", resourcesBody(ideResources));
+        ideContainer.put("volumeMounts", volumeMounts);
+        ideContainer.put("readinessProbe", tcpProbe(port, 5, 10, 2));
+        ideContainer.put("livenessProbe", tcpProbe(port, 10, 30, 3));
+        ideContainer.put("startupProbe", tcpProbe(port, 5, 10, 30));
+
+        // El contenedor runtime no expone su puerto vía Service ni Ingress: solo alcanzable por
+        // loopback intra-Pod desde 'ide' (terminal integrada de code-server -> socat).
+        final Map<String, Object> runtimeContainer = new LinkedHashMap<>();
+        runtimeContainer.put("name", "runtime");
+        runtimeContainer.put("image", runtimeImageBase + ":" + variant);
+        runtimeContainer.put("imagePullPolicy", "Always");
+        if (!runtimeEnv.isEmpty()) runtimeContainer.put("env", runtimeEnv);
+        runtimeContainer.put("securityContext", containerSecurityContext());
+        runtimeContainer.put("resources", resourcesBody(runtimeResources));
+        runtimeContainer.put("volumeMounts", volumeMounts);
+        runtimeContainer.put("readinessProbe", tcpProbe(RUNTIME_PORT, 5, 10, 2));
+        runtimeContainer.put("livenessProbe", tcpProbe(RUNTIME_PORT, 10, 30, 3));
+        runtimeContainer.put("startupProbe", tcpProbe(RUNTIME_PORT, 5, 10, 30));
 
         final Map<String, Object> podSecurityContext = new LinkedHashMap<>();
         podSecurityContext.put("runAsNonRoot", true);
@@ -205,14 +222,16 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         podSecurityContext.put("runAsGroup", gid);
         podSecurityContext.put("fsGroup", fsGroup);
         podSecurityContext.put("seccompProfile", Map.of("type", "RuntimeDefault"));
-        podSecurityContext.put("capabilities", Map.of("drop", List.of("ALL")));
+        // capabilities.drop pertenece a securityContext de CONTENEDOR, no de Pod (la API lo
+        // ignora en silencio a nivel Pod) — se declara correctamente en containerSecurityContext()
+        // para cada uno de los dos contenedores.
 
         final Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("serviceAccountName", "default");
         spec.put("automountServiceAccountToken", false);
         spec.put("restartPolicy", "Never");
         spec.put("securityContext", podSecurityContext);
-        spec.put("containers", List.of(container));
+        spec.put("containers", List.of(ideContainer, runtimeContainer));
         spec.put("volumes", List.of(
                 Map.of("name", "workspace", "emptyDir", Map.of()),
                 Map.of("name", "database", "emptyDir", Map.of())));
@@ -224,9 +243,26 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "spec", spec);
     }
 
-    private Map<String, Object> tcpProbe(final int initialDelay, final int period, final int failureThreshold) {
+    private Map<String, Object> containerSecurityContext() {
+        final Map<String, Object> ctx = new LinkedHashMap<>();
+        ctx.put("allowPrivilegeEscalation", false);
+        ctx.put("runAsNonRoot", true);
+        ctx.put("runAsUser", uid);
+        ctx.put("readOnlyRootFilesystem", false);
+        ctx.put("capabilities", Map.of("drop", List.of("ALL")));
+        return ctx;
+    }
+
+    private static Map<String, Object> resourcesBody(final ContainerResources resources) {
         return Map.of(
-                "tcpSocket", Map.of("port", port),
+                "requests", Map.of("cpu", resources.cpuRequest(), "memory", resources.memoryRequest()),
+                "limits", Map.of("cpu", resources.cpuLimit(), "memory", resources.memoryLimit()));
+    }
+
+    private Map<String, Object> tcpProbe(final int targetPort, final int initialDelay, final int period,
+                                          final int failureThreshold) {
+        return Map.of(
+                "tcpSocket", Map.of("port", targetPort),
                 "initialDelaySeconds", initialDelay,
                 "periodSeconds", period,
                 "failureThreshold", failureThreshold);

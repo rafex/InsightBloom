@@ -55,19 +55,19 @@ spec:
       drop:
         - ALL
 
+  # Fase 4: 2 contenedores por Pod. "ide" (code-server, Debian, imagen unica) sirve el editor;
+  # "runtime" (toolchain por variante, Alpine) es donde ejecuta la terminal integrada, via un
+  # servidor socat en 127.0.0.1:7681 (loopback intra-Pod, nunca expuesto via Service).
   containers:
-  - name: code-server
-    # Imagen: elegida según Conference.sandboxVariant
-    # Aquí un ejemplo con "python" — en Fase 3 se templatizan todas las variantes
-    image: "{{ .Values.sandbox.images.base }}:{{ .Values.sandbox.images.variants.python.tag }}"
-    imagePullPolicy: {{ .Values.sandbox.images.variants.python.pullPolicy }}
+  - name: ide
+    image: "{{ .Values.sandbox.images.server }}"
+    imagePullPolicy: Always
 
     ports:
     - name: http
       containerPort: {{ .Values.sandbox.port }}
       protocol: TCP
 
-    # Security context por contenedor (completo)
     securityContext:
       allowPrivilegeEscalation: false
       runAsNonRoot: true
@@ -77,23 +77,20 @@ spec:
         drop:
           - ALL
 
-    # Resources (modestos para desarrollo, ajustables según carga)
     resources:
       requests:
-        cpu: {{ .Values.sandbox.resources.requests.cpu }}
-        memory: {{ .Values.sandbox.resources.requests.memory }}
+        cpu: {{ .Values.sandbox.resources.ide.requests.cpu }}
+        memory: {{ .Values.sandbox.resources.ide.requests.memory }}
       limits:
-        cpu: {{ .Values.sandbox.resources.limits.cpu }}
-        memory: {{ .Values.sandbox.resources.limits.memory }}
+        cpu: {{ .Values.sandbox.resources.ide.limits.cpu }}
+        memory: {{ .Values.sandbox.resources.ide.limits.memory }}
 
-    # Volúmenes: workspace + db (ambos efímeros, se pierden al destruir el pod)
     volumeMounts:
     - name: workspace
       mountPath: /home/coder/workspace
     - name: database
       mountPath: /home/coder/db
 
-    # Probes de salud (básicos; code-server no expone un /health endpoint, así que se usa TCP)
     livenessProbe:
       tcpSocket:
         port: {{ .Values.sandbox.port }}
@@ -108,10 +105,61 @@ spec:
       periodSeconds: 10
       failureThreshold: 2
 
-    # Límite de tiempo de arranque (el boot puede tardar)
     startupProbe:
       tcpSocket:
         port: {{ .Values.sandbox.port }}
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 30  # Esperar hasta 5 minutos
+
+  - name: runtime
+    # Imagen: elegida según Conference.sandboxVariant
+    # Aquí un ejemplo con "python" — en Fase 3/4 se templatizan todas las variantes
+    image: "{{ .Values.sandbox.images.runtimeBase }}:{{ .Values.sandbox.images.variants.python.tag }}"
+    imagePullPolicy: {{ .Values.sandbox.images.variants.python.pullPolicy }}
+    # Sin "ports" declarado: el servidor socat (127.0.0.1:7681) solo se alcanza por loopback
+    # intra-Pod desde el contenedor "ide", nunca se expone via Service/Ingress.
+
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      runAsUser: {{ .Values.sandbox.securityContext.runAsUser }}
+      readOnlyRootFilesystem: false
+      capabilities:
+        drop:
+          - ALL
+
+    resources:
+      requests:
+        cpu: {{ .Values.sandbox.resources.runtime.requests.cpu }}
+        memory: {{ .Values.sandbox.resources.runtime.requests.memory }}
+      limits:
+        cpu: {{ .Values.sandbox.resources.runtime.limits.cpu }}
+        memory: {{ .Values.sandbox.resources.runtime.limits.memory }}
+
+    volumeMounts:
+    - name: workspace
+      mountPath: /home/coder/workspace
+    - name: database
+      mountPath: /home/coder/db
+
+    livenessProbe:
+      tcpSocket:
+        port: 7681
+      initialDelaySeconds: 10
+      periodSeconds: 30
+      failureThreshold: 3
+
+    readinessProbe:
+      tcpSocket:
+        port: 7681
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 2
+
+    startupProbe:
+      tcpSocket:
+        port: 7681
       initialDelaySeconds: 5
       periodSeconds: 10
       failureThreshold: 30  # Esperar hasta 5 minutos

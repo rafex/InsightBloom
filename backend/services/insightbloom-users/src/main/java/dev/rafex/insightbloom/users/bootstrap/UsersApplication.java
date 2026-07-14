@@ -168,11 +168,18 @@ public class UsersApplication {
         final var sandboxOrchestrator = new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient(
                 JacksonJsonCodec.defaultCodec(),
                 System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"),
-                System.getenv().getOrDefault("SANDBOX_IMAGE_BASE", "ghcr.io/rafex/insightbloom-code-ide"),
-                System.getenv().getOrDefault("SANDBOX_CPU_REQUEST", "100m"),
-                System.getenv().getOrDefault("SANDBOX_MEMORY_REQUEST", "512Mi"),
-                System.getenv().getOrDefault("SANDBOX_CPU_LIMIT", "500m"),
-                System.getenv().getOrDefault("SANDBOX_MEMORY_LIMIT", "1Gi"),
+                System.getenv().getOrDefault("SANDBOX_SERVER_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-server:latest"),
+                System.getenv().getOrDefault("SANDBOX_RUNTIME_IMAGE_BASE", "ghcr.io/rafex/insightbloom-code-ide-runtime"),
+                new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient.ContainerResources(
+                        System.getenv().getOrDefault("SANDBOX_IDE_CPU_REQUEST", "50m"),
+                        System.getenv().getOrDefault("SANDBOX_IDE_MEMORY_REQUEST", "256Mi"),
+                        System.getenv().getOrDefault("SANDBOX_IDE_CPU_LIMIT", "250m"),
+                        System.getenv().getOrDefault("SANDBOX_IDE_MEMORY_LIMIT", "512Mi")),
+                new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient.ContainerResources(
+                        System.getenv().getOrDefault("SANDBOX_RUNTIME_CPU_REQUEST", "100m"),
+                        System.getenv().getOrDefault("SANDBOX_RUNTIME_MEMORY_REQUEST", "512Mi"),
+                        System.getenv().getOrDefault("SANDBOX_RUNTIME_CPU_LIMIT", "500m"),
+                        System.getenv().getOrDefault("SANDBOX_RUNTIME_MEMORY_LIMIT", "1Gi")),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PORT", "8080")),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_UID", "1000")),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_GID", "1000")),
