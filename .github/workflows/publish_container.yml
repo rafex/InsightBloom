@@ -744,23 +744,8 @@ jobs:
           echo "Images pushed to ghcr.io/${{ env.OWNER }}/insightbloom-*"
           echo "Tag: ${{ steps.image_tag.outputs.value }}"
 
-  # ── Deploy ───────────────────────────────────────────────────────────────────
-  deploy-after-publish:
-    name: Deploy to k3s
-    needs:
-      - build-and-push-users
-      - build-and-push-tools-gateway
-      - build-and-push-stats
-      - build-and-push-moderation
-      - build-and-push-query
-      - build-and-push-ingest
-      - build-and-push-chat
-      - build-and-push-telegram
-      - build-and-push-web
-      - build-and-push-survey
-      - build-and-push-presentations
-    if: ${{ github.ref_type == 'tag' || github.ref_name == 'main' }}
-    uses: ./.github/workflows/deploy.yml
-    with:
-      version_tag: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
-    secrets: inherit
+  # ── Nota ─────────────────────────────────────────────────────────────────────
+  # El deploy se gestiona via FluxCD desde el repo InsightBloom-gitops.
+  # CI solo construye y publica imagenes en GHCR; Flux detecta nuevas
+  # imagenes automaticamente y actualiza el HelmRelease en el cluster via
+  # ImageUpdateAutomation.
