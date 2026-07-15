@@ -50,6 +50,7 @@ final class AuthGateHandler extends Handler.Abstract {
     private static final JsonCodec JSON_CODEC = JacksonJsonCodec.defaultCodec();
     static final String SESSION_COOKIE = "ib_gw";
     static final Duration SESSION_TTL = Duration.ofHours(4);
+    private static final int MAX_RETRIES = 2;
     private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
             "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
             "te", "trailers", "transfer-encoding", "upgrade", "content-length", "host");
@@ -260,25 +261,28 @@ final class AuthGateHandler extends Handler.Abstract {
      * upstream (ej. Etherpad/Node); si el servidor cierra una conexion inactiva justo antes de
      * que el pool la reuse, el intento falla con {@code EOFException}/"header parser received
      * no bytes" (carrera clasica de conexion obsoleta, ver logs de produccion 2026-07-12/13).
-     * El reintento usa un {@link HttpClient} fresco (pool virgen, TCP nuevo) y reemplaza el
-     * cliente compartido para que las requests subsiguientes tampoco reutilicen el pool viejo.
-     * Solo se reintenta para metodos idempotentes sin cuerpo: el cuerpo de POST/PUT viene de
-     * un InputStream de la request original que ya se habria consumido parcialmente en el
-     * primer intento.
+     * Se reintenta con el mismo {@code httpClient} hasta {@link #MAX_RETRIES} veces; si todos
+     * los reintentos fallan, se crea un {@link HttpClient} fresco (pool virgen, TCP nuevo) y
+     * se reemplaza el cliente compartido. Solo se reintenta para metodos idempotentes sin
+     * cuerpo: el cuerpo de POST/PUT viene de un InputStream de la request original que ya se
+     * habria consumido parcialmente en el primer intento.
      */
     private HttpResponse<byte[]> sendWithRetry(final HttpRequest upstreamRequest)
             throws IOException, InterruptedException {
         final boolean retryable = "GET".equals(upstreamRequest.method()) || "HEAD".equals(upstreamRequest.method());
-        try {
-            return httpClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
-        } catch (final IOException e) {
-            if (!retryable) throw e;
-            LOGGER.info("stale connection detected, creating fresh HttpClient for retry");
-            final HttpClient freshClient = HttpClient.newHttpClient();
-            final var result = freshClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
-            httpClient = freshClient;
-            return result;
+        for (int attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                return httpClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
+            } catch (final IOException e) {
+                if (!retryable) throw e;
+            }
         }
+        LOGGER.info("stale connection not recovered after " + MAX_RETRIES
+                + " retries, creating fresh HttpClient");
+        final HttpClient freshClient = HttpClient.newHttpClient();
+        final var result = freshClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
+        httpClient = freshClient;
+        return result;
     }
 
     private static String stripIbToken(final String rawQuery) {
