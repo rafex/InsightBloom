@@ -273,7 +273,6 @@ final class AuthGateHandler extends Handler.Abstract {
         } catch (final IOException e) {
             if (!retryable) throw e;
             final HttpRequest retryRequest = HttpRequest.newBuilder(upstreamRequest, (name, value) -> true)
-                    .header("Connection", "close")
                     .build();
             return httpClient.send(retryRequest, HttpResponse.BodyHandlers.ofByteArray());
         }
