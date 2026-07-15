@@ -88,6 +88,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-users:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-users:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-users:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -153,6 +154,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-tools-gateway:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-tools-gateway:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-tools-gateway:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -220,6 +222,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-stats:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-stats:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-stats:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -285,6 +288,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-survey:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-survey:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-survey:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -336,6 +340,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-presentations:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-presentations:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-presentations:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -403,6 +408,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-moderation:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-moderation:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-moderation:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -470,6 +476,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-query:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-query:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-query:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -537,6 +544,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-ingest:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-ingest:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-ingest:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -589,6 +597,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-chat:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-chat:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-chat:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -641,6 +650,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-telegram:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-telegram:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-telegram:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -762,6 +772,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-web:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-web:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-web:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
