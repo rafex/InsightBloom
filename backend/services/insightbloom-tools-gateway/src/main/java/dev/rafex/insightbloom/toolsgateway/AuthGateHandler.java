@@ -61,7 +61,7 @@ final class AuthGateHandler extends Handler.Abstract {
     private final String sandboxResolveUrl;
     private final String internalApiKey;
     private final SessionCache sessionCache = new SessionCache();
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private volatile HttpClient httpClient = HttpClient.newHttpClient();
 
     AuthGateHandler(final Map<String, String> routesByHost, final String authValidateUrl, final String loginUrl) {
         this(routesByHost, authValidateUrl, loginUrl, null, null, null);
@@ -260,10 +260,11 @@ final class AuthGateHandler extends Handler.Abstract {
      * upstream (ej. Etherpad/Node); si el servidor cierra una conexion inactiva justo antes de
      * que el pool la reuse, el intento falla con {@code EOFException}/"header parser received
      * no bytes" (carrera clasica de conexion obsoleta, ver logs de produccion 2026-07-12/13).
-     * El reintento agrega {@code Connection: close} para forzar una nueva conexion TCP en vez
-     * de reusar la conexion stale del pool. Solo se reintenta para metodos idempotentes sin
-     * cuerpo: el cuerpo de POST/PUT viene de un InputStream de la request original que ya se
-     * habria consumido parcialmente en el primer intento.
+     * El reintento usa un {@link HttpClient} fresco (pool virgen, TCP nuevo) y reemplaza el
+     * cliente compartido para que las requests subsiguientes tampoco reutilicen el pool viejo.
+     * Solo se reintenta para metodos idempotentes sin cuerpo: el cuerpo de POST/PUT viene de
+     * un InputStream de la request original que ya se habria consumido parcialmente en el
+     * primer intento.
      */
     private HttpResponse<byte[]> sendWithRetry(final HttpRequest upstreamRequest)
             throws IOException, InterruptedException {
@@ -272,9 +273,11 @@ final class AuthGateHandler extends Handler.Abstract {
             return httpClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
         } catch (final IOException e) {
             if (!retryable) throw e;
-            final HttpRequest retryRequest = HttpRequest.newBuilder(upstreamRequest, (name, value) -> true)
-                    .build();
-            return httpClient.send(retryRequest, HttpResponse.BodyHandlers.ofByteArray());
+            LOGGER.info("stale connection detected, creating fresh HttpClient for retry");
+            final HttpClient freshClient = HttpClient.newHttpClient();
+            final var result = freshClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
+            httpClient = freshClient;
+            return result;
         }
     }
 
