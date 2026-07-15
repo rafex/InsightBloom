@@ -18,7 +18,7 @@ public final class GatewayApplication {
     }
 
     public static void main(final String[] args) throws Exception {
-        System.setProperty("jdk.httpclient.keepalive.timeout", "0");
+        System.setProperty("jdk.httpclient.keepalive.timeout", "180");
         final int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8090"));
         final String authValidateUrl = System.getenv().getOrDefault(
                 "AUTH_VALIDATE_URL", "http://insightbloom-users:8081/api/v1/auth/validate");
