@@ -1,0 +1,50 @@
+name: Integration Tests
+
+# Fase 5 de tests (bajo demanda, NO en cada push/PR -- eso ya lo cubre ci.yml con
+# tests unitarios mockeados). Levanta el stack real de infra/compose/local.yml
+# (users/moderation/stats/query/ingest) y corre dos capas de verificacion contra
+# el stack real: tests estructurados JUnit5+Failsafe (*IT.java) y un smoke test
+# curl+jq complementario. Se dispara manualmente desde la UI de Actions o
+# `gh workflow run integration-tests.yml`.
+on:
+  workflow_dispatch:
+
+jobs:
+  integration:
+    name: Integration tests (real stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SERVICES: "backend/services/insightbloom-users,backend/services/insightbloom-moderation,backend/services/insightbloom-stats,backend/services/insightbloom-query,backend/services/insightbloom-ingest"
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Build service JARs (sin tests unitarios, ya corrieron en ci.yml)
+        run: ./mvnw -f pom.xml -pl "${SERVICES}" -am package -DskipTests -q
+
+      - name: Levantar el stack real (infra/compose/local.yml)
+        run: |
+          docker compose -f infra/compose/local.yml up --build --wait \
+            insightbloom-users insightbloom-moderation insightbloom-stats \
+            insightbloom-query insightbloom-ingest
+
+      - name: Correr tests de integracion (JUnit5 + Failsafe, *IT.java)
+        run: ./mvnw -f pom.xml -pl "${SERVICES}" -am verify -Pintegration
+
+      - name: Smoke test complementario (curl+jq)
+        run: bash scripts/test/integration-smoke.sh
+
+      - name: Logs del stack (si algo fallo)
+        if: always()
+        run: docker compose -f infra/compose/local.yml logs
+
+      - name: Apagar el stack
+        if: always()
+        run: docker compose -f infra/compose/local.yml down -v
