@@ -655,11 +655,14 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ── Sandbox IDE images (TASK-0010/0011, Fase 3; Fase 4: split ide/runtime) ──
-  # Deliberadamente NO esta en el `needs:` de deploy-after-publish: un fallo aca
-  # no debe bloquear el deploy de los servicios de la aplicacion real, que no
-  # dependen de esta imagen para funcionar. Postmortem 2026-07-13: el primer
-  # intento de agregarla a `needs:` hizo que "Deploy to k3s" se saltara entero
-  # (incluyendo web/users ya compilados y listos) porque este job fallo.
+  # Este workflow es solo CI (build + push a GHCR) — no despliega a k3s, eso se hace
+  # aparte y manualmente contra el cluster. Este job se mantiene independiente de los
+  # demas (nada depende de el via `needs:`, y el tampoco es needs de nadie): un fallo
+  # aca no debe impedir que las imagenes de los servicios de la aplicacion real queden
+  # publicadas en GHCR. Postmortem 2026-07-13: en un momento en que este pipeline si
+  # encadenaba un job de deploy, agregar este job al `needs:` de ese deploy hizo que
+  # se saltara entero (incluyendo web/users ya compilados y listos) porque este job
+  # fallo — el precedente se mantiene como recordatorio de no volver a acoplarlo.
   # Fase 4 (2026-07-14): se separo la imagen "ide" (Debian, solo code-server via
   # release standalone — sin npm) del "runtime" por variante (Alpine, solo
   # toolchain). Ninguna de las 4 imagenes depende de otra via FROM, asi que se
@@ -675,16 +678,20 @@ jobs:
         include:
           - name: ide-server
             file: infra/docker/Dockerfile.code-ide-server
-            tag: ghcr.io/rafex/insightbloom-code-ide-server:latest
+            image: ghcr.io/rafex/insightbloom-code-ide-server
+            variantTag: latest
           - name: runtime-python
             file: infra/docker/Dockerfile.code-ide-runtime.python
-            tag: ghcr.io/rafex/insightbloom-code-ide-runtime:python
+            image: ghcr.io/rafex/insightbloom-code-ide-runtime
+            variantTag: python
           - name: runtime-java
             file: infra/docker/Dockerfile.code-ide-runtime.java
-            tag: ghcr.io/rafex/insightbloom-code-ide-runtime:java
+            image: ghcr.io/rafex/insightbloom-code-ide-runtime
+            variantTag: java
           - name: runtime-web
             file: infra/docker/Dockerfile.code-ide-runtime.web
-            tag: ghcr.io/rafex/insightbloom-code-ide-runtime:web
+            image: ghcr.io/rafex/insightbloom-code-ide-runtime
+            variantTag: web
     steps:
       - uses: actions/checkout@v6
 
@@ -707,7 +714,9 @@ jobs:
           provenance: false
           sbom: false
           platforms: linux/amd64
-          tags: ${{ matrix.tag }}
+          tags: |
+            ${{ matrix.image }}:${{ matrix.variantTag }}
+            ${{ matrix.image }}:build-${{ github.run_number }}
           cache-from: type=gha,scope=code-ide-${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=code-ide-${{ matrix.name }}
 
