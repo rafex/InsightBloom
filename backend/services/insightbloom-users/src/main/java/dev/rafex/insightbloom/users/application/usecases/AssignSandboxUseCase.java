@@ -42,6 +42,10 @@ public class AssignSandboxUseCase {
      * paralelo, uno de los dos INSERT falla y se traduce a {@code sandbox_pool_full} (el usuario
      * puede reintentar; para entonces el otro ya ocupó el slot y el conteo de activos ya no
      * coincide, evitando un loop infinito).
+     *
+     * Si {@link EnsureUnassignedSandboxUseCase} ya dejó un sandbox libre (sin usuario) esperando,
+     * se reclama de inmediato sin golpear el API de Kubernetes — el Pod ya está creado (Pending o
+     * Running) desde antes de que este usuario lo pidiera.
      */
     public Sandbox execute(final String conferenceUuid, final String userUuid) {
         final Conference conference = conferenceRepository.findByUuid(conferenceUuid)
@@ -50,6 +54,18 @@ public class AssignSandboxUseCase {
         final var existing = sandboxRepository.findByConferenceAndUser(conferenceUuid, userUuid);
         if (existing.isPresent()) {
             return existing.get();
+        }
+
+        final var unassigned = sandboxRepository.findUnassigned(conferenceUuid);
+        if (unassigned.isPresent()) {
+            final Sandbox free = unassigned.get();
+            final Instant assignedAt = Instant.now();
+            if (sandboxRepository.claim(free.getUuid(), userUuid, assignedAt)) {
+                return new Sandbox(free.getUuid(), conferenceUuid, free.getSandboxSlot(), userUuid,
+                    assignedAt, free.getCreatedAt(), free.getExpiresAt());
+            }
+            // Perdio la carrera por ese slot (otro request lo reclamo primero) -- sigue abajo
+            // como si no hubiera habido un sandbox libre.
         }
 
         final List<Sandbox> active = sandboxRepository.findByConferenceUuid(conferenceUuid);

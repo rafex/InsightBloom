@@ -117,6 +117,40 @@ public class SqliteSandboxRepository implements SandboxRepository {
     }
 
     @Override
+    public Optional<Sandbox> findUnassigned(final String conferenceUuid) {
+        try (final Connection conn = databaseManager.getConnection();
+             final PreparedStatement stmt = conn.prepareStatement(
+                "SELECT uuid, conference_uuid, sandbox_slot, user_uuid, assigned_at, created_at, expires_at " +
+                "FROM sandbox_assignments WHERE conference_uuid = ? AND user_uuid IS NULL " +
+                "ORDER BY sandbox_slot ASC LIMIT 1")) {
+            stmt.setString(1, conferenceUuid);
+            try (final ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapRowToSandbox(rs));
+                }
+            }
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to find unassigned sandbox", e);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public boolean claim(final String uuid, final String userUuid, final Instant assignedAt) {
+        try (final Connection conn = databaseManager.getConnection();
+             final PreparedStatement stmt = conn.prepareStatement(
+                "UPDATE sandbox_assignments SET user_uuid = ?, assigned_at = ? " +
+                "WHERE uuid = ? AND user_uuid IS NULL")) {
+            stmt.setString(1, userUuid);
+            stmt.setString(2, assignedAt.toString());
+            stmt.setString(3, uuid);
+            return stmt.executeUpdate() == 1;
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to claim sandbox", e);
+        }
+    }
+
+    @Override
     public void deleteByConferenceUuid(final String conferenceUuid) {
         try (final Connection conn = databaseManager.getConnection();
              final PreparedStatement stmt = conn.prepareStatement(

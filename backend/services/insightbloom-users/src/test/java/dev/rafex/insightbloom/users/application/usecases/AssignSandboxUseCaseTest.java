@@ -112,4 +112,43 @@ class AssignSandboxUseCaseTest {
             () -> useCase.execute("conf-1", "user-student-1"));
         assertEquals("sandbox_unavailable", ex.getMessage());
     }
+
+    @Test
+    void testAssignSandboxClaimsPreProvisionedWithoutTouchingKubernetes() {
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
+        final var free = new Sandbox("conf-1", 0, null, java.time.Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findUnassigned("conf-1")).thenReturn(Optional.of(free));
+        Mockito.when(sandboxRepoMock.claim(Mockito.eq(free.getUuid()), Mockito.eq("user-student-1"), Mockito.any()))
+            .thenReturn(true);
+
+        final var result = useCase.execute("conf-1", "user-student-1");
+
+        assertEquals("user-student-1", result.getUserUuid());
+        assertEquals(free.getUuid(), result.getUuid());
+        Mockito.verifyNoInteractions(orchestratorMock);
+        Mockito.verify(sandboxRepoMock, Mockito.never()).save(Mockito.any());
+    }
+
+    @Test
+    void testAssignSandboxFallsBackToCreateWhenClaimLosesRace() {
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
+        final var free = new Sandbox("conf-1", 0, null, java.time.Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findUnassigned("conf-1")).thenReturn(Optional.of(free));
+        Mockito.when(sandboxRepoMock.claim(Mockito.eq(free.getUuid()), Mockito.eq("user-student-1"), Mockito.any()))
+            .thenReturn(false);
+        // El otro request que gano la carrera ya ocupo el slot 0; queda libre el slot 1.
+        final var takenBySomeoneElse = new Sandbox("conf-1", 0, "user-other", java.time.Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(takenBySomeoneElse));
+
+        final var result = useCase.execute("conf-1", "user-student-1");
+
+        assertEquals("user-student-1", result.getUserUuid());
+        assertEquals(1, result.getSandboxSlot());
+        Mockito.verify(orchestratorMock).createSandbox(
+            Mockito.eq(result.podName()), Mockito.eq("conf-1"), Mockito.eq("python"),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false));
+        Mockito.verify(sandboxRepoMock).save(Mockito.any(Sandbox.class));
+    }
 }

@@ -1,5 +1,6 @@
 package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
+import dev.rafex.insightbloom.users.application.usecases.EnsureUnassignedSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxInternetUseCase;
 import dev.rafex.ether.http.core.HttpExchange;
@@ -85,6 +86,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GenerateSeatLayoutUseCase generateSeatLayoutUseCase;
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
     private final SetSandboxInternetUseCase setSandboxInternetUseCase;
+    private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
     private final SandboxHandler sandboxHandler;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
@@ -121,6 +123,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GenerateSeatLayoutUseCase generateSeatLayoutUseCase,
                              final SetSandboxConfigUseCase setSandboxConfigUseCase,
                              final SetSandboxInternetUseCase setSandboxInternetUseCase,
+                             final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
                              final SandboxHandler sandboxHandler) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
@@ -156,6 +159,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.generateSeatLayoutUseCase = generateSeatLayoutUseCase;
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
         this.setSandboxInternetUseCase = setSandboxInternetUseCase;
+        this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
         this.sandboxHandler = sandboxHandler;
     }
 
@@ -1003,6 +1007,13 @@ public class ConferenceHandler extends BaseResourceHandler {
             final String sandboxRemoteGitUrl = (String) body.get("sandboxRemoteGitUrl");
             final var result = setSandboxConfigUseCase.execute(id, sandboxVariant, sandboxPoolSize,
                 sandboxExtraPackages, sandboxRemoteGitUrl);
+            try {
+                // Best-effort: si falla (ej. Kubernetes no disponible), no debe tumbar el guardado
+                // de la config -- AssignSandboxUseCase sigue creando bajo demanda como fallback.
+                ensureUnassignedSandboxUseCase.execute(id);
+            } catch (final Exception ignored) {
+                // pre-warm es una optimizacion, no un requisito para guardar la config
+            }
             sendOk(jx, 200, result);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());

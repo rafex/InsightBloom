@@ -12,13 +12,18 @@ public class Sandbox {
     private final Instant createdAt;
     private final Instant expiresAt; // basado en Conference.expiresAt + ttlSecondsAfterEventExpiry
 
-    /** Fase 3: el Pod se crea junto con la fila, ya asignado — no hay "slot vacío" intermedio. */
+    /**
+     * Fase 3: el Pod se crea junto con la fila. {@code userUuid} nulo representa un sandbox
+     * pre-provisionado (EnsureUnassignedSandboxUseCase) esperando a que alguien lo reclame —
+     * en ese caso {@code assignedAt} queda nulo hasta el reclamo (ver
+     * {@link dev.rafex.insightbloom.users.domain.ports.SandboxRepository#claim}).
+     */
     public Sandbox(final String conferenceUuid, final int sandboxSlot, final String userUuid, final Instant expiresAt) {
         this.uuid = UUID.randomUUID().toString();
         this.conferenceUuid = conferenceUuid;
         this.sandboxSlot = sandboxSlot;
         this.userUuid = userUuid;
-        this.assignedAt = Instant.now();
+        this.assignedAt = userUuid != null ? Instant.now() : null;
         this.createdAt = Instant.now();
         this.expiresAt = expiresAt;
     }
