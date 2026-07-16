@@ -15,7 +15,9 @@ services:
     volumes:
       - users-data:/data
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      # /health no existe en el codigo (VersionHandler es lo unico registrado); /version
+      # ya responde 200 en los 5 servicios sin necesitar un endpoint nuevo.
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/version"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,6 +35,11 @@ services:
       - DB_PATH=/data/moderation.db
     volumes:
       - moderation-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8084/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
       insightbloom-users:
         condition: service_healthy
@@ -50,6 +57,11 @@ services:
       - DB_PATH=/data/stats.db
     volumes:
       - stats-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8085/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
       insightbloom-users:
         condition: service_healthy
@@ -69,6 +81,11 @@ services:
       - MODERATION_URL=http://insightbloom-moderation:8084
     volumes:
       - query-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
       insightbloom-stats:
         condition: service_healthy
@@ -91,6 +108,11 @@ services:
       - STATS_URL=http://insightbloom-stats:8085
     volumes:
       - ingest-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     depends_on:
       insightbloom-users:
         condition: service_healthy
