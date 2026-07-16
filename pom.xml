@@ -320,4 +320,32 @@
     </pluginManagement>
   </build>
 
+  <profiles>
+    <!-- Fase 5: tests de integracion (*IT.java) contra un entorno real levantado por
+         infra/compose/local.yml. Deliberadamente NO corren con "mvn verify" normal
+         (el que ya corre ci.yml en cada push/PR); solo se activan con -Pintegration,
+         invocado por .github/workflows/integration-tests.yml (workflow_dispatch, bajo
+         demanda). Failsafe usa su convencion de inclusion por defecto (**/*IT.java),
+         que Surefire (tests unitarios existentes, **/*Test.java) ya ignora y viceversa. -->
+    <profile>
+      <id>integration</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
 </project>

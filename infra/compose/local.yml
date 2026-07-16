@@ -12,6 +12,10 @@ services:
     environment:
       - PORT=8081
       - DB_PATH=/data/users.db
+      # Compartida entre los 5 servicios: /internal/* falla-cerrado si esta var no esta
+      # seteada (BaseResourceHandler.validInternalAuth), asi que sin esto las llamadas
+      # service-to-service (ingest->moderation, etc.) fallaban en silencio.
+      - INTERNAL_API_KEY=local-dev-internal-key
     volumes:
       - users-data:/data
     healthcheck:
@@ -33,6 +37,7 @@ services:
     environment:
       - PORT=8084
       - DB_PATH=/data/moderation.db
+      - INTERNAL_API_KEY=local-dev-internal-key
     volumes:
       - moderation-data:/data
     healthcheck:
@@ -55,6 +60,7 @@ services:
     environment:
       - PORT=8085
       - DB_PATH=/data/stats.db
+      - INTERNAL_API_KEY=local-dev-internal-key
     volumes:
       - stats-data:/data
     healthcheck:
@@ -79,6 +85,7 @@ services:
       - DB_PATH=/data/query.db
       - STATS_URL=http://insightbloom-stats:8085
       - MODERATION_URL=http://insightbloom-moderation:8084
+      - INTERNAL_API_KEY=local-dev-internal-key
     volumes:
       - query-data:/data
     healthcheck:
@@ -106,6 +113,7 @@ services:
       - USERS_URL=http://insightbloom-users:8081
       - MODERATION_URL=http://insightbloom-moderation:8084
       - STATS_URL=http://insightbloom-stats:8085
+      - INTERNAL_API_KEY=local-dev-internal-key
     volumes:
       - ingest-data:/data
     healthcheck:
