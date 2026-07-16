@@ -35,7 +35,7 @@ hace el workflow de CI, `build-and-push-code-ide`, como matriz).
 ## Code-server Configuration
 
 - **Puerto**: 8080 (expuesto en el contenedor `ide`)
-- **Autenticación**: `--disable-auth` — delegada al gateway via `ib_token` (DEC-0022)
+- **Autenticación**: `--auth none` — delegada al gateway via `ib_token` (DEC-0022)
 - **Bind address**: 0.0.0.0 (accesible desde el gateway)
 - **Workspace**: `/home/coder/workspace` (volumen compartido entre `ide` y `runtime`)
 - **Database**: `/home/coder/db` (volumen compartido, para SQLite)

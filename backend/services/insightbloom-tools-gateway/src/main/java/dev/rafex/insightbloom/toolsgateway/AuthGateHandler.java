@@ -62,7 +62,7 @@ final class AuthGateHandler extends Handler.Abstract {
     private final String sandboxResolveUrl;
     private final String internalApiKey;
     private final SessionCache sessionCache = new SessionCache();
-    private volatile HttpClient httpClient = HttpClient.newHttpClient();
+    private volatile HttpClient httpClient = newProxyHttpClient();
 
     AuthGateHandler(final Map<String, String> routesByHost, final String authValidateUrl, final String loginUrl) {
         this(routesByHost, authValidateUrl, loginUrl, null, null, null);
@@ -279,10 +279,27 @@ final class AuthGateHandler extends Handler.Abstract {
         }
         LOGGER.info("stale connection not recovered after " + MAX_RETRIES
                 + " retries, creating fresh HttpClient");
-        final HttpClient freshClient = HttpClient.newHttpClient();
+        final HttpClient freshClient = newProxyHttpClient();
         final var result = freshClient.send(upstreamRequest, HttpResponse.BodyHandlers.ofByteArray());
         httpClient = freshClient;
         return result;
+    }
+
+    /**
+     * Fuerza HTTP/1.1: por defecto {@link HttpClient} intenta negociar HTTP/2 en texto plano
+     * (h2c) incluso contra destinos {@code http://} — las herramientas self-hosted que este
+     * gateway proxea (Etherpad/drawio/Excalidraw/code-server) son servidores HTTP/1.1 planos
+     * que no manejan ese intento de upgrade, y cierran la conexion sin responder. Eso produce
+     * exactamente {@code EOFException}/"header parser received no bytes" -- reproducido incluso
+     * con un {@link HttpClient} recien creado (pool vacio, conexion nueva), lo que descarta que
+     * el problema fuera reutilizar una conexion keep-alive obsoleta (la teoria de los fixes
+     * anteriores de este archivo). Confirmado en produccion 2026-07-16: un `wget` liso desde el
+     * mismo pod al mismo destino funcionaba siempre; solo este HttpClient fallaba.
+     */
+    private static HttpClient newProxyHttpClient() {
+        return HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
     }
 
     private static String stripIbToken(final String rawQuery) {
