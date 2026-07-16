@@ -212,9 +212,9 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         runtimeContainer.put("securityContext", containerSecurityContext());
         runtimeContainer.put("resources", resourcesBody(runtimeResources));
         runtimeContainer.put("volumeMounts", volumeMounts);
-        runtimeContainer.put("readinessProbe", tcpProbe(RUNTIME_PORT, 5, 10, 2));
-        runtimeContainer.put("livenessProbe", tcpProbe(RUNTIME_PORT, 10, 30, 3));
-        runtimeContainer.put("startupProbe", tcpProbe(RUNTIME_PORT, 5, 10, 30));
+        runtimeContainer.put("readinessProbe", execLoopbackProbe(RUNTIME_PORT, 5, 10, 2));
+        runtimeContainer.put("livenessProbe", execLoopbackProbe(RUNTIME_PORT, 10, 30, 3));
+        runtimeContainer.put("startupProbe", execLoopbackProbe(RUNTIME_PORT, 5, 10, 30));
 
         final Map<String, Object> podSecurityContext = new LinkedHashMap<>();
         podSecurityContext.put("runAsNonRoot", true);
@@ -263,6 +263,25 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                                           final int failureThreshold) {
         return Map.of(
                 "tcpSocket", Map.of("port", targetPort),
+                "initialDelaySeconds", initialDelay,
+                "periodSeconds", period,
+                "failureThreshold", failureThreshold);
+    }
+
+    /**
+     * El socat del contenedor {@code runtime} escucha en {@code bind=127.0.0.1} a proposito
+     * (nunca debe ser alcanzable fuera del Pod, ver clase). Un {@code tcpSocket} probe normal
+     * falla siempre: el kubelet conecta contra la PodIP via la interfaz eth0, que nunca llega a
+     * un listener bindeado solo a loopback -- aunque el proceso este perfectamente sano. Un probe
+     * {@code exec} corre dentro del propio namespace de red del contenedor, asi que un chequeo de
+     * loopback ahi si funciona; se usa {@code bash} (ya instalado en la imagen runtime) y su
+     * pseudo-dispositivo {@code /dev/tcp}, sin depender de un binario `nc` adicional.
+     */
+    private Map<String, Object> execLoopbackProbe(final int targetPort, final int initialDelay, final int period,
+                                                    final int failureThreshold) {
+        return Map.of(
+                "exec", Map.of("command", List.of(
+                        "bash", "-c", "echo > /dev/tcp/127.0.0.1/" + targetPort)),
                 "initialDelaySeconds", initialDelay,
                 "periodSeconds", period,
                 "failureThreshold", failureThreshold);
