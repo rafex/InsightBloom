@@ -1,0 +1,85 @@
+---
+# Imagenes de sandbox del IDE (TASK-0010/0011, Fase 3; Fase 4: split ide/runtime).
+# Este workflow es solo CI (build + push a GHCR) -- no despliega a k3s, eso se hace
+# aparte y manualmente contra el cluster. Deliberadamente independiente de los demas
+# publish-*.yml: nada depende de el via `needs:`, y el tampoco es needs de nadie. Un
+# fallo aca no debe impedir que las imagenes de los servicios de la aplicacion real
+# queden publicadas en GHCR. Postmortem 2026-07-13: en un momento en que este pipeline
+# si encadenaba un job de deploy, agregar este job al `needs:` de ese deploy hizo que
+# se saltara entero (incluyendo web/users ya compilados y listos) porque este job
+# fallo -- el precedente se mantiene como recordatorio de no volver a acoplarlo.
+name: Publish code-ide images
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*'
+    paths:
+      - 'infra/docker/Dockerfile.code-ide-server'
+      - 'infra/docker/Dockerfile.code-ide-runtime.*'
+      - 'infra/docker/code-ide-settings.json'
+      - '.github/workflows/publish-code-ide.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: rafex
+
+jobs:
+  build-and-push-code-ide:
+    name: Build and push code-ide (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ide-server
+            file: infra/docker/Dockerfile.code-ide-server
+            image: ghcr.io/rafex/insightbloom-code-ide-server
+            variantTag: latest
+          - name: runtime-python
+            file: infra/docker/Dockerfile.code-ide-runtime.python
+            image: ghcr.io/rafex/insightbloom-code-ide-runtime
+            variantTag: python
+          - name: runtime-java
+            file: infra/docker/Dockerfile.code-ide-runtime.java
+            image: ghcr.io/rafex/insightbloom-code-ide-runtime
+            variantTag: java
+          - name: runtime-web
+            file: infra/docker/Dockerfile.code-ide-runtime.web
+            image: ghcr.io/rafex/insightbloom-code-ide-runtime
+            variantTag: web
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          push: true
+          provenance: false
+          sbom: false
+          platforms: linux/amd64
+          tags: |
+            ${{ matrix.image }}:${{ matrix.variantTag }}
+            ${{ matrix.image }}:build-${{ github.run_number }}
+          cache-from: type=gha,scope=code-ide-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=code-ide-${{ matrix.name }}

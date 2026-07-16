@@ -1,0 +1,100 @@
+---
+# Reusable workflow: build+push de un microservicio Java desde container/backend/java/Dockerfile.
+# Llamado por publish-<servicio>.yml (uno por microservicio) via `uses:` + `secrets: inherit`.
+# No se dispara solo -- no tiene bloque `on:` de eventos de repo.
+# Sin paso previo de `mvn package` en el runner: el propio Dockerfile compila el reactor
+# completo dentro del build de Docker (stage builder, COPY backend/ + mvn install/package),
+# asi que un build en el host nunca alimentaba la imagen final -- era trabajo muerto.
+name: (reusable) Build and push Java service
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: 'Nombre del modulo/imagen, ej: insightbloom-users'
+        required: true
+        type: string
+      port:
+        description: 'SERVICE_PORT build-arg del Dockerfile'
+        required: true
+        type: string
+      version_tag:
+        description: 'Valor de version_tag del workflow_dispatch del caller (vacio si no aplica)'
+        required: false
+        type: string
+        default: ''
+      event_name:
+        description: 'github.event_name del workflow caller (workflow_call lo pisa si no se pasa explicito)'
+        required: true
+        type: string
+      ref_type:
+        description: 'github.ref_type del workflow caller'
+        required: true
+        type: string
+      ref_name:
+        description: 'github.ref_name del workflow caller'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: rafex
+
+jobs:
+  build-and-push:
+    name: Build and push ${{ inputs.service }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve and validate image tag
+        id: image_tag
+        run: |
+          if [ "${{ inputs.event_name }}" = "workflow_dispatch" ]; then
+            IMAGE_TAG="${{ inputs.version_tag }}"
+          elif [ "${{ inputs.ref_type }}" = "tag" ]; then
+            IMAGE_TAG="${{ inputs.ref_name }}"
+          else
+            IMAGE_TAG="latest"
+          fi
+          if [ "${IMAGE_TAG}" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+            echo "Invalid tag format: $IMAGE_TAG"
+            exit 1
+          fi
+          echo "value=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ inputs.service }}
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: container/backend/java/Dockerfile
+          build-args: |
+            SERVICE=${{ inputs.service }}
+            SERVICE_PORT=${{ inputs.port }}
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
+          push: true
+          provenance: false
+          sbom: false
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.service }}:${{ steps.image_tag.outputs.value }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.service }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.service }}:build-${{ github.run_number }}
+          cache-from: type=gha,scope=${{ inputs.service }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.service }}

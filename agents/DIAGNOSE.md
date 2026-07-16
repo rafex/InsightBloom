@@ -109,7 +109,7 @@ chat (Python FastAPI)
 | `infra/helm/charts/` | Charts Helm para K3s |
 | `.github/workflows/ci.yml` | CI: build + test Java, frontend y chat |
 | `.github/workflows/deploy.yml` | Deploy a K3s vía Helm |
-| `.github/workflows/publish_container.yml` | Build y push de imágenes Docker |
+| `.github/workflows/publish-*.yml` | Build y push de imágenes Docker, un workflow por servicio (path-filtered) |
 | `.gitignore` | 162 líneas — cubre Java, Node, Python, Docker, Helm, secretos |
 | `Makefile` | Builder: build, test, lint, clean |
 | `Justfile` | Task runner: dev, deploy, demo, simulación |

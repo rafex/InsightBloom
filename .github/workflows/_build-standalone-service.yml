@@ -1,0 +1,99 @@
+---
+# Reusable workflow: build+push de un servicio cuyo Dockerfile se autocontiene
+# (compila adentro del propio build de Docker -- Node/Python), sin paso previo
+# de build en el runner. Llamado por publish-<servicio>.yml via `uses:` + `secrets: inherit`.
+name: (reusable) Build and push standalone service
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: 'Nombre de la imagen, ej: insightbloom-chat'
+        required: true
+        type: string
+      context:
+        description: 'Build context de docker build'
+        required: true
+        type: string
+      dockerfile:
+        description: 'Ruta al Dockerfile'
+        required: true
+        type: string
+      version_tag:
+        description: 'Valor de version_tag del workflow_dispatch del caller (vacio si no aplica)'
+        required: false
+        type: string
+        default: ''
+      event_name:
+        description: 'github.event_name del workflow caller'
+        required: true
+        type: string
+      ref_type:
+        description: 'github.ref_type del workflow caller'
+        required: true
+        type: string
+      ref_name:
+        description: 'github.ref_name del workflow caller'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: rafex
+
+jobs:
+  build-and-push:
+    name: Build and push ${{ inputs.image_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve and validate image tag
+        id: image_tag
+        run: |
+          if [ "${{ inputs.event_name }}" = "workflow_dispatch" ]; then
+            IMAGE_TAG="${{ inputs.version_tag }}"
+          elif [ "${{ inputs.ref_type }}" = "tag" ]; then
+            IMAGE_TAG="${{ inputs.ref_name }}"
+          else
+            IMAGE_TAG="latest"
+          fi
+          if [ "${IMAGE_TAG}" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+            echo "Invalid tag format: $IMAGE_TAG"
+            exit 1
+          fi
+          echo "value=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ inputs.image_name }}
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          build-args: |
+            APP_VERSION=${{ steps.image_tag.outputs.value }}
+            GIT_SHA=${{ github.sha }}
+          push: true
+          provenance: false
+          sbom: false
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.image_name }}:${{ steps.image_tag.outputs.value }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.image_name }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.image_name }}:build-${{ github.run_number }}
+          cache-from: type=gha,scope=${{ inputs.image_name }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.image_name }}
