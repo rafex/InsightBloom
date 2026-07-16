@@ -80,6 +80,6 @@ jobs:
           platforms: linux/amd64
           tags: |
             ${{ matrix.image }}:${{ matrix.variantTag }}
-            ${{ matrix.image }}:build-${{ github.run_number }}
+            ${{ matrix.image }}:build-${{ github.run_id }}
           cache-from: type=gha,scope=code-ide-${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=code-ide-${{ matrix.name }}

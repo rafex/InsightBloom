@@ -87,6 +87,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-web:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-web:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-web:build-${{ github.run_number }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-web:build-${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

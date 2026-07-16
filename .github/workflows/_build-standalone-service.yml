@@ -94,6 +94,6 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.image_name }}:${{ steps.image_tag.outputs.value }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.image_name }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.image_name }}:build-${{ github.run_number }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ inputs.image_name }}:build-${{ github.run_id }}
           cache-from: type=gha,scope=${{ inputs.image_name }}
           cache-to: type=gha,mode=max,scope=${{ inputs.image_name }}
