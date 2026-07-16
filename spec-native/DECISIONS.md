@@ -686,6 +686,18 @@ Registrar una decision cuando cambie:
     mismo sandbox, y autenticacion git federada.
   - La nota en `spec-native/tasks/event-types-catalog/TASKS.md` que marcaba `CODE_IDE` como
     fuera de alcance se actualiza para apuntar a esta iniciativa.
+  - **Nota pendiente (2026-07-16, sin analizar todavia)**: para cohortes grandes (ej. 30
+    alumnos) el modelo actual 1 pod = 1 usuario puede ser costoso en recursos. Se esta
+    pensando una estrategia para que un mismo sandbox sirva a ~10 usuarios en vez de 1,
+    reduciendo la cantidad de pods necesarios. **No iniciado** — pendiente de validar
+    primero en vivo el modelo actual (pre-warm de al menos un sandbox libre por
+    conferencia, ver commit `3e37942`) antes de explorar esto. Punto abierto no trivial a
+    resolver cuando se retome: `code-server` no tiene multi-tenencia nativa (una instancia
+    sirve a un usuario/workspace), asi que "reutilizar" un pod para 10 usuarios implica
+    decidir entre correr 10 procesos de `code-server` dentro del mismo pod (vuelve a ser
+    10 contenedores de trabajo, solo co-ubicados — dudoso ahorro real) o adoptar una
+    herramienta con multi-tenencia real (ej. patron tipo JupyterHub) — ninguna opcion
+    evaluada todavia.
 - Reemplaza: `none`
 
 ### DEC-0024 - Camino de escalado para los 6 servicios con SQLite: PostgreSQL, no un PVC compartido
