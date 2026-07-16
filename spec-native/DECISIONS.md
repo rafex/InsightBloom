@@ -687,3 +687,78 @@ Registrar una decision cuando cambie:
   - La nota en `spec-native/tasks/event-types-catalog/TASKS.md` que marcaba `CODE_IDE` como
     fuera de alcance se actualiza para apuntar a esta iniciativa.
 - Reemplaza: `none`
+
+### DEC-0024 - Camino de escalado para los 6 servicios con SQLite: PostgreSQL, no un PVC compartido
+
+- Fecha: 2026-07-16
+- Estado: proposed
+- Contexto:
+  a raiz de un incidente (Etherpad atascado en "Reconectando...") causado por el HPA de
+  `insightbloom-tools-gateway` escalando a 3 replicas mientras su `SessionCache` vivia en
+  memoria por pod, surgio la pregunta de si los 6 servicios que persisten en SQLite
+  (users, moderation, stats, query, ingest, survey — todos con `autoscaling.enabled: false`
+  + `replicaCount: 1` fijo) podrian escalar horizontalmente montando el mismo PVC desde
+  multiples pods en modo WAL (DEC-0010 ya habilita WAL por conexion, con
+  `busy_timeout=5000`). Se investigo el estado real del cluster antes de concluir:
+  - El cluster k3s es **de un solo nodo** (`rafex-server`), con `local-path` como unico
+    StorageClass (`hostPath`, RWO, `WaitForFirstConsumer`) — no hay RWX disponible.
+  - Los 6 servicios muestran **CPU de 1-14 millicores** en uso actual (practicamente idle),
+    sin evidencia de presion de trafico real hoy.
+  - **WAL resuelve concurrencia lector/escritor, no escritor/escritor**: SQLite sigue
+    siendo, por diseno del motor, un unico escritor a la vez sin importar cuantos
+    procesos/pods abran el archivo. Montar el mismo PVC desde N pods no multiplica el
+    throughput de escritura — los N procesos serializan en el mismo lock de archivo,
+    ahora entre procesos (mas costoso) en vez de entre threads de una sola JVM (mas
+    barato, que es lo que ya da la replica unica actual).
+  - Al ser un solo nodo, el peligro clasico de "SQLite sobre filesystem de red" (locking
+    roto en NFS/CIFS) no aplica tal cual — `local-path` es un filesystem local real. Pero
+    tampoco hay CPU/memoria adicional real que desbloquear: son mas pods en la misma
+    maquina fisica, no mas capacidad.
+- Decision:
+  no se ejecuta ninguna migracion ahora — no hay senal medible que la justifique. Se deja
+  documentado el analisis de las dos rutas evaluadas para cuando (si) aparezca presion
+  real, con una preferencia clara por la opcion B:
+  - **Opcion A — capa/worker que arbitre el acceso a SQLite** (serializar escrituras desde
+    un unico proceso, o adoptar rqlite/dqlite, SQLite envuelto en consenso Raft, para
+    escritura multi-nodo real): tecnicamente viable, pero implica construir o adoptar un
+    sistema distribuido nuevo (membership de cluster, snapshots, cambio de driver/cliente
+    en los 6 servicios) para terminar con, en el mejor caso, paridad de escritura
+    concurrente con lo que Postgres ya da de fabrica. En un cluster de un solo nodo, el
+    beneficio real seria solo resiliencia durante un restart (un pod sigue sirviendo
+    lecturas mientras otro reinicia), no mas capacidad — un costo de ingenieria alto para
+    un beneficio acotado, y hoy el codigo tampoco separa rutas de lectura/escritura (cada
+    handler lee y escribe con el mismo repositorio) asi que ni siquiera hay como
+    aprovechar esa resiliencia sin reescribir el ruteo interno.
+  - **Opcion B — migrar a PostgreSQL** (recomendada si se dispara la necesidad): motor
+    cliente-servidor con concurrencia multi-escritor nativa, desacopla los datos del
+    ciclo de vida del pod (cualquier cantidad de pods stateless puede escalar y
+    reconectar a la misma instancia), y es el camino estandar, bien documentado, sin
+    inventar un protocolo de arbitraje propio. Costo: una pieza de infraestructura nueva
+    que operar (backups, upgrades) — pero una sola, compartida entre los 6 servicios, en
+    vez de un sistema de arbitraje custom que resolver para cada uno. Implica trabajo de
+    migracion por servicio (DDL, tipado estricto vs. el tipado dinamico de SQLite,
+    `SERIAL`/`IDENTITY` en vez de `AUTOINCREMENT`, pooling de conexiones) que no se
+    dimensiona en esta decision.
+  - **Disparador explicito para revisitar esto**: CPU sostenida >60% en un pod de alguno
+    de los 6 servicios, o errores `SQLITE_BUSY`/timeout de lock observados en logs de
+    produccion, o un plan concreto de un evento con audiencia significativamente mayor a
+    lo visto hasta ahora. Sin uno de estos tres, `replicaCount: 1` fijo sigue siendo
+    correcto y no es deuda tecnica pendiente.
+- Consecuencias:
+  - Los 6 servicios SQLite permanecen en `autoscaling.enabled: false` + `replicaCount: 1`
+    sin cambios.
+  - Si se dispara la migracion, el candidato por defecto es PostgreSQL (opcion B); la
+    opcion A solo se reconsideraria si aparece una razon concreta que impida sumar
+    Postgres (ninguna identificada hoy).
+  - Orden sugerido si se dispara, no vinculante: `users`/`ingest`/`moderation` son los de
+    mayor trafico esperado durante un evento en vivo; `stats`/`query`/`survey` tienen
+    volumen de escritura menor y pueden migrar despues.
+  - **Pendiente de seguimiento**: con `replicaCount: 1` fijo y sin horizontal scaling
+    posible para estos 6 servicios, el unico margen real ante mas carga es vertical
+    (CPU/memory request y limit por pod). Revisar metricas de Goldilocks/VPA (ver
+    `infra/README.md`, ultima lectura 2026-06-30) especificamente para estos 6 servicios
+    y subir sus recursos si la recomendacion lo justifica — sin replicas de respaldo, un
+    pod subdimensionado que se queda sin CPU/memoria es un punto unico de falla mas
+    sensible que en un servicio que si puede escalar horizontalmente.
+- Reemplaza: `none` (extiende DEC-0010 — WAL sigue siendo correcto para el escenario
+  actual de replica unica; no aplica a un escenario multi-pod).
