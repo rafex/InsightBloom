@@ -8,9 +8,14 @@ etc.) — este documento es más informal, tal como se escribió durante la plan
 
 ## Estado al momento de persistir este documento
 
+**Corrección (2026-07-16, tras revisar el código):** el estado original de este documento
+decía "No iniciado" para boletos/asientos por error — no se verificó el repo antes de
+escribirlo. En realidad ya estaba implementado en commits previos de esta misma sesión
+(`1ae6350`, `07bae79`, `8b5b461`), incluyendo la Fase 2.6 (generación de layout con IA).
+
 | Iniciativa | Estado |
 |---|---|
-| Sistema de boletos y reserva de asientos (Fases 1-2) | No iniciado |
+| Sistema de boletos y reserva de asientos (Fases 1-2, incl. 2.6 IA) | ✅ Implementado (commits `1ae6350`, `07bae79`, `8b5b461`) |
 | Fase 3 del IDE — provisión real de pods de sandbox | ✅ Implementado y verificado |
 | Fase 4 del IDE — separar code-server (Debian) del runtime (Alpine) | ✅ Implementado y verificado |
 | Fase 5 — Tests en dos niveles (unitarios + integración bajo demanda) | ✅ Implementado y verificado |
