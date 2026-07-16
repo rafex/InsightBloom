@@ -52,6 +52,9 @@ import java.util.Set;
 
 public class ConferenceHandler extends BaseResourceHandler {
 
+    private static final java.util.logging.Logger LOGGER =
+        java.util.logging.Logger.getLogger(ConferenceHandler.class.getName());
+
     private final CreateConferenceUseCase createConferenceUseCase;
     private final GetConferenceUseCase getConferenceUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
@@ -1011,8 +1014,11 @@ public class ConferenceHandler extends BaseResourceHandler {
                 // Best-effort: si falla (ej. Kubernetes no disponible), no debe tumbar el guardado
                 // de la config -- AssignSandboxUseCase sigue creando bajo demanda como fallback.
                 ensureUnassignedSandboxUseCase.execute(id);
-            } catch (final Exception ignored) {
-                // pre-warm es una optimizacion, no un requisito para guardar la config
+            } catch (final Exception e) {
+                // pre-warm es una optimizacion, no un requisito para guardar la config -- pero se
+                // loguea (no se ignora en silencio) para poder diagnosticar si nunca pre-provisiona.
+                LOGGER.log(java.util.logging.Level.WARNING,
+                    "pre-warm de sandbox fallo para conferencia " + id, e);
             }
             sendOk(jx, 200, result);
         } catch (final IllegalArgumentException e) {

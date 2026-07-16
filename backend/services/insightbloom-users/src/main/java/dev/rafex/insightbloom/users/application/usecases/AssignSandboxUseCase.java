@@ -35,7 +35,8 @@ public class AssignSandboxUseCase {
      * Fase 3: ya no hay un pool de slots pre-sembrados — el Pod se crea la primera vez que un
      * usuario lo pide, hasta {@code Conference.sandboxPoolSize} sandboxes concurrentes por evento
      * (default 1). Si el usuario ya tiene uno asignado, se reusa (idempotente ante recarga de
-     * página) sin volver a golpear el API de Kubernetes.
+     * página) sin volver a golpear el API de Kubernetes — salvo que el Pod ya no exista (ver
+     * abajo), en cuyo caso se recrea con el mismo nombre/slot.
      *
      * Concurrencia: {@link SandboxRepository#save} hace un INSERT real (no upsert) contra
      * UNIQUE(conference_uuid, sandbox_slot) — si dos requests calculan el mismo slot libre en
@@ -53,7 +54,15 @@ public class AssignSandboxUseCase {
 
         final var existing = sandboxRepository.findByConferenceAndUser(conferenceUuid, userUuid);
         if (existing.isPresent()) {
-            return existing.get();
+            final Sandbox sandbox = existing.get();
+            // La fila puede sobrevivir a la borrada manual/eviccion del Pod real (ej. purga de un
+            // Pod roto durante un incidente) -- sin este chequeo, GetSandbox devolveria PENDING
+            // para siempre porque nada vuelve a crear el Pod. getPhase()==null significa que el
+            // Pod no existe; se recrea con el mismo nombre/slot, sin tocar la fila (ya es correcta).
+            if (sandboxOrchestrator.getPhase(sandbox.podName()) == null) {
+                recreatePod(sandbox, conference);
+            }
+            return sandbox;
         }
 
         final var unassigned = sandboxRepository.findUnassigned(conferenceUuid);
@@ -105,6 +114,21 @@ public class AssignSandboxUseCase {
         }
 
         return sandbox;
+    }
+
+    private void recreatePod(final Sandbox sandbox, final Conference conference) {
+        final String variant = conference.getSandboxVariant() != null ? conference.getSandboxVariant() : DEFAULT_VARIANT;
+        final boolean internetEnabled = conference.getSandboxInternetEnabled() != null
+            && conference.getSandboxInternetEnabled() == 1;
+        try {
+            sandboxOrchestrator.createSandbox(sandbox.podName(), sandbox.getConferenceUuid(), variant,
+                conference.getSandboxExtraPackages(), conference.getSandboxRemoteGitUrl(), internetEnabled);
+        } catch (final IllegalStateException e) {
+            if ("kubernetes_not_configured".equals(e.getMessage())) {
+                throw new IllegalArgumentException("sandbox_unavailable");
+            }
+            throw e;
+        }
     }
 
     private static int nextFreeSlot(final List<Sandbox> active, final int poolSize) {

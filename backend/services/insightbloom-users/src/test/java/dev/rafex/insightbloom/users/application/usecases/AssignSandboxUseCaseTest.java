@@ -49,15 +49,35 @@ class AssignSandboxUseCaseTest {
     }
 
     @Test
-    void testAssignSandboxReusesExisting() {
+    void testAssignSandboxReusesExistingWhenPodStillAlive() {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
         final var existing = new Sandbox("conf-1", 0, "user-student-1", java.time.Instant.now().plusSeconds(3600));
         Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.of(existing));
+        Mockito.when(orchestratorMock.getPhase(existing.podName())).thenReturn("Running");
 
         final var result = useCase.execute("conf-1", "user-student-1");
 
         assertSame(existing, result);
-        Mockito.verifyNoInteractions(orchestratorMock);
+        Mockito.verify(orchestratorMock, Mockito.never()).createSandbox(
+            Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.anyBoolean());
+        Mockito.verify(sandboxRepoMock, Mockito.never()).save(Mockito.any());
+    }
+
+    @Test
+    void testAssignSandboxRecreatesPodWhenExistingAssignmentPointsToDeadPod() {
+        // Reproduce el incidente 2026-07-16: la fila sobrevive a un pod borrado a mano/evicted --
+        // sin este chequeo, GetSandbox devolveria PENDING para siempre.
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        final var existing = new Sandbox("conf-1", 0, "user-student-1", java.time.Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.of(existing));
+        Mockito.when(orchestratorMock.getPhase(existing.podName())).thenReturn(null);
+
+        final var result = useCase.execute("conf-1", "user-student-1");
+
+        assertSame(existing, result);
+        Mockito.verify(orchestratorMock).createSandbox(
+            Mockito.eq(existing.podName()), Mockito.eq("conf-1"), Mockito.eq("python"),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false));
         Mockito.verify(sandboxRepoMock, Mockito.never()).save(Mockito.any());
     }
 
