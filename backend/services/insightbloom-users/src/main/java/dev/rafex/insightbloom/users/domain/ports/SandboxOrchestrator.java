@@ -23,6 +23,16 @@ public interface SandboxOrchestrator {
     /** "Pending", "Running", "Failed", "Succeeded", "Unknown", o null si el Pod no existe. */
     String getPhase(String podName);
 
+    /**
+     * A diferencia de {@link #getPhase}: el Pod pasa a fase "Running" en cuanto TODOS sus
+     * contenedores arrancaron, sin importar si ya pasaron su readiness probe -- con el Pod de
+     * dos contenedores de Fase 4 (ide+runtime) esto deja una ventana real donde el frontend
+     * (que antes solo miraba la fase) cargaba el IDE antes de que 'runtime' terminara de
+     * levantar, resultando en 502/WebSocket rechazado. Devuelve el condition Ready agregado del
+     * Pod (todos los contenedores Ready) — false tambien si el Pod no existe.
+     */
+    boolean isReady(String podName);
+
     /** Fase 3c: crea (si no existe) la NetworkPolicy que permite egress a internet para todos
      *  los sandboxes de un evento — idempotente. */
     void allowInternetEgress(String conferenceLabel);

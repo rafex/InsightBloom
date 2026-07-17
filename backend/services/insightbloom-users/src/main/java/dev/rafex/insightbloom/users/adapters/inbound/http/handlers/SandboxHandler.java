@@ -98,10 +98,11 @@ public class SandboxHandler extends BaseResourceHandler {
 
             final Sandbox sandbox = assignSandboxUseCase.execute(conferenceId, v.subjectUuid());
 
-            // "Running" del Pod real -> READY; cualquier otra fase (o null si aun no hay Pod
-            // visible) -> PENDING, el frontend hace polling hasta que cambie.
-            final String phase = sandboxOrchestrator.getPhase(sandbox.podName());
-            final String status = "Running".equals(phase) ? "READY" : "PENDING";
+            // El Pod pasa a fase "Running" en cuanto arrancan sus contenedores, sin esperar a que
+            // pasen su readiness probe -- con el Pod de dos contenedores (ide+runtime) eso dejaba
+            // cargar el IDE antes de que 'runtime' estuviera realmente listo (502/WS rechazado,
+            // visto en produccion 2026-07-16). READY exige el condition Ready agregado del Pod.
+            final String status = sandboxOrchestrator.isReady(sandbox.podName()) ? "READY" : "PENDING";
 
             final Map<String, Object> response = Map.of(
                 "sandboxUuid", sandbox.getUuid(),

@@ -165,6 +165,23 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         return phase.isMissingNode() || phase.isNull() ? "Unknown" : phase.asText();
     }
 
+    @Override
+    public boolean isReady(final String podName) {
+        requireEnabled();
+        final HttpRequest request = authedRequest("/api/v1/namespaces/" + namespace + "/pods/" + podName).GET().build();
+        final HttpResponse<String> response = send(request);
+        if (response.statusCode() != 200) return false;
+        final var node = jsonCodec.readTree(response.body());
+        final var conditions = jsonCodec.at(node, "/status/conditions");
+        if (conditions.isMissingNode() || !conditions.isArray()) return false;
+        for (final var condition : conditions) {
+            if ("Ready".equals(condition.path("type").asText())) {
+                return "True".equals(condition.path("status").asText());
+            }
+        }
+        return false;
+    }
+
     static String serviceName(final String podName) {
         return podName + "-svc";
     }
