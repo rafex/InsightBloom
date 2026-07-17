@@ -652,18 +652,61 @@ Registrar una decision cuando cambie:
       WebSocket seguia sin conectar, cero cambio observable**: `onWebSocketOpen`/
       `onWebSocketClose`/`onWebSocketError` seguian sin invocarse nunca. Descarta la
       teoria de que el problema fuera (solo) la fusion de `META-INF/services/*`.
-    - **Fix real: reemplazar maven-shade-plugin por maven-assembly-plugin**
-      (`jar-with-dependencies`, `appendAssemblyId=false` para conservar el nombre de jar
-      que espera `container/backend/java/Dockerfile`, `containerDescriptorHandlers` con
-      `metaInf-services` para seguir fusionando `META-INF/services/*` explicitamente).
-      Decision explicita de no seguir parchando shade-plugin: assembly-plugin evita por
-      completo esta clase de bug ("un plugin de empaquetado descarta/fusiona mal
-      recursos compartidos entre JARs"), a costa de un empaquetado menos configurable
-      (sin relocacion de paquetes ni filtrado fino) que este modulo no necesita.
-      Verificado localmente: build limpio, `java -jar` arranca y sirve `GET /version`
-      con 200. **Pendiente de confirmar en vivo** contra el cluster real si esto arregla
-      el WebSocket, o si el problema esta en otro lugar completamente distinto al
-      empaquetado.
+    - **Intento 2 (descartado)**: reemplazar maven-shade-plugin por maven-assembly-plugin
+      (`jar-with-dependencies`, `appendAssemblyId=false`, `containerDescriptorHandlers`
+      con `metaInf-services`). Build limpio, `java -jar` arranca y sirve `GET /version`
+      con 200 — pero **probado en vivo, cero cambio observable**: mismos callbacks sin
+      invocarse nunca. Descarta definitivamente la teoria de empaquetado/`META-INF/
+      services` como causa (ninguno de los dos intentos, atacando el mismo sospechoso
+      desde dos angulos distintos, cambio el sintoma). El modulo se quedo en
+      maven-assembly-plugin de todos modos (empaquetado mas simple, sin necesidad real
+      de las features de shade-plugin), pero como decision independiente, no como fix.
+    - **Root cause real (confirmado, 2026-07-17)**: nada que ver con empaquetado. Leyendo
+      el codigo fuente de Jetty 12.1.7 (`JettyWebSocketFrameHandlerFactory.
+      createListenerMetadata()`), Jetty conecta los callbacks (`onWebSocketOpen`/
+      `onWebSocketClose`/`onWebSocketError`/etc.) de cualquier `Session.Listener` via
+      `MethodHandles.publicLookup().in(endpointClass)` — un lookup **publico** sobre una
+      clase que no es `public` (aunque sus metodos individuales si lo sean) no tiene
+      acceso a sus miembros. Tanto `JettyWebSocketEndpointBridge` (el listener del lado
+      servidor, para la conexion entrante del navegador) como
+      `LoggingWebSocketProxyEndpoint.BackendSessionListener` (el listener del lado
+      cliente, para la conexion saliente hacia el pod real) eran clases no-`public`
+      (`final class` / `private static final class`). El fallo (`IllegalAccessException:
+      class is not public`) quedo invisible **semanas** porque Jetty loguea sus propios
+      errores internos via SLF4J, y este servicio nunca tuvo un provider real bindeado
+      (fallback silencioso a NOP) — se agrego `slf4j-jdk14` como puente a
+      `java.util.logging` (misma infra que ya usa el resto del servicio) para poder ver
+      esto en absoluto. Fix: ambas clases pasaron a `public`, cada una con su commit
+      separado porque el mismo bug aplica simetricamente en ambos lados del proxy
+      (servidor primero, cliente saliente despues) — confirmado en vivo tras cada uno
+      que `onWebSocketOpen invocado por Jetty` empezaba a aparecer en logs.
+    - **Segundo bug, descubierto tras el primero (2026-07-17)**: con el WebSocket
+      conectando, el navegador seguia mostrando "close 1006" para varios sub-canales
+      especificos (extension host, `/update/check`, iframes internos). Causa: la cookie
+      de sesion (`ib_gw`) se emitia con `SameSite=Lax`; el extension host de code-server
+      corre en un iframe/worker sandboxeado con origen opaco
+      (`webWorkerExtensionHostIframe.html`), y Chrome trata sus requests como cross-site
+      para efectos de `SameSite` aunque la URL sea el mismo host — la cookie nunca
+      llegaba en esos canales, autenticacion rechazada, WS cerrado (visible como 1006).
+      Fix: `SameSite=None` (sigue `Secure`+`HttpOnly`) en ambos lugares donde se emite
+      la cookie (`AuthGateHandler`, `WebSocketProxyCreator`).
+    - **Tercer bug, descubierto tras el segundo (2026-07-17)**: con auth resuelta, el
+      WS conectaba pero entraba en loop de reconexion constante (~1/seg, visible en
+      logs del gateway). Causa: el limite por defecto de Jetty para mensajes binarios
+      (64KB) es insuficiente para el canal de management de code-server, que manda
+      frames binarios mas grandes — el backend cerraba con `1009 Binary message too
+      large`, cascadeando a un cierre 1011 del lado cliente. Fix:
+      `setMaxBinaryMessageSize(20MB)` en ambos lados del proxy (`ServerWebSocketContainer`
+      del lado servidor, `WebSocketClient` del lado saliente hacia el backend) — mismo
+      patron de fix simetrico que el bug de visibilidad de clases.
+    - **Confirmado en vivo end-to-end** tras los tres fixes: WebSocket estable (0
+      reconexiones en 15s de observacion continua), extension host activo (deteccion de
+      lenguaje, Prettier disponible), editor funcional. Leccion general: los tres bugs
+      eran completamente independientes entre si (reflexion de Jetty, SameSite de
+      cookies, limite de tamano de mensaje) y cada uno enmascaraba al siguiente bajo el
+      mismo sintoma superficial ("WebSocket close 1006") — hizo falta arreglar y
+      verificar en vivo uno a la vez, sin asumir que el primer fix que cambiaba el
+      comportamiento observable era "el" fix completo.
 
 ### DEC-0023 - IDE web en sandbox (code-server) por asistente, pool fijo sin RBAC de pods
 
