@@ -33,13 +33,23 @@ import javax.net.ssl.TrustManagerFactory;
  * en insightbloom-survey; solo se necesitan 5 verbos REST (crear/borrar/leer Pod, crear/borrar
  * Service), no vale la pena la dependencia pesada de un SDK generado.
  *
- * Fase 4: el Pod tiene dos contenedores — {@code ide} (code-server, imagen Debian fija) y
- * {@code runtime} (toolchain unico Java+Node+Python, imagen Alpine fija — hasta 2026-07-17 era
- * una imagen distinta por variante java/python/web, tag {@code :latest} desde la consolidacion,
- * ver DEC-0023). La terminal integrada de code-server
- * se conecta al contenedor {@code runtime} vía un servidor socat en {@code 127.0.0.1:7681}
- * (loopback intra-Pod, nunca expuesto via Service) — ver {@code code-ide-settings.json}. El
- * {@code Service} del Pod sigue enrutando solo al puerto del contenedor {@code ide}.
+ * Fase 4: por defecto ({@code variant} != {@value #IDE_MODE_TERMINAL_NVIM}) el Pod tiene dos
+ * contenedores — {@code ide} (code-server, imagen Debian fija) y {@code runtime} (toolchain unico
+ * Java+Node+Python, imagen Alpine fija — hasta 2026-07-17 era una imagen distinta por variante
+ * java/python/web, tag {@code :latest} desde la consolidacion, ver DEC-0023). La terminal
+ * integrada de code-server se conecta al contenedor {@code runtime} vía un servidor socat en
+ * {@code 127.0.0.1:7681} (loopback intra-Pod, nunca expuesto via Service) — ver
+ * {@code code-ide-settings.json}. El {@code Service} del Pod enruta al puerto del contenedor
+ * {@code ide}.
+ *
+ * 2026-07-17 (segunda ronda): {@code variant == "terminal-nvim"} activa un modo de IDE
+ * alternativo mas liviano — el Pod tiene un unico contenedor ({@code runtime}, sin {@code ide}),
+ * corriendo {@code ttyd} (servidor de terminal web) en vez de {@code socat}, sirviendo
+ * directamente {@code nvim} sobre {@code /home/coder/workspace}. El campo {@code variant}
+ * (heredado de las 3 imagenes por-variante que ya no existen) se reutiliza como "modo de IDE"
+ * en vez de agregar una columna nueva — cualquier valor que no sea {@value
+ * #IDE_MODE_TERMINAL_NVIM} (incluidos los historicos {@code python}/{@code java}/{@code web}, o
+ * {@code null}) significa "code-server" (el modo de siempre).
  *
  * El spec de Pod replica el hardening documentado (pero nunca renderizado) en
  * {@code infra/helm/charts/insightbloom/templates/sandbox-pool.yaml}: non-root, sin capabilities,
@@ -56,6 +66,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private static final Path CA_PATH = Path.of("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt");
     /** Puerto del servidor socat del contenedor runtime — solo loopback intra-Pod, nunca via Service. */
     private static final int RUNTIME_PORT = 7681;
+    /** Ver javadoc de la clase: valor de "variant" que activa el modo de IDE alternativo (ttyd+nvim). */
+    public static final String IDE_MODE_TERMINAL_NVIM = "terminal-nvim";
 
     /** Límites de recursos de un contenedor del Pod de sandbox. */
     public record ContainerResources(String cpuRequest, String memoryRequest, String cpuLimit, String memoryLimit) {
@@ -209,34 +221,56 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 Map.of("name", "workspace", "mountPath", "/home/coder/workspace"),
                 Map.of("name", "database", "mountPath", "/home/coder/db"));
 
-        final Map<String, Object> ideContainer = new LinkedHashMap<>();
-        ideContainer.put("name", "ide");
-        ideContainer.put("image", serverImage);
-        ideContainer.put("imagePullPolicy", "Always");
-        ideContainer.put("ports", List.of(Map.of("name", "http", "containerPort", port, "protocol", "TCP")));
-        ideContainer.put("securityContext", containerSecurityContext());
-        ideContainer.put("resources", resourcesBody(ideResources));
-        ideContainer.put("volumeMounts", volumeMounts);
-        ideContainer.put("readinessProbe", tcpProbe(port, 5, 10, 2));
-        ideContainer.put("livenessProbe", tcpProbe(port, 10, 30, 3));
-        ideContainer.put("startupProbe", tcpProbe(port, 5, 10, 30));
+        final boolean terminalMode = IDE_MODE_TERMINAL_NVIM.equals(variant);
 
-        // El contenedor runtime no expone su puerto vía Service ni Ingress: solo alcanzable por
-        // loopback intra-Pod desde 'ide' (terminal integrada de code-server -> socat).
+        final List<Map<String, Object>> containers = new ArrayList<>();
+        if (!terminalMode) {
+            final Map<String, Object> ideContainer = new LinkedHashMap<>();
+            ideContainer.put("name", "ide");
+            ideContainer.put("image", serverImage);
+            ideContainer.put("imagePullPolicy", "Always");
+            ideContainer.put("ports", List.of(Map.of("name", "http", "containerPort", port, "protocol", "TCP")));
+            ideContainer.put("securityContext", containerSecurityContext());
+            ideContainer.put("resources", resourcesBody(ideResources));
+            ideContainer.put("volumeMounts", volumeMounts);
+            ideContainer.put("readinessProbe", tcpProbe(port, 5, 10, 2));
+            ideContainer.put("livenessProbe", tcpProbe(port, 10, 30, 3));
+            ideContainer.put("startupProbe", tcpProbe(port, 5, 10, 30));
+            containers.add(ideContainer);
+        }
+
         final Map<String, Object> runtimeContainer = new LinkedHashMap<>();
         runtimeContainer.put("name", "runtime");
         // Imagen unica desde 2026-07-17 (Java+Node+Python juntos) -- "variant" ya no selecciona
-        // la imagen, se mantiene solo como label informativo (linea de arriba) por compatibilidad
-        // con conferencias existentes que ya tienen un sandboxVariant guardado.
+        // la imagen (salvo el sentinel IDE_MODE_TERMINAL_NVIM, que cambia el comando de arranque
+        // mas abajo, no la imagen).
         runtimeContainer.put("image", runtimeImageBase + ":latest");
         runtimeContainer.put("imagePullPolicy", "Always");
         if (!runtimeEnv.isEmpty()) runtimeContainer.put("env", runtimeEnv);
         runtimeContainer.put("securityContext", containerSecurityContext());
-        runtimeContainer.put("resources", resourcesBody(runtimeResources));
+        runtimeContainer.put("resources", terminalMode ? ideResources : runtimeResources);
         runtimeContainer.put("volumeMounts", volumeMounts);
-        runtimeContainer.put("readinessProbe", execLoopbackProbe(RUNTIME_PORT, 5, 10, 2));
-        runtimeContainer.put("livenessProbe", execLoopbackProbe(RUNTIME_PORT, 10, 30, 3));
-        runtimeContainer.put("startupProbe", execLoopbackProbe(RUNTIME_PORT, 5, 10, 30));
+        if (terminalMode) {
+            // Sin contenedor 'ide': el propio 'runtime' expone el puerto publico del Service,
+            // corriendo ttyd (servidor de terminal web) en vez de socat -- ver Dockerfile.
+            // ttyd escucha en todas las interfaces (a diferencia del socat de siempre, atado a
+            // loopback), asi que un tcpSocket probe normal si aplica aca (ver tcpProbe vs
+            // execLoopbackProbe).
+            runtimeContainer.put("ports", List.of(Map.of("name", "http", "containerPort", port, "protocol", "TCP")));
+            runtimeContainer.put("args", List.of(
+                    "ttyd", "-p", String.valueOf(port), "-W",
+                    "bash", "-lc", "cd /home/coder/workspace && exec nvim ."));
+            runtimeContainer.put("readinessProbe", tcpProbe(port, 5, 10, 2));
+            runtimeContainer.put("livenessProbe", tcpProbe(port, 10, 30, 3));
+            runtimeContainer.put("startupProbe", tcpProbe(port, 5, 10, 30));
+        } else {
+            // El contenedor runtime no expone su puerto vía Service ni Ingress en este modo:
+            // solo alcanzable por loopback intra-Pod desde 'ide' (terminal integrada -> socat).
+            runtimeContainer.put("readinessProbe", execLoopbackProbe(RUNTIME_PORT, 5, 10, 2));
+            runtimeContainer.put("livenessProbe", execLoopbackProbe(RUNTIME_PORT, 10, 30, 3));
+            runtimeContainer.put("startupProbe", execLoopbackProbe(RUNTIME_PORT, 5, 10, 30));
+        }
+        containers.add(runtimeContainer);
 
         final Map<String, Object> podSecurityContext = new LinkedHashMap<>();
         podSecurityContext.put("runAsNonRoot", true);
@@ -246,14 +280,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         podSecurityContext.put("seccompProfile", Map.of("type", "RuntimeDefault"));
         // capabilities.drop pertenece a securityContext de CONTENEDOR, no de Pod (la API lo
         // ignora en silencio a nivel Pod) — se declara correctamente en containerSecurityContext()
-        // para cada uno de los dos contenedores.
+        // para cada contenedor.
 
         final Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("serviceAccountName", "default");
         spec.put("automountServiceAccountToken", false);
         spec.put("restartPolicy", "Never");
         spec.put("securityContext", podSecurityContext);
-        spec.put("containers", List.of(ideContainer, runtimeContainer));
+        spec.put("containers", containers);
         spec.put("volumes", List.of(
                 Map.of("name", "workspace", "emptyDir", Map.of()),
                 Map.of("name", "database", "emptyDir", Map.of())));

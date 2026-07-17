@@ -808,6 +808,24 @@ Registrar una decision cuando cambie:
     aislamiento propio en vez de simplemente pre-provisionar mas pods. **Sigue sin
     iniciar** — ninguna implementacion, solo la estrategia queda anotada para cuando se
     revisite.
+  - **Actualizacion (2026-07-17): segundo modo de IDE, "terminal-nvim"**. Se agrega una
+    alternativa mas liviana a code-server: Neovim configurado como IDE (explorador de
+    archivos, autocompletado, LSP de Java via `jdtls`, syntax highlighting via los parsers
+    de tree-sitter del sistema — ver `infra/docker/Dockerfile.code-ide-runtime` y
+    `infra/docker/nvim-init.lua`), servido por `ttyd` (terminal web sobre WebSocket) en vez
+    de un navegador VS Code completo. El Pod de este modo tiene **un solo contenedor**
+    (`runtime`, sin `ide`) — mas liviano en RAM/CPU y en tiempo de arranque (sin JS de
+    VS Code que descargar/parsear en el navegador). Se elige por conferencia reutilizando
+    el campo `sandboxVariant` (ver arriba, "solo label informativo" en DEC anterior) como
+    "modo de IDE": el valor literal `"terminal-nvim"` activa este modo en
+    `KubernetesPodClient.buildPodBody`; cualquier otro valor (incluidos los historicos
+    `python`/`java`/`web`, o vacio/null) significa code-server — no se agrego una columna
+    nueva a la DB. Todo el resto del pipeline (auth por sesion via `insightbloom-tools-gateway`,
+    resolucion de `gatewayUrl` en `SandboxHandler`, la pagina `IdePage.vue` del frontend)
+    es agnostico al modo: abre la misma URL `?ib_token=...&conferenceId=...` sin cambios,
+    el gateway proxea HTTP/WS al Service del Pod sin importar si el contenedor detras es
+    `ide` (code-server) o `runtime` (ttyd). Ambos toolchains completos (Java+Node+Python)
+    siguen disponibles en los dos modos, ya que viven en la misma imagen `runtime` unica.
 - Reemplaza: `none`
 
 ### DEC-0024 - Camino de escalado para los 6 servicios con SQLite: PostgreSQL, no un PVC compartido

@@ -86,6 +86,11 @@
       label IDE de código
       p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE de código" (solo aplica si el tipo de evento tiene esa capacidad). El ambiente incluye Java, Node.js y Python en el mismo sandbox — no hace falta elegir un lenguaje.
       .coord-field
+        span.coord-label Tipo de IDE
+        select(v-model="sandboxVariant")
+          option(value="") Editor completo (code-server / VS Code en el navegador)
+          option(value="terminal-nvim") Terminal ligera (Neovim con LSP de Java, más rápido de arrancar)
+      .coord-field
         span.coord-label Sandboxes concurrentes por evento
         input(v-model.number="sandboxPoolSize" type="number" min="1" placeholder="1")
       .coord-field
@@ -175,7 +180,10 @@ export default {
     const savingSeating = ref(false)
     const seatingSaved  = ref(false)
     const seatingError  = ref('')
-    const sandboxVariant = ref('python')
+    // "" = code-server (default); "terminal-nvim" = IDE alternativo liviano. Valores historicos
+    // python/java/web (de cuando este campo era una variante de imagen, ver DEC-0023) tambien
+    // significan code-server -- se normalizan a "" al cargar, ver mas abajo.
+    const sandboxVariant = ref('')
     const sandboxPoolSize = ref<number | null>(1)
     const sandboxExtraPackages = ref('')
     const sandboxRemoteGitUrl = ref('')
@@ -220,7 +228,7 @@ export default {
         timezoneId.value = conference.value.timezoneId ?? tzList.find((t) => t.isDefault)?.id ?? null
         seatingMode.value = (conference.value.seatingMode as SeatingMode) || 'NONE'
         capacity.value = conference.value.capacity ?? null
-        sandboxVariant.value = conference.value.sandboxVariant || 'python'
+        sandboxVariant.value = conference.value.sandboxVariant === 'terminal-nvim' ? 'terminal-nvim' : ''
         sandboxPoolSize.value = conference.value.sandboxPoolSize ?? 1
         sandboxExtraPackages.value = conference.value.sandboxExtraPackages || ''
         sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''

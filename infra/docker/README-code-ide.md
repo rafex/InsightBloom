@@ -1,18 +1,37 @@
 # Code-IDE Sandbox Docker Images
 
+## Dos modos de IDE
+
+Cada conferencia elige un modo de IDE (campo `sandboxVariant`, ver `EditConferencePage.vue`):
+
+- **`code-server`** (default, valor vacío o cualquier valor historico `python`/`java`/`web`):
+  VS Code completo en el navegador. Pod de 2 contenedores, ver seccion siguiente.
+- **`terminal-nvim`**: Neovim configurado como IDE (explorador de archivos, autocompletado, LSP
+  de Java via `jdtls`, syntax highlighting), servido por `ttyd` (terminal web sobre WebSocket).
+  Pod de **un solo contenedor** (`runtime`, sin `ide`) — mas liviano en RAM/CPU y en tiempo de
+  arranque en el navegador (sin el JS de VS Code Web que descargar). Ver `nvim-init.lua` para la
+  config completa. `KubernetesPodClient.buildPodBody` decide la topologia del Pod segun este
+  valor; el resto del pipeline (gateway, `SandboxHandler`, `IdePage.vue`) es agnostico al modo,
+  proxea HTTP/WS al Service del Pod sin saber si hay VS Code o una terminal detras.
+
 ## Estructura (Fase 4: contenedores separados `ide` + `runtime`)
 
-Cada sandbox corre dos contenedores en el mismo Pod:
+En modo `code-server`, cada sandbox corre dos contenedores en el mismo Pod (en modo
+`terminal-nvim` solo corre `runtime`, con `ttyd` en vez de `socat` como comando):
 
 - **Dockerfile.code-ide-server**: contenedor `ide` — Debian, solo code-server (instalado desde el
   release standalone oficial, sin npm), extensiones de las 3 variantes preinstaladas (imagen única
   y universal, no una por variante). Expone el puerto 8080 (servido al usuario vía el gateway).
 - **Dockerfile.code-ide-runtime**: contenedor `runtime` — Alpine, toolchain único
   (Java+Maven, Node+npm, Python+pip, todos juntos, mas `bash-completion`), sin code-server.
-  Expone un shell vía `socat` (PTY-over-TCP) en `127.0.0.1:7681`, alcanzable únicamente por
-  loopback intra-Pod desde el contenedor `ide` (nunca se expone vía Service/Ingress). Hasta
-  2026-07-17 existían 3 imágenes separadas (una por variante python/java/web); se consolidaron
-  en una sola porque un mismo workspace puede tener archivos de más de un lenguaje.
+  En modo `code-server` expone un shell vía `socat` (PTY-over-TCP) en `127.0.0.1:7681`,
+  alcanzable únicamente por loopback intra-Pod desde el contenedor `ide` (nunca se expone vía
+  Service/Ingress). Hasta 2026-07-17 existían 3 imágenes separadas (una por variante
+  python/java/web); se consolidaron en una sola porque un mismo workspace puede tener archivos
+  de más de un lenguaje. También trae Neovim configurado como IDE completo (`nvim-init.lua`) más
+  herramientas de terminal modernas (tmux, fzf, bat, eza, fd, ripgrep, lazygit) y `ttyd` — usados
+  por el modo `terminal-nvim` (ver arriba), donde `ttyd` reemplaza a `socat` como comando del
+  contenedor y expone el puerto público del Service directamente.
 
 La terminal integrada de code-server (contenedor `ide`) se conecta a ese `socat` del contenedor
 `runtime` — ver el perfil de terminal baked-in en `code-ide-settings.json`. Esto significa que
