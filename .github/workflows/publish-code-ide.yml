@@ -72,6 +72,9 @@ jobs:
           provenance: false
           sbom: false
           platforms: linux/amd64
+          build-args: |
+            RUNTIME_GIT_SHA=${{ github.sha }}
+            RUNTIME_BUILD_DATE=${{ github.event.head_commit.timestamp || github.run_started_at }}
           tags: |
             ${{ matrix.image }}:${{ matrix.variantTag }}
             ${{ matrix.image }}:build-${{ github.run_id }}

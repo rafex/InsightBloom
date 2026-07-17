@@ -18,6 +18,14 @@
 # KubernetesPodClient.java) en vez de levantar el contenedor code-server completo.
 FROM alpine:3.21
 
+# Version del build, para debug rapido desde la terminal (ver runtime-banner.sh): que pod esta
+# corriendo que commit, sin tener que consultar kubectl desde afuera. Inyectado por CI
+# (.github/workflows/publish-code-ide.yml); "unknown" en builds locales sin --build-arg.
+ARG RUNTIME_GIT_SHA=unknown
+ARG RUNTIME_BUILD_DATE=unknown
+RUN printf 'git sha: %s\nbuild:   %s\n' "$RUNTIME_GIT_SHA" "$RUNTIME_BUILD_DATE" \
+    > /etc/insightbloom-runtime-version
+
 RUN apk add --no-cache \
     bash \
     bash-completion \
@@ -62,6 +70,12 @@ RUN apk add --no-cache \
 # /etc/profile.d. La shell de la terminal integrada es login ("/bin/bash -l", ver CMD abajo),
 # asi que hay que abastecerlo explicitamente ahi.
 RUN echo '. /usr/share/bash-completion/bash_completion' > /etc/profile.d/bash_completion.sh
+
+# Prompt coloreado con rama de git + banner de bienvenida con versiones (Java/Node/Python/build) --
+# mismo mecanismo /etc/profile.d que bash-completion arriba (necesario porque la shell de la
+# terminal integrada es login, no lee ~/.bashrc). Ver contenido de cada script para el porque.
+COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
+COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
 
 # Plugins de Neovim vendorizados en build time (git clone, con red disponible en CI) e instalados
 # como paquetes nativos de Neovim (carpeta pack/*/start/ = auto-cargados al iniciar, sin plugin
