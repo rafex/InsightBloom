@@ -40,6 +40,10 @@ final class JettyWebSocketEndpointBridge implements Session.Listener.AutoDemandi
 
     @Override
     public void onWebSocketOpen(final Session nativeSession) {
+        // Diagnostico 2026-07-16: confirmar si Jetty siquiera invoca este callback -- el bridge
+        // devuelto por WebSocketProxyCreator no dejaba NINGUN rastro (ni exito ni error) para el
+        // canal principal de code-server pese a que el handshake se aceptaba.
+        LOGGER.info(() -> "onWebSocketOpen invocado por Jetty, path=" + path + " nativeSession=" + nativeSession);
         this.nativeSession = nativeSession;
         this.session = new EtherWebSocketSessionAdapter(nativeSession, path, queryParams, headers);
         try {
@@ -71,6 +75,8 @@ final class JettyWebSocketEndpointBridge implements Session.Listener.AutoDemandi
 
     @Override
     public void onWebSocketClose(final int statusCode, final String reason, final Callback callback) {
+        LOGGER.info(() -> "onWebSocketClose invocado por Jetty, path=" + path + " statusCode=" + statusCode
+            + " reason=" + reason + " sessionAbierta=" + (session != null));
         try {
             if (session != null) {
                 endpoint.onClose(session, WebSocketCloseStatus.of(statusCode, reason));
@@ -84,7 +90,11 @@ final class JettyWebSocketEndpointBridge implements Session.Listener.AutoDemandi
 
     @Override
     public void onWebSocketError(final Throwable cause) {
-        endpoint.onError(session, cause);
+        LOGGER.log(Level.WARNING, "onWebSocketError invocado por Jetty, path=" + path
+            + " sessionAbierta=" + (session != null), cause);
+        if (session != null) {
+            endpoint.onError(session, cause);
+        }
     }
 
     private void handleFailure(final Exception e) {
