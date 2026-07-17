@@ -8,6 +8,14 @@
 # sandbox si el alumno tocaba un archivo del lenguaje "equivocado". El costo es una imagen mas
 # pesada (~1-2GB extra) y algo mas de superficie instalada; se acepta porque el runtime nunca
 # ejecuta codigo no confiable sin que el alumno ya tenga acceso completo a esa misma shell.
+#
+# 2026-07-17 (segunda ronda): tambien trae Neovim configurado como IDE completo (LSP de Java via
+# jdtls, arbol de archivos, autocompletado, syntax highlighting via tree-sitter) + herramientas
+# de terminal modernas (tmux, fzf, bat, eza, fd, ripgrep, lazygit). Sirve para dos casos de uso:
+# (a) la terminal integrada de code-server (conexion via socat, sin cambios), donde el alumno
+# puede simplemente correr "nvim"; (b) un modo de IDE alternativo mas liviano basado 100% en
+# terminal, servido por ttyd, para conferencias que eligen "ideMode=terminal-nvim" (ver
+# KubernetesPodClient.java) en vez de levantar el contenedor code-server completo.
 FROM alpine:3.21
 
 RUN apk add --no-cache \
@@ -29,13 +37,48 @@ RUN apk add --no-cache \
     gcc \
     musl-dev \
     libffi-dev \
-    openssl-dev
+    openssl-dev \
+    neovim \
+    jdtls \
+    tmux \
+    fzf \
+    bat \
+    eza \
+    fd \
+    ripgrep \
+    lazygit \
+    ttyd \
+    tree-sitter-java \
+    tree-sitter-python \
+    tree-sitter-javascript \
+    tree-sitter-typescript \
+    tree-sitter-json \
+    tree-sitter-html \
+    tree-sitter-css \
+    tree-sitter-bash
 
 # bash-completion no se auto-carga en shells de login en Alpine (a diferencia de Debian/Ubuntu);
 # el paquete solo instala /usr/share/bash-completion/bash_completion, sin engancharlo a
 # /etc/profile.d. La shell de la terminal integrada es login ("/bin/bash -l", ver CMD abajo),
 # asi que hay que abastecerlo explicitamente ahi.
 RUN echo '. /usr/share/bash-completion/bash_completion' > /etc/profile.d/bash_completion.sh
+
+# Plugins de Neovim vendorizados en build time (git clone, con red disponible en CI) e instalados
+# como paquetes nativos de Neovim (carpeta pack/*/start/ = auto-cargados al iniciar, sin plugin
+# manager) -- el pod en runtime puede tener internet_enabled=false (DEC-0023), asi que nada de
+# esto puede depender de red ni de un plugin manager (Lazy/Packer) que descargue al arrancar.
+RUN mkdir -p /usr/share/nvim/site/pack/plugins/start && \
+    cd /usr/share/nvim/site/pack/plugins/start && \
+    for repo in \
+      "https://github.com/nvim-tree/nvim-tree.lua" \
+      "https://github.com/hrsh7th/nvim-cmp" \
+      "https://github.com/hrsh7th/cmp-nvim-lsp" \
+      "https://github.com/L3MON4D3/LuaSnip" \
+      "https://github.com/mfussenegger/nvim-jdtls" \
+    ; do \
+      git clone --depth 1 "$repo" "$(basename "$repo")"; \
+    done && \
+    find /usr/share/nvim/site/pack/plugins/start -name .git -type d -prune -exec rm -rf {} \;
 
 # Mismo uid/gid 1000 que el contenedor 'ide' (Dockerfile.code-ide-server): el volumen
 # 'workspace' se comparte entre ambos contenedores del Pod, necesitan el mismo dueño.
@@ -82,13 +125,18 @@ RUN npm install -g \
 
 RUN python3 -m venv /home/coder/.venv
 
-RUN mkdir -p /home/coder/workspace /home/coder/db /home/coder/.m2
+RUN mkdir -p /home/coder/workspace /home/coder/db /home/coder/.m2 /home/coder/.config/nvim
+COPY --chown=coder:coder infra/docker/nvim-init.lua /home/coder/.config/nvim/init.lua
 
-# Puerto solo accesible por loopback intra-Pod (bind=127.0.0.1 en el CMD) — nunca se expone
-# vía Service ni Ingress, no requiere NetworkPolicy adicional
-EXPOSE 7681
+# Puerto socat: solo accesible por loopback intra-Pod (bind=127.0.0.1 en el CMD) — nunca se
+# expone vía Service ni Ingress, no requiere NetworkPolicy adicional. Puerto ttyd: 8080, mismo
+# puerto que usa el contenedor 'ide' para code-server -- el Service del Pod solo enruta a UNO de
+# los dos contenedores segun 'ideMode' (ver KubernetesPodClient.java), nunca a ambos a la vez.
+EXPOSE 7681 8080
 
 ENTRYPOINT ["dumb-init", "--"]
-# Forma exec-array: cada elemento se pasa literal a execve, sin shell intermedio. Patrón
-# estándar de socat para "shell sobre TCP" (fork = una sesión por conexión, pty = terminal real).
+# Comando por defecto: socat (modo code-server, terminal integrada). El modo alternativo
+# "ideMode=terminal-nvim" pisa este comando en el pod spec para correr ttyd + nvim en su lugar
+# (ver KubernetesPodClient.java) -- misma imagen, distinto comando segun el contenedor que
+# efectivamente exponga el Service del Pod.
 CMD ["socat", "TCP-LISTEN:7681,reuseaddr,fork,bind=127.0.0.1", "EXEC:/bin/bash -l,pty,stderr,setsid,sigint,sane"]
