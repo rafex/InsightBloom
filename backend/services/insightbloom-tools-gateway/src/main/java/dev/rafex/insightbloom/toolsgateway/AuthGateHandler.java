@@ -151,8 +151,10 @@ final class AuthGateHandler extends Handler.Abstract {
     }
 
     AuthResult checkAuth(final Request request, final String host, final boolean isIdeHost) {
+        boolean sawSessionCookie = false;
         for (final HttpCookie cookie : Request.getCookies(request)) {
             if (SESSION_COOKIE.equals(cookie.getName())) {
+                sawSessionCookie = true;
                 final String dynamicTarget = sessionCache.dynamicTarget(cookie.getValue());
                 if (sessionCache.isValid(cookie.getValue())) {
                     return new AuthResult(true, null, dynamicTarget);
@@ -161,15 +163,18 @@ final class AuthGateHandler extends Handler.Abstract {
         }
         final String token = queryParam(request, "ib_token");
         if (token == null || token.isBlank()) {
+            logAuthRejected(request, host, sawSessionCookie, "sin cookie de sesion valida ni ib_token en query");
             return new AuthResult(false, null, null);
         }
         if (isIdeHost) {
             final String conferenceId = queryParam(request, "conferenceId");
             if (conferenceId == null || conferenceId.isBlank()) {
+                logAuthRejected(request, host, sawSessionCookie, "ib_token presente pero falta conferenceId en query");
                 return new AuthResult(false, null, null);
             }
             final String target = resolveSandboxTarget(token, conferenceId);
             if (target == null) {
+                logAuthRejected(request, host, sawSessionCookie, "resolveSandboxTarget devolvio null (token invalido o sin sandbox activo)");
                 return new AuthResult(false, null, null);
             }
             return new AuthResult(true, sessionCache.mint(SESSION_TTL, target), target);
@@ -177,7 +182,19 @@ final class AuthGateHandler extends Handler.Abstract {
         if (isTokenValid(token)) {
             return new AuthResult(true, sessionCache.mint(SESSION_TTL), null);
         }
+        logAuthRejected(request, host, sawSessionCookie, "ib_token invalido segun AUTH_VALIDATE_URL");
         return new AuthResult(false, null, null);
+    }
+
+    /**
+     * Diagnostico agregado 2026-07-16: los 401 de sub-recursos del extension host de code-server
+     * (ej. extension.js, mergeConflictMain.js) no dejaban rastro alguno en logs -- WebSocketProxyCreator
+     * tampoco logueaba sus rechazos silenciosos (401/502). Esto deja evidencia real de por que
+     * checkAuth rechaza cada request, en vez de tener que adivinar contra los logs vacios.
+     */
+    private void logAuthRejected(final Request request, final String host, final boolean sawSessionCookie, final String reason) {
+        LOGGER.warning(() -> "auth rechazada host=" + host + " path=" + request.getHttpURI().getPath()
+                + " cookieDeSesionPresente=" + sawSessionCookie + " motivo=" + reason);
     }
 
     private boolean isTokenValid(final String token) {

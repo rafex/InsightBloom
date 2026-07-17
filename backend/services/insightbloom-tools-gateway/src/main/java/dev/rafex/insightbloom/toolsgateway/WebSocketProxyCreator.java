@@ -28,6 +28,9 @@ import java.util.Map;
  */
 final class WebSocketProxyCreator implements WebSocketCreator {
 
+    private static final java.util.logging.Logger LOGGER =
+        java.util.logging.Logger.getLogger(WebSocketProxyCreator.class.getName());
+
     private final Map<String, String> routesByHost;
     private final AuthGateHandler authGate;
 
@@ -43,11 +46,13 @@ final class WebSocketProxyCreator implements WebSocketCreator {
         final boolean isIdeHost = authGate.isIdeHost(host);
         final String staticTarget = routesByHost.get(host);
         if (!isIdeHost && staticTarget == null) {
+            LOGGER.warning(() -> "websocket rechazado: host no reconocido host=" + host + " path=" + request.getHttpURI().getPath());
             response.setStatus(502);
             callback.succeeded();
             return null;
         }
 
+        // checkAuth ya loguea el motivo puntual del rechazo (ver AuthGateHandler.logAuthRejected).
         final AuthGateHandler.AuthResult auth = authGate.checkAuth(request, host, isIdeHost);
         if (!auth.authenticated()) {
             response.setStatus(401);
@@ -66,6 +71,8 @@ final class WebSocketProxyCreator implements WebSocketCreator {
 
         final String target = isIdeHost ? auth.dynamicTarget() : staticTarget;
         if (target == null) {
+            LOGGER.warning(() -> "websocket rechazado: autenticado pero sin target (sandbox no disponible) host="
+                + host + " path=" + request.getHttpURI().getPath());
             response.setStatus(502);
             callback.succeeded();
             return null;

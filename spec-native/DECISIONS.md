@@ -698,6 +698,27 @@ Registrar una decision cuando cambie:
     10 contenedores de trabajo, solo co-ubicados — dudoso ahorro real) o adoptar una
     herramienta con multi-tenencia real (ej. patron tipo JupyterHub) — ninguna opcion
     evaluada todavia.
+  - **Actualizacion (2026-07-16)**: se evaluo puntualmente reutilizar solo el contenedor
+    `runtime` (no el par completo ide+runtime) entre varios alumnos, ya que `socat` con
+    `fork` ya soporta multiples conexiones concurrentes sin cambios. Se descarta por ahora:
+    requiere resolver aislamiento de filesystem (hoy `/home/coder/workspace` y `/db` son
+    volumenes por Pod, compartidos = todos ven los archivos de todos), aislamiento de
+    recursos (CPU/memoria hoy es por Pod, compartir = un alumno pesado afecta a los demas)
+    y aislamiento de seguridad (mismo uid 1000 y mismo espacio de procesos para todos —
+    justo la superficie que DEC-0023 diseño para aislar por Pod). Ademas, Kubernetes no
+    permite agregar contenedores a un Pod corriendo, asi que N contenedores `ide` + 1
+    `runtime` compartido implicaria un Pod fijo por cohorte (no elastico), con mayor blast
+    radius: si ese Pod se cae, se caen todos los alumnos de la cohorte a la vez.
+    Estrategia propuesta a explorar si se retoma: aislar cada alumno dentro del `runtime`
+    compartido via **chroot y cgroups** (namespace de filesystem + limite de CPU/memoria
+    por alumno dentro del mismo contenedor), con un **identificador unico por alumno**
+    (asignado al registrarse) como clave de particion, y un **proceso vigilante** que mate
+    procesos colgados/fuera de limite por alumno. Esto es, en esencia, reconstruir a mano
+    parte de lo que un container runtime ya da gratis por Pod — el trade-off a evaluar
+    quando se retome es si el ahorro de recursos justifica construir y mantener ese
+    aislamiento propio en vez de simplemente pre-provisionar mas pods. **Sigue sin
+    iniciar** — ninguna implementacion, solo la estrategia queda anotada para cuando se
+    revisite.
 - Reemplaza: `none`
 
 ### DEC-0024 - Camino de escalado para los 6 servicios con SQLite: PostgreSQL, no un PVC compartido
