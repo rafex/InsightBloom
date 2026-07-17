@@ -33,16 +33,27 @@
       <groupId>dev.rafex.ether.json</groupId>
       <artifactId>ether-json</artifactId>
     </dependency>
-    <!-- TASK-0020: proxy de WebSocket (Etherpad socket.io, code-server) -->
+    <!-- TASK-0020: contratos WebSocketEndpoint/WebSocketSession portables (Etherpad socket.io,
+         code-server). El bridge cliente/backend en si (LoggingWebSocketProxyEndpoint) es una
+         copia local de ether-websocket-proxy-jetty12 con logging real: ver su javadoc, la
+         version publicada en Maven Central traga en silencio cualquier excepcion de la conexion
+         saliente al backend, indiagnosticable sin un release nuevo de esa libreria. -->
     <dependency>
       <groupId>dev.rafex.ether.websocket</groupId>
-      <artifactId>ether-websocket-proxy-jetty12</artifactId>
+      <artifactId>ether-websocket-core</artifactId>
     </dependency>
     <!-- Servidor WebSocket nativo de Jetty (WebSocketUpgradeHandler) para montar el upgrade
          sobre nuestro Server crudo existente, junto al AuthGateHandler HTTP. -->
     <dependency>
       <groupId>org.eclipse.jetty.websocket</groupId>
       <artifactId>jetty-websocket-jetty-server</artifactId>
+      <version>12.1.7</version>
+    </dependency>
+    <!-- Cliente WebSocket nativo de Jetty, usado por LoggingWebSocketProxyEndpoint para
+         conectar hacia el backend real (Etherpad/code-server). -->
+    <dependency>
+      <groupId>org.eclipse.jetty.websocket</groupId>
+      <artifactId>jetty-websocket-jetty-client</artifactId>
       <version>12.1.7</version>
     </dependency>
     <dependency>

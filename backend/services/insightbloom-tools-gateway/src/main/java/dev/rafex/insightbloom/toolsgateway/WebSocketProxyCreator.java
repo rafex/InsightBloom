@@ -1,7 +1,5 @@
 package dev.rafex.insightbloom.toolsgateway;
 
-import dev.rafex.ether.websocket.proxy.jetty12.BackendResolver;
-import dev.rafex.ether.websocket.proxy.jetty12.WebSocketProxyEndpoint;
 import org.eclipse.jetty.http.HttpCookie;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.server.Response;
@@ -83,7 +81,7 @@ final class WebSocketProxyCreator implements WebSocketCreator {
         final String path = request.getHttpURI().getPath();
         final URI backendUri = URI.create(wsTarget + path + (rawQuery == null ? "" : "?" + rawQuery));
 
-        final WebSocketProxyEndpoint endpoint = new WebSocketProxyEndpoint(BackendResolver.fixed(backendUri));
+        final LoggingWebSocketProxyEndpoint endpoint = new LoggingWebSocketProxyEndpoint(backendUri, java.time.Duration.ofSeconds(10));
         return new JettyWebSocketEndpointBridge(endpoint, path, queryParamsOf(rawQuery), headersOf(request));
     }
 
