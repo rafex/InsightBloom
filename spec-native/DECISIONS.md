@@ -644,19 +644,26 @@ Registrar una decision cuando cambie:
       WebSocket, mientras el resto del `Server` HTTP crudo sigue funcionando normal (por
       eso HTTP normal, incluyendo el propio handshake de upgrade a nivel HTTP, nunca dio
       sintomas). Gotcha documentado de Jetty combinado con shade-plugin.
-    - **Fix**: agregar `<transformer implementation="org.apache.maven.plugins.shade.
-      resource.ServicesResourceTransformer"/>` al shade-plugin de
-      `insightbloom-tools-gateway/pom.xml`. Verificado localmente: el jar reconstruido
-      trae `META-INF/services/org.eclipse.jetty.websocket.core.Extension` con las 5
-      extensiones internas de Jetty correctamente fusionadas (antes se perdian por
-      sobreescritura). **Pendiente de confirmar en vivo** contra el cluster real.
-    - **Plan B si `ServicesResourceTransformer` no alcanza**: migrar de
-      `maven-shade-plugin` a `maven-assembly-plugin` (descriptor
-      `jar-with-dependencies`) para este modulo — evita por completo la clase de bug de
-      "un plugin de empaquetado silenciosamente descarta/sobrescribe recursos de
-      servicio compartidos entre JARs", a costa de un empaquetado menos configurable
-      (sin relocacion de paquetes ni filtrado fino, que este modulo no necesita de
-      todos modos).
+    - **Intento 1 (descartado)**: agregar `<transformer implementation="org.apache.
+      maven.plugins.shade.resource.ServicesResourceTransformer"/>` al shade-plugin. El
+      jar reconstruido si traia `META-INF/services/org.eclipse.jetty.websocket.core.
+      Extension` con las 5 extensiones internas de Jetty correctamente fusionadas (antes
+      se perdian por sobreescritura) — pero **probado en vivo contra el cluster real, el
+      WebSocket seguia sin conectar, cero cambio observable**: `onWebSocketOpen`/
+      `onWebSocketClose`/`onWebSocketError` seguian sin invocarse nunca. Descarta la
+      teoria de que el problema fuera (solo) la fusion de `META-INF/services/*`.
+    - **Fix real: reemplazar maven-shade-plugin por maven-assembly-plugin**
+      (`jar-with-dependencies`, `appendAssemblyId=false` para conservar el nombre de jar
+      que espera `container/backend/java/Dockerfile`, `containerDescriptorHandlers` con
+      `metaInf-services` para seguir fusionando `META-INF/services/*` explicitamente).
+      Decision explicita de no seguir parchando shade-plugin: assembly-plugin evita por
+      completo esta clase de bug ("un plugin de empaquetado descarta/fusiona mal
+      recursos compartidos entre JARs"), a costa de un empaquetado menos configurable
+      (sin relocacion de paquetes ni filtrado fino) que este modulo no necesita.
+      Verificado localmente: build limpio, `java -jar` arranca y sirve `GET /version`
+      con 200. **Pendiente de confirmar en vivo** contra el cluster real si esto arregla
+      el WebSocket, o si el problema esta en otro lugar completamente distinto al
+      empaquetado.
 
 ### DEC-0023 - IDE web en sandbox (code-server) por asistente, pool fijo sin RBAC de pods
 
