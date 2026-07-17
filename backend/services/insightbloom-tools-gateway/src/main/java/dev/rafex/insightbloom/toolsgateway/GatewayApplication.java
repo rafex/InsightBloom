@@ -14,6 +14,9 @@ import java.util.Map;
  */
 public final class GatewayApplication {
 
+    /** Ver comentario en el armado de {@code wsHandler} en {@link #main}. */
+    static final long WS_MAX_MESSAGE_SIZE = 20L * 1024 * 1024;
+
     private GatewayApplication() {
     }
 
@@ -43,8 +46,13 @@ public final class GatewayApplication {
         // El upgrade de WebSocket (Etherpad socket.io, code-server) se intercepta antes que
         // el AuthGateHandler HTTP; las requests que no son upgrade caen al AuthGateHandler
         // sin cambios (WebSocketUpgradeHandler.handle delega al wrapped Handler si no aplica).
-        final WebSocketUpgradeHandler wsHandler = WebSocketUpgradeHandler.from(server, container ->
-                container.addMapping("/*", new WebSocketProxyCreator(routes, authGateHandler)));
+        // maxBinaryMessageSize: el limite por defecto de Jetty (64KB) es insuficiente para el
+        // canal de management de code-server -- confirmado en vivo (2026-07-17) que cerraba con
+        // 1009 "Binary message too large: 69,622 > 65,536" en loop constante de reconexion.
+        final WebSocketUpgradeHandler wsHandler = WebSocketUpgradeHandler.from(server, container -> {
+            container.setMaxBinaryMessageSize(WS_MAX_MESSAGE_SIZE);
+            container.addMapping("/*", new WebSocketProxyCreator(routes, authGateHandler));
+        });
         wsHandler.setHandler(authGateHandler);
         server.setHandler(wsHandler);
 

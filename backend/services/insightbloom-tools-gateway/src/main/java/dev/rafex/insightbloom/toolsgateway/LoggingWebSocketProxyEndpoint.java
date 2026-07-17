@@ -45,6 +45,10 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
         httpClient.start();
 
         try {
+            // Mismo limite que el lado servidor (ver GatewayApplication.WS_MAX_MESSAGE_SIZE):
+            // sin esto el default de Jetty (64KB) cierra la conexion al backend con 1009 en
+            // cuanto code-server manda un frame binario grande de su canal de management.
+            wsClient.setMaxBinaryMessageSize(GatewayApplication.WS_MAX_MESSAGE_SIZE);
             wsClient.start();
             final var backendListener = new BackendSessionListener(clientSession);
             final var backendFuture = wsClient.connect(backendListener, backendUri);
