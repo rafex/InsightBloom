@@ -68,5 +68,14 @@ EXPOSE 8080
 # (autenticación delegada al gateway via ib_token en cookie/header). El flag correcto es
 # --auth none (--disable-auth no existe en code-server -- "error Unknown option" en
 # arranque, causaba que el pod entrara en 0/2 Error; ver postmortem 2026-07-16).
+#
+# --disable-telemetry --disable-update-check: root cause real de una terminal "congelada"
+# (2026-07-17) en sandboxes con internet_enabled=false -- sin estos flags, code-server sigue
+# intentando llamadas salientes (telemetry.coder.com, chequeo de release en GitHub) que el
+# NetworkPolicy default-deny-egress del namespace bloquea en silencio (paquetes dropeados, no
+# rechazados -> timeout completo por intento, no fallo inmediato). Confirmado en logs del
+# navegador: "AggregateError [ETIMEDOUT]" repetido en el extension host, coincidiendo
+# exactamente con que la terminal integrada dejaba de responder (mismo proceso Node.js).
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "/home/coder/workspace"]
+CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", \
+     "--disable-telemetry", "--disable-update-check", "/home/coder/workspace"]
