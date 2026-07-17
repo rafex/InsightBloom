@@ -19,7 +19,17 @@ import java.util.logging.Logger;
  * Server). Reimplementa localmente el rol de {@code JettyWebSocketEndpointAdapter} de la libreria
  * (package-private, no reutilizable desde aqui) usando solo API publica.
  */
-final class JettyWebSocketEndpointBridge implements Session.Listener.AutoDemanding {
+/**
+ * Debe ser {@code public} (no package-private): Jetty conecta reflexivamente los callbacks de
+ * este objeto via {@code MethodHandles.publicLookup().in(endpointClass)}
+ * ({@code JettyWebSocketFrameHandlerFactory.createListenerMetadata}, ver sources de
+ * jetty-websocket-jetty-common) -- un lookup publico sobre una clase no-publica no tiene acceso
+ * a sus miembros aunque los metodos individuales sean {@code public}, y el fallo queda invisible
+ * porque Jetty loguea sus propios errores internos via SLF4J, sin provider real bindeado en esta
+ * app (fallback NOP). Root cause real del "WebSocket close 1006" del IDE (2026-07-17): no era el
+ * empaquetado (ServicesResourceTransformer/assembly-plugin, ambos probados sin cambio), era esto.
+ */
+public final class JettyWebSocketEndpointBridge implements Session.Listener.AutoDemanding {
     private static final Logger LOGGER = Logger.getLogger(JettyWebSocketEndpointBridge.class.getName());
 
     private final WebSocketEndpoint endpoint;

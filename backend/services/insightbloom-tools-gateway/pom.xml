@@ -56,6 +56,17 @@
       <artifactId>jetty-websocket-jetty-client</artifactId>
       <version>12.1.7</version>
     </dependency>
+    <!-- Sin esto, SLF4J cae al binding NOP (ver "Defaulting to no-operation (NOP) logger
+         implementation" en los logs de arranque) y Jetty pierde en silencio TODOS sus propios
+         logs de error internos, posiblemente incluido el motivo real detras del fallo de
+         negociacion de WebSocket del IDE (2026-07-17). Puentea a java.util.logging, misma
+         infra que ya usa el resto de este servicio (LOGGER de cada clase propia). -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-jdk14</artifactId>
+      <version>2.0.17</version>
+      <scope>runtime</scope>
+    </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
