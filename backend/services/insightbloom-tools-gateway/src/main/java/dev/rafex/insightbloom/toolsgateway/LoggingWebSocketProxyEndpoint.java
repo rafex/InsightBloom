@@ -133,7 +133,14 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
         }
     }
 
-    private static final class BackendSessionListener implements Session.Listener.AutoDemanding {
+    /**
+     * Debe ser {@code public} (no {@code private}): el {@code WebSocketClient} de Jetty conecta
+     * reflexivamente los callbacks de este listener via {@code MethodHandles.publicLookup()},
+     * igual que el servidor con {@link JettyWebSocketEndpointBridge} (ver su javadoc) -- mismo
+     * bug, confirmado en logs de produccion: {@code IllegalAccessException: class is not public}
+     * al intentar invocar {@code onWebSocketOpen} de esta clase cuando era {@code private}.
+     */
+    public static final class BackendSessionListener implements Session.Listener.AutoDemanding {
         final WebSocketSession clientSession;
         volatile Session backendSession;
 
