@@ -65,33 +65,40 @@
 
   <build>
     <plugins>
+      <!-- Se reemplazo maven-shade-plugin por maven-assembly-plugin (2026-07-17): agregar
+           ServicesResourceTransformer no resolvio el WebSocket "1006" del IDE (verificado en
+           vivo, cero cambio). El jar-with-dependencies de assembly-plugin evita por completo
+           la clase de bug de "un plugin de empaquetado descarta/fusiona mal recursos de
+           servicio compartidos entre JARs", con el trade-off de un empaquetado menos
+           configurable (sin relocacion de paquetes ni filtrado fino) que este modulo no
+           necesita. containerDescriptorHandlers con metaInf-services sigue fusionando
+           META-INF/services/* explicitamente (el problema que se sospechaba real). Ver
+           postmortem completo en spec-native/DECISIONS.md, DEC-0022. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass>dev.rafex.insightbloom.toolsgateway.GatewayApplication</mainClass>
+            </manifest>
+          </archive>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+          <appendAssemblyId>false</appendAssemblyId>
+          <containerDescriptorHandlers>
+            <containerDescriptorHandler>
+              <handlerName>metaInf-services</handlerName>
+            </containerDescriptorHandler>
+          </containerDescriptorHandlers>
+        </configuration>
         <executions>
           <execution>
             <phase>package</phase>
             <goals>
-              <goal>shade</goal>
+              <goal>single</goal>
             </goals>
-            <configuration>
-              <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>dev.rafex.insightbloom.toolsgateway.GatewayApplication</mainClass>
-                </transformer>
-                <!-- Root cause del WebSocket "1006" del IDE (2026-07-16): Jetty registra
-                     componentes de su maquinaria de WebSocket (extensiones, frame handler
-                     factories) vía archivos META-INF/services/*. Sin este transformer, el
-                     shade plugin sobrescribe (no fusiona) esos archivos cuando varios JARs de
-                     Jetty los comparten, y el upgrade queda a medias: el handshake HTTP se
-                     acepta (createWebSocket() de WebSocketProxyCreator corre bien) pero
-                     onWebSocketOpen/Close/Error nunca se invocan. Confirmado con logging
-                     directo en JettyWebSocketEndpointBridge, cero rastro pese a reconexiones
-                     repetidas del cliente. Gotcha documentado de Jetty+shade-plugin. -->
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-              </transformers>
-              <createDependencyReducedPom>false</createDependencyReducedPom>
-            </configuration>
           </execution>
         </executions>
       </plugin>
