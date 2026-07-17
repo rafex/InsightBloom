@@ -80,6 +80,8 @@ final class WebSocketProxyCreator implements WebSocketCreator {
         final String rawQuery = request.getHttpURI().getQuery();
         final String path = request.getHttpURI().getPath();
         final URI backendUri = URI.create(wsTarget + path + (rawQuery == null ? "" : "?" + rawQuery));
+        LOGGER.info(() -> "websocket handshake aceptado, creando bridge host=" + host + " path=" + path
+            + " backendUri=" + backendUri);
 
         final LoggingWebSocketProxyEndpoint endpoint = new LoggingWebSocketProxyEndpoint(backendUri, java.time.Duration.ofSeconds(10));
         return new JettyWebSocketEndpointBridge(endpoint, path, queryParamsOf(rawQuery), headersOf(request));

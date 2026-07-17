@@ -157,6 +157,10 @@ final class AuthGateHandler extends Handler.Abstract {
                 sawSessionCookie = true;
                 final String dynamicTarget = sessionCache.dynamicTarget(cookie.getValue());
                 if (sessionCache.isValid(cookie.getValue())) {
+                    if (isIdeHost) {
+                        LOGGER.info(() -> "auth ok (cookie de sesion) host=" + host
+                            + " path=" + request.getHttpURI().getPath() + " dynamicTarget=" + dynamicTarget);
+                    }
                     return new AuthResult(true, null, dynamicTarget);
                 }
             }
@@ -177,6 +181,8 @@ final class AuthGateHandler extends Handler.Abstract {
                 logAuthRejected(request, host, sawSessionCookie, "resolveSandboxTarget devolvio null (token invalido o sin sandbox activo)");
                 return new AuthResult(false, null, null);
             }
+            LOGGER.info(() -> "auth ok (ib_token+conferenceId, minteando sesion nueva) host=" + host
+                + " conferenceId=" + conferenceId + " dynamicTarget=" + target);
             return new AuthResult(true, sessionCache.mint(SESSION_TTL, target), target);
         }
         if (isTokenValid(token)) {
@@ -225,10 +231,19 @@ final class AuthGateHandler extends Handler.Abstract {
                     .GET()
                     .build();
             final HttpResponse<String> resp = httpClient.send(resolveRequest, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() != 200) return null;
+            if (resp.statusCode() != 200) {
+                LOGGER.warning(() -> "resolveSandboxTarget: " + sandboxResolveUrl + " respondio "
+                    + resp.statusCode() + " para conferenceId=" + conferenceId);
+                return null;
+            }
             final var node = JSON_CODEC.readTree(resp.body());
             final var target = JSON_CODEC.at(node, "/data/target");
-            return target.isMissingNode() || target.isNull() ? null : target.asText();
+            if (target.isMissingNode() || target.isNull()) {
+                LOGGER.warning(() -> "resolveSandboxTarget: respuesta 200 sin data/target para conferenceId="
+                    + conferenceId + " body=" + resp.body());
+                return null;
+            }
+            return target.asText();
         } catch (final Exception e) {
             LOGGER.log(Level.WARNING, "sandbox target resolution failed", e);
             return null;
@@ -259,6 +274,9 @@ final class AuthGateHandler extends Handler.Abstract {
         // framing de Content-Length/chunked al mezclar HttpClient (upstream) con el streaming
         // Content.Sink de Jetty 12 al escribir antes de conocer el tamano total.
         final HttpResponse<byte[]> upstreamResponse = sendWithRetry(upstreamBuilder.build());
+        if (upstreamResponse.statusCode() >= 400) {
+            LOGGER.warning(() -> "proxy: upstream " + uri + " respondio " + upstreamResponse.statusCode());
+        }
 
         response.setStatus(upstreamResponse.statusCode());
         final HttpFields.Mutable outHeaders = response.getHeaders();

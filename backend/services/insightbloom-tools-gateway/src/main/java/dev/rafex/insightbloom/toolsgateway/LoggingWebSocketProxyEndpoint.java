@@ -58,6 +58,7 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
                 return;
             }
 
+            LOGGER.info(() -> "websocket proxy: conexion al backend " + backendUri + " establecida ok");
             final var bridge = new ProxyBridge(backendSession, httpClient);
             clientSession.attribute("proxy-bridge", bridge);
         } catch (final Exception e) {
