@@ -618,6 +618,45 @@ Registrar una decision cuando cambie:
     gating sigue viviendo en el frontend/backend de la app, sin cambios.
   - `AUTH_VALIDATE_URL`/`GATEWAY_ROUTES`/`GATEWAY_LOGIN_URL` configurables por env var,
     mismo patron que el resto de servicios del chart.
+  - **Postmortem (2026-07-16/17)**: el proxy de WebSocket agregado despues (TASK-0020,
+    `WebSocketProxyCreator`/`JettyWebSocketEndpointBridge`, ver DEC-0023 Fase 3b para el
+    caso dinamico del IDE) **nunca funciono de verdad**, ni siquiera para Etherpad — quedo
+    enmascarado porque socket.io hace fallback automatico a HTTP long-polling cuando el
+    WebSocket real no conecta, exactamente la "limitacion conocida" ya anotada arriba en
+    esta misma decision, solo que result no era una limitacion aceptada sino un bug activo.
+    Se hizo visible recien con el IDE (code-server no tiene fallback: su protocolo remoto
+    exige un WebSocket real) — sintoma: "WebSocket close with status code 1006" repetido en
+    el cliente, sin ningun rastro en logs del gateway ni del backend.
+    - **Diagnostico**: se descarto el backend (probado con un socket TCP crudo contra el
+      Service real, incluyendo el path+query exacto que fallaba — acepta perfecto, 101
+      Switching Protocols) y la logica de negocio del proxy (se agrego logging
+      incondicional en cada callback de `JettyWebSocketEndpointBridge` —
+      `onWebSocketOpen`/`onWebSocketClose`/`onWebSocketError` — y ninguno se disparaba
+      nunca, pese a que `WebSocketProxyCreator.createWebSocket()` si completaba y
+      devolvia el listener sin error).
+    - **Root cause real**: `insightbloom-tools-gateway` empaqueta un uber-jar con
+      `maven-shade-plugin` sin `ServicesResourceTransformer` configurado. Jetty registra
+      componentes internos de su maquinaria de WebSocket (extensiones como
+      `PerMessageDeflateExtension`, parsers de `ExtensionConfig`, etc.) via archivos
+      `META-INF/services/*`; cuando varios JARs de Jetty comparten el mismo nombre de
+      archivo de servicio, el shade plugin por defecto **sobrescribe en vez de fusionar**
+      esos archivos — rompe en silencio el wiring interno de negociacion/registro de
+      WebSocket, mientras el resto del `Server` HTTP crudo sigue funcionando normal (por
+      eso HTTP normal, incluyendo el propio handshake de upgrade a nivel HTTP, nunca dio
+      sintomas). Gotcha documentado de Jetty combinado con shade-plugin.
+    - **Fix**: agregar `<transformer implementation="org.apache.maven.plugins.shade.
+      resource.ServicesResourceTransformer"/>` al shade-plugin de
+      `insightbloom-tools-gateway/pom.xml`. Verificado localmente: el jar reconstruido
+      trae `META-INF/services/org.eclipse.jetty.websocket.core.Extension` con las 5
+      extensiones internas de Jetty correctamente fusionadas (antes se perdian por
+      sobreescritura). **Pendiente de confirmar en vivo** contra el cluster real.
+    - **Plan B si `ServicesResourceTransformer` no alcanza**: migrar de
+      `maven-shade-plugin` a `maven-assembly-plugin` (descriptor
+      `jar-with-dependencies`) para este modulo — evita por completo la clase de bug de
+      "un plugin de empaquetado silenciosamente descarta/sobrescribe recursos de
+      servicio compartidos entre JARs", a costa de un empaquetado menos configurable
+      (sin relocacion de paquetes ni filtrado fino, que este modulo no necesita de
+      todos modos).
 
 ### DEC-0023 - IDE web en sandbox (code-server) por asistente, pool fijo sin RBAC de pods
 
