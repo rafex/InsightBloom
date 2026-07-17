@@ -77,6 +77,10 @@ RUN echo '. /usr/share/bash-completion/bash_completion' > /etc/profile.d/bash_co
 COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
 COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
 
+# Ver el archivo: /etc/profile resetea PATH para shells de login antes de llegar aca, hay que
+# re-agregar los bin de npm-global/opencode (000_ = corre primero, para que el resto herede el PATH).
+COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
+
 # javadebug/pydebug: wrappers para debug remoto (JDWP/debugpy) desde el editor -- ver el archivo
 # para el porque de este approach en vez de instalar Java/Python en el contenedor "ide".
 COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
