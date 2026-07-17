@@ -57,12 +57,13 @@ final class WebSocketProxyCreator implements WebSocketCreator {
             callback.succeeded();
             return null;
         }
+        // SameSite=NONE: ver comentario equivalente en AuthGateHandler.handle.
         if (auth.newSessionId() != null) {
             Response.addCookie(response, HttpCookie.build(AuthGateHandler.SESSION_COOKIE, auth.newSessionId())
                     .path("/")
                     .httpOnly(true)
                     .secure(true)
-                    .sameSite(HttpCookie.SameSite.LAX)
+                    .sameSite(HttpCookie.SameSite.NONE)
                     .maxAge(AuthGateHandler.SESSION_TTL.toSeconds())
                     .build());
         }

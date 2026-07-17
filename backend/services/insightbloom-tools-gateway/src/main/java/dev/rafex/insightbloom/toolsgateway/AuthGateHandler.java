@@ -115,12 +115,17 @@ final class AuthGateHandler extends Handler.Abstract {
             writeLoginRequired(request, response, callback);
             return true;
         }
+        // SameSite=NONE (no LAX): el extension host de code-server corre en un iframe/worker
+        // sandboxeado con origen opaco (webWorkerExtensionHostIframe.html); confirmado en vivo
+        // 2026-07-17 que sus requests (incl. el WS de conexion del extension host) llegaban sin
+        // la cookie de sesion con SameSite=LAX -- Chrome las trata como cross-site por el origen
+        // opaco del sandbox, aunque la URL sea el mismo host. Sigue siendo Secure+HttpOnly.
         if (auth.newSessionId() != null) {
             Response.addCookie(response, HttpCookie.build(SESSION_COOKIE, auth.newSessionId())
                     .path("/")
                     .httpOnly(true)
                     .secure(true)
-                    .sameSite(HttpCookie.SameSite.LAX)
+                    .sameSite(HttpCookie.SameSite.NONE)
                     .maxAge(SESSION_TTL.toSeconds())
                     .build());
         }
