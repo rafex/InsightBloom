@@ -153,6 +153,11 @@ RUN python3 -m venv /home/coder/.venv
 # alumno lo va a correr. El instalador intenta modificar ~/.bashrc para agregar su bin al PATH,
 # pero la shell de la terminal es login y Alpine no lee ~/.bashrc para logins (ver runtime-
 # prompt.sh) -- se agrega el PATH explicitamente aca en vez de confiar en esa modificacion.
+#
+# Auditoria de seguridad 2026-07-17: se instala incondicionalmente (no atado a
+# internet_enabled), ~174MB de superficie instalada que no puede hacer nada util sin red --
+# costo fijo aceptado deliberadamente (pedido explicito del usuario) en vez de condicionar la
+# instalacion/activacion por conferencia. Revisar si en el futuro esto pesa mas de lo que vale.
 RUN curl -fsSL https://opencode.ai/install | bash
 ENV PATH=/home/coder/.opencode/bin:$PATH
 

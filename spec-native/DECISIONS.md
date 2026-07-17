@@ -826,6 +826,40 @@ Registrar una decision cuando cambie:
     el gateway proxea HTTP/WS al Service del Pod sin importar si el contenedor detras es
     `ide` (code-server) o `runtime` (ttyd). Ambos toolchains completos (Java+Node+Python)
     siguen disponibles en los dos modos, ya que viven en la misma imagen `runtime` unica.
+  - **Auditoria de seguridad (2026-07-17): hallazgo critico confirmado en vivo y resuelto**.
+    Cualquier Pod de `insightbloom-sandboxes` podia alcanzar el Service de CUALQUIER OTRO
+    Pod del mismo namespace sin autenticacion (`curl` directo, 200 OK — probado con un pod
+    "victima" real). Causa: la `NetworkPolicy` de egress existente permite trafico saliente
+    entre pods del mismo namespace sin restriccion de puerto, y no existia ninguna
+    `NetworkPolicy` de tipo `Ingress` que restringiera el trafico ENTRANTE — dado que
+    `code-server` corre con `--auth none` y `ttyd` sin credencial (la autenticacion real
+    vive solo en `insightbloom-tools-gateway`, en el borde), esto permitia a cualquier
+    alumno acceder al IDE completo de otro alumno con solo el nombre del Service (patron
+    predecible: `sandbox-<label>-<slot>-svc`). **Resuelto**: `KubernetesPodClient.
+    ensureIngressPolicy()` crea una `NetworkPolicy` de Ingress que restringe el trafico
+    entrante de todo sandbox al Pod del gateway unicamente (namespace + label
+    `app.kubernetes.io/component=toolsgateway`), sobre el puerto publico del sandbox.
+    Idempotente, se llama en cada `createSandbox`. De paso se corrigieron dos hallazgos
+    relacionados introducidos en la misma sesion: `javadebug`/`pydebug`
+    (`runtime-debug-helpers.sh`) bindeaban JDWP/debugpy a todas las interfaces (`*`/
+    `0.0.0.0`) en vez de loopback — ambos protocolos no tienen autenticacion propia, asi
+    que exponerlos fuera del Pod era RCE directo hacia cualquier otro alumno del mismo
+    namespace mientras alguien debuggeaba. Corregido a `localhost`/`127.0.0.1` (el
+    `launch.json` sembrado ya apuntaba a `localhost`, no requirio cambios de flujo).
+  - **Nota pendiente (2026-07-17, decision no tomada)**: la raiz del hallazgo anterior es
+    que *todos* los sandboxes de *todas* las conferencias activas viven en el mismo
+    namespace `insightbloom-sandboxes`. La NetworkPolicy de Ingress agregada cierra el
+    acceso no autenticado, pero un alumno de la conferencia A y uno de la conferencia B
+    siguen compartiendo namespace (mismo blast radius si algun otro vector de aislamiento
+    fallara a futuro). Dos caminos evaluados, ninguno implementado todavia: (a) namespace
+    por conferencia — aislamiento real, mayor costo operativo (crear/borrar namespaces,
+    RBAC por namespace, `NetworkPolicy` por namespace en vez de una sola); (b) mantener
+    namespace compartido pero filtrar tambien por label `sandbox-conference` en la
+    `NetworkPolicy` de Ingress (no solo namespace) — mucho mas barato de implementar, pero
+    sigue siendo el mismo namespace de Kubernetes (mismos `ResourceQuota`/`LimitRange`
+    compartidos, un alumno ruidoso de una conferencia puede afectar el scheduling de otra).
+    **Sigue sin decidirse** — pendiente de revisitar si el numero de conferencias
+    concurrentes crece lo suficiente como para justificar el costo de (a).
 - Reemplaza: `none`
 
 ### DEC-0024 - Camino de escalado para los 6 servicios con SQLite: PostgreSQL, no un PVC compartido

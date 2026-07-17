@@ -86,11 +86,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final int uid;
     private final int gid;
     private final int fsGroup;
+    private final String gatewayNamespace;
+    private final String gatewayPodComponentLabel;
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
                                 final String serverImage, final String runtimeImageBase,
                                 final ContainerResources ideResources, final ContainerResources runtimeResources,
-                                final int port, final int uid, final int gid, final int fsGroup) {
+                                final int port, final int uid, final int gid, final int fsGroup,
+                                final String gatewayNamespace, final String gatewayPodComponentLabel) {
         this.jsonCodec = jsonCodec;
         this.namespace = namespace;
         this.serverImage = serverImage;
@@ -98,6 +101,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         this.ideResources = ideResources;
         this.runtimeResources = runtimeResources;
         this.port = port;
+        this.gatewayNamespace = gatewayNamespace;
+        this.gatewayPodComponentLabel = gatewayPodComponentLabel;
         this.uid = uid;
         this.gid = gid;
         this.fsGroup = fsGroup;
@@ -117,6 +122,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     public void createSandbox(final String podName, final String conferenceUuid, final String variant,
                                final String extraPackages, final String remoteGitUrl, final boolean internetEnabled) {
         requireEnabled();
+        ensureIngressPolicy();
         final String podJson = jsonCodec.toJson(buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
         final String serviceJson = jsonCodec.toJson(buildServiceBody(podName));
@@ -124,6 +130,43 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         if (internetEnabled) {
             allowInternetEgress(Sandbox.conferenceLabel(conferenceUuid));
         }
+    }
+
+    private static final String INGRESS_POLICY_NAME = "sandbox-ingress-gateway-only";
+
+    /**
+     * Postmortem 2026-07-17 (auditoria de seguridad): confirmado en vivo que cualquier Pod de
+     * {@code insightbloom-sandboxes} podia alcanzar el Service de CUALQUIER OTRO Pod del mismo
+     * namespace sin autenticacion (curl directo, 200 OK) -- la NetworkPolicy de egress existente
+     * permite trafico saliente entre pods del mismo namespace, y no habia ninguna NetworkPolicy
+     * de tipo Ingress que restringiera el trafico ENTRANTE. Como {@code code-server} corre con
+     * {@code --auth none} y {@code ttyd} sin credencial (la autenticacion real vive solo en
+     * {@code insightbloom-tools-gateway}, en el borde), esto permitia a cualquier alumno acceder
+     * al IDE completo de otro alumno con solo saber/adivinar el nombre del Service.
+     *
+     * Esta policy restringe el trafico ENTRANTE de todos los Pods de sandbox a unicamente el
+     * originado por el Pod del gateway (namespace + label), sobre el puerto publico del sandbox
+     * ({@link #port}) -- bloquea el acceso Pod-a-Pod entre sandboxes sin afectar el flujo legitimo
+     * (gateway -> Service del sandbox). Idempotente (se llama en cada {@link #createSandbox}, sin
+     * costo si ya existe) y no depende de {@code internetEnabled}: aplica siempre.
+     */
+    private void ensureIngressPolicy() {
+        final Map<String, Object> policy = Map.of(
+                "apiVersion", "networking.k8s.io/v1",
+                "kind", "NetworkPolicy",
+                "metadata", Map.of("name", INGRESS_POLICY_NAME, "namespace", namespace),
+                "spec", Map.of(
+                        "podSelector", Map.of(),
+                        "policyTypes", List.of("Ingress"),
+                        "ingress", List.of(Map.of(
+                                "from", List.of(Map.of(
+                                        "namespaceSelector", Map.of(
+                                                "matchLabels", Map.of("kubernetes.io/metadata.name", gatewayNamespace)),
+                                        "podSelector", Map.of(
+                                                "matchLabels", Map.of("app.kubernetes.io/component", gatewayPodComponentLabel)))),
+                                "ports", List.of(Map.of("protocol", "TCP", "port", port))))));
+        postIgnoringConflict("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
+                jsonCodec.toJson(policy), "networkpolicy " + INGRESS_POLICY_NAME);
     }
 
     @Override
@@ -257,8 +300,12 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             // loopback), asi que un tcpSocket probe normal si aplica aca (ver tcpProbe vs
             // execLoopbackProbe).
             runtimeContainer.put("ports", List.of(Map.of("name", "http", "containerPort", port, "protocol", "TCP")));
+            // --ping-interval 15 (default de ttyd es 5s, se deja explicito por legibilidad):
+            // auditoria de seguridad 2026-07-17 -- detecta conexiones muertas mas rapido, para
+            // no dejar una sesion de terminal "colgada" alcanzable mas tiempo del necesario si
+            // el navegador del alumno se cierra sin un cierre limpio de la conexion WS.
             runtimeContainer.put("args", List.of(
-                    "ttyd", "-p", String.valueOf(port), "-W",
+                    "ttyd", "-p", String.valueOf(port), "-W", "--ping-interval", "15",
                     "bash", "-lc", "cd /home/coder/workspace && exec nvim ."));
             runtimeContainer.put("readinessProbe", tcpProbe(port, 5, 10, 2));
             runtimeContainer.put("livenessProbe", tcpProbe(port, 10, 30, 3));

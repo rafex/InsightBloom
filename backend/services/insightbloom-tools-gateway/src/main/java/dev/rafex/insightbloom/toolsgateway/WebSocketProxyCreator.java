@@ -50,6 +50,19 @@ final class WebSocketProxyCreator implements WebSocketCreator {
             return null;
         }
 
+        // Auditoria de seguridad 2026-07-17: a diferencia del HTTP normal (ver AuthGateHandler.
+        // handle, lenient=true), un handshake de WebSocket real de navegador SIEMPRE manda Origin
+        // (RFC 6455) -- se exige aca (lenient=false) para cerrar Cross-Site WebSocket Hijacking,
+        // que de otro modo usaria la cookie de sesion (SameSite=NONE) adjuntada automaticamente
+        // desde un sitio malicioso para operar la terminal/IDE de la victima en tiempo real.
+        final String origin = originOf(request);
+        if (!authGate.isOriginAllowed(origin, false)) {
+            LOGGER.warning(() -> "websocket rechazado por Origin no permitido host=" + host + " origin=" + origin);
+            response.setStatus(403);
+            callback.succeeded();
+            return null;
+        }
+
         // checkAuth ya loguea el motivo puntual del rechazo (ver AuthGateHandler.logAuthRejected).
         final AuthGateHandler.AuthResult auth = authGate.checkAuth(request, host, isIdeHost);
         if (!auth.authenticated()) {
@@ -86,6 +99,15 @@ final class WebSocketProxyCreator implements WebSocketCreator {
 
         final LoggingWebSocketProxyEndpoint endpoint = new LoggingWebSocketProxyEndpoint(backendUri, java.time.Duration.ofSeconds(10));
         return new JettyWebSocketEndpointBridge(endpoint, path, queryParamsOf(rawQuery), headersOf(request));
+    }
+
+    private static String originOf(final ServerUpgradeRequest request) {
+        for (final HttpField field : request.getHeaders()) {
+            if ("Origin".equalsIgnoreCase(field.getName())) {
+                return field.getValue();
+            }
+        }
+        return null;
     }
 
     private static Map<String, List<String>> queryParamsOf(final String rawQuery) {

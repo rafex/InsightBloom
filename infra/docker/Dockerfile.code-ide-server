@@ -48,23 +48,28 @@ WORKDIR /home/coder
 # extensiones individuales (redhat.java es la pieza central, el language server); Pylance se
 # reemplaza por ms-pyright.pyright (el motor open-source sobre el que esta construido Pylance,
 # tambien mantenido por Microsoft, sin las partes propietarias).
+#
+# Auditoria de seguridad 2026-07-17: versiones fijadas explicitamente (en vez de instalar
+# "latest" de cada una en cada build de CI) -- un publisher comprometido no puede inyectar
+# codigo malicioso en el proximo build sin que alguien actualice este archivo a mano primero.
+# Actualizar deliberadamente via PR, no automaticamente.
 RUN for ext in \
-      redhat.java \
-      vscjava.vscode-java-debug \
-      vscjava.vscode-java-test \
-      vscjava.vscode-java-dependency \
-      vscjava.vscode-maven \
-      ms-python.python \
-      ms-pyright.pyright \
-      ms-python.debugpy \
-      esbenp.prettier-vscode \
-      dbaeumer.vscode-eslint \
-      vue.volar \
-      dsznajder.es7-react-js-snippets \
-      bradlc.vscode-tailwindcss \
-      ecmel.vscode-html-css \
-      ms-ceintl.vscode-language-pack-es \
-      sst-dev.opencode; do \
+      redhat.java@1.56.2026071508 \
+      vscjava.vscode-java-debug@0.59.0 \
+      vscjava.vscode-java-test@0.45.0 \
+      vscjava.vscode-java-dependency@0.27.6 \
+      vscjava.vscode-maven@0.45.3 \
+      ms-python.python@2026.4.0 \
+      ms-pyright.pyright@1.1.402 \
+      ms-python.debugpy@2026.6.0 \
+      esbenp.prettier-vscode@12.4.0 \
+      dbaeumer.vscode-eslint@3.0.34 \
+      vue.volar@3.3.6 \
+      dsznajder.es7-react-js-snippets@4.4.3 \
+      bradlc.vscode-tailwindcss@0.14.28 \
+      ecmel.vscode-html-css@2.0.14 \
+      ms-ceintl.vscode-language-pack-es@1.129.0 \
+      sst-dev.opencode@0.0.13; do \
         code-server --install-extension "$ext" || echo "WARN: extension $ext skipped"; \
     done
 

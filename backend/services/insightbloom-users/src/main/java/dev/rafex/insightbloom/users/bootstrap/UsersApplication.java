@@ -184,7 +184,12 @@ public class UsersApplication {
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PORT", "8080")),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_UID", "1000")),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_GID", "1000")),
-                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_FSGROUP", "1000")));
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_FSGROUP", "1000")),
+                // Ver KubernetesPodClient.ensureIngressPolicy: restringe quien puede conectarse
+                // ENTRANTE a un sandbox al Pod del gateway unicamente (namespace + label) --
+                // auditoria de seguridad 2026-07-17, cierra acceso Pod-a-Pod entre sandboxes.
+                System.getenv().getOrDefault("SANDBOX_GATEWAY_NAMESPACE", "insightbloom"),
+                System.getenv().getOrDefault("SANDBOX_GATEWAY_POD_COMPONENT_LABEL", "toolsgateway"));
         final long sandboxTtlSecondsAfterEventExpiry =
                 Long.parseLong(System.getenv().getOrDefault("SANDBOX_TTL_SECONDS_AFTER_EVENT_EXPIRY", "3600"));
         final var assignSandboxUseCase = new AssignSandboxUseCase(

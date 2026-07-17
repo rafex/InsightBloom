@@ -16,7 +16,12 @@ javadebug() {
         return 1
     fi
     local class="$1"; shift
-    java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005 "$class" "$@"
+    # address=localhost (no "*"): JDWP no tiene autenticacion -- quien se conecte ejecuta
+    # bytecode arbitrario en esta JVM. Bindear a todas las interfaces exponia esto a
+    # cualquier otro Pod del mismo namespace (sin NetworkPolicy de Ingress que lo evite),
+    # es decir a cualquier otro alumno. localhost alcanza: "ide" y "runtime" comparten
+    # namespace de red del Pod (ver comentario de archivo arriba).
+    java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5005 "$class" "$@"
 }
 
 pydebug() {
@@ -24,5 +29,7 @@ pydebug() {
         echo "uso: pydebug <script.py> [args...]" >&2
         return 1
     fi
-    python3 -m debugpy --listen 0.0.0.0:5678 --wait-for-client "$@"
+    # 127.0.0.1 (no 0.0.0.0): mismo motivo que javadebug -- debugpy sin auth expone
+    # ejecucion de codigo arbitrario a quien se conecte.
+    python3 -m debugpy --listen 127.0.0.1:5678 --wait-for-client "$@"
 }

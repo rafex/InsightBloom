@@ -21,6 +21,7 @@ import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -61,6 +62,7 @@ final class AuthGateHandler extends Handler.Abstract {
     private final String ideHost;
     private final String sandboxResolveUrl;
     private final String internalApiKey;
+    private final Set<String> allowedOrigins;
     private final SessionCache sessionCache = new SessionCache();
     private volatile HttpClient httpClient = newProxyHttpClient();
 
@@ -82,6 +84,56 @@ final class AuthGateHandler extends Handler.Abstract {
         this.ideHost = ideHost;
         this.sandboxResolveUrl = sandboxResolveUrl;
         this.internalApiKey = internalApiKey;
+        this.allowedOrigins = buildAllowedOrigins(routesByHost, ideHost, loginUrl);
+    }
+
+    /**
+     * Auditoria de seguridad 2026-07-17: {@code SameSite=NONE} (necesario para el extension host
+     * sandboxeado de code-server, ver el comentario junto a {@code sameSite(...)} mas abajo) deja
+     * la cookie de sesion disponible para requests cross-site — sin validar {@code Origin}, un
+     * sitio malicioso podria abrir un WebSocket o disparar un fetch/form-POST hacia este gateway
+     * desde el navegador de la victima, con la cookie adjuntada automaticamente (Cross-Site
+     * WebSocket Hijacking / CSRF). Esta allowlist junta: el origen de {@code loginUrl} (la app
+     * principal de InsightBloom, que embebe algunas de estas herramientas via iframe) y cada host
+     * de {@code routesByHost} + {@code ideHost} (para navegacion/reload directo sobre la propia
+     * herramienta). Ver {@link #isOriginAllowed}.
+     */
+    private static Set<String> buildAllowedOrigins(final Map<String, String> routesByHost, final String ideHost,
+                                                     final String loginUrl) {
+        final Set<String> origins = new HashSet<>();
+        for (final String host : routesByHost.keySet()) {
+            origins.add("https://" + host);
+        }
+        if (ideHost != null) {
+            origins.add("https://" + ideHost);
+        }
+        if (loginUrl != null) {
+            try {
+                final URI parsed = URI.create(loginUrl);
+                if (parsed.getScheme() != null && parsed.getHost() != null) {
+                    origins.add(parsed.getScheme() + "://" + parsed.getHost());
+                }
+            } catch (final IllegalArgumentException ignored) {
+                // loginUrl mal formado: no agrega nada, el resto de la allowlist sigue valida.
+            }
+        }
+        return origins;
+    }
+
+    /**
+     * {@code lenient=true} (requests HTTP normales): un {@code Origin} ausente se permite --
+     * muchos navegadores no lo mandan en una navegacion top-level GET normal (pegar la URL,
+     * click en un link), que es como el usuario realmente abre el IDE. Si esta presente pero no
+     * matchea la allowlist, se rechaza (cubre fetch/XHR/form-POST cross-site con Origin real).
+     * {@code lenient=false} (upgrade a WebSocket): el header {@code Origin} SIEMPRE esta presente
+     * en un handshake de WebSocket real de navegador (parte del protocolo, RFC 6455) -- su
+     * ausencia ya es sospechosa, asi que se exige y se rechaza si falta o no matchea.
+     */
+    boolean isOriginAllowed(final String originHeader, final boolean lenient) {
+        if (originHeader == null || originHeader.isBlank()) {
+            return lenient;
+        }
+        return allowedOrigins.contains(originHeader);
     }
 
     @Override
@@ -107,6 +159,13 @@ final class AuthGateHandler extends Handler.Abstract {
         final String staticTarget = routesByHost.get(host);
         if (!isIdeHost && staticTarget == null) {
             writeSimpleResponse(request, response, callback, 502, "Herramienta no reconocida.");
+            return true;
+        }
+
+        final String origin = request.getHeaders().get(HttpHeader.ORIGIN);
+        if (!isOriginAllowed(origin, true)) {
+            LOGGER.warning(() -> "auth rechazada por Origin no permitido host=" + host + " origin=" + origin);
+            writeSimpleResponse(request, response, callback, 403, "Origen no permitido.");
             return true;
         }
 
@@ -156,6 +215,11 @@ final class AuthGateHandler extends Handler.Abstract {
     }
 
     AuthResult checkAuth(final Request request, final String host, final boolean isIdeHost) {
+        final String clientIp = Request.getRemoteAddr(request);
+        if (isRateLimited(clientIp)) {
+            LOGGER.warning(() -> "auth rechazada por rate limit ip=" + clientIp + " host=" + host);
+            return new AuthResult(false, null, null);
+        }
         boolean sawSessionCookie = false;
         for (final HttpCookie cookie : Request.getCookies(request)) {
             if (SESSION_COOKIE.equals(cookie.getName())) {
@@ -206,6 +270,52 @@ final class AuthGateHandler extends Handler.Abstract {
     private void logAuthRejected(final Request request, final String host, final boolean sawSessionCookie, final String reason) {
         LOGGER.warning(() -> "auth rechazada host=" + host + " path=" + request.getHttpURI().getPath()
                 + " cookieDeSesionPresente=" + sawSessionCookie + " motivo=" + reason);
+        recordAuthFailure(Request.getRemoteAddr(request));
+    }
+
+    private static final int RATE_LIMIT_MAX_FAILURES = 20;
+    private static final long RATE_LIMIT_WINDOW_MILLIS = 60_000;
+    private final Map<String, FailureWindow> authFailuresByIp = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Auditoria de seguridad 2026-07-17: no habia ningun limite a intentos repetidos de
+     * ib_token/sesion invalidos -- un intento de fuerza bruta (aunque de baja probabilidad dado
+     * el tamano del token) no tenia friccion. Ventana fija simple por IP, en memoria (mismo
+     * trade-off que {@link SessionCache}: no compartido entre replicas si el gateway alguna vez
+     * escala a mas de un pod, aceptable para el volumen actual). No afecta reconexiones
+     * legitimas del navegador: 20 fallos/minuto es muchisimo mas que cualquier patron normal de
+     * reconexion (el propio VS Code Web reintenta cada pocos segundos, pero con un token valido
+     * que autentica en el primer intento).
+     */
+    private static final class FailureWindow {
+        private long windowStart = System.currentTimeMillis();
+        private int count;
+    }
+
+    private boolean isRateLimited(final String clientIp) {
+        if (clientIp == null) return false;
+        final FailureWindow window = authFailuresByIp.computeIfAbsent(clientIp, k -> new FailureWindow());
+        synchronized (window) {
+            resetIfWindowExpired(window);
+            return window.count >= RATE_LIMIT_MAX_FAILURES;
+        }
+    }
+
+    private void recordAuthFailure(final String clientIp) {
+        if (clientIp == null) return;
+        final FailureWindow window = authFailuresByIp.computeIfAbsent(clientIp, k -> new FailureWindow());
+        synchronized (window) {
+            resetIfWindowExpired(window);
+            window.count++;
+        }
+    }
+
+    private static void resetIfWindowExpired(final FailureWindow window) {
+        final long now = System.currentTimeMillis();
+        if (now - window.windowStart > RATE_LIMIT_WINDOW_MILLIS) {
+            window.windowStart = now;
+            window.count = 0;
+        }
     }
 
     private boolean isTokenValid(final String token) {
