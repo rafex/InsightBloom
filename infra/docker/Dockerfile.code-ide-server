@@ -16,7 +16,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dumb-init \
     git \
     sqlite3 \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
+
+# JDK real en el contenedor "ide" (no solo en "runtime"): sin esto, la extension redhat.java
+# nunca activa -- falla con "Please download and install a JDK to compile your project"
+# (confirmado en vivo 2026-07-17). El adjuntar-remoto via JDWP (runtime-debug-helpers.sh) sirve
+# para DEBUGGEAR un proceso ya corriendo, pero el language server necesita su propio JDK local
+# para compilar/analizar mientras se escribe (errores en rojo, autocompletado, "Run Java").
+# Se usa el tarball oficial de Eclipse Temurin (mismo patron que el binario standalone de
+# code-server arriba: descarga directa, sin apt) porque Debian bookworm solo trae OpenJDK 17
+# por defecto, y el contenedor "runtime" (Alpine) usa JDK 21 -- se prefiere la misma major
+# version en los dos lados para minimizar sorpresas de compatibilidad de sintaxis.
+RUN curl -fsSL "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse" \
+    -o /tmp/temurin.tar.gz && \
+    mkdir -p /usr/local/lib/jvm/temurin-21 && \
+    tar -xzf /tmp/temurin.tar.gz -C /usr/local/lib/jvm/temurin-21 --strip-components=1 && \
+    rm /tmp/temurin.tar.gz
+ENV JAVA_HOME=/usr/local/lib/jvm/temurin-21
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Descargar y extraer el release standalone oficial (sin npm, sin scripts de postinstall)
 RUN curl -fsSL "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz" \

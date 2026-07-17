@@ -161,6 +161,17 @@ RUN python3 -m venv /home/coder/.venv
 RUN curl -fsSL https://opencode.ai/install | bash
 ENV PATH=/home/coder/.opencode/bin:$PATH
 
+# 2026-07-17: opencode se veia "raro" (secuencias de escape crudas en pantalla, ej.
+# "?|?997;2n^[[35;72;2m...") al abrirlo desde la terminal integrada. Investigado: es un bug
+# conocido de opentui (la libreria de TUI que usa opencode) -- hace una query de capacidad
+# propietaria de Ghostty (CSI ?997n, deteccion de tema claro/oscuro) que xterm.js (la terminal
+# web que usa code-server) no responde, y opentui no maneja bien esa falta de respuesta
+# (issues publicos: opencode #23564, #31947, #33207). No hay flag de opencode ni variable de
+# entorno documentada que lo arregle de raiz (el fix real esta pendiente upstream en opentui).
+# TERM explicito es la mitigacion razonable disponible: fuerza una negociacion de capacidades
+# mas estandar en vez de heredar el TERM que sea que socat/ttyd propaguen.
+ENV TERM=xterm-256color
+
 RUN mkdir -p /home/coder/workspace /home/coder/db /home/coder/.m2 /home/coder/.config/nvim
 COPY --chown=coder:coder infra/docker/nvim-init.lua /home/coder/.config/nvim/init.lua
 

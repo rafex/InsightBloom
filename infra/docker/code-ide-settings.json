@@ -11,5 +11,8 @@
   "extensions.autoUpdate": false,
   "update.mode": "none",
   "telemetry.telemetryLevel": "off",
-  "python.languageServer": "None"
+  "python.languageServer": "None",
+  "python.defaultInterpreterPath": "/usr/bin/python3",
+  "java.jdt.ls.java.home": "/usr/local/lib/jvm/temurin-21",
+  "editor.tabFocusMode": false
 }
