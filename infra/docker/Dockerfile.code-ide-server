@@ -38,11 +38,24 @@ WORKDIR /home/coder
 # Extensiones de las 3 variantes preinstaladas en una sola imagen "ide" universal
 # (java+maven, python+pylance, web/prettier/eslint/volar/react/tailwind) — code-server
 # es el mismo binario para las 3, solo cambia el contenedor 'runtime' al que se conecta la terminal
+#
+# 2026-07-17: "vscjava.extension-pack-for-java" y "ms-python.vscode-pylance" NUNCA se instalaron
+# -- confirmado en logs de build ("Extension 'X' not found"), silenciado por el "|| echo WARN"
+# de abajo. Ninguno de los dos esta publicado en open-vsx.org (registro de donde
+# code-server instala por defecto, distinto del Marketplace oficial de Microsoft que si los
+# tiene pero cuyos terminos no permiten forks de VS Code como code-server). Reemplazados por sus
+# piezas/alternativas equivalentes que si estan en open-vsx: el pack de Java se separa en sus 4
+# extensiones individuales (redhat.java es la pieza central, el language server); Pylance se
+# reemplaza por ms-pyright.pyright (el motor open-source sobre el que esta construido Pylance,
+# tambien mantenido por Microsoft, sin las partes propietarias).
 RUN for ext in \
-      vscjava.extension-pack-for-java \
+      redhat.java \
+      vscjava.vscode-java-debug \
+      vscjava.vscode-java-test \
+      vscjava.vscode-java-dependency \
       vscjava.vscode-maven \
       ms-python.python \
-      ms-python.vscode-pylance \
+      ms-pyright.pyright \
       ms-python.debugpy \
       esbenp.prettier-vscode \
       dbaeumer.vscode-eslint \
