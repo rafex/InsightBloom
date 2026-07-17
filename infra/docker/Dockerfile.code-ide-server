@@ -53,6 +53,13 @@ WORKDIR /home/coder
 # "latest" de cada una en cada build de CI) -- un publisher comprometido no puede inyectar
 # codigo malicioso en el proximo build sin que alguien actualice este archivo a mano primero.
 # Actualizar deliberadamente via PR, no automaticamente.
+#
+# Excepcion: "ms-ceintl.vscode-language-pack-es" se deja SIN pin -- confirmado en build real
+# que pinnear a la version publicada mas reciente (1.129.0) falla con "not compatible with
+# the current version of code-server (version 1.117.0)" (code-server valida el campo
+# engines.vscode del manifest solo cuando se pide una version explicita @X.Y.Z; sin pin,
+# resuelve el paquete compatible sin ese chequeo estricto). El costo de supply-chain de este
+# unico paquete first-party de Microsoft se acepta como excepcion documentada.
 RUN for ext in \
       redhat.java@1.56.2026071508 \
       vscjava.vscode-java-debug@0.59.0 \
@@ -68,7 +75,7 @@ RUN for ext in \
       dsznajder.es7-react-js-snippets@4.4.3 \
       bradlc.vscode-tailwindcss@0.14.28 \
       ecmel.vscode-html-css@2.0.14 \
-      ms-ceintl.vscode-language-pack-es@1.129.0 \
+      ms-ceintl.vscode-language-pack-es \
       sst-dev.opencode@0.0.13; do \
         code-server --install-extension "$ext" || echo "WARN: extension $ext skipped"; \
     done
