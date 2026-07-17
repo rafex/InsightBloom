@@ -77,6 +77,10 @@ RUN echo '. /usr/share/bash-completion/bash_completion' > /etc/profile.d/bash_co
 COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
 COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
 
+# javadebug/pydebug: wrappers para debug remoto (JDWP/debugpy) desde el editor -- ver el archivo
+# para el porque de este approach en vez de instalar Java/Python en el contenedor "ide".
+COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
+
 # Plugins de Neovim vendorizados en build time (git clone, con red disponible en CI) e instalados
 # como paquetes nativos de Neovim (carpeta pack/*/start/ = auto-cargados al iniciar, sin plugin
 # manager) -- el pod en runtime puede tener internet_enabled=false (DEC-0023), asi que nada de
@@ -116,7 +120,8 @@ RUN pip install --no-cache-dir --upgrade pip --break-system-packages && \
     django \
     pytest \
     black \
-    pylint
+    pylint \
+    debugpy
 
 USER coder
 WORKDIR /home/coder
@@ -138,6 +143,14 @@ RUN npm install -g \
     @typescript-eslint/eslint-plugin
 
 RUN python3 -m venv /home/coder/.venv
+
+# opencode (CLI de agente de codigo IA, https://opencode.ai, de SST): se instala en runtime (no
+# en ide) porque la terminal integrada de code-server conecta aca via socat, y es donde el
+# alumno lo va a correr. El instalador intenta modificar ~/.bashrc para agregar su bin al PATH,
+# pero la shell de la terminal es login y Alpine no lee ~/.bashrc para logins (ver runtime-
+# prompt.sh) -- se agrega el PATH explicitamente aca en vez de confiar en esa modificacion.
+RUN curl -fsSL https://opencode.ai/install | bash
+ENV PATH=/home/coder/.opencode/bin:$PATH
 
 RUN mkdir -p /home/coder/workspace /home/coder/db /home/coder/.m2 /home/coder/.config/nvim
 COPY --chown=coder:coder infra/docker/nvim-init.lua /home/coder/.config/nvim/init.lua

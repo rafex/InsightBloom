@@ -20,6 +20,10 @@ on:
       - 'infra/docker/Dockerfile.code-ide-server'
       - 'infra/docker/Dockerfile.code-ide-runtime'
       - 'infra/docker/code-ide-settings.json'
+      - 'infra/docker/code-ide-launch.json'
+      - 'infra/docker/code-ide-entrypoint.sh'
+      - 'infra/docker/runtime-*.sh'
+      - 'infra/docker/nvim-init.lua'
       - '.github/workflows/publish-code-ide.yml'
   workflow_dispatch: {}
 

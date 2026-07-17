@@ -64,8 +64,26 @@ hace el workflow de CI, `build-and-push-code-ide`, como matriz).
 ## Extensiones
 
 Todas preinstaladas en la imagen `ide` (universal, no por variante):
-Java+Maven (`vscjava.*`), Python+Pylance+debugpy (`ms-python.*`), y el pack web
-(Prettier/ESLint/Volar/React/Tailwind/HTML-CSS).
+Java+Maven (`vscjava.*`), Python+Pylance+debugpy (`ms-python.*`), el pack web
+(Prettier/ESLint/Volar/React/Tailwind/HTML-CSS), paquete de idioma español
+(`ms-ceintl.vscode-language-pack-es`, activado via `--locale es`) y `sst-dev.opencode`
+(cliente de [opencode](https://opencode.ai), el CLI corre en el contenedor `runtime`).
+
+## Debug remoto (Java/Python)
+
+`java`/`python3` no estan instalados en el contenedor `ide` a proposito (ver "Notas de
+seguridad" abajo) — el editor no los necesita para *depurar*, solo para IntelliSense de
+paquetes instalados. El debugging visual completo funciona igual via adjuntar remoto:
+
+1. En la terminal integrada (conecta a `runtime`), correr `javadebug MiClase` o
+   `pydebug script.py` (wrappers en `runtime-debug-helpers.sh`) en vez del comando normal.
+2. En el editor, "Run and Debug" -> elegir "Adjuntar a Java (runtime, puerto 5005)" o
+   "Adjuntar a Python (runtime, puerto 5678)" (ya sembrado en `.vscode/launch.json` por
+   `code-ide-entrypoint.sh`) -> F5.
+
+Funciona porque `ide` y `runtime` comparten el namespace de red del Pod: `localhost:5005`
+desde `ide` llega directo al proceso Java que corre en `runtime`, sin configuracion de red
+adicional.
 
 ## Notas de seguridad
 

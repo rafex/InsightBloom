@@ -49,7 +49,9 @@ RUN for ext in \
       vue.volar \
       dsznajder.es7-react-js-snippets \
       bradlc.vscode-tailwindcss \
-      ecmel.vscode-html-css; do \
+      ecmel.vscode-html-css \
+      ms-ceintl.vscode-language-pack-es \
+      sst-dev.opencode; do \
         code-server --install-extension "$ext" || echo "WARN: extension $ext skipped"; \
     done
 
@@ -61,21 +63,24 @@ COPY --chown=coder:coder infra/docker/code-ide-settings.json /home/coder/.local/
 
 RUN mkdir -p /home/coder/workspace /home/coder/db
 
+# Template de launch.json (debug remoto hacia el contenedor "runtime" via JDWP/debugpy, ver
+# runtime-debug-helpers.sh) -- sembrado en el volumen de workspace en runtime por
+# code-ide-entrypoint.sh, no aca: /home/coder/workspace es un emptyDir montado por Kubernetes,
+# cualquier cosa copiada aca en build time queda tapada/invisible al arrancar el Pod.
+USER root
+RUN mkdir -p /etc/insightbloom
+COPY infra/docker/code-ide-launch.json /etc/insightbloom/code-ide-launch.json
+COPY infra/docker/code-ide-entrypoint.sh /usr/local/bin/code-ide-entrypoint.sh
+RUN chmod +x /usr/local/bin/code-ide-entrypoint.sh
+USER coder
+
 # code-server escucha por defecto en puerto 8080 (sin seguridad propia — se usa ib_token del gateway)
 EXPOSE 8080
 
-# Punto de entrada: dumb-init protege contra procesos zombies; code-server sin auth
-# (autenticación delegada al gateway via ib_token en cookie/header). El flag correcto es
-# --auth none (--disable-auth no existe en code-server -- "error Unknown option" en
-# arranque, causaba que el pod entrara en 0/2 Error; ver postmortem 2026-07-16).
-#
-# --disable-telemetry --disable-update-check: root cause real de una terminal "congelada"
-# (2026-07-17) en sandboxes con internet_enabled=false -- sin estos flags, code-server sigue
-# intentando llamadas salientes (telemetry.coder.com, chequeo de release en GitHub) que el
-# NetworkPolicy default-deny-egress del namespace bloquea en silencio (paquetes dropeados, no
-# rechazados -> timeout completo por intento, no fallo inmediato). Confirmado en logs del
-# navegador: "AggregateError [ETIMEDOUT]" repetido en el extension host, coincidiendo
-# exactamente con que la terminal integrada dejaba de responder (mismo proceso Node.js).
+# Punto de entrada: dumb-init protege contra procesos zombies; el resto de los flags de
+# code-server (--auth none, --disable-telemetry, --disable-update-check, --locale es) viven en
+# code-ide-entrypoint.sh junto con el sembrado del launch.json -- ver ese archivo para el porque
+# de cada uno (--auth none: postmortem 2026-07-16; --disable-telemetry/update-check: postmortem
+# 2026-07-17, ambos en DECISIONS.md DEC-0023).
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", \
-     "--disable-telemetry", "--disable-update-check", "/home/coder/workspace"]
+CMD ["/usr/local/bin/code-ide-entrypoint.sh"]
