@@ -171,11 +171,17 @@ public class UsersApplication {
                 System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"),
                 System.getenv().getOrDefault("SANDBOX_SERVER_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-server:latest"),
                 System.getenv().getOrDefault("SANDBOX_RUNTIME_IMAGE_BASE", "ghcr.io/rafex/insightbloom-code-ide-runtime"),
+                // Memoria/CPU de "ide" subidas 2026-07-17: con el JDK real agregado (para que
+                // redhat.java pueda activar, ver Dockerfile.code-ide-server) el Language Server
+                // de Java (jdt.ls, una JVM completa) corre DENTRO de este contenedor -- 512Mi
+                // no alcanzaba, confirmado en vivo: el contenedor terminaba en OOMKilled apenas
+                // se abria un archivo .java. LimitRange del namespace tambien subido (kubectl,
+                // no versionado en este repo -- ver nota en KubernetesPodClient si se retoma).
                 new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient.ContainerResources(
-                        System.getenv().getOrDefault("SANDBOX_IDE_CPU_REQUEST", "50m"),
-                        System.getenv().getOrDefault("SANDBOX_IDE_MEMORY_REQUEST", "256Mi"),
-                        System.getenv().getOrDefault("SANDBOX_IDE_CPU_LIMIT", "250m"),
-                        System.getenv().getOrDefault("SANDBOX_IDE_MEMORY_LIMIT", "512Mi")),
+                        System.getenv().getOrDefault("SANDBOX_IDE_CPU_REQUEST", "100m"),
+                        System.getenv().getOrDefault("SANDBOX_IDE_MEMORY_REQUEST", "384Mi"),
+                        System.getenv().getOrDefault("SANDBOX_IDE_CPU_LIMIT", "350m"),
+                        System.getenv().getOrDefault("SANDBOX_IDE_MEMORY_LIMIT", "896Mi")),
                 new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient.ContainerResources(
                         System.getenv().getOrDefault("SANDBOX_RUNTIME_CPU_REQUEST", "100m"),
                         System.getenv().getOrDefault("SANDBOX_RUNTIME_MEMORY_REQUEST", "512Mi"),
