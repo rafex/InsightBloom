@@ -7,10 +7,12 @@ Cada sandbox corre dos contenedores en el mismo Pod:
 - **Dockerfile.code-ide-server**: contenedor `ide` — Debian, solo code-server (instalado desde el
   release standalone oficial, sin npm), extensiones de las 3 variantes preinstaladas (imagen única
   y universal, no una por variante). Expone el puerto 8080 (servido al usuario vía el gateway).
-- **Dockerfile.code-ide-runtime.python / .java / .web**: contenedor `runtime` — Alpine, solo el
-  toolchain de cada lenguaje, sin code-server. Expone un shell vía `socat` (PTY-over-TCP) en
-  `127.0.0.1:7681`, alcanzable únicamente por loopback intra-Pod desde el contenedor `ide` (nunca
-  se expone vía Service/Ingress).
+- **Dockerfile.code-ide-runtime**: contenedor `runtime` — Alpine, toolchain único
+  (Java+Maven, Node+npm, Python+pip, todos juntos, mas `bash-completion`), sin code-server.
+  Expone un shell vía `socat` (PTY-over-TCP) en `127.0.0.1:7681`, alcanzable únicamente por
+  loopback intra-Pod desde el contenedor `ide` (nunca se expone vía Service/Ingress). Hasta
+  2026-07-17 existían 3 imágenes separadas (una por variante python/java/web); se consolidaron
+  en una sola porque un mismo workspace puede tener archivos de más de un lenguaje.
 
 La terminal integrada de code-server (contenedor `ide`) se conecta a ese `socat` del contenedor
 `runtime` — ver el perfil de terminal baked-in en `code-ide-settings.json`. Esto significa que
@@ -23,13 +25,11 @@ corren en el contenedor `runtime`, no en `ide`.
 # Contenedor "ide" (Debian, code-server)
 docker build -f infra/docker/Dockerfile.code-ide-server -t insightbloom-code-ide-server:latest .
 
-# Contenedores "runtime" por variante (Alpine, toolchain)
-docker build -f infra/docker/Dockerfile.code-ide-runtime.python -t insightbloom-code-ide-runtime:python .
-docker build -f infra/docker/Dockerfile.code-ide-runtime.java -t insightbloom-code-ide-runtime:java .
-docker build -f infra/docker/Dockerfile.code-ide-runtime.web -t insightbloom-code-ide-runtime:web .
+# Contenedor "runtime" (Alpine, toolchain unico java+node+python)
+docker build -f infra/docker/Dockerfile.code-ide-runtime -t insightbloom-code-ide-runtime:latest .
 ```
 
-Ninguna de las 4 imágenes depende de otra vía `FROM` — se pueden construir en paralelo (así lo
+Ninguna de las 2 imágenes depende de otra vía `FROM` — se pueden construir en paralelo (así lo
 hace el workflow de CI, `build-and-push-code-ide`, como matriz).
 
 ## Code-server Configuration

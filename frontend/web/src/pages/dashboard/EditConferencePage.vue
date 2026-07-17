@@ -84,11 +84,7 @@
 
     .form-group.sandbox-group
       label IDE de código
-      p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE de código" (solo aplica si el tipo de evento tiene esa capacidad).
-      select(v-model="sandboxVariant")
-        option(value="python") Python
-        option(value="java") Java
-        option(value="web") Web (HTML/JS/CSS)
+      p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE de código" (solo aplica si el tipo de evento tiene esa capacidad). El ambiente incluye Java, Node.js y Python en el mismo sandbox — no hace falta elegir un lenguaje.
       .coord-field
         span.coord-label Sandboxes concurrentes por evento
         input(v-model.number="sandboxPoolSize" type="number" min="1" placeholder="1")

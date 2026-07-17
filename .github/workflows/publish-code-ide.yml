@@ -18,7 +18,7 @@ on:
       - 'v*.*'
     paths:
       - 'infra/docker/Dockerfile.code-ide-server'
-      - 'infra/docker/Dockerfile.code-ide-runtime.*'
+      - 'infra/docker/Dockerfile.code-ide-runtime'
       - 'infra/docker/code-ide-settings.json'
       - '.github/workflows/publish-code-ide.yml'
   workflow_dispatch: {}
@@ -44,18 +44,12 @@ jobs:
             file: infra/docker/Dockerfile.code-ide-server
             image: ghcr.io/rafex/insightbloom-code-ide-server
             variantTag: latest
-          - name: runtime-python
-            file: infra/docker/Dockerfile.code-ide-runtime.python
+          # Imagen runtime unica (java+node+python juntos, ver Dockerfile.code-ide-runtime):
+          # reemplaza las 3 imagenes por-variante que existieron entre 2026-07-12 y 07-17.
+          - name: runtime
+            file: infra/docker/Dockerfile.code-ide-runtime
             image: ghcr.io/rafex/insightbloom-code-ide-runtime
-            variantTag: python
-          - name: runtime-java
-            file: infra/docker/Dockerfile.code-ide-runtime.java
-            image: ghcr.io/rafex/insightbloom-code-ide-runtime
-            variantTag: java
-          - name: runtime-web
-            file: infra/docker/Dockerfile.code-ide-runtime.web
-            image: ghcr.io/rafex/insightbloom-code-ide-runtime
-            variantTag: web
+            variantTag: latest
     steps:
       - uses: actions/checkout@v6
 

@@ -34,7 +34,9 @@ import javax.net.ssl.TrustManagerFactory;
  * Service), no vale la pena la dependencia pesada de un SDK generado.
  *
  * Fase 4: el Pod tiene dos contenedores — {@code ide} (code-server, imagen Debian fija) y
- * {@code runtime} (toolchain por variante, imagen Alpine). La terminal integrada de code-server
+ * {@code runtime} (toolchain unico Java+Node+Python, imagen Alpine fija — hasta 2026-07-17 era
+ * una imagen distinta por variante java/python/web, tag {@code :latest} desde la consolidacion,
+ * ver DEC-0023). La terminal integrada de code-server
  * se conecta al contenedor {@code runtime} vía un servidor socat en {@code 127.0.0.1:7681}
  * (loopback intra-Pod, nunca expuesto via Service) — ver {@code code-ide-settings.json}. El
  * {@code Service} del Pod sigue enrutando solo al puerto del contenedor {@code ide}.
@@ -223,7 +225,10 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         // loopback intra-Pod desde 'ide' (terminal integrada de code-server -> socat).
         final Map<String, Object> runtimeContainer = new LinkedHashMap<>();
         runtimeContainer.put("name", "runtime");
-        runtimeContainer.put("image", runtimeImageBase + ":" + variant);
+        // Imagen unica desde 2026-07-17 (Java+Node+Python juntos) -- "variant" ya no selecciona
+        // la imagen, se mantiene solo como label informativo (linea de arriba) por compatibilidad
+        // con conferencias existentes que ya tienen un sandboxVariant guardado.
+        runtimeContainer.put("image", runtimeImageBase + ":latest");
         runtimeContainer.put("imagePullPolicy", "Always");
         if (!runtimeEnv.isEmpty()) runtimeContainer.put("env", runtimeEnv);
         runtimeContainer.put("securityContext", containerSecurityContext());
