@@ -39,6 +39,19 @@ public class Conference {
     private Integer sandboxInternetEnabled; // 0|1, por defecto 0
     private String sandboxExtraPackages; // paquetes adicionales a instalar, nullable
     private String sandboxRemoteGitUrl; // URL de remoto git del profesor, nullable
+    // Heap maximo (-Xmx, en MB) de las JVMs dentro del sandbox (jdt.ls, java/mvn que corra el
+    // alumno) -- nullable, si no se configura se usa un default chico pensado para cursos
+    // (ver KubernetesPodClient). Clampeado contra el limite de memoria del contenedor
+    // (SANDBOX_DEBIAN_MEMORY_LIMIT/SANDBOX_NEOVIM_MEMORY_LIMIT, ver SetSandboxConfigUseCase) --
+    // nunca puede exceder ese techo, para que un heap mal configurado no tire el contenedor por OOM.
+    private Integer sandboxJvmHeapMb;
+    // Cantidad de alumnos que comparten UN mismo Pod "neovim" (varios usuarios Linux dentro del
+    // mismo contenedor, cada uno con su propio home/ttyd) -- nullable, default efectivo 4 si no
+    // se configura (ver AssignSandboxUseCase). Solo tiene efecto en modo terminal-nvim; en modo
+    // debian se ignora (code-server no se puede compartir entre alumnos). Validado 1..10 en
+    // SetSandboxConfigUseCase -- un numero mas alto exigiria revisar el LimitRange del namespace
+    // a mano, no es un simple ajuste de config.
+    private Integer sandboxSeatsPerPod;
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -151,9 +164,13 @@ public class Conference {
     public Integer getSandboxInternetEnabled() { return sandboxInternetEnabled; }
     public String getSandboxExtraPackages() { return sandboxExtraPackages; }
     public String getSandboxRemoteGitUrl() { return sandboxRemoteGitUrl; }
+    public Integer getSandboxJvmHeapMb() { return sandboxJvmHeapMb; }
+    public Integer getSandboxSeatsPerPod() { return sandboxSeatsPerPod; }
     public void setSandboxVariant(String sandboxVariant) { this.sandboxVariant = sandboxVariant; }
     public void setSandboxPoolSize(Integer sandboxPoolSize) { this.sandboxPoolSize = sandboxPoolSize; }
     public void setSandboxInternetEnabled(Integer sandboxInternetEnabled) { this.sandboxInternetEnabled = sandboxInternetEnabled; }
     public void setSandboxExtraPackages(String sandboxExtraPackages) { this.sandboxExtraPackages = sandboxExtraPackages; }
     public void setSandboxRemoteGitUrl(String sandboxRemoteGitUrl) { this.sandboxRemoteGitUrl = sandboxRemoteGitUrl; }
+    public void setSandboxJvmHeapMb(Integer sandboxJvmHeapMb) { this.sandboxJvmHeapMb = sandboxJvmHeapMb; }
+    public void setSandboxSeatsPerPod(Integer sandboxSeatsPerPod) { this.sandboxSeatsPerPod = sandboxSeatsPerPod; }
 }

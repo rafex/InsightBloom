@@ -93,12 +93,20 @@
       .coord-field
         span.coord-label Sandboxes concurrentes por evento
         input(v-model.number="sandboxPoolSize" type="number" min="1" placeholder="1")
+      .coord-field(v-if="sandboxVariant === 'terminal-nvim'")
+        span.coord-label Alumnos por sandbox (terminal ligera)
+        input(v-model.number="sandboxSeatsPerPod" type="number" min="1" max="10" placeholder="4 (por defecto)")
+      p.field-hint(v-if="sandboxVariant === 'terminal-nvim'") En modo terminal ligera, varios alumnos pueden compartir el mismo sandbox — cada uno con su propio usuario y espacio de trabajo aislado dentro del mismo contenedor. El editor completo (code-server) no admite esto: siempre es un sandbox por alumno.
       .coord-field
         span.coord-label Paquetes adicionales (opcional)
         input(v-model="sandboxExtraPackages" type="text" placeholder="numpy pandas")
       .coord-field
         span.coord-label Repositorio git remoto (opcional)
         input(v-model="sandboxRemoteGitUrl" type="text" placeholder="https://github.com/...")
+      .coord-field
+        span.coord-label Memoria máxima de Java por sandbox (MB, opcional)
+        input(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="256 (por defecto)")
+      p.field-hint Límite de memoria (-Xmx) de las JVMs dentro del sandbox — el Language Server de Java y cualquier programa que corran los asistentes. Por defecto son chicas (256 MB), pensadas para cursos: no toman toda la memoria disponible del sandbox aunque puedan. No puede exceder el límite de memoria del contenedor configurado en la infraestructura; si lo excedés, el servidor rechaza el guardado.
       button.btn-outline(type="button" @click="saveSandboxConfig" :disabled="savingSandboxConfig")
         span(v-if="savingSandboxConfig") Guardando...
         span(v-else) Guardar configuración del IDE
@@ -108,6 +116,30 @@
         input(type="checkbox" v-model="sandboxInternetEnabled" @change="saveSandboxInternet" :disabled="savingSandboxInternet")
         span Permitir acceso a internet desde los sandboxes
       p.field-hint Por defecto los sandboxes no tienen salida a internet (solo el workspace local). Actívalo si el ejercicio necesita instalar paquetes o clonar repositorios en vivo.
+
+      .sandbox-incidents(v-if="sandboxVariant === 'terminal-nvim'")
+        .coord-field
+          span.coord-label Incidentes de recursos
+          button.btn-outline(type="button" @click="loadSandboxIncidents" :disabled="loadingSandboxIncidents")
+            span(v-if="loadingSandboxIncidents") Cargando...
+            span(v-else) Ver incidentes
+        p.field-hint Cuando un sandbox compartido detecta que un alumno acapara CPU/memoria (por error o a propósito), lo reinicia automáticamente y lo registra acá — para que sepas quién está causando problemas.
+        p.error(v-if="sandboxIncidentsError") {{ sandboxIncidentsError }}
+        table.incidents-table(v-if="sandboxIncidentsLoaded")
+          thead
+            tr
+              th Cuándo
+              th Alumno
+              th Tipo
+              th Detalle
+          tbody
+            tr(v-if="!sandboxIncidents.length")
+              td(colspan="4") Sin incidentes registrados.
+            tr(v-for="incident in sandboxIncidents" :key="incident.uuid")
+              td {{ new Date(incident.occurredAt).toLocaleString() }}
+              td {{ incident.userUuid || '(desconocido)' }}
+              td {{ incidentTypeLabel(incident.type) }}
+              td {{ incident.detail }}
 
     .form-group.roles-group(v-if="canManageRoles")
       label Roles del evento
@@ -147,9 +179,10 @@ import { ref, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import {
   getConference, updateConference, getTimezones, setSeatingMode, getActiveEventTypes, setEventType,
-  getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet
+  getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
+  listSandboxIncidents
 } from '@/services/api/usersApi'
-import type { Conference, Timezone, SeatingMode, EventType, EventRoleAssignment, Role } from '@/services/api/types'
+import type { Conference, Timezone, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -187,11 +220,24 @@ export default {
     const sandboxPoolSize = ref<number | null>(1)
     const sandboxExtraPackages = ref('')
     const sandboxRemoteGitUrl = ref('')
+    // Heap maximo (-Xmx, en MB) de las JVMs del sandbox -- null = usa el default chico del
+    // backend (256Mi, ver KubernetesPodClient). El backend rechaza (400) valores que excedan el
+    // limite de memoria del contenedor configurado en el chart de despliegue -- no se valida ese
+    // techo exacto aca en el frontend porque depende de infra (values.yaml), no de este repo.
+    const sandboxJvmHeapMb = ref<number | null>(null)
+    // Alumnos que comparten un mismo Pod "neovim" (usuario Linux propio por alumno dentro del
+    // mismo contenedor) -- null = usa el default del backend (4). Solo aplica en modo
+    // "terminal-nvim"; en modo code-server no tiene efecto (no se puede compartir).
+    const sandboxSeatsPerPod = ref<number | null>(null)
     const sandboxInternetEnabled = ref(false)
     const savingSandboxConfig = ref(false)
     const sandboxConfigSaved = ref(false)
     const sandboxConfigError = ref('')
     const savingSandboxInternet = ref(false)
+    const sandboxIncidents = ref<SandboxIncident[]>([])
+    const sandboxIncidentsLoaded = ref(false)
+    const loadingSandboxIncidents = ref(false)
+    const sandboxIncidentsError = ref('')
     const eventTypes    = ref<EventType[]>([])
     const eventTypeKey  = ref('conference')
     const savingEventType = ref(false)
@@ -232,6 +278,8 @@ export default {
         sandboxPoolSize.value = conference.value.sandboxPoolSize ?? 1
         sandboxExtraPackages.value = conference.value.sandboxExtraPackages || ''
         sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''
+        sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? null
+        sandboxSeatsPerPod.value = conference.value.sandboxSeatsPerPod ?? null
         sandboxInternetEnabled.value = conference.value.sandboxInternetEnabled === 1
       } catch (e: any) {
         error.value = 'No se pudo cargar la conferencia.'
@@ -338,6 +386,7 @@ export default {
         conference.value = await setSandboxConfig(
           props.conferenceId as string, sandboxVariant.value, sandboxPoolSize.value,
           sandboxExtraPackages.value.trim() || null, sandboxRemoteGitUrl.value.trim() || null,
+          sandboxJvmHeapMb.value, sandboxSeatsPerPod.value,
           auth.state.token as string
         )
         sandboxConfigSaved.value = true
@@ -362,6 +411,27 @@ export default {
       }
     }
 
+    async function loadSandboxIncidents() {
+      loadingSandboxIncidents.value = true; sandboxIncidentsError.value = ''
+      try {
+        sandboxIncidents.value = await listSandboxIncidents(props.conferenceId as string, auth.state.token as string)
+        sandboxIncidentsLoaded.value = true
+      } catch (e: any) {
+        sandboxIncidentsError.value = e.response?.data?.error?.message || 'No se pudieron cargar los incidentes'
+      } finally {
+        loadingSandboxIncidents.value = false
+      }
+    }
+
+    function incidentTypeLabel(type: string): string {
+      const labels: Record<string, string> = {
+        cpu_abuse: 'Uso excesivo de CPU',
+        memory_abuse: 'Uso excesivo de memoria',
+        fork_bomb_suspected: 'Posible fork-bomb',
+      }
+      return labels[type] || type
+    }
+
     async function saveEventType() {
       savingEventType.value = true; eventTypeError.value = ''; eventTypeSaved.value = false
       try {
@@ -378,9 +448,12 @@ export default {
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
              timezones, timezoneId, onFlyerSelected, save,
              seatingMode, capacity, savingSeating, seatingSaved, seatingError, saveSeating,
-             sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl, sandboxInternetEnabled,
+             sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb,
+             sandboxSeatsPerPod, sandboxInternetEnabled,
              savingSandboxConfig, sandboxConfigSaved, sandboxConfigError, savingSandboxInternet,
              saveSandboxConfig, saveSandboxInternet,
+             sandboxIncidents, sandboxIncidentsLoaded, loadingSandboxIncidents, sandboxIncidentsError,
+             loadSandboxIncidents, incidentTypeLabel,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
              eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
              roleAssigned, roleError, roleName, assignRole, removeRole }
@@ -418,6 +491,11 @@ input:focus { outline: none; border-color: #4f46e5; }
 .btn-remove-flyer:hover { background: #fee2e2; }
 
 .ticket-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+.sandbox-incidents { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
+.incidents-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
+.incidents-table th { text-align: left; padding: 6px 10px; background: #f9fafb; color: #6b7280; font-weight: 600; }
+.incidents-table td { padding: 6px 10px; border-top: 1px solid #f3f4f6; color: #374151; }
 
 .roles-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .role-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #f9fafb; border-radius: 8px; }

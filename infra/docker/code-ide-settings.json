@@ -1,18 +1,11 @@
 {
-  "terminal.integrated.profiles.linux": {
-    "runtime": {
-      "path": "/usr/bin/socat",
-      "args": ["STDIO", "TCP:127.0.0.1:7681"]
-    }
-  },
-  "terminal.integrated.defaultProfile.linux": "runtime",
   "security.workspace.trust.enabled": false,
   "extensions.autoCheckUpdates": false,
   "extensions.autoUpdate": false,
   "update.mode": "none",
   "telemetry.telemetryLevel": "off",
   "python.languageServer": "None",
-  "python.defaultInterpreterPath": "/usr/bin/python3",
-  "java.jdt.ls.java.home": "/usr/local/lib/jvm/temurin-21",
+  "python.defaultInterpreterPath": "/usr/local/bin/python3",
+  "java.jdt.ls.java.home": "/usr/local/lib/jvm/temurin-25",
   "editor.tabFocusMode": false
 }

@@ -19,10 +19,18 @@ public class SqliteConferenceRepository implements ConferenceRepository {
 
     @Override
     public void save(Conference conference) {
+        // NOTA (2026-07-17): sandbox_variant/sandbox_pool_size/sandbox_internet_enabled/
+        // sandbox_extra_packages/sandbox_remote_git_url/sandbox_jvm_heap_mb agregados a esta
+        // lista -- antes de este fix el INSERT OR REPLACE no los incluia, asi que cada save()
+        // los pisaba con NULL/default en la fila real (aunque el objeto en memoria los tuviera
+        // seteados), y map() tampoco los leia de vuelta -- la config de sandbox del Dashboard
+        // nunca sobrevivia a un reload desde la DB. Confirmado en vivo: el pod
+        // sandbox-e998a2bf-0 tenia label sandbox-variant=python, que es el DEFAULT_VARIANT del
+        // codigo (AssignSandboxUseCase), no algo que un organizador hubiera configurado.
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_updated_at, diagram_purged_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_updated_at, diagram_purged_at, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_extra_packages, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
@@ -57,6 +65,17 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(26, conference.getDiagramXml());
             ps.setString(27, conference.getDiagramUpdatedAt() != null ? conference.getDiagramUpdatedAt().toString() : null);
             ps.setString(28, conference.getDiagramPurgedAt() != null ? conference.getDiagramPurgedAt().toString() : null);
+            ps.setString(29, conference.getSandboxVariant());
+            if (conference.getSandboxPoolSize() != null) ps.setInt(30, conference.getSandboxPoolSize());
+            else ps.setNull(30, Types.INTEGER);
+            final Integer internetEnabled = conference.getSandboxInternetEnabled();
+            ps.setInt(31, internetEnabled != null ? internetEnabled : 0);
+            ps.setString(32, conference.getSandboxExtraPackages());
+            ps.setString(33, conference.getSandboxRemoteGitUrl());
+            if (conference.getSandboxJvmHeapMb() != null) ps.setInt(34, conference.getSandboxJvmHeapMb());
+            else ps.setNull(34, Types.INTEGER);
+            if (conference.getSandboxSeatsPerPod() != null) ps.setInt(35, conference.getSandboxSeatsPerPod());
+            else ps.setNull(35, Types.INTEGER);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -163,6 +182,16 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.setNotesPurgedAt(parseInstantNullable(rs.getString("notes_purged_at")));
         conference.restoreDiagramXml(rs.getString("diagram_xml"), parseInstantNullable(rs.getString("diagram_updated_at")));
         conference.setDiagramPurgedAt(parseInstantNullable(rs.getString("diagram_purged_at")));
+        conference.setSandboxVariant(rs.getString("sandbox_variant"));
+        final int sandboxPoolSize = rs.getInt("sandbox_pool_size");
+        conference.setSandboxPoolSize(rs.wasNull() ? null : sandboxPoolSize);
+        conference.setSandboxInternetEnabled(rs.getInt("sandbox_internet_enabled"));
+        conference.setSandboxExtraPackages(rs.getString("sandbox_extra_packages"));
+        conference.setSandboxRemoteGitUrl(rs.getString("sandbox_remote_git_url"));
+        final int sandboxJvmHeapMb = rs.getInt("sandbox_jvm_heap_mb");
+        conference.setSandboxJvmHeapMb(rs.wasNull() ? null : sandboxJvmHeapMb);
+        final int sandboxSeatsPerPod = rs.getInt("sandbox_seats_per_pod");
+        conference.setSandboxSeatsPerPod(rs.wasNull() ? null : sandboxSeatsPerPod);
         return conference;
     }
 

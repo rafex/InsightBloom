@@ -1,0 +1,269 @@
+# Imagen "debian" del IDE (cambio de paradigma 2026-07-17): code-server 100% autocontenido,
+# sin contenedor "runtime" separado ni bridge via socat. Reemplaza el par
+# Dockerfile.code-ide-server + Dockerfile.code-ide-runtime (Fase 4, 2026-07-12 a 07-17): ese
+# split existia para evitar instalar el toolchain completo (Java+Node+Python) dentro de
+# code-server, pero la extension redhat.java igual necesitaba un JDK local en ESTE contenedor
+# para compilar/analizar (ver postmortem 2026-07-17 en el Dockerfile viejo), asi que la premisa
+# de "code-server no necesita el toolchain" ya no era cierta -- separar solo agregaba una
+# NetworkPolicy de loopback, un socat, y el riesgo de JDWP/debugpy sin auth expuestos entre
+# Pods. Un solo contenedor con todo adentro es mas simple y mas seguro.
+#
+# Debian (no Alpine): code-server publica releases standalone precompiladas para glibc
+# (node-pty y demas nativos de VS Code estan linkeados contra glibc); el propio install.sh
+# oficial de code-server cae a `npm install` en Alpine, lo cual resulto en corrupcion de
+# tarballs npm/cacache bajo BuildKit en CI (ver postmortem 2026-07-13/14).
+FROM debian:12-slim
+
+ARG RUNTIME_GIT_SHA=unknown
+ARG RUNTIME_BUILD_DATE=unknown
+RUN printf 'git sha: %s\nbuild:   %s\n' "$RUNTIME_GIT_SHA" "$RUNTIME_BUILD_DATE" \
+    > /etc/insightbloom-runtime-version
+RUN echo "debian / code-server" > /etc/insightbloom-image-name
+
+ARG CODE_SERVER_VERSION=4.117.0
+
+# Paquetes base + "herramientas para dar cursos" (pedido explicito del usuario, ver commit):
+# bat/fd-find/ripgrep/eza/ncdu mejoran cat/find/grep/ls/du; jq para JSON (omnipresente en
+# ejercicios de API); tmux+tree utilitarios de terminal; httpie para probar APIs sin recordar
+# flags de curl; shellcheck para dar feedback de bash en clases de scripting; build-essential
+# para ejemplos nativos (gcc/make) y para que los modulos nativos de npm compilen; man-db+less
+# para que "man"/paginado funcionen; locales para es_ES.UTF-8 (acentos correctos en terminal,
+# no solo en la UI de code-server).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    dumb-init \
+    git \
+    sqlite3 \
+    unzip \
+    less \
+    man-db \
+    locales \
+    bash-completion \
+    fzf \
+    jq \
+    tmux \
+    tree \
+    bat \
+    fd-find \
+    ripgrep \
+    vim \
+    httpie \
+    shellcheck \
+    ncdu \
+    build-essential \
+    maven \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/bin/batcat /usr/local/bin/bat \
+    && ln -s /usr/bin/fdfind /usr/local/bin/fd
+
+# es_ES.UTF-8: publico exclusivamente hispanohablante (mismo pedido que --locale es de
+# code-server abajo) -- sin esto los acentos/enies en output de comandos (ej. mensajes de
+# git en espanol si el alumno cambia LANG) se ven mal en la terminal integrada.
+RUN sed -i 's/# es_ES.UTF-8 UTF-8/es_ES.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
+ENV LANG=es_ES.UTF-8
+ENV LC_ALL=es_ES.UTF-8
+
+# Java 25 LTS Temurin jdk-25.0.3+9 (22/04/2026) -- version y SHA256 pedidos explicitamente por
+# el usuario, verificados en forma independiente antes de bakearlos aca (se descargo el
+# tarball real y se recalculo el hash, coincide con el pedido). Mismo patron que code-server
+# abajo: tarball oficial, sin apt (Debian bookworm solo trae OpenJDK 17 por defecto).
+#
+# El paquete apt "maven" de arriba arrastra "default-jre-headless" (OpenJDK 17) como Depends
+# duro -- no hay forma de evitarlo solo con --no-install-recommends. Convive sin problema con
+# Temurin 25 SIEMPRE QUE JAVA_HOME/PATH prioricen a Temurin (ver runtime-path.sh: confirmado en
+# vivo que sin ese fix, "java --version" caia silenciosamente al OpenJDK 17 de apt en shells de
+# login, sin ningun error que lo delatara).
+ARG TEMURIN_JDK_URL=https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jdk_x64_linux_hotspot_25.0.3_9.tar.gz
+ARG TEMURIN_JDK_SHA256=69264a7a211bf5029830d07bc3370f879769d62ebc5b5488e90c9343a2da0e1f
+RUN curl -fsSL "$TEMURIN_JDK_URL" -o /tmp/temurin.tar.gz && \
+    echo "${TEMURIN_JDK_SHA256}  /tmp/temurin.tar.gz" | sha256sum -c - && \
+    mkdir -p /usr/local/lib/jvm/temurin-25 && \
+    tar -xzf /tmp/temurin.tar.gz -C /usr/local/lib/jvm/temurin-25 --strip-components=1 && \
+    rm /tmp/temurin.tar.gz
+ENV JAVA_HOME=/usr/local/lib/jvm/temurin-25
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+# Python 3.12 -- Debian bookworm apt solo trae 3.11 por defecto. Se usa el build portable de
+# python-build-standalone (astral-sh, el proyecto detras de uv/ruff) en vez de compilar desde
+# fuente o agregar un repo de terceros (deadsnakes no publica para Debian, solo Ubuntu):
+# mismo build (3.12.13) esta disponible tanto en glibc (esta imagen) como en musl (imagen
+# Alpine), asi que las dos imagenes terminan con el MISMO patch de Python, no una version
+# distinta por casualidad de que trae cada distro.
+ARG PYTHON_URL=https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.12.13%2B20260623-x86_64-unknown-linux-gnu-install_only.tar.gz
+ARG PYTHON_SHA256=9fa869d69be54f6b8eeae64272fbd9bb0646e0e1a8da9d80e51ba5a3bee48930
+RUN curl -fsSL "$PYTHON_URL" -o /tmp/python.tar.gz && \
+    echo "${PYTHON_SHA256}  /tmp/python.tar.gz" | sha256sum -c - && \
+    mkdir -p /usr/local/lib/python-3.12 && \
+    tar -xzf /tmp/python.tar.gz -C /usr/local/lib/python-3.12 --strip-components=1 && \
+    rm /tmp/python.tar.gz && \
+    ln -s /usr/local/lib/python-3.12/bin/python3 /usr/local/bin/python3 && \
+    ln -s /usr/local/lib/python-3.12/bin/python3 /usr/local/bin/python && \
+    ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip3 && \
+    ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip
+
+# Node.js LTS 24.18.0 -- tarball oficial glibc de nodejs.org (Debian apt bookworm no llega a
+# LTS 24, y fijar la version exacta pedida evita el runtime "current" que da apk en la imagen
+# Alpine).
+ARG NODE_URL=https://nodejs.org/dist/v24.18.0/node-v24.18.0-linux-x64.tar.gz
+ARG NODE_SHA256=783130984963db7ba9cbd01089eaf2c2efb055c7c1693c943174b967b3050cb8
+RUN curl -fsSL "$NODE_URL" -o /tmp/node.tar.gz && \
+    echo "${NODE_SHA256}  /tmp/node.tar.gz" | sha256sum -c - && \
+    mkdir -p /usr/local/lib/node-24 && \
+    tar -xzf /tmp/node.tar.gz -C /usr/local/lib/node-24 --strip-components=1 && \
+    rm /tmp/node.tar.gz
+ENV PATH="/usr/local/lib/node-24/bin:${PATH}"
+
+# eza (mejora de ls) y lazygit -- ninguno de los dos esta en el apt de Debian bookworm
+# (confirmado: apt-cache policy no devuelve candidato). Mismo patron de tarball verificado.
+ARG EZA_URL=https://github.com/eza-community/eza/releases/download/v0.23.5/eza_x86_64-unknown-linux-gnu.tar.gz
+ARG EZA_SHA256=35c70c5c43c29108075e58b893234c67ef585f0b53a7eaf8e9e7d4eec9f339b4
+# El tarball trae el binario como "./eza" (entrada de archivo top-level, no una subcarpeta) --
+# extraer directo a /usr/local/bin lo deja en /usr/local/bin/eza.
+RUN curl -fsSL "$EZA_URL" -o /tmp/eza.tar.gz && \
+    echo "${EZA_SHA256}  /tmp/eza.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/eza.tar.gz -C /usr/local/bin && \
+    rm /tmp/eza.tar.gz
+
+ARG LAZYGIT_URL=https://github.com/jesseduffield/lazygit/releases/download/v0.63.1/lazygit_0.63.1_linux_x86_64.tar.gz
+ARG LAZYGIT_SHA256=8e033bc78c8e192dee9510e951f6c9e154289b7198d22c924ed1d0a951b0dac1
+RUN curl -fsSL "$LAZYGIT_URL" -o /tmp/lazygit.tar.gz && \
+    echo "${LAZYGIT_SHA256}  /tmp/lazygit.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/lazygit.tar.gz -C /usr/local/bin lazygit && \
+    rm /tmp/lazygit.tar.gz
+
+
+# code-server: release standalone oficial (sin npm, sin scripts de postinstall), version fijada.
+RUN curl -fsSL "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server-${CODE_SERVER_VERSION}-linux-amd64.tar.gz" \
+    -o /tmp/code-server.tar.gz && \
+    mkdir -p /usr/local/lib/code-server && \
+    tar -xzf /tmp/code-server.tar.gz -C /usr/local/lib/code-server --strip-components=1 && \
+    ln -s /usr/local/lib/code-server/bin/code-server /usr/local/bin/code-server && \
+    rm /tmp/code-server.tar.gz
+
+# Usuario no-root 'coder' -- mismo uid/gid 1000 que la imagen Alpine hermana (ya no comparten
+# volumen entre si -- cada sandbox usa una sola imagen -- pero se mantiene el mismo uid/gid
+# por si el volumen persistente de un curso se reutiliza entre modos de IDE a futuro).
+RUN groupadd -g 1000 coder && \
+    useradd -m -u 1000 -g 1000 -d /home/coder -s /bin/bash coder && \
+    chown -R coder:coder /home/coder && \
+    chown -R coder:coder /usr/local/lib/python-3.12
+
+USER coder
+WORKDIR /home/coder
+
+# Prefix npm global escribible por 'coder'
+ENV NPM_CONFIG_PREFIX=/home/coder/.npm-global
+ENV PATH=/home/coder/.npm-global/bin:/home/coder/.opencode/bin:$PATH
+RUN mkdir -p /home/coder/.npm-global
+
+RUN npm install -g npm@latest && \
+    npm install -g \
+    typescript \
+    ts-node \
+    @vue/cli \
+    create-react-app \
+    create-vite \
+    esbuild \
+    webpack \
+    webpack-cli \
+    prettier \
+    eslint \
+    @typescript-eslint/parser \
+    @typescript-eslint/eslint-plugin
+
+# pip install sin venv es intencional aca (mismo interprete que usa la extension de Python del
+# editor via python.defaultInterpreterPath) -- el Python de python-build-standalone no es el de
+# apt de Debian, no tiene el marcador PEP 668 "externally-managed" que exigiria --break-system-packages.
+# El directorio se chownea a 'coder' arriba justamente para que este pip install (corriendo como
+# 'coder', no root) pueda escribir en site-packages.
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    virtualenv \
+    jupyter \
+    numpy \
+    pandas \
+    matplotlib \
+    requests \
+    flask \
+    django \
+    fastapi \
+    pytest \
+    black \
+    pylint \
+    debugpy
+
+# Extensiones de code-server: Java (redhat.java + debug/test/dependency/maven, separadas
+# porque "vscjava.extension-pack-for-java" no esta en open-vsx.org), Python (ms-python.python +
+# ms-pyright.pyright en vez de Pylance, tampoco en open-vsx), Web (prettier/eslint/volar/
+# react/tailwind/html-css), idioma espanol (ms-ceintl.vscode-language-pack-es), y opencode.
+#
+# Versiones fijadas explicitamente (excepto el language pack, ver nota abajo) -- auditoria de
+# seguridad 2026-07-17: un publisher comprometido no puede inyectar codigo en el proximo build
+# sin que alguien actualice este archivo a mano. Actualizar deliberadamente via PR.
+#
+# Excepcion: "ms-ceintl.vscode-language-pack-es" se deja SIN pin -- confirmado en build real
+# que pinnear a una version publicada falla con "not compatible with the current version of
+# code-server" (code-server valida engines.vscode del manifest solo cuando se pide una version
+# explicita @X.Y.Z). Costo de supply-chain de este unico paquete first-party de Microsoft
+# aceptado como excepcion documentada.
+RUN for ext in \
+      redhat.java@1.56.2026071508 \
+      vscjava.vscode-java-debug@0.59.0 \
+      vscjava.vscode-java-test@0.45.0 \
+      vscjava.vscode-java-dependency@0.27.6 \
+      vscjava.vscode-maven@0.45.3 \
+      ms-python.python@2026.4.0 \
+      ms-pyright.pyright@1.1.402 \
+      ms-python.debugpy@2026.6.0 \
+      esbenp.prettier-vscode@12.4.0 \
+      dbaeumer.vscode-eslint@3.0.34 \
+      vue.volar@3.3.6 \
+      dsznajder.es7-react-js-snippets@4.4.3 \
+      bradlc.vscode-tailwindcss@0.14.28 \
+      ecmel.vscode-html-css@2.0.14 \
+      ms-ceintl.vscode-language-pack-es \
+      sst-dev.opencode@0.0.13; do \
+        code-server --install-extension "$ext" || echo "WARN: extension $ext skipped"; \
+    done
+
+# opencode (CLI de agente de codigo IA, https://opencode.ai, de SST) -- instalado
+# incondicionalmente (no atado a internet_enabled), decision aceptada en la auditoria de
+# seguridad 2026-07-17 (costo fijo de superficie instalada que no puede hacer nada util sin
+# red, en vez de condicionar la instalacion por conferencia).
+RUN curl -fsSL https://opencode.ai/install | bash
+
+# opencode/opentui se veia "raro" (secuencias de escape crudas) en la terminal integrada --
+# bug conocido de opentui (query de capacidad propietaria de Ghostty que xterm.js no responde
+# bien, issues opencode #23564/#31947/#33207). TERM explicito es la mitigacion disponible
+# (no hay fix completo upstream todavia).
+ENV TERM=xterm-256color
+
+# Prompt coloreado + banner de bienvenida + fix de PATH para shells de login -- mismos scripts
+# que usaba la imagen "runtime" vieja, ahora en la unica imagen que los necesita.
+USER root
+COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
+COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
+COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
+COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
+USER coder
+
+RUN mkdir -p /home/coder/.local/share/code-server/User /home/coder/workspace /home/coder/db /home/coder/.m2
+COPY --chown=coder:coder infra/docker/code-ide-settings.json /home/coder/.local/share/code-server/User/settings.json
+
+# Template de launch.json (debug remoto via JDWP/debugpy, ver runtime-debug-helpers.sh) --
+# sembrado en el volumen de workspace en runtime por code-ide-entrypoint.sh, no aca:
+# /home/coder/workspace es un emptyDir montado por Kubernetes, lo copiado aca en build time
+# queda tapado/invisible al arrancar el Pod.
+USER root
+RUN mkdir -p /etc/insightbloom
+COPY infra/docker/code-ide-launch.json /etc/insightbloom/code-ide-launch.json
+COPY infra/docker/code-ide-entrypoint.sh /usr/local/bin/code-ide-entrypoint.sh
+RUN chmod +x /usr/local/bin/code-ide-entrypoint.sh
+USER coder
+
+# code-server escucha por defecto en puerto 8080 (sin seguridad propia -- se usa ib_token del gateway)
+EXPOSE 8080
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["/usr/local/bin/code-ide-entrypoint.sh"]

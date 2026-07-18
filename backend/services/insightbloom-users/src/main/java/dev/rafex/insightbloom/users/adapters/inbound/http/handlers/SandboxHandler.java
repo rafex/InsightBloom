@@ -186,13 +186,17 @@ public class SandboxHandler extends BaseResourceHandler {
             final Integer sandboxPoolSize = (Integer) body.get("sandboxPoolSize");
             final String sandboxExtraPackages = (String) body.get("sandboxExtraPackages");
             final String sandboxRemoteGitUrl = (String) body.get("sandboxRemoteGitUrl");
+            final Integer sandboxJvmHeapMb = (Integer) body.get("sandboxJvmHeapMb");
+            final Integer sandboxSeatsPerPod = (Integer) body.get("sandboxSeatsPerPod");
 
             final var updated = setSandboxConfigUseCase.execute(
                 conferenceId,
                 sandboxVariant,
                 sandboxPoolSize,
                 sandboxExtraPackages,
-                sandboxRemoteGitUrl
+                sandboxRemoteGitUrl,
+                sandboxJvmHeapMb,
+                sandboxSeatsPerPod
             );
 
             sendOk(jx, 200, updated);

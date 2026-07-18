@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
 import dev.rafex.insightbloom.users.application.usecases.EnsureUnassignedSandboxUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ListSandboxIncidentsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxInternetUseCase;
 import dev.rafex.ether.http.core.HttpExchange;
@@ -90,6 +91,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
     private final SetSandboxInternetUseCase setSandboxInternetUseCase;
     private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
+    private final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase;
     private final SandboxHandler sandboxHandler;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
@@ -127,6 +129,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final SetSandboxConfigUseCase setSandboxConfigUseCase,
                              final SetSandboxInternetUseCase setSandboxInternetUseCase,
                              final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
+                             final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase,
                              final SandboxHandler sandboxHandler) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
@@ -163,6 +166,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
         this.setSandboxInternetUseCase = setSandboxInternetUseCase;
         this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
+        this.listSandboxIncidentsUseCase = listSandboxIncidentsUseCase;
         this.sandboxHandler = sandboxHandler;
     }
 
@@ -191,6 +195,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/sandbox-config", Set.of("PUT")),
                 Route.of("/{id}/sandbox-internet", Set.of("PUT")),
+                Route.of("/{id}/sandbox-incidents", Set.of("GET")),
                 Route.of("/{id}/sandbox", Set.of("GET")),
                 Route.of("/{id}/sandbox/download", Set.of("POST")),
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
@@ -255,6 +260,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/roles")) {
             return handleListEventRoles(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/sandbox-incidents")) {
+            return handleListSandboxIncidents(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/sandbox")) {
             return sandboxHandler.get(x);
@@ -1008,8 +1016,10 @@ public class ConferenceHandler extends BaseResourceHandler {
             final Integer sandboxPoolSize = (Integer) body.get("sandboxPoolSize");
             final String sandboxExtraPackages = (String) body.get("sandboxExtraPackages");
             final String sandboxRemoteGitUrl = (String) body.get("sandboxRemoteGitUrl");
+            final Integer sandboxJvmHeapMb = (Integer) body.get("sandboxJvmHeapMb");
+            final Integer sandboxSeatsPerPod = (Integer) body.get("sandboxSeatsPerPod");
             final var result = setSandboxConfigUseCase.execute(id, sandboxVariant, sandboxPoolSize,
-                sandboxExtraPackages, sandboxRemoteGitUrl);
+                sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb, sandboxSeatsPerPod);
             try {
                 // Best-effort: si falla (ej. Kubernetes no disponible), no debe tumbar el guardado
                 // de la config -- AssignSandboxUseCase sigue creando bajo demanda como fallback.
@@ -1023,6 +1033,24 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendOk(jx, 200, result);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    /** Fase C (DEC-0025): le muestra al organizador que asientos de sus Pods "neovim"
+     *  compartidos tuvo que terminar el watchdog por abuso de recursos, y quien era. */
+    private boolean handleListSandboxIncidents(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can view sandbox incidents");
+                return true;
+            }
+            sendOk(jx, 200, listSandboxIncidentsUseCase.execute(id));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

@@ -4,7 +4,7 @@ import type {
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
   SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
-  ChatSettings
+  ChatSettings, SandboxIncident
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -165,10 +165,20 @@ export async function setSandboxConfig(
   sandboxPoolSize: number | null,
   sandboxExtraPackages: string | null,
   sandboxRemoteGitUrl: string | null,
+  sandboxJvmHeapMb: number | null,
+  sandboxSeatsPerPod: number | null,
   token: string
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/sandbox-config`,
-    { sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl }, authHeader(token))
+    { sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb, sandboxSeatsPerPod },
+    authHeader(token))
+  return res.data.data
+}
+
+export async function listSandboxIncidents(
+  conferenceId: string, token: string
+): Promise<SandboxIncident[]> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox-incidents`, authHeader(token))
   return res.data.data
 }
 

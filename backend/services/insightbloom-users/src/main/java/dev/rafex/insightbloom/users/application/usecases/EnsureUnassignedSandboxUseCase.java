@@ -60,7 +60,8 @@ public class EnsureUnassignedSandboxUseCase {
 
         try {
             sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, variant,
-                conference.getSandboxExtraPackages(), conference.getSandboxRemoteGitUrl(), internetEnabled);
+                conference.getSandboxExtraPackages(), conference.getSandboxRemoteGitUrl(), internetEnabled,
+                conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
         } catch (final IllegalStateException e) {
             if ("kubernetes_not_configured".equals(e.getMessage())) {
                 return;

@@ -50,6 +50,21 @@ class ResolveSandboxTargetUseCaseTest {
     }
 
     @Test
+    void testResolvesSeatPortForSharedPod() {
+        Mockito.when(validateTokenUseCaseMock.execute("tok"))
+                .thenReturn(new ValidateTokenUseCase.ValidationResult(true, "user-2", "user", "organizer", null));
+        // Asiento 2 de un Pod compartido -- debe resolver a basePort+2, no al puerto fijo de siempre.
+        final var sandbox = new Sandbox("conf-1", 0, 2, "user-2", Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-2"))
+                .thenReturn(Optional.of(sandbox));
+
+        final var result = useCase.execute("tok", "conf-1");
+
+        assertTrue(result.isPresent());
+        assertEquals("http://" + sandbox.podName() + "-svc.insightbloom-sandboxes.svc.cluster.local:8082", result.get());
+    }
+
+    @Test
     void testNoSandboxAssignedReturnsEmpty() {
         Mockito.when(validateTokenUseCaseMock.execute("tok"))
                 .thenReturn(new ValidateTokenUseCase.ValidationResult(true, "user-1", "user", "guest", null));

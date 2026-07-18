@@ -17,8 +17,8 @@ on:
     tags:
       - 'v*.*'
     paths:
-      - 'infra/docker/Dockerfile.code-ide-server'
-      - 'infra/docker/Dockerfile.code-ide-runtime'
+      - 'infra/docker/Dockerfile.code-ide-debian'
+      - 'infra/docker/Dockerfile.code-ide-neovim'
       - 'infra/docker/code-ide-settings.json'
       - 'infra/docker/code-ide-launch.json'
       - 'infra/docker/code-ide-entrypoint.sh'
@@ -44,15 +44,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ide-server
-            file: infra/docker/Dockerfile.code-ide-server
-            image: ghcr.io/rafex/insightbloom-code-ide-server
+          # Cambio de paradigma 2026-07-17: dos imagenes autocontenidas (sin split ide/runtime,
+          # ver KubernetesPodClient.java) -- cada una trae el toolchain completo (Java 25 Temurin,
+          # Python 3.12, Node 24 LTS) adentro.
+          - name: debian
+            file: infra/docker/Dockerfile.code-ide-debian
+            image: ghcr.io/rafex/insightbloom-code-ide-debian
             variantTag: latest
-          # Imagen runtime unica (java+node+python juntos, ver Dockerfile.code-ide-runtime):
-          # reemplaza las 3 imagenes por-variante que existieron entre 2026-07-12 y 07-17.
-          - name: runtime
-            file: infra/docker/Dockerfile.code-ide-runtime
-            image: ghcr.io/rafex/insightbloom-code-ide-runtime
+          - name: neovim
+            file: infra/docker/Dockerfile.code-ide-neovim
+            image: ghcr.io/rafex/insightbloom-code-ide-neovim
             variantTag: latest
     steps:
       - uses: actions/checkout@v6

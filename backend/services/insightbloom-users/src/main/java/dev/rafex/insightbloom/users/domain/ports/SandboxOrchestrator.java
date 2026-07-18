@@ -14,8 +14,30 @@ public interface SandboxOrchestrator {
      * @param conferenceUuid usado para etiquetar el Pod con {@link dev.rafex.insightbloom.users.domain.model.Sandbox#conferenceLabel}
      *                        (Fase 3c: la NetworkPolicy de internet habilitado selecciona por esa label).
      */
+    /**
+     * @param jvmHeapMb -Xmx (en MB) para las JVMs del sandbox (jdt.ls, java/mvn que corra el
+     *                  alumno) via JDK_JAVA_OPTIONS; null usa el default chico de la
+     *                  implementacion (pedido explicito: JVMs chicas por defecto, no "libres"
+     *                  tomando todo lo que el contenedor les deje via cgroups).
+     * @param seatsPerPod cantidad de alumnos que compartiran este Pod (solo relevante en modo
+     *                    terminal-nvim; ignorado en cualquier otro modo, un Pod = un alumno
+     *                    siempre). Null usa el default de la implementacion. Determina cuantos
+     *                    puertos expone el Pod/Service -- llamar siempre con el mismo valor para
+     *                    un {@code podName} dado (no cambia dinamicamente el Pod ya creado).
+     */
     void createSandbox(String podName, String conferenceUuid, String variant, String extraPackages,
-                        String remoteGitUrl, boolean internetEnabled);
+                        String remoteGitUrl, boolean internetEnabled, Integer jvmHeapMb, Integer seatsPerPod);
+
+    /**
+     * Fase B (2026-07): pide al seat-agent de un Pod neovim multi-asiento ya corriendo que
+     * cree (si no existe) el usuario Linux y el {@code ttyd} de un asiento especifico. No hace
+     * nada en Pods de un solo asiento (ni existe seat-agent ahi) -- llamar solo cuando
+     * {@link AssignSandboxUseCase} se une a un Pod compartido ya existente (no cuando lo crea:
+     * en ese caso el asiento 0 se aprovisiona solo, al arrancar el Pod).
+     * @param seatIndex asiento dentro del Pod, 0..seatsPerPod-1
+     * @param userUuid alumno real asignado a ese asiento (para logging/incidentes, Fase C)
+     */
+    void provisionSeat(String podName, int seatIndex, String userUuid);
 
     /** Borra Pod + Service; no falla si ya no existen (ej. purga repetida). */
     void deleteSandbox(String podName);

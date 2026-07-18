@@ -4,6 +4,7 @@ import dev.rafex.insightbloom.common.migration.ColumnMigrationHelper;
 import dev.rafex.insightbloom.common.sqlite.SqliteConnectionProvider;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -152,6 +153,12 @@ public class DatabaseManager {
             } catch (SQLException ignored) {}
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_remote_git_url TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_jvm_heap_mb INTEGER");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_seats_per_pod INTEGER");
             } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
@@ -327,8 +334,76 @@ public class DatabaseManager {
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_conference ON sandbox_assignments(conference_uuid)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_user ON sandbox_assignments(user_uuid)");
+            migrateSandboxAssignmentsSeatIndex(conn);
+
+            // Fase C (DEC-0025): incidentes de abuso de recursos en Pods "neovim" compartidos,
+            // reportados por el seat-agent -- ver SandboxIncident.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS sandbox_incidents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    pod_name TEXT NOT NULL,
+                    seat_index INTEGER NOT NULL,
+                    user_uuid TEXT,
+                    type TEXT NOT NULL,
+                    detail TEXT,
+                    occurred_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_incidents_conference ON sandbox_incidents(conference_uuid)");
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
+        }
+    }
+
+    /**
+     * Pods "neovim" multi-asiento (2026-07): varios alumnos pueden compartir el mismo
+     * {@code sandbox_slot} (mismo Pod), cada uno en su propio {@code seat_index}. El
+     * {@code UNIQUE(conference_uuid, sandbox_slot)} original de la tabla lo impedía a proposito
+     * (1 fila por pod) -- SQLite no permite ALTER TABLE para cambiar un UNIQUE existente, así que
+     * hay que recrear la tabla completa cuando todavía tiene el constraint viejo. Idempotente:
+     * se fija en el SQL de creación real (via sqlite_master) si el constraint viejo sigue ahí
+     * antes de hacer nada; en una base ya migrada esto es un no-op.
+     */
+    private void migrateSandboxAssignmentsSeatIndex(final Connection conn) throws SQLException {
+        ColumnMigrationHelper.addColumnIfMissing(conn, "sandbox_assignments", "seat_index", "INTEGER NOT NULL DEFAULT 0");
+        String createSql = null;
+        try (Statement s = conn.createStatement();
+             ResultSet rs = s.executeQuery(
+                 "SELECT sql FROM sqlite_master WHERE type='table' AND name='sandbox_assignments'")) {
+            if (rs.next()) createSql = rs.getString("sql");
+        }
+        final boolean hasOldNarrowUnique = createSql != null
+                && createSql.replaceAll("\\s+", " ").contains("UNIQUE(conference_uuid, sandbox_slot)");
+        if (!hasOldNarrowUnique) {
+            return;
+        }
+        try (Statement s = conn.createStatement()) {
+            s.executeUpdate("""
+                CREATE TABLE sandbox_assignments_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    sandbox_slot INTEGER NOT NULL,
+                    seat_index INTEGER NOT NULL DEFAULT 0,
+                    user_uuid TEXT,
+                    assigned_at TEXT,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    UNIQUE(conference_uuid, sandbox_slot, seat_index)
+                )
+            """);
+            s.executeUpdate("""
+                INSERT INTO sandbox_assignments_new
+                    (id, uuid, conference_uuid, sandbox_slot, seat_index, user_uuid, assigned_at, created_at, expires_at)
+                SELECT id, uuid, conference_uuid, sandbox_slot, seat_index, user_uuid, assigned_at, created_at, expires_at
+                FROM sandbox_assignments
+            """);
+            s.executeUpdate("DROP TABLE sandbox_assignments");
+            s.executeUpdate("ALTER TABLE sandbox_assignments_new RENAME TO sandbox_assignments");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_conference ON sandbox_assignments(conference_uuid)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_user ON sandbox_assignments(user_uuid)");
         }
     }
 

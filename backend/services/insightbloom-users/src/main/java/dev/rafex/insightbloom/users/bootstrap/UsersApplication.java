@@ -75,6 +75,7 @@ public class UsersApplication {
         final var roleRepo = new SqliteRoleRepository(db);
         final var eventRoleRepo = new SqliteEventRoleRepository(db);
         final var sandboxRepo = new SqliteSandboxRepository(db);
+        final var sandboxIncidentRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteSandboxIncidentRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -166,27 +167,38 @@ public class UsersApplication {
         final var setChatAiSettingUseCase = new SetChatAiSettingUseCase(platformSettingsRepo);
         final var setChatSettingsUseCase = new SetChatSettingsUseCase(platformSettingsRepo);
         final String gatewayBaseUrl = System.getenv().getOrDefault("GATEWAY_BASE_URL", "https://ide-insightbloom.v1.rafex.cloud");
+        final String sandboxDebianMemoryLimit = System.getenv().getOrDefault("SANDBOX_DEBIAN_MEMORY_LIMIT", "1536Mi");
+        final String sandboxNeovimMemoryLimit = System.getenv().getOrDefault("SANDBOX_NEOVIM_MEMORY_LIMIT", "1Gi");
+        // Fase C (2026-07): secreto de BAJO privilegio (distinto de INTERNAL_API_KEY, ver
+        // DEC-0025) compartido entre el Pod (KubernetesPodClient lo inyecta como env var) y
+        // este proceso (InternalSandboxIncidentHandler lo valida) para que el watchdog del
+        // seat-agent pueda reportar incidentes.
+        final String sandboxIncidentReportKey = System.getenv().getOrDefault("SANDBOX_INCIDENT_REPORT_KEY", "dev-only-change-me");
         final var sandboxOrchestrator = new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient(
                 JacksonJsonCodec.defaultCodec(),
                 System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"),
-                System.getenv().getOrDefault("SANDBOX_SERVER_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-server:latest"),
-                System.getenv().getOrDefault("SANDBOX_RUNTIME_IMAGE_BASE", "ghcr.io/rafex/insightbloom-code-ide-runtime"),
-                // Memoria/CPU de "ide" subidas 2026-07-17: con el JDK real agregado (para que
-                // redhat.java pueda activar, ver Dockerfile.code-ide-server) el Language Server
-                // de Java (jdt.ls, una JVM completa) corre DENTRO de este contenedor -- 512Mi
-                // no alcanzaba, confirmado en vivo: el contenedor terminaba en OOMKilled apenas
-                // se abria un archivo .java. LimitRange del namespace tambien subido (kubectl,
-                // no versionado en este repo -- ver nota en KubernetesPodClient si se retoma).
+                System.getenv().getOrDefault("SANDBOX_DEBIAN_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-debian:latest"),
+                System.getenv().getOrDefault("SANDBOX_NEOVIM_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-neovim:latest"),
+                // Cambio de paradigma 2026-07-17: un solo contenedor por Pod (ver
+                // KubernetesPodClient), pero DOS sets de recursos -- uno por imagen, no uno
+                // compartido: las imagenes tienen perfiles de consumo muy distintos. Debian
+                // corre el extension host de VS Code Web (proceso Node) + code-server + jdt.ls
+                // (Language Server de Java, una JVM completa) -- la carga pesada. Alpine solo
+                // corre ttyd+nvim (un proceso liviano, sin el overhead de VS Code Web), aunque
+                // tambien puede activar jdt.ls al editar .java. El namespace
+                // insightbloom-sandboxes tiene su LimitRange (kubectl, no versionado en este
+                // repo) con tope de Pod en 2048Mi/1000m desde el ajuste del 2026-07-17 -- los
+                // dos sets quedan con margen debajo de ese tope.
                 new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient.ContainerResources(
-                        System.getenv().getOrDefault("SANDBOX_IDE_CPU_REQUEST", "100m"),
-                        System.getenv().getOrDefault("SANDBOX_IDE_MEMORY_REQUEST", "384Mi"),
-                        System.getenv().getOrDefault("SANDBOX_IDE_CPU_LIMIT", "350m"),
-                        System.getenv().getOrDefault("SANDBOX_IDE_MEMORY_LIMIT", "896Mi")),
+                        System.getenv().getOrDefault("SANDBOX_DEBIAN_CPU_REQUEST", "200m"),
+                        System.getenv().getOrDefault("SANDBOX_DEBIAN_MEMORY_REQUEST", "640Mi"),
+                        System.getenv().getOrDefault("SANDBOX_DEBIAN_CPU_LIMIT", "750m"),
+                        sandboxDebianMemoryLimit),
                 new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient.ContainerResources(
-                        System.getenv().getOrDefault("SANDBOX_RUNTIME_CPU_REQUEST", "100m"),
-                        System.getenv().getOrDefault("SANDBOX_RUNTIME_MEMORY_REQUEST", "512Mi"),
-                        System.getenv().getOrDefault("SANDBOX_RUNTIME_CPU_LIMIT", "500m"),
-                        System.getenv().getOrDefault("SANDBOX_RUNTIME_MEMORY_LIMIT", "1Gi")),
+                        System.getenv().getOrDefault("SANDBOX_NEOVIM_CPU_REQUEST", "100m"),
+                        System.getenv().getOrDefault("SANDBOX_NEOVIM_MEMORY_REQUEST", "512Mi"),
+                        System.getenv().getOrDefault("SANDBOX_NEOVIM_CPU_LIMIT", "500m"),
+                        sandboxNeovimMemoryLimit),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PORT", "8080")),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_UID", "1000")),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_GID", "1000")),
@@ -195,7 +207,12 @@ public class UsersApplication {
                 // ENTRANTE a un sandbox al Pod del gateway unicamente (namespace + label) --
                 // auditoria de seguridad 2026-07-17, cierra acceso Pod-a-Pod entre sandboxes.
                 System.getenv().getOrDefault("SANDBOX_GATEWAY_NAMESPACE", "insightbloom"),
-                System.getenv().getOrDefault("SANDBOX_GATEWAY_POD_COMPONENT_LABEL", "toolsgateway"));
+                System.getenv().getOrDefault("SANDBOX_GATEWAY_POD_COMPONENT_LABEL", "toolsgateway"),
+                // Fase B (2026-07): puerto de control del seat-agent en Pods neovim
+                // multi-asiento -- solo insightbloom-users puede llamarlo (ver
+                // KubernetesPodClient.ensureIngressPolicy, segunda regla de Ingress).
+                System.getenv().getOrDefault("SANDBOX_USERS_POD_COMPONENT_LABEL", "users"),
+                sandboxIncidentReportKey);
         final long sandboxTtlSecondsAfterEventExpiry =
                 Long.parseLong(System.getenv().getOrDefault("SANDBOX_TTL_SECONDS_AFTER_EVENT_EXPIRY", "3600"));
         final var assignSandboxUseCase = new AssignSandboxUseCase(
@@ -209,12 +226,23 @@ public class UsersApplication {
                 validateTokenUseCase, sandboxRepo,
                 System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PORT", "8080")));
+        final var recordSandboxIncidentUseCase = new dev.rafex.insightbloom.users.application.usecases.RecordSandboxIncidentUseCase(sandboxIncidentRepo);
+        final var listSandboxIncidentsUseCase = new dev.rafex.insightbloom.users.application.usecases.ListSandboxIncidentsUseCase(sandboxIncidentRepo);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
                 registerUseCase, sendOtpUseCase, verifyOtpUseCase, logoutUseCase, refreshTokenUseCase);
         final int maxPoolSizePerEvent = Integer.parseInt(System.getenv().getOrDefault("SANDBOX_POOL_MAX_PER_EVENT", "50"));
-        final var setSandboxConfigUseCase = new SetSandboxConfigUseCase(conferenceRepo, maxPoolSizePerEvent);
+        // Techo de -Xmx configurable desde el Dashboard (SetSandboxConfigUseCase): limite de
+        // memoria del contenedor menos margen para el resto del proceso -- 400Mi para Debian
+        // (code-server + extension host de VS Code Web corren ahi tambien, no solo la JVM del
+        // heap), 150Mi para Alpine (solo ttyd+nvim, mucho mas liviano). El heap NUNCA puede
+        // pisar esta cuenta o el contenedor entero se cae por OOM del lado del sistema operativo,
+        // no de la JVM (que respetaria su propio -Xmx sin problema).
+        final int maxJvmHeapMbDebian = Math.max(64, parseK8sMemoryToMb(sandboxDebianMemoryLimit) - 400);
+        final int maxJvmHeapMbNeovim = Math.max(64, parseK8sMemoryToMb(sandboxNeovimMemoryLimit) - 150);
+        final var setSandboxConfigUseCase = new SetSandboxConfigUseCase(
+                conferenceRepo, maxPoolSizePerEvent, maxJvmHeapMbDebian, maxJvmHeapMbNeovim);
         final var sandboxHandler = new SandboxHandler(
                 assignSandboxUseCase, validateTokenUseCase, generateWorkspaceDownloadUrlUseCase,
                 setSandboxConfigUseCase, sandboxOrchestrator, gatewayBaseUrl);
@@ -229,7 +257,8 @@ public class UsersApplication {
                 setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase,
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
                 getEventDiagramUseCase, saveEventDiagramUseCase, generateJaasTokenUseCase, generateSeatLayoutUseCase,
-                setSandboxConfigUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase, sandboxHandler);
+                setSandboxConfigUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
+                listSandboxIncidentsUseCase, sandboxHandler);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
@@ -249,11 +278,15 @@ public class UsersApplication {
         final var platformSettingsHandler = new PlatformSettingsHandler(
                 getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase, validateTokenUseCase);
         final var internalSandboxTargetHandler = new InternalSandboxTargetHandler(resolveSandboxTargetUseCase);
+        final var internalSandboxIncidentHandler =
+                new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalSandboxIncidentHandler(
+                        recordSandboxIncidentUseCase, sandboxIncidentReportKey);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/auth/*", authHandler);
         routes.add("/internal/sandbox-target/*", internalSandboxTargetHandler);
+        routes.add("/internal/sandbox-incidents/*", internalSandboxIncidentHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);
@@ -313,5 +346,20 @@ public class UsersApplication {
 
         runner.start();
         runner.await();
+    }
+
+    /**
+     * Parsea una quantity de recursos de Kubernetes (ej. "896Mi", "1Gi", "512M") a MB enteros.
+     * Solo soporta los sufijos que usamos en este archivo para limites de memoria de sandbox
+     * (Mi/Gi binarios, M/G decimales, o sin sufijo = bytes) -- no es un parser general de la
+     * spec completa de quantities de K8s (no hay Ki/Ti/m fraccionario, no hacen falta aca).
+     */
+    private static int parseK8sMemoryToMb(final String quantity) {
+        final String q = quantity.trim();
+        if (q.endsWith("Mi")) return Integer.parseInt(q.substring(0, q.length() - 2));
+        if (q.endsWith("Gi")) return Integer.parseInt(q.substring(0, q.length() - 2)) * 1024;
+        if (q.endsWith("M")) return (int) (Long.parseLong(q.substring(0, q.length() - 1)) * 1_000_000L / (1024 * 1024));
+        if (q.endsWith("G")) return (int) (Long.parseLong(q.substring(0, q.length() - 1)) * 1_000_000_000L / (1024 * 1024));
+        return (int) (Long.parseLong(q) / (1024 * 1024));
     }
 }

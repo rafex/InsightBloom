@@ -1,7 +1,7 @@
-# Prompt coloreado con rama de git para el contenedor runtime del IDE (infra/docker/
-# Dockerfile.code-ide-runtime). Va en /etc/profile.d/ (no en ~/.bashrc): la terminal integrada
-# de code-server invoca "bash -l" (login shell), que en Alpine NO lee ~/.bashrc por defecto --
-# /etc/profile.d/*.sh es el unico lugar que /etc/profile siempre carga, ver ese archivo.
+# Prompt coloreado con rama de git, usado por las dos imagenes del IDE (Dockerfile.code-ide-debian
+# y Dockerfile.code-ide-neovim). Va en /etc/profile.d/ (no en ~/.bashrc): tanto la terminal
+# integrada de code-server como el "bash -lc" que arranca ttyd son shells de LOGIN, que no leen
+# ~/.bashrc por defecto -- /etc/profile.d/*.sh es el unico lugar que /etc/profile siempre carga.
 
 __insightbloom_git_branch() {
     local branch

@@ -1,0 +1,215 @@
+# Imagen "neovim" del IDE (cambio de paradigma 2026-07-17): vim/neovim + lazygit 100%
+# autocontenidos, servidos por ttyd (terminal web) -- sin contenedor "ide" (code-server) ni
+# bridge via socat. Reemplaza a Dockerfile.code-ide-runtime (que hasta ahora cumplia doble
+# funcion: bridge de terminal integrada de code-server Y modo alternativo "terminal-nvim").
+# Ahora cada imagen es un modo de IDE completo e independiente -- esta es la opcion liviana
+# 100% terminal para quien no necesita el editor grafico de code-server.
+FROM alpine:3.21
+
+ARG RUNTIME_GIT_SHA=unknown
+ARG RUNTIME_BUILD_DATE=unknown
+RUN printf 'git sha: %s\nbuild:   %s\n' "$RUNTIME_GIT_SHA" "$RUNTIME_BUILD_DATE" \
+    > /etc/insightbloom-runtime-version
+RUN echo "alpine / vim-neovim" > /etc/insightbloom-image-name
+
+# Paquetes base + editor (vim/neovim/lazygit, pedido explicito) + "herramientas para dar
+# cursos" (bat/fd/ripgrep/eza/ncdu mejoran cat/find/grep/ls/du; jq para JSON; tmux+tree
+# utilitarios de terminal; httpie para probar APIs; shellcheck para feedback de bash;
+# build-base para ejemplos nativos y compilar modulos nativos de npm; mandoc+less para "man"
+# y paginado; musl-locales intenta dar soporte de es_ES, con soporte parcial -- musl no tiene
+# locales reales como glibc, ver nota mas abajo sobre LANG).
+#
+# eza/lazygit/bat/fd/ripgrep se toman de apk (no del tarball de GitHub como en la imagen
+# Debian): Alpine SI los publica, a diferencia del apt de Debian bookworm. Se acepta que la
+# version exacta de estas herramientas de conveniencia varie levemente entre las dos imagenes
+# (misma logica que ya se acepta para bat/fd/ripgrep en Debian) -- lo que el usuario pidio con
+# version EXACTA es Java/Python/Node, no estas.
+RUN apk add --no-cache \
+    bash \
+    bash-completion \
+    dumb-init \
+    git \
+    sqlite \
+    curl \
+    ca-certificates \
+    unzip \
+    less \
+    mandoc \
+    musl-locales \
+    fzf \
+    jq \
+    tmux \
+    tree \
+    bat \
+    eza \
+    fd \
+    ripgrep \
+    httpie \
+    shellcheck \
+    ncdu \
+    build-base \
+    maven \
+    neovim \
+    vim \
+    jdtls \
+    lazygit \
+    ttyd \
+    tree-sitter-java \
+    tree-sitter-python \
+    tree-sitter-javascript \
+    tree-sitter-typescript \
+    tree-sitter-json \
+    tree-sitter-html \
+    tree-sitter-css \
+    tree-sitter-bash
+
+# musl no implementa locales reales (a diferencia de glibc): esto NO da mensajes de sistema
+# en espanol, solo asegura que UTF-8 (acentos/enies) se muestre bien en terminal -- el idioma
+# de la UI en espanol vive en la imagen Debian (code-server --locale es). Para esta imagen
+# 100%-terminal el publico interactua con nvim/bash directamente, sin una capa de UI que traducir.
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# Java 25 LTS Temurin jdk-25.0.3+9 -- mismos URL/SHA256 pedidos por el usuario que en la imagen
+# Debian, pero el build "alpine-linux" (musl) en vez de "linux" (glibc): Temurin publica un
+# tarball especifico para Alpine porque un JDK glibc no corre sobre musl sin capa de
+# compatibilidad. Version y hash verificados en forma independiente antes de bakearlos aca.
+ARG TEMURIN_JDK_URL=https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jdk_x64_alpine-linux_hotspot_25.0.3_9.tar.gz
+ARG TEMURIN_JDK_SHA256=51c2415b370aac7c3796b0c4663c8fcf91bc22d76f03df95b25fa5667cb5fdd8
+RUN curl -fsSL "$TEMURIN_JDK_URL" -o /tmp/temurin.tar.gz && \
+    echo "${TEMURIN_JDK_SHA256}  /tmp/temurin.tar.gz" | sha256sum -c - && \
+    mkdir -p /usr/local/lib/jvm/temurin-25 && \
+    tar -xzf /tmp/temurin.tar.gz -C /usr/local/lib/jvm/temurin-25 --strip-components=1 && \
+    rm /tmp/temurin.tar.gz
+ENV JAVA_HOME=/usr/local/lib/jvm/temurin-25
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+# Python 3.12.13 -- mismo build de python-build-standalone que la imagen Debian, variante musl
+# (Alpine no puede correr el build glibc). Mismo patch exacto (3.12.13) en las dos imagenes.
+ARG PYTHON_URL=https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.12.13%2B20260623-x86_64-unknown-linux-musl-install_only.tar.gz
+ARG PYTHON_SHA256=1bd4bba28b410dc617dd4a386ce08bc988b87c4320d1532682f488cc5e16edc7
+RUN curl -fsSL "$PYTHON_URL" -o /tmp/python.tar.gz && \
+    echo "${PYTHON_SHA256}  /tmp/python.tar.gz" | sha256sum -c - && \
+    mkdir -p /usr/local/lib/python-3.12 && \
+    tar -xzf /tmp/python.tar.gz -C /usr/local/lib/python-3.12 --strip-components=1 && \
+    rm /tmp/python.tar.gz && \
+    ln -s /usr/local/lib/python-3.12/bin/python3 /usr/local/bin/python3 && \
+    ln -s /usr/local/lib/python-3.12/bin/python3 /usr/local/bin/python && \
+    ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip3 && \
+    ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip
+
+# Node.js LTS 24.18.0 -- nodejs.org NO publica builds musl oficiales (solo glibc); se usa el
+# build de unofficial-builds.nodejs.org (proyecto de la comunidad Node, referenciado desde la
+# propia documentacion de nodejs.org para plataformas no cubiertas por los builds oficiales,
+# entre ellas musl/Alpine) para llegar a la MISMA version exacta 24.18.0 que la imagen Debian,
+# en vez de resignarse a la version mas vieja que trae el apk de Alpine (22.x/23.x).
+ARG NODE_URL=https://unofficial-builds.nodejs.org/download/release/v24.18.0/node-v24.18.0-linux-x64-musl.tar.gz
+ARG NODE_SHA256=ea58409911e141ec6b19d9178efa2d9185a13295005b1cbf5521b3157eed1d95
+RUN curl -fsSL "$NODE_URL" -o /tmp/node.tar.gz && \
+    echo "${NODE_SHA256}  /tmp/node.tar.gz" | sha256sum -c - && \
+    mkdir -p /usr/local/lib/node-24 && \
+    tar -xzf /tmp/node.tar.gz -C /usr/local/lib/node-24 --strip-components=1 && \
+    rm /tmp/node.tar.gz
+ENV PATH="/usr/local/lib/node-24/bin:${PATH}"
+
+# bash-completion no se auto-carga en shells de login en Alpine (a diferencia de Debian); el
+# paquete solo instala el script, sin engancharlo a /etc/profile.d.
+RUN echo '. /usr/share/bash-completion/bash_completion' > /etc/profile.d/bash_completion.sh
+
+COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
+COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
+COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
+COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
+
+# Plugins de Neovim vendorizados en build time (git clone, con red disponible en CI) e
+# instalados como paquetes nativos de Neovim (pack/*/start/, auto-cargados sin plugin manager)
+# -- el pod en runtime puede tener internet_enabled=false, asi que nada de esto puede depender
+# de red ni de Lazy/Packer descargando al arrancar.
+RUN mkdir -p /usr/share/nvim/site/pack/plugins/start && \
+    cd /usr/share/nvim/site/pack/plugins/start && \
+    for repo in \
+      "https://github.com/nvim-tree/nvim-tree.lua" \
+      "https://github.com/hrsh7th/nvim-cmp" \
+      "https://github.com/hrsh7th/cmp-nvim-lsp" \
+      "https://github.com/L3MON4D3/LuaSnip" \
+      "https://github.com/mfussenegger/nvim-jdtls" \
+    ; do \
+      git clone --depth 1 "$repo" "$(basename "$repo")"; \
+    done && \
+    find /usr/share/nvim/site/pack/plugins/start -name .git -type d -prune -exec rm -rf {} \;
+
+RUN addgroup -g 1000 coder && \
+    adduser -D -u 1000 -G coder -h /home/coder coder && \
+    chown -R coder:coder /home/coder
+
+ENV NPM_CONFIG_PREFIX=/home/coder/.npm-global
+ENV PATH=/home/coder/.npm-global/bin:/home/coder/.opencode/bin:$PATH
+RUN mkdir -p /home/coder/.npm-global && chown coder:coder /home/coder/.npm-global
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    virtualenv \
+    jupyter \
+    numpy \
+    pandas \
+    matplotlib \
+    requests \
+    flask \
+    django \
+    fastapi \
+    pytest \
+    black \
+    pylint \
+    debugpy
+
+USER coder
+WORKDIR /home/coder
+
+RUN npm install -g npm@latest && \
+    npm install -g \
+    typescript \
+    ts-node \
+    @vue/cli \
+    create-react-app \
+    create-vite \
+    esbuild \
+    webpack \
+    webpack-cli \
+    prettier \
+    eslint \
+    @typescript-eslint/parser \
+    @typescript-eslint/eslint-plugin
+
+# opencode (CLI de agente de codigo IA, https://opencode.ai, de SST) -- costo fijo aceptado
+# incondicionalmente (auditoria de seguridad 2026-07-17), igual que en la imagen Debian.
+RUN curl -fsSL https://opencode.ai/install | bash
+
+# opentui (libreria de TUI de opencode) vs Ghostty CSI ?997n -- mismo bug/mitigacion que la
+# imagen Debian, ver comentario alla.
+ENV TERM=xterm-256color
+
+RUN mkdir -p /home/coder/workspace /home/coder/db /home/coder/.m2 /home/coder/.config/nvim
+COPY --chown=coder:coder infra/docker/nvim-init.lua /home/coder/.config/nvim/init.lua
+
+# Copia compartida de nvim-init.lua para el seat-agent (Fase B, DEC-0025): cada asiento de un
+# Pod multi-alumno copia esto a su propio "/home/{userUuid}/.config/nvim/init.lua" la primera
+# vez que se aprovisiona ese alumno (ver sandbox-agent.py:_ensure_seat_account) -- una sola
+# fuente de verdad para la config de nvim, sea Pod de 1 asiento o compartido. USER root: el
+# resto del Dockerfile corre como "coder" (no-root) desde arriba, pero /etc/insightbloom y
+# /usr/local/bin no son escribibles por ese usuario.
+USER root
+RUN mkdir -p /etc/insightbloom
+COPY infra/docker/nvim-init.lua /etc/insightbloom/nvim-init.lua
+COPY infra/docker/sandbox-agent.py /usr/local/bin/sandbox-agent.py
+RUN chmod +x /usr/local/bin/sandbox-agent.py
+USER coder
+
+# Puerto ttyd: 8080, mismo puerto publico que usa la imagen Debian (code-server) -- cada
+# sandbox corre UNA sola imagen ahora, nunca las dos a la vez, asi que no hay conflicto.
+# Rango 8071-8089: puerto de control del seat-agent (8079, ver KubernetesPodClient.controlPort)
+# + hasta 10 asientos (8080-8089, ver MAX_SEATS_PER_POD) -- solo se usan realmente en Pods
+# multi-alumno; EXPOSE es documentacion, no reserva nada en runtime.
+EXPOSE 8079-8089
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["ttyd", "-p", "8080", "-W", "--ping-interval", "15", "bash", "-lc", "cd /home/coder/workspace && exec nvim ."]

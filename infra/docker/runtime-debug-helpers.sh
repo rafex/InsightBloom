@@ -1,14 +1,12 @@
-# Atajos para debugging remoto desde el editor (contenedor "ide") hacia procesos que corren aca
-# (contenedor "runtime"). Ambos contenedores comparten namespace de red del Pod, asi que
-# "localhost:<puerto>" desde "ide" llega directo a estos listeners sin configuracion adicional.
-# El launch.json ya viene sembrado con "Adjuntar a Java (runtime, puerto 5005)" y "Adjuntar a
-# Python (runtime, puerto 5678)" (ver code-ide-entrypoint.sh) -- solo hace falta arrancar el
-# programa con uno de estos wrappers y despues correr "Run and Debug" -> Adjuntar, en el editor.
-#
-# No se instalo Java/Python en el contenedor "ide" a proposito (ver DECISIONS.md, DEC-0023):
-# el editor NO necesita el interprete local para *depurar* via el protocolo de adjuntar remoto
-# (JDWP para Java, debugpy para Python) -- solo IntelliSense de paquetes instalados pierde
-# precision sin un interprete local, el debugging visual completo si funciona igual.
+# Atajos para debugging remoto (adjuntar) desde el editor hacia un proceso propio, dentro del
+# MISMO contenedor -- desde el cambio de paradigma 2026-07-17 (imagenes autocontenidas, sin
+# split ide/runtime) ya no hay dos contenedores compartiendo namespace de red; "localhost" aca
+# es simplemente el propio contenedor. Se mantiene el flujo de adjuntar-remoto (en vez de
+# lanzar el debugger directo desde el editor) porque sigue siendo la forma mas simple de
+# depurar un programa que el alumno ya arranco a mano desde la terminal.
+# El launch.json ya viene sembrado con "Adjuntar a Java (puerto 5005)" y "Adjuntar a Python
+# (puerto 5678)" (ver code-ide-entrypoint.sh) -- solo hace falta arrancar el programa con uno
+# de estos wrappers y despues correr "Run and Debug" -> Adjuntar, en el editor.
 
 javadebug() {
     if [ -z "${1:-}" ]; then
@@ -19,8 +17,7 @@ javadebug() {
     # address=localhost (no "*"): JDWP no tiene autenticacion -- quien se conecte ejecuta
     # bytecode arbitrario en esta JVM. Bindear a todas las interfaces exponia esto a
     # cualquier otro Pod del mismo namespace (sin NetworkPolicy de Ingress que lo evite),
-    # es decir a cualquier otro alumno. localhost alcanza: "ide" y "runtime" comparten
-    # namespace de red del Pod (ver comentario de archivo arriba).
+    # es decir a cualquier otro alumno.
     java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5005 "$class" "$@"
 }
 

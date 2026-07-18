@@ -89,7 +89,22 @@ export interface Conference {
   sandboxInternetEnabled?: number | null
   sandboxExtraPackages?: string | null
   sandboxRemoteGitUrl?: string | null
+  sandboxJvmHeapMb?: number | null
+  sandboxSeatsPerPod?: number | null
   [key: string]: unknown
+}
+
+// Fase C (DEC-0025): asiento de un Pod "neovim" compartido que el watchdog del seat-agent tuvo
+// que terminar por abuso de recursos -- ver ListSandboxIncidentsUseCase.
+export interface SandboxIncident {
+  uuid: string
+  conferenceUuid: string
+  podName: string
+  seatIndex: number
+  userUuid: string | null
+  type: string
+  detail: string | null
+  occurredAt: string
 }
 
 export type ReservationStatus = 'RESERVED' | 'CHECKED_IN'

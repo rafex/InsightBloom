@@ -40,7 +40,7 @@ class EnsureUnassignedSandboxUseCaseTest {
 
         Mockito.verify(orchestratorMock).createSandbox(
             Mockito.eq(Sandbox.podName("conf-1", 0)), Mockito.eq("conf-1"), Mockito.eq("python"),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false));
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
         final var captor = org.mockito.ArgumentCaptor.forClass(Sandbox.class);
         Mockito.verify(sandboxRepoMock).save(captor.capture());
         assertNull(captor.getValue().getUserUuid());
@@ -65,7 +65,7 @@ class EnsureUnassignedSandboxUseCaseTest {
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
         Mockito.doThrow(new IllegalStateException("kubernetes_not_configured"))
             .when(orchestratorMock).createSandbox(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
-                Mockito.any(), Mockito.any(), Mockito.anyBoolean());
+                Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
 
         assertDoesNotThrow(() -> useCase.execute("conf-1"));
         Mockito.verify(sandboxRepoMock, Mockito.never()).save(Mockito.any());

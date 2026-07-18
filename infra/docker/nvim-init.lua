@@ -1,4 +1,4 @@
--- Config baseada en la imagen runtime del IDE (infra/docker/Dockerfile.code-ide-runtime).
+-- Config baseada en la imagen "neovim" del IDE (infra/docker/Dockerfile.code-ide-neovim).
 -- 100% offline por diseno: el pod puede tener internet_enabled=false (DEC-0023), asi que no
 -- hay plugin manager (Lazy/Packer) ni ":TSInstall"/"Mason" en runtime -- todos los plugins y
 -- parsers de tree-sitter ya vienen vendorizados/instalados en la imagen (ver Dockerfile).

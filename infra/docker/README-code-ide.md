@@ -1,108 +1,119 @@
 # Code-IDE Sandbox Docker Images
 
-## Dos modos de IDE
+## Dos modos de IDE, dos imagenes autocontenidas
 
-Cada conferencia elige un modo de IDE (campo `sandboxVariant`, ver `EditConferencePage.vue`):
+Cambio de paradigma 2026-07-17: cada sandbox corre **un unico contenedor**, con el toolchain
+completo (Java 25 Temurin + Python 3.12 + Node 24 LTS + herramientas de curso) instalado
+directamente en la imagen. Ya no existe el split `ide`/`runtime` de la Fase 4 (dos contenedores
+por Pod, bridge de terminal via `socat` en loopback) — ver DEC-0023 en `spec-native/DECISIONS.md`
+para el porque completo.
+
+Cada conferencia elige un modo de IDE (campo `sandboxVariant`, ver `EditConferencePage.vue`),
+que ahora selecciona directamente la imagen:
 
 - **`code-server`** (default, valor vacío o cualquier valor historico `python`/`java`/`web`):
-  VS Code completo en el navegador. Pod de 2 contenedores, ver seccion siguiente.
-- **`terminal-nvim`**: Neovim configurado como IDE (explorador de archivos, autocompletado, LSP
-  de Java via `jdtls`, syntax highlighting), servido por `ttyd` (terminal web sobre WebSocket).
-  Pod de **un solo contenedor** (`runtime`, sin `ide`) — mas liviano en RAM/CPU y en tiempo de
-  arranque en el navegador (sin el JS de VS Code Web que descargar). Ver `nvim-init.lua` para la
-  config completa. `KubernetesPodClient.buildPodBody` decide la topologia del Pod segun este
-  valor; el resto del pipeline (gateway, `SandboxHandler`, `IdePage.vue`) es agnostico al modo,
-  proxea HTTP/WS al Service del Pod sin saber si hay VS Code o una terminal detras.
+  `Dockerfile.code-ide-debian` — VS Code completo en el navegador, con extensiones de
+  Java/Python/JavaScript e idioma español.
+- **`terminal-nvim`**: `Dockerfile.code-ide-neovim` — Neovim configurado como IDE (explorador de
+  archivos, autocompletado, LSP de Java via `jdtls`, syntax highlighting), servido por `ttyd`
+  (terminal web sobre WebSocket). Mas liviano en RAM/CPU y en tiempo de arranque en el navegador
+  (sin el JS de VS Code Web que descargar). Ver `nvim-init.lua` para la config completa.
 
-## Estructura (Fase 4: contenedores separados `ide` + `runtime`)
+`KubernetesPodClient.buildPodBody` decide que imagen usar segun este valor; el resto del
+pipeline (gateway, `SandboxHandler`, `IdePage.vue`) es agnostico al modo, proxea HTTP/WS al
+Service del Pod sin saber si hay VS Code o una terminal detras.
 
-En modo `code-server`, cada sandbox corre dos contenedores en el mismo Pod (en modo
-`terminal-nvim` solo corre `runtime`, con `ttyd` en vez de `socat` como comando):
+## Toolchain (identico y version-pinneado en las dos imagenes)
 
-- **Dockerfile.code-ide-server**: contenedor `ide` — Debian, solo code-server (instalado desde el
-  release standalone oficial, sin npm), extensiones de las 3 variantes preinstaladas (imagen única
-  y universal, no una por variante). Expone el puerto 8080 (servido al usuario vía el gateway).
-- **Dockerfile.code-ide-runtime**: contenedor `runtime` — Alpine, toolchain único
-  (Java+Maven, Node+npm, Python+pip, todos juntos, mas `bash-completion`), sin code-server.
-  En modo `code-server` expone un shell vía `socat` (PTY-over-TCP) en `127.0.0.1:7681`,
-  alcanzable únicamente por loopback intra-Pod desde el contenedor `ide` (nunca se expone vía
-  Service/Ingress). Hasta 2026-07-17 existían 3 imágenes separadas (una por variante
-  python/java/web); se consolidaron en una sola porque un mismo workspace puede tener archivos
-  de más de un lenguaje. También trae Neovim configurado como IDE completo (`nvim-init.lua`) más
-  herramientas de terminal modernas (tmux, fzf, bat, eza, fd, ripgrep, lazygit) y `ttyd` — usados
-  por el modo `terminal-nvim` (ver arriba), donde `ttyd` reemplaza a `socat` como comando del
-  contenedor y expone el puerto público del Service directamente.
+| Componente | Version | Origen |
+|---|---|---|
+| Java | 25 LTS Temurin `jdk-25.0.3+9` | tarball oficial Adoptium (glibc en Debian, musl "alpine-linux" en Alpine), SHA256 verificado |
+| Python | 3.12.13 | `python-build-standalone` (astral-sh) — mismo build exacto en variante glibc y musl |
+| Node.js | 24.18.0 LTS | Debian: tarball oficial `nodejs.org`; Alpine: `unofficial-builds.nodejs.org` (nodejs.org no publica builds musl oficiales) |
 
-La terminal integrada de code-server (contenedor `ide`) se conecta a ese `socat` del contenedor
-`runtime` — ver el perfil de terminal baked-in en `code-ide-settings.json`. Esto significa que
-comandos ejecutados en la terminal (compilar, correr tests, `python3`, `mvn`, `npm run dev`, etc.)
-corren en el contenedor `runtime`, no en `ide`.
+Todas las descargas se verifican con `sha256sum -c` contra un hash fijado en el Dockerfile
+(`ARG *_SHA256`), no solo "confiar en HTTPS".
+
+## Herramientas de curso (pedido explicito, ver DEC-0023)
+
+Ademas del toolchain de lenguajes, ambas imagenes incluyen: `git`, `fzf`, `bash-completion`,
+`bat`/`eza`/`fd`/`ripgrep`/`ncdu` (mejoras de cat/ls/find/grep/du), `jq`, `tmux`, `tree`,
+`httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `less`+`man`, y
+`opencode` (CLI de agente de codigo IA). Paquetes globales de Python (`jupyter`, `numpy`,
+`pandas`, `matplotlib`, `flask`, `django`, `fastapi`, `pytest`, `black`, `pylint`, `debugpy`) y
+de Node (`typescript`, `eslint`, `prettier`, `vite`, `webpack`, `@vue/cli`, `create-react-app`)
+tambien pre-instalados — nada requiere setup manual del instructor/alumno.
+
+## Estructura de las imagenes
+
+- **Dockerfile.code-ide-debian**: Debian 12-slim, `code-server` (release standalone oficial, sin
+  npm) + toolchain completo + extensiones Java/Python/Web + idioma español
+  (`ms-ceintl.vscode-language-pack-es`, activado via `--locale es`) + `sst-dev.opencode`. Expone
+  el puerto 8080 (servido al usuario vía el gateway).
+- **Dockerfile.code-ide-neovim**: Alpine 3.21, `neovim`/`vim`/`lazygit` + toolchain completo +
+  `ttyd` (sirve `nvim` sobre `/home/coder/workspace` directo en el puerto público del Service).
+
+Ninguna de las 2 imágenes depende de otra vía `FROM` ni se ejecutan juntas en un mismo Pod — se
+construyen en paralelo (así lo hace el workflow de CI, `build-and-push-code-ide`, como matriz).
 
 ## Build y push
 
 ```bash
-# Contenedor "ide" (Debian, code-server)
-docker build -f infra/docker/Dockerfile.code-ide-server -t insightbloom-code-ide-server:latest .
+# Imagen "debian" (code-server, editor grafico)
+docker build -f infra/docker/Dockerfile.code-ide-debian -t insightbloom-code-ide-debian:latest .
 
-# Contenedor "runtime" (Alpine, toolchain unico java+node+python)
-docker build -f infra/docker/Dockerfile.code-ide-runtime -t insightbloom-code-ide-runtime:latest .
+# Imagen "neovim" (terminal 100%, ttyd + nvim)
+docker build -f infra/docker/Dockerfile.code-ide-neovim -t insightbloom-code-ide-neovim:latest .
 ```
-
-Ninguna de las 2 imágenes depende de otra vía `FROM` — se pueden construir en paralelo (así lo
-hace el workflow de CI, `build-and-push-code-ide`, como matriz).
 
 ## Code-server Configuration
 
-- **Puerto**: 8080 (expuesto en el contenedor `ide`)
+- **Puerto**: 8080
 - **Autenticación**: `--auth none` — delegada al gateway via `ib_token` (DEC-0022)
 - **Bind address**: 0.0.0.0 (accesible desde el gateway)
-- **Workspace**: `/home/coder/workspace` (volumen compartido entre `ide` y `runtime`)
-- **Database**: `/home/coder/db` (volumen compartido, para SQLite)
-- **Terminal**: `socat STDIO TCP:127.0.0.1:7681` hacia el contenedor `runtime` (perfil por
-  defecto, ver `code-ide-settings.json`)
+- **Workspace**: `/home/coder/workspace` (volumen `emptyDir` del Pod)
+- **Database**: `/home/coder/db` (volumen `emptyDir` del Pod, para SQLite)
+- **Terminal**: shell local del propio contenedor (ya no hay bridge via `socat`)
 
-## Extensiones
+## Extensiones (imagen `code-ide-debian`)
 
-Todas preinstaladas en la imagen `ide` (universal, no por variante):
-Java+Maven (`vscjava.*`), Python+Pylance+debugpy (`ms-python.*`), el pack web
-(Prettier/ESLint/Volar/React/Tailwind/HTML-CSS), paquete de idioma español
-(`ms-ceintl.vscode-language-pack-es`, activado via `--locale es`) y `sst-dev.opencode`
-(cliente de [opencode](https://opencode.ai), el CLI corre en el contenedor `runtime`).
+Java+Maven (`redhat.java` + `vscjava.*`, separadas porque el pack `vscjava.extension-pack-for-
+java` no esta en open-vsx.org), Python (`ms-python.python` + `ms-pyright.pyright` en vez de
+Pylance, tampoco en open-vsx), el pack web (Prettier/ESLint/Volar/React/Tailwind/HTML-CSS),
+paquete de idioma español (`ms-ceintl.vscode-language-pack-es`) y `sst-dev.opencode`. Todas
+fijadas a una version explicita salvo el language pack (ver comentario en el Dockerfile).
 
 ## Debug remoto (Java/Python)
 
-`java`/`python3` no estan instalados en el contenedor `ide` a proposito (ver "Notas de
-seguridad" abajo) — el editor no los necesita para *depurar*, solo para IntelliSense de
-paquetes instalados. El debugging visual completo funciona igual via adjuntar remoto:
+El editor/terminal y el proceso a debuggear ahora corren en el MISMO contenedor (ya no hay
+`ide`/`runtime` separados) — el flujo de adjuntar-remoto se mantiene porque sigue siendo la
+forma mas simple de depurar un programa que el alumno ya arranco a mano:
 
-1. En la terminal integrada (conecta a `runtime`), correr `javadebug MiClase` o
-   `pydebug script.py` (wrappers en `runtime-debug-helpers.sh`) en vez del comando normal.
-2. En el editor, "Run and Debug" -> elegir "Adjuntar a Java (runtime, puerto 5005)" o
-   "Adjuntar a Python (runtime, puerto 5678)" (ya sembrado en `.vscode/launch.json` por
-   `code-ide-entrypoint.sh`) -> F5.
+1. En la terminal, correr `javadebug MiClase` o `pydebug script.py` (wrappers en
+   `runtime-debug-helpers.sh`) en vez del comando normal.
+2. En el editor, "Run and Debug" -> elegir "Adjuntar a Java (puerto 5005)" o "Adjuntar a Python
+   (puerto 5678)" (ya sembrado en `.vscode/launch.json` por `code-ide-entrypoint.sh`) -> F5.
 
-Funciona porque `ide` y `runtime` comparten el namespace de red del Pod: `localhost:5005`
-desde `ide` llega directo al proceso Java que corre en `runtime`, sin configuracion de red
-adicional.
+`javadebug`/`pydebug` bindean JDWP/debugpy a `localhost`/`127.0.0.1` (no `*`/`0.0.0.0`): ninguno
+de los dos protocolos tiene autenticacion propia, exponerlos fuera del Pod seria ejecucion de
+codigo arbitrario alcanzable por cualquier otro sandbox del namespace.
 
 ## Notas de seguridad
 
-- Ambos contenedores corren como usuario no-root `coder` (uid/gid 1000, coinciden para que el
-  volumen `workspace` compartido tenga permisos consistentes).
-- El contenedor `ide` **no tiene toolchains de lenguaje** (java/python/node no viven ahí).
-- El contenedor `runtime` **no tiene código de VS Code ni acceso a la API de Kubernetes**
-  (`automountServiceAccountToken: false` a nivel Pod).
-- La terminal remota usa `socat` sobre loopback intra-Pod — no requiere RBAC nuevo, ServiceAccount
-  token, ni el binario `kubectl` empaquetado en ninguna imagen. Ese tráfico ni siquiera atraviesa
-  el CNI (las `NetworkPolicy` no aplican a loopback intra-Pod).
-- NetworkPolicy en Kubernetes niega egress por defecto para el Pod completo (TASK-0050).
+- El contenedor corre como usuario no-root `coder` (uid/gid 1000).
+- Sin acceso a la API de Kubernetes (`automountServiceAccountToken: false` a nivel Pod).
+- `NetworkPolicy` de Ingress restringe el trafico ENTRANTE a cada sandbox al Pod del gateway
+  unicamente (namespace + label) — bloquea acceso Pod-a-Pod entre sandboxes de distintos
+  alumnos (ver DEC-0023, auditoria de seguridad 2026-07-17).
+- `NetworkPolicy` de egress niega salida por defecto para el Pod completo (TASK-0050), se
+  reabre explicitamente por conferencia si `internetEnabled=true`.
 - SQLite funciona localmente sin red (seguro por diseño).
 - Git remote requiere credenciales explícitas del alumno o token del profesor.
 
 ## Base de datos SQLite
 
-SQLite se incluye en el contenedor `runtime`. Los alumnos pueden:
-1. Crear DBs en `/home/coder/db/` (compartido con `ide` vía volumen)
+SQLite se incluye en la imagen. Los alumnos pueden:
+1. Crear DBs en `/home/coder/db/`
 2. Usar code-server + extensión SQLite para explorar tablas
 3. Descargar la DB como parte del ZIP de código (TASK-0034)
 

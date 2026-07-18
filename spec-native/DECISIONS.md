@@ -860,6 +860,64 @@ Registrar una decision cuando cambie:
     compartidos, un alumno ruidoso de una conferencia puede afectar el scheduling de otra).
     **Sigue sin decidirse** — pendiente de revisitar si el numero de conferencias
     concurrentes crece lo suficiente como para justificar el costo de (a).
+  - **Cambio de paradigma (2026-07-17, misma fecha, pedido explicito del usuario): fin del
+    split `ide`/`runtime`, dos imagenes autocontenidas.** La Fase 4 (split en dos
+    contenedores por Pod, bridge de terminal via `socat` en loopback) partia de la premisa
+    de que `code-server` no necesitaba el toolchain de lenguajes instalado — separar ese
+    peso en un contenedor `runtime` aparte. Esa premisa ya se habia roto ese mismo dia: la
+    extension `redhat.java` necesitaba un JDK *local* en el contenedor `ide` para que el
+    language server (jdt.ls) pudiera compilar/analizar mientras se escribe (el bridge JDWP
+    solo sirve para *adjuntarse* a un proceso ya corriendo, no reemplaza al language
+    server) — asi que el contenedor `ide` terminaba con Java igual, y la separacion solo
+    aportaba superficie: una `NetworkPolicy` de loopback, un `socat`, y el hallazgo critico
+    de esta misma auditoria (JDWP/debugpy sin auth, alcanzables entre Pods). Se reemplazan
+    `Dockerfile.code-ide-server` + `Dockerfile.code-ide-runtime` por dos imagenes
+    independientes y completas, cada Pod corre UNA sola (`KubernetesPodClient` ya no arma
+    dos contenedores, ver `sandboxContainer` unico):
+    - `Dockerfile.code-ide-debian` (Debian 12-slim): `code-server` + extensiones Java/
+      Python/JavaScript + idioma español (`ms-ceintl.vscode-language-pack-es`,
+      `--locale es`) — el modo "editor grafico" de siempre.
+    - `Dockerfile.code-ide-neovim` (Alpine 3.21): `neovim`/`vim`/`lazygit`, servido por
+      `ttyd` — el modo "100% terminal" que antes vivia dentro de la imagen `runtime`
+      (sentinel `variant == "terminal-nvim"`, sin cambios en ese contrato).
+    - Ambas imagenes traen el MISMO toolchain version-pinneado (pedido explicito): Java 25
+      LTS Temurin `jdk-25.0.3+9` (build `linux`/glibc en Debian, build `alpine-linux`/musl
+      en Alpine — Temurin publica los dos; SHA256 de ambos tarballs verificado
+      independientemente antes de bakearlos, coincide con el que dio el usuario para el
+      build glibc), Python 3.12.13 (via `python-build-standalone` de astral-sh — el mismo
+      build exacto existe en variante glibc y musl, evita que cada imagen termine con un
+      patch de Python distinto por casualidad de lo que trae cada distro), y Node.js LTS
+      24.18.0 (glibc: tarball oficial de `nodejs.org`; musl: Alpine no tiene build oficial
+      de Node en `nodejs.org`, se usa `unofficial-builds.nodejs.org`, el proyecto de
+      comunidad que la propia documentacion de Node.js referencia para plataformas fuera
+      de los builds oficiales). Todas las descargas van con `sha256sum -c` contra un hash
+      fijado en el Dockerfile, no solo "confiar en HTTPS".
+    - Herramientas de curso agregadas en las dos imagenes (pedido explicito: "sugiereme que
+      otros paquetes deberian tener para dar cursos"): `bat`/`eza`/`fd`/`ripgrep`/`ncdu`
+      (mejoras de cat/ls/find/grep/du), `jq`, `tmux`, `tree`, `httpie`, `shellcheck`,
+      `build-essential`/`build-base` (compilar ejemplos nativos y modulos nativos de npm),
+      `maven`, `git`, `fzf`, `bash-completion`, `unzip`, `less`+`man`. Paquetes de Python
+      (`jupyter`, `numpy`, `pandas`, `matplotlib`, `flask`, `django`, `fastapi`, `pytest`,
+      `black`, `pylint`) y de Node (`typescript`, `eslint`, `prettier`, `vite`, `webpack`,
+      etc.) tambien pre-instalados globalmente, sin paso manual del instructor/alumno.
+    - `KubernetesPodClient`: constructor colapsa `serverImage`/`runtimeImageBase` +
+      `ideResources`/`runtimeResources` a `debianImage`/`neovimImage` + un unico
+      `debianResources`/`neovimResources` (un solo contenedor por Pod, pero DOS sets de
+      limites — uno por imagen, no uno compartido: code-server con jdt.ls y ttyd+nvim
+      tienen perfiles de consumo muy distintos, colapsarlos a un unico default fue un error
+      de la primera pasada de este refactor, corregido el mismo dia). Se elimina
+      `RUNTIME_PORT`/`execLoopbackProbe` (ya no hay loopback intra-Pod que probar). El
+      sentinel `IDE_MODE_TERMINAL_NVIM` sigue funcionando igual (selecciona imagen, ya no
+      selecciona "con o sin segundo contenedor").
+    - `UsersApplication`: env vars renombradas — `SANDBOX_SERVER_IMAGE`/
+      `SANDBOX_RUNTIME_IMAGE_BASE` → `SANDBOX_DEBIAN_IMAGE`/`SANDBOX_NEOVIM_IMAGE`;
+      `SANDBOX_IDE_*`/`SANDBOX_RUNTIME_*` → `SANDBOX_DEBIAN_*`/`SANDBOX_NEOVIM_*`
+      (`_CPU_REQUEST`/`_MEMORY_REQUEST`/`_CPU_LIMIT`/`_MEMORY_LIMIT`). Defaults: Debian
+      200m/640Mi request, 750m/1536Mi limit (carga pesada — extension host de VS Code Web +
+      code-server + jdt.ls); Alpine 100m/512Mi request, 500m/1Gi limit (mas liviano — solo
+      ttyd+nvim, aunque jdt.ls tambien puede activarse ahi al editar .java) — ambos dentro
+      del tope de `LimitRange` del namespace, 2048Mi/1000m por Pod desde el ajuste de mas
+      arriba en esta misma seccion.
 - Reemplaza: `none`
 
 ### DEC-0024 - Camino de escalado para los 6 servicios con SQLite: PostgreSQL, no un PVC compartido
@@ -936,3 +994,110 @@ Registrar una decision cuando cambie:
     sensible que en un servicio que si puede escalar horizontalmente.
 - Reemplaza: `none` (extiende DEC-0010 — WAL sigue siendo correcto para el escenario
   actual de replica unica; no aplica a un escenario multi-pod).
+
+### DEC-0025 - Pods "neovim" multi-alumno (varios usuarios Linux compartiendo un Pod)
+
+- Fecha: 2026-07-17
+- Contexto: pedido explicito del usuario -- los Pods `debian` (code-server) siguen 1:1
+  (no se puede compartir un VS Code Web entre alumnos), pero los Pods `neovim`
+  (Alpine, vim/neovim+ttyd) si deben poder alojar varios alumnos a la vez, cada uno con
+  su propio usuario Linux real (`/home/{userUuid}/workspace`), mas un mecanismo que
+  impida que uno acapare los recursos del Pod compartido a costa de sus companeros
+  (loop infinito, fork bomb, intencional o no), registrando el incidente para que el
+  organizador lo vea en el Dashboard.
+- Decision: implementado completo en 3 fases (A: modelo de datos + ruteo multi-puerto;
+  B: seat-agent, aprovisionamiento dinamico; C: watchdog + incidentes en Dashboard),
+  todas verificadas en vivo con `docker build`/`docker run` reales (no solo tests
+  unitarios) antes de darlas por cerradas.
+
+  **Ruteo (Fase A)**: un `ttyd` por asiento, cada uno en su propio puerto dentro del
+  mismo contenedor (`basePort + seatIndex`). El gateway resuelve `(pod, puerto)` en vez
+  de solo `(pod)` -- `ResolveSandboxTargetUseCase` usa `Sandbox.seatPort(basePort)`.
+
+  **Modelo**: `sandbox_assignments` gana `seat_index` (migracion con recreacion de tabla
+  completa -- SQLite no permite `ALTER TABLE` para relajar un `UNIQUE` existente, el
+  viejo `UNIQUE(conference_uuid, sandbox_slot)` pasa a
+  `UNIQUE(conference_uuid, sandbox_slot, seat_index)`). `AssignSandboxUseCase`: en modo
+  `terminal-nvim` la capacidad total pasa de `poolSize` a `poolSize * seatsPerPod` --
+  primero intenta sumar un asiento a un Pod ya existente con lugar antes de abrir uno
+  nuevo (`nextFreeSeat`). Cualquier otro modo (o `seatsPerPod` no configurado/1): cero
+  cambios de conducta, cada slot admite un unico ocupante como siempre.
+
+  **Asientos por pod**: default 4, configurable por conferencia
+  (`Conference.sandboxSeatsPerPod`, mismo patron que `sandboxJvmHeapMb`), validado 1..10
+  en `SetSandboxConfigUseCase`.
+
+  **Aprovisionar usuario (Fase B) -- cuenta Linux REAL por alumno, no un pool fijo**:
+  primer diseño evaluado fue un pool fijo de cuentas pre-creadas ("seat0".."seat9",
+  pedido inicial del usuario para evitar que el seat-agent necesitara root) -- se
+  descarto: no daba `/home/{userUuid}/workspace` literal como se pidio originalmente. El
+  usuario propuso despues usar `sudo` con una regla de sudoers para que el agente
+  (corriendo como usuario normal) pudiera crear cuentas -- tambien se descarto: `sudo`
+  exige `allowPrivilegeEscalation: true` en el Pod (reabre CUALQUIER binario setuid/setgid
+  de la imagen, no solo el caso puntual) y una politica en texto (sudoers) mas propensa a
+  rendijas de inyeccion de argumentos que una lista corta de capabilities que el kernel
+  aplica por syscall. Diseño final: el contenedor "sandbox" de un Pod multi-asiento corre
+  con `runAsUser: 0` pero `capabilities: drop ALL, add [SETUID, SETGID, KILL, CHOWN,
+  FOWNER]` -- root nominal, sin mas permiso real que exactamente lo que
+  `adduser`/`chown`/cambiar de uid/matar procesos necesitan. `allowPrivilegeEscalation`
+  se mantiene en `false`. El seat-agent (`sandbox-agent.py`, Python stdlib puro, sin
+  dependencias) crea la cuenta real del alumno (`adduser -u {2000+seatIndex} -h
+  /home/{userUuid} ...`) la primera vez que se le pide ese asiento, y cada `ttyd` que
+  arranca DROPEA a ese uid especifico antes de `exec` (nunca corren como root, solo el
+  agente administrador lo hace). Bug real encontrado y corregido en vivo: root sin
+  `CAP_DAC_OVERRIDE` NO puede escribir dentro de un directorio de otro dueño aunque sea
+  root -- hubo que crear los directorios (home/workspace/.config/nvim) ANTES de
+  `adduser` (mientras root todavia es dueño de lo que crea), no despues.
+  `KubernetesPodClient.provisionSeat` llama al agente via HTTP interno con reintentos
+  (~10s, cubre la carrera de que el Pod recien se esta agendando). Puerto de control
+  (`basePort - 1`) alcanzable solo desde `insightbloom-users` (segunda regla de Ingress
+  en `ensureIngressPolicy`, namespace+label propios, no los del gateway).
+
+  **Vigilancia de recursos (Fase C)**: dos lineas de defensa. (1) `ulimit -u` (
+  `RLIMIT_NPROC`, 100 por asiento) aplicado en el `preexec_fn` de cada `ttyd` antes de
+  `exec` -- corta fork-bombs al instante, sin depender de polling. (2) Un watchdog en
+  background dentro del mismo `sandbox-agent.py` que cada 5s lee `/proc/*/status` +
+  `/proc/*/stat`, agrupa por UID de asiento, calcula CPU%/RSS, y compara contra el
+  presupuesto "justo" (limite REAL del Pod, via Downward API `resourceFieldRef` --
+  `POD_CPU_LIMIT_MILLICORES`/`POD_MEMORY_LIMIT_MIB` -- dividido entre asientos
+  OCUPADOS ahora, no el maximo configurado, con 1.5x de tolerancia). Sostenido >45s (o
+  >90% del limite de procesos, senal fuerte de fork-bomb en curso): mata el arbol de
+  procesos del UID (`pkill -9 -u`) y reinicia un `ttyd` limpio para ese asiento
+  (auto-recuperacion, el alumno se reconecta sin perder el asiento). Verificado en vivo:
+  un `while true; do :; done` real fue detectado y terminado en la ventana esperada, con
+  el `ttyd` respawneado automaticamente.
+
+  Reporte de incidentes: `POST /internal/sandbox-incidents`, autenticado con
+  `SANDBOX_INCIDENT_REPORT_KEY` via header `X-Sandbox-Incident-Key` -- DELIBERADAMENTE
+  distinto de `INTERNAL_API_KEY` (ese secreto vive dentro de contenedores que un alumno
+  puede leer via `env`, y protege TODOS los demas endpoints internos de la plataforma;
+  filtrarlo aca le daria a cualquier alumno la llave de toda la superficie interna). El
+  reporte es "mejor esfuerzo" (si el POST falla, solo se loguea localmente -- matar al
+  asiento abusivo no puede depender de que insightbloom-users este alcanzable). Requiere
+  una `NetworkPolicy` de Egress nueva (`sandbox-egress-incident-report`), independiente
+  de `allowInternetEgress`/`internetEnabled` (el caso mas comun es sin internet
+  habilitado, y el reporte de incidentes tiene que funcionar igual) -- restringida a un
+  solo destino (namespace+label+puerto de `insightbloom-users`), no "internet abierto".
+  Domain nuevo `SandboxIncident` (tabla `sandbox_incidents`), `RecordSandboxIncidentUseCase`
+  + `ListSandboxIncidentsUseCase`, endpoint organizador-only
+  `GET /{id}/sandbox-incidents` en `ConferenceHandler`, seccion nueva en
+  `EditConferencePage.vue` (visible solo en modo `terminal-nvim`) listando cuando/quien/
+  que paso -- mismo patron conceptual que moderacion de chat, implementado directo en
+  `insightbloom-users` (no se reutilizo `insightbloom-moderation`, dominios distintos).
+
+  **Fuera de alcance, documentado como limitacion conocida**: debug remoto
+  (`javadebug`/`pydebug`, puertos fijos 5005/5678) no funciona en modo multi-asiento --
+  dos alumnos del mismo Pod debuggeando a la vez chocarian en el mismo puerto. No
+  resuelto en esta entrega.
+- Consecuencias:
+  - `SandboxOrchestrator` gano `provisionSeat` y `createSandbox` sumo dos parametros
+    (`jvmHeapMb`, `seatsPerPod`) a lo largo de esta sesion -- toda implementacion/mock
+    debe actualizarse si se agrega una nueva.
+  - El namespace `insightbloom-sandboxes` necesita, al desplegar esta entrega, que la
+    `NetworkPolicy` `sandbox-ingress-gateway-only` existente se borre y recree a mano
+    una vez (`postIgnoringConflict` no la actualiza sola) para que tome el rango de
+    puertos ampliado y la segunda regla (control del seat-agent) -- de lo contrario,
+    Pods compartidos quedarian bloqueados por la policy vieja de un solo puerto/regla.
+  - Nuevo env var obligatorio en produccion: `SANDBOX_INCIDENT_REPORT_KEY` (el default
+    `"dev-only-change-me"` es deliberadamente inseguro, solo para desarrollo local).
+- Reemplaza: `none` (extiende DEC-0023).

@@ -1,8 +1,8 @@
 #!/bin/bash
-# Punto de entrada del contenedor "ide". /home/coder/workspace es un volumen emptyDir montado
-# por Kubernetes (ver KubernetesPodClient.java) -- lo que se copia ahi en build time del Dockerfile
-# queda tapado/invisible en runtime, asi que sembrar el launch.json de debug remoto tiene que
-# pasar aca, al arrancar el contenedor, no en el Dockerfile.
+# Punto de entrada de la imagen "debian" (code-server) del IDE. /home/coder/workspace es un
+# volumen emptyDir montado por Kubernetes (ver KubernetesPodClient.java) -- lo que se copia ahi
+# en build time del Dockerfile queda tapado/invisible en runtime, asi que sembrar el launch.json
+# de debug remoto tiene que pasar aca, al arrancar el contenedor, no en el Dockerfile.
 set -euo pipefail
 
 if [ ! -f /home/coder/workspace/.vscode/launch.json ]; then

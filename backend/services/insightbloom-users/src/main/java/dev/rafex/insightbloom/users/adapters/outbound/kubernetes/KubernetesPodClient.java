@@ -33,28 +33,25 @@ import javax.net.ssl.TrustManagerFactory;
  * en insightbloom-survey; solo se necesitan 5 verbos REST (crear/borrar/leer Pod, crear/borrar
  * Service), no vale la pena la dependencia pesada de un SDK generado.
  *
- * Fase 4: por defecto ({@code variant} != {@value #IDE_MODE_TERMINAL_NVIM}) el Pod tiene dos
- * contenedores — {@code ide} (code-server, imagen Debian fija) y {@code runtime} (toolchain unico
- * Java+Node+Python, imagen Alpine fija — hasta 2026-07-17 era una imagen distinta por variante
- * java/python/web, tag {@code :latest} desde la consolidacion, ver DEC-0023). La terminal
- * integrada de code-server se conecta al contenedor {@code runtime} vía un servidor socat en
- * {@code 127.0.0.1:7681} (loopback intra-Pod, nunca expuesto via Service) — ver
- * {@code code-ide-settings.json}. El {@code Service} del Pod enruta al puerto del contenedor
- * {@code ide}.
+ * Cambio de paradigma 2026-07-17: el Pod tiene un UNICO contenedor, autocontenido (Java+Node+
+ * Python+editor todo en la misma imagen) — reemplaza el split de Fase 4 ({@code ide} + {@code
+ * runtime} bridge via socat en loopback) que existio entre 2026-07-12 y 07-17. Ese split
+ * asumia que code-server no necesitaba el toolchain instalado, pero la extension redhat.java
+ * igual requeria un JDK LOCAL en el contenedor {@code ide} para compilar/analizar (el bridge
+ * via JDWP/debugpy solo sirve para *adjuntarse* a un proceso ya corriendo, no para el language
+ * server) — separar solo agregaba superficie (una NetworkPolicy de loopback, un socat, JDWP/
+ * debugpy potencialmente expuestos entre Pods) sin el beneficio que se buscaba. Ver DECISIONS.md
+ * DEC-0023 para el historial completo.
  *
- * 2026-07-17 (segunda ronda): {@code variant == "terminal-nvim"} activa un modo de IDE
- * alternativo mas liviano — el Pod tiene un unico contenedor ({@code runtime}, sin {@code ide}),
- * corriendo {@code ttyd} (servidor de terminal web) en vez de {@code socat}, sirviendo
- * directamente {@code nvim} sobre {@code /home/coder/workspace}. El campo {@code variant}
- * (heredado de las 3 imagenes por-variante que ya no existen) se reutiliza como "modo de IDE"
- * en vez de agregar una columna nueva — cualquier valor que no sea {@value
- * #IDE_MODE_TERMINAL_NVIM} (incluidos los historicos {@code python}/{@code java}/{@code web}, o
- * {@code null}) significa "code-server" (el modo de siempre).
+ * El campo {@code variant} (heredado de las 3 imagenes por-variante java/python/web que ya no
+ * existen) se reutiliza como "modo de IDE": {@value #IDE_MODE_TERMINAL_NVIM} selecciona la
+ * imagen Alpine (vim/neovim/lazygit, servida por {@code ttyd}); cualquier otro valor (incluidos
+ * los historicos {@code python}/{@code java}/{@code web}, o {@code null}) selecciona la imagen
+ * Debian (code-server).
  *
  * El spec de Pod replica el hardening documentado (pero nunca renderizado) en
  * {@code infra/helm/charts/insightbloom/templates/sandbox-pool.yaml}: non-root, sin capabilities,
- * seccomp RuntimeDefault, sin montar el token del ServiceAccount dentro del propio sandbox (en
- * ninguno de los dos contenedores).
+ * seccomp RuntimeDefault, sin montar el token del ServiceAccount dentro del propio sandbox.
  *
  * Fase 3 (ver plan de implementacion): RBAC (Role+RoleBinding en el namespace
  * insightbloom-sandboxes) es lo que autoriza a insightbloom-users a crear/borrar estos recursos —
@@ -64,12 +61,45 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private static final Logger LOGGER = Logger.getLogger(KubernetesPodClient.class.getName());
     private static final Path TOKEN_PATH = Path.of("/var/run/secrets/kubernetes.io/serviceaccount/token");
     private static final Path CA_PATH = Path.of("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt");
-    /** Puerto del servidor socat del contenedor runtime — solo loopback intra-Pod, nunca via Service. */
-    private static final int RUNTIME_PORT = 7681;
     /** Ver javadoc de la clase: valor de "variant" que activa el modo de IDE alternativo (ttyd+nvim). */
     public static final String IDE_MODE_TERMINAL_NVIM = "terminal-nvim";
+    /**
+     * Heap por defecto (-Xmx, en MB) cuando la conferencia no configuro uno propio desde el
+     * Dashboard -- pedido explicito del usuario: JVMs chicas, pensadas para cursos, no "libres".
+     * 256Mi alcanza para jdt.ls + un programa chico de curso; sigue siendo mucho menor que el
+     * limite de memoria del contenedor (ver ContainerResources en UsersApplication), dejando
+     * margen real para code-server/extension-host o ttyd+nvim.
+     */
+    private static final int DEFAULT_JVM_HEAP_MB = 256;
+    /**
+     * Default de asientos por Pod compartido (modo terminal-nvim) cuando la conferencia no
+     * configuro uno propio -- mismo default que AssignSandboxUseCase.DEFAULT_SEATS_PER_POD,
+     * duplicado a proposito (evita un acoplamiento entre modulos por una constante; si difieren
+     * algun dia, el cap real de cuantos alumnos aceptar sigue siendo AssignSandboxUseCase, esto
+     * solo decide cuantos puertos declarar en el Pod la primera vez que se crea).
+     */
+    private static final int DEFAULT_SEATS_PER_POD = 4;
+    /**
+     * Techo de asientos por Pod compartido -- mismo valor que
+     * SetSandboxConfigUseCase.MAX_SEATS_PER_POD (validacion de organizador). Se usa aca para
+     * fijar el RANGO de puertos que la NetworkPolicy de Ingress declara (ver
+     * {@link #ensureIngressPolicy()}): esa policy es UNA sola para todo el namespace
+     * (podSelector vacio, aplica a todos los Pods de sandbox) y {@link #postIgnoringConflict}
+     * nunca actualiza un recurso que ya existe (solo crea si falta) -- si el rango de puertos
+     * dependiera del seatsPerPod de CADA Pod individual, el primer Pod compartido que se cree
+     * fijaria el rango para siempre y los siguientes con mas asientos quedarian bloqueados. Mas
+     * simple y seguro declarar siempre el rango maximo posible de una vez.
+     */
+    private static final int MAX_SEATS_PER_POD = 10;
 
-    /** Límites de recursos de un contenedor del Pod de sandbox. */
+    /**
+     * Límites de recursos del (unico) contenedor del Pod de sandbox. Un set por imagen (ver
+     * {@link #debianResources}/{@link #neovimResources}), no uno solo compartido: las dos
+     * imagenes tienen perfiles de consumo muy distintos -- la imagen Debian corre el extension
+     * host de VS Code Web (proceso Node) + code-server + jdt.ls (una JVM completa) cuando se
+     * abre un .java, mientras que la imagen Alpine solo corre {@code ttyd}+{@code nvim} (un
+     * proceso liviano, sin el overhead del extension host ni del servidor de code-server).
+     */
     public record ContainerResources(String cpuRequest, String memoryRequest, String cpuLimit, String memoryLimit) {
     }
 
@@ -78,31 +108,36 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final String token;
     private final JsonCodec jsonCodec;
     private final String namespace;
-    private final String serverImage;
-    private final String runtimeImageBase;
-    private final ContainerResources ideResources;
-    private final ContainerResources runtimeResources;
+    private final String debianImage;
+    private final String neovimImage;
+    private final ContainerResources debianResources;
+    private final ContainerResources neovimResources;
     private final int port;
     private final int uid;
     private final int gid;
     private final int fsGroup;
     private final String gatewayNamespace;
     private final String gatewayPodComponentLabel;
+    private final String usersPodComponentLabel;
+    private final String incidentReportKey;
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
-                                final String serverImage, final String runtimeImageBase,
-                                final ContainerResources ideResources, final ContainerResources runtimeResources,
+                                final String debianImage, final String neovimImage,
+                                final ContainerResources debianResources, final ContainerResources neovimResources,
                                 final int port, final int uid, final int gid, final int fsGroup,
-                                final String gatewayNamespace, final String gatewayPodComponentLabel) {
+                                final String gatewayNamespace, final String gatewayPodComponentLabel,
+                                final String usersPodComponentLabel, final String incidentReportKey) {
         this.jsonCodec = jsonCodec;
         this.namespace = namespace;
-        this.serverImage = serverImage;
-        this.runtimeImageBase = runtimeImageBase;
-        this.ideResources = ideResources;
-        this.runtimeResources = runtimeResources;
+        this.debianImage = debianImage;
+        this.neovimImage = neovimImage;
+        this.debianResources = debianResources;
+        this.neovimResources = neovimResources;
         this.port = port;
         this.gatewayNamespace = gatewayNamespace;
         this.gatewayPodComponentLabel = gatewayPodComponentLabel;
+        this.usersPodComponentLabel = usersPodComponentLabel;
+        this.incidentReportKey = incidentReportKey;
         this.uid = uid;
         this.gid = gid;
         this.fsGroup = fsGroup;
@@ -120,12 +155,23 @@ public class KubernetesPodClient implements SandboxOrchestrator {
 
     @Override
     public void createSandbox(final String podName, final String conferenceUuid, final String variant,
-                               final String extraPackages, final String remoteGitUrl, final boolean internetEnabled) {
+                               final String extraPackages, final String remoteGitUrl, final boolean internetEnabled,
+                               final Integer jvmHeapMb, final Integer seatsPerPod) {
         requireEnabled();
+        final boolean terminalMode = IDE_MODE_TERMINAL_NVIM.equals(variant);
+        // seatsPerPod solo importa en modo terminal-nvim -- en cualquier otro modo (o
+        // seatsPerPod nulo/<=1) sigue siendo exactamente 1 puerto, el comportamiento de siempre.
+        final int effectiveSeats = terminalMode
+                ? Math.max(1, seatsPerPod != null ? seatsPerPod : DEFAULT_SEATS_PER_POD)
+                : 1;
         ensureIngressPolicy();
-        final String podJson = jsonCodec.toJson(buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl));
+        if (terminalMode && effectiveSeats > 1) {
+            ensureIncidentReportEgressPolicy();
+        }
+        final String podJson = jsonCodec.toJson(
+                buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl, jvmHeapMb, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
-        final String serviceJson = jsonCodec.toJson(buildServiceBody(podName));
+        final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
         if (internetEnabled) {
             allowInternetEgress(Sandbox.conferenceLabel(conferenceUuid));
@@ -133,6 +179,38 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     }
 
     private static final String INGRESS_POLICY_NAME = "sandbox-ingress-gateway-only";
+    private static final String INCIDENT_EGRESS_POLICY_NAME = "sandbox-egress-incident-report";
+    /** Puerto interno de insightbloom-users, mismo que ya usa el gateway (ver
+     *  GATEWAY_SANDBOX_RESOLVE_URL en GatewayApplication.java). */
+    private static final int USERS_INTERNAL_PORT = 8081;
+
+    /**
+     * Fase C (DEC-0025): el watchdog del seat-agent necesita reportar incidentes a
+     * insightbloom-users (POST /internal/sandbox-incidents) SIN depender de que la conferencia
+     * tenga internet habilitado (el caso mas comun es internetEnabled=false) -- esta policy es
+     * independiente de {@link #allowInternetEgress}, restringida a un solo destino (namespace +
+     * label + puerto de insightbloom-users), no "internet abierto". Solo se llama para Pods
+     * multi-asiento (el unico caso con seat-agent/watchdog); idempotente igual que
+     * {@link #ensureIngressPolicy}.
+     */
+    private void ensureIncidentReportEgressPolicy() {
+        final Map<String, Object> policy = Map.of(
+                "apiVersion", "networking.k8s.io/v1",
+                "kind", "NetworkPolicy",
+                "metadata", Map.of("name", INCIDENT_EGRESS_POLICY_NAME, "namespace", namespace),
+                "spec", Map.of(
+                        "podSelector", Map.of(),
+                        "policyTypes", List.of("Egress"),
+                        "egress", List.of(Map.of(
+                                "to", List.of(Map.of(
+                                        "namespaceSelector", Map.of(
+                                                "matchLabels", Map.of("kubernetes.io/metadata.name", gatewayNamespace)),
+                                        "podSelector", Map.of(
+                                                "matchLabels", Map.of("app.kubernetes.io/component", usersPodComponentLabel)))),
+                                "ports", List.of(Map.of("protocol", "TCP", "port", USERS_INTERNAL_PORT))))));
+        postIgnoringConflict("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
+                jsonCodec.toJson(policy), "networkpolicy " + INCIDENT_EGRESS_POLICY_NAME);
+    }
 
     /**
      * Postmortem 2026-07-17 (auditoria de seguridad): confirmado en vivo que cualquier Pod de
@@ -145,12 +223,24 @@ public class KubernetesPodClient implements SandboxOrchestrator {
      * al IDE completo de otro alumno con solo saber/adivinar el nombre del Service.
      *
      * Esta policy restringe el trafico ENTRANTE de todos los Pods de sandbox a unicamente el
-     * originado por el Pod del gateway (namespace + label), sobre el puerto publico del sandbox
-     * ({@link #port}) -- bloquea el acceso Pod-a-Pod entre sandboxes sin afectar el flujo legitimo
-     * (gateway -> Service del sandbox). Idempotente (se llama en cada {@link #createSandbox}, sin
-     * costo si ya existe) y no depende de {@code internetEnabled}: aplica siempre.
+     * originado por el Pod del gateway (namespace + label), sobre los puertos publicos del
+     * sandbox ({@link #port}{@code ..}{@link #port}{@code +MAX_SEATS_PER_POD-1}, para cubrir
+     * Pods compartidos multi-asiento -- ver comentario de {@link #MAX_SEATS_PER_POD}) --
+     * bloquea el acceso Pod-a-Pod entre sandboxes sin afectar el flujo legitimo (gateway ->
+     * Service del sandbox). Idempotente (se llama en cada {@link #createSandbox}, sin costo si
+     * ya existe) y no depende de {@code internetEnabled}: aplica siempre.
+     *
+     * Fase B (2026-07): segunda regla de Ingress, distinta de la del gateway -- el puerto de
+     * CONTROL del seat-agent ({@link #controlPort()}) solo debe ser alcanzable por
+     * {@code insightbloom-users} (namespace+label propios, no los del gateway). El gateway nunca
+     * llama al seat-agent directamente; es insightbloom-users quien lo hace al asignar un
+     * asiento (ver KubernetesPodClient.provisionSeat).
      */
     private void ensureIngressPolicy() {
+        final List<Map<String, Object>> seatPorts = new ArrayList<>();
+        for (int i = 0; i < MAX_SEATS_PER_POD; i++) {
+            seatPorts.add(Map.of("protocol", "TCP", "port", port + i));
+        }
         final Map<String, Object> policy = Map.of(
                 "apiVersion", "networking.k8s.io/v1",
                 "kind", "NetworkPolicy",
@@ -158,13 +248,21 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "spec", Map.of(
                         "podSelector", Map.of(),
                         "policyTypes", List.of("Ingress"),
-                        "ingress", List.of(Map.of(
-                                "from", List.of(Map.of(
-                                        "namespaceSelector", Map.of(
-                                                "matchLabels", Map.of("kubernetes.io/metadata.name", gatewayNamespace)),
-                                        "podSelector", Map.of(
-                                                "matchLabels", Map.of("app.kubernetes.io/component", gatewayPodComponentLabel)))),
-                                "ports", List.of(Map.of("protocol", "TCP", "port", port))))));
+                        "ingress", List.of(
+                                Map.of(
+                                        "from", List.of(Map.of(
+                                                "namespaceSelector", Map.of(
+                                                        "matchLabels", Map.of("kubernetes.io/metadata.name", gatewayNamespace)),
+                                                "podSelector", Map.of(
+                                                        "matchLabels", Map.of("app.kubernetes.io/component", gatewayPodComponentLabel)))),
+                                        "ports", seatPorts),
+                                Map.of(
+                                        "from", List.of(Map.of(
+                                                "namespaceSelector", Map.of(
+                                                        "matchLabels", Map.of("kubernetes.io/metadata.name", gatewayNamespace)),
+                                                "podSelector", Map.of(
+                                                        "matchLabels", Map.of("app.kubernetes.io/component", usersPodComponentLabel)))),
+                                        "ports", List.of(Map.of("protocol", "TCP", "port", controlPort()))))));
         postIgnoringConflict("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
                 jsonCodec.toJson(policy), "networkpolicy " + INGRESS_POLICY_NAME);
     }
@@ -175,6 +273,49 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final String policyJson = jsonCodec.toJson(buildEgressAllowBody(conferenceLabel));
         postIgnoringConflict("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
                 policyJson, "networkpolicy " + egressPolicyName(conferenceLabel));
+    }
+
+    /** Reintentos de {@link #provisionSeat}: el Pod puede tardar unos segundos en agendarse y
+     *  arrancar el seat-agent justo despues de {@link #createSandbox} -- sin esto, el primer
+     *  alumno de un Pod nuevo fallaria casi siempre por pura carrera de arranque. */
+    private static final int PROVISION_SEAT_MAX_ATTEMPTS = 6;
+    private static final long PROVISION_SEAT_RETRY_DELAY_MILLIS = 2000;
+
+    @Override
+    public void provisionSeat(final String podName, final int seatIndex, final String userUuid) {
+        requireEnabled();
+        final String url = "http://" + podName + "-svc." + namespace + ".svc.cluster.local:"
+                + controlPort() + "/seats/" + seatIndex;
+        final String body = jsonCodec.toJson(Map.of("userUuid", userUuid));
+        IllegalStateException lastFailure = null;
+        for (int attempt = 1; attempt <= PROVISION_SEAT_MAX_ATTEMPTS; attempt++) {
+            try {
+                final HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                        .timeout(Duration.ofSeconds(15))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body))
+                        .build();
+                final HttpResponse<String> response = send(request);
+                if (response.statusCode() < 300) {
+                    return;
+                }
+                lastFailure = new IllegalStateException("seat_provisioning_failed: " + podName + "/" + seatIndex
+                        + " -> " + response.statusCode() + " " + response.body());
+            } catch (final IllegalStateException e) {
+                // send() envuelve IOException aca -- esperado mientras el Pod/agente todavia no
+                // esta listo, no un error real hasta agotar los reintentos.
+                lastFailure = e;
+            }
+            if (attempt < PROVISION_SEAT_MAX_ATTEMPTS) {
+                try {
+                    Thread.sleep(PROVISION_SEAT_RETRY_DELAY_MILLIS);
+                } catch (final InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw lastFailure;
+                }
+            }
+        }
+        throw lastFailure;
     }
 
     @Override
@@ -243,14 +384,26 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         return podName + "-svc";
     }
 
+    /**
+     * Puerto de control del seat-agent (Fase B) -- {@code port - 1}, fuera del rango de puertos
+     * de asiento ({@code port..port+MAX_SEATS_PER_POD-1}). Solo escucha ahi el Pod cuando corre
+     * en modo multi-asiento; en modo single-seat no hay agente ni puerto de control.
+     */
+    private int controlPort() {
+        return port - 1;
+    }
+
     private Map<String, Object> buildPodBody(final String podName, final String conferenceUuid, final String variant,
-                                              final String extraPackages, final String remoteGitUrl) {
+                                              final String extraPackages, final String remoteGitUrl,
+                                              final Integer jvmHeapMb, final int effectiveSeats) {
         final Map<String, Object> labels = Map.of(
                 "app.kubernetes.io/part-of", "insightbloom",
                 "app.kubernetes.io/component", "sandbox",
                 "sandbox-pod", podName,
                 "sandbox-variant", variant,
                 "sandbox-conference", Sandbox.conferenceLabel(conferenceUuid));
+
+        final boolean terminalMode = IDE_MODE_TERMINAL_NVIM.equals(variant);
 
         final List<Map<String, Object>> runtimeEnv = new ArrayList<>();
         if (extraPackages != null && !extraPackages.isBlank()) {
@@ -259,70 +412,122 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         if (remoteGitUrl != null && !remoteGitUrl.isBlank()) {
             runtimeEnv.add(Map.of("name", "REMOTE_GIT_URL", "value", remoteGitUrl));
         }
+        // JDK_JAVA_OPTIONS (JEP 328, JDK 9+): lo lee CUALQUIER invocacion del launcher java/javac
+        // dentro del contenedor -- jdt.ls (Language Server de Java), un "java MiClase" que corra
+        // el alumno desde la terminal, o la JVM que forkea Maven -- sin tocar 3 configuraciones
+        // por separado. A diferencia de JAVA_TOOL_OPTIONS/_JAVA_OPTIONS, JDK_JAVA_OPTIONS no
+        // imprime un aviso "Picked up ..." en cada arranque de JVM (ruido feo en la terminal del
+        // alumno). Pedido explicito del usuario: JVMs chicas por defecto (no "libres" tomando lo
+        // que el auto-sizing por cgroups les permita, que puede ser casi todo el limite del
+        // contenedor) -- default conservador si la conferencia no configuro un valor propio desde
+        // el Dashboard (ver SetSandboxConfigUseCase, clampeado contra el limite del contenedor).
+        final int heapMb = jvmHeapMb != null ? jvmHeapMb : DEFAULT_JVM_HEAP_MB;
+        runtimeEnv.add(Map.of("name", "JDK_JAVA_OPTIONS", "value", "-Xmx" + heapMb + "m"));
 
-        final List<Map<String, Object>> volumeMounts = List.of(
-                Map.of("name", "workspace", "mountPath", "/home/coder/workspace"),
-                Map.of("name", "database", "mountPath", "/home/coder/db"));
+        final boolean multiSeat = terminalMode && effectiveSeats > 1;
+        if (multiSeat) {
+            // Downward API: el agente lee su PROPIO limite de recursos del Pod (no un numero
+            // duplicado a mano en otro lugar) para calcular el presupuesto "justo" por asiento
+            // en el watchdog (ver sandbox-agent.py:_fair_share_budget). "sandbox" es el nombre
+            // fijo del (unico) contenedor, ver mas abajo.
+            runtimeEnv.add(Map.of("name", "POD_CPU_LIMIT_MILLICORES", "valueFrom", Map.of(
+                    "resourceFieldRef", Map.of("containerName", "sandbox", "resource", "limits.cpu", "divisor", "1m"))));
+            runtimeEnv.add(Map.of("name", "POD_MEMORY_LIMIT_MIB", "valueFrom", Map.of(
+                    "resourceFieldRef", Map.of("containerName", "sandbox", "resource", "limits.memory", "divisor", "1Mi"))));
+            runtimeEnv.add(Map.of("name", "CONFERENCE_UUID", "value", conferenceUuid));
+            runtimeEnv.add(Map.of("name", "SANDBOX_POD_NAME", "value", podName));
+            // insightbloom-users vive en el mismo namespace que el gateway (gatewayNamespace,
+            // "insightbloom") -- mismo patron de FQDN que ya usa el propio gateway para
+            // resolverlo (GATEWAY_SANDBOX_RESOLVE_URL: "http://insightbloom-users:8081/...").
+            // SANDBOX_INCIDENT_REPORT_KEY es un secreto de BAJO privilegio a proposito (no el
+            // INTERNAL_API_KEY de plataforma) -- vive dentro de un contenedor que un alumno
+            // puede leer via "env", lo peor que permite es escribir incidentes falsos, no
+            // suplantar llamadas internas del resto de la plataforma (ver DEC-0025).
+            runtimeEnv.add(Map.of("name", "SANDBOX_INCIDENT_REPORT_URL", "value",
+                    "http://insightbloom-users." + gatewayNamespace + ".svc.cluster.local:8081/internal/sandbox-incidents"));
+            runtimeEnv.add(Map.of("name", "SANDBOX_INCIDENT_REPORT_KEY", "value", incidentReportKey));
+        }
+        // Pods multi-asiento: cada asiento tiene su propio usuario Linux real, creado en
+        // runtime por el seat-agent con home "/home/{userUuid}" (ver sandbox-agent.py) -- el
+        // volumen "workspace" se monta en "/home" entero para que todos los home de asiento
+        // persistan en el mismo emptyDir. El volumen "database" dedicado (flujo de descarga de
+        // SQLite de un sandbox de 1 asiento, ver GenerateWorkspaceDownloadUrlUseCase) no se
+        // monta aca -- gap conocido, documentado en
+        // DEC-0025: cada asiento puede seguir usando SQLite dentro de su propio workspace, pero
+        // el flujo de descarga dedicado no distingue asientos todavia.
+        final List<Map<String, Object>> volumeMounts = multiSeat
+                ? List.of(Map.of("name", "workspace", "mountPath", "/home"))
+                : List.of(
+                        Map.of("name", "workspace", "mountPath", "/home/coder/workspace"),
+                        Map.of("name", "database", "mountPath", "/home/coder/db"));
 
-        final boolean terminalMode = IDE_MODE_TERMINAL_NVIM.equals(variant);
-
-        final List<Map<String, Object>> containers = new ArrayList<>();
-        if (!terminalMode) {
-            final Map<String, Object> ideContainer = new LinkedHashMap<>();
-            ideContainer.put("name", "ide");
-            ideContainer.put("image", serverImage);
-            ideContainer.put("imagePullPolicy", "Always");
-            ideContainer.put("ports", List.of(Map.of("name", "http", "containerPort", port, "protocol", "TCP")));
-            ideContainer.put("securityContext", containerSecurityContext());
-            ideContainer.put("resources", resourcesBody(ideResources));
-            ideContainer.put("volumeMounts", volumeMounts);
-            ideContainer.put("readinessProbe", tcpProbe(port, 5, 10, 2));
-            ideContainer.put("livenessProbe", tcpProbe(port, 10, 30, 3));
-            ideContainer.put("startupProbe", tcpProbe(port, 5, 10, 30));
-            containers.add(ideContainer);
+        // Un puerto por asiento (siempre 1 salvo terminal-nvim con effectiveSeats > 1) -- ver
+        // KubernetesPodClient.MAX_SEATS_PER_POD para el porque la NetworkPolicy declara un rango
+        // fijo en vez de esto mismo. La Fase B (sandbox-agent, seat provisioning) es la que
+        // efectivamente hace escuchar algo en los puertos mas alla del primero; hasta entonces
+        // este Pod los declara pero solo el primero tiene un proceso real detras.
+        final List<Map<String, Object>> containerPorts = new ArrayList<>();
+        for (int i = 0; i < effectiveSeats; i++) {
+            containerPorts.add(Map.of("name", "seat-" + i, "containerPort", port + i, "protocol", "TCP"));
         }
 
-        final Map<String, Object> runtimeContainer = new LinkedHashMap<>();
-        runtimeContainer.put("name", "runtime");
-        // Imagen unica desde 2026-07-17 (Java+Node+Python juntos) -- "variant" ya no selecciona
-        // la imagen (salvo el sentinel IDE_MODE_TERMINAL_NVIM, que cambia el comando de arranque
-        // mas abajo, no la imagen).
-        runtimeContainer.put("image", runtimeImageBase + ":latest");
-        runtimeContainer.put("imagePullPolicy", "Always");
-        if (!runtimeEnv.isEmpty()) runtimeContainer.put("env", runtimeEnv);
-        runtimeContainer.put("securityContext", containerSecurityContext());
-        runtimeContainer.put("resources", terminalMode ? ideResources : runtimeResources);
-        runtimeContainer.put("volumeMounts", volumeMounts);
-        if (terminalMode) {
-            // Sin contenedor 'ide': el propio 'runtime' expone el puerto publico del Service,
-            // corriendo ttyd (servidor de terminal web) en vez de socat -- ver Dockerfile.
-            // ttyd escucha en todas las interfaces (a diferencia del socat de siempre, atado a
-            // loopback), asi que un tcpSocket probe normal si aplica aca (ver tcpProbe vs
-            // execLoopbackProbe).
-            runtimeContainer.put("ports", List.of(Map.of("name", "http", "containerPort", port, "protocol", "TCP")));
+        final Map<String, Object> sandboxContainer = new LinkedHashMap<>();
+        sandboxContainer.put("name", "sandbox");
+        sandboxContainer.put("image", terminalMode ? neovimImage : debianImage);
+        sandboxContainer.put("imagePullPolicy", "Always");
+        sandboxContainer.put("ports", containerPorts);
+        if (!runtimeEnv.isEmpty()) sandboxContainer.put("env", runtimeEnv);
+        sandboxContainer.put("securityContext", containerSecurityContext(multiSeat));
+        sandboxContainer.put("resources", resourcesBody(terminalMode ? neovimResources : debianResources));
+        sandboxContainer.put("volumeMounts", volumeMounts);
+        if (multiSeat) {
+            // Sandbox-agent (ver Dockerfile.code-ide-neovim): un proceso raiz-con-capabilities-
+            // minimas (ver containerSecurityContext(true)) que arranca un ttyd por asiento bajo
+            // demanda (KubernetesPodClient.provisionSeat), dropeando privilegios al uid real de
+            // cada asiento antes de exec -- ningun ttyd/nvim/proceso del alumno corre como root,
+            // solo este agente lo hace, y solo mientras espera pedidos de aprovisionamiento.
+            sandboxContainer.put("args", List.of(
+                    "python3", "/usr/local/bin/sandbox-agent.py",
+                    "--base-port", String.valueOf(port), "--max-seats", String.valueOf(effectiveSeats)));
+        } else if (terminalMode) {
             // --ping-interval 15 (default de ttyd es 5s, se deja explicito por legibilidad):
             // auditoria de seguridad 2026-07-17 -- detecta conexiones muertas mas rapido, para
             // no dejar una sesion de terminal "colgada" alcanzable mas tiempo del necesario si
             // el navegador del alumno se cierra sin un cierre limpio de la conexion WS.
-            runtimeContainer.put("args", List.of(
+            sandboxContainer.put("args", List.of(
                     "ttyd", "-p", String.valueOf(port), "-W", "--ping-interval", "15",
                     "bash", "-lc", "cd /home/coder/workspace && exec nvim ."));
-            runtimeContainer.put("readinessProbe", tcpProbe(port, 5, 10, 2));
-            runtimeContainer.put("livenessProbe", tcpProbe(port, 10, 30, 3));
-            runtimeContainer.put("startupProbe", tcpProbe(port, 5, 10, 30));
-        } else {
-            // El contenedor runtime no expone su puerto vía Service ni Ingress en este modo:
-            // solo alcanzable por loopback intra-Pod desde 'ide' (terminal integrada -> socat).
-            runtimeContainer.put("readinessProbe", execLoopbackProbe(RUNTIME_PORT, 5, 10, 2));
-            runtimeContainer.put("livenessProbe", execLoopbackProbe(RUNTIME_PORT, 10, 30, 3));
-            runtimeContainer.put("startupProbe", execLoopbackProbe(RUNTIME_PORT, 5, 10, 30));
         }
-        containers.add(runtimeContainer);
+        // El control port (seat-agent) tambien debe responder para que el Pod se considere listo
+        // -- corre en el mismo puerto base que el asiento 0 en modo single-seat, pero en modo
+        // multi-asiento el agente escucha el puerto de control real (basePort - 1, ver
+        // sandbox-agent.py) mientras que basePort mismo recien responde cuando se aprovisiona el
+        // primer asiento -- las probes de multi-asiento chequean el puerto de CONTROL, no el de
+        // un asiento que puede no existir todavia.
+        final int healthProbePort = multiSeat ? (port - 1) : port;
+        sandboxContainer.put("readinessProbe", tcpProbe(healthProbePort, 5, 10, 2));
+        sandboxContainer.put("livenessProbe", tcpProbe(healthProbePort, 10, 30, 3));
+        sandboxContainer.put("startupProbe", tcpProbe(healthProbePort, 5, 10, 30));
+        final List<Map<String, Object>> containers = List.of(sandboxContainer);
 
         final Map<String, Object> podSecurityContext = new LinkedHashMap<>();
-        podSecurityContext.put("runAsNonRoot", true);
-        podSecurityContext.put("runAsUser", uid);
-        podSecurityContext.put("runAsGroup", gid);
+        if (multiSeat) {
+            // El seat-agent necesita setuid/setgid (dropear privilegios al uid real de cada
+            // asiento antes de exec ttyd) y kill (Fase C: matar el arbol de procesos de un
+            // asiento que abusa recursos) -- ninguno de los dos es posible sin correr como uid 0.
+            // Se compensa manteniendo TODAS las demas capabilities dropeadas (ver
+            // containerSecurityContext(true)) -- root nominal, pero sin mas permiso real que el
+            // estrictamente necesario para administrar los asientos. Los procesos de CADA
+            // asiento (ttyd/nvim/lo que corra el alumno) dropean a su propio uid no-root antes
+            // de exec -- nunca corren como root, solo el agente en si.
+            podSecurityContext.put("runAsNonRoot", false);
+            podSecurityContext.put("runAsUser", 0);
+            podSecurityContext.put("runAsGroup", 0);
+        } else {
+            podSecurityContext.put("runAsNonRoot", true);
+            podSecurityContext.put("runAsUser", uid);
+            podSecurityContext.put("runAsGroup", gid);
+        }
         podSecurityContext.put("fsGroup", fsGroup);
         podSecurityContext.put("seccompProfile", Map.of("type", "RuntimeDefault"));
         // capabilities.drop pertenece a securityContext de CONTENEDOR, no de Pod (la API lo
@@ -346,13 +551,34 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "spec", spec);
     }
 
-    private Map<String, Object> containerSecurityContext() {
+    /**
+     * @param multiSeat true solo para el contenedor "sandbox" de un Pod neovim multi-asiento --
+     *                  el seat-agent (ver sandbox-agent.py) necesita crear la cuenta Linux REAL
+     *                  de cada alumno en runtime (adduser -- CHOWN/FOWNER para poder asignarle
+     *                  su home) y despues arrancar su ttyd bajo ese uid (SETUID/SETGID) o matar
+     *                  su arbol de procesos si abusa recursos (KILL, Fase C). Deliberadamente
+     *                  NO se usa sudo para esto (exigiria allowPrivilegeEscalation:true, que
+     *                  reabriria CUALQUIER binario setuid/setgid de la imagen, no solo este caso
+     *                  puntual -- ver DEC-0025). Se compensa dropeando TODAS las demas
+     *                  capabilities -- root nominal, pero sin mas permiso real que estas 5
+     *                  syscalls especificas. Cualquier otro Pod (debian, o neovim de un solo
+     *                  asiento) sigue exactamente igual que siempre: sin capabilities, sin poder
+     *                  escalar privilegios, usuario fijo no-root.
+     */
+    private Map<String, Object> containerSecurityContext(final boolean multiSeat) {
         final Map<String, Object> ctx = new LinkedHashMap<>();
         ctx.put("allowPrivilegeEscalation", false);
-        ctx.put("runAsNonRoot", true);
-        ctx.put("runAsUser", uid);
         ctx.put("readOnlyRootFilesystem", false);
-        ctx.put("capabilities", Map.of("drop", List.of("ALL")));
+        if (multiSeat) {
+            ctx.put("runAsNonRoot", false);
+            ctx.put("runAsUser", 0);
+            ctx.put("capabilities", Map.of("drop", List.of("ALL"),
+                    "add", List.of("SETUID", "SETGID", "KILL", "CHOWN", "FOWNER")));
+        } else {
+            ctx.put("runAsNonRoot", true);
+            ctx.put("runAsUser", uid);
+            ctx.put("capabilities", Map.of("drop", List.of("ALL")));
+        }
         return ctx;
     }
 
@@ -371,33 +597,18 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "failureThreshold", failureThreshold);
     }
 
-    /**
-     * El socat del contenedor {@code runtime} escucha en {@code bind=127.0.0.1} a proposito
-     * (nunca debe ser alcanzable fuera del Pod, ver clase). Un {@code tcpSocket} probe normal
-     * falla siempre: el kubelet conecta contra la PodIP via la interfaz eth0, que nunca llega a
-     * un listener bindeado solo a loopback -- aunque el proceso este perfectamente sano. Un probe
-     * {@code exec} corre dentro del propio namespace de red del contenedor, asi que un chequeo de
-     * loopback ahi si funciona; se usa {@code bash} (ya instalado en la imagen runtime) y su
-     * pseudo-dispositivo {@code /dev/tcp}, sin depender de un binario `nc` adicional.
-     */
-    private Map<String, Object> execLoopbackProbe(final int targetPort, final int initialDelay, final int period,
-                                                    final int failureThreshold) {
-        return Map.of(
-                "exec", Map.of("command", List.of(
-                        "bash", "-c", "echo > /dev/tcp/127.0.0.1/" + targetPort)),
-                "initialDelaySeconds", initialDelay,
-                "periodSeconds", period,
-                "failureThreshold", failureThreshold);
-    }
-
-    private Map<String, Object> buildServiceBody(final String podName) {
+    private Map<String, Object> buildServiceBody(final String podName, final int effectiveSeats) {
+        final List<Map<String, Object>> servicePorts = new ArrayList<>();
+        for (int i = 0; i < effectiveSeats; i++) {
+            servicePorts.add(Map.of("name", "seat-" + i, "port", port + i, "targetPort", port + i, "protocol", "TCP"));
+        }
         return Map.of(
                 "apiVersion", "v1",
                 "kind", "Service",
                 "metadata", Map.of("name", serviceName(podName), "namespace", namespace),
                 "spec", Map.of(
                         "selector", Map.of("sandbox-pod", podName),
-                        "ports", List.of(Map.of("port", port, "targetPort", port, "protocol", "TCP"))));
+                        "ports", servicePorts));
     }
 
     private void postIgnoringConflict(final String path, final String body, final String description) {
