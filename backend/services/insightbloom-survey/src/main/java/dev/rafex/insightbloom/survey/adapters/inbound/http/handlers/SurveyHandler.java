@@ -112,7 +112,12 @@ public class SurveyHandler extends BaseResourceHandler {
                 if (token == null) { sendOk(jx, Map.of("responded", false)); return true; }
                 final var v = usersPort.validate(token);
                 if (!v.valid() || "guest".equals(v.kind())) { sendOk(jx, Map.of("responded", false)); return true; }
-                sendOk(jx, Map.of("responded", submitResponsesUseCase.hasResponded(conferenceId, v.subjectUuid())));
+                final String queriedUserUuid = queryParam(jx, "userUuid");
+                // Un organizador/admin puede consultar el status de otro usuario (panel de detalle
+                // de usuario); cualquier otro caller solo puede ver el suyo propio.
+                final String targetUuid = (queriedUserUuid != null && isOrganizerOrAdmin(v.role()))
+                        ? queriedUserUuid : v.subjectUuid();
+                sendOk(jx, Map.of("responded", submitResponsesUseCase.hasResponded(conferenceId, targetUuid)));
                 return true;
             }
         } catch (final Exception e) {

@@ -275,8 +275,11 @@ public class UsersApplication {
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
         final var certificateSettingsHandler = new CertificateSettingsHandler(
                 getCertificateSettingsUseCase, saveCertificateSettingsUseCase, validateTokenUseCase);
+        final var listUserReservationsUseCase =
+                new ListUserReservationsUseCase(reservationRepo, conferenceRepo, downloadEventRepo);
         final var adminUserHandler = new AdminUserHandler(
-                listUsersUseCase, adminUpdateUserUseCase, setUserStatusUseCase, validateTokenUseCase);
+                listUsersUseCase, adminUpdateUserUseCase, setUserStatusUseCase, validateTokenUseCase, userRepo,
+                listUserReservationsUseCase);
         final var timezoneHandler = new TimezoneHandler(listTimezonesUseCase);
         final var eventTypeHandler = new EventTypeHandler(listEventTypesUseCase, createEventTypeUseCase,
                 updateEventTypeUseCase, setEventTypeActiveUseCase, validateTokenUseCase);

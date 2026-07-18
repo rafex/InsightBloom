@@ -3,38 +3,36 @@
   h2 Usuarios
 
   .filters
-    select(v-model="statusFilter")
+    select(v-model="statusFilter" @change="reload")
       option(value="") Todos los estados
       option(value="ACTIVE") Activos
+      option(value="INACTIVE") Inactivos
       option(value="BANNED") Baneados
       option(value="DELETED") Eliminados
+    select(v-model="roleFilter" @change="reload")
+      option(value="") Todos los roles
+      option(v-for="r in availableRoles" :key="r" :value="r") {{ r }}
+    button.btn-sort(type="button" @click="toggleSort")
+      | Orden alfabético {{ sort === 'username' ? '✓' : '' }}
 
-  .empty-state(v-if="!loading && filteredUsers.length === 0")
+  .empty-state(v-if="!loading && users.length === 0")
     p No hay usuarios para mostrar.
 
   .table-scroll(v-else)
     table.users-table
       thead
         tr
+          th ID usuario
           th Usuario
-          th Email / Teléfono
-          th Rol
           th Estado
           th Acciones
       tbody
-        tr(v-for="u in filteredUsers" :key="u.uuid")
-          td(data-label="Usuario")
+        tr(v-for="u in users" :key="u.uuid")
+          td.clickable(data-label="ID usuario" @click="goToDetail(u)")
+            span.uuid-text {{ u.uuid }}
+          td.clickable(data-label="Usuario" @click="goToDetail(u)")
             strong {{ u.displayName || u.username }}
             .sub {{ u.username }}
-          td(data-label="Email / Teléfono")
-            div {{ u.email || '—' }}
-            .sub(v-if="u.phone") {{ u.phone }}
-          td(data-label="Rol")
-            .roles-editor(v-if="editing === u.uuid")
-              label(v-for="r in availableRoles" :key="r")
-                input(type="checkbox" :value="r" v-model="editForm.roles")
-                span {{ r }}
-            span(v-else) {{ u.roles }}
           td(data-label="Estado")
             span.status-badge(:class="u.status") {{ statusLabel(u.status) }}
           td.actions(data-label="Acciones")
@@ -42,6 +40,10 @@
               input(v-model="editForm.displayName" placeholder="Nombre visible")
               input(v-model="editForm.email" placeholder="Email")
               input(v-model="editForm.phone" placeholder="Teléfono")
+              .roles-editor
+                label(v-for="r in availableRoles" :key="r")
+                  input(type="checkbox" :value="r" v-model="editForm.roles")
+                  span {{ r }}
               .actions-row
                 button.btn-sm.btn-primary-sm(:disabled="saving" @click="saveEdit(u)") Guardar
                 button.btn-sm.btn-ghost-sm(@click="editing = null") Cancelar
@@ -67,6 +69,7 @@
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { listUsers, updateUser, banUser, unbanUser, deleteUserLogical } from '@/services/api/adminApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -87,25 +90,29 @@ export default {
   name: 'AdminUsersPage',
   setup() {
     const auth = useAuthStore()
+    const router = useRouter()
     const users = ref<AdminUserRow[]>([])
     const loading = ref(true)
     const page = ref(1)
     const totalPages = ref(1)
     const statusFilter = ref('')
+    const roleFilter = ref('')
+    const sort = ref<'' | 'username'>('')
     const editing = ref<string | null>(null)
     const editForm = ref<{ displayName?: string, email?: string, phone?: string, roles: string[] }>({ roles: [] })
     const saving = ref(false)
     const confirmTarget = ref<AdminUserRow | null>(null)
     const confirmAction_ = ref<ConfirmActionType | null>(null)
-    const availableRoles = ['ATTENDEE', 'MODERATOR', 'ORGANIZER', 'ADMIN']
-
-    const filteredUsers = computed(() =>
-      statusFilter.value ? users.value.filter((u) => u.status === statusFilter.value) : users.value)
+    const availableRoles = ['ATTENDEE', 'GUEST', 'MODERATOR', 'ORGANIZER', 'ADMIN']
 
     async function load() {
       loading.value = true
       try {
-        const res = await listUsers(auth.state.token as string, page.value, 50)
+        const res = await listUsers(auth.state.token as string, page.value, 50, {
+          status: statusFilter.value || undefined,
+          role: roleFilter.value || undefined,
+          sort: sort.value || undefined
+        })
         users.value = res.data || []
         totalPages.value = res.meta?.totalPages || 1
       } catch (e: any) {
@@ -115,7 +122,13 @@ export default {
       }
     }
 
+    function reload() { page.value = 1; load() }
+
+    function toggleSort() { sort.value = sort.value === 'username' ? '' : 'username'; reload() }
+
     function goToPage(p: number) { page.value = p; load() }
+
+    function goToDetail(u: AdminUserRow) { router.push(`/dashboard/admin/users/${u.uuid}`) }
 
     function statusLabel(s: string): string {
       return ({ ACTIVE: 'Activo', BANNED: 'Baneado', DELETED: 'Eliminado', INACTIVE: 'Inactivo' } as Record<string, string>)[s] || s
@@ -177,9 +190,10 @@ export default {
     onMounted(load)
 
     return {
-      users, loading, page, totalPages, statusFilter, filteredUsers, editing, editForm, saving, availableRoles,
+      users, loading, page, totalPages, statusFilter, roleFilter, sort, availableRoles,
+      editing, editForm, saving,
       confirmTarget, confirmTitle, confirmMessage,
-      goToPage, statusLabel, startEdit, saveEdit, confirmAction, runConfirmedAction
+      reload, toggleSort, goToPage, goToDetail, statusLabel, startEdit, saveEdit, confirmAction, runConfirmedAction
     }
   }
 }
@@ -188,8 +202,10 @@ export default {
 <style scoped>
 .admin-users-page { padding: 24px; max-width: 1280px; }
 h2 { color: #1e1b4b; margin-bottom: 20px; }
-.filters { margin-bottom: 16px; }
+.filters { margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
+.btn-sort { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; background: #fff; cursor: pointer; }
+.btn-sort:hover { background: #f3f4f6; }
 .empty-state { text-align: center; color: #9ca3af; padding: 60px; }
 
 .table-scroll { overflow-x: auto; }
@@ -197,6 +213,9 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .users-table th { text-align: left; padding: 10px 12px; background: #f9fafb; color: #6b7280; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
 .users-table td { padding: 10px 12px; border-top: 1px solid #f3f4f6; vertical-align: top; font-size: 0.88rem; }
 .sub { font-size: 0.78rem; color: #9ca3af; }
+.uuid-text { font-family: monospace; font-size: 0.8rem; color: #6b7280; }
+.clickable { cursor: pointer; }
+.clickable:hover { background: #f9fafb; }
 
 .status-badge { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 10px; }
 .status-badge.ACTIVE { background: #dcfce7; color: #166534; }
@@ -204,7 +223,7 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .status-badge.DELETED { background: #f3f4f6; color: #6b7280; }
 .status-badge.INACTIVE { background: #fef9c3; color: #854d0e; }
 
-.roles-editor { display: flex; flex-direction: column; gap: 4px; }
+.roles-editor { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
 .roles-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
 .roles-editor input { width: auto; margin: 0; }
 

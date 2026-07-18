@@ -8,6 +8,7 @@ import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.domain.services.PasswordService;
 import dev.rafex.insightbloom.users.domain.services.TokenService;
 
+import java.time.Instant;
 import java.util.Optional;
 
 public class LoginUseCase {
@@ -38,8 +39,9 @@ public class LoginUseCase {
             // Transparently upgrade SHA-256 hashes to PBKDF2 on first successful login
             if (passwordService.isLegacyHash(u.getPasswordHash())) {
                 u.setPasswordHash(passwordService.hash(request.password()));
-                userRepository.save(u);
             }
+            u.setLastLoginAt(Instant.now());
+            userRepository.save(u);
             final Token token = tokenService.issueUserToken(u.getUuid(), TokenKind.USER);
             return Optional.of(new LoginResult(token.getTokenValue(), u.getUuid(),
                     dev.rafex.insightbloom.users.domain.model.UserRole.toCsv(u.getRoles()),

@@ -19,4 +19,6 @@ public interface ReservationRepository {
     Optional<Reservation> findByTicketCode(String conferenceUuid, String ticketCode);
     Optional<Reservation> findByConferenceAndUser(String conferenceUuid, String userUuid);
     List<Reservation> findByConference(String conferenceUuid);
+    /** Todas las reservas de un usuario, en cualquier conferencia. */
+    List<Reservation> findByUser(String userUuid);
 }

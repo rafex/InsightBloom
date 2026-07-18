@@ -23,6 +23,7 @@ public class User {
     private Instant updatedAt;
     private String firstName;
     private String lastName;
+    private Instant lastLoginAt;
 
     public User(String uuid, String username, String displayName, String email, UserRole role) {
         this(uuid, username, displayName, email, null, List.of(), false, false, Set.of(role));
@@ -80,6 +81,7 @@ public class User {
     public void setRoles(Set<UserRole> roles) { this.roles = new LinkedHashSet<>(roles); this.updatedAt = Instant.now(); }
     public void addRole(UserRole role) { this.roles.add(role); this.updatedAt = Instant.now(); }
     public void setStatus(UserStatus status) { this.status = status; this.updatedAt = Instant.now(); }
+    public void setLastLoginAt(Instant lastLoginAt) { this.lastLoginAt = lastLoginAt; }
 
     public String getId() { return id; }
     public String getUuid() { return uuid; }
@@ -99,4 +101,5 @@ public class User {
     public Instant getUpdatedAt() { return updatedAt; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
+    public Instant getLastLoginAt() { return lastLoginAt; }
 }

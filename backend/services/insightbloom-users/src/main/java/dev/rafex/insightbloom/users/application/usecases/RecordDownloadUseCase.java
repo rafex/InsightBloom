@@ -14,7 +14,11 @@ public class RecordDownloadUseCase {
     }
 
     public void execute(final String conferenceUuid, final String kind) {
+        execute(conferenceUuid, kind, null);
+    }
+
+    public void execute(final String conferenceUuid, final String kind, final String userUuid) {
         if (conferenceUuid == null || conferenceUuid.isBlank() || !VALID_KINDS.contains(kind)) return;
-        downloadEventRepository.record(conferenceUuid, kind);
+        downloadEventRepository.record(conferenceUuid, kind, userUuid);
     }
 }

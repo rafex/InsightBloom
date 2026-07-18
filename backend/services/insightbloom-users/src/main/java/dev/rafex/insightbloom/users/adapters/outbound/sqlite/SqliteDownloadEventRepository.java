@@ -17,16 +17,17 @@ public class SqliteDownloadEventRepository implements DownloadEventRepository {
     }
 
     @Override
-    public void record(final String conferenceUuid, final String kind) {
+    public void record(final String conferenceUuid, final String kind, final String userUuid) {
         final String sql = """
-            INSERT INTO download_events (uuid, conference_uuid, kind, created_at)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO download_events (uuid, conference_uuid, kind, created_at, user_uuid)
+            VALUES (?, ?, ?, ?, ?)
         """;
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, UUID.randomUUID().toString());
             ps.setString(2, conferenceUuid);
             ps.setString(3, kind);
             ps.setString(4, Instant.now().toString());
+            ps.setString(5, userUuid);
             ps.executeUpdate();
         } catch (final SQLException e) {
             throw new RuntimeException(e);
@@ -41,6 +42,21 @@ public class SqliteDownloadEventRepository implements DownloadEventRepository {
             ps.setString(2, kind);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getLong(1) : 0L;
+            }
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public boolean existsByConferenceAndUserAndKind(final String conferenceUuid, final String userUuid, final String kind) {
+        final String sql = "SELECT 1 FROM download_events WHERE conference_uuid = ? AND user_uuid = ? AND kind = ? LIMIT 1";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, conferenceUuid);
+            ps.setString(2, userUuid);
+            ps.setString(3, kind);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
             }
         } catch (final SQLException e) {
             throw new RuntimeException(e);

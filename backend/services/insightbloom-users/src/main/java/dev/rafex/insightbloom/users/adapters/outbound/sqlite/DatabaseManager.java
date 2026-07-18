@@ -44,6 +44,7 @@ public class DatabaseManager {
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "phone_verified", "INTEGER NOT NULL DEFAULT 0");
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "first_name", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "last_name", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "last_login_at", "TEXT");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)");
 
@@ -247,6 +248,7 @@ public class DatabaseManager {
                 )
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_download_conference ON download_events(conference_uuid, kind)");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "download_events", "user_uuid", "TEXT");
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS event_types (

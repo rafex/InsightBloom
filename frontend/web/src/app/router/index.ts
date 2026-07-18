@@ -54,6 +54,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'join', component: () => import('@/pages/dashboard/JoinConferencePage.vue') },
       { path: 'certificate-settings', component: () => import('@/pages/dashboard/CertificateSettingsPage.vue') },
       { path: 'admin/users', component: () => import('@/pages/dashboard/AdminUsersPage.vue') },
+      { path: 'admin/users/:uuid', component: () => import('@/pages/dashboard/UserDetailPage.vue') },
       { path: 'admin/event-types', component: () => import('@/pages/dashboard/EventTypesAdminPage.vue') },
       { path: 'admin/roles', component: () => import('@/pages/dashboard/RolesAdminPage.vue') },
       { path: 'admin/chat', component: () => import('@/pages/dashboard/AdminChatSettingsPage.vue') },

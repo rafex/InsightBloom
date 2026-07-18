@@ -60,8 +60,9 @@ export async function submitResponses(conferenceId: string, answers: unknown[], 
   return res.data
 }
 
-export async function hasResponded(conferenceId: string, token: string): Promise<boolean> {
+export async function hasResponded(conferenceId: string, token: string, userUuid?: string): Promise<boolean> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/responded`, {
+    params: userUuid ? { userUuid } : undefined,
     headers: authHeader(token)
   })
   return res.data.data.responded

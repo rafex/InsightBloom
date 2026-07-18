@@ -29,8 +29,8 @@ public class SqliteUserRepository implements UserRepository {
         String sql = """
             INSERT OR REPLACE INTO users
                 (uuid, username, display_name, email, phone, social_links, email_verified, phone_verified,
-                 role, status, password_hash, created_at, updated_at, first_name, last_name)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 role, status, password_hash, created_at, updated_at, first_name, last_name, last_login_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getUuid());
@@ -48,6 +48,7 @@ public class SqliteUserRepository implements UserRepository {
             ps.setString(13, user.getUpdatedAt().toString());
             ps.setString(14, user.getFirstName());
             ps.setString(15, user.getLastName());
+            ps.setString(16, user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -75,12 +76,17 @@ public class SqliteUserRepository implements UserRepository {
     }
 
     @Override
-    public List<User> findAll(int page, int pageSize) {
+    public List<User> findAll(int page, int pageSize, UserStatus status, UserRole role, String sort) {
         final List<User> users = new ArrayList<>();
-        final String sql = "SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?";
-        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, pageSize);
-            ps.setInt(2, (page - 1) * pageSize);
+        final StringBuilder sql = new StringBuilder("SELECT * FROM users WHERE 1=1");
+        final List<Object> params = new ArrayList<>();
+        appendFilters(sql, params, status, role);
+        sql.append("username".equals(sort) ? " ORDER BY username COLLATE NOCASE ASC" : " ORDER BY created_at DESC");
+        sql.append(" LIMIT ? OFFSET ?");
+        params.add(pageSize);
+        params.add((page - 1) * pageSize);
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) ps.setObject(i + 1, params.get(i));
             ResultSet rs = ps.executeQuery();
             while (rs.next()) users.add(map(rs));
         } catch (SQLException e) {
@@ -90,14 +96,29 @@ public class SqliteUserRepository implements UserRepository {
     }
 
     @Override
-    public long countAll() {
-        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM users")) {
+    public long countAll(UserStatus status, UserRole role) {
+        final StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users WHERE 1=1");
+        final List<Object> params = new ArrayList<>();
+        appendFilters(sql, params, status, role);
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) ps.setObject(i + 1, params.get(i));
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getLong(1);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         return 0;
+    }
+
+    private void appendFilters(StringBuilder sql, List<Object> params, UserStatus status, UserRole role) {
+        if (status != null) {
+            sql.append(" AND status = ?");
+            params.add(status.name());
+        }
+        if (role != null) {
+            sql.append(" AND role LIKE ?");
+            params.add("%" + role.name() + "%");
+        }
     }
 
     private Optional<User> query(String sql, String param) {
@@ -123,6 +144,8 @@ public class SqliteUserRepository implements UserRepository {
         );
         user.setFirstName(rs.getString("first_name"));
         user.setLastName(rs.getString("last_name"));
+        final String lastLoginAt = rs.getString("last_login_at");
+        if (lastLoginAt != null) user.setLastLoginAt(parseInstant(lastLoginAt));
         return user;
     }
 

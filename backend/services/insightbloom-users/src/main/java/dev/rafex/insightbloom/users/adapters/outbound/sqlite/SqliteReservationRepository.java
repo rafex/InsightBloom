@@ -123,6 +123,21 @@ public class SqliteReservationRepository implements ReservationRepository {
         return result;
     }
 
+    @Override
+    public List<Reservation> findByUser(final String userUuid) {
+        final String sql = "SELECT * FROM reservations WHERE user_uuid = ? ORDER BY created_at DESC";
+        final List<Reservation> result = new ArrayList<>();
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, userUuid);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) result.add(map(rs));
+            }
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return result;
+    }
+
     private Optional<Reservation> query(final String sql, final String uuid) {
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, uuid);

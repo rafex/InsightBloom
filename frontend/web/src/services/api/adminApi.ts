@@ -15,9 +15,36 @@ export interface AdminUserUpdate {
   lastName?: string | null
 }
 
-export async function listUsers(token: string, page = 1, pageSize = 50): Promise<{ data: any[], meta?: { totalPages?: number, [key: string]: unknown } }> {
-  const res = await axios.get(BASE, { params: { page, pageSize }, headers: authHeader(token) })
+export interface ListUsersFilters {
+  status?: string
+  role?: string
+  sort?: string
+}
+
+export async function listUsers(
+  token: string, page = 1, pageSize = 50, filters: ListUsersFilters = {}
+): Promise<{ data: any[], meta?: { totalPages?: number, [key: string]: unknown } }> {
+  const res = await axios.get(BASE, { params: { page, pageSize, ...filters }, headers: authHeader(token) })
   return res.data
+}
+
+export async function getUser(uuid: string, token: string): Promise<any> {
+  const res = await axios.get(`${BASE}/${uuid}`, { headers: authHeader(token) })
+  return res.data.data
+}
+
+export interface UserReservationEntry {
+  conferenceUuid: string
+  conferenceName?: string | null
+  friendlyId?: string | null
+  status: string
+  createdAt: string
+  certificateDownloaded: boolean
+}
+
+export async function getUserReservations(uuid: string, token: string): Promise<UserReservationEntry[]> {
+  const res = await axios.get(`${BASE}/${uuid}/reservations`, { headers: authHeader(token) })
+  return res.data.data
 }
 
 export async function updateUser(uuid: string, { displayName, email, phone, roles, firstName, lastName }: AdminUserUpdate, token: string): Promise<unknown> {

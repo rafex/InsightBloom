@@ -585,7 +585,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             final var result = generateCertificateUseCase.execute(conferenceId, v.subjectUuid(), token);
-            recordDownloadUseCase.execute(conferenceId, "certificate");
+            recordDownloadUseCase.execute(conferenceId, "certificate", v.subjectUuid());
             jx.response().setStatus(200);
             jx.response().getHeaders().put("Content-Type", "application/pdf");
             jx.response().getHeaders().put("Content-Disposition", "attachment; filename=\"" + result.fileName() + "\"");

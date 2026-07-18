@@ -7,6 +7,7 @@ import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.contracts.ApiMeta;
 import dev.rafex.insightbloom.users.application.usecases.AdminUpdateUserUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListUsersUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ListUserReservationsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetUserStatusUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.domain.model.User;
@@ -25,25 +26,32 @@ public class AdminUserHandler extends BaseResourceHandler {
     private final AdminUpdateUserUseCase adminUpdateUserUseCase;
     private final SetUserStatusUseCase setUserStatusUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
+    private final dev.rafex.insightbloom.users.domain.ports.UserRepository userRepository;
+    private final ListUserReservationsUseCase listUserReservationsUseCase;
 
     public AdminUserHandler(final ListUsersUseCase listUsersUseCase,
                              final AdminUpdateUserUseCase adminUpdateUserUseCase,
                              final SetUserStatusUseCase setUserStatusUseCase,
-                             final ValidateTokenUseCase validateTokenUseCase) {
+                             final ValidateTokenUseCase validateTokenUseCase,
+                             final dev.rafex.insightbloom.users.domain.ports.UserRepository userRepository,
+                             final ListUserReservationsUseCase listUserReservationsUseCase) {
         this.listUsersUseCase = listUsersUseCase;
         this.adminUpdateUserUseCase = adminUpdateUserUseCase;
         this.setUserStatusUseCase = setUserStatusUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
+        this.userRepository = userRepository;
+        this.listUserReservationsUseCase = listUserReservationsUseCase;
     }
 
     public record UserView(String uuid, String username, String displayName, String email, String phone,
                             String roles, String status, String firstName, String lastName,
-                            boolean emailVerified, boolean phoneVerified, String createdAt) {}
+                            boolean emailVerified, boolean phoneVerified, String createdAt, String lastLoginAt) {}
 
     private static UserView toView(final User u) {
         return new UserView(u.getUuid(), u.getUsername(), u.getDisplayName(), u.getEmail(), u.getPhone(),
                 UserRole.toCsv(u.getRoles()).toUpperCase(), u.getStatus().name(), u.getFirstName(), u.getLastName(),
-                u.isEmailVerified(), u.isPhoneVerified(), u.getCreatedAt().toString());
+                u.isEmailVerified(), u.isPhoneVerified(), u.getCreatedAt().toString(),
+                u.getLastLoginAt() != null ? u.getLastLoginAt().toString() : null);
     }
 
     @Override
@@ -55,7 +63,8 @@ public class AdminUserHandler extends BaseResourceHandler {
     protected List<Route> routes() {
         return List.of(
                 Route.of("/", Set.of("GET")),
-                Route.of("/{uuid}", Set.of("PUT")),
+                Route.of("/{uuid}", Set.of("GET", "PUT")),
+                Route.of("/{uuid}/reservations", Set.of("GET")),
                 Route.of("/{uuid}/ban", Set.of("POST")),
                 Route.of("/{uuid}/unban", Set.of("POST")),
                 Route.of("/{uuid}/delete", Set.of("POST")));
@@ -70,12 +79,41 @@ public class AdminUserHandler extends BaseResourceHandler {
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
         if (!requireAdmin(jx)) return true;
+        final String uuid = jx.pathParam("uuid");
+        if (uuid != null) {
+            if (jx.path().endsWith("/reservations")) {
+                return handleGetReservations(jx, uuid);
+            }
+            return handleGetOne(jx, uuid);
+        }
         try {
             final int page = parseIntParam(queryParam(jx, "page"), 1);
             final int pageSize = parseIntParam(queryParam(jx, "pageSize"), 50);
-            final var result = listUsersUseCase.execute(page, pageSize);
+            final UserStatus status = parseEnumParam(UserStatus.class, queryParam(jx, "status"));
+            final UserRole role = parseEnumParam(UserRole.class, queryParam(jx, "role"));
+            final String sort = queryParam(jx, "sort");
+            final var result = listUsersUseCase.execute(page, pageSize, status, role, sort);
             final List<UserView> items = result.items().stream().map(AdminUserHandler::toView).toList();
             sendOk(jx, 200, items, ApiMeta.paged(UUID.randomUUID().toString(), result.page(), result.pageSize(), result.total()));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleGetOne(final JettyHttpExchange jx, final String uuid) {
+        final var user = userRepository.findByUuid(uuid);
+        if (user.isPresent()) {
+            sendOk(jx, toView(user.get()));
+        } else {
+            sendError(jx, 404, "not_found", "User not found");
+        }
+        return true;
+    }
+
+    private boolean handleGetReservations(final JettyHttpExchange jx, final String uuid) {
+        try {
+            sendOk(jx, 200, listUserReservationsUseCase.execute(uuid));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -149,5 +187,10 @@ public class AdminUserHandler extends BaseResourceHandler {
     private static int parseIntParam(final String value, final int defaultValue) {
         if (value == null) return defaultValue;
         try { return Integer.parseInt(value); } catch (final NumberFormatException e) { return defaultValue; }
+    }
+
+    private static <E extends Enum<E>> E parseEnumParam(final Class<E> enumType, final String value) {
+        if (value == null || value.isBlank()) return null;
+        try { return Enum.valueOf(enumType, value.toUpperCase()); } catch (final IllegalArgumentException e) { return null; }
     }
 }
