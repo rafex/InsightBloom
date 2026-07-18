@@ -49,6 +49,12 @@
       p.field-hint Determina qué herramientas están disponibles (boletos, encuestas, videollamada...). Se puede cambiar después.
 
     .form-group
+      label Aforo máximo
+      input(v-model.number="capacity" type="number" min="1" placeholder="10")
+      p.field-hint Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), incluso si es virtual — la infraestructura tiene recursos limitados. Recomendado hasta {{ recommendedMaxCapacity }}. Se puede cambiar después.
+      p.capacity-alert(v-if="capacityAlert" :class="capacityAlert.level") {{ capacityAlert.text }}
+
+    .form-group
       label Sede (opcional)
       input(v-model="venue" type="text" placeholder="Auditorio, ciudad...")
 
@@ -111,6 +117,7 @@ import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventType } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import { capacityWarning, DEFAULT_CAPACITY, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 
 type ExpiryMode = 'none' | '1h' | '2h' | '4h' | '1d' | 'custom'
 
@@ -144,6 +151,9 @@ export default {
     const timezoneId = ref<number | null>(null)
     const eventTypes = ref<EventType[]>([])
     const eventTypeKey = ref('conference')
+    const capacity = ref<number | null>(DEFAULT_CAPACITY)
+    const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
+    const capacityAlert = computed(() => capacityWarning(capacity.value))
     const auth       = useAuthStore()
 
     onMounted(async () => {
@@ -181,7 +191,7 @@ export default {
         const lng = (longitude.value != null && !isNaN(longitude.value)) ? longitude.value : null
         created.value = await createConference(name.value.trim(), expiresAt, auth.state.token as string, lat, lng,
           eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null,
-          displayName.value.trim() || null, timezoneId.value, eventTypeKey.value)
+          displayName.value.trim() || null, timezoneId.value, eventTypeKey.value, capacity.value)
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Error al crear el evento'
       } finally { loading.value = false }
@@ -195,10 +205,12 @@ export default {
       name.value = ''; displayName.value = ''; created.value = null; expiryMode.value = 'none';
       customDate.value = ''; latitude.value = null; longitude.value = null
       eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
+      capacity.value = DEFAULT_CAPACITY
     }
 
     return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
              eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey,
+             capacity, recommendedMaxCapacity, capacityAlert,
              expiryOptions: EXPIRY_OPTIONS, setExpiryMode, create, formatDate, reset }
   }
 }
@@ -230,6 +242,11 @@ input:focus { outline: none; border-color: #4f46e5; }
 .coord-hint { margin: 6px 0 0; font-size: 0.8rem; color: #9ca3af; }
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
 .map-preview { margin-bottom: 20px; border-radius: 12px; overflow: hidden; }
+
+.capacity-alert { margin: 6px 0 0; font-size: 0.82rem; font-weight: 600; padding: 6px 10px; border-radius: 6px; }
+.capacity-alert.warning { background: #fef3c7; color: #92400e; }
+.capacity-alert.risk { background: #ffedd5; color: #9a3412; }
+.capacity-alert.critical { background: #fee2e2; color: #991b1b; }
 
 .btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -361,8 +361,33 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_incidents_conference ON sandbox_incidents(conference_uuid)");
 
             backfillMissingTicketsForSimpleJoins(conn);
+            backfillMissingCapacity(conn);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
+        }
+    }
+
+    /**
+     * Todo evento declara un aforo, sin excepción para eventos NONE/virtuales (DEC 2026-07-18):
+     * la infraestructura tiene recursos finitos. Para conferencias que nunca tuvieron aforo
+     * (capacity IS NULL -- el caso de casi todas antes de este cambio), primero reconcilia
+     * reserved_count desde los boletos reales (el contador incremental nunca se usó fuera de
+     * GENERAL) y después fija capacity al mayor entre el default (10) y la gente ya inscripta,
+     * para no dejar eventos existentes por encima de su propio aforo apenas arranca el server.
+     * Idempotente -- una vez que capacity queda definido, no se vuelve a tocar.
+     */
+    private void backfillMissingCapacity(final Connection conn) throws SQLException {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("""
+                UPDATE conferences
+                SET reserved_count = (SELECT COUNT(*) FROM reservations r WHERE r.conference_uuid = conferences.uuid)
+                WHERE capacity IS NULL
+            """);
+            stmt.executeUpdate("""
+                UPDATE conferences
+                SET capacity = MAX(10, reserved_count)
+                WHERE capacity IS NULL
+            """);
         }
     }
 

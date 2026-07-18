@@ -56,7 +56,8 @@ export async function createConference(
   endTime?: string | null,
   displayName?: string | null,
   timezoneId?: number | null,
-  eventTypeKey?: string | null
+  eventTypeKey?: string | null,
+  capacity?: number | null
 ): Promise<Conference> {
   const body: Record<string, unknown> = { name }
   if (displayName) body.displayName = displayName
@@ -69,6 +70,7 @@ export async function createConference(
   if (endTime) body.endTime = endTime
   if (timezoneId != null) body.timezoneId = timezoneId
   if (eventTypeKey) body.eventTypeKey = eventTypeKey
+  if (capacity != null) body.capacity = capacity
   const res = await axios.post('/api/users/api/v1/conferences', body, authHeader(token))
   return res.data.data
 }

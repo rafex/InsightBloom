@@ -17,15 +17,9 @@ public class CancelReservationUseCase {
         final var reservation = reservationRepository.findByConferenceAndUser(conferenceUuid, userUuid);
         if (reservation.isEmpty()) return false;
         reservationRepository.delete(reservation.get().getUuid());
-        // El boleto sin asiento se emite tanto en modo GENERAL (cuenta contra el aforo) como en
-        // modo NONE (comprobante de acceso simple, sin aforo) -- solo GENERAL debe liberar cupo.
-        final boolean isGeneralAdmission = reservation.get().getSeatUuid() == null
-                && conferenceRepository.findByUuid(conferenceUuid)
-                        .map(c -> "GENERAL".equals(c.getSeatingMode()))
-                        .orElse(false);
-        if (isGeneralAdmission) {
-            conferenceRepository.decrementReservedCount(conferenceUuid);
-        }
+        // Todo boleto (GENERAL, NONE o SEATED) cuenta contra el aforo del evento desde el
+        // 2026-07-18 -- cancelar siempre libera el cupo, sin importar el modo.
+        conferenceRepository.decrementReservedCount(conferenceUuid);
         return true;
     }
 }

@@ -7,9 +7,15 @@ import dev.rafex.insightbloom.users.domain.ports.ReservationRepository;
 import java.util.Optional;
 import java.util.Set;
 
-/** Fija el modo de reserva de una conferencia (NONE, GENERAL o SEATED) y su aforo si aplica. */
+/**
+ * Fija el modo de reserva de una conferencia (NONE, GENERAL o SEATED) y su aforo. El aforo ya
+ * no es exclusivo de GENERAL -- aplica siempre (DEC 2026-07-18): la infraestructura tiene
+ * recursos finitos, así que todo evento declara cuánta gente va a tener acceso, sin excepción
+ * de "NONE = sin límite". Si no se manda un valor válido (&gt;=1), se usa el default (10).
+ */
 public class SetSeatingModeUseCase {
     private static final Set<String> VALID_MODES = Set.of("NONE", "GENERAL", "SEATED");
+    private static final int DEFAULT_CAPACITY = 10;
 
     private final ConferenceRepository conferenceRepository;
     private final ReservationRepository reservationRepository;
@@ -36,7 +42,7 @@ public class SetSeatingModeUseCase {
                         }
                     }
                     c.setSeatingMode(seatingMode);
-                    c.setCapacity("GENERAL".equals(seatingMode) ? capacity : null);
+                    c.setCapacity(capacity != null && capacity >= 1 ? capacity : DEFAULT_CAPACITY);
                     conferenceRepository.save(c);
                     return c;
                 });

@@ -11,6 +11,9 @@ import java.time.Instant;
 
 public class CreateConferenceUseCase {
     private static final String HOST_ROLE_KEY = "host";
+    // El servidor tiene recursos finitos -- todo evento declara un aforo desde que se crea,
+    // sin excepción para eventos virtuales (DEC 2026-07-18). 10 es el default conservador.
+    private static final int DEFAULT_CAPACITY = 10;
 
     private final ConferenceRepository conferenceRepository;
     private final FriendlyIdService friendlyIdService;
@@ -28,11 +31,11 @@ public class CreateConferenceUseCase {
     public record CreateRequest(String name, String displayName, String createdByUserUuid, String expiresAt,
                                 Double latitude, Double longitude,
                                 String eventDate, String venue, String startTime, String endTime,
-                                Integer timezoneId, String eventTypeKey) {}
+                                Integer timezoneId, String eventTypeKey, Integer capacity) {}
     public record CreateResult(String conferenceId, String friendlyId, String name, String status,
                                String expiresAt, Double latitude, Double longitude,
                                String eventDate, String venue, String startTime, String endTime,
-                               Integer timezoneId, String eventTypeKey) {}
+                               Integer timezoneId, String eventTypeKey, Integer capacity) {}
 
     public CreateResult execute(CreateRequest request) {
         String friendlyId = friendlyIdService.generate(request.name());
@@ -51,6 +54,8 @@ public class CreateConferenceUseCase {
         if (blankToNull(request.eventTypeKey()) != null) {
             conference.setEventTypeKey(request.eventTypeKey());
         }
+        conference.setCapacity(request.capacity() != null && request.capacity() >= 1
+                ? request.capacity() : DEFAULT_CAPACITY);
         conferenceRepository.save(conference);
         // El creador se vuelve Host automaticamente (FR-004, DEC-0021) — sin accion manual.
         eventRoleRepository.save(new EventRole(conference.getUuid(), request.createdByUserUuid(), HOST_ROLE_KEY));
@@ -61,7 +66,7 @@ public class CreateConferenceUseCase {
             conference.getLatitude(), conference.getLongitude(),
             conference.getEventDate(), conference.getVenue(),
             conference.getStartTime(), conference.getEndTime(),
-            conference.getTimezoneId(), conference.getEventTypeKey()
+            conference.getTimezoneId(), conference.getEventTypeKey(), conference.getCapacity()
         );
     }
 

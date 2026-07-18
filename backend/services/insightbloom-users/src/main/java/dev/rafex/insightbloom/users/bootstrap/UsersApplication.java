@@ -115,7 +115,7 @@ public class UsersApplication {
                 conferenceRepo, reservationRepo, venueSeatRepo, userRepo, emailPort, frontendBaseUrl);
         final var joinConferenceUseCase = new JoinConferenceUseCase(
                 getConferenceUseCase, membershipRepo, userRepo, emailPort, timezoneRepo,
-                reserveGeneralUseCase, reservationRepo, frontendBaseUrl);
+                reserveGeneralUseCase, frontendBaseUrl);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
         final var generateCertificateUseCase = new GenerateCertificateUseCase(
                 conferenceRepo, userRepo, surveyPort, certificateSettingsRepo);

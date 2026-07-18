@@ -6,7 +6,6 @@ import dev.rafex.insightbloom.users.domain.model.Reservation;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceMembershipRepository;
 import dev.rafex.insightbloom.users.domain.ports.EmailPort;
-import dev.rafex.insightbloom.users.domain.ports.ReservationRepository;
 import dev.rafex.insightbloom.users.domain.ports.TimezoneRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 
@@ -17,7 +16,6 @@ public class JoinConferenceUseCase {
     private final EmailPort emailPort;
     private final TimezoneRepository timezoneRepository;
     private final ReserveGeneralUseCase reserveGeneralUseCase;
-    private final ReservationRepository reservationRepository;
     private final String frontendBaseUrl;
 
     public JoinConferenceUseCase(final GetConferenceUseCase getConferenceUseCase,
@@ -26,7 +24,6 @@ public class JoinConferenceUseCase {
                                   final EmailPort emailPort,
                                   final TimezoneRepository timezoneRepository,
                                   final ReserveGeneralUseCase reserveGeneralUseCase,
-                                  final ReservationRepository reservationRepository,
                                   final String frontendBaseUrl) {
         this.getConferenceUseCase = getConferenceUseCase;
         this.membershipRepository = membershipRepository;
@@ -34,7 +31,6 @@ public class JoinConferenceUseCase {
         this.emailPort = emailPort;
         this.timezoneRepository = timezoneRepository;
         this.reserveGeneralUseCase = reserveGeneralUseCase;
-        this.reservationRepository = reservationRepository;
         this.frontendBaseUrl = frontendBaseUrl;
     }
 
@@ -46,22 +42,15 @@ public class JoinConferenceUseCase {
                 userUuid, conference.getUuid(), conference.getName(), conference.getFriendlyId()));
 
         Reservation reservation = null;
-        if (firstJoin) {
-            final String seatingMode = conference.getSeatingMode();
-            if ("GENERAL".equals(seatingMode)) {
-                try {
-                    reservation = reserveGeneralUseCase.execute(conference.getUuid(), userUuid);
-                } catch (final Exception e) {
-                    // si el aforo ya se llenó justo al unirse, el join igual procede sin boleto;
-                    // el asistente verá el estado real al abrir "Mi boleto".
-                }
-            } else if (!"SEATED".equals(seatingMode)) {
-                // Modo NONE (o cualquier otro no reconocido): boleto simple, sin control de
-                // aforo ni asiento -- es el comprobante de acceso a las herramientas del evento
-                // (IDE, encuestas, etc), no solo un registro de que "entró al chat".
-                // Modo SEATED no auto-reserva: el asistente debe elegir un asiento explícitamente.
-                reservation = new Reservation(conference.getUuid(), userUuid, null);
-                reservationRepository.save(reservation);
+        // Modo SEATED no auto-reserva: el asistente debe elegir un asiento explícitamente.
+        // GENERAL y NONE emiten boleto sin asiento, sujeto al aforo del evento (el aforo ya no es
+        // exclusivo de GENERAL -- el servidor tiene recursos finitos y todo evento lo declara).
+        if (firstJoin && !"SEATED".equals(conference.getSeatingMode())) {
+            try {
+                reservation = reserveGeneralUseCase.execute(conference.getUuid(), userUuid);
+            } catch (final Exception e) {
+                // si el aforo ya se llenó justo al unirse, el join igual procede sin boleto;
+                // el asistente verá el estado real al abrir "Mi boleto".
             }
         }
         if (firstJoin) {

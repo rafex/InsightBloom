@@ -46,10 +46,17 @@ public class ReserveSeatUseCase {
         final var existing = reservationRepository.findByConferenceAndUser(conferenceUuid, userUuid);
         if (existing.isPresent()) return existing.get();
 
+        // El aforo aplica también en modo SEATED (además de estar acotado por la cantidad de
+        // asientos definidos) -- la infraestructura tiene recursos finitos (DEC 2026-07-18).
+        if (!conferenceRepository.tryIncrementReservedCount(conferenceUuid)) {
+            throw new IllegalStateException("capacity_exceeded");
+        }
+
         final Reservation reservation = new Reservation(conferenceUuid, userUuid, seatUuid);
         try {
             reservationRepository.insertNew(reservation);
         } catch (final RuntimeException e) {
+            conferenceRepository.decrementReservedCount(conferenceUuid);
             final String message = e.getMessage() != null ? e.getMessage() : "";
             if (message.contains("UNIQUE constraint failed")) {
                 throw new IllegalStateException("seat_already_taken");

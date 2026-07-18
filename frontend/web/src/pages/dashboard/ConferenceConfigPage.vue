@@ -21,15 +21,17 @@
       p.error(v-if="eventTypeError") {{ eventTypeError }}
 
     .form-group.tickets-group
-      label Boletos
-      p.field-hint Elige cómo se registran los asistentes: sin control, con aforo, o con mapa de asientos.
+      label Boletos y aforo
+      p.field-hint Elige cómo se registran los asistentes: sin control (solo unirse), con aforo, o con mapa de asientos.
       select(v-model="seatingMode")
         option(value="NONE") Ninguno (solo unirse)
         option(value="GENERAL") Aforo (cupo limitado, sin asiento)
         option(value="SEATED") Con asientos (mapa del recinto)
-      .coord-field(v-if="seatingMode === 'GENERAL'")
+      .coord-field
         span.coord-label Aforo máximo
-        input(v-model.number="capacity" type="number" min="1" placeholder="100")
+        input(v-model.number="capacity" type="number" min="1" placeholder="10")
+      p.field-hint Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), sin importar el modo de boletos elegido — la infraestructura tiene recursos limitados. Recomendado hasta {{ recommendedMaxCapacity }}.
+      p.capacity-alert(v-if="capacityAlert" :class="capacityAlert.level") {{ capacityAlert.text }}
       button.btn-outline(type="button" @click="saveSeating" :disabled="savingSeating")
         span(v-if="savingSeating") Guardando...
         span(v-else) Guardar configuración de boletos
@@ -151,6 +153,7 @@ import {
 } from '@/services/api/usersApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 
 export default {
   name: 'ConferenceConfigPage',
@@ -163,6 +166,8 @@ export default {
 
     const seatingMode  = ref<SeatingMode>('NONE')
     const capacity     = ref<number | null>(null)
+    const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
+    const capacityAlert = computed(() => capacityWarning(capacity.value))
     const savingSeating = ref(false)
     const seatingSaved  = ref(false)
     const seatingError  = ref('')
@@ -286,8 +291,7 @@ export default {
       savingSeating.value = true; seatingError.value = ''; seatingSaved.value = false
       try {
         conference.value = await setSeatingMode(
-          props.conferenceId as string, seatingMode.value,
-          seatingMode.value === 'GENERAL' ? capacity.value : null,
+          props.conferenceId as string, seatingMode.value, capacity.value,
           auth.state.token as string
         )
         seatingSaved.value = true
@@ -375,7 +379,7 @@ export default {
     }
 
     return { conference, loading, error,
-             seatingMode, capacity, savingSeating, seatingSaved, seatingError, saveSeating,
+             seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
              sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb,
              sandboxSeatsPerPod, sandboxInternetEnabled,
@@ -416,6 +420,11 @@ input:focus { outline: none; border-color: #4f46e5; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .coord-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
 .ticket-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+.capacity-alert { margin: 6px 0 0; font-size: 0.82rem; font-weight: 600; padding: 6px 10px; border-radius: 6px; }
+.capacity-alert.warning { background: #fef3c7; color: #92400e; }
+.capacity-alert.risk { background: #ffedd5; color: #9a3412; }
+.capacity-alert.critical { background: #fee2e2; color: #991b1b; }
 
 .sandbox-status { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
 .sandbox-incidents { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; }

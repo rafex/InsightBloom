@@ -43,12 +43,32 @@ class ReserveSeatUseCaseTest {
         Mockito.when(conferenceRepo.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
         Mockito.when(venueSeatRepo.findByConference(conference.getUuid())).thenReturn(List.of(seat));
         Mockito.when(reservationRepo.findByConferenceAndUser(conference.getUuid(), "user-1")).thenReturn(Optional.empty());
+        Mockito.when(conferenceRepo.tryIncrementReservedCount(conference.getUuid())).thenReturn(true);
 
         final Reservation reservation = newUseCase(conferenceRepo, reservationRepo, venueSeatRepo)
                 .execute(conference.getUuid(), "user-1", seat.getUuid());
 
         assertEquals(seat.getUuid(), reservation.getSeatUuid());
         Mockito.verify(reservationRepo).insertNew(Mockito.any());
+    }
+
+    @Test
+    void execute_capacityFull_throwsCapacityExceeded() {
+        final ConferenceRepository conferenceRepo = Mockito.mock(ConferenceRepository.class);
+        final ReservationRepository reservationRepo = Mockito.mock(ReservationRepository.class);
+        final VenueSeatRepository venueSeatRepo = Mockito.mock(VenueSeatRepository.class);
+        final Conference conference = seatedConference();
+        final VenueSeat seat = new VenueSeat(conference.getUuid(), "A1", 0.5, 0.5);
+        Mockito.when(conferenceRepo.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        Mockito.when(venueSeatRepo.findByConference(conference.getUuid())).thenReturn(List.of(seat));
+        Mockito.when(reservationRepo.findByConferenceAndUser(conference.getUuid(), "user-5")).thenReturn(Optional.empty());
+        Mockito.when(conferenceRepo.tryIncrementReservedCount(conference.getUuid())).thenReturn(false);
+
+        final var useCase = newUseCase(conferenceRepo, reservationRepo, venueSeatRepo);
+        final var ex = assertThrows(IllegalStateException.class,
+                () -> useCase.execute(conference.getUuid(), "user-5", seat.getUuid()));
+        assertEquals("capacity_exceeded", ex.getMessage());
+        Mockito.verify(reservationRepo, Mockito.never()).insertNew(Mockito.any());
     }
 
     @Test
@@ -61,6 +81,7 @@ class ReserveSeatUseCaseTest {
         Mockito.when(conferenceRepo.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
         Mockito.when(venueSeatRepo.findByConference(conference.getUuid())).thenReturn(List.of(seat));
         Mockito.when(reservationRepo.findByConferenceAndUser(conference.getUuid(), "user-2")).thenReturn(Optional.empty());
+        Mockito.when(conferenceRepo.tryIncrementReservedCount(conference.getUuid())).thenReturn(true);
         Mockito.doThrow(new RuntimeException("[SQLITE_CONSTRAINT]  UNIQUE constraint failed: reservations.conference_uuid, reservations.seat_uuid"))
                 .when(reservationRepo).insertNew(Mockito.any());
 
@@ -68,6 +89,7 @@ class ReserveSeatUseCaseTest {
         final var ex = assertThrows(IllegalStateException.class,
                 () -> useCase.execute(conference.getUuid(), "user-2", seat.getUuid()));
         assertEquals("seat_already_taken", ex.getMessage());
+        Mockito.verify(conferenceRepo).decrementReservedCount(conference.getUuid());
     }
 
     @Test

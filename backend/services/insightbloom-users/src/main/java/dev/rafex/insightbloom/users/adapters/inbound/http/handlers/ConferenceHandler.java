@@ -408,12 +408,13 @@ public class ConferenceHandler extends BaseResourceHandler {
             final Double latitude = body.get("latitude") instanceof Number n ? n.doubleValue() : null;
             final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
             final Integer timezoneId = body.get("timezoneId") instanceof Number n ? n.intValue() : null;
+            final Integer capacity = body.get("capacity") instanceof Number n ? n.intValue() : null;
             final var result = createConferenceUseCase.execute(new CreateConferenceUseCase.CreateRequest(
                     (String) body.get("name"), (String) body.get("displayName"), v.subjectUuid(),
                     (String) body.get("expiresAt"),
                     latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue"),
                     (String) body.get("startTime"), (String) body.get("endTime"), timezoneId,
-                    (String) body.get("eventTypeKey")));
+                    (String) body.get("eventTypeKey"), capacity));
             sendOk(jx, 201, result);
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
