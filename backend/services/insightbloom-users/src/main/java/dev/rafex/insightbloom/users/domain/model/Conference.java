@@ -34,8 +34,16 @@ public class Conference {
     private String diagramXml; // ultimo XML guardado del diagrama de drawio, nullable
     private Instant diagramUpdatedAt; // nullable
     private Instant diagramPurgedAt; // marca cuándo se purgó el diagrama por TTL, nullable
+    // Vestigial (2026-07, pools Web/CLI independientes): ya no selecciona "la" variante -- las
+    // dos conviven siempre para toda conferencia con CODE_IDE habilitada, cada una con su propio
+    // pool (sandboxPoolSize=web, sandboxCliPoolSize=cli). Se deja la columna sin borrar (evita
+    // una migracion innecesaria) solo por compatibilidad de lectura de filas viejas.
     private String sandboxVariant; // python|java|web, solo si CODE_IDE habilitada, nullable
-    private Integer sandboxPoolSize; // tamaño del pool de sandboxes, nullable
+    private Integer sandboxPoolSize; // tamaño del pool "web" (code-server) de sandboxes, nullable
+    // Tamaño del pool "cli" (terminal-nvim, reusable/multi-asiento) -- independiente del pool
+    // "web" de arriba (ver AssignSandboxUseCase). Nullable, default efectivo 1 si no se
+    // configura (mismo patron que sandboxPoolSize).
+    private Integer sandboxCliPoolSize;
     private Integer sandboxInternetEnabled; // 0|1, por defecto 0
     private String sandboxExtraPackages; // paquetes adicionales a instalar, nullable
     private String sandboxRemoteGitUrl; // URL de remoto git del profesor, nullable
@@ -111,6 +119,7 @@ public class Conference {
     public String getName() { return name; }
     public String getCreatedByUserUuid() { return createdByUserUuid; }
     public ConferenceStatus getStatus() { return status; }
+    public void setStatus(final ConferenceStatus status) { this.status = status; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public Instant getExpiresAt() { return expiresAt; }
@@ -166,8 +175,10 @@ public class Conference {
     public String getSandboxRemoteGitUrl() { return sandboxRemoteGitUrl; }
     public Integer getSandboxJvmHeapMb() { return sandboxJvmHeapMb; }
     public Integer getSandboxSeatsPerPod() { return sandboxSeatsPerPod; }
+    public Integer getSandboxCliPoolSize() { return sandboxCliPoolSize; }
     public void setSandboxVariant(String sandboxVariant) { this.sandboxVariant = sandboxVariant; }
     public void setSandboxPoolSize(Integer sandboxPoolSize) { this.sandboxPoolSize = sandboxPoolSize; }
+    public void setSandboxCliPoolSize(Integer sandboxCliPoolSize) { this.sandboxCliPoolSize = sandboxCliPoolSize; }
     public void setSandboxInternetEnabled(Integer sandboxInternetEnabled) { this.sandboxInternetEnabled = sandboxInternetEnabled; }
     public void setSandboxExtraPackages(String sandboxExtraPackages) { this.sandboxExtraPackages = sandboxExtraPackages; }
     public void setSandboxRemoteGitUrl(String sandboxRemoteGitUrl) { this.sandboxRemoteGitUrl = sandboxRemoteGitUrl; }

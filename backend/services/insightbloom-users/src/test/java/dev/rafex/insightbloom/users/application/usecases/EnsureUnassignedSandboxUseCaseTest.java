@@ -32,26 +32,45 @@ class EnsureUnassignedSandboxUseCaseTest {
     }
 
     @Test
-    void testCreatesUnassignedPodWhenConferenceHasNone() {
+    void testCreatesUnassignedPodsForBothVariantsWhenConferenceHasNone() {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
 
         useCase.execute("conf-1");
 
         Mockito.verify(orchestratorMock).createSandbox(
-            Mockito.eq(Sandbox.podName("conf-1", 0)), Mockito.eq("conf-1"), Mockito.eq("python"),
+            Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_WEB, 0)), Mockito.eq("conf-1"), Mockito.eq("python"),
             Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
-        final var captor = org.mockito.ArgumentCaptor.forClass(Sandbox.class);
-        Mockito.verify(sandboxRepoMock).save(captor.capture());
-        assertNull(captor.getValue().getUserUuid());
-        assertNull(captor.getValue().getAssignedAt());
+        Mockito.verify(orchestratorMock).createSandbox(
+            Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_CLI, 0)), Mockito.eq("conf-1"), Mockito.eq("terminal-nvim"),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+        Mockito.verify(sandboxRepoMock, Mockito.times(2)).save(Mockito.any(Sandbox.class));
     }
 
     @Test
-    void testNoOpWhenConferenceAlreadyHasActiveSandbox() {
+    void testOnlyPreWarmsCliWhenWebAlreadyHasActiveSandbox() {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
         final var existing = new Sandbox("conf-1", 0, "user-a", java.time.Instant.now().plusSeconds(3600));
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(existing));
+
+        useCase.execute("conf-1");
+
+        Mockito.verify(orchestratorMock, Mockito.never()).createSandbox(
+            Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_WEB, 0)), Mockito.anyString(), Mockito.anyString(),
+            Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
+        Mockito.verify(orchestratorMock).createSandbox(
+            Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_CLI, 0)), Mockito.eq("conf-1"), Mockito.eq("terminal-nvim"),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+        Mockito.verify(sandboxRepoMock, Mockito.times(1)).save(Mockito.any());
+    }
+
+    @Test
+    void testNoOpWhenConferenceAlreadyHasActiveSandboxOfBothVariants() {
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        final var web = new Sandbox("conf-1", 0, "user-a", java.time.Instant.now().plusSeconds(3600));
+        final var cli = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_CLI, "user-b",
+                java.time.Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(web, cli));
 
         useCase.execute("conf-1");
 
@@ -79,7 +98,8 @@ class EnsureUnassignedSandboxUseCaseTest {
             .when(sandboxRepoMock).save(Mockito.any());
 
         assertDoesNotThrow(() -> useCase.execute("conf-1"));
-        Mockito.verify(orchestratorMock).deleteSandbox(Mockito.anyString());
+        // Una vez por variante (web + cli), cada una pierde su propia carrera de pre-warm.
+        Mockito.verify(orchestratorMock, Mockito.times(2)).deleteSandbox(Mockito.anyString());
     }
 
     @Test

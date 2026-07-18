@@ -4,6 +4,20 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class Sandbox {
+    /**
+     * Variantes de IDE (ver DECISIONS.md, pools independientes Web/CLI): un alumno tiene un
+     * solo sandbox activo a la vez, pero cada Pod pertenece a un pool ("web" o "cli") con su
+     * propio tamaño configurable (Conference.sandboxPoolSize / sandboxCliPoolSize) y su propia
+     * numeracion de sandboxSlot -- por eso variant forma parte del nombre del Pod (ver
+     * podName()), no solo un dato leido de Conference como antes. Estas constantes son del
+     * DOMINIO, deliberadamente distintas del sentinel IDE_MODE_TERMINAL_NVIM de
+     * KubernetesPodClient -- la traduccion "cli"->"terminal-nvim" ocurre en el limite
+     * AssignSandboxUseCase -> SandboxOrchestrator, sin acoplar este modelo al detalle de que
+     * imagen/modo usa cada orquestador.
+     */
+    public static final String VARIANT_WEB = "web";
+    public static final String VARIANT_CLI = "cli";
+
     private final String uuid;
     private final String conferenceUuid;
     private final int sandboxSlot; // 0 a (pool_size - 1) -- identifica el POD, no el alumno
@@ -12,6 +26,7 @@ public class Sandbox {
     // asiento). En modo debian, o neovim con seatsPerPod == 1, siempre vale 0 -- comportamiento
     // identico al de antes de este campo (ver seatPort()).
     private final int seatIndex;
+    private final String variant; // VARIANT_WEB o VARIANT_CLI -- ver javadoc de la clase.
     private final String userUuid;
     private final Instant assignedAt;
     private final Instant createdAt;
@@ -22,38 +37,57 @@ public class Sandbox {
      * pre-provisionado (EnsureUnassignedSandboxUseCase) esperando a que alguien lo reclame —
      * en ese caso {@code assignedAt} queda nulo hasta el reclamo (ver
      * {@link dev.rafex.insightbloom.users.domain.ports.SandboxRepository#claim}).
+     *
+     * Overload legacy (sin variant explicito): asume {@link #VARIANT_WEB} -- mantiene los
+     * call-sites/tests existentes (todos predatan el pool de CLI) sin cambios.
      */
     public Sandbox(final String conferenceUuid, final int sandboxSlot, final String userUuid, final Instant expiresAt) {
-        this(conferenceUuid, sandboxSlot, 0, userUuid, expiresAt);
+        this(conferenceUuid, sandboxSlot, 0, VARIANT_WEB, userUuid, expiresAt);
     }
 
-    /** Variante multi-asiento -- ver {@link #seatIndex}. */
+    /** Variante multi-asiento -- ver {@link #seatIndex}. Overload legacy, asume {@link #VARIANT_WEB}. */
     public Sandbox(final String conferenceUuid, final int sandboxSlot, final int seatIndex,
+                    final String userUuid, final Instant expiresAt) {
+        this(conferenceUuid, sandboxSlot, seatIndex, VARIANT_WEB, userUuid, expiresAt);
+    }
+
+    /** Overload completo -- variant explicito, usado por AssignSandboxUseCase al crear un sandbox nuevo. */
+    public Sandbox(final String conferenceUuid, final int sandboxSlot, final int seatIndex, final String variant,
                     final String userUuid, final Instant expiresAt) {
         this.uuid = UUID.randomUUID().toString();
         this.conferenceUuid = conferenceUuid;
         this.sandboxSlot = sandboxSlot;
         this.seatIndex = seatIndex;
+        this.variant = variant;
         this.userUuid = userUuid;
         this.assignedAt = userUuid != null ? Instant.now() : null;
         this.createdAt = Instant.now();
         this.expiresAt = expiresAt;
     }
 
+    /** Overload legacy (sin variant explicito): asume {@link #VARIANT_WEB}. */
     public Sandbox(final String uuid, final String conferenceUuid, final int sandboxSlot,
                     final String userUuid, final Instant assignedAt,
                     final Instant createdAt, final Instant expiresAt) {
-        this(uuid, conferenceUuid, sandboxSlot, 0, userUuid, assignedAt, createdAt, expiresAt);
+        this(uuid, conferenceUuid, sandboxSlot, 0, VARIANT_WEB, userUuid, assignedAt, createdAt, expiresAt);
     }
 
-    /** Variante multi-asiento (reconstruccion desde persistencia) -- ver {@link #seatIndex}. */
+    /** Variante multi-asiento (reconstruccion desde persistencia) -- overload legacy, asume {@link #VARIANT_WEB}. */
     public Sandbox(final String uuid, final String conferenceUuid, final int sandboxSlot, final int seatIndex,
                     final String userUuid, final Instant assignedAt,
+                    final Instant createdAt, final Instant expiresAt) {
+        this(uuid, conferenceUuid, sandboxSlot, seatIndex, VARIANT_WEB, userUuid, assignedAt, createdAt, expiresAt);
+    }
+
+    /** Overload completo (reconstruccion desde persistencia) -- usado por SqliteSandboxRepository. */
+    public Sandbox(final String uuid, final String conferenceUuid, final int sandboxSlot, final int seatIndex,
+                    final String variant, final String userUuid, final Instant assignedAt,
                     final Instant createdAt, final Instant expiresAt) {
         this.uuid = uuid;
         this.conferenceUuid = conferenceUuid;
         this.sandboxSlot = sandboxSlot;
         this.seatIndex = seatIndex;
+        this.variant = variant;
         this.userUuid = userUuid;
         this.assignedAt = assignedAt;
         this.createdAt = createdAt;
@@ -64,6 +98,7 @@ public class Sandbox {
     public String getConferenceUuid() { return conferenceUuid; }
     public int getSandboxSlot() { return sandboxSlot; }
     public int getSeatIndex() { return seatIndex; }
+    public String getVariant() { return variant; }
     public String getUserUuid() { return userUuid; }
     public Instant getAssignedAt() { return assignedAt; }
     public Instant getCreatedAt() { return createdAt; }
@@ -71,7 +106,7 @@ public class Sandbox {
 
     /** Nombre determinístico del recurso K8s (Pod+Service) — no se persiste, se recalcula siempre. */
     public String podName() {
-        return podName(conferenceUuid, sandboxSlot);
+        return podName(conferenceUuid, variant, sandboxSlot);
     }
 
     /**
@@ -83,8 +118,8 @@ public class Sandbox {
         return basePort + seatIndex;
     }
 
-    public static String podName(final String conferenceUuid, final int sandboxSlot) {
-        return "sandbox-" + conferenceLabel(conferenceUuid) + "-" + sandboxSlot;
+    public static String podName(final String conferenceUuid, final String variant, final int sandboxSlot) {
+        return "sandbox-" + conferenceLabel(conferenceUuid) + "-" + variant + "-" + sandboxSlot;
     }
 
     /**

@@ -32,6 +32,14 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        // El chunk principal de monaco-editor (visor de archivos del moderador, carga lazy
+        // via import() dinamico -- ver WorkspaceFileEditor.vue) pesa ~3.3MB, por encima del
+        // limite por-archivo de precacheo de workbox (2MiB) -- precachearlo en el service
+        // worker forzaria a bajarlo en la instalacion inicial de la app para TODO usuario,
+        // exactamente lo que la carga lazy busca evitar (la mayoria nunca abre el editor). Se
+        // excluye del precache; sigue funcionando igual via fetch normal (cache HTTP del
+        // navegador) la primera vez que un moderador realmente lo abre.
+        globIgnores: ['**/editor.main-*.js'],
         runtimeCaching: [
           {
             // Slides de una presentación + sus assets estáticos (css/imágenes del

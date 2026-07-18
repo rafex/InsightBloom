@@ -126,7 +126,9 @@ public class UsersApplication {
         final var countAttendeesUseCase = new CountAttendeesUseCase(guestRepo);
         final var countRegisteredAttendeesUseCase = new CountRegisteredAttendeesUseCase(membershipRepo);
         final var countUniqueRegisteredAttendeesUseCase = new CountUniqueRegisteredAttendeesUseCase(conferenceRepo, membershipRepo);
+        final var countActiveRegisteredAttendeesUseCase = new CountActiveRegisteredAttendeesUseCase(conferenceRepo, membershipRepo);
         final var updateConferenceUseCase = new UpdateConferenceUseCase(conferenceRepo);
+        final var setConferenceActiveUseCase = new SetConferenceActiveUseCase(conferenceRepo);
         final var recordDownloadUseCase = new RecordDownloadUseCase(downloadEventRepo);
         final var getDownloadCountsUseCase = new GetDownloadCountsUseCase(downloadEventRepo);
         final var listUsersUseCase = new ListUsersUseCase(userRepo);
@@ -217,6 +219,7 @@ public class UsersApplication {
                 Long.parseLong(System.getenv().getOrDefault("SANDBOX_TTL_SECONDS_AFTER_EVENT_EXPIRY", "3600"));
         final var assignSandboxUseCase = new AssignSandboxUseCase(
                 sandboxRepo, conferenceRepo, sandboxOrchestrator, sandboxTtlSecondsAfterEventExpiry);
+        final var getSandboxAvailabilityUseCase = new GetSandboxAvailabilityUseCase(conferenceRepo, sandboxRepo);
         final var ensureUnassignedSandboxUseCase = new EnsureUnassignedSandboxUseCase(
                 sandboxRepo, conferenceRepo, sandboxOrchestrator, sandboxTtlSecondsAfterEventExpiry);
         final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, gatewayBaseUrl);
@@ -228,6 +231,10 @@ public class UsersApplication {
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PORT", "8080")));
         final var recordSandboxIncidentUseCase = new dev.rafex.insightbloom.users.application.usecases.RecordSandboxIncidentUseCase(sandboxIncidentRepo);
         final var listSandboxIncidentsUseCase = new dev.rafex.insightbloom.users.application.usecases.ListSandboxIncidentsUseCase(sandboxIncidentRepo);
+        final var listSandboxStatusUseCase = new ListSandboxStatusUseCase(sandboxRepo, sandboxOrchestrator);
+        final var listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(sandboxRepo, sandboxOrchestrator);
+        final var readWorkspaceFileUseCase = new ReadWorkspaceFileUseCase(sandboxRepo, sandboxOrchestrator);
+        final var writeWorkspaceFileUseCase = new WriteWorkspaceFileUseCase(sandboxRepo, sandboxOrchestrator);
 
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
@@ -244,12 +251,16 @@ public class UsersApplication {
         final var setSandboxConfigUseCase = new SetSandboxConfigUseCase(
                 conferenceRepo, maxPoolSizePerEvent, maxJvmHeapMbDebian, maxJvmHeapMbNeovim);
         final var sandboxHandler = new SandboxHandler(
-                assignSandboxUseCase, validateTokenUseCase, generateWorkspaceDownloadUrlUseCase,
-                setSandboxConfigUseCase, sandboxOrchestrator, gatewayBaseUrl);
+                assignSandboxUseCase, getSandboxAvailabilityUseCase, validateTokenUseCase,
+                generateWorkspaceDownloadUrlUseCase, setSandboxConfigUseCase, sandboxOrchestrator,
+                conferenceRepo, eventCapabilityGuard, gatewayBaseUrl);
+        final var sandboxFilesHandler = new SandboxFilesHandler(
+                validateTokenUseCase, listWorkspaceFilesUseCase, readWorkspaceFileUseCase, writeWorkspaceFileUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,
                 countAttendeesUseCase, countRegisteredAttendeesUseCase, countUniqueRegisteredAttendeesUseCase,
-                updateConferenceUseCase,
+                countActiveRegisteredAttendeesUseCase,
+                updateConferenceUseCase, setConferenceActiveUseCase,
                 recordDownloadUseCase, getDownloadCountsUseCase,
                 setSeatingModeUseCase, reserveGeneralUseCase, getMyTicketUseCase, cancelReservationUseCase,
                 listReservationsUseCase, checkInTicketUseCase,
@@ -258,7 +269,7 @@ public class UsersApplication {
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
                 getEventDiagramUseCase, saveEventDiagramUseCase, generateJaasTokenUseCase, generateSeatLayoutUseCase,
                 setSandboxConfigUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
-                listSandboxIncidentsUseCase, sandboxHandler);
+                listSandboxIncidentsUseCase, listSandboxStatusUseCase, sandboxHandler, sandboxFilesHandler);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

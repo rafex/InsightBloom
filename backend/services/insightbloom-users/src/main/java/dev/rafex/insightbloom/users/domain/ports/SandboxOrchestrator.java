@@ -1,5 +1,10 @@
 package dev.rafex.insightbloom.users.domain.ports;
 
+import dev.rafex.insightbloom.users.domain.model.WorkspaceFileContent;
+import dev.rafex.insightbloom.users.domain.model.WorkspaceFileEntry;
+
+import java.util.List;
+
 /**
  * Provisión real del ambiente de un sandbox (Pod + Service de code-server). El nombre del
  * recurso (podName) es el identificador estable usado tanto para crear como para borrar/consultar
@@ -54,6 +59,30 @@ public interface SandboxOrchestrator {
      * Pod (todos los contenedores Ready) — false tambien si el Pod no existe.
      */
     boolean isReady(String podName);
+
+    /**
+     * Fase 4 (dashboard de moderador): arbol de archivos del workspace de UN asiento, via el
+     * agente HTTP en el puerto de control del Pod (mismo mecanismo que {@link #provisionSeat},
+     * ver sandbox-agent.py/sandbox-file-agent.py) -- {@code seatIndex} siempre 0 para Pods de un
+     * solo asiento (imagen debian, o neovim sin compartir). {@code path} relativo, "" = raiz del
+     * workspace.
+     */
+    List<WorkspaceFileEntry> listWorkspaceFiles(String podName, int seatIndex, String path);
+
+    /** Contenido de un archivo de texto (rechaza binarios/demasiado grandes, ver sandbox_file_api.py). */
+    WorkspaceFileContent readWorkspaceFile(String podName, int seatIndex, String path);
+
+    /**
+     * Escribe el contenido de un archivo. Si {@code expectedMtime} no es nulo y ya no coincide
+     * con el mtime real (el alumno edito el archivo desde que el moderador lo leyo), lanza
+     * {@code IllegalArgumentException("file_conflict")} en vez de pisarlo -- mismo idioma de
+     * excepcion por-mensaje que ya usa el resto de este puerto (ver createSandbox/
+     * kubernetes_not_configured). {@code expectedMtime} nulo = forzar (sin chequeo), usado por
+     * el flujo de "Guardar de todas formas" del organizador.
+     *
+     * @return el mtime nuevo despues de escribir.
+     */
+    double writeWorkspaceFile(String podName, int seatIndex, String path, String content, Double expectedMtime);
 
     /** Fase 3c: crea (si no existe) la NetworkPolicy que permite egress a internet para todos
      *  los sandboxes de un evento — idempotente. */

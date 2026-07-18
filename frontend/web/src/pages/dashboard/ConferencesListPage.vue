@@ -18,15 +18,29 @@
     table.conferences-table
       thead
         tr
+          th.qr-col(scope="col")
+            span.sr-only QR
           th Nombre
           th Tipo
           th ID amigable
           th Estado
           th Expira
           th Descargas
+          th Modos
           th Acciones
       tbody
         tr(v-for="c in conferences" :key="c.uuid || c.conferenceId")
+          td.qr-col(data-label="QR")
+            button.btn-icon(@click="qrTarget = c" title="Ver código QR")
+              svg(xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
+                rect(x="3" y="3" width="7" height="7")
+                rect(x="14" y="3" width="7" height="7")
+                rect(x="3" y="14" width="7" height="7")
+                line(x1="14" y1="14" x2="14" y2="17")
+                line(x1="14" y1="14" x2="17" y2="14")
+                line(x1="17" y1="17" x2="21" y2="17")
+                line(x1="21" y1="14" x2="21" y2="21")
+                line(x1="14" y1="21" x2="17" y2="21")
           td(data-label="Nombre") {{ c.name }}
           td(data-label="Tipo")
             span.type-badge {{ eventTypeName(c.eventTypeKey) }}
@@ -42,16 +56,22 @@
             span.downloads-text(v-if="downloadCounts[c.uuid || c.conferenceId]")
               | 🎓 {{ downloadCounts[c.uuid || c.conferenceId].certificate }} · 📄 {{ downloadCounts[c.uuid || c.conferenceId].presentation }}
             span(v-else) …
+          td(data-label="Modos")
+            .conf-modes
+              DropdownMenu(v-if="hasCapability(c, 'PRESENTATION') || hasCapability(c, 'SURVEY')" label="Presentador")
+                router-link(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
+                router-link(v-if="hasCapability(c, 'SURVEY')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
+              a.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :href="`/c/${c.friendlyId}/presentation`" target="_blank") 📺 Público
+              DropdownMenu(v-if="hasCapability(c, 'WORD_CLOUD')" label="Moderación")
+                router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/messages`") Mensajes
+                router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Palabras/Nube
+                router-link(v-if="hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit#sandbox-status`") Editor Monaco
           td.actions-cell(data-label="Acciones")
             .conf-actions
-              button.btn-highlight(@click="qrTarget = c") QR
+              router-link.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
+              button.btn-ghost(v-if="!c.expiresAt" @click="toggleActive(c)" :disabled="c._togglingActive")
+                | {{ c.status === 'ACTIVE' ? 'Desactivar' : 'Activar' }}
               router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editar
-              template(v-if="hasCapability(c, 'PRESENTATION')")
-                a.btn-highlight(:href="`/c/${c.friendlyId}/presentation`" target="_blank") 🔴 Live
-                router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
-                router-link.btn-highlight(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
-              router-link.btn-ghost(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Moderación
-              router-link.btn-ghost(v-if="hasCapability(c, 'SURVEY')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
               template(v-if="c.seatingMode && c.seatingMode !== 'NONE'")
                 router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/check-in`") Check-in
                 router-link.btn-ghost(v-if="c.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/venue-map`") Mapa de asientos
@@ -76,19 +96,22 @@
 
 <script lang="ts">
 import { ref, onMounted } from 'vue'
-import { getConferences, deleteConference, getDownloadCounts, getActiveEventTypes } from '@/services/api/usersApi'
+import { getConferences, deleteConference, getDownloadCounts, getActiveEventTypes, setConferenceActive } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import QrCodeModal from '@/components/QrCodeModal.vue'
+import DropdownMenu from '@/components/DropdownMenu.vue'
+import { isExpired } from '@/utils/dates'
 import type { Conference, DownloadCounts, EventType, EventCapability } from '@/services/api/types'
 
 interface ConferenceRow extends Conference {
   conferenceId?: string
   _deleting?: boolean
+  _togglingActive?: boolean
 }
 
 export default {
   name: 'ConferencesListPage',
-  components: { QrCodeModal },
+  components: { QrCodeModal, DropdownMenu },
   setup() {
     const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)
@@ -139,8 +162,6 @@ export default {
       }))
     }
 
-    function isExpired(iso: string | null | undefined): boolean { return !!iso && new Date(iso) < new Date() }
-
     function formatRelative(iso: string): string {
       const diff = new Date(iso).getTime() - new Date().getTime()
       const abs = Math.abs(diff)
@@ -153,6 +174,19 @@ export default {
       else if (hours < 24) str = `${hours}h`
       else str = `${days}d`
       return past ? `hace ${str}` : `en ${str}`
+    }
+
+    async function toggleActive(c: ConferenceRow) {
+      c._togglingActive = true
+      try {
+        const nextActive = c.status !== 'ACTIVE'
+        const updated = await setConferenceActive((c.uuid || c.conferenceId) as string, nextActive, auth.state.token as string)
+        c.status = updated.status
+      } catch (e: any) {
+        console.error('Error activando/desactivando conferencia', e)
+      } finally {
+        c._togglingActive = false
+      }
     }
 
     function confirmDelete(c: ConferenceRow) { deleteTarget.value = c }
@@ -173,7 +207,7 @@ export default {
 
     return {
       conferences, loading, deleteTarget, qrTarget, downloadCounts, isAdmin,
-      isExpired, formatRelative, confirmDelete, doDelete, eventTypeName, hasCapability
+      isExpired, formatRelative, confirmDelete, doDelete, eventTypeName, hasCapability, toggleActive
     }
   }
 }
@@ -199,6 +233,16 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 }
 .conferences-table td { padding: 12px 14px; border-top: 1px solid #f3f4f6; vertical-align: top; font-size: 0.9rem; }
 
+.qr-col { width: 40px; text-align: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  background: transparent; color: #4f46e5;
+  border: 1px solid #e5e7eb; border-radius: 8px;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-icon:hover { background: #eef2ff; border-color: #c7d2fe; }
 .friendly-id { font-size: 0.82rem; color: #6b7280; font-family: monospace; }
 .status-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; text-transform: uppercase; }
 .status-badge.ACTIVE { background: #d1fae5; color: #065f46; }
@@ -209,6 +253,7 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 .downloads-text { color: #6b7280; font-size: 0.85rem; white-space: nowrap; }
 
 .conf-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.conf-modes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
 .btn-primary { display: inline-block; padding: 8px 18px; background: #4f46e5; color: #fff; border-radius: 8px; text-decoration: none; font-size: 0.875rem; font-weight: 500; border: none; cursor: pointer; }
 .btn-primary:hover { background: #4338ca; }
@@ -216,15 +261,9 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 .btn-outline { display: inline-block; padding: 6px 12px; border: 1px solid #4f46e5; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 0.78rem; background: none; cursor: pointer; }
 .btn-outline:hover { background: #eef2ff; }
 
-.btn-ghost { display: inline-block; padding: 6px 12px; color: #6b7280; border: 1px solid #e5e7eb; border-radius: 8px; text-decoration: none; font-size: 0.78rem; }
+.btn-ghost { display: inline-block; padding: 6px 12px; color: #6b7280; border: 1px solid #e5e7eb; border-radius: 8px; text-decoration: none; font-size: 0.78rem; background: none; font-family: inherit; cursor: pointer; }
 .btn-ghost:hover { background: #f3f4f6; color: #374151; }
-
-.btn-highlight {
-  display: inline-block; padding: 6px 14px; background: #4f46e5; color: #fff;
-  border: none; border-radius: 8px; text-decoration: none; font-size: 0.78rem;
-  font-weight: 600; cursor: pointer;
-}
-.btn-highlight:hover { background: #4338ca; }
+.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-trash {
   display: inline-flex; align-items: center; justify-content: center;

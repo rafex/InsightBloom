@@ -10,7 +10,7 @@ export type SeatingMode = 'NONE' | 'GENERAL' | 'SEATED'
 
 export type EventCapability =
   | 'TICKETING_GENERAL' | 'TICKETING_SEATED' | 'SURVEY' | 'PRESENTATION' | 'WORD_CLOUD'
-  | 'CHAT_BOT' | 'VIDEO_CONFERENCE' | 'WHITEBOARD' | 'DIAGRAMMING' | 'COLLAB_NOTES'
+  | 'CHAT_BOT' | 'VIDEO_CONFERENCE' | 'WHITEBOARD' | 'DIAGRAMMING' | 'COLLAB_NOTES' | 'CODE_IDE'
 
 export interface IntegrationConfig {
   drawioBaseUrl?: string | null
@@ -91,6 +91,7 @@ export interface Conference {
   sandboxRemoteGitUrl?: string | null
   sandboxJvmHeapMb?: number | null
   sandboxSeatsPerPod?: number | null
+  sandboxCliPoolSize?: number | null
   [key: string]: unknown
 }
 
@@ -177,14 +178,53 @@ export interface UserProfile {
 }
 
 export type SandboxStatus = 'PENDING' | 'READY'
+export type SandboxVariant = 'web' | 'cli'
 
 export interface SandboxInfo {
   sandboxUuid: string
   sandboxSlot: number
+  variant: SandboxVariant
   status: SandboxStatus
   gatewayUrl: string
   sandboxPath: string
   expiresInSeconds?: number
+}
+
+export interface SandboxVariantAvailability {
+  available: boolean
+  activeCount: number
+  capacity: number
+}
+
+export interface SandboxAvailability {
+  web: SandboxVariantAvailability
+  cli: SandboxVariantAvailability
+}
+
+export interface SandboxStatusSeat {
+  seatIndex: number
+  userUuid: string | null
+  assignedAt: string | null
+}
+
+export interface SandboxStatusEntry {
+  podName: string
+  variant: SandboxVariant
+  phase: string
+  ready: boolean
+  seats: SandboxStatusSeat[]
+}
+
+export interface WorkspaceFileEntry {
+  path: string
+  isDirectory: boolean
+  mtime: number
+  sizeBytes: number
+}
+
+export interface WorkspaceFileContent {
+  content: string
+  mtime: number
 }
 
 export interface WorkspaceDownloadInfo {

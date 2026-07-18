@@ -2,25 +2,34 @@
 .dashboard-home(v-if="isOrganizer" id="onboarding-dashboard-home")
   .dashboard-header
     h1 Dashboard
-    router-link.btn-primary(to="/dashboard/conferences/new" id="onboarding-new-conference") + Nueva conferencia
 
-  .summary-grid(v-if="!loading && conferences.length")
-    .summary-card
-      span.summary-icon 🎤
-      span.summary-value {{ conferences.length }}
-      span.summary-label Conferencias
-    .summary-card
-      span.summary-icon 👥
-      span.summary-value {{ summaryLoading ? '…' : summary.registeredAttendees }}
-      span.summary-label Usuarios registrados
-    .summary-card
-      span.summary-icon 📊
-      span.summary-value {{ summaryLoading ? '…' : summary.surveyResponses }}
-      span.summary-label Respuestas de encuesta
-    .summary-card
-      span.summary-icon 🖥️
-      span.summary-value {{ summaryLoading ? '…' : summary.activePresentations }}
-      span.summary-label Presentaciones activas
+  .summary-group(v-if="!loading && conferences.length" id="onboarding-events-summary")
+    h2 Eventos
+    .summary-grid
+      .summary-card
+        span.summary-icon 🟢
+        span.summary-value {{ eventStats.active }}
+        span.summary-label Activos
+      .summary-card
+        span.summary-icon 🎤
+        span.summary-value {{ eventStats.registered }}
+        span.summary-label Registrados
+      .summary-card
+        span.summary-icon ⏱️
+        span.summary-value {{ eventStats.expired }}
+        span.summary-label Expirados
+
+  .summary-group(v-if="!loading && conferences.length" id="onboarding-users-summary")
+    h2 Usuarios
+    .summary-grid
+      .summary-card
+        span.summary-icon 👥
+        span.summary-value {{ summaryLoading ? '…' : summary.registeredAttendees }}
+        span.summary-label Registrados
+      .summary-card
+        span.summary-icon ✅
+        span.summary-value {{ summaryLoading ? '…' : summary.activeAttendees }}
+        span.summary-label Activos
 
   .section(v-if="loading")
     .loading-text Cargando conferencias...
@@ -29,9 +38,6 @@
     .empty-state
       p Aún no tienes conferencias.
       router-link.btn-primary(to="/dashboard/conferences/new") Crear la primera
-
-  .section(v-else)
-    router-link.btn-secondary(to="/dashboard/conferences" id="onboarding-conferences-link") Ver todas tus conferencias →
 
   OnboardingTour(storage-key="ib_onboarding_dashboard" :steps="organizerTourSteps")
 
@@ -62,17 +68,16 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
-import { getConferences, getConferenceHistory, getUniqueRegisteredAttendeesCount } from '@/services/api/usersApi'
+import { ref, computed, onMounted } from 'vue'
+import { getConferences, getConferenceHistory, getUniqueRegisteredAttendeesCount, getActiveRegisteredAttendeesCount } from '@/services/api/usersApi'
 import type { Conference, ConferenceHistoryEntry } from '@/services/api/types'
-import { getResults } from '@/services/api/surveyApi'
-import { getPresentationStatus } from '@/services/api/presentationsApi'
+import { isExpired } from '@/utils/dates'
 import { useAuthStore } from '@/features/auth/authStore'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 
 const ORGANIZER_TOUR_STEPS = [
-  { selector: '#onboarding-new-conference', text: 'Crea tu primera conferencia aquí — te toma menos de un minuto.' },
-  { selector: '#onboarding-conferences-link', text: 'Aquí ves todas tus conferencias en una tabla, con acceso directo a Presentación, Encuesta, Moderación y más.' }
+  { selector: '#onboarding-events-summary', text: 'Aquí ves cuántos eventos tienes activos, registrados y expirados. Para crear uno nuevo o ver el listado completo, usá el menú de la izquierda.' },
+  { selector: '#onboarding-users-summary', text: 'Aquí ves cuántos usuarios se registraron en tus eventos y cuántos están activos.' }
 ]
 
 export default {
@@ -85,32 +90,24 @@ export default {
     const loadingHistory = ref(true)
     const auth = useAuthStore()
     const isOrganizer = auth.isOrganizer()
-    const summary = ref({ registeredAttendees: 0, surveyResponses: 0, activePresentations: 0 })
+    const summary = ref({ registeredAttendees: 0, activeAttendees: 0 })
     const summaryLoading = ref(true)
     const organizerTourSteps = ORGANIZER_TOUR_STEPS
 
-    async function loadSummary(confs: Conference[], token: string) {
+    const eventStats = computed(() => ({
+      registered: conferences.value.length,
+      active: conferences.value.filter((c) => c.status === 'ACTIVE').length,
+      expired: conferences.value.filter((c) => isExpired(c.expiresAt)).length
+    }))
+
+    async function loadSummary(token: string) {
       summaryLoading.value = true
       try {
-        const [uniqueRegisteredAttendees, perConference] = await Promise.all([
+        const [registeredAttendees, activeAttendees] = await Promise.all([
           getUniqueRegisteredAttendeesCount(token).catch(() => 0),
-          Promise.all(confs.map(async (c) => {
-            const id = (c.uuid || (c as any).conferenceId) as string
-            const [results, presentation] = await Promise.all([
-              getResults(id, token).then((r) => r.data || []).catch(() => [] as any[]),
-              getPresentationStatus(id).catch(() => ({ ready: false }))
-            ])
-            return {
-              surveyResponses: results.reduce((sum: number, q: any) => sum + (q.responseCount || 0), 0),
-              active: !!presentation.ready
-            }
-          }))
+          getActiveRegisteredAttendeesCount(token).catch(() => 0)
         ])
-        summary.value = {
-          registeredAttendees: uniqueRegisteredAttendees,
-          surveyResponses: perConference.reduce((s, c) => s + c.surveyResponses, 0),
-          activePresentations: perConference.filter((c) => c.active).length
-        }
+        summary.value = { registeredAttendees, activeAttendees }
       } finally {
         summaryLoading.value = false
       }
@@ -122,7 +119,7 @@ export default {
         try {
           if (token) {
             conferences.value = await getConferences(token)
-            if (conferences.value.length) loadSummary(conferences.value, token)
+            if (conferences.value.length) loadSummary(token)
             else summaryLoading.value = false
           }
         } catch (e: any) {
@@ -148,7 +145,7 @@ export default {
 
     return {
       conferences, loading, isOrganizer, history, loadingHistory,
-      summary, summaryLoading, formatDate, organizerTourSteps
+      summary, summaryLoading, eventStats, formatDate, organizerTourSteps
     }
   }
 }

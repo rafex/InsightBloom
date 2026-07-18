@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
 import dev.rafex.insightbloom.users.application.usecases.EnsureUnassignedSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListSandboxIncidentsUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ListSandboxStatusUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxInternetUseCase;
 import dev.rafex.ether.http.core.HttpExchange;
@@ -13,6 +14,8 @@ import dev.rafex.insightbloom.users.application.usecases.CheckInTicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountRegisteredAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountUniqueRegisteredAttendeesUseCase;
+import dev.rafex.insightbloom.users.application.usecases.CountActiveRegisteredAttendeesUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetConferenceActiveUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.DefineVenueSeatsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseCase;
@@ -65,7 +68,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final CountAttendeesUseCase countAttendeesUseCase;
     private final CountRegisteredAttendeesUseCase countRegisteredAttendeesUseCase;
     private final CountUniqueRegisteredAttendeesUseCase countUniqueRegisteredAttendeesUseCase;
+    private final CountActiveRegisteredAttendeesUseCase countActiveRegisteredAttendeesUseCase;
     private final UpdateConferenceUseCase updateConferenceUseCase;
+    private final SetConferenceActiveUseCase setConferenceActiveUseCase;
     private final RecordDownloadUseCase recordDownloadUseCase;
     private final GetDownloadCountsUseCase getDownloadCountsUseCase;
     private final SetSeatingModeUseCase setSeatingModeUseCase;
@@ -92,7 +97,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SetSandboxInternetUseCase setSandboxInternetUseCase;
     private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
     private final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase;
+    private final ListSandboxStatusUseCase listSandboxStatusUseCase;
     private final SandboxHandler sandboxHandler;
+    private final SandboxFilesHandler sandboxFilesHandler;
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -103,7 +110,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final CountAttendeesUseCase countAttendeesUseCase,
                              final CountRegisteredAttendeesUseCase countRegisteredAttendeesUseCase,
                              final CountUniqueRegisteredAttendeesUseCase countUniqueRegisteredAttendeesUseCase,
+                             final CountActiveRegisteredAttendeesUseCase countActiveRegisteredAttendeesUseCase,
                              final UpdateConferenceUseCase updateConferenceUseCase,
+                             final SetConferenceActiveUseCase setConferenceActiveUseCase,
                              final RecordDownloadUseCase recordDownloadUseCase,
                              final GetDownloadCountsUseCase getDownloadCountsUseCase,
                              final SetSeatingModeUseCase setSeatingModeUseCase,
@@ -130,7 +139,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final SetSandboxInternetUseCase setSandboxInternetUseCase,
                              final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
                              final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase,
-                             final SandboxHandler sandboxHandler) {
+                             final ListSandboxStatusUseCase listSandboxStatusUseCase,
+                             final SandboxHandler sandboxHandler,
+                             final SandboxFilesHandler sandboxFilesHandler) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -140,7 +151,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.countAttendeesUseCase = countAttendeesUseCase;
         this.countRegisteredAttendeesUseCase = countRegisteredAttendeesUseCase;
         this.countUniqueRegisteredAttendeesUseCase = countUniqueRegisteredAttendeesUseCase;
+        this.countActiveRegisteredAttendeesUseCase = countActiveRegisteredAttendeesUseCase;
         this.updateConferenceUseCase = updateConferenceUseCase;
+        this.setConferenceActiveUseCase = setConferenceActiveUseCase;
         this.recordDownloadUseCase = recordDownloadUseCase;
         this.getDownloadCountsUseCase = getDownloadCountsUseCase;
         this.setSeatingModeUseCase = setSeatingModeUseCase;
@@ -167,7 +180,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.setSandboxInternetUseCase = setSandboxInternetUseCase;
         this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
         this.listSandboxIncidentsUseCase = listSandboxIncidentsUseCase;
+        this.listSandboxStatusUseCase = listSandboxStatusUseCase;
         this.sandboxHandler = sandboxHandler;
+        this.sandboxFilesHandler = sandboxFilesHandler;
     }
 
     @Override
@@ -184,6 +199,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/join", Set.of("POST")),
                 Route.of("/history", Set.of("GET")),
                 Route.of("/attendees/registered-summary", Set.of("GET")),
+                Route.of("/attendees/active-summary", Set.of("GET")),
                 Route.of("/{id}/certificate", Set.of("GET")),
                 Route.of("/{id}/attendees/count", Set.of("GET")),
                 Route.of("/{id}/derive-name", Set.of("POST")),
@@ -191,13 +207,18 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/downloads/count", Set.of("GET")),
                 Route.of("/{id}/seating", Set.of("PUT")),
                 Route.of("/{id}/event-type", Set.of("PUT")),
+                Route.of("/{id}/active", Set.of("PUT")),
                 Route.of("/{id}/venue-map", Set.of("PUT")),
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/sandbox-config", Set.of("PUT")),
                 Route.of("/{id}/sandbox-internet", Set.of("PUT")),
                 Route.of("/{id}/sandbox-incidents", Set.of("GET")),
+                Route.of("/{id}/sandbox-status", Set.of("GET")),
                 Route.of("/{id}/sandbox", Set.of("GET")),
+                Route.of("/{id}/sandbox/availability", Set.of("GET")),
                 Route.of("/{id}/sandbox/download", Set.of("POST")),
+                Route.of("/{id}/sandbox/files", Set.of("GET")),
+                Route.of("/{id}/sandbox/file", Set.of("GET", "PUT")),
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
@@ -231,6 +252,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/attendees/registered-summary")) {
             return handleRegisteredAttendeesSummary(jx);
         }
+        if (path.endsWith("/attendees/active-summary")) {
+            return handleActiveAttendeesSummary(jx);
+        }
         if (path.endsWith("/certificate")) {
             return handleCertificate(jx, jx.pathParam("id"));
         }
@@ -263,6 +287,15 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/sandbox-incidents")) {
             return handleListSandboxIncidents(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/sandbox-status")) {
+            return handleListSandboxStatus(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/sandbox/availability")) {
+            return sandboxHandler.get(x);
+        }
+        if (path.endsWith("/sandbox/files") || path.endsWith("/sandbox/file")) {
+            return sandboxFilesHandler.get(x);
         }
         if (path.endsWith("/sandbox")) {
             return sandboxHandler.get(x);
@@ -325,11 +358,17 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/event-type")) {
             return handleSetEventType(jx, jx.pathParam("id"));
         }
+        if (jx.path().endsWith("/active")) {
+            return handleSetActive(jx, jx.pathParam("id"));
+        }
         if (jx.path().endsWith("/venue-map")) {
             return handleSetVenueMap(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/sandbox-config")) {
             return handleSetSandboxConfig(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/sandbox/file")) {
+            return sandboxFilesHandler.put(x);
         }
         if (jx.path().endsWith("/sandbox-internet")) {
             return handleSetSandboxInternet(jx, jx.pathParam("id"));
@@ -457,6 +496,23 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             sendOk(jx, Map.of("uniqueRegisteredAttendees", countUniqueRegisteredAttendeesUseCase.execute(v.subjectUuid())));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    /** Conteo de personas únicas registradas en alguna conferencia del organizador cuyo status es ACTIVE. */
+    private boolean handleActiveAttendeesSummary(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can view attendee counts");
+                return true;
+            }
+            sendOk(jx, Map.of("activeRegisteredAttendees", countActiveRegisteredAttendeesUseCase.execute(v.subjectUuid())));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -786,6 +842,30 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
+    private boolean handleSetActive(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can activate/deactivate a conference");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final boolean active = Boolean.TRUE.equals(body.get("active"));
+            final var updated = setConferenceActiveUseCase.execute(id, v.subjectUuid(), active);
+            if (updated.isPresent()) {
+                sendOk(jx, 200, updated.get());
+            } else {
+                sendError(jx, 404, "not_found",
+                        "Conference not found, not owned by you, or has an expiration date");
+            }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
     private boolean hasCapability(final String conferenceId, final EventCapability capability) {
         return getConferenceUseCase.byId(conferenceId)
                 .map(c -> eventCapabilityGuard.hasCapability(c, capability))
@@ -1018,8 +1098,10 @@ public class ConferenceHandler extends BaseResourceHandler {
             final String sandboxRemoteGitUrl = (String) body.get("sandboxRemoteGitUrl");
             final Integer sandboxJvmHeapMb = (Integer) body.get("sandboxJvmHeapMb");
             final Integer sandboxSeatsPerPod = (Integer) body.get("sandboxSeatsPerPod");
+            final Integer sandboxCliPoolSize = (Integer) body.get("sandboxCliPoolSize");
             final var result = setSandboxConfigUseCase.execute(id, sandboxVariant, sandboxPoolSize,
-                sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb, sandboxSeatsPerPod);
+                sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb, sandboxSeatsPerPod,
+                sandboxCliPoolSize);
             try {
                 // Best-effort: si falla (ej. Kubernetes no disponible), no debe tumbar el guardado
                 // de la config -- AssignSandboxUseCase sigue creando bajo demanda como fallback.
@@ -1051,6 +1133,24 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             sendOk(jx, 200, listSandboxIncidentsUseCase.execute(id));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    /** Dashboard de moderador: estado en vivo de los Pods de sandbox de la conferencia (fase,
+     *  ready, variante, quien ocupa cada asiento) -- ver ListSandboxStatusUseCase. */
+    private boolean handleListSandboxStatus(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can view sandbox status");
+                return true;
+            }
+            sendOk(jx, 200, listSandboxStatusUseCase.execute(id));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

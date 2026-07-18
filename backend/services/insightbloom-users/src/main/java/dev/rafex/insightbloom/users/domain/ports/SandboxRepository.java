@@ -28,5 +28,9 @@ public interface SandboxRepository {
 
     void deleteByConferenceUuid(String conferenceUuid);
 
+    /** Libera un sandbox puntual -- usado al cambiar de variante (un alumno tiene un solo
+     *  sandbox activo a la vez, ver AssignSandboxUseCase). */
+    void deleteByUuid(String uuid);
+
     int deleteExpired(Instant now);
 }

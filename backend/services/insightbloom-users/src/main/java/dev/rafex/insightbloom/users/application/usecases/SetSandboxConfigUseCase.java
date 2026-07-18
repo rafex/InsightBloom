@@ -4,8 +4,6 @@ import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 
 public class SetSandboxConfigUseCase {
-    /** Ver KubernetesPodClient.IDE_MODE_TERMINAL_NVIM -- mismo sentinel, mismo significado. */
-    private static final String IDE_MODE_TERMINAL_NVIM = "terminal-nvim";
     /**
      * Heap minimo aceptado (-Xmx en MB): pedido explicito del usuario ("no dejar JVMs libres,
      * deben ser mucho mas chicas, son para cursos"). Un heap absurdamente chico (ej. 16Mi) ni
@@ -42,7 +40,8 @@ public class SetSandboxConfigUseCase {
         String sandboxExtraPackages,
         String sandboxRemoteGitUrl,
         Integer sandboxJvmHeapMb,
-        Integer sandboxSeatsPerPod
+        Integer sandboxSeatsPerPod,
+        Integer sandboxCliPoolSize
     ) {
         var conf = conferenceRepository.findByUuid(conferenceUuid)
             .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
@@ -53,14 +52,24 @@ public class SetSandboxConfigUseCase {
         if (sandboxPoolSize != null && sandboxPoolSize > maxPoolSizePerEvent) {
             throw new IllegalArgumentException("pool_size_exceeds_platform_max");
         }
+        if (sandboxCliPoolSize != null && sandboxCliPoolSize <= 0) {
+            throw new IllegalArgumentException("cli_pool_size_must_be_positive");
+        }
+        if (sandboxCliPoolSize != null && sandboxCliPoolSize > maxPoolSizePerEvent) {
+            throw new IllegalArgumentException("cli_pool_size_exceeds_platform_max");
+        }
         if (sandboxJvmHeapMb != null) {
             // Techo real = el limite de memoria del contenedor de sandbox (SANDBOX_DEBIAN_
             // MEMORY_LIMIT/SANDBOX_NEOVIM_MEMORY_LIMIT en el chart de gitops, ver
             // UsersApplication) menos margen para el resto del proceso (code-server/extension
             // host, o ttyd+nvim) -- nunca puede pisar ese numero, o el contenedor entero se cae
             // por OOM apenas la JVM toca su -Xmx (el heap no es toda la memoria de la JVM: hay
-            // que dejarle espacio a metaspace/stacks/off-heap tambien, ver maxJvmHeapMb* abajo).
-            final int maxHeapMb = IDE_MODE_TERMINAL_NVIM.equals(sandboxVariant) ? maxJvmHeapMbNeovim : maxJvmHeapMbDebian;
+            // que dejarle espacio a metaspace/stacks/off-heap tambien). Pools Web/CLI
+            // independientes (2026-07): ya no hay "la" variante de la conferencia para elegir un
+            // techo -- ambas imagenes pueden terminar corriendo el mismo valor de heap, asi que
+            // se usa el MENOR de los dos techos (nunca excede el limite de memoria de NINGUNO de
+            // los dos contenedores posibles).
+            final int maxHeapMb = Math.min(maxJvmHeapMbDebian, maxJvmHeapMbNeovim);
             if (sandboxJvmHeapMb < MIN_JVM_HEAP_MB) {
                 throw new IllegalArgumentException("jvm_heap_too_small");
             }
@@ -79,6 +88,7 @@ public class SetSandboxConfigUseCase {
         conf.setSandboxRemoteGitUrl(sandboxRemoteGitUrl);
         conf.setSandboxJvmHeapMb(sandboxJvmHeapMb);
         conf.setSandboxSeatsPerPod(sandboxSeatsPerPod);
+        conf.setSandboxCliPoolSize(sandboxCliPoolSize);
 
         conferenceRepository.save(conf);
         return conf;

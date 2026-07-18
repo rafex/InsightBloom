@@ -75,7 +75,8 @@ const CAPABILITY_LABELS: Record<string, string> = {
   VIDEO_CONFERENCE: 'Videollamada',
   WHITEBOARD: 'Pizarra',
   DIAGRAMMING: 'Diagramas',
-  COLLAB_NOTES: 'Notas colaborativas'
+  COLLAB_NOTES: 'Notas colaborativas',
+  CODE_IDE: 'IDE'
 }
 
 export default {

@@ -4,7 +4,8 @@ import type {
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
   SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
-  ChatSettings, SandboxIncident
+  ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
+  WorkspaceFileEntry, WorkspaceFileContent
 } from './types'
 
 function authHeader(token?: string | null) {
@@ -30,6 +31,12 @@ export async function getRegisteredAttendeesCount(conferenceId: string, token: s
 export async function getUniqueRegisteredAttendeesCount(token: string): Promise<number> {
   const res = await axios.get('/api/users/api/v1/conferences/attendees/registered-summary', authHeader(token))
   return res.data.data.uniqueRegisteredAttendees
+}
+
+/** Igual que getUniqueRegisteredAttendeesCount, pero solo cuenta usuarios con status ACTIVE. */
+export async function getActiveRegisteredAttendeesCount(token: string): Promise<number> {
+  const res = await axios.get('/api/users/api/v1/conferences/attendees/active-summary', authHeader(token))
+  return res.data.data.activeRegisteredAttendees
 }
 
 export async function getDownloadCounts(conferenceId: string, token: string): Promise<DownloadCounts> {
@@ -167,10 +174,12 @@ export async function setSandboxConfig(
   sandboxRemoteGitUrl: string | null,
   sandboxJvmHeapMb: number | null,
   sandboxSeatsPerPod: number | null,
+  sandboxCliPoolSize: number | null,
   token: string
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/sandbox-config`,
-    { sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb, sandboxSeatsPerPod },
+    { sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb,
+      sandboxSeatsPerPod, sandboxCliPoolSize },
     authHeader(token))
   return res.data.data
 }
@@ -179,6 +188,39 @@ export async function listSandboxIncidents(
   conferenceId: string, token: string
 ): Promise<SandboxIncident[]> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox-incidents`, authHeader(token))
+  return res.data.data
+}
+
+export async function listSandboxStatus(
+  conferenceId: string, token: string
+): Promise<SandboxStatusEntry[]> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox-status`, authHeader(token))
+  return res.data.data
+}
+
+export async function listWorkspaceFiles(
+  conferenceId: string, userUuid: string, path: string, token: string
+): Promise<WorkspaceFileEntry[]> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox/files`,
+    { params: { userUuid, path }, ...authHeader(token) })
+  return res.data.data.entries
+}
+
+export async function readWorkspaceFile(
+  conferenceId: string, userUuid: string, path: string, token: string
+): Promise<WorkspaceFileContent> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox/file`,
+    { params: { userUuid, path }, ...authHeader(token) })
+  return res.data.data
+}
+
+export async function writeWorkspaceFile(
+  conferenceId: string, userUuid: string, path: string, content: string,
+  mtime: number | null, force: boolean, token: string
+): Promise<{ mtime: number }> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/sandbox/file`,
+    { content, mtime, force },
+    { params: { userUuid, path }, ...authHeader(token) })
   return res.data.data
 }
 
@@ -298,6 +340,12 @@ export async function setEventTypeActive(uuid: string, active: boolean, token: s
   return res.data.data
 }
 
+/** Activa/desactiva manualmente una conferencia. Solo aplica a conferencias sin expiresAt. */
+export async function setConferenceActive(uuid: string, active: boolean, token: string): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${uuid}/active`, { active }, authHeader(token))
+  return res.data.data
+}
+
 /** URLs publicas de las integraciones self-hosted configuradas (drawio, etc.), sin credenciales. */
 export async function getIntegrationConfig(): Promise<IntegrationConfig> {
   const res = await axios.get('/api/users/api/v1/integrations')
@@ -406,8 +454,19 @@ export async function removeEventRole(conferenceId: string, userUuid: string, to
   await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/roles/${userUuid}`, authHeader(token))
 }
 
-export async function getSandbox(conferenceId: string, token?: string | null): Promise<SandboxInfo> {
-  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox`, authHeader(token))
+export async function getSandbox(
+  conferenceId: string, token: string | null | undefined, variant: SandboxVariant
+): Promise<SandboxInfo> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox?variant=${variant}`,
+    authHeader(token))
+  return res.data.data
+}
+
+export async function getSandboxAvailability(
+  conferenceId: string, token?: string | null
+): Promise<SandboxAvailability> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox/availability`,
+    authHeader(token))
   return res.data.data
 }
 

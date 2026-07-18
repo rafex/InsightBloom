@@ -2,11 +2,14 @@ package dev.rafex.insightbloom.users.adapters.outbound.kubernetes;
 
 import dev.rafex.ether.json.JsonCodec;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
+import dev.rafex.insightbloom.users.domain.model.WorkspaceFileContent;
+import dev.rafex.insightbloom.users.domain.model.WorkspaceFileEntry;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -316,6 +319,79 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             }
         }
         throw lastFailure;
+    }
+
+    private String podControlUrl(final String podName) {
+        return "http://" + podName + "-svc." + namespace + ".svc.cluster.local:" + controlPort();
+    }
+
+    private static String urlEncode(final String value) {
+        return URLEncoder.encode(value != null ? value : "", StandardCharsets.UTF_8);
+    }
+
+    @Override
+    public List<WorkspaceFileEntry> listWorkspaceFiles(final String podName, final int seatIndex, final String path) {
+        requireEnabled();
+        final String url = podControlUrl(podName) + "/files/" + seatIndex + "?path=" + urlEncode(path);
+        final HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(15)).GET().build();
+        final HttpResponse<String> response = send(request);
+        if (response.statusCode() >= 300) {
+            throw new IllegalStateException("workspace_files_list_failed: " + response.statusCode() + " " + response.body());
+        }
+        final var node = jsonCodec.readTree(response.body());
+        final var entriesNode = jsonCodec.at(node, "/entries");
+        final List<WorkspaceFileEntry> entries = new ArrayList<>();
+        if (entriesNode.isArray()) {
+            for (final var e : entriesNode) {
+                entries.add(new WorkspaceFileEntry(
+                        e.path("path").asText(),
+                        e.path("isDirectory").asBoolean(),
+                        e.path("mtime").asDouble(),
+                        e.path("sizeBytes").asLong()));
+            }
+        }
+        return entries;
+    }
+
+    @Override
+    public WorkspaceFileContent readWorkspaceFile(final String podName, final int seatIndex, final String path) {
+        requireEnabled();
+        final String url = podControlUrl(podName) + "/file/" + seatIndex + "?path=" + urlEncode(path);
+        final HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(15)).GET().build();
+        final HttpResponse<String> response = send(request);
+        if (response.statusCode() == 404) {
+            throw new IllegalArgumentException("file_not_found");
+        }
+        if (response.statusCode() >= 300) {
+            throw new IllegalStateException("workspace_file_read_failed: " + response.statusCode() + " " + response.body());
+        }
+        final var node = jsonCodec.readTree(response.body());
+        return new WorkspaceFileContent(jsonCodec.at(node, "/content").asText(), jsonCodec.at(node, "/mtime").asDouble());
+    }
+
+    @Override
+    public double writeWorkspaceFile(final String podName, final int seatIndex, final String path,
+                                      final String content, final Double expectedMtime) {
+        requireEnabled();
+        final StringBuilder url = new StringBuilder(podControlUrl(podName))
+                .append("/file/").append(seatIndex).append("?path=").append(urlEncode(path));
+        if (expectedMtime != null) {
+            url.append("&mtime=").append(expectedMtime);
+        }
+        final HttpRequest request = HttpRequest.newBuilder(URI.create(url.toString()))
+                .timeout(Duration.ofSeconds(15))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .PUT(HttpRequest.BodyPublishers.ofString(content, StandardCharsets.UTF_8))
+                .build();
+        final HttpResponse<String> response = send(request);
+        if (response.statusCode() == 409) {
+            throw new IllegalArgumentException("file_conflict");
+        }
+        if (response.statusCode() >= 300) {
+            throw new IllegalStateException("workspace_file_write_failed: " + response.statusCode() + " " + response.body());
+        }
+        final var node = jsonCodec.readTree(response.body());
+        return jsonCodec.at(node, "/mtime").asDouble();
     }
 
     @Override

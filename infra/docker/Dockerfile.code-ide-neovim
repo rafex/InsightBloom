@@ -202,6 +202,7 @@ USER root
 RUN mkdir -p /etc/insightbloom
 COPY infra/docker/nvim-init.lua /etc/insightbloom/nvim-init.lua
 COPY infra/docker/sandbox-agent.py /usr/local/bin/sandbox-agent.py
+COPY infra/docker/sandbox_file_api.py /usr/local/bin/sandbox_file_api.py
 RUN chmod +x /usr/local/bin/sandbox-agent.py
 USER coder
 

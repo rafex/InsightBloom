@@ -260,7 +260,9 @@ USER root
 RUN mkdir -p /etc/insightbloom
 COPY infra/docker/code-ide-launch.json /etc/insightbloom/code-ide-launch.json
 COPY infra/docker/code-ide-entrypoint.sh /usr/local/bin/code-ide-entrypoint.sh
-RUN chmod +x /usr/local/bin/code-ide-entrypoint.sh
+COPY infra/docker/sandbox-file-agent.py /usr/local/bin/sandbox-file-agent.py
+COPY infra/docker/sandbox_file_api.py /usr/local/bin/sandbox_file_api.py
+RUN chmod +x /usr/local/bin/code-ide-entrypoint.sh /usr/local/bin/sandbox-file-agent.py
 USER coder
 
 # code-server escucha por defecto en puerto 8080 (sin seguridad propia -- se usa ib_token del gateway)

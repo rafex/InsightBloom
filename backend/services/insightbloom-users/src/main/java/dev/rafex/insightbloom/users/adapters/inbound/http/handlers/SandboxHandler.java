@@ -6,10 +6,14 @@ import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.AssignSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateWorkspaceDownloadUrlUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GetSandboxAvailabilityUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
+import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
+import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
+import dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard;
 
 import java.util.List;
 import java.util.Map;
@@ -17,24 +21,55 @@ import java.util.Set;
 
 public class SandboxHandler extends BaseResourceHandler {
     private final AssignSandboxUseCase assignSandboxUseCase;
+    private final GetSandboxAvailabilityUseCase getSandboxAvailabilityUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
     private final GenerateWorkspaceDownloadUrlUseCase generateWorkspaceDownloadUrlUseCase;
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
     private final SandboxOrchestrator sandboxOrchestrator;
+    private final ConferenceRepository conferenceRepository;
+    private final EventCapabilityGuard eventCapabilityGuard;
     private final String gatewayBaseUrl; // ej. "https://ide-insightbloom.v1.rafex.cloud"
 
     public SandboxHandler(final AssignSandboxUseCase assignSandboxUseCase,
+                         final GetSandboxAvailabilityUseCase getSandboxAvailabilityUseCase,
                          final ValidateTokenUseCase validateTokenUseCase,
                          final GenerateWorkspaceDownloadUrlUseCase generateWorkspaceDownloadUrlUseCase,
                          final SetSandboxConfigUseCase setSandboxConfigUseCase,
                          final SandboxOrchestrator sandboxOrchestrator,
+                         final ConferenceRepository conferenceRepository,
+                         final EventCapabilityGuard eventCapabilityGuard,
                          final String gatewayBaseUrl) {
         this.assignSandboxUseCase = assignSandboxUseCase;
+        this.getSandboxAvailabilityUseCase = getSandboxAvailabilityUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
         this.generateWorkspaceDownloadUrlUseCase = generateWorkspaceDownloadUrlUseCase;
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
         this.sandboxOrchestrator = sandboxOrchestrator;
+        this.conferenceRepository = conferenceRepository;
+        this.eventCapabilityGuard = eventCapabilityGuard;
         this.gatewayBaseUrl = gatewayBaseUrl;
+    }
+
+    /**
+     * Solo conferencias cuyo tipo de evento tiene la capacidad CODE_IDE ("IDE" en el Dashboard,
+     * ver EventTypesAdminPage.vue) pueden usar Web o CLI -- mismo patron 409
+     * "capability_not_available" que ya usan notas/diagramas/video en ConferenceHandler
+     * (ConferenceHandler.hasCapability), replicado aca porque SandboxHandler no comparte
+     * handler con esos otros gates.
+     *
+     * @return true si ya se envio una respuesta de error (404 o 409) y el caller debe cortar.
+     */
+    private boolean rejectIfCodeIdeNotAvailable(final JettyHttpExchange jx, final String conferenceId) {
+        final var conference = conferenceRepository.findByUuid(conferenceId);
+        if (conference.isEmpty()) {
+            sendError(jx, 404, "conference_not_found", "Conference not found");
+            return true;
+        }
+        if (!eventCapabilityGuard.hasCapability(conference.get(), EventCapability.CODE_IDE)) {
+            sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita el IDE");
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -46,6 +81,7 @@ public class SandboxHandler extends BaseResourceHandler {
     public List<Route> routes() {
         return List.of(
             Route.of("/{id}/sandbox", Set.of("GET")),
+            Route.of("/{id}/sandbox/availability", Set.of("GET")),
             Route.of("/{id}/sandbox/download", Set.of("POST")),
             Route.of("/{id}/sandbox/config", Set.of("PUT"))
         );
@@ -59,6 +95,9 @@ public class SandboxHandler extends BaseResourceHandler {
     @Override
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/sandbox/availability")) {
+            return handleGetAvailability(jx, jx.pathParam("id"));
+        }
         if (jx.path().endsWith("/sandbox")) {
             return handleGetSandbox(jx, jx.pathParam("id"));
         }
@@ -95,8 +134,14 @@ public class SandboxHandler extends BaseResourceHandler {
                 sendError(jx, 401, "token_invalid", "Invalid token");
                 return true;
             }
+            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) {
+                return true;
+            }
 
-            final Sandbox sandbox = assignSandboxUseCase.execute(conferenceId, v.subjectUuid());
+            // "web" es el default -- pedido explicito de una variante concreta desde el picker
+            // de IdePage.vue (ver AssignSandboxUseCase, Sandbox.VARIANT_WEB/VARIANT_CLI).
+            final String requestedVariant = queryParam(jx, "variant");
+            final Sandbox sandbox = assignSandboxUseCase.execute(conferenceId, v.subjectUuid(), requestedVariant);
 
             // El Pod pasa a fase "Running" en cuanto arrancan sus contenedores, sin esperar a que
             // pasen su readiness probe -- con el Pod de dos contenedores (ide+runtime) eso dejaba
@@ -107,6 +152,7 @@ public class SandboxHandler extends BaseResourceHandler {
             final Map<String, Object> response = Map.of(
                 "sandboxUuid", sandbox.getUuid(),
                 "sandboxSlot", sandbox.getSandboxSlot(),
+                "variant", sandbox.getVariant(),
                 "status", status,
                 "gatewayUrl", gatewayBaseUrl,
                 "sandboxPath", "/"
@@ -118,6 +164,48 @@ public class SandboxHandler extends BaseResourceHandler {
                 sendError(jx, 404, "conference_not_found", "Conference not found");
             } else if ("sandbox_pool_full".equals(e.getMessage())) {
                 sendError(jx, 409, "sandbox_pool_full", "Sandbox pool is full");
+            } else {
+                sendError(jx, 400, "invalid_request", e.getMessage());
+            }
+            return true;
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", "Internal server error");
+            return true;
+        }
+    }
+
+    private boolean handleGetAvailability(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) {
+                return true;
+            }
+
+            final var availability = getSandboxAvailabilityUseCase.execute(conferenceId);
+            final Map<String, Object> response = Map.of(
+                "web", Map.of(
+                    "available", availability.web().available(),
+                    "activeCount", availability.web().activeCount(),
+                    "capacity", availability.web().capacity()),
+                "cli", Map.of(
+                    "available", availability.cli().available(),
+                    "activeCount", availability.cli().activeCount(),
+                    "capacity", availability.cli().capacity())
+            );
+            sendOk(jx, 200, response);
+            return true;
+        } catch (final IllegalArgumentException e) {
+            if ("conference_not_found".equals(e.getMessage())) {
+                sendError(jx, 404, "conference_not_found", "Conference not found");
             } else {
                 sendError(jx, 400, "invalid_request", e.getMessage());
             }
@@ -188,6 +276,7 @@ public class SandboxHandler extends BaseResourceHandler {
             final String sandboxRemoteGitUrl = (String) body.get("sandboxRemoteGitUrl");
             final Integer sandboxJvmHeapMb = (Integer) body.get("sandboxJvmHeapMb");
             final Integer sandboxSeatsPerPod = (Integer) body.get("sandboxSeatsPerPod");
+            final Integer sandboxCliPoolSize = (Integer) body.get("sandboxCliPoolSize");
 
             final var updated = setSandboxConfigUseCase.execute(
                 conferenceId,
@@ -196,7 +285,8 @@ public class SandboxHandler extends BaseResourceHandler {
                 sandboxExtraPackages,
                 sandboxRemoteGitUrl,
                 sandboxJvmHeapMb,
-                sandboxSeatsPerPod
+                sandboxSeatsPerPod,
+                sandboxCliPoolSize
             );
 
             sendOk(jx, 200, updated);

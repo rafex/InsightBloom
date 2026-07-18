@@ -6,13 +6,39 @@
       p.subtitle Accede a tu ambiente de desarrollo asignado para este evento.
 
     .ide-status
-      div(v-if="loading" class="loading-spinner") Cargando sandbox...
+      div(v-if="loadingAvailability" class="loading-spinner") Cargando opciones...
+      template(v-else-if="!chosenVariant && !sandbox")
+        p.subtitle ¿Cómo querés trabajar en este evento?
+        .variant-picker
+          button.variant-btn(
+            type="button"
+            :class="{ active: chosenVariant === 'web' }"
+            :disabled="availability ? !availability.web.available : false"
+            @click="chooseVariant('web')"
+          )
+            span.variant-title 🖥️ Web
+            span.variant-desc code-server en el navegador, un asiento por alumno
+            span.variant-slots(v-if="availability") {{ availability.web.activeCount }}/{{ availability.web.capacity }} ocupados
+          button.variant-btn(
+            type="button"
+            :class="{ active: chosenVariant === 'cli' }"
+            :disabled="availability ? !availability.cli.available : false"
+            @click="chooseVariant('cli')"
+          )
+            span.variant-title ⌨️ CLI
+            span.variant-desc Terminal con vim/neovim, se reutiliza entre alumnos
+            span.variant-slots(v-if="availability") {{ availability.cli.activeCount }}/{{ availability.cli.capacity }} ocupados
+        p.hint(v-if="availability && !availability.web.available") Web está lleno -- solo queda disponible CLI.
+      div(v-else-if="loading" class="loading-spinner") Cargando sandbox...
       div(v-else-if="error" class="error-message") {{ error }}
       div(v-else-if="sandbox && sandbox.status === 'PENDING'" class="loading-spinner")
         p 🔧 Preparando tu ambiente de desarrollo...
         p.hint Esto puede tardar hasta un par de minutos la primera vez.
       template(v-else-if="sandbox")
         .sandbox-info
+          .info-row
+            .label Modo:
+            .value {{ sandbox.variant === 'cli' ? '⌨️ CLI' : '🖥️ Web' }}
           .info-row
             .label Sandbox UUID:
             .value {{ sandbox.sandboxUuid }}
@@ -31,6 +57,8 @@
             span(v-else) Descargando...
           button.btn-tertiary(@click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
             span {{ urlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
+          button.btn-tertiary(@click="switchVariant")
+            span 🔀 Cambiar de modo
 
       div(v-else class="no-sandbox")
         p ❌ No tienes un sandbox asignado en este evento.
@@ -39,8 +67,8 @@
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getSandbox, generateWorkspaceDownloadUrl } from '@/services/api/usersApi'
-import type { SandboxInfo } from '@/services/api/types'
+import { getSandbox, getSandboxAvailability, generateWorkspaceDownloadUrl } from '@/services/api/usersApi'
+import type { SandboxInfo, SandboxAvailability, SandboxVariant } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 const POLL_INTERVAL_MS = 3000
@@ -56,11 +84,14 @@ export default {
   },
   setup(props) {
     const sandbox = ref<SandboxInfo | null>(null)
-    const loading = ref(true)
+    const loading = ref(false)
     const error = ref('')
     const downloadingWorkspace = ref(false)
     const urlCopied = ref(false)
     const auth = useAuthStore()
+    const availability = ref<SandboxAvailability | null>(null)
+    const loadingAvailability = ref(true)
+    const chosenVariant = ref<SandboxVariant | null>(null)
     let pollTimer: ReturnType<typeof setTimeout> | null = null
     let pollDeadline = 0
 
@@ -86,16 +117,28 @@ export default {
       return `${sandbox.value.gatewayUrl}?${params.toString()}`
     })
 
+    async function loadAvailability() {
+      loadingAvailability.value = true
+      try {
+        availability.value = await getSandboxAvailability(props.conferenceId, auth.state.token)
+      } catch (e: any) {
+        error.value = e.response?.data?.error?.message || e.message || 'Error al consultar disponibilidad'
+      } finally {
+        loadingAvailability.value = false
+      }
+    }
+
     async function loadSandbox(isPoll = false) {
       if (!auth.state.token) {
         error.value = 'No autenticado'
         loading.value = false
         return
       }
+      if (!chosenVariant.value) return
 
       try {
         if (!isPoll) loading.value = true
-        sandbox.value = await getSandbox(props.conferenceId, auth.state.token)
+        sandbox.value = await getSandbox(props.conferenceId, auth.state.token, chosenVariant.value)
         if (sandbox.value?.status === 'PENDING') {
           schedulePoll()
         } else {
@@ -111,6 +154,22 @@ export default {
       } finally {
         loading.value = false
       }
+    }
+
+    function chooseVariant(variant: SandboxVariant) {
+      chosenVariant.value = variant
+      loadSandbox()
+    }
+
+    // Un alumno tiene un solo sandbox activo a la vez (ver AssignSandboxUseCase) -- volver al
+    // picker no borra nada todavia, recien se libera el sandbox previo cuando efectivamente se
+    // elige la otra variante (mismo GET /sandbox?variant=..., ahora con una distinta).
+    function switchVariant() {
+      stopPolling()
+      sandbox.value = null
+      chosenVariant.value = null
+      pollDeadline = 0
+      loadAvailability()
     }
 
     function schedulePoll() {
@@ -148,7 +207,7 @@ export default {
     }
 
     onMounted(() => {
-      loadSandbox()
+      loadAvailability()
     })
 
     onBeforeUnmount(() => {
@@ -157,6 +216,7 @@ export default {
 
     return {
       sandbox, loading, error, downloadingWorkspace, urlCopied,
+      availability, loadingAvailability, chosenVariant, chooseVariant, switchVariant,
       formattedExpiry, fullGatewayUrl, downloadWorkspace, copyGatewayUrl
     }
   }
@@ -196,6 +256,62 @@ export default {
 
 .ide-status {
   margin-top: 24px;
+}
+
+.variant-picker {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.variant-btn {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 16px 20px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.variant-btn:hover:not(:disabled) {
+  border-color: #a5b4fc;
+  background: #eef2ff;
+}
+
+.variant-btn.active {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  box-shadow: 0 0 0 1px #4f46e5;
+}
+
+.variant-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.variant-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+
+.variant-desc {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.variant-slots {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin-top: 4px;
 }
 
 .loading-spinner {

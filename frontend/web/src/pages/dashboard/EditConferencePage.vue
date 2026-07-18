@@ -84,19 +84,17 @@
 
     .form-group.sandbox-group
       label IDE de código
-      p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE de código" (solo aplica si el tipo de evento tiene esa capacidad). El ambiente incluye Java, Node.js y Python en el mismo sandbox — no hace falta elegir un lenguaje.
+      p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE". El ambiente incluye Java, Node.js y Python en el mismo sandbox — no hace falta elegir un lenguaje. Los alumnos eligen ellos mismos entre Web (code-server, un sandbox por alumno) y CLI (terminal con Neovim, se reutiliza entre alumnos) — abajo se configura el tamaño de cada pool por separado.
       .coord-field
-        span.coord-label Tipo de IDE
-        select(v-model="sandboxVariant")
-          option(value="") Editor completo (code-server / VS Code en el navegador)
-          option(value="terminal-nvim") Terminal ligera (Neovim con LSP de Java, más rápido de arrancar)
-      .coord-field
-        span.coord-label Sandboxes concurrentes por evento
+        span.coord-label Sandboxes Web concurrentes (code-server)
         input(v-model.number="sandboxPoolSize" type="number" min="1" placeholder="1")
-      .coord-field(v-if="sandboxVariant === 'terminal-nvim'")
-        span.coord-label Alumnos por sandbox (terminal ligera)
+      .coord-field
+        span.coord-label Sandboxes CLI concurrentes (Neovim)
+        input(v-model.number="sandboxCliPoolSize" type="number" min="1" placeholder="1")
+      .coord-field(v-if="cliEnabled")
+        span.coord-label Alumnos por sandbox CLI
         input(v-model.number="sandboxSeatsPerPod" type="number" min="1" max="10" placeholder="4 (por defecto)")
-      p.field-hint(v-if="sandboxVariant === 'terminal-nvim'") En modo terminal ligera, varios alumnos pueden compartir el mismo sandbox — cada uno con su propio usuario y espacio de trabajo aislado dentro del mismo contenedor. El editor completo (code-server) no admite esto: siempre es un sandbox por alumno.
+      p.field-hint(v-if="cliEnabled") En modo CLI, varios alumnos pueden compartir el mismo sandbox — cada uno con su propio usuario y espacio de trabajo aislado dentro del mismo contenedor. El modo Web (code-server) no admite esto: siempre es un sandbox por alumno.
       .coord-field
         span.coord-label Paquetes adicionales (opcional)
         input(v-model="sandboxExtraPackages" type="text" placeholder="numpy pandas")
@@ -117,7 +115,48 @@
         span Permitir acceso a internet desde los sandboxes
       p.field-hint Por defecto los sandboxes no tienen salida a internet (solo el workspace local). Actívalo si el ejercicio necesita instalar paquetes o clonar repositorios en vivo.
 
-      .sandbox-incidents(v-if="sandboxVariant === 'terminal-nvim'")
+      .sandbox-status(id="sandbox-status")
+        .coord-field
+          span.coord-label Estado de las máquinas
+          button.btn-outline(type="button" @click="loadSandboxStatus" :disabled="loadingSandboxStatus")
+            span(v-if="loadingSandboxStatus") Cargando...
+            span(v-else) Ver estado de sandboxes
+        p.field-hint Pods activos de este evento -- quién los ocupa, en qué modo (Web/CLI) y si ya están listos para usarse.
+        p.error(v-if="sandboxStatusError") {{ sandboxStatusError }}
+        table.incidents-table(v-if="sandboxStatusLoaded")
+          thead
+            tr
+              th Pod
+              th Modo
+              th Fase
+              th Listo
+              th Asientos
+          tbody
+            tr(v-if="!sandboxStatus.length")
+              td(colspan="5") No hay sandboxes activos.
+            tr(v-for="pod in sandboxStatus" :key="pod.podName")
+              td {{ pod.podName }}
+              td {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
+              td {{ pod.phase }}
+              td {{ pod.ready ? '✓' : '—' }}
+              td.seats-cell
+                span.seat-badge(v-for="seat in pod.seats" :key="seat.seatIndex")
+                  button.seat-link(
+                    v-if="seat.userUuid"
+                    type="button"
+                    @click="openWorkspaceFiles(seat.userUuid)"
+                    :title="`Ver archivos de ${seat.userUuid}`"
+                  ) {{ seat.userUuid }}
+                  span.seat-empty(v-else) (libre)
+
+      WorkspaceFileEditor(
+        v-if="workspaceFilesUserUuid"
+        :conference-id="conferenceId"
+        :user-uuid="workspaceFilesUserUuid"
+        @close="workspaceFilesUserUuid = null"
+      )
+
+      .sandbox-incidents(v-if="cliEnabled")
         .coord-field
           span.coord-label Incidentes de recursos
           button.btn-outline(type="button" @click="loadSandboxIncidents" :disabled="loadingSandboxIncidents")
@@ -175,19 +214,20 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
+import WorkspaceFileEditor from '@/components/moderator/WorkspaceFileEditor.vue'
 import {
   getConference, updateConference, getTimezones, setSeatingMode, getActiveEventTypes, setEventType,
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
-  listSandboxIncidents
+  listSandboxIncidents, listSandboxStatus
 } from '@/services/api/usersApi'
-import type { Conference, Timezone, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident } from '@/services/api/types'
+import type { Conference, Timezone, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'EditConferencePage',
-  components: { ConferenceMap },
+  components: { ConferenceMap, WorkspaceFileEditor },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -213,11 +253,14 @@ export default {
     const savingSeating = ref(false)
     const seatingSaved  = ref(false)
     const seatingError  = ref('')
-    // "" = code-server (default); "terminal-nvim" = IDE alternativo liviano. Valores historicos
-    // python/java/web (de cuando este campo era una variante de imagen, ver DEC-0023) tambien
-    // significan code-server -- se normalizan a "" al cargar, ver mas abajo.
+    // Vestigial (pools Web/CLI independientes, ver AssignSandboxUseCase) -- ya no selecciona "la"
+    // variante, se mantiene solo por compatibilidad de lectura de conferencias viejas. La UI ya
+    // no lo edita directamente: los dos pools de abajo son la config real.
     const sandboxVariant = ref('')
     const sandboxPoolSize = ref<number | null>(1)
+    // Pool "cli" (Neovim, reusable/multi-alumno) -- independiente del pool "web" de arriba.
+    const sandboxCliPoolSize = ref<number | null>(1)
+    const cliEnabled = computed(() => (sandboxCliPoolSize.value ?? 0) > 0)
     const sandboxExtraPackages = ref('')
     const sandboxRemoteGitUrl = ref('')
     // Heap maximo (-Xmx, en MB) de las JVMs del sandbox -- null = usa el default chico del
@@ -225,9 +268,9 @@ export default {
     // limite de memoria del contenedor configurado en el chart de despliegue -- no se valida ese
     // techo exacto aca en el frontend porque depende de infra (values.yaml), no de este repo.
     const sandboxJvmHeapMb = ref<number | null>(null)
-    // Alumnos que comparten un mismo Pod "neovim" (usuario Linux propio por alumno dentro del
-    // mismo contenedor) -- null = usa el default del backend (4). Solo aplica en modo
-    // "terminal-nvim"; en modo code-server no tiene efecto (no se puede compartir).
+    // Alumnos que comparten un mismo Pod "cli" (usuario Linux propio por alumno dentro del
+    // mismo contenedor) -- null = usa el default del backend (4). Solo aplica al pool CLI; el
+    // pool Web (code-server) no tiene efecto (no se puede compartir).
     const sandboxSeatsPerPod = ref<number | null>(null)
     const sandboxInternetEnabled = ref(false)
     const savingSandboxConfig = ref(false)
@@ -238,6 +281,11 @@ export default {
     const sandboxIncidentsLoaded = ref(false)
     const loadingSandboxIncidents = ref(false)
     const sandboxIncidentsError = ref('')
+    const sandboxStatus = ref<SandboxStatusEntry[]>([])
+    const sandboxStatusLoaded = ref(false)
+    const loadingSandboxStatus = ref(false)
+    const sandboxStatusError = ref('')
+    const workspaceFilesUserUuid = ref<string | null>(null)
     const eventTypes    = ref<EventType[]>([])
     const eventTypeKey  = ref('conference')
     const savingEventType = ref(false)
@@ -276,6 +324,7 @@ export default {
         capacity.value = conference.value.capacity ?? null
         sandboxVariant.value = conference.value.sandboxVariant === 'terminal-nvim' ? 'terminal-nvim' : ''
         sandboxPoolSize.value = conference.value.sandboxPoolSize ?? 1
+        sandboxCliPoolSize.value = conference.value.sandboxCliPoolSize ?? 1
         sandboxExtraPackages.value = conference.value.sandboxExtraPackages || ''
         sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''
         sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? null
@@ -386,7 +435,7 @@ export default {
         conference.value = await setSandboxConfig(
           props.conferenceId as string, sandboxVariant.value, sandboxPoolSize.value,
           sandboxExtraPackages.value.trim() || null, sandboxRemoteGitUrl.value.trim() || null,
-          sandboxJvmHeapMb.value, sandboxSeatsPerPod.value,
+          sandboxJvmHeapMb.value, sandboxSeatsPerPod.value, sandboxCliPoolSize.value,
           auth.state.token as string
         )
         sandboxConfigSaved.value = true
@@ -423,6 +472,22 @@ export default {
       }
     }
 
+    async function loadSandboxStatus() {
+      loadingSandboxStatus.value = true; sandboxStatusError.value = ''
+      try {
+        sandboxStatus.value = await listSandboxStatus(props.conferenceId as string, auth.state.token as string)
+        sandboxStatusLoaded.value = true
+      } catch (e: any) {
+        sandboxStatusError.value = e.response?.data?.error?.message || 'No se pudo cargar el estado de los sandboxes'
+      } finally {
+        loadingSandboxStatus.value = false
+      }
+    }
+
+    function openWorkspaceFiles(userUuid: string) {
+      workspaceFilesUserUuid.value = userUuid
+    }
+
     function incidentTypeLabel(type: string): string {
       const labels: Record<string, string> = {
         cpu_abuse: 'Uso excesivo de CPU',
@@ -448,12 +513,15 @@ export default {
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
              timezones, timezoneId, onFlyerSelected, save,
              seatingMode, capacity, savingSeating, seatingSaved, seatingError, saveSeating,
-             sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb,
+             sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
+             sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb,
              sandboxSeatsPerPod, sandboxInternetEnabled,
              savingSandboxConfig, sandboxConfigSaved, sandboxConfigError, savingSandboxInternet,
              saveSandboxConfig, saveSandboxInternet,
              sandboxIncidents, sandboxIncidentsLoaded, loadingSandboxIncidents, sandboxIncidentsError,
              loadSandboxIncidents, incidentTypeLabel,
+             sandboxStatus, sandboxStatusLoaded, loadingSandboxStatus, sandboxStatusError, loadSandboxStatus,
+             workspaceFilesUserUuid, openWorkspaceFiles,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
              eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
              roleAssigned, roleError, roleName, assignRole, removeRole }
@@ -496,6 +564,15 @@ input:focus { outline: none; border-color: #4f46e5; }
 .incidents-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
 .incidents-table th { text-align: left; padding: 6px 10px; background: #f9fafb; color: #6b7280; font-weight: 600; }
 .incidents-table td { padding: 6px 10px; border-top: 1px solid #f3f4f6; color: #374151; }
+
+.seats-cell { display: flex; flex-wrap: wrap; gap: 6px; }
+.seat-badge { display: inline-flex; }
+.seat-link {
+  border: none; background: #eef2ff; color: #4f46e5; border-radius: 6px; padding: 2px 8px;
+  font-size: 0.78rem; font-family: monospace; cursor: pointer;
+}
+.seat-link:hover { background: #e0e7ff; }
+.seat-empty { font-size: 0.78rem; color: #9ca3af; }
 
 .roles-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .role-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #f9fafb; border-radius: 8px; }

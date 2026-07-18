@@ -160,6 +160,9 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_seats_per_pod INTEGER");
             } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_cli_pool_size INTEGER");
+            } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS reservations (
@@ -335,6 +338,7 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_conference ON sandbox_assignments(conference_uuid)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_user ON sandbox_assignments(user_uuid)");
             migrateSandboxAssignmentsSeatIndex(conn);
+            migrateSandboxAssignmentsVariant(conn);
 
             // Fase C (DEC-0025): incidentes de abuso de recursos en Pods "neovim" compartidos,
             // reportados por el seat-agent -- ver SandboxIncident.
@@ -398,6 +402,57 @@ public class DatabaseManager {
                 INSERT INTO sandbox_assignments_new
                     (id, uuid, conference_uuid, sandbox_slot, seat_index, user_uuid, assigned_at, created_at, expires_at)
                 SELECT id, uuid, conference_uuid, sandbox_slot, seat_index, user_uuid, assigned_at, created_at, expires_at
+                FROM sandbox_assignments
+            """);
+            s.executeUpdate("DROP TABLE sandbox_assignments");
+            s.executeUpdate("ALTER TABLE sandbox_assignments_new RENAME TO sandbox_assignments");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_conference ON sandbox_assignments(conference_uuid)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_user ON sandbox_assignments(user_uuid)");
+        }
+    }
+
+    /**
+     * Pools Web/CLI independientes (2026-07): cada Sandbox pertenece a una variante ("web" o
+     * "cli", ver Sandbox.VARIANT_WEB/VARIANT_CLI), cada una con su propia numeracion de
+     * sandbox_slot (0..poolSize-1 POR variante) -- el UNIQUE(conference_uuid, sandbox_slot,
+     * seat_index) original permitiria que un slot "web" y un slot "cli" con el mismo numero
+     * colisionen. Mismo patron que migrateSandboxAssignmentsSeatIndex (recrear tabla, SQLite no
+     * permite ALTER un UNIQUE existente), idempotente vía sqlite_master. Filas existentes
+     * (todas predatan el pool de CLI) quedan en 'web'.
+     */
+    private void migrateSandboxAssignmentsVariant(final Connection conn) throws SQLException {
+        ColumnMigrationHelper.addColumnIfMissing(conn, "sandbox_assignments", "variant", "TEXT NOT NULL DEFAULT 'web'");
+        String createSql = null;
+        try (Statement s = conn.createStatement();
+             ResultSet rs = s.executeQuery(
+                 "SELECT sql FROM sqlite_master WHERE type='table' AND name='sandbox_assignments'")) {
+            if (rs.next()) createSql = rs.getString("sql");
+        }
+        final boolean hasOldUnique = createSql != null
+                && createSql.replaceAll("\\s+", " ").contains("UNIQUE(conference_uuid, sandbox_slot, seat_index)");
+        if (!hasOldUnique) {
+            return;
+        }
+        try (Statement s = conn.createStatement()) {
+            s.executeUpdate("""
+                CREATE TABLE sandbox_assignments_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    sandbox_slot INTEGER NOT NULL,
+                    seat_index INTEGER NOT NULL DEFAULT 0,
+                    variant TEXT NOT NULL DEFAULT 'web',
+                    user_uuid TEXT,
+                    assigned_at TEXT,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    UNIQUE(conference_uuid, variant, sandbox_slot, seat_index)
+                )
+            """);
+            s.executeUpdate("""
+                INSERT INTO sandbox_assignments_new
+                    (id, uuid, conference_uuid, sandbox_slot, seat_index, variant, user_uuid, assigned_at, created_at, expires_at)
+                SELECT id, uuid, conference_uuid, sandbox_slot, seat_index, variant, user_uuid, assigned_at, created_at, expires_at
                 FROM sandbox_assignments
             """);
             s.executeUpdate("DROP TABLE sandbox_assignments");

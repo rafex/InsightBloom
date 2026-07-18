@@ -7,14 +7,17 @@ import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 public class AssignSandboxUseCase {
     private static final int DEFAULT_POOL_SIZE = 1;
-    private static final String DEFAULT_VARIANT = "python";
     private static final long DEFAULT_TTL_SECONDS = 4 * 3600; // sin fecha de evento: 4h desde ahora
     /** Ver KubernetesPodClient.IDE_MODE_TERMINAL_NVIM -- mismo sentinel, mismo significado. */
     private static final String IDE_MODE_TERMINAL_NVIM = "terminal-nvim";
+    /** Variant que se le pasa al orquestador para el pool "web" -- cualquier valor distinto de
+     *  IDE_MODE_TERMINAL_NVIM selecciona la imagen debian/code-server (ver KubernetesPodClient). */
+    private static final String ORCHESTRATOR_VARIANT_WEB = "python";
     private static final int DEFAULT_SEATS_PER_POD = 4;
 
     private final SandboxRepository sandboxRepository;
@@ -33,58 +36,87 @@ public class AssignSandboxUseCase {
     }
 
     /**
-     * Provisiona (o reusa) el sandbox del usuario para este evento.
+     * Traduce la variante de DOMINIO ({@link Sandbox#VARIANT_WEB}/{@link Sandbox#VARIANT_CLI})
+     * al string que espera {@link SandboxOrchestrator} (contrato viejo, sin tocar): cualquier
+     * valor distinto de {@code "terminal-nvim"} selecciona la imagen debian/code-server.
+     */
+    private static String toOrchestratorVariant(final String domainVariant) {
+        return Sandbox.VARIANT_CLI.equals(domainVariant) ? IDE_MODE_TERMINAL_NVIM : ORCHESTRATOR_VARIANT_WEB;
+    }
+
+    private static int seatsPerPodFor(final String domainVariant, final Conference conference) {
+        // Solo el pool "cli" (terminal-nvim) admite compartir Pod entre alumnos -- "web"
+        // (code-server) siempre es 1 asiento por pod, no se puede compartir.
+        if (!Sandbox.VARIANT_CLI.equals(domainVariant)) {
+            return 1;
+        }
+        return conference.getSandboxSeatsPerPod() != null ? conference.getSandboxSeatsPerPod() : DEFAULT_SEATS_PER_POD;
+    }
+
+    private static int poolSizeFor(final String domainVariant, final Conference conference) {
+        final Integer configured = Sandbox.VARIANT_CLI.equals(domainVariant)
+                ? conference.getSandboxCliPoolSize() : conference.getSandboxPoolSize();
+        return configured != null ? configured : DEFAULT_POOL_SIZE;
+    }
+
+    /**
+     * Provisiona (o reusa) el sandbox del usuario para este evento, en la variante pedida
+     * ({@link Sandbox#VARIANT_WEB} o {@link Sandbox#VARIANT_CLI}).
      *
-     * Fase 3: ya no hay un pool de slots pre-sembrados — el Pod se crea la primera vez que un
-     * usuario lo pide, hasta {@code Conference.sandboxPoolSize} sandboxes concurrentes por evento
-     * (default 1). Si el usuario ya tiene uno asignado, se reusa (idempotente ante recarga de
-     * página) sin volver a golpear el API de Kubernetes — salvo que el Pod ya no exista (ver
-     * abajo), en cuyo caso se recrea con el mismo nombre/slot.
+     * Pools independientes (2026-07): Web y CLI conviven siempre para toda conferencia con
+     * CODE_IDE habilitada, cada uno con su propio tamaño de pool
+     * ({@code Conference.sandboxPoolSize}/{@code sandboxCliPoolSize}) y su propia numeracion de
+     * slot -- ver {@link Sandbox#podName()}, que ahora incluye la variante en el nombre del Pod
+     * justamente para que las dos numeraciones no choquen.
+     *
+     * Un alumno tiene UN SOLO sandbox activo a la vez: si ya tiene uno de una variante distinta
+     * a la pedida, se libera (Pod + fila) antes de crear/reclamar el de la variante nueva —
+     * ver {@link #freeExisting(Sandbox)}.
      *
      * Concurrencia: {@link SandboxRepository#save} hace un INSERT real (no upsert) contra
-     * UNIQUE(conference_uuid, sandbox_slot) — si dos requests calculan el mismo slot libre en
-     * paralelo, uno de los dos INSERT falla y se traduce a {@code sandbox_pool_full} (el usuario
-     * puede reintentar; para entonces el otro ya ocupó el slot y el conteo de activos ya no
-     * coincide, evitando un loop infinito).
+     * UNIQUE(conference_uuid, variant, sandbox_slot, seat_index) — si dos requests calculan el
+     * mismo slot libre en paralelo, uno de los dos INSERT falla y se traduce a
+     * {@code sandbox_pool_full} (el usuario puede reintentar).
      *
-     * Si {@link EnsureUnassignedSandboxUseCase} ya dejó un sandbox libre (sin usuario) esperando,
-     * se reclama de inmediato sin golpear el API de Kubernetes — el Pod ya está creado (Pending o
-     * Running) desde antes de que este usuario lo pidiera.
+     * Si {@link EnsureUnassignedSandboxUseCase} ya dejó un sandbox libre (sin usuario) de la
+     * MISMA variante esperando, se reclama de inmediato sin golpear el API de Kubernetes.
      */
-    public Sandbox execute(final String conferenceUuid, final String userUuid) {
+    public Sandbox execute(final String conferenceUuid, final String userUuid, final String requestedVariant) {
         final Conference conference = conferenceRepository.findByUuid(conferenceUuid)
             .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
-        final String variant = conference.getSandboxVariant() != null ? conference.getSandboxVariant() : DEFAULT_VARIANT;
-        // Solo modo terminal-nvim admite compartir Pod entre alumnos (code-server no se puede
-        // compartir) -- en cualquier otro modo, 1 asiento por pod, comportamiento identico al de
-        // siempre (ver javadoc de la clase para el porque de esta distincion).
-        final int seatsPerPod = IDE_MODE_TERMINAL_NVIM.equals(variant)
-                ? (conference.getSandboxSeatsPerPod() != null ? conference.getSandboxSeatsPerPod() : DEFAULT_SEATS_PER_POD)
-                : 1;
+        final String variant = Sandbox.VARIANT_CLI.equals(requestedVariant) ? Sandbox.VARIANT_CLI : Sandbox.VARIANT_WEB;
+        final String orchestratorVariant = toOrchestratorVariant(variant);
+        final int seatsPerPod = seatsPerPodFor(variant, conference);
 
         final var existing = sandboxRepository.findByConferenceAndUser(conferenceUuid, userUuid);
         if (existing.isPresent()) {
             final Sandbox sandbox = existing.get();
-            // La fila puede sobrevivir a la borrada manual/eviccion del Pod real (ej. purga de un
-            // Pod roto durante un incidente) -- sin este chequeo, GetSandbox devolveria PENDING
-            // para siempre porque nada vuelve a crear el Pod. getPhase()==null significa que el
-            // Pod no existe; se recrea con el mismo nombre/slot, sin tocar la fila (ya es correcta).
-            if (sandboxOrchestrator.getPhase(sandbox.podName()) == null) {
-                recreatePod(sandbox, conference);
-                if (seatsPerPod > 1) {
-                    sandboxOrchestrator.provisionSeat(sandbox.podName(), sandbox.getSeatIndex(), userUuid);
+            if (!variant.equals(sandbox.getVariant())) {
+                // El alumno pidio la otra variante -- un solo sandbox activo a la vez, se libera
+                // el actual antes de seguir con la asignacion normal de la variante nueva.
+                freeExisting(sandbox);
+            } else {
+                // La fila puede sobrevivir a la borrada manual/eviccion del Pod real (ej. purga
+                // de un Pod roto durante un incidente) -- sin este chequeo, GetSandbox devolveria
+                // PENDING para siempre porque nada vuelve a crear el Pod. getPhase()==null
+                // significa que el Pod no existe; se recrea con el mismo nombre/slot.
+                if (sandboxOrchestrator.getPhase(sandbox.podName()) == null) {
+                    recreatePod(sandbox, conference, orchestratorVariant);
+                    if (seatsPerPod > 1) {
+                        sandboxOrchestrator.provisionSeat(sandbox.podName(), sandbox.getSeatIndex(), userUuid);
+                    }
                 }
+                return sandbox;
             }
-            return sandbox;
         }
 
-        final var unassigned = sandboxRepository.findUnassigned(conferenceUuid);
+        final var unassigned = sandboxRepository.findUnassigned(conferenceUuid).filter(s -> variant.equals(s.getVariant()));
         if (unassigned.isPresent()) {
             final Sandbox free = unassigned.get();
             final Instant assignedAt = Instant.now();
             if (sandboxRepository.claim(free.getUuid(), userUuid, assignedAt)) {
                 final Sandbox claimed = new Sandbox(free.getUuid(), conferenceUuid, free.getSandboxSlot(),
-                        free.getSeatIndex(), userUuid, assignedAt, free.getCreatedAt(), free.getExpiresAt());
+                        free.getSeatIndex(), variant, userUuid, assignedAt, free.getCreatedAt(), free.getExpiresAt());
                 if (seatsPerPod > 1) {
                     // El Pod ya existia (pre-warmed por EnsureUnassignedSandboxUseCase) pero sin
                     // usuario real asignado todavia -- el seat-agent recien ahora se entera de
@@ -97,20 +129,26 @@ public class AssignSandboxUseCase {
             // como si no hubiera habido un sandbox libre.
         }
 
-        final List<Sandbox> active = sandboxRepository.findByConferenceUuid(conferenceUuid);
-        final int poolSize = conference.getSandboxPoolSize() != null ? conference.getSandboxPoolSize() : DEFAULT_POOL_SIZE;
-        if (active.size() >= poolSize * seatsPerPod) {
+        final List<Sandbox> activeInVariant = new ArrayList<>();
+        for (final Sandbox s : sandboxRepository.findByConferenceUuid(conferenceUuid)) {
+            if (variant.equals(s.getVariant())) {
+                activeInVariant.add(s);
+            }
+        }
+        final int poolSize = poolSizeFor(variant, conference);
+        if (activeInVariant.size() >= poolSize * seatsPerPod) {
             throw new IllegalArgumentException("sandbox_pool_full");
         }
 
-        final Allocation allocation = nextFreeSeat(active, poolSize, seatsPerPod);
+        final Allocation allocation = nextFreeSeat(activeInVariant, poolSize, seatsPerPod);
         final boolean internetEnabled = conference.getSandboxInternetEnabled() != null
             && conference.getSandboxInternetEnabled() == 1;
         final Instant expiresAt = conference.getExpiresAt() != null
             ? conference.getExpiresAt().plusSeconds(ttlSecondsAfterEventExpiry)
             : Instant.now().plusSeconds(DEFAULT_TTL_SECONDS);
 
-        final Sandbox sandbox = new Sandbox(conferenceUuid, allocation.slot(), allocation.seatIndex(), userUuid, expiresAt);
+        final Sandbox sandbox = new Sandbox(conferenceUuid, allocation.slot(), allocation.seatIndex(), variant,
+                userUuid, expiresAt);
 
         if (allocation.isNewPod()) {
             // Asiento 0 de un slot que todavia no tiene Pod -- hay que crearlo. Si el slot ya
@@ -118,7 +156,7 @@ public class AssignSandboxUseCase {
             // corriendo: no hace falta (ni conviene) volver a pedirlo, solo sumar el asiento
             // (ver mas abajo).
             try {
-                sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, variant,
+                sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, orchestratorVariant,
                     conference.getSandboxExtraPackages(), conference.getSandboxRemoteGitUrl(), internetEnabled,
                     conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
             } catch (final IllegalStateException e) {
@@ -152,6 +190,23 @@ public class AssignSandboxUseCase {
     }
 
     /**
+     * Libera el sandbox previo del alumno al cambiar de variante (un alumno tiene un solo
+     * sandbox activo a la vez, ver javadoc de {@link #execute}). Si era el ultimo ocupante de
+     * un Pod compartido, el Pod igual se borra entero (misma politica simple que
+     * {@code PurgeSandboxPoolUseCase}: no vale la pena mantener un Pod "cli" vivo con cero
+     * alumnos reales solo por si alguien mas se une despues del cambio de variante).
+     */
+    private void freeExisting(final Sandbox sandbox) {
+        try {
+            sandboxOrchestrator.deleteSandbox(sandbox.podName());
+        } catch (final RuntimeException ignored) {
+            // Best-effort: si el Pod ya no existe o Kubernetes no esta configurado (dev local),
+            // igual liberamos la fila -- no debe bloquear al alumno cambiando de variante.
+        }
+        sandboxRepository.deleteByUuid(sandbox.getUuid());
+    }
+
+    /**
      * Recrea el Pod cuando ya no existe (ver caller, que tambien llama
      * {@code provisionSeat} para este asiento despues). Nota Pod compartido: si
      * {@code sandbox} es un asiento &gt; 0 de un Pod que muere, esto recrea el Pod de cero
@@ -159,12 +214,11 @@ public class AssignSandboxUseCase {
      * asientos que compartian ese Pod quedan con su fila en la BD pero sin usuario Linux/ttyd
      * real hasta que ellos tambien vuelvan a pasar por este flujo.
      */
-    private void recreatePod(final Sandbox sandbox, final Conference conference) {
-        final String variant = conference.getSandboxVariant() != null ? conference.getSandboxVariant() : DEFAULT_VARIANT;
+    private void recreatePod(final Sandbox sandbox, final Conference conference, final String orchestratorVariant) {
         final boolean internetEnabled = conference.getSandboxInternetEnabled() != null
             && conference.getSandboxInternetEnabled() == 1;
         try {
-            sandboxOrchestrator.createSandbox(sandbox.podName(), sandbox.getConferenceUuid(), variant,
+            sandboxOrchestrator.createSandbox(sandbox.podName(), sandbox.getConferenceUuid(), orchestratorVariant,
                 conference.getSandboxExtraPackages(), conference.getSandboxRemoteGitUrl(), internetEnabled,
                 conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
         } catch (final IllegalStateException e) {

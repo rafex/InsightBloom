@@ -20,4 +20,7 @@ public interface ConferenceMembershipRepository {
 
     /** Usuarios únicos (deduplicados) que se unieron a alguna de estas conferencias. */
     long countDistinctUsersByConferences(java.util.List<String> conferenceUuids);
+
+    /** Igual que {@link #countDistinctUsersByConferences}, pero solo cuenta usuarios con status ACTIVE. */
+    long countDistinctActiveUsersByConferences(java.util.List<String> conferenceUuids);
 }

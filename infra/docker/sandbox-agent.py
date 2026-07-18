@@ -46,6 +46,7 @@ import os
 import pwd
 import re
 import resource
+import sandbox_file_api
 import signal
 import socketserver
 import subprocess
@@ -53,6 +54,7 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 WORKSPACE_ROOT = "/home"
@@ -329,11 +331,86 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _seat_workspace_root(self, index: int):
+        """Devuelve la raiz del workspace del asiento, o None (con la respuesta de error ya
+        enviada) si el asiento no existe/no esta aprovisionado todavia -- ningun endpoint de
+        archivos tiene sentido antes de que el alumno tenga cuenta Linux real."""
+        seat = _seats.get(index)
+        if seat is None:
+            self._send_json(404, {"error": "seat_not_provisioned"})
+            return None
+        return f"{_seat_home(seat['userUuid'])}/workspace"
+
     def do_GET(self):
-        if self.path == "/health":
+        parsed = urllib.parse.urlsplit(self.path)
+        query = urllib.parse.parse_qs(parsed.query)
+        path_param = (query.get("path", [""])[0])
+
+        if parsed.path == "/health":
             self._send_json(200, {"status": "ok", "seats": len(_seats)})
             return
+
+        match = re.fullmatch(r"/files/(\d+)", parsed.path)
+        if match:
+            root = self._seat_workspace_root(int(match.group(1)))
+            if root is None:
+                return
+            try:
+                self._send_json(200, {"entries": sandbox_file_api.list_directory(root, path_param)})
+            except sandbox_file_api.PathTraversalError:
+                self._send_json(400, {"error": "invalid_path"})
+            except sandbox_file_api.NotFoundError:
+                self._send_json(404, {"error": "not_found"})
+            return
+
+        match = re.fullmatch(r"/file/(\d+)", parsed.path)
+        if match:
+            root = self._seat_workspace_root(int(match.group(1)))
+            if root is None:
+                return
+            try:
+                self._send_json(200, sandbox_file_api.read_file(root, path_param))
+            except sandbox_file_api.PathTraversalError:
+                self._send_json(400, {"error": "invalid_path"})
+            except sandbox_file_api.NotFoundError:
+                self._send_json(404, {"error": "not_found"})
+            except sandbox_file_api.FileTooLargeError:
+                self._send_json(413, {"error": "file_too_large"})
+            except sandbox_file_api.NotTextFileError:
+                self._send_json(415, {"error": "not_text_file"})
+            return
+
         self._send_json(404, {"error": "not_found"})
+
+    def do_PUT(self):
+        parsed = urllib.parse.urlsplit(self.path)
+        query = urllib.parse.parse_qs(parsed.query)
+        path_param = (query.get("path", [""])[0])
+        mtime_param = query.get("mtime", [None])[0]
+
+        match = re.fullmatch(r"/file/(\d+)", parsed.path)
+        if not match:
+            self._send_json(404, {"error": "not_found"})
+            return
+        root = self._seat_workspace_root(int(match.group(1)))
+        if root is None:
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length)
+            content = raw.decode("utf-8")
+        except (ValueError, UnicodeDecodeError):
+            self._send_json(400, {"error": "invalid_body"})
+            return
+        try:
+            expected_mtime = float(mtime_param) if mtime_param is not None else None
+            self._send_json(200, sandbox_file_api.write_file(root, path_param, content, expected_mtime))
+        except sandbox_file_api.PathTraversalError:
+            self._send_json(400, {"error": "invalid_path"})
+        except sandbox_file_api.FileConflictError:
+            self._send_json(409, {"error": "file_conflict"})
+        except (ValueError, TypeError):
+            self._send_json(400, {"error": "invalid_mtime"})
 
     def do_POST(self):
         match = re.fullmatch(r"/seats/(\d+)", self.path)
