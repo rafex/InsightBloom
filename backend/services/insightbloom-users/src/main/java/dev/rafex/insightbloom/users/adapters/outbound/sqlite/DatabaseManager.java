@@ -4,6 +4,7 @@ import dev.rafex.insightbloom.common.migration.ColumnMigrationHelper;
 import dev.rafex.insightbloom.common.sqlite.SqliteConnectionProvider;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -358,8 +359,43 @@ public class DatabaseManager {
                 )
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_incidents_conference ON sandbox_incidents(conference_uuid)");
+
+            backfillMissingTicketsForSimpleJoins(conn);
         } catch (SQLException e) {
             throw new RuntimeException("Failed to initialize database", e);
+        }
+    }
+
+    /**
+     * Unifica la inscripción a un evento en el boleto ({@code reservations}): antes solo se
+     * emitía boleto automático para eventos en modo GENERAL, dejando a quienes se unieron a un
+     * evento NONE (la mayoría, hoy) sin ningún registro de acceso a las herramientas del evento
+     * (IDE, etc). Idempotente -- solo inserta boletos para memberships de eventos NONE que
+     * todavía no tienen uno; en cada arranque no hace nada si ya se corrió antes.
+     */
+    private void backfillMissingTicketsForSimpleJoins(final Connection conn) throws SQLException {
+        final String selectSql = """
+            SELECT cm.user_uuid, cm.conference_uuid, cm.joined_at
+            FROM conference_memberships cm
+            JOIN conferences c ON c.uuid = cm.conference_uuid
+            LEFT JOIN reservations r ON r.conference_uuid = cm.conference_uuid AND r.user_uuid = cm.user_uuid
+            WHERE c.seating_mode = 'NONE' AND r.uuid IS NULL
+        """;
+        final String insertSql = """
+            INSERT INTO reservations (uuid, conference_uuid, user_uuid, seat_uuid, ticket_code, status, created_at, checked_in_at)
+            VALUES (?, ?, ?, NULL, ?, 'RESERVED', ?, NULL)
+        """;
+        try (Statement selectStmt = conn.createStatement();
+             ResultSet rs = selectStmt.executeQuery(selectSql);
+             PreparedStatement insertPs = conn.prepareStatement(insertSql)) {
+            while (rs.next()) {
+                insertPs.setString(1, java.util.UUID.randomUUID().toString());
+                insertPs.setString(2, rs.getString("conference_uuid"));
+                insertPs.setString(3, rs.getString("user_uuid"));
+                insertPs.setString(4, java.util.UUID.randomUUID().toString());
+                insertPs.setString(5, rs.getString("joined_at"));
+                insertPs.executeUpdate();
+            }
         }
     }
 
