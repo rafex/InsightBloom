@@ -64,6 +64,11 @@ const routes: RouteRecordRaw[] = [
         props: true
       },
       {
+        path: 'conferences/:conferenceId/config',
+        component: () => import('@/pages/dashboard/ConferenceConfigPage.vue'),
+        props: true
+      },
+      {
         path: 'conferences/:conferenceId/moderation/messages',
         component: () => import('@/pages/dashboard/ModerationMessagesPage.vue'),
         props: true

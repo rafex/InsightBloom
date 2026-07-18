@@ -71,7 +71,8 @@
               router-link.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
               button.btn-ghost(v-if="!c.expiresAt" @click="toggleActive(c)" :disabled="c._togglingActive")
                 | {{ c.status === 'ACTIVE' ? 'Desactivar' : 'Activar' }}
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editar
+              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editor
+              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Configuración
               template(v-if="c.seatingMode && c.seatingMode !== 'NONE'")
                 router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/check-in`") Check-in
                 router-link.btn-ghost(v-if="c.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/venue-map`") Mapa de asientos
