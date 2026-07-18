@@ -120,6 +120,7 @@ COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
 COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
 COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
 COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
+COPY infra/docker/runtime-fzf.sh /etc/profile.d/insightbloom-fzf.sh
 
 # Plugins de Neovim vendorizados en build time (git clone, con red disponible en CI) e
 # instalados como paquetes nativos de Neovim (pack/*/start/, auto-cargados sin plugin manager)

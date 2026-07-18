@@ -246,6 +246,7 @@ COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
 COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
 COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
 COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
+COPY infra/docker/runtime-fzf.sh /etc/profile.d/insightbloom-fzf.sh
 USER coder
 
 RUN mkdir -p /home/coder/.local/share/code-server/User /home/coder/workspace /home/coder/db /home/coder/.m2
