@@ -74,6 +74,11 @@ const routes: RouteRecordRaw[] = [
         props: true
       },
       {
+        path: 'conferences/:conferenceId/moderation/ide',
+        component: () => import('@/pages/dashboard/ModerationIdePage.vue'),
+        props: true
+      },
+      {
         path: 'conferences/:conferenceId/presentation',
         component: () => import('@/pages/dashboard/PresentationManagePage.vue'),
         props: true

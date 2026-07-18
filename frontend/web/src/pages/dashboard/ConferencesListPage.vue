@@ -65,7 +65,7 @@
               DropdownMenu(v-if="hasCapability(c, 'WORD_CLOUD')" label="Moderación")
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/messages`") Mensajes
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Palabras/Nube
-                router-link(v-if="hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit#sandbox-status`") Editor Monaco
+                router-link(v-if="hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/ide`") Editor Monaco
           td.actions-cell(data-label="Acciones")
             .conf-actions
               router-link.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
