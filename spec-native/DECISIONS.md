@@ -1085,10 +1085,17 @@ Registrar una decision cuando cambie:
   que paso -- mismo patron conceptual que moderacion de chat, implementado directo en
   `insightbloom-users` (no se reutilizo `insightbloom-moderation`, dominios distintos).
 
-  **Fuera de alcance, documentado como limitacion conocida**: debug remoto
-  (`javadebug`/`pydebug`, puertos fijos 5005/5678) no funciona en modo multi-asiento --
-  dos alumnos del mismo Pod debuggeando a la vez chocarian en el mismo puerto. No
-  resuelto en esta entrega.
+  **Debug remoto en modo multi-asiento**: `javadebug`/`pydebug` (puertos fijos
+  5005/5678) chocaban entre alumnos del mismo Pod -- resuelto con puerto por asiento
+  (`5005+SEAT_INDEX` / `5678+SEAT_INDEX`). `sandbox-agent.py` inyecta `SEAT_INDEX` en
+  el ambiente de cada `ttyd` que arranca; `runtime-debug-helpers.sh` lo lee (default 0
+  si no esta seteado -- imagen debian o neovim de un solo asiento, comportamiento
+  identico al de siempre, mismos puertos 5005/5678 que ya trae `launch.json`).
+  Limitacion aceptada, no resuelta: todos los asientos de un Pod comparten el mismo
+  namespace de red (loopback incluido) -- el puerto distinto evita choques, no aisla
+  a un alumno de poder conectarse al puerto de debug de otro si lo intenta a
+  proposito (mismo nivel de confianza que ya existe entre asientos de un Pod
+  compartido, no una regresion nueva).
 - Consecuencias:
   - `SandboxOrchestrator` gano `provisionSeat` y `createSandbox` sumo dos parametros
     (`jvmHeapMb`, `seatsPerPod`) a lo largo de esta sesion -- toda implementacion/mock

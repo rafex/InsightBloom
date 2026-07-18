@@ -151,7 +151,11 @@ def _spawn_seat(index: int, base_port: int, user_uuid: str):
         ["ttyd", "-p", str(port), "-W", "--ping-interval", "15",
          "bash", "-lc", f"cd {home}/workspace && exec nvim ."],
         preexec_fn=_drop_privileges(uid, uid),
-        env={**os.environ, "HOME": home, "USER": _seat_login_name(index)},
+        # SEAT_INDEX: leido por runtime-debug-helpers.sh (javadebug/pydebug) para que cada
+        # asiento use su propio puerto de debug (5005+SEAT_INDEX / 5678+SEAT_INDEX) -- sin
+        # esto, dos alumnos del mismo Pod debuggeando a la vez chocarian en el mismo puerto
+        # fijo (limitacion conocida hasta este fix, ver DEC-0025).
+        env={**os.environ, "HOME": home, "USER": _seat_login_name(index), "SEAT_INDEX": str(index)},
     )
     _seats[index] = {"process": process, "userUuid": user_uuid, "uid": uid}
 

@@ -7,18 +7,28 @@
 # El launch.json ya viene sembrado con "Adjuntar a Java (puerto 5005)" y "Adjuntar a Python
 # (puerto 5678)" (ver code-ide-entrypoint.sh) -- solo hace falta arrancar el programa con uno
 # de estos wrappers y despues correr "Run and Debug" -> Adjuntar, en el editor.
-
+#
+# Pods "neovim" multi-asiento (DEC-0025): $SEAT_INDEX lo inyecta el seat-agent en el ambiente
+# de cada ttyd (ver sandbox-agent.py:_spawn_seat) -- puerto real = puerto base + SEAT_INDEX,
+# para que cada alumno tenga su propio puerto y no choquen entre si (todos los asientos de un
+# Pod comparten el mismo namespace de red, loopback incluido). Sin $SEAT_INDEX (imagen debian,
+# siempre 1 alumno por Pod, o imagen neovim de un solo asiento) el comportamiento es identico
+# al de siempre: puerto 5005/5678 fijo, coincide con lo que ya viene sembrado en launch.json.
 javadebug() {
     if [ -z "${1:-}" ]; then
         echo "uso: javadebug <ClasePrincipal> [args...]" >&2
         return 1
     fi
     local class="$1"; shift
+    local port=$((5005 + ${SEAT_INDEX:-0}))
     # address=localhost (no "*"): JDWP no tiene autenticacion -- quien se conecte ejecuta
     # bytecode arbitrario en esta JVM. Bindear a todas las interfaces exponia esto a
     # cualquier otro Pod del mismo namespace (sin NetworkPolicy de Ingress que lo evite),
-    # es decir a cualquier otro alumno.
-    java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5005 "$class" "$@"
+    # es decir a cualquier otro alumno. Loopback sigue siendo compartido ENTRE asientos del
+    # mismo Pod (mismo namespace de red) -- ver nota de archivo arriba, es un limite aceptado,
+    # no resuelto por el puerto distinto (que solo evita choques, no aisla completamente).
+    echo "javadebug: escuchando en localhost:$port (adjuntar ahi desde el editor)" >&2
+    java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:$port "$class" "$@"
 }
 
 pydebug() {
@@ -26,7 +36,9 @@ pydebug() {
         echo "uso: pydebug <script.py> [args...]" >&2
         return 1
     fi
+    local port=$((5678 + ${SEAT_INDEX:-0}))
     # 127.0.0.1 (no 0.0.0.0): mismo motivo que javadebug -- debugpy sin auth expone
     # ejecucion de codigo arbitrario a quien se conecte.
-    python3 -m debugpy --listen 127.0.0.1:5678 --wait-for-client "$@"
+    echo "pydebug: escuchando en 127.0.0.1:$port (adjuntar ahi desde el editor)" >&2
+    python3 -m debugpy --listen 127.0.0.1:$port --wait-for-client "$@"
 }
