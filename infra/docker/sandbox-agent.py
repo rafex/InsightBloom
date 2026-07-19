@@ -147,20 +147,33 @@ def _ensure_seat_account(index: int, user_uuid: str):
 def _spawn_seat(index: int, base_port: int, user_uuid: str):
     uid, home = _ensure_seat_account(index, user_uuid)
     port = base_port + index
-    # Mismo patron que la imagen de un solo asiento (ver Dockerfile.code-ide-neovim): ttyd con
-    # --ping-interval 15, bash de login para que /etc/profile.d (PATH, prompt, banner) se aplique,
-    # y tmux "new-session -A" para reatender la misma sesion de nvim en cada reconexion en vez de
-    # perder el estado del editor -- cada asiento corre bajo su propio uid, asi que el socket de
-    # tmux (/tmp/tmux-{uid}/) ya aisla la sesion "main" de cada alumno sin colisionar entre si.
+    workspace = f"{home}/workspace"
+    seat_env = {**os.environ, "HOME": home, "USER": _seat_login_name(index), "SEAT_INDEX": str(index)}
+    # Precreamos la sesion tmux DESTACADA (-d) en un proceso propio, separado del pty que ttyd va
+    # a controlar -- si dejamos que ttyd arranque tmux directamente (ej. "ttyd ... tmux new-session
+    # -A"), el server de tmux nace todavia compartiendo el process group del pty de ttyd durante su
+    # arranque, y el SIGHUP que ttyd manda al cerrar el WebSocket (--close-signal) alcanza tambien
+    # al server recien creado antes de que termine de independizarse -- confirmado en vivo: la
+    # sesion desaparecia por completo ("tmux ls" -> "no server running") apenas se cortaba la
+    # conexion, perdiendo el estado igual que sin tmux. Precrear la sesion en un proceso que ya
+    # termino (sin pty de ttyd de por medio) y que ttyd solo haga "attach-session" resuelve la
+    # carrera de raiz. Idempotente: si "main" ya existe (asiento reutilizado), tmux devuelve error
+    # "duplicate session" y no pasa nada (check=False).
+    subprocess.run(
+        ["tmux", "new-session", "-d", "-s", "main", "-c", workspace, "nvim", "."],
+        preexec_fn=_drop_privileges(uid, uid),
+        env=seat_env,
+        check=False,
+    )
     process = subprocess.Popen(
         ["ttyd", "-p", str(port), "-W", "--ping-interval", "15",
-         "bash", "-lc", f"cd {home}/workspace && exec tmux new-session -A -s main nvim ."],
+         "tmux", "attach-session", "-t", "main"],
         preexec_fn=_drop_privileges(uid, uid),
         # SEAT_INDEX: leido por runtime-debug-helpers.sh (javadebug/pydebug) para que cada
         # asiento use su propio puerto de debug (5005+SEAT_INDEX / 5678+SEAT_INDEX) -- sin
         # esto, dos alumnos del mismo Pod debuggeando a la vez chocarian en el mismo puerto
         # fijo (limitacion conocida hasta este fix, ver DEC-0025).
-        env={**os.environ, "HOME": home, "USER": _seat_login_name(index), "SEAT_INDEX": str(index)},
+        env=seat_env,
     )
     _seats[index] = {"process": process, "userUuid": user_uuid, "uid": uid}
 

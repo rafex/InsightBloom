@@ -214,9 +214,13 @@ USER coder
 EXPOSE 8079-8089
 
 ENTRYPOINT ["dumb-init", "--"]
-# tmux "new-session -A": crea la sesion "main" en la primera conexion; en cualquier reconexion
-# (el WebSocket de ttyd se corta por cualquier motivo -- proxy, red movil, laptop que se suspende)
-# se REATENDE a la misma sesion en vez de que ttyd lance un nvim nuevo desde cero, que era el
-# comportamiento anterior y perdia todo el estado del editor en cada corte (ver incidente
-# 2026-07-19: la terminal se veia "en blanco" tras cada reconexion aunque el WS volviera a conectar).
-CMD ["ttyd", "-p", "8080", "-W", "--ping-interval", "15", "bash", "-lc", "cd /home/coder/workspace && exec tmux new-session -A -s main nvim ."]
+# Precreamos la sesion tmux DESTACADA (-d) en su propio proceso, ANTES de arrancar ttyd, y ttyd
+# solo hace "attach-session" -- si dejamos que ttyd arranque tmux directamente (ej. "ttyd ...
+# tmux new-session -A"), el server de tmux nace todavia compartiendo el process group del pty que
+# ttyd controla, y el SIGHUP que ttyd manda al cerrar el WebSocket (--close-signal) alcanza
+# tambien al server recien creado antes de que termine de independizarse -- confirmado en vivo: la
+# sesion desaparecia por completo ("tmux ls" -> "no server running") apenas se cortaba la
+# conexion, perdiendo todo el estado del editor igual que sin tmux (ver incidente 2026-07-19).
+# Precrear la sesion en un proceso que ya termino (sin pty de ttyd de por medio) resuelve la
+# carrera de raiz: cualquier reconexion reatende la MISMA sesion en vez de perder el estado.
+CMD ["sh", "-c", "tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]
