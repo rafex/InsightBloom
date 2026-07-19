@@ -1,6 +1,7 @@
 <template lang="pug">
 .survey-manage-page
-  ConferenceSubNav(:conferenceId="conferenceId")
+  DashboardBreadcrumb(:items="breadcrumbItems")
+  ConferenceToolsNav(:conferenceId="conferenceId")
   h2 Encuesta de la conferencia
 
   nav.tabs
@@ -196,8 +197,10 @@
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses } from '@/services/api/surveyApi'
+import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
-import ConferenceSubNav from './ConferenceSubNav.vue'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 
 interface SurveyForm {
@@ -269,10 +272,11 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { ConferenceSubNav, BarChart },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
+    const conferenceName = ref('')
     const activeTab = ref('create')
     const questions = ref<SurveyQuestionRow[]>([])
     const results = ref<SurveyResult[]>([])
@@ -562,6 +566,20 @@ export default {
     }
 
     onMounted(load)
+    onMounted(async () => {
+      if (!props.conferenceId) return
+      try {
+        const conf = await getConference(props.conferenceId, auth.state.token as string)
+        conferenceName.value = conf?.name || ''
+      } catch (e: any) { conferenceName.value = '' }
+    })
+
+    const breadcrumbItems = computed(() => [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: conferenceName.value || props.conferenceId || '', loading: !conferenceName.value },
+      { label: 'Encuesta' }
+    ])
 
     return {
       activeTab, questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
@@ -571,7 +589,7 @@ export default {
       toggleSelectAllGradeable, runGrading,
       typeLabel, typeIcon, isImage, parseMultiSelect, ratingDisplay, ratingChartData, choiceChartData, toggleDetail, save, confirmDelete, doDelete,
       confirmPurge, doPurge, suggest, addSelectedSuggestions, startEdit, cancelEdit, onTypeChange, addOption,
-      removeOption, moveOption, improve, applyImprovement
+      removeOption, moveOption, improve, applyImprovement, breadcrumbItems
     }
   }
 }

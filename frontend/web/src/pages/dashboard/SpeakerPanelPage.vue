@@ -1,6 +1,7 @@
 <template lang="pug">
 .speaker-panel-page
-  ConferenceSubNav(:conferenceId="conferenceId")
+  DashboardBreadcrumb(:items="breadcrumbItems")
+  ConferenceToolsNav(:conferenceId="conferenceId")
   .speaker-header
     h2 Presentar
     .speaker-status
@@ -29,11 +30,12 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getPresentationStatus, getSlidesUrl, getPresenterWsUrl, createRemoteLinkToken } from '@/services/api/presentationsApi'
 import { getConference, getRegisteredAttendeesCount } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
-import ConferenceSubNav from './ConferenceSubNav.vue'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 
 type NavDirection = 'next' | 'prev'
@@ -45,7 +47,7 @@ const NAV_KEYS: Record<NavDirection, { key: string, keyCode: number }> = {
 
 export default {
   name: 'SpeakerPanelPage',
-  components: { ConferenceSubNav, QrCodeModal },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -58,6 +60,7 @@ export default {
     const registeredCount = ref<number | null>(null)
     const showQr = ref(false)
     const friendlyId = ref('')
+    const conferenceName = ref('')
     const showRemoteShare = ref(false)
     const remoteShareUrl = ref('')
     const sourceUrl = ref('')
@@ -147,6 +150,7 @@ export default {
         const conf = await getConference(props.conferenceId as string, auth.state.token as string)
         friendlyId.value = conf?.friendlyId || ''
         sourceUrl.value = (conf?.presentationSourceUrl as string) || ''
+        conferenceName.value = conf?.name || ''
       } catch (e: any) { /* el botón de QR simplemente no aparece */ }
       try {
         registeredCount.value = await getRegisteredAttendeesCount(props.conferenceId as string, auth.state.token as string)
@@ -169,10 +173,17 @@ export default {
       if (ws) ws.close()
     })
 
+    const breadcrumbItems = computed(() => [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: conferenceName.value || props.conferenceId || '', loading: !conferenceName.value },
+      { label: 'Presentar' }
+    ])
+
     return {
       checkedStatus, ready, slidesUrl, slidesFrame,
       wsConnected, audienceCount, registeredCount, showQr, friendlyId, onIframeLoad, navigate,
-      showRemoteShare, remoteShareUrl, shareRemoteControl, sourceUrl
+      showRemoteShare, remoteShareUrl, shareRemoteControl, sourceUrl, breadcrumbItems
     }
   }
 }

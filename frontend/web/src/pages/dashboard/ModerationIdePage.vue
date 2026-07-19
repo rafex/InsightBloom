@@ -1,11 +1,7 @@
 <template lang="pug">
 .mod-ide-page
   DashboardBreadcrumb(:items="breadcrumbItems")
-
-  nav.sub-links
-    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Moderación (mensajes)
-    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/moderation/words`") Moderación (palabras)
-    router-link.sub-link.router-link-active(:to="`/dashboard/conferences/${conferenceId}/moderation/ide`") Editor Monaco
+  ConferenceToolsNav(:conferenceId="conferenceId")
 
   h2 Editor Monaco
   p.field-hint Archivos de cada alumno conectado a un sandbox — abrí el editor para revisar su avance y apoyarlo en vivo.
@@ -44,11 +40,12 @@ import { listSandboxStatus, getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import WorkspaceFileEditor from '@/components/moderator/WorkspaceFileEditor.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import type { SandboxStatusEntry } from '@/services/api/types'
 
 export default {
   name: 'ModerationIdePage',
-  components: { WorkspaceFileEditor, DashboardBreadcrumb },
+  components: { WorkspaceFileEditor, DashboardBreadcrumb, ConferenceToolsNav },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -96,13 +93,6 @@ export default {
 
 <style scoped>
 .mod-ide-page { padding: 24px; max-width: 900px; }
-.sub-links { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
-.sub-link {
-  padding: 6px 14px; border: 1.5px solid #e5e7eb; border-radius: 20px; text-decoration: none;
-  color: #374151; font-size: 0.82rem; font-weight: 500; transition: all 0.15s;
-}
-.sub-link:hover { border-color: #a5b4fc; color: #4f46e5; }
-.sub-link.router-link-active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
 h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
 .field-hint { color: #6b7280; font-size: 0.85rem; margin: 0 0 16px; }
 .toolbar { margin-bottom: 16px; }

@@ -1,6 +1,6 @@
 <template lang="pug">
 .checkin-page
-  ConferenceSubNav(:conferenceId="conferenceId")
+  DashboardBreadcrumb(:items="breadcrumbItems")
   h2 Check-in
 
   .scanner-wrap
@@ -15,22 +15,23 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import QrScanner from 'qr-scanner'
-import ConferenceSubNav from './ConferenceSubNav.vue'
-import { checkInTicket } from '@/services/api/usersApi'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import { checkInTicket, getConference } from '@/services/api/usersApi'
 import type { Reservation } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'CheckInScannerPage',
-  components: { ConferenceSubNav },
+  components: { DashboardBreadcrumb },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
     const videoEl = ref<HTMLVideoElement | null>(null)
     const lastResult = ref<{ ok: boolean, message: string } | null>(null)
     const recent = ref<Reservation[]>([])
+    const conferenceName = ref('')
     let scanner: QrScanner | null = null
     let processing = false
 
@@ -67,7 +68,22 @@ export default {
       if (scanner) { scanner.stop(); scanner.destroy(); scanner = null }
     })
 
-    return { videoEl, lastResult, recent }
+    onMounted(async () => {
+      if (!props.conferenceId) return
+      try {
+        const conf = await getConference(props.conferenceId, auth.state.token as string)
+        conferenceName.value = conf?.name || ''
+      } catch (e: any) { conferenceName.value = '' }
+    })
+
+    const breadcrumbItems = computed(() => [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: conferenceName.value || props.conferenceId || '', loading: !conferenceName.value },
+      { label: 'Check-in' }
+    ])
+
+    return { videoEl, lastResult, recent, breadcrumbItems }
   }
 }
 </script>

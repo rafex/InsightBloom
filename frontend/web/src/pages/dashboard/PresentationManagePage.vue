@@ -1,6 +1,7 @@
 <template lang="pug">
 .presentation-manage-page
-  ConferenceSubNav(:conferenceId="conferenceId")
+  DashboardBreadcrumb(:items="breadcrumbItems")
+  ConferenceToolsNav(:conferenceId="conferenceId")
   h2 Presentación
 
   .status-card(v-if="checkedStatus")
@@ -25,16 +26,17 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { uploadPresentation, getPresentationStatus, getSlidesUrl, getPdfUrl } from '@/services/api/presentationsApi'
 import { getConference, updateConference } from '@/services/api/usersApi'
 import type { Conference } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
-import ConferenceSubNav from './ConferenceSubNav.vue'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 
 export default {
   name: 'PresentationManagePage',
-  components: { ConferenceSubNav },
+  components: { DashboardBreadcrumb, ConferenceToolsNav },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -47,6 +49,7 @@ export default {
     const slidesUrl = ref('')
     const pdfUrl = ref('')
     const sourceUrl = ref('')
+    const conferenceName = ref('')
     let conference: Conference | null = null
 
     function onFileChange(e: Event) {
@@ -71,6 +74,7 @@ export default {
       try {
         conference = await getConference(props.conferenceId as string, auth.state.token as string)
         sourceUrl.value = (conference?.presentationSourceUrl as string) || ''
+        conferenceName.value = conference?.name || ''
       } catch (e: any) { /* el campo simplemente queda vacío */ }
     }
 
@@ -108,9 +112,16 @@ export default {
       loadConference()
     })
 
+    const breadcrumbItems = computed(() => [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: conferenceName.value || props.conferenceId || '', loading: !conferenceName.value },
+      { label: 'Presentación' }
+    ])
+
     return {
       file, uploading, error, success, checkedStatus, ready, slidesUrl, pdfUrl,
-      sourceUrl, onFileChange, upload
+      sourceUrl, onFileChange, upload, breadcrumbItems
     }
   }
 }

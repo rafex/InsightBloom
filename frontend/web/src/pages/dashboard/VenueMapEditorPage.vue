@@ -1,6 +1,6 @@
 <template lang="pug">
 .venue-map-page
-  ConferenceSubNav(:conferenceId="conferenceId")
+  DashboardBreadcrumb(:items="breadcrumbItems")
   h2 Mapa de asientos
 
   .loading-text(v-if="loading") Cargando...
@@ -44,8 +44,8 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
-import ConferenceSubNav from './ConferenceSubNav.vue'
+import { ref, computed, onMounted } from 'vue'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import SeatMapPicker from '@/components/SeatMapPicker.vue'
 import VenueMapCanvasEditor from '@/components/VenueMapCanvasEditor.vue'
 import { getConference, setVenueMap, getConferenceSeatMap, defineVenueSeats, generateSeatLayout } from '@/services/api/usersApi'
@@ -56,7 +56,7 @@ interface EditableSeat { uuid: string | null, label: string, x: number, y: numbe
 
 export default {
   name: 'VenueMapEditorPage',
-  components: { ConferenceSubNav, SeatMapPicker, VenueMapCanvasEditor },
+  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -72,6 +72,7 @@ export default {
     const aiError = ref('')
     const activeTab = ref('image')
     const showingCanvasEditor = ref(true)
+    const conferenceName = ref('')
     let seatCounter = 0
 
     onMounted(async () => {
@@ -82,6 +83,7 @@ export default {
         ])
         imageBase64.value = conf.venueMapBase64 || ''
         seats.value = seatMap.map((s: VenueSeat) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: s.occupied }))
+        conferenceName.value = conf.name || ''
       } finally {
         loading.value = false
       }
@@ -153,10 +155,17 @@ export default {
       showingCanvasEditor.value = true
     }
 
+    const breadcrumbItems = computed(() => [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: conferenceName.value || props.conferenceId || '', loading: loading.value && !conferenceName.value },
+      { label: 'Mapa de asientos' }
+    ])
+
     return {
       loading, imageBase64, seats, savingMap, savingSeats, seatsSaved, seatsError,
       aiDescription, generatingAi, aiError, activeTab, showingCanvasEditor,
-      onImageSelected, saveMap, addSeat, removeSeat, saveSeats, generateWithAi, applyCanvasSeats
+      onImageSelected, saveMap, addSeat, removeSeat, saveSeats, generateWithAi, applyCanvasSeats, breadcrumbItems
     }
   }
 }
