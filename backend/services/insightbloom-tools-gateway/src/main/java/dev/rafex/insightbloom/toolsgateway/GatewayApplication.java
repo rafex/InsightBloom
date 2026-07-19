@@ -51,6 +51,11 @@ public final class GatewayApplication {
         // 1009 "Binary message too large: 69,622 > 65,536" en loop constante de reconexion.
         final WebSocketUpgradeHandler wsHandler = WebSocketUpgradeHandler.from(server, container -> {
             container.setMaxBinaryMessageSize(WS_MAX_MESSAGE_SIZE);
+            // Default de Jetty es 30s -- insuficiente para una terminal interactiva (ttyd/code-server)
+            // donde el usuario puede pasar minutos sin escribir nada; confirmado en vivo (2026-07-19)
+            // que el idle timeout de 30s tumbaba la sesion en loop constante de reconexion, dejando
+            // la terminal visible pero no operable.
+            container.setIdleTimeout(java.time.Duration.ofMinutes(10));
             container.addMapping("/*", new WebSocketProxyCreator(routes, authGateHandler));
         });
         wsHandler.setHandler(authGateHandler);
