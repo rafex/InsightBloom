@@ -39,6 +39,15 @@ public final class GatewayApplication {
         final Server server = new Server();
         final ServerConnector connector = new ServerConnector(server);
         connector.setPort(port);
+        // Diagnostico 2026-07-19: el idle timeout de WebSocketUpgradeHandler.container (mas
+        // abajo) y del WebSocketClient/HttpClient del proxy saliente (ver
+        // LoggingWebSocketProxyEndpoint) SOLO gobiernan la capa de sesion WebSocket -- el
+        // ServerConnector es quien realmente posee el EndPoint TCP crudo de cada conexion
+        // aceptada, y nunca tuvo su propio idle timeout seteado (default de Jetty: 30s). Probado
+        // en vivo conectando directo al pod del sandbox (bypaseando este gateway por completo,
+        // ver kubectl port-forward + cliente websocket crudo): la conexion aguantaba 90s+ sin
+        // cortes, descartando a ttyd/K8s como causa -- confirma que el corte pasaba en esta capa.
+        connector.setIdleTimeout(java.time.Duration.ofMinutes(10).toMillis());
         server.addConnector(connector);
 
         final AuthGateHandler authGateHandler = new AuthGateHandler(
