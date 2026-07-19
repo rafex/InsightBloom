@@ -126,13 +126,11 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
 
     @Override
     public void onText(final WebSocketSession session, final String message) throws Exception {
-        LOGGER.info(() -> "websocket proxy: onText recibido, len=" + message.length());
         pending(session).onText(message);
     }
 
     @Override
     public void onBinary(final WebSocketSession session, final ByteBuffer message) throws Exception {
-        LOGGER.info(() -> "websocket proxy: onBinary recibido, len=" + message.remaining());
         pending(session).onBinary(message);
     }
 
@@ -173,10 +171,8 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
         void onText(final String message) {
             synchronized (lock) {
                 if (bridge != null) {
-                    LOGGER.info(() -> "websocket proxy: PendingBridge.onText envio directo (bridge ya listo)");
                     bridge.backend.sendText(message, Callback.NOOP);
                 } else if (!closed) {
-                    LOGGER.info(() -> "websocket proxy: PendingBridge.onText encolado (bridge aun no listo)");
                     queued.add(message);
                 }
             }
