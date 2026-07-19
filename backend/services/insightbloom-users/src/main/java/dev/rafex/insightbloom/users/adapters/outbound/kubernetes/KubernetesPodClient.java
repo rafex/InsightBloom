@@ -174,7 +174,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final String podJson = jsonCodec.toJson(
                 buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl, jvmHeapMb, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
-        final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats, terminalMode));
+        final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
         if (internetEnabled) {
             allowInternetEgress(Sandbox.conferenceLabel(conferenceUuid));
@@ -461,9 +461,11 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     }
 
     /**
-     * Puerto de control del seat-agent (Fase B) -- {@code port - 1}, fuera del rango de puertos
-     * de asiento ({@code port..port+MAX_SEATS_PER_POD-1}). Solo escucha ahi el Pod cuando corre
-     * en modo multi-asiento; en modo single-seat no hay agente ni puerto de control.
+     * Puerto de control -- {@code port - 1}, fuera del rango de puertos de asiento
+     * ({@code port..port+MAX_SEATS_PER_POD-1}). Escucha ahí el seat-agent (Fase B, modo
+     * multi-asiento -- asignación de asientos) y el sandbox-file-agent (Fase 4.1, TODAS las
+     * variantes incluyendo single-seat Web -- listado/lectura/escritura de archivos para el
+     * moderador). No asumir que solo aplica a terminal-nvim.
      */
     private int controlPort() {
         return port - 1;
@@ -673,19 +675,18 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "failureThreshold", failureThreshold);
     }
 
-    private Map<String, Object> buildServiceBody(final String podName, final int effectiveSeats,
-                                                  final boolean includeControlPort) {
+    private Map<String, Object> buildServiceBody(final String podName, final int effectiveSeats) {
         final List<Map<String, Object>> servicePorts = new ArrayList<>();
         for (int i = 0; i < effectiveSeats; i++) {
             servicePorts.add(Map.of("name", "seat-" + i, "port", port + i, "targetPort", port + i, "protocol", "TCP"));
         }
-        // Modo terminal-nvim: el seat-agent escucha en controlPort() (provisionSeat lo llama vía
-        // el Service, no la IP del Pod) -- sin este puerto el Service no tiene endpoint para
-        // 8079 y la llamada de asignación de asiento falla con conexión rechazada (bug real
-        // detectado en producción 2026-07-19: el Service solo tenía los puertos de asiento).
-        if (includeControlPort) {
-            servicePorts.add(Map.of("name", "control", "port", controlPort(), "targetPort", controlPort(), "protocol", "TCP"));
-        }
+        // Puerto de control (agente en el Pod, ver code-ide-entrypoint.sh): tanto el seat-agent
+        // (terminal-nvim, asignación de asientos) como el sandbox-file-agent (AMBAS variantes,
+        // Web incluido -- Fase 4.1) escuchan en controlPort() dentro del Pod. Sin este puerto en
+        // el Service, la llamada via DNS del Service se rechaza al instante (bug real detectado
+        // en producción 2026-07-19: el Service solo tenía los puertos de asiento). Se agrega
+        // siempre -- no es exclusivo de terminal-nvim como se pensó en el primer fix.
+        servicePorts.add(Map.of("name", "control", "port", controlPort(), "targetPort", controlPort(), "protocol", "TCP"));
         return Map.of(
                 "apiVersion", "v1",
                 "kind", "Service",
