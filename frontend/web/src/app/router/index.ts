@@ -37,6 +37,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'survey', component: () => import('@/pages/conference/SurveyPage.vue') },
       { path: 'ticket', component: () => import('@/pages/conference/TicketPage.vue') },
       { path: 'ide', component: () => import('@/pages/conference/IdePage.vue') },
+      { path: 'ide-session', component: () => import('@/pages/conference/IdeSessionPage.vue') },
       { path: 'diagrams', component: () => import('@/pages/conference/DiagrammingPage.vue') },
       { path: 'notes', component: () => import('@/pages/conference/CollabNotesPage.vue') },
       { path: 'video', component: () => import('@/pages/conference/VideoConferencePage.vue') },

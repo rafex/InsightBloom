@@ -50,7 +50,7 @@
             .value {{ formattedExpiry }}
 
         .ide-actions
-          a.btn-primary(v-if="fullGatewayUrl" :href="fullGatewayUrl" target="_blank" rel="noopener")
+          a.btn-primary(v-if="fullGatewayUrl" :href="ideSessionUrl" target="_blank" rel="noopener")
             span 🚀 Abrir IDE en navegador
           button.btn-secondary(@click="downloadWorkspace" :disabled="downloadingWorkspace")
             span(v-if="!downloadingWorkspace") 📥 Descargar workspace
@@ -67,6 +67,7 @@
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import { getSandbox, getSandboxAvailability, generateWorkspaceDownloadUrl } from '@/services/api/usersApi'
 import type { SandboxInfo, SandboxAvailability, SandboxVariant } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -83,6 +84,8 @@ export default {
     }
   },
   setup(props) {
+    const route = useRoute()
+    const friendlyId = route.params.friendlyId as string
     const sandbox = ref<SandboxInfo | null>(null)
     const loading = ref(false)
     const error = ref('')
@@ -115,6 +118,16 @@ export default {
       if (!sandbox.value?.gatewayUrl || !auth.state.token) return ''
       const params = new URLSearchParams({ ib_token: auth.state.token, conferenceId: props.conferenceId })
       return `${sandbox.value.gatewayUrl}?${params.toString()}`
+    })
+
+    // El boton "Abrir IDE" no navega directo al gateway -- abre esta MISMA app en pestana nueva
+    // (IdeSessionPage.vue), que embebe el IDE real en un iframe para poder superponer el panel
+    // de ayuda de Neovim. "Copiar URL" (mas abajo) sigue devolviendo la URL directa del gateway
+    // a proposito -- sirve para pegarla en otro dispositivo/QR sin depender de esta SPA.
+    const ideSessionUrl = computed(() => {
+      if (!fullGatewayUrl.value) return ''
+      const params = new URLSearchParams({ target: fullGatewayUrl.value })
+      return `/c/${friendlyId}/ide-session?${params.toString()}`
     })
 
     async function loadAvailability() {
@@ -217,7 +230,7 @@ export default {
     return {
       sandbox, loading, error, downloadingWorkspace, urlCopied,
       availability, loadingAvailability, chosenVariant, chooseVariant, switchVariant,
-      formattedExpiry, fullGatewayUrl, downloadWorkspace, copyGatewayUrl
+      formattedExpiry, fullGatewayUrl, ideSessionUrl, downloadWorkspace, copyGatewayUrl
     }
   }
 }
