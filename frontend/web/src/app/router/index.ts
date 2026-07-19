@@ -25,6 +25,14 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true }
   },
   {
+    // Fuera de ConferencePage.vue a proposito: esa pagina siempre monta AppHeader (position:
+    // sticky, z-index:100, "Dashboard"/"Salir") y el mapa de intro del evento ANTES de su
+    // router-view -- para el IDE queremos pantalla completa real, sin ese chrome tapando el
+    // panel de ayuda ni el flash del mapa mientras carga.
+    path: '/ide-session',
+    component: () => import('@/pages/conference/IdeSessionPage.vue')
+  },
+  {
     path: '/c/:friendlyId',
     component: () => import('@/pages/conference/ConferencePage.vue'),
     children: [
@@ -37,7 +45,6 @@ const routes: RouteRecordRaw[] = [
       { path: 'survey', component: () => import('@/pages/conference/SurveyPage.vue') },
       { path: 'ticket', component: () => import('@/pages/conference/TicketPage.vue') },
       { path: 'ide', component: () => import('@/pages/conference/IdePage.vue') },
-      { path: 'ide-session', component: () => import('@/pages/conference/IdeSessionPage.vue') },
       { path: 'diagrams', component: () => import('@/pages/conference/DiagrammingPage.vue') },
       { path: 'notes', component: () => import('@/pages/conference/CollabNotesPage.vue') },
       { path: 'video', component: () => import('@/pages/conference/VideoConferencePage.vue') },

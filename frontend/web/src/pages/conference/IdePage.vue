@@ -67,7 +67,6 @@
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
 import { getSandbox, getSandboxAvailability, generateWorkspaceDownloadUrl } from '@/services/api/usersApi'
 import type { SandboxInfo, SandboxAvailability, SandboxVariant } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -86,8 +85,6 @@ export default {
     }
   },
   setup(props) {
-    const route = useRoute()
-    const friendlyId = route.params.friendlyId as string
     const sandbox = ref<SandboxInfo | null>(null)
     const loading = ref(false)
     const error = ref('')
@@ -126,12 +123,15 @@ export default {
 
     // El boton "Abrir IDE" no navega directo al gateway -- abre esta MISMA app en pestana nueva
     // (IdeSessionPage.vue), que embebe el IDE real en un iframe para poder superponer el panel
-    // de ayuda de Neovim. "Copiar URL" (mas abajo) sigue devolviendo la URL directa del gateway
-    // a proposito -- sirve para pegarla en otro dispositivo/QR sin depender de esta SPA.
+    // de ayuda de Neovim. Ruta TOP-LEVEL (/ide-session, no /c/:friendlyId/ide-session) a
+    // proposito -- fuera de ConferencePage.vue, que monta AppHeader + mapa de intro antes de su
+    // router-view y tapaba el panel de ayuda. "Copiar URL" (mas abajo) sigue devolviendo la URL
+    // directa del gateway a proposito -- sirve para pegarla en otro dispositivo/QR sin depender
+    // de esta SPA.
     const ideSessionUrl = computed(() => {
       if (!fullGatewayUrl.value) return ''
       const params = new URLSearchParams({ target: fullGatewayUrl.value })
-      return `/c/${friendlyId}/ide-session?${params.toString()}`
+      return `/ide-session?${params.toString()}`
     })
 
     async function loadAvailability() {
