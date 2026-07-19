@@ -96,8 +96,10 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
             }
 
             LOGGER.info(() -> "websocket proxy: conexion al backend " + backendUri + " establecida ok");
+            // OJO: el atributo de sesion se queda con el PendingBridge para siempre (nunca se
+            // reemplaza por el ProxyBridge) -- pending(session) siempre castea a PendingBridge, y
+            // este ya delega directo al ProxyBridge real una vez adjuntado via attach().
             final var bridge = new ProxyBridge(backendSession, httpClient);
-            clientSession.attribute("proxy-bridge", bridge);
             pending.attach(bridge);
         } catch (final Exception e) {
             LOGGER.log(Level.WARNING, "websocket proxy: fallo conectando al backend " + backendUri, e);
