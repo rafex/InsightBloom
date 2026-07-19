@@ -1,6 +1,6 @@
 <template lang="pug">
 .user-detail-page
-  router-link.back-link(to="/dashboard/admin/users") ← Volver a Usuarios
+  DashboardBreadcrumb(:items="breadcrumbItems")
 
   .loading-text(v-if="loading") Cargando usuario...
 
@@ -53,14 +53,16 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getUser, getUserReservations, type UserReservationEntry } from '@/services/api/adminApi'
 import { hasResponded } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 
 export default {
   name: 'UserDetailPage',
+  components: { DashboardBreadcrumb },
   setup() {
     const route = useRoute()
     const auth = useAuthStore()
@@ -109,15 +111,19 @@ export default {
       }
     })
 
-    return { user, loading, reservations, loadingReservations, surveyStatus, statusLabel, formatDate }
+    const breadcrumbItems = computed(() => [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Usuarios', to: '/dashboard/admin/users' },
+      { label: user.value?.displayName || user.value?.username || '', loading: loading.value }
+    ])
+
+    return { user, loading, reservations, loadingReservations, surveyStatus, statusLabel, formatDate, breadcrumbItems }
   }
 }
 </script>
 
 <style scoped>
 .user-detail-page { padding: 24px; max-width: 900px; }
-.back-link { display: inline-block; margin-bottom: 16px; color: #4f46e5; text-decoration: none; font-size: 0.9rem; }
-.back-link:hover { text-decoration: underline; }
 .loading-text { color: #6b7280; }
 .empty-state { text-align: center; color: #9ca3af; padding: 60px; }
 .empty-text { color: #9ca3af; font-size: 0.88rem; }

@@ -1,5 +1,7 @@
 <template lang="pug">
 .conferences-list-page
+  DashboardBreadcrumb(:items="[{ label: 'Dashboard', to: '/dashboard' }, { label: 'Eventos' }]")
+
   .list-header
     h1 Eventos
     .header-actions
@@ -101,6 +103,7 @@ import { getConferences, deleteConference, getDownloadCounts, getActiveEventType
 import { useAuthStore } from '@/features/auth/authStore'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import { isExpired } from '@/utils/dates'
 import type { Conference, DownloadCounts, EventType, EventCapability } from '@/services/api/types'
 
@@ -112,7 +115,7 @@ interface ConferenceRow extends Conference {
 
 export default {
   name: 'ConferencesListPage',
-  components: { QrCodeModal, DropdownMenu },
+  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb },
   setup() {
     const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)

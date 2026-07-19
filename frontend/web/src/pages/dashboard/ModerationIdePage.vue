@@ -1,19 +1,13 @@
 <template lang="pug">
 .mod-ide-page
-  nav.breadcrumbs(aria-label="breadcrumb")
-    router-link(to="/dashboard") Dashboard
-    span.sep /
-    span.crumb-current(v-if="conferenceName") {{ conferenceName }}
-    span.crumb-loading(v-else) …
-    span.sep /
-    span.crumb-current Editor de código
+  DashboardBreadcrumb(:items="breadcrumbItems")
 
   nav.sub-links
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Moderación (mensajes)
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/moderation/words`") Moderación (palabras)
-    router-link.sub-link.router-link-active(:to="`/dashboard/conferences/${conferenceId}/moderation/ide`") Editor de código
+    router-link.sub-link.router-link-active(:to="`/dashboard/conferences/${conferenceId}/moderation/ide`") Editor Monaco
 
-  h2 Editor de código
+  h2 Editor Monaco
   p.field-hint Archivos de cada alumno conectado a un sandbox — abrí el editor para revisar su avance y apoyarlo en vivo.
 
   .toolbar
@@ -45,15 +39,16 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { listSandboxStatus, getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import WorkspaceFileEditor from '@/components/moderator/WorkspaceFileEditor.vue'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import type { SandboxStatusEntry } from '@/services/api/types'
 
 export default {
   name: 'ModerationIdePage',
-  components: { WorkspaceFileEditor },
+  components: { WorkspaceFileEditor, DashboardBreadcrumb },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -88,22 +83,19 @@ export default {
       }
     })
 
-    return { pods, loading, error, conferenceName, editorUserUuid, load, openEditor }
+    const breadcrumbItems = computed(() => [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: conferenceName.value || props.conferenceId || '', to: `/dashboard/conferences/${props.conferenceId}/moderation/words`, loading: !conferenceName.value },
+      { label: 'Editor Monaco' }
+    ])
+
+    return { pods, loading, error, conferenceName, editorUserUuid, breadcrumbItems, load, openEditor }
   }
 }
 </script>
 
 <style scoped>
 .mod-ide-page { padding: 24px; max-width: 900px; }
-.breadcrumbs {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 0.85rem; color: #6b7280; margin-bottom: 20px; flex-wrap: wrap;
-}
-.breadcrumbs a { color: #4f46e5; text-decoration: none; }
-.breadcrumbs a:hover { text-decoration: underline; }
-.sep { color: #d1d5db; }
-.crumb-current { color: #374151; font-weight: 500; }
-.crumb-loading { color: #9ca3af; }
 .sub-links { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
 .sub-link {
   padding: 6px 14px; border: 1.5px solid #e5e7eb; border-radius: 20px; text-decoration: none;

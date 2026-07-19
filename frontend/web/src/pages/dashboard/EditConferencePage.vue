@@ -1,5 +1,7 @@
 <template lang="pug">
 .edit-conf-page
+  DashboardBreadcrumb(:items="breadcrumbItems")
+
   h2 Editor del evento
 
   nav.sub-links(v-if="conferenceId")
@@ -75,15 +77,16 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import { getConference, updateConference, getTimezones } from '@/services/api/usersApi'
 import type { Conference, Timezone } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'EditConferencePage',
-  components: { ConferenceMap },
+  components: { ConferenceMap, DashboardBreadcrumb },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -161,9 +164,16 @@ export default {
       }
     }
 
+    const breadcrumbItems = computed(() => [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: conference.value?.name || props.conferenceId || '', loading: loading.value && !conference.value },
+      { label: 'Editor' }
+    ])
+
     return { conference, loading, error, saving, saveError, saved, displayName,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
-             timezones, timezoneId, onFlyerSelected, save }
+             timezones, timezoneId, breadcrumbItems, onFlyerSelected, save }
   }
 }
 </script>

@@ -1,5 +1,7 @@
 <template lang="pug">
 .conf-config-page
+  DashboardBreadcrumb(:items="breadcrumbItems")
+
   h2 Configuración del evento
 
   nav.sub-links(v-if="conferenceId")
@@ -154,9 +156,11 @@ import {
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 
 export default {
   name: 'ConferenceConfigPage',
+  components: { DashboardBreadcrumb },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -378,6 +382,13 @@ export default {
       }
     }
 
+    const breadcrumbItems = computed(() => [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: conference.value?.name || props.conferenceId || '', loading: loading.value && !conference.value },
+      { label: 'Configuración' }
+    ])
+
     return { conference, loading, error,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
@@ -390,7 +401,7 @@ export default {
              sandboxStatus, sandboxStatusLoaded, loadingSandboxStatus, sandboxStatusError, loadSandboxStatus,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
              eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
-             roleAssigned, roleError, roleName, assignRole, removeRole }
+             roleAssigned, roleError, roleName, assignRole, removeRole, breadcrumbItems }
   }
 }
 </script>

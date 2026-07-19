@@ -1,16 +1,6 @@
 <template lang="pug">
 .mod-messages-page
-  nav.breadcrumbs(aria-label="breadcrumb")
-    router-link(to="/dashboard") Dashboard
-    span.sep /
-    span(v-if="conferenceName")
-      router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/words`") {{ conferenceName }}
-    span.crumb-loading(v-else) …
-    span.sep /
-    router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/words`") Moderación de palabras
-    template(v-if="wordCanonical")
-      span.sep /
-      span.crumb-current "{{ wordCanonical }}"
+  DashboardBreadcrumb(:items="breadcrumbItems")
 
   nav.sub-links
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Moderación (mensajes)
@@ -86,12 +76,13 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getModerationMessages, censorMessage, restoreMessage, deleteMessage, answerMessage } from '@/services/api/moderationApi'
 import { getWordTimeline } from '@/services/api/queryApi'
 import { getConference, getUserProfile } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import DashboardBreadcrumb, { type BreadcrumbItem } from '@/components/DashboardBreadcrumb.vue'
 
 interface ModMessageItem {
   id?: string
@@ -118,6 +109,7 @@ interface ModMessageItem {
 
 export default {
   name: 'ModerationMessagesPage',
+  components: { DashboardBreadcrumb },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const route = useRoute()
@@ -273,9 +265,24 @@ export default {
       }
     })
 
+    const breadcrumbItems = computed(() => {
+      const wordsPath = `/dashboard/conferences/${props.conferenceId}/moderation/words`
+      const items: BreadcrumbItem[] = [
+        { label: 'Dashboard', to: '/dashboard' },
+        { label: conferenceName.value || props.conferenceId || '', to: wordsPath, loading: !conferenceName.value }
+      ]
+      if (wordCanonical) {
+        items.push({ label: 'Moderación de palabras', to: wordsPath })
+        items.push({ label: `"${wordCanonical}"` })
+      } else {
+        items.push({ label: 'Moderación (mensajes)' })
+      }
+      return items
+    })
+
     return {
       items, loading, page, totalPages, statusFilter, conferenceName, authorNames,
-      wordNormalized, wordCanonical,
+      wordNormalized, wordCanonical, breadcrumbItems,
       loadModMessages, goToPage, censorDetail, restore, deleteItem, startAnswering, submitAnswer,
       statusClass, statusLabel, formatTime
     }
@@ -285,16 +292,6 @@ export default {
 
 <style scoped>
 .mod-messages-page { }
-
-.breadcrumbs {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 0.85rem; color: #6b7280; margin-bottom: 20px; flex-wrap: wrap;
-}
-.breadcrumbs a { color: #4f46e5; text-decoration: none; }
-.breadcrumbs a:hover { text-decoration: underline; }
-.sep { color: #d1d5db; }
-.crumb-current { color: #374151; font-weight: 500; }
-.crumb-loading { color: #9ca3af; }
 .sub-links { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
 .sub-link {
   padding: 6px 14px; border: 1.5px solid #e5e7eb; border-radius: 20px; text-decoration: none;

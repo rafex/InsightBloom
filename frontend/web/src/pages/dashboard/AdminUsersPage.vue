@@ -1,5 +1,7 @@
 <template lang="pug">
 .admin-users-page
+  DashboardBreadcrumb(:items="[{ label: 'Dashboard', to: '/dashboard' }, { label: 'Usuarios' }]")
+
   h2 Usuarios
 
   .filters
@@ -72,6 +74,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listUsers, updateUser, banUser, unbanUser, deleteUserLogical } from '@/services/api/adminApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 
 type ConfirmActionType = 'ban' | 'unban' | 'delete'
 
@@ -88,6 +91,7 @@ interface AdminUserRow {
 
 export default {
   name: 'AdminUsersPage',
+  components: { DashboardBreadcrumb },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
