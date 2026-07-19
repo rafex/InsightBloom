@@ -1178,3 +1178,50 @@ Registrar una decision cuando cambie:
     edicion manual + `systemctl reload haproxy` seguido de commitear el mismo cambio
     al repo, a mano, en ese orden.
 - Reemplaza: `none`.
+
+### DEC-0027 - Auto-sanado del aprovisionamiento de asientos (sin intervencion manual)
+
+- Fecha: 2026-07-19
+- Estado: accepted
+- Contexto:
+  con el bug del gateway resuelto (DEC-0026), el IDE CLI seguia fallando de forma
+  intermitente con 502/conexion rechazada al abrirlo. Causa: `provisionSeat`
+  (creacion del usuario Linux/ttyd de un asiento especifico en un Pod terminal-nvim
+  compartido) reintentaba de forma SINCRONICA dentro del request HTTP de
+  `GET /sandbox`, con un presupuesto de apenas 6 intentos x 2s (~12s). Un cold start
+  real de Pod (pull de imagen + scheduling + arranque) puede tardar mas de dos
+  minutos -- cuando el presupuesto se agotaba, la excepcion se propagaba como 500 en
+  vez de caer en el flujo de polling/PENDING que el frontend ya sabia manejar,
+  dejando el asiento atascado para siempre hasta reaprovisionarlo A MANO via
+  `kubectl exec` (insostenible como operacion recurrente).
+- Decision:
+  - Nuevo metodo en `SandboxOrchestrator`: `ensureSeatReady` -- UN solo intento
+    rapido (5s), nunca lanza excepcion, pensado para llamarse en cada poll en vez
+    de bloquear con reintentos.
+  - `AssignSandboxUseCase.execute()` ahora llama `ensureSeatReady` (no
+    `provisionSeat`) en las tres ramas donde se aprovisiona un asiento, y en la
+    rama de RECONEXION lo intenta en CADA llamada (antes solo si el Pod estaba
+    totalmente ausente) -- efecto neto: cada `GET /sandbox` (incluido el polling
+    automatico que ya hace `IdePage.vue` mientras el status es PENDING) reintenta
+    solo, sin que nadie tenga que entrar a mano.
+  - Nuevo metodo publico `AssignSandboxUseCase.isSeatFullyProvisioned(sandbox,
+    userUuid)`, usado por `SandboxHandler` para calcular el status real: antes solo
+    miraba `sandboxOrchestrator.isReady(pod)` (Pod con containers Ready), lo que
+    podia devolver READY con el Pod sano pero el asiento especifico todavia sin
+    aprovisionar. Ahora exige ambas cosas para Pods terminal-nvim multi-asiento.
+  - Frontend (`IdePage.vue`): el estado PENDING ahora muestra
+    `SandboxLoadingAnimation.vue` (astronauta animado con el logo de InsightBloom en
+    el casco) en vez de un spinner de texto plano -- mismo timeout de polling de
+    siempre (5 min), solo cambia que ahora SI llega a usarse en el caso de cold
+    start real en vez de que el request explote antes de llegar ahi.
+- Consecuencias:
+  - `provisionSeat` (el metodo viejo, bloqueante con reintentos) queda sin uso real
+    en el codigo de produccion pero se mantiene en la interfaz -- eliminarlo es
+    limpieza aparte, no bloquea nada.
+  - `isSeatFullyProvisioned` hace una consulta extra a `ConferenceRepository` por
+    cada `GET /sandbox` (para saber `seatsPerPod`) -- costo aceptado, lectura local
+    SQLite, mismo patron que ya usa el resto del handler.
+  - Cualquier caso similar futuro (otro recurso que dependa de un Pod recien creado)
+    deberia seguir el mismo patron: intento rapido no-bloqueante + status PENDING +
+    polling del lado del cliente, no reintentos bloqueantes dentro del request.
+- Reemplaza: `none`.

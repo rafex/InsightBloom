@@ -31,8 +31,8 @@
         p.hint(v-if="availability && !availability.web.available") Web está lleno -- solo queda disponible CLI.
       div(v-else-if="loading" class="loading-spinner") Cargando sandbox...
       div(v-else-if="error" class="error-message") {{ error }}
-      div(v-else-if="sandbox && sandbox.status === 'PENDING'" class="loading-spinner")
-        p 🔧 Preparando tu ambiente de desarrollo...
+      .pending-sandbox(v-else-if="sandbox && sandbox.status === 'PENDING'")
+        sandbox-loading-animation(:message="pendingMessage")
         p.hint Esto puede tardar hasta un par de minutos la primera vez.
       template(v-else-if="sandbox")
         .sandbox-info
@@ -71,12 +71,14 @@ import { useRoute } from 'vue-router'
 import { getSandbox, getSandboxAvailability, generateWorkspaceDownloadUrl } from '@/services/api/usersApi'
 import type { SandboxInfo, SandboxAvailability, SandboxVariant } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import SandboxLoadingAnimation from '@/components/SandboxLoadingAnimation.vue'
 
 const POLL_INTERVAL_MS = 3000
 const POLL_TIMEOUT_MS = 5 * 60_000
 
 export default {
   name: 'IdePage',
+  components: { SandboxLoadingAnimation },
   props: {
     conferenceId: {
       type: String,
@@ -102,6 +104,8 @@ export default {
       if (pollTimer) clearTimeout(pollTimer)
       pollTimer = null
     }
+
+    const pendingMessage = ref('🔧 Preparando tu ambiente de desarrollo...')
 
     const formattedExpiry = computed(() => {
       if (!sandbox.value?.expiresInSeconds) return 'N/A'
@@ -230,7 +234,8 @@ export default {
     return {
       sandbox, loading, error, downloadingWorkspace, urlCopied,
       availability, loadingAvailability, chosenVariant, chooseVariant, switchVariant,
-      formattedExpiry, fullGatewayUrl, ideSessionUrl, downloadWorkspace, copyGatewayUrl
+      formattedExpiry, fullGatewayUrl, ideSessionUrl, downloadWorkspace, copyGatewayUrl,
+      pendingMessage
     }
   }
 }
@@ -324,6 +329,15 @@ export default {
 .variant-slots {
   font-size: 0.8rem;
   color: #9ca3af;
+  margin-top: 4px;
+}
+
+.pending-sandbox {
+  text-align: center;
+  padding: 8px 0 24px;
+}
+
+.pending-sandbox .hint {
   margin-top: 4px;
 }
 

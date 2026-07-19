@@ -44,6 +44,18 @@ public interface SandboxOrchestrator {
      */
     void provisionSeat(String podName, int seatIndex, String userUuid);
 
+    /**
+     * Como {@link #provisionSeat}, pero un UNICO intento rapido en vez de reintentar durante
+     * varios segundos, y nunca lanza excepcion -- el llamador NO puede permitirse bloquear la
+     * respuesta HTTP mientras un Pod recien creado todavia esta con la imagen bajando/agendandose
+     * (puede tardar minutos, no segundos). Pensado para llamarse en cada poll de estado
+     * (ver GetSandbox/AssignSandboxUseCase): si el seat-agent todavia no responde, devuelve
+     * {@code false} sin mas, y el proximo poll (el frontend ya reintenta solo mientras el status
+     * sea PENDING) vuelve a intentarlo -- auto-sana sin intervencion manual.
+     * @return true si el asiento quedo confirmado (o ya lo estaba, es idempotente).
+     */
+    boolean ensureSeatReady(String podName, int seatIndex, String userUuid);
+
     /** Borra Pod + Service; no falla si ya no existen (ej. purga repetida). */
     void deleteSandbox(String podName);
 

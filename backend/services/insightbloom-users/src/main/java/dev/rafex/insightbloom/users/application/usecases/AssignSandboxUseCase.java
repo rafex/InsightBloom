@@ -108,9 +108,18 @@ public class AssignSandboxUseCase {
                 // significa que el Pod no existe; se recrea con el mismo nombre/slot.
                 if (sandboxOrchestrator.getPhase(sandbox.podName()) == null) {
                     recreatePod(sandbox, conference, orchestratorVariant);
-                    if (seatsPerPod > 1) {
-                        sandboxOrchestrator.provisionSeat(sandbox.podName(), sandbox.getSeatIndex(), userUuid);
-                    }
+                }
+                if (seatsPerPod > 1) {
+                    // Intento best-effort en CADA reconexion (no solo cuando el Pod estaba
+                    // totalmente ausente): idempotente del lado del seat-agent, y es lo que
+                    // permite auto-sanar el caso real donde el Pod existe y esta "Ready" pero el
+                    // intento ORIGINAL de aprovisionar este asiento nunca llego a completarse
+                    // (cold start mas lento que el primer intento) -- antes de esto, ese estado
+                    // quedaba atascado para siempre y requeria reaprovisionar el asiento a mano.
+                    // Nunca lanza excepcion (ver ensureSeatReady); si falla, el status que
+                    // devuelve el handler queda en PENDING y el siguiente poll del frontend
+                    // reintenta solo, sin intervencion.
+                    sandboxOrchestrator.ensureSeatReady(sandbox.podName(), sandbox.getSeatIndex(), userUuid);
                 }
                 // Refresca el vencimiento en cada reconexion -- sin esto, una sesion en uso
                 // activo igual expiraba a las N horas de su PRIMERA creacion (incidente
@@ -136,8 +145,10 @@ public class AssignSandboxUseCase {
                 if (seatsPerPod > 1) {
                     // El Pod ya existia (pre-warmed por EnsureUnassignedSandboxUseCase) pero sin
                     // usuario real asignado todavia -- el seat-agent recien ahora se entera de
-                    // QUIEN ocupa este asiento y crea su usuario Linux/ttyd.
-                    sandboxOrchestrator.provisionSeat(claimed.podName(), claimed.getSeatIndex(), userUuid);
+                    // QUIEN ocupa este asiento y crea su usuario Linux/ttyd. Best-effort (ver
+                    // comentario en la rama de reconexion mas arriba): si el Pod recien esta
+                    // arrancando, isSeatFullyProvisioned lo reintenta en cada poll de status.
+                    sandboxOrchestrator.ensureSeatReady(claimed.podName(), claimed.getSeatIndex(), userUuid);
                 }
                 return claimed;
             }
@@ -184,8 +195,11 @@ public class AssignSandboxUseCase {
             // Tanto si el Pod es nuevo (asiento 0) como si nos unimos a uno existente (asiento
             // > 0), el seat-agent necesita el pedido explicito para crear el usuario Linux/ttyd
             // de ESTE asiento -- createSandbox solo deja el Pod+agente corriendo, no aprovisiona
-            // ningun asiento por si solo.
-            sandboxOrchestrator.provisionSeat(sandbox.podName(), allocation.seatIndex(), userUuid);
+            // ningun asiento por si solo. Best-effort y rapido a proposito (no bloquea la
+            // respuesta esperando a que el Pod recien creado termine de arrancar, que puede
+            // tardar minutos) -- isSeatFullyProvisioned reintenta en cada poll de status
+            // (GetSandbox), mismo mecanismo de auto-sanado que la rama de reconexion.
+            sandboxOrchestrator.ensureSeatReady(sandbox.podName(), allocation.seatIndex(), userUuid);
         }
 
         try {
@@ -201,6 +215,28 @@ public class AssignSandboxUseCase {
         }
 
         return sandbox;
+    }
+
+    /**
+     * Usado por {@code SandboxHandler} para calcular el status ("READY"/"PENDING") que ve el
+     * frontend -- a diferencia de {@code SandboxOrchestrator.isReady} (que solo mira si el Pod
+     * paso su readiness probe), esto TAMBIEN confirma que el asiento especifico de este alumno
+     * ya fue provisionado en el seat-agent cuando el Pod es multi-asiento (terminal-nvim
+     * compartido). Sin este chequeo extra, el frontend podia recibir READY con el Pod sano pero
+     * el asiento 0 todavia sin usuario Linux/ttyd -- se veia como IDE "listo" que en realidad
+     * daba 502/conexion rechazada al abrirlo. Vuelve a intentar el aprovisionamiento (idempotente,
+     * rapido) en cada llamada -- ver DEC-0027.
+     */
+    public boolean isSeatFullyProvisioned(final Sandbox sandbox, final String userUuid) {
+        if (!Sandbox.VARIANT_CLI.equals(sandbox.getVariant())) {
+            return true; // Web: un asiento por Pod, sin seat-agent -- isReady(Pod) alcanza.
+        }
+        final Conference conference = conferenceRepository.findByUuid(sandbox.getConferenceUuid()).orElse(null);
+        final int seatsPerPod = conference != null ? seatsPerPodFor(Sandbox.VARIANT_CLI, conference) : DEFAULT_SEATS_PER_POD;
+        if (seatsPerPod <= 1) {
+            return true; // Pod terminal-nvim de un solo asiento: mismo caso que Web.
+        }
+        return sandboxOrchestrator.ensureSeatReady(sandbox.podName(), sandbox.getSeatIndex(), userUuid);
     }
 
     /**

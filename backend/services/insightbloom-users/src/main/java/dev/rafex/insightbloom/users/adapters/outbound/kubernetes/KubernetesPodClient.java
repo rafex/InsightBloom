@@ -321,6 +321,26 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         throw lastFailure;
     }
 
+    @Override
+    public boolean ensureSeatReady(final String podName, final int seatIndex, final String userUuid) {
+        if (!isEnabled()) return false;
+        final String url = "http://" + podName + "-svc." + namespace + ".svc.cluster.local:"
+                + controlPort() + "/seats/" + seatIndex;
+        final String body = jsonCodec.toJson(Map.of("userUuid", userUuid));
+        try {
+            final HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+            return send(request).statusCode() < 300;
+        } catch (final IllegalStateException e) {
+            // send() envuelve IOException aca -- esperado mientras el Pod/seat-agent todavia no
+            // esta listo (cold start en curso), no un error real: el proximo poll reintenta.
+            return false;
+        }
+    }
+
     private String podControlUrl(final String podName) {
         return "http://" + podName + "-svc." + namespace + ".svc.cluster.local:" + controlPort();
     }

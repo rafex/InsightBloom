@@ -149,8 +149,12 @@ public class SandboxHandler extends BaseResourceHandler {
             // El Pod pasa a fase "Running" en cuanto arrancan sus contenedores, sin esperar a que
             // pasen su readiness probe -- con el Pod de dos contenedores (ide+runtime) eso dejaba
             // cargar el IDE antes de que 'runtime' estuviera realmente listo (502/WS rechazado,
-            // visto en produccion 2026-07-16). READY exige el condition Ready agregado del Pod.
-            final String status = sandboxOrchestrator.isReady(sandbox.podName()) ? "READY" : "PENDING";
+            // visto en produccion 2026-07-16). READY exige el condition Ready agregado del Pod, Y
+            // (Pods terminal-nvim multi-asiento) que ESTE asiento especifico ya este provisionado
+            // en el seat-agent -- ver AssignSandboxUseCase.isSeatFullyProvisioned/DEC-0027.
+            final String status = sandboxOrchestrator.isReady(sandbox.podName())
+                    && assignSandboxUseCase.isSeatFullyProvisioned(sandbox, v.subjectUuid())
+                    ? "READY" : "PENDING";
 
             final Map<String, Object> response = Map.of(
                 "sandboxUuid", sandbox.getUuid(),
