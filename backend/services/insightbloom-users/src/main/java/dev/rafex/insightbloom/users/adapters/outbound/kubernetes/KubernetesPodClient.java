@@ -174,7 +174,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final String podJson = jsonCodec.toJson(
                 buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl, jvmHeapMb, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
-        final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
+        final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats, terminalMode));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
         if (internetEnabled) {
             allowInternetEgress(Sandbox.conferenceLabel(conferenceUuid));
@@ -673,10 +673,18 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "failureThreshold", failureThreshold);
     }
 
-    private Map<String, Object> buildServiceBody(final String podName, final int effectiveSeats) {
+    private Map<String, Object> buildServiceBody(final String podName, final int effectiveSeats,
+                                                  final boolean includeControlPort) {
         final List<Map<String, Object>> servicePorts = new ArrayList<>();
         for (int i = 0; i < effectiveSeats; i++) {
             servicePorts.add(Map.of("name", "seat-" + i, "port", port + i, "targetPort", port + i, "protocol", "TCP"));
+        }
+        // Modo terminal-nvim: el seat-agent escucha en controlPort() (provisionSeat lo llama vía
+        // el Service, no la IP del Pod) -- sin este puerto el Service no tiene endpoint para
+        // 8079 y la llamada de asignación de asiento falla con conexión rechazada (bug real
+        // detectado en producción 2026-07-19: el Service solo tenía los puertos de asiento).
+        if (includeControlPort) {
+            servicePorts.add(Map.of("name", "control", "port", controlPort(), "targetPort", controlPort(), "protocol", "TCP"));
         }
         return Map.of(
                 "apiVersion", "v1",
