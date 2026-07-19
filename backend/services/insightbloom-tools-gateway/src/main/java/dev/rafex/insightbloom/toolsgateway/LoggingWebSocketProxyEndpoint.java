@@ -11,6 +11,8 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -39,6 +41,22 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
 
     @Override
     public void onOpen(final WebSocketSession clientSession) throws Exception {
+        // Diagnostico 2026-07-19: la conexion al backend de mas abajo (wsClient.connect +
+        // backendFuture.get) tarda del orden de 1s en resolver (crear HttpClient/WebSocketClient,
+        // handshake WS saliente) -- mientras tanto, Jetty (listener AutoDemanding, ver
+        // JettyWebSocketEndpointBridge) ya puede estar despachando el PRIMER mensaje que mando el
+        // cliente (para ttyd, el JSON de init con columns/rows que ttyd EXIGE para recien ahi
+        // spawnear el pty) en un thread distinto, antes de que este metodo termine. Como el bridge
+        // recien se guardaba en el atributo de sesion AL FINAL, ese primer mensaje llegaba a
+        // onText/onBinary con bridge()==null y se descartaba en silencio -- confirmado en vivo:
+        // el WebSocket quedaba abierto y con PING/PONG sano indefinidamente, pero ttyd nunca
+        // recibia el init y jamas arrancaba el pty (cero proceso hijo, terminal en blanco para
+        // siempre). Fix: publicar un PendingBridge desde el arranque de este metodo que ENCOLA
+        // cualquier mensaje que llegue antes de que el backend este listo, y los reenvia en orden
+        // apenas se resuelve.
+        final var pending = new PendingBridge();
+        clientSession.attribute("proxy-bridge", pending);
+
         final var httpClient = new HttpClient();
         final var wsClient = new WebSocketClient(httpClient);
         httpClient.setConnectTimeout(connectTimeout.toMillis());
@@ -80,8 +98,10 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
             LOGGER.info(() -> "websocket proxy: conexion al backend " + backendUri + " establecida ok");
             final var bridge = new ProxyBridge(backendSession, httpClient);
             clientSession.attribute("proxy-bridge", bridge);
+            pending.attach(bridge);
         } catch (final Exception e) {
             LOGGER.log(Level.WARNING, "websocket proxy: fallo conectando al backend " + backendUri, e);
+            pending.attachFailure();
             clientSession.close(WebSocketCloseStatus.SERVER_ERROR);
             httpClient.stop();
         }
@@ -89,35 +109,23 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
 
     @Override
     public void onText(final WebSocketSession session, final String message) throws Exception {
-        final var bridge = bridge(session);
-        if (bridge != null) {
-            bridge.backend.sendText(message, Callback.NOOP);
-        }
+        pending(session).onText(message);
     }
 
     @Override
     public void onBinary(final WebSocketSession session, final ByteBuffer message) throws Exception {
-        final var bridge = bridge(session);
-        if (bridge != null) {
-            bridge.backend.sendBinary(message, Callback.NOOP);
-        }
+        pending(session).onBinary(message);
     }
 
     @Override
     public void onClose(final WebSocketSession session, final WebSocketCloseStatus closeStatus) throws Exception {
-        final var bridge = bridge(session);
-        if (bridge != null) {
-            bridge.close(closeStatus);
-        }
+        pending(session).onClose(closeStatus);
     }
 
     @Override
     public void onError(final WebSocketSession session, final Throwable error) {
         LOGGER.log(Level.WARNING, "websocket proxy: error en sesion cliente (backend " + backendUri + ")", error);
-        final var bridge = bridge(session);
-        if (bridge != null) {
-            bridge.close(WebSocketCloseStatus.SERVER_ERROR);
-        }
+        pending(session).onClose(WebSocketCloseStatus.SERVER_ERROR);
     }
 
     @Override
@@ -125,8 +133,87 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
         return Set.of();
     }
 
-    private static ProxyBridge bridge(final WebSocketSession session) {
-        return (ProxyBridge) session.attribute("proxy-bridge");
+    private static PendingBridge pending(final WebSocketSession session) {
+        return (PendingBridge) session.attribute("proxy-bridge");
+    }
+
+    /**
+     * Coordina la carrera entre los mensajes que el cliente manda apenas abre su WebSocket y la
+     * conexion saliente al backend (que tarda ~1s en resolver, ver comentario en {@link #onOpen}).
+     * Mientras el backend no este listo, encola en orden; apenas {@link #attach} corre, reenvia
+     * todo lo encolado y de ahi en mas pasa a modo directo (sin overhead de sincronizar cada frame
+     * despues del arranque).
+     */
+    private static final class PendingBridge {
+        private final Object lock = new Object();
+        private final Queue<Object> queued = new ArrayDeque<>();
+        private ProxyBridge bridge;
+        private boolean closed;
+        private WebSocketCloseStatus closeStatus;
+
+        void onText(final String message) {
+            synchronized (lock) {
+                if (bridge != null) {
+                    bridge.backend.sendText(message, Callback.NOOP);
+                } else if (!closed) {
+                    queued.add(message);
+                }
+            }
+        }
+
+        void onBinary(final ByteBuffer message) {
+            synchronized (lock) {
+                if (bridge != null) {
+                    bridge.backend.sendBinary(message, Callback.NOOP);
+                } else if (!closed) {
+                    queued.add(message);
+                }
+            }
+        }
+
+        void onClose(final WebSocketCloseStatus status) {
+            synchronized (lock) {
+                if (bridge != null) {
+                    bridge.close(status);
+                } else {
+                    // El backend todavia no conecto -- se marca el cierre para que attach() lo
+                    // cierre apenas resuelva, en vez de dejar una conexion saliente huerfana.
+                    closed = true;
+                    closeStatus = status;
+                    queued.clear();
+                }
+            }
+        }
+
+        void attach(final ProxyBridge readyBridge) {
+            final boolean shouldCloseImmediately;
+            synchronized (lock) {
+                if (closed) {
+                    shouldCloseImmediately = true;
+                } else {
+                    shouldCloseImmediately = false;
+                    for (final Object item : queued) {
+                        if (item instanceof String text) {
+                            readyBridge.backend.sendText(text, Callback.NOOP);
+                        } else {
+                            readyBridge.backend.sendBinary((ByteBuffer) item, Callback.NOOP);
+                        }
+                    }
+                    queued.clear();
+                    bridge = readyBridge;
+                }
+            }
+            if (shouldCloseImmediately) {
+                readyBridge.close(closeStatus);
+            }
+        }
+
+        void attachFailure() {
+            synchronized (lock) {
+                queued.clear();
+                closed = true;
+            }
+        }
     }
 
     private static final class ProxyBridge {
