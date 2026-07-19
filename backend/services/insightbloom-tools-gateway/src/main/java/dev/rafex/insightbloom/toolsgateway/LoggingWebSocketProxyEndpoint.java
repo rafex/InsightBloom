@@ -157,6 +157,19 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
             this.backendSession = session;
         }
 
+        // Jetty NO responde PING con PONG automaticamente (Session.Listener.onWebSocketPing es
+        // no-op por defecto, ver javadoc de la interfaz) -- sin este override, los PING que ttyd
+        // manda cada 15s (--ping-interval, ver sandbox-agent.py) nunca recibian PONG, y ttyd
+        // cerraba la conexion (1011 server_error) tras ~3 intentos sin respuesta (~45-50s).
+        // Confirmado en vivo (2026-07-19): la terminal del IDE CLI se quedaba en negro cada ~50s
+        // en loop de reconexion.
+        @Override
+        public void onWebSocketPing(final ByteBuffer payload) {
+            if (backendSession != null) {
+                backendSession.sendPong(payload, Callback.NOOP);
+            }
+        }
+
         @Override
         public void onWebSocketText(final String message) {
             if (clientSession.isOpen()) {

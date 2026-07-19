@@ -63,6 +63,15 @@ public final class JettyWebSocketEndpointBridge implements Session.Listener.Auto
         }
     }
 
+    // Ver comentario equivalente en LoggingWebSocketProxyEndpoint.BackendSessionListener: Jetty
+    // no responde PING con PONG por defecto, hay que hacerlo explicito por cada hop del proxy.
+    @Override
+    public void onWebSocketPing(final ByteBuffer payload) {
+        if (nativeSession != null) {
+            nativeSession.sendPong(payload, Callback.NOOP);
+        }
+    }
+
     @Override
     public void onWebSocketText(final String message) {
         try {
