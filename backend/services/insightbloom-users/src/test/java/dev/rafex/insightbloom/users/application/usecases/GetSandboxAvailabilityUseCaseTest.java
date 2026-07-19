@@ -35,8 +35,9 @@ class GetSandboxAvailabilityUseCaseTest {
     void testBothVariantsAvailableWhenEmpty() {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-a")).thenReturn(Optional.empty());
 
-        final var availability = useCase.execute("conf-1");
+        final var availability = useCase.execute("conf-1", "user-a");
 
         assertTrue(availability.web().available());
         assertEquals(0, availability.web().activeCount());
@@ -51,8 +52,9 @@ class GetSandboxAvailabilityUseCaseTest {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
         final var web = new Sandbox("conf-1", 0, "user-a", Instant.now().plusSeconds(3600));
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(web));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-b")).thenReturn(Optional.empty());
 
-        final var availability = useCase.execute("conf-1");
+        final var availability = useCase.execute("conf-1", "user-b");
 
         assertFalse(availability.web().available());
         assertEquals(1, availability.web().activeCount());
@@ -60,10 +62,24 @@ class GetSandboxAvailabilityUseCaseTest {
     }
 
     @Test
+    void testOwnerOfFullPoolCanStillReconnect() {
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        final var web = new Sandbox("conf-1", 0, "user-a", Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(web));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-a")).thenReturn(Optional.of(web));
+
+        final var availability = useCase.execute("conf-1", "user-a");
+
+        assertTrue(availability.web().available());
+        assertEquals(1, availability.web().activeCount());
+        assertEquals(1, availability.web().capacity());
+    }
+
+    @Test
     void testConferenceNotFound() {
         Mockito.when(conferenceRepoMock.findByUuid("nonexistent")).thenReturn(Optional.empty());
 
-        final var ex = assertThrows(IllegalArgumentException.class, () -> useCase.execute("nonexistent"));
+        final var ex = assertThrows(IllegalArgumentException.class, () -> useCase.execute("nonexistent", "user-a"));
         assertEquals("conference_not_found", ex.getMessage());
     }
 }

@@ -31,7 +31,15 @@ public class GetSandboxAvailabilityUseCase {
     public record Availability(VariantAvailability web, VariantAvailability cli) {
     }
 
-    public Availability execute(final String conferenceUuid) {
+    /**
+     * @param userUuid usuario que consulta -- si ya tiene un sandbox propio en una variante, esa
+     *                 variante se marca {@code available=true} sin importar el cupo (para que
+     *                 pueda reconectarse a su propio workspace aunque el pool esté lleno con SU
+     *                 PROPIO asiento; bug real detectado en producción 2026-07-19: sin esto, el
+     *                 dueño del único asiento de un pool de tamaño 1 quedaba con el botón
+     *                 deshabilitado y no podía volver a entrar a su propio sandbox).
+     */
+    public Availability execute(final String conferenceUuid, final String userUuid) {
         final Conference conference = conferenceRepository.findByUuid(conferenceUuid)
             .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
 
@@ -46,6 +54,9 @@ public class GetSandboxAvailabilityUseCase {
             }
         }
 
+        final String ownVariant = sandboxRepository.findByConferenceAndUser(conferenceUuid, userUuid)
+                .map(Sandbox::getVariant).orElse(null);
+
         final int webPoolSize = conference.getSandboxPoolSize() != null ? conference.getSandboxPoolSize() : DEFAULT_POOL_SIZE;
         final int cliPoolSize = conference.getSandboxCliPoolSize() != null ? conference.getSandboxCliPoolSize() : DEFAULT_POOL_SIZE;
         final int cliSeatsPerPod = conference.getSandboxSeatsPerPod() != null
@@ -54,9 +65,12 @@ public class GetSandboxAvailabilityUseCase {
         final int webCapacity = webPoolSize; // 1 asiento por pod siempre en "web"
         final int cliCapacity = cliPoolSize * cliSeatsPerPod;
 
+        final boolean webAvailable = webCount < webCapacity || Sandbox.VARIANT_WEB.equals(ownVariant);
+        final boolean cliAvailable = cliCount < cliCapacity || Sandbox.VARIANT_CLI.equals(ownVariant);
+
         return new Availability(
-            new VariantAvailability(webCount < webCapacity, webCount, webCapacity),
-            new VariantAvailability(cliCount < cliCapacity, cliCount, cliCapacity)
+            new VariantAvailability(webAvailable, webCount, webCapacity),
+            new VariantAvailability(cliAvailable, cliCount, cliCapacity)
         );
     }
 }

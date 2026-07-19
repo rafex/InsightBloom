@@ -190,7 +190,7 @@ public class SandboxHandler extends BaseResourceHandler {
                 return true;
             }
 
-            final var availability = getSandboxAvailabilityUseCase.execute(conferenceId);
+            final var availability = getSandboxAvailabilityUseCase.execute(conferenceId, v.subjectUuid());
             final Map<String, Object> response = Map.of(
                 "web", Map.of(
                     "available", availability.web().available(),
