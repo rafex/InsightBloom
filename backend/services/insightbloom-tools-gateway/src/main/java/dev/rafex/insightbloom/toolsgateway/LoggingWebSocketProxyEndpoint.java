@@ -139,6 +139,8 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
         }
 
         void close(final WebSocketCloseStatus status) {
+            LOGGER.log(Level.WARNING, "websocket proxy: ProxyBridge.close() invocado, status=" + status
+                + " thread=" + Thread.currentThread().getName(), new Exception("stack de diagnostico, no es un error real"));
             try {
                 if (backend.isOpen()) {
                     backend.close(status.code(), status.reason(), Callback.NOOP);
