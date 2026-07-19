@@ -84,7 +84,22 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
             wsClient.setIdleTimeout(java.time.Duration.ofMinutes(10));
             wsClient.start();
             final var backendListener = new BackendSessionListener(clientSession);
-            final var backendFuture = wsClient.connect(backendListener, backendUri);
+            // Diagnostico 2026-07-19: el mensaje de init de ttyd (JSON con columns/rows, exigido
+            // por su protocolo antes de spawnear el pty) SI llegaba al backend via este proxy
+            // (confirmado con logging: onText lo recibe y PendingBridge lo reenvia), pero ttyd
+            // jamas respondia ni arrancaba el proceso -- a diferencia de conectarse DIRECTO a
+            // ttyd (bypaseando este gateway) con el mismo mensaje, que funcionaba siempre. La
+            // diferencia real: la conexion directa negociaba el subprotocolo "Sec-WebSocket-Protocol:
+            // tty" (ttyd lo exige para tratar el primer frame como su JSON de init en vez de
+            // ignorarlo); esta conexion saliente gateway->backend nunca reenviaba el subprotocolo
+            // que el NAVEGADOR le pidio a este gateway, asi que ttyd la trataba como conexion sin
+            // protocolo reconocido y nunca arrancaba el pty pese a "aceptar" el handshake.
+            final var upgradeRequest = new org.eclipse.jetty.websocket.client.ClientUpgradeRequest();
+            final var requestedProtocol = clientSession.headerFirst("Sec-WebSocket-Protocol");
+            if (requestedProtocol != null && !requestedProtocol.isBlank()) {
+                upgradeRequest.setSubProtocols(requestedProtocol.split(",\\s*"));
+            }
+            final var backendFuture = wsClient.connect(backendListener, backendUri, upgradeRequest);
             backendFuture.get(connectTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             final var backendSession = backendListener.backendSession;
