@@ -22,6 +22,22 @@ public final class GatewayApplication {
 
     public static void main(final String[] args) throws Exception {
         System.setProperty("jdk.httpclient.keepalive.timeout", "180");
+        // Diagnostico temporal 2026-07-19: la conexion websocket de la terminal del IDE CLI se
+        // sigue cerrando cada ~50s con ClosedChannelException al leer -- ya se descarto PING/PONG,
+        // todos los idle timeouts conocidos (sesion/WebSocketClient/HttpClient/ServerConnector,
+        // todos en 10min-1h) y HAProxy (su propio "show sess" confirma que NO es quien cierra).
+        // El cierre del canal es LOCAL (ClosedChannelException al leer, no un EOF de FIN remoto),
+        // asi que algo dentro de Jetty (o codigo nuestro que no se identifico via logging propio)
+        // lo esta cerrando. Se sube el nivel de logging de Jetty a FINE para capturar su traza
+        // interna en el proximo intento -- quitar despues de diagnosticar.
+        if ("true".equals(System.getenv("GATEWAY_DEBUG_JETTY_LOGGING"))) {
+            final var jettyLogger = java.util.logging.Logger.getLogger("org.eclipse.jetty");
+            jettyLogger.setLevel(java.util.logging.Level.FINE);
+            final var handler = new java.util.logging.ConsoleHandler();
+            handler.setLevel(java.util.logging.Level.FINE);
+            jettyLogger.addHandler(handler);
+            jettyLogger.setUseParentHandlers(false);
+        }
         final int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8090"));
         final String authValidateUrl = System.getenv().getOrDefault(
                 "AUTH_VALIDATE_URL", "http://insightbloom-users:8081/api/v1/auth/validate");
