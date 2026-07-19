@@ -18,8 +18,11 @@ import dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class SandboxHandler extends BaseResourceHandler {
+    private static final Logger LOGGER = Logger.getLogger(SandboxHandler.class.getName());
     private final AssignSandboxUseCase assignSandboxUseCase;
     private final GetSandboxAvailabilityUseCase getSandboxAvailabilityUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
@@ -169,6 +172,7 @@ public class SandboxHandler extends BaseResourceHandler {
             }
             return true;
         } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: error inesperado en " + jx.path(), e);
             sendError(jx, 500, "internal_error", "Internal server error");
             return true;
         }
@@ -211,6 +215,7 @@ public class SandboxHandler extends BaseResourceHandler {
             }
             return true;
         } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: error inesperado en " + jx.path(), e);
             sendError(jx, 500, "internal_error", "Internal server error");
             return true;
         }
@@ -251,6 +256,7 @@ public class SandboxHandler extends BaseResourceHandler {
             }
             return true;
         } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: error inesperado en " + jx.path(), e);
             sendError(jx, 500, "internal_error", "Internal server error");
             return true;
         }
@@ -294,6 +300,7 @@ public class SandboxHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: error inesperado en " + jx.path(), e);
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
