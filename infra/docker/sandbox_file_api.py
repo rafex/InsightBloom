@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import io
 import os
+import subprocess
 import zipfile
 
 # Techos deliberadamente chicos -- este es un visor "super ligero" para inspeccionar/corregir
@@ -121,10 +122,19 @@ def read_file(root: str, requested_path: str) -> dict:
     return {"content": content, "mtime": st.st_mtime}
 
 
-def write_file(root: str, requested_path: str, content: str, expected_mtime: float | None) -> dict:
+def write_file(root: str, requested_path: str, content: str, expected_mtime: float | None,
+               run_as: tuple[int, int] | None = None) -> dict:
     """Si `expected_mtime` viene y ya no coincide con el mtime real (el alumno edito el archivo
     entre que el moderador lo leyo y lo guardo), lanza FileConflictError en vez de pisarlo --
-    ver WriteWorkspaceFileUseCase para el flujo de "Guardar de todas formas" del lado Java."""
+    ver WriteWorkspaceFileUseCase para el flujo de "Guardar de todas formas" del lado Java.
+
+    `run_as` (uid, gid): necesario cuando el proceso llamante es root SIN CAP_DAC_OVERRIDE (ver
+    sandbox-agent.py, imagen multi-asiento) -- el workspace es del alumno (chown individual por
+    cuenta Linux real), asi que root puede LEER (permisos de "other") pero no ESCRIBIR. La
+    escritura real corre en un subproceso con setuid/setgid (ver _write_as_user) en vez de
+    seteuid/setgid del proceso completo, que corrompería concurrencia entre asientos distintos
+    en el server HTTP multi-thread (ThreadingHTTPServer). No aplica a sandbox-file-agent.py
+    (imagen de un asiento, corre directo como el usuario "coder", sin este problema)."""
     abs_path = resolve_safe_path(root, requested_path)
     if os.path.exists(abs_path) and expected_mtime is not None:
         current_mtime = os.stat(abs_path).st_mtime
@@ -136,10 +146,37 @@ def write_file(root: str, requested_path: str, content: str, expected_mtime: flo
         if current_mtime != expected_mtime:
             raise FileConflictError(
                 f"el archivo cambio desde que se leyo (actual={current_mtime}, esperado={expected_mtime})")
-    os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-    with open(abs_path, "wb") as f:
-        f.write(content.encode("utf-8"))
+    data = content.encode("utf-8")
+    if run_as is not None:
+        _write_as_user(abs_path, data, run_as[0], run_as[1])
+    else:
+        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+        with open(abs_path, "wb") as f:
+            f.write(data)
     return {"mtime": os.stat(abs_path).st_mtime}
+
+
+def _write_as_user(abs_path: str, data: bytes, uid: int, gid: int) -> None:
+    """makedirs+open+write dentro de un proceso hijo que dropea a uid/gid ANTES de tocar el
+    filesystem -- el contenido viaja por stdin para no depender de limites de argv ni de escapar
+    shell alguno (se invoca sin shell=True)."""
+    def _drop() -> None:
+        os.setgid(gid)
+        os.setgroups([gid])
+        os.setuid(uid)
+
+    script = (
+        "import os, sys\n"
+        "path = sys.argv[1]\n"
+        "os.makedirs(os.path.dirname(path), exist_ok=True)\n"
+        "data = sys.stdin.buffer.read()\n"
+        "with open(path, 'wb') as f:\n"
+        "    f.write(data)\n"
+    )
+    subprocess.run(
+        ["python3", "-c", script, abs_path],
+        input=data, preexec_fn=_drop, check=True, timeout=10,
+    )
 
 
 def build_workspace_zip(root: str) -> bytes:

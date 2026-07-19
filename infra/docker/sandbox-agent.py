@@ -429,9 +429,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not match:
             self._send_json(404, {"error": "not_found"})
             return
-        root = self._seat_workspace_root(int(match.group(1)))
+        index = int(match.group(1))
+        root = self._seat_workspace_root(index)
         if root is None:
             return
+        # El proceso corre como root SIN CAP_DAC_OVERRIDE (ver _drop_privileges): puede leer el
+        # workspace del alumno (permisos de "other") pero no escribirlo -- write_file necesita el
+        # uid del asiento para escribir via un subproceso que dropea privilegios (ver
+        # sandbox_file_api._write_as_user), la misma cuenta Linux real que ya usa su ttyd.
+        seat = _seats[index]
         try:
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length)
@@ -441,7 +447,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         try:
             expected_mtime = float(mtime_param) if mtime_param is not None else None
-            self._send_json(200, sandbox_file_api.write_file(root, path_param, content, expected_mtime))
+            result = sandbox_file_api.write_file(
+                root, path_param, content, expected_mtime, run_as=(seat["uid"], seat["uid"]))
+            self._send_json(200, result)
         except sandbox_file_api.PathTraversalError:
             self._send_json(400, {"error": "invalid_path"})
         except sandbox_file_api.FileConflictError:
