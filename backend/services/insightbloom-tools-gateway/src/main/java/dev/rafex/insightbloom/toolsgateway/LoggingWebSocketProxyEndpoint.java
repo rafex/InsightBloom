@@ -42,6 +42,14 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
         final var httpClient = new HttpClient();
         final var wsClient = new WebSocketClient(httpClient);
         httpClient.setConnectTimeout(connectTimeout.toMillis());
+        // Diagnostico 2026-07-19: confirmado con logging que PING/PONG funciona (backend recibe
+        // pong ok) y que el idle timeout de la SESION WebSocket ya esta en 10min (ver mas abajo,
+        // wsClient.setIdleTimeout) -- pese a eso la conexion seguia muriendo cada ~45s con
+        // java.nio.channels.ClosedChannelException a nivel de canal TCP crudo. HttpClient (quien
+        // realmente posee la Connection/EndPoint subyacente antes/durante el upgrade a WS) nunca
+        // tuvo su propio idle timeout configurado -- puede estar reclamando la conexion fisica
+        // por su cuenta, independiente del idle timeout a nivel de sesion WS.
+        httpClient.setIdleTimeout(java.time.Duration.ofMinutes(10).toMillis());
         httpClient.start();
 
         try {
