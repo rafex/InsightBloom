@@ -49,6 +49,13 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
             // sin esto el default de Jetty (64KB) cierra la conexion al backend con 1009 en
             // cuanto code-server manda un frame binario grande de su canal de management.
             wsClient.setMaxBinaryMessageSize(GatewayApplication.WS_MAX_MESSAGE_SIZE);
+            // Diagnostico 2026-07-19: a diferencia del lado servidor (ver GatewayApplication,
+            // container.setIdleTimeout), este WebSocketClient (la mitad gateway->pod del proxy)
+            // nunca tuvo su idle timeout configurado explicitamente -- corre con el default de
+            // Jetty, desconocido/no verificado. Se iguala al mismo valor generoso del lado
+            // servidor mientras se investiga si el cierre cada ~50s de la sesion con ttyd viene
+            // de aca en vez de (o ademas de) PING/PONG.
+            wsClient.setIdleTimeout(java.time.Duration.ofMinutes(10));
             wsClient.start();
             final var backendListener = new BackendSessionListener(clientSession);
             final var backendFuture = wsClient.connect(backendListener, backendUri);
@@ -157,17 +164,31 @@ final class LoggingWebSocketProxyEndpoint implements WebSocketEndpoint {
             this.backendSession = session;
         }
 
-        // Jetty NO responde PING con PONG automaticamente (Session.Listener.onWebSocketPing es
-        // no-op por defecto, ver javadoc de la interfaz) -- sin este override, los PING que ttyd
-        // manda cada 15s (--ping-interval, ver sandbox-agent.py) nunca recibian PONG, y ttyd
-        // cerraba la conexion (1011 server_error) tras ~3 intentos sin respuesta (~45-50s).
-        // Confirmado en vivo (2026-07-19): la terminal del IDE CLI se quedaba en negro cada ~50s
-        // en loop de reconexion.
+        // Diagnostico 2026-07-19: el cierre cada ~50s de la conexion con ttyd (1011 server_error)
+        // persiste incluso con este PONG explicito -- logging temporal para confirmar si Jetty
+        // esta invocando este metodo (JettyWebSocketFrameHandlerFactory.isOverridden decide si
+        // auto-responde o delega aca) y si sendPong se completa sin error.
         @Override
         public void onWebSocketPing(final ByteBuffer payload) {
+            LOGGER.info(() -> "websocket proxy: PING recibido del backend, backendSession=" + backendSession);
             if (backendSession != null) {
-                backendSession.sendPong(payload, Callback.NOOP);
+                backendSession.sendPong(payload, new Callback() {
+                    @Override
+                    public void succeed() {
+                        LOGGER.info(() -> "websocket proxy: PONG enviado al backend ok");
+                    }
+
+                    @Override
+                    public void fail(final Throwable x) {
+                        LOGGER.log(Level.WARNING, "websocket proxy: fallo enviando PONG al backend", x);
+                    }
+                });
             }
+        }
+
+        @Override
+        public void onWebSocketPong(final ByteBuffer payload) {
+            LOGGER.info(() -> "websocket proxy: PONG recibido del backend (inesperado, ttyd no deberia mandar pong)");
         }
 
         @Override
