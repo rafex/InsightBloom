@@ -214,4 +214,9 @@ USER coder
 EXPOSE 8079-8089
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["ttyd", "-p", "8080", "-W", "--ping-interval", "15", "bash", "-lc", "cd /home/coder/workspace && exec nvim ."]
+# tmux "new-session -A": crea la sesion "main" en la primera conexion; en cualquier reconexion
+# (el WebSocket de ttyd se corta por cualquier motivo -- proxy, red movil, laptop que se suspende)
+# se REATENDE a la misma sesion en vez de que ttyd lance un nvim nuevo desde cero, que era el
+# comportamiento anterior y perdia todo el estado del editor en cada corte (ver incidente
+# 2026-07-19: la terminal se veia "en blanco" tras cada reconexion aunque el WS volviera a conectar).
+CMD ["ttyd", "-p", "8080", "-W", "--ping-interval", "15", "bash", "-lc", "cd /home/coder/workspace && exec tmux new-session -A -s main nvim ."]
