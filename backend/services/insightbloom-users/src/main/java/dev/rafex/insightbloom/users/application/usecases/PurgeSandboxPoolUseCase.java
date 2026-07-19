@@ -33,6 +33,14 @@ public class PurgeSandboxPoolUseCase {
     public int execute(final Instant now) {
         final List<Sandbox> expired = sandboxRepository.findExpired(now);
         for (final Sandbox sandbox : expired) {
+            // Diagnostico (incidente 2026-07-19: sandboxes Web desaparecian sin explicacion clara
+            // en los logs existentes) -- deja constancia de CADA sandbox purgado con su
+            // expiresAt real antes de borrarlo, para poder confirmar si es un vencimiento
+            // legitimo o un calculo de expiresAt corrompido en algun caso.
+            LOGGER.info(() -> "purge-sandbox: purgando " + sandbox.podName()
+                    + " (conference=" + sandbox.getConferenceUuid() + ", variant=" + sandbox.getVariant()
+                    + ", user=" + sandbox.getUserUuid() + ", expiresAt=" + sandbox.getExpiresAt()
+                    + ", createdAt=" + sandbox.getCreatedAt() + ", now=" + now + ")");
             try {
                 sandboxOrchestrator.deleteSandbox(sandbox.podName());
             } catch (final Exception e) {

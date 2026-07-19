@@ -180,6 +180,19 @@ public class SqliteSandboxRepository implements SandboxRepository {
     }
 
     @Override
+    public void updateExpiresAt(final String uuid, final Instant expiresAt) {
+        try (final Connection conn = databaseManager.getConnection();
+             final PreparedStatement stmt = conn.prepareStatement(
+                "UPDATE sandbox_assignments SET expires_at = ? WHERE uuid = ?")) {
+            stmt.setString(1, expiresAt.toString());
+            stmt.setString(2, uuid);
+            stmt.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to update sandbox expiry", e);
+        }
+    }
+
+    @Override
     public int deleteExpired(final Instant now) {
         try (final Connection conn = databaseManager.getConnection();
              final PreparedStatement stmt = conn.prepareStatement(

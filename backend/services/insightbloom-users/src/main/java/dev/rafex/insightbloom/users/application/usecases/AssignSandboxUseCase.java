@@ -59,6 +59,12 @@ public class AssignSandboxUseCase {
         return configured != null ? configured : DEFAULT_POOL_SIZE;
     }
 
+    private Instant computeExpiresAt(final Conference conference) {
+        return conference.getExpiresAt() != null
+            ? conference.getExpiresAt().plusSeconds(ttlSecondsAfterEventExpiry)
+            : Instant.now().plusSeconds(DEFAULT_TTL_SECONDS);
+    }
+
     /**
      * Provisiona (o reusa) el sandbox del usuario para este evento, en la variante pedida
      * ({@link Sandbox#VARIANT_WEB} o {@link Sandbox#VARIANT_CLI}).
@@ -106,7 +112,17 @@ public class AssignSandboxUseCase {
                         sandboxOrchestrator.provisionSeat(sandbox.podName(), sandbox.getSeatIndex(), userUuid);
                     }
                 }
-                return sandbox;
+                // Refresca el vencimiento en cada reconexion -- sin esto, una sesion en uso
+                // activo igual expiraba a las N horas de su PRIMERA creacion (incidente
+                // 2026-07-19: el sandbox desaparecia a mitad de una sesion larga, sin relacion
+                // con inactividad real). Eventos sin expiresAt fijo (la mayoria) quedan con una
+                // ventana rodante desde el ultimo uso; eventos con expiresAt fijo recalculan al
+                // mismo valor de siempre (idempotente).
+                final Instant refreshedExpiresAt = computeExpiresAt(conference);
+                sandboxRepository.updateExpiresAt(sandbox.getUuid(), refreshedExpiresAt);
+                return new Sandbox(sandbox.getUuid(), sandbox.getConferenceUuid(), sandbox.getSandboxSlot(),
+                        sandbox.getSeatIndex(), sandbox.getVariant(), sandbox.getUserUuid(), sandbox.getAssignedAt(),
+                        sandbox.getCreatedAt(), refreshedExpiresAt);
             }
         }
 
@@ -143,9 +159,7 @@ public class AssignSandboxUseCase {
         final Allocation allocation = nextFreeSeat(activeInVariant, poolSize, seatsPerPod);
         final boolean internetEnabled = conference.getSandboxInternetEnabled() != null
             && conference.getSandboxInternetEnabled() == 1;
-        final Instant expiresAt = conference.getExpiresAt() != null
-            ? conference.getExpiresAt().plusSeconds(ttlSecondsAfterEventExpiry)
-            : Instant.now().plusSeconds(DEFAULT_TTL_SECONDS);
+        final Instant expiresAt = computeExpiresAt(conference);
 
         final Sandbox sandbox = new Sandbox(conferenceUuid, allocation.slot(), allocation.seatIndex(), variant,
                 userUuid, expiresAt);

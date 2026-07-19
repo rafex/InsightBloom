@@ -26,6 +26,14 @@ public interface SandboxRepository {
 
     List<Sandbox> findExpired(Instant now);
 
+    /**
+     * Extiende el vencimiento de un sandbox activo -- se llama al reconectarse a un sandbox ya
+     * existente (ver AssignSandboxUseCase) para que una sesión en uso activo no expire a mitad
+     * de camino solo porque pasaron N horas desde la PRIMERA vez que se creó (incidente
+     * 2026-07-19: sandboxes desaparecían sin aviso durante una sesión larga).
+     */
+    void updateExpiresAt(String uuid, Instant expiresAt);
+
     void deleteByConferenceUuid(String conferenceUuid);
 
     /** Libera un sandbox puntual -- usado al cambiar de variante (un alumno tiene un solo

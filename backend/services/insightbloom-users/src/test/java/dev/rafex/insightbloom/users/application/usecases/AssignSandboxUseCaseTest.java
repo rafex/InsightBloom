@@ -57,7 +57,11 @@ class AssignSandboxUseCaseTest {
 
         final var result = useCase.execute("conf-1", "user-student-1", Sandbox.VARIANT_WEB);
 
-        assertSame(existing, result);
+        assertEquals(existing.getUuid(), result.getUuid());
+        assertEquals(existing.getUserUuid(), result.getUserUuid());
+        // Reconectarse a un sandbox vivo refresca su vencimiento (incidente 2026-07-19: sesiones
+        // largas expiraban a mitad de camino porque el TTL nunca se renovaba en el reconecte).
+        Mockito.verify(sandboxRepoMock).updateExpiresAt(Mockito.eq(existing.getUuid()), Mockito.any());
         Mockito.verify(orchestratorMock, Mockito.never()).createSandbox(
             Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any(),
             Mockito.anyBoolean(), Mockito.any(), Mockito.any());
@@ -97,7 +101,9 @@ class AssignSandboxUseCaseTest {
 
         final var result = useCase.execute("conf-1", "user-student-1", Sandbox.VARIANT_WEB);
 
-        assertSame(existing, result);
+        assertEquals(existing.getUuid(), result.getUuid());
+        assertEquals(existing.getUserUuid(), result.getUserUuid());
+        Mockito.verify(sandboxRepoMock).updateExpiresAt(Mockito.eq(existing.getUuid()), Mockito.any());
         Mockito.verify(orchestratorMock).createSandbox(
             Mockito.eq(existing.podName()), Mockito.eq("conf-1"), Mockito.eq("python"),
             Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
