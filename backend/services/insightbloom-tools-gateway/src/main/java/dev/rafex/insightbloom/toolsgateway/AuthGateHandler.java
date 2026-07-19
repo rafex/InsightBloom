@@ -154,6 +154,20 @@ final class AuthGateHandler extends Handler.Abstract {
             writeSimpleResponse(request, response, callback, 200, json);
             return true;
         }
+        // Kill switch de Service Worker huerfano: code-server (variante Web) registra un SW en
+        // /_static/out/browser/serviceWorker.js con scope "/" -- el host publico del IDE
+        // (ideHost) es compartido entre las variantes Web y CLI (ver AssignSandboxUseCase), asi
+        // que ese SW queda registrado en el navegador del alumno y sigue activo/interceptando
+        // requests aun despues de cambiar a la variante CLI (ttyd, que no sirve ningun SW).
+        // Confirmado en vivo (2026-07-19): el pod CLI respondia 404 a ese path, pero un 404 en el
+        // fetch de actualizacion del navegador NO reemplaza el SW ya activo -- sigue sirviendo
+        // assets cacheados de code-server para la sesion ttyd, dejando la terminal en negro sin
+        // ningun request de red visible (todo interceptado por el SW viejo). Se responde siempre
+        // (sin pasar por auth) con un script que se auto-desregistra y fuerza recarga de clientes.
+        if (request.getHttpURI().getPath().endsWith("/serviceWorker.js")) {
+            writeServiceWorkerKillSwitch(request, response, callback);
+            return true;
+        }
         final String host = hostOf(request);
         final boolean isIdeHost = host.equals(ideHost);
         final String staticTarget = routesByHost.get(host);
@@ -519,6 +533,28 @@ final class AuthGateHandler extends Handler.Abstract {
         response.setStatus(status);
         response.getHeaders().put(HttpHeader.CONTENT_TYPE, "text/html; charset=utf-8");
         response.getHeaders().put(HttpHeader.CONTENT_LENGTH, Long.toString(bytes.length));
+        response.write(true, java.nio.ByteBuffer.wrap(bytes), callback);
+    }
+
+    private void writeServiceWorkerKillSwitch(final Request request, final Response response, final Callback callback) {
+        final String script = """
+                self.addEventListener('install', () => self.skipWaiting());
+                self.addEventListener('activate', (event) => {
+                  event.waitUntil(
+                    self.registration.unregister()
+                      .then(() => caches.keys())
+                      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+                      .then(() => self.clients.matchAll({ type: 'window' }))
+                      .then((clients) => clients.forEach((client) => client.navigate(client.url)))
+                  );
+                });
+                """;
+        final byte[] bytes = script.getBytes(StandardCharsets.UTF_8);
+        response.setStatus(200);
+        response.getHeaders().put(HttpHeader.CONTENT_TYPE, "application/javascript; charset=utf-8");
+        response.getHeaders().put(HttpHeader.CONTENT_LENGTH, Long.toString(bytes.length));
+        response.getHeaders().put("Service-Worker-Allowed", "/");
+        response.getHeaders().put(HttpHeader.CACHE_CONTROL, "no-store");
         response.write(true, java.nio.ByteBuffer.wrap(bytes), callback);
     }
 
