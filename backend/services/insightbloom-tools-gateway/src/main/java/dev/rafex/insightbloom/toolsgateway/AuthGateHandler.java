@@ -220,6 +220,28 @@ final class AuthGateHandler extends Handler.Abstract {
             LOGGER.warning(() -> "auth rechazada por rate limit ip=" + clientIp + " host=" + host);
             return new AuthResult(false, null, null);
         }
+        final String token = queryParam(request, "ib_token");
+        // Host del IDE: si la URL trae ib_token+conferenceId explicitos, SIEMPRE re-resuelve el
+        // target en vez de confiar en una cookie de sesion existente -- necesario para cuando el
+        // alumno cambia de variante (Web->CLI o viceversa, ver IdePage.vue "Cambiar de modo"): la
+        // cookie vieja sigue siendo "valida" pero su dynamicTarget cacheado apunta al Service de
+        // la variante ANTERIOR, que ya fue borrado (incidente 2026-07-19: "no se pudo contactar
+        // la herramienta" -- UnresolvedAddressException contra un Service inexistente). Los
+        // sub-recursos de la misma sesion (JS, WS upgrade, etc.) no llevan estos query params y
+        // siguen resolviendo por cookie normalmente, mas abajo.
+        if (isIdeHost && token != null && !token.isBlank()) {
+            final String conferenceId = queryParam(request, "conferenceId");
+            if (conferenceId != null && !conferenceId.isBlank()) {
+                final String target = resolveSandboxTarget(token, conferenceId);
+                if (target == null) {
+                    logAuthRejected(request, host, false, "resolveSandboxTarget devolvio null (token invalido o sin sandbox activo)");
+                    return new AuthResult(false, null, null);
+                }
+                LOGGER.info(() -> "auth ok (ib_token+conferenceId, re-resolviendo sesion) host=" + host
+                    + " conferenceId=" + conferenceId + " dynamicTarget=" + target);
+                return new AuthResult(true, sessionCache.mint(SESSION_TTL, target), target);
+            }
+        }
         boolean sawSessionCookie = false;
         for (final HttpCookie cookie : Request.getCookies(request)) {
             if (SESSION_COOKIE.equals(cookie.getName())) {
@@ -234,25 +256,13 @@ final class AuthGateHandler extends Handler.Abstract {
                 }
             }
         }
-        final String token = queryParam(request, "ib_token");
         if (token == null || token.isBlank()) {
             logAuthRejected(request, host, sawSessionCookie, "sin cookie de sesion valida ni ib_token en query");
             return new AuthResult(false, null, null);
         }
         if (isIdeHost) {
-            final String conferenceId = queryParam(request, "conferenceId");
-            if (conferenceId == null || conferenceId.isBlank()) {
-                logAuthRejected(request, host, sawSessionCookie, "ib_token presente pero falta conferenceId en query");
-                return new AuthResult(false, null, null);
-            }
-            final String target = resolveSandboxTarget(token, conferenceId);
-            if (target == null) {
-                logAuthRejected(request, host, sawSessionCookie, "resolveSandboxTarget devolvio null (token invalido o sin sandbox activo)");
-                return new AuthResult(false, null, null);
-            }
-            LOGGER.info(() -> "auth ok (ib_token+conferenceId, minteando sesion nueva) host=" + host
-                + " conferenceId=" + conferenceId + " dynamicTarget=" + target);
-            return new AuthResult(true, sessionCache.mint(SESSION_TTL, target), target);
+            logAuthRejected(request, host, sawSessionCookie, "ib_token presente pero falta conferenceId en query");
+            return new AuthResult(false, null, null);
         }
         if (isTokenValid(token)) {
             return new AuthResult(true, sessionCache.mint(SESSION_TTL), null);
