@@ -2,19 +2,23 @@ package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
-import java.time.Instant;
-import java.util.Base64;
-import java.util.UUID;
 
+/**
+ * Genera el link de descarga del workspace del alumno -- {@code downloadBaseUrl} apunta al host
+ * publico de insightbloom-users (proxeado por el nginx del frontend, ej.
+ * "https://insightbloom.v1.rafex.cloud/api/users"), NO al tools-gateway: el zip se arma llamando
+ * al pod desde el propio insightbloom-users (mismo camino que ya usa
+ * ListWorkspaceFilesUseCase/ReadWorkspaceFileUseCase), ver {@link DownloadWorkspaceZipUseCase} y
+ * {@link WorkspaceDownloadToken} para el resto del flujo.
+ */
 public class GenerateWorkspaceDownloadUrlUseCase {
     private final SandboxRepository sandboxRepository;
-    private final String gatewayBaseUrl;
-    private static final long DOWNLOAD_TOKEN_EXPIRY_SECONDS = 3600; // 1 hora
+    private final String downloadBaseUrl;
 
     public GenerateWorkspaceDownloadUrlUseCase(final SandboxRepository sandboxRepository,
-                                              final String gatewayBaseUrl) {
+                                              final String downloadBaseUrl) {
         this.sandboxRepository = sandboxRepository;
-        this.gatewayBaseUrl = gatewayBaseUrl;
+        this.downloadBaseUrl = downloadBaseUrl;
     }
 
     public WorkspaceDownloadInfo execute(final String conferenceUuid, final String userUuid) {
@@ -23,31 +27,16 @@ public class GenerateWorkspaceDownloadUrlUseCase {
             .findByConferenceAndUser(conferenceUuid, userUuid)
             .orElseThrow(() -> new IllegalArgumentException("sandbox_not_assigned"));
 
-        // Generar token temporal de descarga
-        final String downloadToken = generateDownloadToken(sandbox.getUuid(), userUuid);
-        final long expiresIn = DOWNLOAD_TOKEN_EXPIRY_SECONDS;
+        final String downloadToken = WorkspaceDownloadToken.encode(sandbox.getUuid(), userUuid);
 
-        // URL para gateway (proxea a code-server en Fase 4+)
         final String downloadUrl = String.format(
             "%s/workspaces/%s/download?token=%s",
-            gatewayBaseUrl,
+            downloadBaseUrl,
             sandbox.getUuid(),
             downloadToken
         );
 
-        return new WorkspaceDownloadInfo(sandbox.getUuid(), downloadUrl, expiresIn);
-    }
-
-    private String generateDownloadToken(final String sandboxUuid, final String userUuid) {
-        // Simple token = base64(sandboxUuid:userUuid:timestamp:nonce)
-        // En Fase 5 se puede cambiar a JWT firmado
-        final String payload = String.join(":",
-            sandboxUuid,
-            userUuid,
-            String.valueOf(Instant.now().getEpochSecond()),
-            UUID.randomUUID().toString()
-        );
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(payload.getBytes());
+        return new WorkspaceDownloadInfo(sandbox.getUuid(), downloadUrl, WorkspaceDownloadToken.EXPIRY_SECONDS);
     }
 
     public static class WorkspaceDownloadInfo {

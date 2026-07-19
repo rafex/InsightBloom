@@ -331,6 +331,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_zip(self, body: bytes):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Disposition", 'attachment; filename="workspace.zip"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _seat_workspace_root(self, index: int):
         """Devuelve la raiz del workspace del asiento, o None (con la respuesta de error ya
         enviada) si el asiento no existe/no esta aprovisionado todavia -- ningun endpoint de
@@ -378,6 +386,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._send_json(413, {"error": "file_too_large"})
             except sandbox_file_api.NotTextFileError:
                 self._send_json(415, {"error": "not_text_file"})
+            return
+
+        match = re.fullmatch(r"/workspace/(\d+)/zip", parsed.path)
+        if match:
+            root = self._seat_workspace_root(int(match.group(1)))
+            if root is None:
+                return
+            try:
+                self._send_zip(sandbox_file_api.build_workspace_zip(root))
+            except sandbox_file_api.NotFoundError:
+                self._send_json(404, {"error": "not_found"})
+            except sandbox_file_api.WorkspaceTooLargeError:
+                self._send_json(413, {"error": "workspace_too_large"})
             return
 
         self._send_json(404, {"error": "not_found"})

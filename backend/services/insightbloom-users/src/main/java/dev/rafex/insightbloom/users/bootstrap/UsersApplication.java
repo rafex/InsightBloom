@@ -169,6 +169,12 @@ public class UsersApplication {
         final var setChatAiSettingUseCase = new SetChatAiSettingUseCase(platformSettingsRepo);
         final var setChatSettingsUseCase = new SetChatSettingsUseCase(platformSettingsRepo);
         final String gatewayBaseUrl = System.getenv().getOrDefault("GATEWAY_BASE_URL", "https://ide-insightbloom.v1.rafex.cloud");
+        // El link de descarga del workspace NO pasa por el tools-gateway (ese solo sabe proxear,
+        // no puede armar un zip): apunta al host publico de este mismo servicio, proxeado por el
+        // nginx del frontend (ver container/frontend/nginx.conf, location /api/users) -- mismo
+        // dominio que ya usan usersApi.ts para el resto de la API.
+        final String workspaceDownloadBaseUrl = System.getenv().getOrDefault(
+                "WORKSPACE_DOWNLOAD_BASE_URL", "https://insightbloom.v1.rafex.cloud/api/users");
         final String sandboxDebianMemoryLimit = System.getenv().getOrDefault("SANDBOX_DEBIAN_MEMORY_LIMIT", "1536Mi");
         final String sandboxNeovimMemoryLimit = System.getenv().getOrDefault("SANDBOX_NEOVIM_MEMORY_LIMIT", "1Gi");
         // Fase C (2026-07): secreto de BAJO privilegio (distinto de INTERNAL_API_KEY, ver
@@ -222,7 +228,8 @@ public class UsersApplication {
         final var getSandboxAvailabilityUseCase = new GetSandboxAvailabilityUseCase(conferenceRepo, sandboxRepo);
         final var ensureUnassignedSandboxUseCase = new EnsureUnassignedSandboxUseCase(
                 sandboxRepo, conferenceRepo, sandboxOrchestrator, sandboxTtlSecondsAfterEventExpiry);
-        final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, gatewayBaseUrl);
+        final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, workspaceDownloadBaseUrl);
+        final var downloadWorkspaceZipUseCase = new DownloadWorkspaceZipUseCase(sandboxRepo, sandboxOrchestrator);
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo, sandboxOrchestrator);
         final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
         final var resolveSandboxTargetUseCase = new ResolveSandboxTargetUseCase(
@@ -256,6 +263,7 @@ public class UsersApplication {
                 conferenceRepo, eventCapabilityGuard, gatewayBaseUrl);
         final var sandboxFilesHandler = new SandboxFilesHandler(
                 validateTokenUseCase, listWorkspaceFilesUseCase, readWorkspaceFileUseCase, writeWorkspaceFileUseCase);
+        final var workspaceDownloadHandler = new WorkspaceDownloadHandler(downloadWorkspaceZipUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,
                 countAttendeesUseCase, countRegisteredAttendeesUseCase, countUniqueRegisteredAttendeesUseCase,
@@ -299,6 +307,7 @@ public class UsersApplication {
         // Route registry
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/auth/*", authHandler);
+        routes.add("/workspaces/*", workspaceDownloadHandler);
         routes.add("/internal/sandbox-target/*", internalSandboxTargetHandler);
         routes.add("/internal/sandbox-incidents/*", internalSandboxIncidentHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);

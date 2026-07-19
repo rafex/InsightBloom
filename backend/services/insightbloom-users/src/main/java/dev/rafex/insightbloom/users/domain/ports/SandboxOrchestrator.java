@@ -84,6 +84,11 @@ public interface SandboxOrchestrator {
      */
     double writeWorkspaceFile(String podName, int seatIndex, String path, String content, Double expectedMtime);
 
+    /** Zip completo del workspace del alumno (descarga desde el IDE, ver
+     *  GenerateWorkspaceDownloadUrlUseCase/DownloadWorkspaceZipUseCase) -- mismo agente de
+     *  control que listWorkspaceFiles/readWorkspaceFile, ruta {@code /workspace/{seatIndex}/zip}. */
+    byte[] downloadWorkspaceZip(String podName, int seatIndex);
+
     /** Fase 3c: crea (si no existe) la NetworkPolicy que permite egress a internet para todos
      *  los sandboxes de un evento — idempotente. */
     void allowInternetEgress(String conferenceLabel);

@@ -15,12 +15,19 @@ de su home.
 """
 from __future__ import annotations
 
+import io
 import os
+import zipfile
 
 # Techos deliberadamente chicos -- este es un visor "super ligero" para inspeccionar/corregir
 # archivos de curso (.java/.py/.js chicos), no un explorador de archivos de proposito general.
 MAX_LIST_ENTRIES = 2000
 MAX_FILE_BYTES = 2 * 1024 * 1024  # 2 MiB
+# Tope del ZIP completo del workspace (descarga del alumno, ver GenerateWorkspaceDownloadUrlUseCase)
+# -- mas generoso que MAX_FILE_BYTES porque es la suma de TODO el workspace, no un archivo
+# individual, pero sigue acotado para no dejar que un alumno tire abajo su propio Pod (limite de
+# memoria del contenedor) armando un zip gigante en memoria.
+MAX_ZIP_BYTES = 50 * 1024 * 1024  # 50 MiB
 
 
 class PathTraversalError(Exception):
@@ -41,6 +48,10 @@ class FileTooLargeError(Exception):
 
 
 class NotTextFileError(Exception):
+    pass
+
+
+class WorkspaceTooLargeError(Exception):
     pass
 
 
@@ -129,3 +140,35 @@ def write_file(root: str, requested_path: str, content: str, expected_mtime: flo
     with open(abs_path, "wb") as f:
         f.write(content.encode("utf-8"))
     return {"mtime": os.stat(abs_path).st_mtime}
+
+
+def build_workspace_zip(root: str) -> bytes:
+    """Arma un .zip en memoria con TODO el workspace (mismas exclusiones de archivos/carpetas
+    ocultas que list_directory) -- descarga completa que el alumno pide desde el IDE, ver
+    GenerateWorkspaceDownloadUrlUseCase/DownloadWorkspaceZipUseCase del lado Java."""
+    root_real = os.path.realpath(root)
+    if not os.path.isdir(root_real):
+        raise NotFoundError("workspace no encontrado")
+
+    buffer = io.BytesIO()
+    total_bytes = 0
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for dirpath, dirnames, filenames in os.walk(root_real):
+            dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+            for name in filenames:
+                if name.startswith("."):
+                    continue
+                abs_entry = os.path.join(dirpath, name)
+                try:
+                    size = os.path.getsize(abs_entry)
+                except OSError:
+                    continue
+                total_bytes += size
+                if total_bytes > MAX_ZIP_BYTES:
+                    raise WorkspaceTooLargeError(f"workspace demasiado grande (> {MAX_ZIP_BYTES} bytes)")
+                rel_entry = os.path.relpath(abs_entry, root_real)
+                try:
+                    zf.write(abs_entry, rel_entry)
+                except OSError:
+                    continue
+    return buffer.getvalue()

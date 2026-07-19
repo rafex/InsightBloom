@@ -36,6 +36,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_zip(self, body: bytes):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/zip")
+        self.send_header("Content-Disposition", 'attachment; filename="workspace.zip"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         parsed = urllib.parse.urlsplit(self.path)
         query = urllib.parse.parse_qs(parsed.query)
@@ -65,6 +73,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self._send_json(413, {"error": "file_too_large"})
             except sandbox_file_api.NotTextFileError:
                 self._send_json(415, {"error": "not_text_file"})
+            return
+
+        if re.fullmatch(r"/workspace/0/zip", parsed.path):
+            try:
+                self._send_zip(sandbox_file_api.build_workspace_zip(WORKSPACE_ROOT))
+            except sandbox_file_api.NotFoundError:
+                self._send_json(404, {"error": "not_found"})
+            except sandbox_file_api.WorkspaceTooLargeError:
+                self._send_json(413, {"error": "workspace_too_large"})
             return
 
         self._send_json(404, {"error": "not_found"})

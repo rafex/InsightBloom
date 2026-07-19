@@ -395,6 +395,24 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     }
 
     @Override
+    public byte[] downloadWorkspaceZip(final String podName, final int seatIndex) {
+        requireEnabled();
+        final String url = podControlUrl(podName) + "/workspace/" + seatIndex + "/zip";
+        final HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(30)).GET().build();
+        final HttpResponse<byte[]> response = sendBytes(request);
+        if (response.statusCode() == 404) {
+            throw new IllegalArgumentException("workspace_not_found");
+        }
+        if (response.statusCode() == 413) {
+            throw new IllegalArgumentException("workspace_too_large");
+        }
+        if (response.statusCode() >= 300) {
+            throw new IllegalStateException("workspace_zip_failed: " + response.statusCode());
+        }
+        return response.body();
+    }
+
+    @Override
     public void denyInternetEgress(final String conferenceLabel) {
         requireEnabled();
         deleteIgnoring404("/apis/networking.k8s.io/v1/namespaces/" + namespace
@@ -731,6 +749,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private HttpResponse<String> send(final HttpRequest request) {
         try {
             return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (final IOException | InterruptedException e) {
+            throw new IllegalStateException("kubernetes_request_failed: " + request.uri(), e);
+        }
+    }
+
+    private HttpResponse<byte[]> sendBytes(final HttpRequest request) {
+        try {
+            return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
         } catch (final IOException | InterruptedException e) {
             throw new IllegalStateException("kubernetes_request_failed: " + request.uri(), e);
         }
