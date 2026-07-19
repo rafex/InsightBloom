@@ -1108,3 +1108,73 @@ Registrar una decision cuando cambie:
   - Nuevo env var obligatorio en produccion: `SANDBOX_INCIDENT_REPORT_KEY` (el default
     `"dev-only-change-me"` es deliberadamente inseguro, solo para desarrollo local).
 - Reemplaza: `none` (extiende DEC-0023).
+
+### DEC-0026 - Postmortem: terminal del IDE CLI en blanco (WebSocket proxy silencioso)
+
+- Fecha: 2026-07-19
+- Estado: accepted
+- Contexto:
+  la terminal del IDE CLI fallaba de forma intermitente y dificil de diagnosticar:
+  segun el sintoma, se veia como corte de red a los ~50s, como perdida de estado del
+  editor al reconectar, o como pantalla en blanco permanente con el WebSocket
+  aparentemente sano (`onopen` disparaba, PING/PONG funcionaba). Cuatro causas
+  independientes se superponian, cada una enmascarando a la siguiente hasta
+  resolverse la anterior:
+  1. Un HAProxy standalone a nivel de sistema operativo (fuera de k3s, terminador de
+     TLS delante del Ingress del cluster) tenia `timeout client/server 50s` sin
+     `timeout tunnel` -- cortaba cualquier WebSocket a los 50s exactos, sea o no
+     idle. No vivia en ningun repo hasta este incidente.
+  2. `ttyd` (terminal web del sandbox) lanzaba un proceso nuevo (`nvim`) en cada
+     conexion -- cualquier corte breve perdia todo el estado del editor.
+  3. Envolver `ttyd` con `tmux new-session -A` (para resolver el punto 2) parecia
+     andar pero el server de `tmux` moria igual: nace compartiendo el process group
+     del pty que `ttyd` controla, y el `SIGHUP` que `ttyd` manda al cerrar la
+     conexion lo mataba junto al cliente antes de que terminara de independizarse.
+  4. La causa de fondo real de la "pantalla en blanco": `insightbloom-tools-gateway`
+     (proxy WebSocket generico delante de todas las herramientas) tenia dos bugs
+     propios, invisibles porque el WebSocket seguia "abierto" y con PING/PONG sano
+     pese a estar completamente muerto para datos reales:
+     - La conexion saliente gateway-\>backend tarda ~1s en resolver (crear
+       `HttpClient`/`WebSocketClient`, handshake WS saliente); mensajes del cliente
+       que llegaban en esa ventana se descartaban en silencio
+       (`onText`/`onBinary` con `bridge==null`). Para `ttyd`, el primer mensaje es
+       el JSON de init (columns/rows) que exige antes de spawnear el pty -- si se
+       pierde, el WebSocket queda abierto para siempre sin ningun dato.
+     - La conexion saliente nunca reenviaba el subprotocolo de WebSocket
+       (`Sec-WebSocket-Protocol`) que el cliente pidio -- backends que distinguen
+       comportamiento por subprotocolo negociado (como `ttyd` con `tty`) aceptaban
+       el handshake pero nunca procesaban nada.
+  El diagnostico de (4) tomo la mayor parte del tiempo de este incidente porque el
+  gateway no tenia forma de aislar el ciclo de vida de UNA conexion puntual en los
+  logs (todo bajo el mismo logger, sin id de correlacion), y el PING/PONG en nivel
+  INFO tapaba cualquier otra señal relevante.
+- Decision:
+  - `LoggingWebSocketProxyEndpoint` (`insightbloom-tools-gateway`) ahora:
+    - Encola (`PendingBridge`) cualquier mensaje del cliente que llegue antes de que
+      la conexion saliente al backend este lista, y lo reenvia en orden apenas
+      resuelve -- en vez de descartarlo en silencio.
+    - Reenvia el subprotocolo de WebSocket solicitado por el cliente a la conexion
+      saliente via `ClientUpgradeRequest.setSubProtocols`.
+    - Marca cada conexion con un `cid` corto (contador atomico) en todos sus logs,
+      para poder aislar el ciclo de vida completo de una sesion con un solo grep.
+    - Baja PING/PONG a nivel `FINE` (antes `INFO`, disparaba cada
+      `--ping-interval` por cada conexion activa y tapaba el resto de los logs).
+  - El HAProxy de host (fuera de k3s) se versiono por primera vez, en el repo
+    `k3s-haproxy-setup` (antes solo vivia editado a mano en el servidor), con
+    `timeout tunnel 1h` agregado.
+  - `ttyd` ahora se lanza en dos pasos: primero `tmux new-session -d` en un proceso
+    propio (ya terminado, sin pty de `ttyd` de por medio) que crea la sesion
+    destacada; luego `ttyd` solo hace `tmux attach-session`, nunca `new-session`
+    directamente -- asi el server de `tmux` nunca comparte process group con el pty
+    que `ttyd` controla, y sobrevive a cualquier `SIGHUP`.
+- Consecuencias:
+  - Cualquier proxy WebSocket generico nuevo en este gateway debe encolar mensajes
+    tempranos y reenviar el subprotocolo solicitado por default -- no asumir que
+    "WebSocket abierto y con PING/PONG" significa "datos fluyendo".
+  - El patron "crear sesion tmux aparte, ttyd solo attachea" es el que hay que
+    replicar si se agrega otra variante de terminal-en-navegador sobre `ttyd`.
+  - El HAProxy de host sigue sin automatizacion real (GitOps o timer de systemd que
+    lo reconcilie) mas alla del respaldo versionado -- cambios futuros ahi requieren
+    edicion manual + `systemctl reload haproxy` seguido de commitear el mismo cambio
+    al repo, a mano, en ese orden.
+- Reemplaza: `none`.
