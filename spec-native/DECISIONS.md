@@ -1225,3 +1225,138 @@ Registrar una decision cuando cambie:
     deberia seguir el mismo patron: intento rapido no-bloqueante + status PENDING +
     polling del lado del cliente, no reintentos bloqueantes dentro del request.
 - Reemplaza: `none`.
+
+### DEC-0028 - Control de acceso por dispositivo, por evento (Jitsi/IDE)
+
+- Fecha: 2026-07-19
+- Estado: accepted
+- Contexto:
+  `GenerateJaasTokenUseCase` (token de Jitsi/JaaS) y `AssignSandboxUseCase` (asignacion de sandbox
+  de IDE) eran completamente ciegos al dispositivo: un mismo `userUuid` podia pedir tokens de
+  Jitsi ilimitadas veces desde cualquier cantidad de dispositivos simultaneos, y dos dispositivos
+  con el mismo `userUuid` terminaban compartiendo trivialmente el mismo sandbox de IDE (sin ningun
+  control). El pedido explicito fue reusar el fingerprint que ya se calculaba en el frontend
+  (entonces un UUID en `localStorage`, ver DEC-0030 para su reemplazo por una huella real) para:
+  limitar dispositivos activos por usuario, detectar/bloquear multicuenta compartiendo un mismo
+  dispositivo, dejar auditoria, y bloquear acceso a Jitsi/IDE sin sesion-dispositivo vigente.
+- Decision:
+  - Nuevo `DeviceAccessGuard` (domain service), con `checkAndRegister(conferenceUuid, userUuid,
+    tool, deviceFingerprint, conference)`, alcance **por conferencia** (no global):
+    1. Dispositivo ya bloqueado en `device_blocks` para esta conferencia -> `Blocked`, sin contar
+       de nuevo.
+    2. Dispositivo nuevo para ese usuario+herramienta y ya al limite (`maxDevicesPerUser`, default
+       2) -> revoca la sesion-dispositivo MAS VIEJA de ese usuario en esa herramienta (no rechaza
+       el login nuevo, patron "un dispositivo activo a la vez" tipo streaming).
+    3. Cuenta cuentas distintas activas compartiendo el fingerprint; si supera
+       `maxAccountsPerDevice` (default 3) -> bloquea el dispositivo (`device_blocks`,
+       `conference_uuid` incluido) y revoca TODAS sus sesiones activas en esa conferencia.
+  - Tablas nuevas `tool_device_sessions` (una fila por dispositivo activo/revocado, por usuario,
+    herramienta y conferencia) y `device_blocks` (bloqueos por conferencia, con cola de revision).
+  - `Conference` gana `maxDevicesPerUser`/`maxAccountsPerDevice` (nullable, configurables por
+    organizador en `ConferenceConfigPage.vue`, defaults en el guard si no se configuran).
+  - Integrado en `GenerateJaasTokenUseCase.execute(...)` (nuevo parametro `deviceFingerprint`,
+    retorno cambiado a `sealed interface JaasResult { NotConfigured, Blocked, Issued }` para no
+    confundir "JaaS no configurado" con "dispositivo bloqueado") y en
+    `AssignSandboxUseCase.execute(...)` (overload con `deviceFingerprint`, lanza
+    `DeviceBlockedException` en bloqueo -> 403 `device_blocked`).
+  - Frontend: header `X-Device-Fingerprint` agregado a `getJaasToken()`/`getSandbox()` en
+    `usersApi.ts`; dashboard `/dashboard/conferences/{id}/device-blocks` (cola de revision, boton
+    "Desbloquear") + item nuevo en el dropdown "Moderacion" de `ConferencesListPage.vue`.
+- Consecuencias:
+  - El fingerprint enviado en este momento era todavia el UUID de `localStorage` (ver DEC-0030) —
+    el control funcionaba, pero la identificacion de dispositivo era debil (cualquiera podia
+    "resetear" su dispositivo borrando datos del sitio). Se resolvio en DEC-0030.
+  - El patron `DeviceAccessGuard` (revocar el mas viejo al exceder limite, bloquear+cola de
+    revision al exceder cuentas compartidas) se reuso identico a nivel plataforma en DEC-0029.
+- Reemplaza: `none`.
+
+### DEC-0029 - Huella real (ThumbmarkJS) capturada en el login + control de abuso a nivel plataforma
+
+- Fecha: 2026-07-19/20
+- Estado: accepted
+- Contexto:
+  DEC-0028 resolvio el control por evento, pero seguia habiendo dos huecos: (1) el fingerprint
+  seguia siendo un UUID de `localStorage`, no una huella real del navegador — trivial de resetear
+  borrando datos del sitio; y (2) el control de abuso solo miraba Jitsi/IDE de UNA conferencia
+  puntual, sin correlacionar nada entre eventos distintos ni proteger el login/registro en si. Un
+  usuario podia repartir multicuenta entre varias conferencias para evadir el limite de una sola,
+  y no existia ningun limite de sesiones simultaneas por usuario a nivel plataforma.
+- Decision:
+  - Se integro la libreria real `@thumbmarkjs/thumbmarkjs` (canvas, WebGL, audio, fuentes,
+    hardware) en `frontend/web/src/services/auth/fingerprint.ts` — `new Thumbmark({timeout:
+    3000}).get()`, con el UUID de `localStorage` como fallback si falla/tarda de mas.
+  - El fingerprint ahora se captura en TODO login: `authStore.login()`, `loginAsGuest()` (ya lo
+    mandaba, ahora con huella real) y `register()`. Se persiste en `tokens.device_fingerprint`
+    (columna nueva, la fila que representa la sesion) y, para registro,
+    `users.registration_device_fingerprint` (inmutable, fijado una sola vez).
+  - Nuevo `PlatformDeviceGuard` (domain service), alcance **plataforma completa**, sin tabla de
+    sesiones nueva -- reusa `tokens` (ya expira sola en 24h/8h, el conteo "se auto-limpia" solo):
+    - `checkAndRegisterLogin(fingerprint, subjectUuid, kind, settings)`: si `kind==USER`, cuenta
+      tokens activos de ese usuario; al alcanzar `maxSessionsPerUser` (default 3) revoca el mas
+      viejo. Luego cuenta sujetos distintos compartiendo el fingerprint (tokens activos); si
+      supera `maxAccountsPerDevice` (default 5) -> bloquea el dispositivo (`platform_device_blocks`,
+      reason=MULTI_ACCOUNT) y revoca TODOS sus tokens activos (incluido el recien emitido).
+    - `checkRegistration(fingerprint, settings)`: cuenta cuentas creadas desde ese fingerprint en
+      24h (`countByRegistrationFingerprintSince`); al superar `maxRegistrationsPerDevicePerDay`
+      (default 3) -> bloquea (reason=REGISTRATION_SPAM).
+  - Integrado en `LoginUseCase`/`CreateGuestUseCase`/`RegisterUseCase`: en bloqueo, lanzan
+    `PlatformDeviceBlockedException` -> `AuthHandler` responde 403 `platform_device_blocked`.
+  - `PlatformSettings` (singleton ya existente, mismo que gobierna el kill-switch de IA del chat)
+    gana los 3 umbrales, configurables desde `/dashboard/admin/device-access` (nuevo, admin-only) —
+    misma pantalla lista dispositivos bloqueados a nivel plataforma con boton "Desbloquear".
+- Consecuencias:
+  - Un dispositivo puede pasar el control de plataforma (login normal) y aun asi ser bloqueado
+    DENTRO de un evento especifico (DEC-0028) si abusa solo ahi, y viceversa — son capas
+    independientes con sus propias tablas (`platform_device_blocks` vs `device_blocks`) y sus
+    propias pantallas de revision.
+  - `loginAsGuest()`/registro de nube de palabras ya tenian el parametro `deviceFingerprint` en su
+    firma desde antes de esta iniciativa, pero ninguna pantalla lo completaba con un valor real —
+    a partir de este cambio `loginAsGuest()` si lo manda (huella real, via `authStore`); el envio
+    de dudas/temas de la nube de palabras sigue sin conectarlo (fuera de alcance).
+- Reemplaza: `none`.
+
+### DEC-0030 - Auditoria (no bloqueo) de fingerprint en cada request autenticado
+
+- Fecha: 2026-07-20
+- Estado: accepted
+- Contexto:
+  Con DEC-0028/DEC-0029, el fingerprint solo se validaba en dos momentos: login/registro (una vez)
+  y Jitsi/IDE (por evento, en cada uso). El resto de las rutas autenticadas (dashboard, ver
+  conferencias, etc.) nunca volvia a mirar el fingerprint — un token filtrado "pelado" (sin el
+  contexto del navegador que lo genero: copiado de un log, un ticket de soporte, el Network tab)
+  serviria igual desde cualquier lado sin ninguna señal de alerta. Se evaluo explicitamente
+  bloquear en mismatch de cada request, y se descarto: ThumbmarkJS puede cambiar legitimamente
+  entre requests (navegadores con foco en privacidad -- Firefox modo estricto, Brave, Tor Browser
+  -- randomizan canvas/audio/WebGL a proposito para evadir fingerprinting), asi que bloquear
+  hubiera generado deslogueos fantasma de usuarios legitimos sin frenar el escenario real de robo
+  (un atacante con XSS en el mismo navegador de la victima puede recalcular la huella real igual).
+- Decision:
+  - Nuevo `DeviceFingerprintAuditor` (domain service, testeable, sin acceso a HTTP): compara el
+    fingerprint entrante contra `Token.deviceFingerprint` (el guardado al login de esa sesion); si
+    difieren, upsert en `device_fingerprint_flags` (una fila por SESION/token, no por request --
+    incrementa `occurrence_count` en mismatches repetidos de la misma sesion en vez de duplicar
+    filas). Nunca bloquea nada.
+  - Adapter Jetty `DeviceFingerprintAuditHandler` (`Handler.Wrapper`), registrado como
+    `JettyMiddleware` **global** al construir el server en `UsersApplication.java` (mecanismo del
+    framework `ether-http-jetty12` que ya existia sin usar -- `JettyServerFactory.create(...)`
+    acepta `List<JettyMiddleware>` como 6to argumento). Corre para TODA ruta sin tocar ninguno de
+    los ~55 call-sites de `validateTokenUseCase.execute(token)` repartidos en 12 handlers
+    (`ConferenceHandler` sola tiene 37). Envuelto en try/catch defensivo -- un fallo en la
+    auditoria nunca debe romper el request real; siempre termina en `super.handle(...)`.
+  - Frontend: interceptor global de `axios.interceptors.request.use` en `main.ts` adjunta
+    `X-Device-Fingerprint` a toda llamada autenticada (si hay `ib_token` en `localStorage`) sin
+    tocar cada funcion de `usersApi.ts`/`authApi.ts` individualmente.
+  - Nueva seccion "Discrepancias de huella detectadas" en `/dashboard/admin/device-access`
+    (listado + boton "Marcar revisado" -- nunca "desbloquear", porque nunca hubo bloqueo).
+- Consecuencias:
+  - El middleware agrega una consulta extra a `tokens` por request autenticado (duplica el trabajo
+    que `ValidateTokenUseCase` hace igual despues, dentro del handler) -- costo aceptado a cambio
+    de no tocar cada handler individualmente.
+  - Este patron (middleware global via `JettyMiddleware`, antes sin usar en el proyecto) queda
+    como el lugar recomendado para cualquier chequeo transversal futuro que deba correr en TODA
+    ruta autenticada, en vez de repetir logica en cada handler.
+  - Documentacion completa con diagramas de secuencia/flujo de las 3 capas (por evento, plataforma
+    en login, auditoria por request) en `docs/device-fingerprinting.md` (marcado deprecado, ver
+    nota en ese archivo -- la fuente de verdad es esta entrada de DECISIONS.md y
+    `spec-native/specs/device-fingerprinting/SPEC.md`).
+- Reemplaza: `none`.

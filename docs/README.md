@@ -18,6 +18,7 @@
 | `docs/ROLES.md` | [`spec-native/ROLES.md`](../spec-native/ROLES.md) |
 | `docs/SPEC.md` | [`spec-native/specs/main/SPEC.md`](../spec-native/specs/main/SPEC.md) |
 | `docs/specs/` | [`spec-native/specs/`](../spec-native/specs/README.md) |
+| `docs/device-fingerprinting.md` | [`spec-native/specs/device-fingerprinting/SPEC.md`](../spec-native/specs/device-fingerprinting/SPEC.md), [`spec-native/DECISIONS.md`](../spec-native/DECISIONS.md) (DEC-0028/0029/0030) |
 
 Los archivos en esta carpeta se mantienen como referencia histórica.
 La fuente de verdad ahora es `spec-native/`.

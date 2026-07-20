@@ -31,6 +31,10 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | DEC-0019 | decision | SPEC-EVENT-TYPES-CATALOG, backend/services/insightbloom-users | seatmap-canvas como motor de mapa alternativo (proposed, mantenimiento pendiente) |
 | DEC-0020 | decision | SPEC-EVENT-TYPES-CATALOG, infra/helm/charts/insightbloom | Instancias compartidas + HPA + TTL de datos para drawio/Etherpad/Jitsi/Excalidraw (accepted) |
 | DEC-0021 | decision | SPEC-EVENT-ROLES, backend/services/insightbloom-users | Esquema de permisos y roles administrables, plataforma + por evento (accepted) |
+| SPEC-DEVICE-FINGERPRINTING | spec | ARCHITECTURE.md, DECISIONS.md | Control de acceso por huella de dispositivo (active) |
+| DEC-0028 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users | Control de acceso por dispositivo, por evento (Jitsi/IDE) (accepted) |
+| DEC-0029 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users, frontend/web | Huella real (ThumbmarkJS) en login + control de abuso a nivel plataforma (accepted) |
+| DEC-0030 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users, frontend/web | Auditoria (no bloqueo) de fingerprint en cada request autenticado (accepted) |
 | SEC-001 | security | agents/SECURITY.md | Auditoría de seguridad (7 hallazgos) |
 | DIAG-001 | diagnostic | agents/DIAGNOSE.md | Diagnóstico del proyecto 2026-06-26 |
 
@@ -44,6 +48,7 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | moderation-dashboard | specs/moderation-dashboard/SPEC.md | — | done |
 | backend-contracts | specs/backend-contracts/SPEC.md | — | draft |
 | event-types-catalog | specs/event-types-catalog/SPEC.md | 0/0/0 (ver tasks/event-types-catalog/TASKS.md) | draft |
+| device-fingerprinting | specs/device-fingerprinting/SPEC.md | — | active (2026-07-20) |
 
 ---
 

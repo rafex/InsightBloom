@@ -24,6 +24,7 @@
 | Main (spec activa) | [`specs/main/SPEC.md`](./specs/main/SPEC.md) | — | active |
 | Moderation Dashboard | [`specs/moderation-dashboard/SPEC.md`](./specs/moderation-dashboard/SPEC.md) | — | draft |
 | Backend Contracts | [`specs/backend-contracts/SPEC.md`](./specs/backend-contracts/SPEC.md) | — | draft |
+| Device Fingerprinting | [`specs/device-fingerprinting/SPEC.md`](./specs/device-fingerprinting/SPEC.md) | — | active |
 
 ## Workflows
 

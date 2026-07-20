@@ -12,6 +12,7 @@ Cada iniciativa tiene su propia carpeta con `SPEC.md`.
 | — | [event-types-catalog](./event-types-catalog/SPEC.md) | draft | team |
 | — | [event-roles](./event-roles/SPEC.md) | draft | team |
 | — | [code-ide-sandboxes](./code-ide-sandboxes/SPEC.md) | draft | team |
+| — | [device-fingerprinting](./device-fingerprinting/SPEC.md) | active | team |
 
 ## Cómo crear una nueva iniciativa
 
