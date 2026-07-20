@@ -72,9 +72,10 @@
         router-link.tool-btn(v-if="hasCapability('CODE_IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
           span.tool-icon 💻
           span.tool-label IDE
-    .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
-      span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
-    router-view(:conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode")
+    .conf-body
+      .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
+        span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
+      router-view(:conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode")
 
     OnboardingTour(storage-key="ib_onboarding_conference" :steps="attendeeTourSteps")
 
@@ -211,7 +212,13 @@ export default {
 </script>
 
 <style scoped>
-.conference-page { min-height: 100vh; background: #f5f3ff; }
+/* flex column de altura completa: las paginas "de lienzo" (diagramas/pizarra/notas/video) usan
+   flex:1 en su propia raiz para llenar exactamente el alto restante bajo el header colapsado --
+   antes reservaban un calc(100vh - 220px) fijo que asumia el header SIN colapsar (~220px), pero
+   en estas rutas headerCollapsed=true oculta AppHeader y encoge .conf-header, dejando ~150px+ de
+   espacio en blanco sin usar debajo del iframe (reportado 2026-07-19). */
+.conference-page { min-height: 100vh; display: flex; flex-direction: column; background: #f5f3ff; }
+.conf-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .conf-header { padding: 24px; background: #fff; border-bottom: 1px solid #e5e7eb; }
 .conf-title-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
 h1 { margin: 0; color: #1e1b4b; }

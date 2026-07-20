@@ -95,7 +95,7 @@ export default {
 </script>
 
 <style scoped>
-.video-conference-page { height: calc(100vh - 220px); min-height: 480px; display: flex; }
+.video-conference-page { flex: 1; min-height: 480px; display: flex; }
 #jitsi-container { flex: 1; width: 100%; }
 .loading-text { padding: 40px; text-align: center; color: #6b7280; }
 .unavailable { margin: 40px auto; text-align: center; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; max-width: 420px; }

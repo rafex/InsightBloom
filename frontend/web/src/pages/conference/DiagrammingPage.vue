@@ -115,7 +115,7 @@ export default {
 </script>
 
 <style scoped>
-.diagramming-page { height: calc(100vh - 220px); min-height: 480px; display: flex; flex-direction: column; }
+.diagramming-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; }
 .drawio-frame { flex: 1; border: none; width: 100%; }
 .save-banner { flex: 0 0 auto; padding: 8px 16px; font-size: 0.85rem; text-align: center; }
 .save-banner-ok { background: #dcfce7; color: #166534; }
