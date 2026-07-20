@@ -79,11 +79,13 @@ public class UsersApplication {
         final var toolDeviceSessionRepo = new SqliteToolDeviceSessionRepository(db);
         final var deviceBlockRepo = new SqliteDeviceBlockRepository(db);
         final var platformDeviceBlockRepo = new SqlitePlatformDeviceBlockRepository(db);
+        final var deviceFingerprintFlagRepo = new SqliteDeviceFingerprintFlagRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
         final var deviceAccessGuard = new DeviceAccessGuard(toolDeviceSessionRepo, deviceBlockRepo);
         final var platformDeviceGuard = new PlatformDeviceGuard(tokenRepo, userRepo, platformDeviceBlockRepo);
+        final var deviceFingerprintAuditor = new dev.rafex.insightbloom.users.domain.services.DeviceFingerprintAuditor(deviceFingerprintFlagRepo);
         final var passwordService = new PasswordService();
         final var friendlyIdService = new FriendlyIdService(conferenceRepo);
         final var cascadeDeletePort = new HttpCascadeDeleteClient(
@@ -177,6 +179,8 @@ public class UsersApplication {
         final var setDeviceAccessSettingsUseCase = new SetDeviceAccessSettingsUseCase(platformSettingsRepo);
         final var listPlatformDeviceBlocksUseCase = new ListPlatformDeviceBlocksUseCase(platformDeviceBlockRepo);
         final var unblockPlatformDeviceUseCase = new UnblockPlatformDeviceUseCase(platformDeviceBlockRepo);
+        final var listDeviceFingerprintFlagsUseCase = new ListDeviceFingerprintFlagsUseCase(deviceFingerprintFlagRepo);
+        final var reviewDeviceFingerprintFlagUseCase = new ReviewDeviceFingerprintFlagUseCase(deviceFingerprintFlagRepo);
         final String gatewayBaseUrl = System.getenv().getOrDefault("GATEWAY_BASE_URL", "https://ide-insightbloom.v1.rafex.cloud");
         // El link de descarga del workspace NO pasa por el tools-gateway (ese solo sabe proxear,
         // no puede armar un zip): apunta al host publico de este mismo servicio, proxeado por el
@@ -314,6 +318,7 @@ public class UsersApplication {
         final var platformSettingsHandler = new PlatformSettingsHandler(
                 getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase,
                 setDeviceAccessSettingsUseCase, listPlatformDeviceBlocksUseCase, unblockPlatformDeviceUseCase,
+                listDeviceFingerprintFlagsUseCase, reviewDeviceFingerprintFlagUseCase,
                 validateTokenUseCase);
         final var internalSandboxTargetHandler = new InternalSandboxTargetHandler(resolveSandboxTargetUseCase);
         final var internalSandboxIncidentHandler =
@@ -343,7 +348,10 @@ public class UsersApplication {
         // Server
         final var codec = JacksonJsonCodec.defaultCodec();
         final var config = JettyServerConfig.fromEnv();
-        final var runner = JettyServerFactory.create(config, routes, codec, null, java.util.List.of(), java.util.List.of());
+        final var deviceFingerprintAuditMiddleware = java.util.List.<dev.rafex.ether.http.jetty12.middleware.JettyMiddleware>of(
+                next -> new dev.rafex.insightbloom.users.adapters.inbound.http.middleware.DeviceFingerprintAuditHandler(
+                        next, tokenService, deviceFingerprintAuditor));
+        final var runner = JettyServerFactory.create(config, routes, codec, null, java.util.List.of(), deviceFingerprintAuditMiddleware);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try { runner.stop(); } catch (final Exception e) { e.printStackTrace(); }

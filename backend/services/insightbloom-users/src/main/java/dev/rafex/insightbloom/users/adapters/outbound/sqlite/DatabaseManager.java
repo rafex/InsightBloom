@@ -368,6 +368,29 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_platform_device_blocks_fingerprint "
                     + "ON platform_device_blocks(device_fingerprint)");
 
+            // Auditoria (no bloqueo) de discrepancias de fingerprint dentro de una MISMA sesion
+            // ya logueada -- ver DeviceFingerprintAuditor. Una fila por sesion (token), no por
+            // request, para no crecer sin control; occurrence_count se incrementa en cada
+            // deteccion repetida de la misma sesion en vez de duplicar filas.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS device_fingerprint_flags (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    token_uuid TEXT NOT NULL UNIQUE,
+                    subject_uuid TEXT NOT NULL,
+                    subject_kind TEXT NOT NULL,
+                    login_fingerprint TEXT NOT NULL,
+                    last_seen_fingerprint TEXT NOT NULL,
+                    occurrence_count INTEGER NOT NULL DEFAULT 1,
+                    first_seen_at TEXT NOT NULL,
+                    last_seen_at TEXT NOT NULL,
+                    reviewed_at TEXT,
+                    reviewed_by TEXT
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_device_fingerprint_flags_subject "
+                    + "ON device_fingerprint_flags(subject_uuid)");
+
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS sandbox_assignments (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

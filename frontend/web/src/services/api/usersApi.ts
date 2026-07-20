@@ -5,7 +5,8 @@ import type {
   SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
-  WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock
+  WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
+  DeviceFingerprintFlag
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 
@@ -491,6 +492,15 @@ export async function listPlatformDeviceBlocks(token: string): Promise<PlatformD
 
 export async function unblockPlatformDevice(blockUuid: string, token: string): Promise<void> {
   await axios.post(`/api/users/api/v1/settings/device-blocks/${blockUuid}/unblock`, {}, authHeader(token))
+}
+
+export async function listDeviceFingerprintFlags(token: string): Promise<DeviceFingerprintFlag[]> {
+  const res = await axios.get('/api/users/api/v1/settings/device-fingerprint-flags', authHeader(token))
+  return res.data.data
+}
+
+export async function reviewDeviceFingerprintFlag(flagUuid: string, token: string): Promise<void> {
+  await axios.post(`/api/users/api/v1/settings/device-fingerprint-flags/${flagUuid}/review`, {}, authHeader(token))
 }
 
 /** Lista los roles asignados a un evento; el backend devuelve 403 si quien pide no tiene ASSIGN_EVENT_ROLES. */

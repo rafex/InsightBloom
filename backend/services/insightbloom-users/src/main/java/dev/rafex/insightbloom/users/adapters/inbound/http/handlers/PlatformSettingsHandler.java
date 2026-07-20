@@ -5,12 +5,15 @@ import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.GetChatAiSettingUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ListDeviceFingerprintFlagsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListPlatformDeviceBlocksUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ReviewDeviceFingerprintFlagUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetChatAiSettingUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetChatSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetDeviceAccessSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UnblockPlatformDeviceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
+import dev.rafex.insightbloom.users.domain.model.DeviceFingerprintFlag;
 import dev.rafex.insightbloom.users.domain.model.PlatformDeviceBlock;
 import dev.rafex.insightbloom.users.domain.model.PlatformSettings;
 
@@ -35,6 +38,8 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     private final SetDeviceAccessSettingsUseCase setDeviceAccessSettingsUseCase;
     private final ListPlatformDeviceBlocksUseCase listPlatformDeviceBlocksUseCase;
     private final UnblockPlatformDeviceUseCase unblockPlatformDeviceUseCase;
+    private final ListDeviceFingerprintFlagsUseCase listDeviceFingerprintFlagsUseCase;
+    private final ReviewDeviceFingerprintFlagUseCase reviewDeviceFingerprintFlagUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
 
     public PlatformSettingsHandler(final GetChatAiSettingUseCase getChatAiSettingUseCase,
@@ -43,6 +48,8 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                                     final SetDeviceAccessSettingsUseCase setDeviceAccessSettingsUseCase,
                                     final ListPlatformDeviceBlocksUseCase listPlatformDeviceBlocksUseCase,
                                     final UnblockPlatformDeviceUseCase unblockPlatformDeviceUseCase,
+                                    final ListDeviceFingerprintFlagsUseCase listDeviceFingerprintFlagsUseCase,
+                                    final ReviewDeviceFingerprintFlagUseCase reviewDeviceFingerprintFlagUseCase,
                                     final ValidateTokenUseCase validateTokenUseCase) {
         this.getChatAiSettingUseCase = getChatAiSettingUseCase;
         this.setChatAiSettingUseCase = setChatAiSettingUseCase;
@@ -50,6 +57,8 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         this.setDeviceAccessSettingsUseCase = setDeviceAccessSettingsUseCase;
         this.listPlatformDeviceBlocksUseCase = listPlatformDeviceBlocksUseCase;
         this.unblockPlatformDeviceUseCase = unblockPlatformDeviceUseCase;
+        this.listDeviceFingerprintFlagsUseCase = listDeviceFingerprintFlagsUseCase;
+        this.reviewDeviceFingerprintFlagUseCase = reviewDeviceFingerprintFlagUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
     }
 
@@ -64,7 +73,9 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 Route.of("/chat-ai", Set.of("GET", "PUT")),
                 Route.of("/device-access", Set.of("GET", "PUT")),
                 Route.of("/device-blocks", Set.of("GET")),
-                Route.of("/device-blocks/{blockId}/unblock", Set.of("POST")));
+                Route.of("/device-blocks/{blockId}/unblock", Set.of("POST")),
+                Route.of("/device-fingerprint-flags", Set.of("GET")),
+                Route.of("/device-fingerprint-flags/{flagId}/review", Set.of("POST")));
     }
 
     @Override
@@ -78,6 +89,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         final String path = jx.path();
         if (path.endsWith("/device-access")) return handleGetDeviceAccess(jx);
         if (path.endsWith("/device-blocks")) return handleListDeviceBlocks(jx);
+        if (path.endsWith("/device-fingerprint-flags")) return handleListDeviceFingerprintFlags(jx);
         try {
             final var settings = getChatAiSettingUseCase.execute();
             sendOk(jx, toView(settings));
@@ -118,6 +130,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/unblock")) return handleUnblockDevice(jx, jx.pathParam("blockId"));
+        if (jx.path().endsWith("/review")) return handleReviewDeviceFingerprintFlag(jx, jx.pathParam("flagId"));
         sendError(jx, 404, "not_found", "Endpoint not found");
         return true;
     }
@@ -196,6 +209,40 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         return true;
     }
 
+    private boolean handleListDeviceFingerprintFlags(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+                sendError(jx, 403, "forbidden", "Only admins can view device fingerprint flags");
+                return true;
+            }
+            final List<DeviceFingerprintFlag> flags = listDeviceFingerprintFlagsUseCase.execute();
+            sendOk(jx, flags.stream().map(PlatformSettingsHandler::toFlagView).toList());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleReviewDeviceFingerprintFlag(final JettyHttpExchange jx, final String flagId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+                sendError(jx, 403, "forbidden", "Only admins can review device fingerprint flags");
+                return true;
+            }
+            reviewDeviceFingerprintFlagUseCase.execute(flagId, v.subjectUuid());
+            sendOk(jx, Map.of("reviewed", true));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
     private static Map<String, Object> toView(final PlatformSettings s) {
         final Map<String, Object> view = new java.util.HashMap<>();
         view.put("chatAiEnabled", s.isChatAiEnabled());
@@ -221,6 +268,21 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         view.put("blockedAt", b.getBlockedAt().toString());
         view.put("unblockedAt", b.getUnblockedAt() != null ? b.getUnblockedAt().toString() : null);
         view.put("unblockedBy", b.getUnblockedBy());
+        return view;
+    }
+
+    private static Map<String, Object> toFlagView(final DeviceFingerprintFlag f) {
+        final Map<String, Object> view = new java.util.HashMap<>();
+        view.put("uuid", f.getUuid());
+        view.put("subjectUuid", f.getSubjectUuid());
+        view.put("subjectKind", f.getSubjectKind());
+        view.put("loginFingerprint", f.getLoginFingerprint());
+        view.put("lastSeenFingerprint", f.getLastSeenFingerprint());
+        view.put("occurrenceCount", f.getOccurrenceCount());
+        view.put("firstSeenAt", f.getFirstSeenAt().toString());
+        view.put("lastSeenAt", f.getLastSeenAt().toString());
+        view.put("reviewedAt", f.getReviewedAt() != null ? f.getReviewedAt().toString() : null);
+        view.put("reviewedBy", f.getReviewedBy());
         return view;
     }
 

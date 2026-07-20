@@ -15,14 +15,45 @@ usuario/contraseña como el login de invitado y el registro de cuenta nueva mand
 del navegador (ThumbmarkJS: canvas, WebGL, audio, fuentes, hardware, etc.), que el backend guarda
 junto a la sesión (`tokens.device_fingerprint`).
 
-Con esa huella disponible desde el login, ahora hay **dos niveles** de control de abuso:
+Con esa huella disponible desde el login, ahora hay **tres niveles** de control de abuso:
 
 1. **Por evento** (`DeviceAccessGuard`, sin cambios de esta ronda) — límite de dispositivos por
    usuario y de cuentas por dispositivo, pero solo mirando Jitsi/IDE **dentro de una conferencia
    puntual**.
-2. **A nivel plataforma** (`PlatformDeviceGuard`, nuevo) — el mismo tipo de control pero sin
-   importar el evento: cuenta sesiones y cuentas **en toda la plataforma**, y ahora también
-   protege el **login/registro en sí**, no solo Jitsi/IDE.
+2. **A nivel plataforma, al momento del login** (`PlatformDeviceGuard`) — límite de sesiones y de
+   cuentas por dispositivo en TODA la plataforma; protege el login/registro en sí, no solo
+   Jitsi/IDE. Sí puede bloquear.
+3. **A nivel plataforma, en CADA request autenticado** (`DeviceFingerprintAuditor`, nuevo) —
+   compara el fingerprint de cada request contra el que se guardó al loguearse esa sesión.
+   **Nunca bloquea** (ver sección 7): solo deja un registro para que un admin lo revise en
+   `/dashboard/admin/device-access`. Se decidió así explícitamente porque ThumbmarkJS puede
+   cambiar legítimamente entre requests (navegadores con foco en privacidad randomizan sus
+   señales a propósito) — bloquear generaría deslogueos fantasma de usuarios legítimos.
+
+```mermaid
+sequenceDiagram
+    actor U as Usuario (ya logueado)
+    participant FE as Frontend (interceptor global, main.ts)
+    participant MW as DeviceFingerprintAuditHandler (middleware Jetty)
+    participant AUD as DeviceFingerprintAuditor
+    participant DB as SQLite (device_fingerprint_flags)
+
+    U->>FE: navega cualquier ruta autenticada
+    FE->>MW: request + headers Authorization, X-Device-Fingerprint
+    Note over MW: corre para TODA ruta, sin tocar\nninguno de los ~55 handlers existentes
+    MW->>AUD: audit(tokenUuid, subjectUuid, kind, loginFingerprint, requestFingerprint)
+    alt coincide o no vino fingerprint
+        AUD-->>MW: no hace nada
+    else no coincide
+        AUD->>DB: upsert por token_uuid (occurrence_count++)
+    end
+    MW-->>U: el request sigue normal, SIEMPRE (nunca se corta)
+```
+
+El interceptor global de axios (`main.ts`) adjunta `X-Device-Fingerprint` a toda llamada
+autenticada automáticamente — no hizo falta tocar cada función de `usersApi.ts`. Del lado
+backend, el mismo truco: un `JettyMiddleware` envuelve TODAS las rutas de una sola vez, en vez de
+agregar el chequeo a cada uno de los ~55 lugares que llaman `validateTokenUseCase.execute(token)`.
 
 ---
 

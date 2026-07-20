@@ -142,6 +142,22 @@ export interface PlatformDeviceBlock {
   unblockedBy: string | null
 }
 
+// Discrepancia de fingerprint detectada DENTRO de una sesion ya logueada (el fingerprint que
+// llego en un request no coincide con el del login) -- ver DeviceFingerprintAuditor. Nunca
+// implica que la sesion se cortó; es pura visibilidad para revisión de un admin.
+export interface DeviceFingerprintFlag {
+  uuid: string
+  subjectUuid: string
+  subjectKind: 'user' | 'guest'
+  loginFingerprint: string
+  lastSeenFingerprint: string
+  occurrenceCount: number
+  firstSeenAt: string
+  lastSeenAt: string
+  reviewedAt: string | null
+  reviewedBy: string | null
+}
+
 export type ReservationStatus = 'RESERVED' | 'CHECKED_IN'
 
 export interface Reservation {

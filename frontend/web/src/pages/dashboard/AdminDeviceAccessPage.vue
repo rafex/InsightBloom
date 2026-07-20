@@ -54,18 +54,53 @@
           @click="unblock(item)"
           :disabled="item._loading"
         ) Desbloquear
+
+  h3.blocks-title Discrepancias de huella detectadas
+  p.field-hint Se detecta (sin bloquear) cuando el fingerprint de un request no coincide con el
+    |  del login de esa misma sesión — no significa que la sesión se cortó, solo queda visible para revisar.
+  p.empty(v-if="!loadingFlags && flags.length === 0") No hay discrepancias detectadas.
+  ModerationTable(v-else :items="flags" :currentPage="1" :totalPages="1")
+    template(#headers)
+      th Sujeto
+      th Huella del login
+      th Última huella vista
+      th Veces
+      th Primera vez
+      th Última vez
+      th Estado
+      th Acciones
+    template(#row="{ item }")
+      td {{ item.subjectKind === 'guest' ? 'Invitado' : 'Usuario' }} · {{ shortFingerprint(item.subjectUuid) }}
+      td
+        span.fingerprint {{ shortFingerprint(item.loginFingerprint) }}
+      td
+        span.fingerprint {{ shortFingerprint(item.lastSeenFingerprint) }}
+      td {{ item.occurrenceCount }}
+      td {{ formatDate(item.firstSeenAt) }}
+      td {{ formatDate(item.lastSeenAt) }}
+      td
+        span.status(:class="item.reviewedAt ? 'status-unblocked' : 'status-blocked'")
+          | {{ item.reviewedAt ? 'Revisado' : 'Pendiente' }}
+      td.actions
+        button.btn-sm.btn-success(
+          v-if="!item.reviewedAt"
+          @click="review(item)"
+          :disabled="item._loading"
+        ) Marcar revisado
 </template>
 
 <script lang="ts">
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import { ref, onMounted } from 'vue'
 import {
-  getDeviceAccessSettings, setDeviceAccessSettings, listPlatformDeviceBlocks, unblockPlatformDevice
+  getDeviceAccessSettings, setDeviceAccessSettings, listPlatformDeviceBlocks, unblockPlatformDevice,
+  listDeviceFingerprintFlags, reviewDeviceFingerprintFlag
 } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
-import type { PlatformDeviceBlock } from '@/services/api/types'
+import type { PlatformDeviceBlock, DeviceFingerprintFlag } from '@/services/api/types'
 
 type PlatformDeviceBlockRow = PlatformDeviceBlock & { _loading: boolean }
+type DeviceFingerprintFlagRow = DeviceFingerprintFlag & { _loading: boolean }
 
 export default {
   name: 'AdminDeviceAccessPage',
@@ -83,12 +118,23 @@ export default {
     const blocks = ref<PlatformDeviceBlockRow[]>([])
     const loadingBlocks = ref(true)
 
+    const flags = ref<DeviceFingerprintFlagRow[]>([])
+    const loadingFlags = ref(true)
+
     async function loadBlocks() {
       loadingBlocks.value = true
       try {
         const res = await listPlatformDeviceBlocks(auth.state.token as string)
         blocks.value = res.map((b) => ({ ...b, _loading: false }))
       } catch (e: any) { /* deja la tabla vacia */ } finally { loadingBlocks.value = false }
+    }
+
+    async function loadFlags() {
+      loadingFlags.value = true
+      try {
+        const res = await listDeviceFingerprintFlags(auth.state.token as string)
+        flags.value = res.map((f) => ({ ...f, _loading: false }))
+      } catch (e: any) { /* deja la tabla vacia */ } finally { loadingFlags.value = false }
     }
 
     onMounted(async () => {
@@ -101,6 +147,7 @@ export default {
         loading.value = false
       }
       loadBlocks()
+      loadFlags()
     })
 
     async function save() {
@@ -127,6 +174,12 @@ export default {
       catch (e: any) { item._loading = false }
     }
 
+    async function review(item: DeviceFingerprintFlagRow) {
+      item._loading = true
+      try { await reviewDeviceFingerprintFlag(item.uuid, auth.state.token as string); await loadFlags() }
+      catch (e: any) { item._loading = false }
+    }
+
     function shortFingerprint(fp: string): string {
       return fp.length > 16 ? `${fp.slice(0, 8)}…${fp.slice(-6)}` : fp
     }
@@ -142,7 +195,8 @@ export default {
     return {
       loading, maxAccountsPerDevice, maxSessionsPerUser, maxRegistrationsPerDevicePerDay,
       saving, saved, error, save,
-      blocks, loadingBlocks, unblock, shortFingerprint, reasonLabel, formatDate
+      blocks, loadingBlocks, unblock, shortFingerprint, reasonLabel, formatDate,
+      flags, loadingFlags, review
     }
   }
 }
