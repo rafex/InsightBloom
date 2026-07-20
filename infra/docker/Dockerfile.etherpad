@@ -19,7 +19,12 @@ COPY infra/docker/etherpad/ep_insightbloom_hide_delete/ \
 # correcto para el uid 1000 con el que corre el contenedor en runtime (securityContext del
 # chart) -- sin este chown, Etherpad ni siquiera puede crear el directorio de bookkeeping de
 # plugins al arrancar ("EACCES: permission denied, mkdir plugin_packages").
-RUN ETHERPAD_LOCAL_PLUGINS=ep_insightbloom_hide_delete /opt/etherpad-lite/bin/installLocalPlugins.sh && \
+# HOME=/home/etherpad: como root, $HOME por defecto es /root -- pnpm resuelve su store global a
+# partir de HOME, y como los node_modules existentes ya estan linkeados desde el store del
+# usuario original (/home/etherpad/.local/share/pnpm/store), un HOME distinto hace que pnpm
+# rechace el install entero con ERR_PNPM_UNEXPECTED_STORE.
+RUN HOME=/home/etherpad ETHERPAD_LOCAL_PLUGINS=ep_insightbloom_hide_delete \
+        /opt/etherpad-lite/bin/installLocalPlugins.sh && \
     chown -R 1000:1000 /opt/etherpad-lite/src /opt/etherpad-lite/local_plugins
 
 USER 1000:1000
