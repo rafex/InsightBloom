@@ -13,6 +13,7 @@ import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
+import dev.rafex.insightbloom.users.domain.services.DeviceBlockedException;
 import dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard;
 
 import java.util.List;
@@ -144,7 +145,8 @@ public class SandboxHandler extends BaseResourceHandler {
             // "web" es el default -- pedido explicito de una variante concreta desde el picker
             // de IdePage.vue (ver AssignSandboxUseCase, Sandbox.VARIANT_WEB/VARIANT_CLI).
             final String requestedVariant = queryParam(jx, "variant");
-            final Sandbox sandbox = assignSandboxUseCase.execute(conferenceId, v.subjectUuid(), requestedVariant);
+            final Sandbox sandbox = assignSandboxUseCase.execute(conferenceId, v.subjectUuid(), requestedVariant,
+                    extractDeviceFingerprint(jx));
 
             // El Pod pasa a fase "Running" en cuanto arrancan sus contenedores, sin esperar a que
             // pasen su readiness probe -- con el Pod de dos contenedores (ide+runtime) eso dejaba
@@ -165,6 +167,9 @@ public class SandboxHandler extends BaseResourceHandler {
                 "sandboxPath", "/"
             );
             sendOk(jx, 200, response);
+            return true;
+        } catch (final DeviceBlockedException e) {
+            sendError(jx, 403, "device_blocked", "Este dispositivo fue bloqueado por uso con múltiples cuentas");
             return true;
         } catch (final IllegalArgumentException e) {
             if ("conference_not_found".equals(e.getMessage())) {
@@ -228,6 +233,10 @@ public class SandboxHandler extends BaseResourceHandler {
     private String extractToken(final JettyHttpExchange jx) {
         final String auth = jx.request().getHeaders().get("Authorization");
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
+    }
+
+    private String extractDeviceFingerprint(final JettyHttpExchange jx) {
+        return jx.request().getHeaders().get("X-Device-Fingerprint");
     }
 
     private boolean handleDownloadRequest(final JettyHttpExchange jx, final String conferenceId) {

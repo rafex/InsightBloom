@@ -64,10 +64,11 @@
                 router-link(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
                 router-link(v-if="hasCapability(c, 'SURVEY')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
               a.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :href="`/c/${c.friendlyId}/presentation`" target="_blank") 📺 Público
-              DropdownMenu(v-if="hasCapability(c, 'WORD_CLOUD')" label="Moderación")
-                router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/messages`") Mensajes
-                router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Palabras/Nube
+              DropdownMenu(v-if="hasCapability(c, 'WORD_CLOUD') || hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE')" label="Moderación")
+                router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/messages`") Mensajes
+                router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Palabras/Nube
                 router-link(v-if="hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/ide`") Editor Monaco
+                router-link(v-if="hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/device-blocks`") Bloqueos
           td.actions-cell(data-label="Acciones")
             .conf-actions
               router-link.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación

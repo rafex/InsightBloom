@@ -1,11 +1,14 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.model.UserRole;
+import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.EventRoleRepository;
 import dev.rafex.insightbloom.users.domain.ports.RoleRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
+import dev.rafex.insightbloom.users.domain.services.DeviceAccessGuard;
 import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -33,11 +36,15 @@ class GenerateJaasTokenUseCaseTest {
         final EventRoleRepository eventRoleRepo = Mockito.mock(EventRoleRepository.class);
         final RoleRepository roleRepo = Mockito.mock(RoleRepository.class);
         final UserRepository userRepo = Mockito.mock(UserRepository.class);
+        final ConferenceRepository conferenceRepo = Mockito.mock(ConferenceRepository.class);
+        final DeviceAccessGuard deviceAccessGuard = Mockito.mock(DeviceAccessGuard.class);
         final var guard = new EventPermissionGuard(eventRoleRepo, roleRepo);
-        final var useCase = new GenerateJaasTokenUseCase("app-id", "key-id", "", guard, userRepo);
+        final var useCase = new GenerateJaasTokenUseCase(
+                "app-id", "key-id", "", guard, userRepo, conferenceRepo, deviceAccessGuard);
 
         assertFalse(useCase.isConfigured());
-        assertTrue(useCase.execute("event-1", "user-1", "attendee").isEmpty());
+        assertInstanceOf(GenerateJaasTokenUseCase.JaasResult.NotConfigured.class,
+                useCase.execute("event-1", "user-1", "attendee", null));
     }
 
     @Test
@@ -51,16 +58,20 @@ class GenerateJaasTokenUseCaseTest {
         final UserRepository userRepo = Mockito.mock(UserRepository.class);
         Mockito.when(userRepo.findByUuid("user-1")).thenReturn(Optional.of(
                 new User("user-1", "jdoe", "Jane Doe", "jdoe@example.com", UserRole.ATTENDEE)));
+        final ConferenceRepository conferenceRepo = Mockito.mock(ConferenceRepository.class);
+        final DeviceAccessGuard deviceAccessGuard = Mockito.mock(DeviceAccessGuard.class);
 
         final var guard = new EventPermissionGuard(eventRoleRepo, roleRepo);
-        final var useCase = new GenerateJaasTokenUseCase(
-                "vpaas-magic-cookie-test", "key-id-1", base64EnvelopedPem(keyPair), guard, userRepo);
+        final var useCase = new GenerateJaasTokenUseCase("vpaas-magic-cookie-test", "key-id-1",
+                base64EnvelopedPem(keyPair), guard, userRepo, conferenceRepo, deviceAccessGuard);
 
         assertTrue(useCase.isConfigured());
-        final var result = useCase.execute("conference-uuid-1", "user-1", "attendee");
-        assertTrue(result.isPresent());
+        // deviceFingerprint=null -- se omite el control de acceso por dispositivo (ver comentario
+        // en GenerateJaasTokenUseCase.execute), este test cubre solo la firma del JWT.
+        final var result = useCase.execute("conference-uuid-1", "user-1", "attendee", null);
+        assertInstanceOf(GenerateJaasTokenUseCase.JaasResult.Issued.class, result);
 
-        final var jaasToken = result.get();
+        final var jaasToken = ((GenerateJaasTokenUseCase.JaasResult.Issued) result).token();
         assertEquals("vpaas-magic-cookie-test", jaasToken.appId());
         assertEquals("insightbloom-conferenceuuid1", jaasToken.roomName());
 

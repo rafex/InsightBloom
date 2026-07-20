@@ -5,11 +5,20 @@ import type {
   SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
-  WorkspaceFileEntry, WorkspaceFileContent
+  WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock
 } from './types'
+import { getFingerprint } from '@/services/auth/fingerprint'
 
 function authHeader(token?: string | null) {
   return { headers: { Authorization: `Bearer ${token}` } }
+}
+
+/** Mismo fingerprint que ya usan invitados anonimos (ver services/auth/fingerprint.ts), ahora
+ *  tambien mandado en Jitsi/IDE para que DeviceAccessGuard pueda controlar cuantos dispositivos
+ *  usa un mismo usuario y cuantas cuentas comparte un mismo dispositivo. */
+async function authHeaderWithDevice(token?: string | null) {
+  const fingerprint = await getFingerprint()
+  return { headers: { Authorization: `Bearer ${token}`, 'X-Device-Fingerprint': fingerprint } }
 }
 
 export async function getConferences(token: string): Promise<Conference[]> {
@@ -184,6 +193,28 @@ export async function setSandboxConfig(
       sandboxSeatsPerPod, sandboxCliPoolSize },
     authHeader(token))
   return res.data.data
+}
+
+export async function setDeviceAccessConfig(
+  conferenceId: string,
+  maxDevicesPerUser: number | null,
+  maxAccountsPerDevice: number | null,
+  token: string
+): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/device-access-config`,
+    { maxDevicesPerUser, maxAccountsPerDevice },
+    authHeader(token))
+  return res.data.data
+}
+
+export async function listDeviceBlocks(conferenceId: string, token: string): Promise<DeviceBlock[]> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/device-blocks`, authHeader(token))
+  return res.data.data
+}
+
+export async function unblockDevice(conferenceId: string, blockUuid: string, token: string): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${conferenceId}/device-blocks/${blockUuid}/unblock`,
+    {}, authHeader(token))
 }
 
 export async function listSandboxIncidents(
@@ -373,7 +404,8 @@ export async function saveEventDiagram(conferenceId: string, xml: string, token:
 
 /** Token JWT firmado para unirse a la sala de JaaS (8x8.vc) de este evento, si esta configurado. */
 export async function getJaasToken(conferenceId: string, token: string): Promise<JaasToken> {
-  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/jaas-token`, authHeader(token))
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/jaas-token`,
+    await authHeaderWithDevice(token))
   return res.data.data
 }
 
@@ -460,7 +492,7 @@ export async function getSandbox(
   conferenceId: string, token: string | null | undefined, variant: SandboxVariant
 ): Promise<SandboxInfo> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox?variant=${variant}`,
-    authHeader(token))
+    await authHeaderWithDevice(token))
   return res.data.data
 }
 

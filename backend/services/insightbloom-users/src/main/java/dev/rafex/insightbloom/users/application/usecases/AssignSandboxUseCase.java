@@ -2,9 +2,12 @@ package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
+import dev.rafex.insightbloom.users.domain.model.ToolKind;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
+import dev.rafex.insightbloom.users.domain.services.DeviceAccessGuard;
+import dev.rafex.insightbloom.users.domain.services.DeviceBlockedException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,15 +26,18 @@ public class AssignSandboxUseCase {
     private final SandboxRepository sandboxRepository;
     private final ConferenceRepository conferenceRepository;
     private final SandboxOrchestrator sandboxOrchestrator;
+    private final DeviceAccessGuard deviceAccessGuard;
     private final long ttlSecondsAfterEventExpiry;
 
     public AssignSandboxUseCase(final SandboxRepository sandboxRepository,
                                  final ConferenceRepository conferenceRepository,
                                  final SandboxOrchestrator sandboxOrchestrator,
+                                 final DeviceAccessGuard deviceAccessGuard,
                                  final long ttlSecondsAfterEventExpiry) {
         this.sandboxRepository = sandboxRepository;
         this.conferenceRepository = conferenceRepository;
         this.sandboxOrchestrator = sandboxOrchestrator;
+        this.deviceAccessGuard = deviceAccessGuard;
         this.ttlSecondsAfterEventExpiry = ttlSecondsAfterEventExpiry;
     }
 
@@ -88,8 +94,23 @@ public class AssignSandboxUseCase {
      * MISMA variante esperando, se reclama de inmediato sin golpear el API de Kubernetes.
      */
     public Sandbox execute(final String conferenceUuid, final String userUuid, final String requestedVariant) {
+        return execute(conferenceUuid, userUuid, requestedVariant, null);
+    }
+
+    public Sandbox execute(final String conferenceUuid, final String userUuid, final String requestedVariant,
+                            final String deviceFingerprint) {
         final Conference conference = conferenceRepository.findByUuid(conferenceUuid)
             .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+        // deviceFingerprint puede llegar null durante un rollout escalonado (frontend viejo sin
+        // el header todavia) -- en ese caso se omite el control de acceso por dispositivo en vez
+        // de romper la asignacion del sandbox.
+        if (deviceFingerprint != null && !deviceFingerprint.isBlank()) {
+            final var access = deviceAccessGuard.checkAndRegister(
+                    conferenceUuid, userUuid, ToolKind.IDE, deviceFingerprint, conference);
+            if (access instanceof DeviceAccessGuard.DeviceAccessResult.Blocked) {
+                throw new DeviceBlockedException();
+            }
+        }
         final String variant = Sandbox.VARIANT_CLI.equals(requestedVariant) ? Sandbox.VARIANT_CLI : Sandbox.VARIANT_WEB;
         final String orchestratorVariant = toOrchestratorVariant(variant);
         final int seatsPerPod = seatsPerPodFor(variant, conference);

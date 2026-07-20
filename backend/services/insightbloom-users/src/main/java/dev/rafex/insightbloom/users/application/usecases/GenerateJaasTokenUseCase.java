@@ -2,9 +2,13 @@ package dev.rafex.insightbloom.users.application.usecases;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.Permission;
+import dev.rafex.insightbloom.users.domain.model.ToolKind;
 import dev.rafex.insightbloom.users.domain.model.User;
+import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
+import dev.rafex.insightbloom.users.domain.services.DeviceAccessGuard;
 import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
 
 import java.nio.charset.StandardCharsets;
@@ -35,27 +39,54 @@ public class GenerateJaasTokenUseCase {
     private final PrivateKey privateKey;
     private final EventPermissionGuard eventPermissionGuard;
     private final UserRepository userRepository;
+    private final ConferenceRepository conferenceRepository;
+    private final DeviceAccessGuard deviceAccessGuard;
 
     public GenerateJaasTokenUseCase(final String appId, final String apiKeyId,
                                      final String privateKeyBase64,
                                      final EventPermissionGuard eventPermissionGuard,
-                                     final UserRepository userRepository) {
+                                     final UserRepository userRepository,
+                                     final ConferenceRepository conferenceRepository,
+                                     final DeviceAccessGuard deviceAccessGuard) {
         this.appId = appId;
         this.apiKeyId = apiKeyId;
         this.eventPermissionGuard = eventPermissionGuard;
         this.userRepository = userRepository;
+        this.conferenceRepository = conferenceRepository;
+        this.deviceAccessGuard = deviceAccessGuard;
         this.privateKey = parsePrivateKey(privateKeyBase64);
     }
 
     public record JaasToken(String token, String appId, String roomName) {}
 
+    /** Distingue "JaaS no configurado en este despliegue" de "dispositivo bloqueado" -- antes de
+     *  este control de acceso ambos casos colapsaban en {@code Optional.empty()}. */
+    public sealed interface JaasResult {
+        record NotConfigured() implements JaasResult {}
+        record Blocked() implements JaasResult {}
+        record Issued(JaasToken token) implements JaasResult {}
+    }
+
     public boolean isConfigured() {
         return appId != null && !appId.isBlank() && privateKey != null;
     }
 
-    public Optional<JaasToken> execute(final String conferenceUuid, final String userUuid,
-                                        final String userLegacyRole) {
-        if (!isConfigured()) return Optional.empty();
+    public JaasResult execute(final String conferenceUuid, final String userUuid,
+                               final String userLegacyRole, final String deviceFingerprint) {
+        if (!isConfigured()) return new JaasResult.NotConfigured();
+
+        // deviceFingerprint puede llegar null durante un rollout escalonado (frontend viejo sin
+        // el header todavia) -- en ese caso se omite el control de acceso por dispositivo.
+        if (deviceFingerprint != null && !deviceFingerprint.isBlank()) {
+            final Conference conference = conferenceRepository.findByUuid(conferenceUuid).orElse(null);
+            if (conference != null) {
+                final var access = deviceAccessGuard.checkAndRegister(
+                        conferenceUuid, userUuid, ToolKind.VIDEO, deviceFingerprint, conference);
+                if (access instanceof DeviceAccessGuard.DeviceAccessResult.Blocked) {
+                    return new JaasResult.Blocked();
+                }
+            }
+        }
 
         final boolean moderator = eventPermissionGuard.hasPermission(
                 conferenceUuid, userUuid, userLegacyRole, Permission.VIDEO_MODERATE);
@@ -97,7 +128,7 @@ public class GenerateJaasTokenUseCase {
         payload.set("context", contextNode);
 
         final String signed = sign(header, payload);
-        return Optional.of(new JaasToken(signed, appId, roomName));
+        return new JaasResult.Issued(new JaasToken(signed, appId, roomName));
     }
 
     private String sign(final ObjectNode header, final ObjectNode payload) {

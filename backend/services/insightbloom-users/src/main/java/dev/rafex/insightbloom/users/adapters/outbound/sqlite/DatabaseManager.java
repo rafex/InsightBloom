@@ -165,6 +165,12 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_cli_pool_size INTEGER");
             } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN max_devices_per_user INTEGER");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN max_accounts_per_device INTEGER");
+            } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS reservations (
@@ -359,6 +365,46 @@ public class DatabaseManager {
                 )
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_incidents_conference ON sandbox_incidents(conference_uuid)");
+
+            // Control de acceso por dispositivo (2026-07): cuántos dispositivos distintos usa un
+            // mismo usuario en Jitsi/IDE dentro de un evento, y cuántas cuentas distintas comparten
+            // un mismo dispositivo -- ver DeviceAccessGuard. Una fila = un dispositivo activo (o ya
+            // revocado) de un usuario en una herramienta puntual dentro de una conferencia.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS tool_device_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    user_uuid TEXT NOT NULL,
+                    tool TEXT NOT NULL,
+                    device_fingerprint TEXT NOT NULL,
+                    first_seen_at TEXT NOT NULL,
+                    last_seen_at TEXT NOT NULL,
+                    revoked_at TEXT,
+                    UNIQUE(conference_uuid, user_uuid, tool, device_fingerprint)
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tool_device_sessions_user "
+                    + "ON tool_device_sessions(conference_uuid, user_uuid, tool)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tool_device_sessions_device "
+                    + "ON tool_device_sessions(conference_uuid, device_fingerprint)");
+
+            // Dispositivos bloqueados por exceder max_accounts_per_device -- el moderador decide
+            // desde el dashboard ("Bloqueos") si desbloquea (ver DEC de acceso por dispositivo).
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS device_blocks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    device_fingerprint TEXT NOT NULL,
+                    account_count INTEGER NOT NULL,
+                    blocked_at TEXT NOT NULL,
+                    unblocked_at TEXT,
+                    unblocked_by TEXT
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_device_blocks_conference "
+                    + "ON device_blocks(conference_uuid, device_fingerprint)");
 
             backfillMissingTicketsForSimpleJoins(conn);
             backfillMissingCapacity(conn);

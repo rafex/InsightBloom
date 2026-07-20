@@ -76,9 +76,12 @@ public class UsersApplication {
         final var eventRoleRepo = new SqliteEventRoleRepository(db);
         final var sandboxRepo = new SqliteSandboxRepository(db);
         final var sandboxIncidentRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteSandboxIncidentRepository(db);
+        final var toolDeviceSessionRepo = new SqliteToolDeviceSessionRepository(db);
+        final var deviceBlockRepo = new SqliteDeviceBlockRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
+        final var deviceAccessGuard = new DeviceAccessGuard(toolDeviceSessionRepo, deviceBlockRepo);
         final var passwordService = new PasswordService();
         final var friendlyIdService = new FriendlyIdService(conferenceRepo);
         final var cascadeDeletePort = new HttpCascadeDeleteClient(
@@ -161,7 +164,8 @@ public class UsersApplication {
         final var saveEventDiagramUseCase = new SaveEventDiagramUseCase(conferenceRepo);
         final var purgeExpiredEventDiagramsUseCase = new PurgeExpiredEventDiagramsUseCase(conferenceRepo, timezoneRepo);
         final var generateJaasTokenUseCase = new GenerateJaasTokenUseCase(
-                jaasAppId, jaasApiKeyId, jaasPrivateKeyBase64, eventPermissionGuard, userRepo);
+                jaasAppId, jaasApiKeyId, jaasPrivateKeyBase64, eventPermissionGuard, userRepo,
+                conferenceRepo, deviceAccessGuard);
         final var llmClient = new dev.rafex.insightbloom.users.adapters.outbound.llm.GroqLlmClient(
                 llmBaseUrl, llmApiKey, llmModel, JacksonJsonCodec.defaultCodec());
         final var generateSeatLayoutUseCase = new GenerateSeatLayoutUseCase(llmClient, JacksonJsonCodec.defaultCodec());
@@ -224,7 +228,7 @@ public class UsersApplication {
         final long sandboxTtlSecondsAfterEventExpiry =
                 Long.parseLong(System.getenv().getOrDefault("SANDBOX_TTL_SECONDS_AFTER_EVENT_EXPIRY", "3600"));
         final var assignSandboxUseCase = new AssignSandboxUseCase(
-                sandboxRepo, conferenceRepo, sandboxOrchestrator, sandboxTtlSecondsAfterEventExpiry);
+                sandboxRepo, conferenceRepo, sandboxOrchestrator, deviceAccessGuard, sandboxTtlSecondsAfterEventExpiry);
         final var getSandboxAvailabilityUseCase = new GetSandboxAvailabilityUseCase(conferenceRepo, sandboxRepo);
         final var ensureUnassignedSandboxUseCase = new EnsureUnassignedSandboxUseCase(
                 sandboxRepo, conferenceRepo, sandboxOrchestrator, sandboxTtlSecondsAfterEventExpiry);
@@ -257,6 +261,9 @@ public class UsersApplication {
         final int maxJvmHeapMbNeovim = Math.max(64, parseK8sMemoryToMb(sandboxNeovimMemoryLimit) - 150);
         final var setSandboxConfigUseCase = new SetSandboxConfigUseCase(
                 conferenceRepo, maxPoolSizePerEvent, maxJvmHeapMbDebian, maxJvmHeapMbNeovim);
+        final var setDeviceAccessConfigUseCase = new SetDeviceAccessConfigUseCase(conferenceRepo);
+        final var listDeviceBlocksUseCase = new ListDeviceBlocksUseCase(deviceBlockRepo);
+        final var unblockDeviceUseCase = new UnblockDeviceUseCase(deviceBlockRepo);
         final var sandboxHandler = new SandboxHandler(
                 assignSandboxUseCase, getSandboxAvailabilityUseCase, validateTokenUseCase,
                 generateWorkspaceDownloadUrlUseCase, setSandboxConfigUseCase, sandboxOrchestrator,
@@ -277,7 +284,9 @@ public class UsersApplication {
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
                 getEventDiagramUseCase, saveEventDiagramUseCase, generateJaasTokenUseCase, generateSeatLayoutUseCase,
                 setSandboxConfigUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
-                listSandboxIncidentsUseCase, listSandboxStatusUseCase, sandboxHandler, sandboxFilesHandler);
+                listSandboxIncidentsUseCase, listSandboxStatusUseCase,
+                setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,
+                sandboxHandler, sandboxFilesHandler);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

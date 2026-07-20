@@ -92,6 +92,8 @@ export interface Conference {
   sandboxJvmHeapMb?: number | null
   sandboxSeatsPerPod?: number | null
   sandboxCliPoolSize?: number | null
+  maxDevicesPerUser?: number | null
+  maxAccountsPerDevice?: number | null
   [key: string]: unknown
 }
 
@@ -106,6 +108,18 @@ export interface SandboxIncident {
   type: string
   detail: string | null
   occurredAt: string
+}
+
+// Dispositivo bloqueado en una conferencia por superar maxAccountsPerDevice (demasiadas cuentas
+// distintas desde el mismo fingerprint) -- ver DeviceAccessGuard. unblockedAt null = sigue activo.
+export interface DeviceBlock {
+  uuid: string
+  conferenceUuid: string
+  deviceFingerprint: string
+  accountCount: number
+  blockedAt: string
+  unblockedAt: string | null
+  unblockedBy: string | null
 }
 
 export type ReservationStatus = 'RESERVED' | 'CHECKED_IN'

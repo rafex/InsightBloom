@@ -129,6 +129,21 @@
               td {{ incidentTypeLabel(incident.type) }}
               td {{ incident.detail }}
 
+    .form-group.device-access-group
+      label Acceso por dispositivo
+      p.field-hint Controla cuántos dispositivos puede usar a la vez un mismo asistente en Videollamada e IDE, y bloquea automáticamente un dispositivo que se loguea con demasiadas cuentas distintas (podés revisar y desbloquear desde "Bloqueos", en Moderación).
+      .coord-field
+        span.coord-label Máx. dispositivos activos por usuario
+        input(v-model.number="maxDevicesPerUser" type="number" min="1" max="10" placeholder="2 (por defecto)")
+      .coord-field
+        span.coord-label Máx. cuentas distintas por dispositivo antes de bloquear
+        input(v-model.number="maxAccountsPerDevice" type="number" min="1" max="50" placeholder="3 (por defecto)")
+      button.btn-outline(type="button" @click="saveDeviceAccessConfig" :disabled="savingDeviceAccessConfig")
+        span(v-if="savingDeviceAccessConfig") Guardando...
+        span(v-else) Guardar acceso por dispositivo
+      p.success(v-if="deviceAccessConfigSaved") Configuración de acceso por dispositivo guardada.
+      p.error(v-if="deviceAccessConfigError") {{ deviceAccessConfigError }}
+
     .form-group.roles-group(v-if="canManageRoles")
       label Roles del evento
       p.field-hint Asigna moderadores, staff de acceso u otros roles a personas solo para este evento.
@@ -151,7 +166,7 @@ import { ref, computed, onMounted } from 'vue'
 import {
   getConference, setSeatingMode, getActiveEventTypes, setEventType,
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
-  listSandboxIncidents, listSandboxStatus
+  listSandboxIncidents, listSandboxStatus, setDeviceAccessConfig
 } from '@/services/api/usersApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -207,6 +222,11 @@ export default {
     const sandboxStatusLoaded = ref(false)
     const loadingSandboxStatus = ref(false)
     const sandboxStatusError = ref('')
+    const maxDevicesPerUser = ref<number | null>(null)
+    const maxAccountsPerDevice = ref<number | null>(null)
+    const savingDeviceAccessConfig = ref(false)
+    const deviceAccessConfigSaved = ref(false)
+    const deviceAccessConfigError = ref('')
     const eventTypes    = ref<EventType[]>([])
     const eventTypeKey  = ref('conference')
     const savingEventType = ref(false)
@@ -240,6 +260,8 @@ export default {
         sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? null
         sandboxSeatsPerPod.value = conference.value.sandboxSeatsPerPod ?? null
         sandboxInternetEnabled.value = conference.value.sandboxInternetEnabled === 1
+        maxDevicesPerUser.value = conference.value.maxDevicesPerUser ?? null
+        maxAccountsPerDevice.value = conference.value.maxAccountsPerDevice ?? null
       } catch (e: any) {
         error.value = 'No se pudo cargar la conferencia.'
       } finally {
@@ -337,6 +359,21 @@ export default {
       }
     }
 
+    async function saveDeviceAccessConfig() {
+      savingDeviceAccessConfig.value = true; deviceAccessConfigError.value = ''; deviceAccessConfigSaved.value = false
+      try {
+        conference.value = await setDeviceAccessConfig(
+          props.conferenceId as string, maxDevicesPerUser.value, maxAccountsPerDevice.value,
+          auth.state.token as string
+        )
+        deviceAccessConfigSaved.value = true
+      } catch (e: any) {
+        deviceAccessConfigError.value = e.response?.data?.error?.message || 'No se pudo guardar el acceso por dispositivo'
+      } finally {
+        savingDeviceAccessConfig.value = false
+      }
+    }
+
     async function loadSandboxIncidents() {
       loadingSandboxIncidents.value = true; sandboxIncidentsError.value = ''
       try {
@@ -399,6 +436,8 @@ export default {
              sandboxIncidents, sandboxIncidentsLoaded, loadingSandboxIncidents, sandboxIncidentsError,
              loadSandboxIncidents, incidentTypeLabel,
              sandboxStatus, sandboxStatusLoaded, loadingSandboxStatus, sandboxStatusError, loadSandboxStatus,
+             maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
+             deviceAccessConfigSaved, deviceAccessConfigError, saveDeviceAccessConfig,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
              eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
              roleAssigned, roleError, roleName, assignRole, removeRole, breadcrumbItems }

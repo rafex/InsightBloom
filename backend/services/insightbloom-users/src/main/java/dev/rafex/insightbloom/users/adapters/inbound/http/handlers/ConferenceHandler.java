@@ -37,6 +37,9 @@ import dev.rafex.insightbloom.users.application.usecases.RecordDownloadUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ReserveGeneralUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ReserveSeatUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetEventTypeUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetDeviceAccessConfigUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ListDeviceBlocksUseCase;
+import dev.rafex.insightbloom.users.application.usecases.UnblockDeviceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSeatingModeUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetVenueMapUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SaveEventDiagramUseCase;
@@ -98,6 +101,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
     private final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase;
     private final ListSandboxStatusUseCase listSandboxStatusUseCase;
+    private final SetDeviceAccessConfigUseCase setDeviceAccessConfigUseCase;
+    private final ListDeviceBlocksUseCase listDeviceBlocksUseCase;
+    private final UnblockDeviceUseCase unblockDeviceUseCase;
     private final SandboxHandler sandboxHandler;
     private final SandboxFilesHandler sandboxFilesHandler;
 
@@ -140,6 +146,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
                              final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase,
                              final ListSandboxStatusUseCase listSandboxStatusUseCase,
+                             final SetDeviceAccessConfigUseCase setDeviceAccessConfigUseCase,
+                             final ListDeviceBlocksUseCase listDeviceBlocksUseCase,
+                             final UnblockDeviceUseCase unblockDeviceUseCase,
                              final SandboxHandler sandboxHandler,
                              final SandboxFilesHandler sandboxFilesHandler) {
         this.createConferenceUseCase = createConferenceUseCase;
@@ -181,6 +190,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
         this.listSandboxIncidentsUseCase = listSandboxIncidentsUseCase;
         this.listSandboxStatusUseCase = listSandboxStatusUseCase;
+        this.setDeviceAccessConfigUseCase = setDeviceAccessConfigUseCase;
+        this.listDeviceBlocksUseCase = listDeviceBlocksUseCase;
+        this.unblockDeviceUseCase = unblockDeviceUseCase;
         this.sandboxHandler = sandboxHandler;
         this.sandboxFilesHandler = sandboxFilesHandler;
     }
@@ -211,6 +223,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/venue-map", Set.of("PUT")),
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/sandbox-config", Set.of("PUT")),
+                Route.of("/{id}/device-access-config", Set.of("PUT")),
+                Route.of("/{id}/device-blocks", Set.of("GET")),
+                Route.of("/{id}/device-blocks/{blockId}/unblock", Set.of("POST")),
                 Route.of("/{id}/sandbox-internet", Set.of("PUT")),
                 Route.of("/{id}/sandbox-incidents", Set.of("GET")),
                 Route.of("/{id}/sandbox-status", Set.of("GET")),
@@ -291,6 +306,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/sandbox-status")) {
             return handleListSandboxStatus(jx, jx.pathParam("id"));
         }
+        if (path.endsWith("/device-blocks")) {
+            return handleListDeviceBlocks(jx, jx.pathParam("id"));
+        }
         if (path.endsWith("/sandbox/availability")) {
             return sandboxHandler.get(x);
         }
@@ -334,6 +352,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/sandbox/download")) {
             return sandboxHandler.post(x);
         }
+        if (jx.path().endsWith("/unblock")) {
+            return handleUnblockDevice(jx, jx.pathParam("id"), jx.pathParam("blockId"));
+        }
         return handleCreate(jx);
     }
 
@@ -366,6 +387,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/sandbox-config")) {
             return handleSetSandboxConfig(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/device-access-config")) {
+            return handleSetDeviceAccessConfig(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/sandbox/file")) {
             return sandboxFilesHandler.put(x);
@@ -753,9 +777,15 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita videollamada");
                 return true;
             }
-            generateJaasTokenUseCase.execute(id, v.subjectUuid(), v.role()).ifPresentOrElse(
-                    jaasToken -> sendOk(jx, 200, jaasToken),
-                    () -> sendError(jx, 404, "jaas_not_configured", "JaaS no esta configurado en este despliegue"));
+            final var result = generateJaasTokenUseCase.execute(
+                    id, v.subjectUuid(), v.role(), extractDeviceFingerprint(jx));
+            if (result instanceof GenerateJaasTokenUseCase.JaasResult.Issued issued) {
+                sendOk(jx, 200, issued.token());
+            } else if (result instanceof GenerateJaasTokenUseCase.JaasResult.Blocked) {
+                sendError(jx, 403, "device_blocked", "Este dispositivo fue bloqueado por uso con múltiples cuentas");
+            } else {
+                sendError(jx, 404, "jaas_not_configured", "JaaS no esta configurado en este despliegue");
+            }
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -1122,6 +1152,63 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
+    private boolean handleSetDeviceAccessConfig(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can configure device access");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final Integer maxDevicesPerUser = (Integer) body.get("maxDevicesPerUser");
+            final Integer maxAccountsPerDevice = (Integer) body.get("maxAccountsPerDevice");
+            final var result = setDeviceAccessConfigUseCase.execute(id, maxDevicesPerUser, maxAccountsPerDevice);
+            sendOk(jx, 200, result);
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    /** Le muestra al moderador que dispositivos fueron bloqueados en esta conferencia por
+     *  usar demasiadas cuentas distintas -- ver DeviceAccessGuard. */
+    private boolean handleListDeviceBlocks(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can view device blocks");
+                return true;
+            }
+            sendOk(jx, 200, listDeviceBlocksUseCase.execute(id));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleUnblockDevice(final JettyHttpExchange jx, final String id, final String blockId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can unblock devices");
+                return true;
+            }
+            unblockDeviceUseCase.execute(blockId, v.subjectUuid());
+            sendOk(jx, 200, Map.of("unblocked", true));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
     /** Fase C (DEC-0025): le muestra al organizador que asientos de sus Pods "neovim"
      *  compartidos tuvo que terminar el watchdog por abuso de recursos, y quien era. */
     private boolean handleListSandboxIncidents(final JettyHttpExchange jx, final String id) {
@@ -1188,6 +1275,10 @@ public class ConferenceHandler extends BaseResourceHandler {
     private String extractToken(final JettyHttpExchange jx) {
         final String auth = jx.request().getHeaders().get("Authorization");
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
+    }
+
+    private String extractDeviceFingerprint(final JettyHttpExchange jx) {
+        return jx.request().getHeaders().get("X-Device-Fingerprint");
     }
 
 }

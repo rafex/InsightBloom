@@ -5,6 +5,7 @@ import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
+import dev.rafex.insightbloom.users.domain.services.DeviceAccessGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -26,7 +27,9 @@ class AssignSandboxUseCaseTest {
         sandboxRepoMock = Mockito.mock(SandboxRepository.class);
         conferenceRepoMock = Mockito.mock(ConferenceRepository.class);
         orchestratorMock = Mockito.mock(SandboxOrchestrator.class);
-        useCase = new AssignSandboxUseCase(sandboxRepoMock, conferenceRepoMock, orchestratorMock, 3600);
+        final var deviceAccessGuardMock = Mockito.mock(DeviceAccessGuard.class);
+        useCase = new AssignSandboxUseCase(sandboxRepoMock, conferenceRepoMock, orchestratorMock,
+                deviceAccessGuardMock, 3600);
         testConf = new Conference("test1", "Test Conference", "user-org-1");
         testConf.setSandboxPoolSize(2);
     }

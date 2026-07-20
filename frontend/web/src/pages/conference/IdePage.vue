@@ -165,7 +165,9 @@ export default {
         if (e.message?.includes('404')) {
           sandbox.value = null
         } else {
-          error.value = e.message || 'Error al cargar el sandbox'
+          // e.message de axios es generico ("Request failed with status code 403") -- el
+          // mensaje real (ej. "device_blocked") viene en el body que arma BaseResourceHandler.
+          error.value = e.response?.data?.error?.message || e.message || 'Error al cargar el sandbox'
         }
         stopPolling()
       } finally {

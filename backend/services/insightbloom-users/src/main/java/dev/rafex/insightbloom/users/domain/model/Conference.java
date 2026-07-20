@@ -60,6 +60,12 @@ public class Conference {
     // SetSandboxConfigUseCase -- un numero mas alto exigiria revisar el LimitRange del namespace
     // a mano, no es un simple ajuste de config.
     private Integer sandboxSeatsPerPod;
+    // Control de acceso por dispositivo (2026-07, ver DeviceAccessGuard): cuántos dispositivos
+    // distintos puede tener activos a la vez un mismo usuario en Jitsi/IDE dentro de ESTE evento,
+    // y cuántas cuentas distintas puede compartir un mismo dispositivo antes de bloquearlo.
+    // Nullable, defaults efectivos en DeviceAccessGuard (2 y 3 respectivamente) si no se configura.
+    private Integer maxDevicesPerUser;
+    private Integer maxAccountsPerDevice;
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -184,4 +190,8 @@ public class Conference {
     public void setSandboxRemoteGitUrl(String sandboxRemoteGitUrl) { this.sandboxRemoteGitUrl = sandboxRemoteGitUrl; }
     public void setSandboxJvmHeapMb(Integer sandboxJvmHeapMb) { this.sandboxJvmHeapMb = sandboxJvmHeapMb; }
     public void setSandboxSeatsPerPod(Integer sandboxSeatsPerPod) { this.sandboxSeatsPerPod = sandboxSeatsPerPod; }
+    public Integer getMaxDevicesPerUser() { return maxDevicesPerUser; }
+    public Integer getMaxAccountsPerDevice() { return maxAccountsPerDevice; }
+    public void setMaxDevicesPerUser(Integer maxDevicesPerUser) { this.maxDevicesPerUser = maxDevicesPerUser; }
+    public void setMaxAccountsPerDevice(Integer maxAccountsPerDevice) { this.maxAccountsPerDevice = maxAccountsPerDevice; }
 }
