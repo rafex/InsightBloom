@@ -2,11 +2,16 @@
 # "Delete pad": las notas de InsightBloom son un documento oficial compartido por todo el
 # evento, nadie debe poder borrarlo desde la UI. Ver infra/docker/etherpad/ para el detalle.
 #
-# El plugin se coloca en src/plugin_packages/ -- ahi es donde el instalador de plugins de
-# Etherpad (src/static/js/pluginfw/installer.ts) busca plugins locales al arrancar, los
-# symlinkea a node_modules/ y los carga como cualquier otro plugin ep_*, sin necesidad de
-# publicarlo a npm ni de tocar el core.
+# Se usa el mecanismo oficial de la imagen para plugins locales (bin/installLocalPlugins.sh +
+# ETHERPAD_LOCAL_PLUGINS, ver bin/installLocalPlugins.sh dentro de la imagen base) en vez de
+# colocar el plugin a mano en src/plugin_packages/: ese directorio depende de que Etherpad
+# pueda symlinkearlo a src/node_modules en runtime, y src/node_modules pertenece a
+# etherpad:root (0755) -- el uid no-root 1000 que fuerza nuestro securityContext de Kubernetes
+# no puede escribir ahi, asi que el symlink fallaba en silencio y el plugin nunca se cargaba.
+# Corriendo `pnpm install` durante el build (como root, el usuario default de RUN) el link
+# queda resuelto de antemano, sin que el proceso en runtime necesite escribir nada.
 FROM etherpad/etherpad:2.3.1
 
-COPY --chown=1000:1000 infra/docker/etherpad/ep_insightbloom_hide_delete/ \
-    /opt/etherpad-lite/src/plugin_packages/ep_insightbloom_hide_delete/
+COPY infra/docker/etherpad/ep_insightbloom_hide_delete/ \
+    /opt/etherpad-lite/local_plugins/ep_insightbloom_hide_delete/
+RUN ETHERPAD_LOCAL_PLUGINS=ep_insightbloom_hide_delete /opt/etherpad-lite/bin/installLocalPlugins.sh
