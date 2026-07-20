@@ -77,7 +77,7 @@ export default {
 
     onMounted(async () => {
       try {
-        const profile = await getUserProfile(auth.state.userUuid as string)
+        const profile = await getUserProfile(auth.state.userUuid as string, auth.state.token as string)
         profileData.value = profile
         firstName.value = profile.firstName || ''
         lastName.value = profile.lastName || ''

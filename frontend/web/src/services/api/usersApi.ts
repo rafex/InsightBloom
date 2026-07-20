@@ -119,8 +119,8 @@ export async function getConferenceByFriendlyId(friendlyId: string): Promise<Con
   return res.data.data
 }
 
-export async function getUserProfile(uuid: string): Promise<UserProfile> {
-  const res = await axios.get(`/api/users/api/v1/users/${uuid}`)
+export async function getUserProfile(uuid: string, token: string): Promise<UserProfile> {
+  const res = await axios.get(`/api/users/api/v1/users/${uuid}`, authHeader(token))
   return res.data.data
 }
 

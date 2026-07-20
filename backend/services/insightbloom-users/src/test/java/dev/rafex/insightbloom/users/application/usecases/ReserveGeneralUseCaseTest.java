@@ -35,7 +35,7 @@ class ReserveGeneralUseCaseTest {
         assertNotNull(reservation.getTicketCode());
         assertEquals("user-1", reservation.getUserUuid());
         assertNull(reservation.getSeatUuid());
-        Mockito.verify(reservationRepo).save(Mockito.any());
+        Mockito.verify(reservationRepo).insertNew(Mockito.any());
     }
 
     @Test
@@ -50,7 +50,7 @@ class ReserveGeneralUseCaseTest {
         final var useCase = new ReserveGeneralUseCase(conferenceRepo, reservationRepo);
         final var ex = assertThrows(IllegalStateException.class, () -> useCase.execute(conference.getUuid(), "user-2"));
         assertEquals("capacity_exceeded", ex.getMessage());
-        Mockito.verify(reservationRepo, Mockito.never()).save(Mockito.any());
+        Mockito.verify(reservationRepo, Mockito.never()).insertNew(Mockito.any());
     }
 
     @Test

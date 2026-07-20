@@ -63,11 +63,26 @@ public class SqliteReservationRepository implements ReservationRepository {
     }
 
     @Override
-    public void delete(final String uuid) {
+    public boolean delete(final String uuid) {
         final String sql = "DELETE FROM reservations WHERE uuid = ?";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, uuid);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public boolean tryCheckIn(final String uuid, final String checkedInAt) {
+        final String sql = "UPDATE reservations SET status = ?, checked_in_at = ? "
+                + "WHERE uuid = ? AND status != ?";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, ReservationStatus.CHECKED_IN.name());
+            ps.setString(2, checkedInAt);
+            ps.setString(3, uuid);
+            ps.setString(4, ReservationStatus.CHECKED_IN.name());
+            return ps.executeUpdate() == 1;
         } catch (final SQLException e) {
             throw new RuntimeException(e);
         }

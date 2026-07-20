@@ -408,6 +408,7 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_user ON sandbox_assignments(user_uuid)");
             migrateSandboxAssignmentsSeatIndex(conn);
             migrateSandboxAssignmentsVariant(conn);
+            migrateReservationsUserUnique(conn);
 
             // Fase C (DEC-0025): incidentes de abuso de recursos en Pods "neovim" compartidos,
             // reportados por el seat-agent -- ver SandboxIncident.
@@ -577,6 +578,62 @@ public class DatabaseManager {
             s.executeUpdate("ALTER TABLE sandbox_assignments_new RENAME TO sandbox_assignments");
             s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_conference ON sandbox_assignments(conference_uuid)");
             s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_sandbox_user ON sandbox_assignments(user_uuid)");
+        }
+    }
+
+    /**
+     * Un usuario no puede tener mas de un boleto por conferencia (GENERAL o SEATED) -- antes solo
+     * el uniqueness de asiento (UNIQUE(conference_uuid, seat_uuid)) protegia SEATED, dejando
+     * GENERAL/NONE (seat_uuid null) vulnerable a una condicion de carrera de "doble click" que
+     * genera dos boletos y descuenta el aforo dos veces (ver auditoria de seguridad 2026-07).
+     * Antes de recrear la tabla con el UNIQUE nuevo, se depuran duplicados existentes (se queda
+     * con el boleto mas antiguo por conference_uuid+user_uuid) para que el INSERT...SELECT no
+     * falle contra el propio constraint que se esta agregando.
+     */
+    private void migrateReservationsUserUnique(final Connection conn) throws SQLException {
+        String createSql = null;
+        try (Statement s = conn.createStatement();
+             ResultSet rs = s.executeQuery(
+                 "SELECT sql FROM sqlite_master WHERE type='table' AND name='reservations'")) {
+            if (rs.next()) createSql = rs.getString("sql");
+        }
+        final boolean alreadyMigrated = createSql != null
+                && createSql.replaceAll("\\s+", " ").contains("UNIQUE(conference_uuid, user_uuid)");
+        if (alreadyMigrated) {
+            return;
+        }
+        try (Statement s = conn.createStatement()) {
+            s.executeUpdate("""
+                DELETE FROM reservations
+                WHERE id NOT IN (
+                    SELECT MIN(id) FROM reservations GROUP BY conference_uuid, user_uuid
+                )
+            """);
+            s.executeUpdate("""
+                CREATE TABLE reservations_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    user_uuid TEXT NOT NULL,
+                    seat_uuid TEXT,
+                    ticket_code TEXT NOT NULL UNIQUE,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    checked_in_at TEXT,
+                    UNIQUE(conference_uuid, seat_uuid),
+                    UNIQUE(conference_uuid, user_uuid)
+                )
+            """);
+            s.executeUpdate("""
+                INSERT INTO reservations_new
+                    (id, uuid, conference_uuid, user_uuid, seat_uuid, ticket_code, status, created_at, checked_in_at)
+                SELECT id, uuid, conference_uuid, user_uuid, seat_uuid, ticket_code, status, created_at, checked_in_at
+                FROM reservations
+            """);
+            s.executeUpdate("DROP TABLE reservations");
+            s.executeUpdate("ALTER TABLE reservations_new RENAME TO reservations");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_reservations_conference ON reservations(conference_uuid)");
+            s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_reservations_user ON reservations(user_uuid)");
         }
     }
 

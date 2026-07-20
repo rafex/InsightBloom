@@ -14,7 +14,15 @@ public interface ReservationRepository {
      * @throws RuntimeException si viola una restricción UNIQUE (asiento ya tomado).
      */
     void insertNew(Reservation reservation);
-    void delete(String uuid);
+    /** @return true si efectivamente borro una fila (false si ya no existia -- ver CancelReservationUseCase). */
+    boolean delete(String uuid);
+    /**
+     * Transicion atomica a CHECKED_IN: UPDATE condicionado a que el status actual NO sea ya
+     * CHECKED_IN, para que dos escaneos concurrentes del mismo QR (dos puertas, doble tap) no
+     * ambos "ganen" la carrera con el patron read-compare-write en Java.
+     * @return true si esta llamada fue la que efectivamente hizo la transicion.
+     */
+    boolean tryCheckIn(String uuid, String checkedInAt);
     Optional<Reservation> findByUuid(String uuid);
     Optional<Reservation> findByTicketCode(String conferenceUuid, String ticketCode);
     Optional<Reservation> findByConferenceAndUser(String conferenceUuid, String userUuid);

@@ -17,12 +17,16 @@ class CheckInTicketUseCaseTest {
         final ReservationRepository repo = Mockito.mock(ReservationRepository.class);
         final Reservation reservation = new Reservation("conf-1", "user-1", null);
         Mockito.when(repo.findByTicketCode("conf-1", reservation.getTicketCode())).thenReturn(Optional.of(reservation));
+        Mockito.when(repo.tryCheckIn(Mockito.eq(reservation.getUuid()), Mockito.anyString())).thenReturn(true);
+        final Reservation checkedIn = new Reservation("conf-1", "user-1", null);
+        checkedIn.markCheckedIn();
+        Mockito.when(repo.findByUuid(reservation.getUuid())).thenReturn(Optional.of(checkedIn));
 
         final Reservation result = new CheckInTicketUseCase(repo).execute("conf-1", reservation.getTicketCode());
 
         assertEquals(ReservationStatus.CHECKED_IN, result.getStatus());
         assertNotNull(result.getCheckedInAt());
-        Mockito.verify(repo).save(reservation);
+        Mockito.verify(repo).tryCheckIn(Mockito.eq(reservation.getUuid()), Mockito.anyString());
     }
 
     @Test
@@ -31,6 +35,7 @@ class CheckInTicketUseCaseTest {
         final Reservation reservation = new Reservation("conf-1", "user-1", null);
         reservation.markCheckedIn();
         Mockito.when(repo.findByTicketCode("conf-1", reservation.getTicketCode())).thenReturn(Optional.of(reservation));
+        Mockito.when(repo.tryCheckIn(Mockito.eq(reservation.getUuid()), Mockito.anyString())).thenReturn(false);
 
         final var useCase = new CheckInTicketUseCase(repo);
         final var ex = assertThrows(IllegalStateException.class,

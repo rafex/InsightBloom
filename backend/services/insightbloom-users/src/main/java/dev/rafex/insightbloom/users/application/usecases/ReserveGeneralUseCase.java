@@ -35,7 +35,20 @@ public class ReserveGeneralUseCase {
             throw new IllegalStateException("capacity_exceeded");
         }
         final Reservation reservation = new Reservation(conferenceUuid, userUuid, null);
-        reservationRepository.save(reservation);
+        try {
+            // insertNew (no INSERT OR REPLACE) + UNIQUE(conference_uuid, user_uuid) en DB: si dos
+            // requests concurrentes pasan el chequeo de "existing" de arriba a la vez (TOCTOU), la
+            // DB rechaza al segundo en vez de silenciosamente reemplazar el boleto del primero.
+            reservationRepository.insertNew(reservation);
+        } catch (final RuntimeException e) {
+            conferenceRepository.decrementReservedCount(conferenceUuid);
+            final String message = e.getMessage() != null ? e.getMessage() : "";
+            if (message.contains("UNIQUE constraint failed")) {
+                return reservationRepository.findByConferenceAndUser(conferenceUuid, userUuid)
+                        .orElseThrow(() -> e);
+            }
+            throw e;
+        }
         return reservation;
     }
 }

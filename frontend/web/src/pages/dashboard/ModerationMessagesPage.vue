@@ -130,7 +130,7 @@ export default {
         .filter((uuid): uuid is string => !!uuid && uuid !== 'anonymous' && !(uuid in authorNames.value))
       for (const uuid of uuids) {
         try {
-          const profile = await getUserProfile(uuid)
+          const profile = await getUserProfile(uuid, auth.state.token as string)
           authorNames.value = { ...authorNames.value, [uuid]: profile?.displayName || profile?.email || profile?.phone || 'Anónimo' }
         } catch (e: any) {
           authorNames.value = { ...authorNames.value, [uuid]: 'Anónimo' }

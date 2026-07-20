@@ -32,4 +32,20 @@ public class HttpUsersClient implements UsersPort {
         } catch (Exception e) { /* service unavailable */ }
         return new ValidationResult(false, null, null, null);
     }
+
+    @Override
+    public boolean isConferenceOwner(String conferenceUuid, String userUuid) {
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/api/v1/conferences/" + conferenceUuid))
+                .GET().build();
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) return false;
+            var node = mapper.readTree(resp.body()).get("data");
+            return node != null && node.hasNonNull("createdByUserUuid")
+                    && userUuid.equals(node.get("createdByUserUuid").asText());
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

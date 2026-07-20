@@ -59,8 +59,8 @@ public class CertificateSettingsHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
-                sendError(jx, 403, "forbidden", "Only organizers can edit certificate settings");
+            if (!v.valid() || !isAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only platform admins can edit certificate settings");
                 return true;
             }
             final var body = parseBody(jx);
@@ -85,7 +85,7 @@ public class CertificateSettingsHandler extends BaseResourceHandler {
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
     }
 
-    private static boolean isOrganizerOrAdmin(final String role) {
-        return role != null && (role.contains("organizer") || role.contains("admin"));
+    private static boolean isAdmin(final String role) {
+        return role != null && role.contains("admin");
     }
 }

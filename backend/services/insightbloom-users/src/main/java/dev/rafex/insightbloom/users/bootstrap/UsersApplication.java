@@ -278,7 +278,8 @@ public class UsersApplication {
                 generateWorkspaceDownloadUrlUseCase, setSandboxConfigUseCase, sandboxOrchestrator,
                 conferenceRepo, eventCapabilityGuard, gatewayBaseUrl);
         final var sandboxFilesHandler = new SandboxFilesHandler(
-                validateTokenUseCase, listWorkspaceFilesUseCase, readWorkspaceFileUseCase, writeWorkspaceFileUseCase);
+                validateTokenUseCase, listWorkspaceFilesUseCase, readWorkspaceFileUseCase, writeWorkspaceFileUseCase,
+                getConferenceUseCase);
         final var workspaceDownloadHandler = new WorkspaceDownloadHandler(downloadWorkspaceZipUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,

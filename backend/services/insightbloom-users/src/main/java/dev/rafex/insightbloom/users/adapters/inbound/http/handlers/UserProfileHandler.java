@@ -50,8 +50,19 @@ public class UserProfileHandler extends BaseResourceHandler {
     @Override
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
+        final String uuid = jx.pathParam("uuid");
         try {
-            final var profile = getUserProfileUseCase.execute(jx.pathParam("uuid"));
+            if (!validInternalAuth(jx)) {
+                final String token = extractToken(jx);
+                if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+                final var v = validateTokenUseCase.execute(token);
+                if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+                if (!v.subjectUuid().equals(uuid) && !isOrganizerOrAdmin(v.role())) {
+                    sendError(jx, 403, "forbidden", "You can only view your own profile");
+                    return true;
+                }
+            }
+            final var profile = getUserProfileUseCase.execute(uuid);
             if (profile.isPresent()) {
                 sendOk(jx, 200, profile.get());
             } else {
@@ -120,6 +131,10 @@ public class UserProfileHandler extends BaseResourceHandler {
     private String extractToken(final JettyHttpExchange jx) {
         final String auth = jx.request().getHeaders().get("Authorization");
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
+    }
+
+    private static boolean isOrganizerOrAdmin(final String role) {
+        return role != null && (role.contains("organizer") || role.contains("admin"));
     }
 
 }

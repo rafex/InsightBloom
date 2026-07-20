@@ -981,14 +981,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     }
 
     private boolean handleCheckIn(final JettyHttpExchange jx, final String id) {
-        final String token = extractToken(jx);
-        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
-            final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
-                sendError(jx, 403, "forbidden", "Only organizers can check in tickets");
-                return true;
-            }
+            if (requireConferenceOwner(jx, id) == null) return true;
             final var body = parseBody(jx);
             final String ticketCode = (String) body.get("ticketCode");
             final var reservation = checkInTicketUseCase.execute(id, ticketCode);
@@ -1114,14 +1108,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     }
 
     private boolean handleSetSandboxConfig(final JettyHttpExchange jx, final String id) {
-        final String token = extractToken(jx);
-        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
-            final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
-                sendError(jx, 403, "forbidden", "Only organizers can configure sandboxes");
-                return true;
-            }
+            if (requireConferenceOwner(jx, id) == null) return true;
             final var body = parseBody(jx);
             final String sandboxVariant = (String) body.get("sandboxVariant");
             final Integer sandboxPoolSize = (Integer) body.get("sandboxPoolSize");
@@ -1153,14 +1141,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     }
 
     private boolean handleSetDeviceAccessConfig(final JettyHttpExchange jx, final String id) {
-        final String token = extractToken(jx);
-        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
-            final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
-                sendError(jx, 403, "forbidden", "Only organizers can configure device access");
-                return true;
-            }
+            if (requireConferenceOwner(jx, id) == null) return true;
             final var body = parseBody(jx);
             final Integer maxDevicesPerUser = (Integer) body.get("maxDevicesPerUser");
             final Integer maxAccountsPerDevice = (Integer) body.get("maxAccountsPerDevice");
@@ -1177,14 +1159,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     /** Le muestra al moderador que dispositivos fueron bloqueados en esta conferencia por
      *  usar demasiadas cuentas distintas -- ver DeviceAccessGuard. */
     private boolean handleListDeviceBlocks(final JettyHttpExchange jx, final String id) {
-        final String token = extractToken(jx);
-        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
-            final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
-                sendError(jx, 403, "forbidden", "Only organizers can view device blocks");
-                return true;
-            }
+            if (requireConferenceOwner(jx, id) == null) return true;
             sendOk(jx, 200, listDeviceBlocksUseCase.execute(id));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -1193,14 +1169,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     }
 
     private boolean handleUnblockDevice(final JettyHttpExchange jx, final String id, final String blockId) {
-        final String token = extractToken(jx);
-        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
-            final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
-                sendError(jx, 403, "forbidden", "Only organizers can unblock devices");
-                return true;
-            }
+            final var v = requireConferenceOwner(jx, id);
+            if (v == null) return true;
             unblockDeviceUseCase.execute(blockId, v.subjectUuid());
             sendOk(jx, 200, Map.of("unblocked", true));
         } catch (final Exception e) {
@@ -1212,14 +1183,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     /** Fase C (DEC-0025): le muestra al organizador que asientos de sus Pods "neovim"
      *  compartidos tuvo que terminar el watchdog por abuso de recursos, y quien era. */
     private boolean handleListSandboxIncidents(final JettyHttpExchange jx, final String id) {
-        final String token = extractToken(jx);
-        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
-            final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
-                sendError(jx, 403, "forbidden", "Only organizers can view sandbox incidents");
-                return true;
-            }
+            if (requireConferenceOwner(jx, id) == null) return true;
             sendOk(jx, 200, listSandboxIncidentsUseCase.execute(id));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -1230,14 +1195,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     /** Dashboard de moderador: estado en vivo de los Pods de sandbox de la conferencia (fase,
      *  ready, variante, quien ocupa cada asiento) -- ver ListSandboxStatusUseCase. */
     private boolean handleListSandboxStatus(final JettyHttpExchange jx, final String id) {
-        final String token = extractToken(jx);
-        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
-            final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
-                sendError(jx, 403, "forbidden", "Only organizers can view sandbox status");
-                return true;
-            }
+            if (requireConferenceOwner(jx, id) == null) return true;
             sendOk(jx, 200, listSandboxStatusUseCase.execute(id));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -1246,14 +1205,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     }
 
     private boolean handleSetSandboxInternet(final JettyHttpExchange jx, final String id) {
-        final String token = extractToken(jx);
-        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
-            final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
-                sendError(jx, 403, "forbidden", "Only organizers can configure sandboxes");
-                return true;
-            }
+            if (requireConferenceOwner(jx, id) == null) return true;
             final var body = parseBody(jx);
             final Object rawValue = body.get("internetEnabled");
             final int internetEnabled = (rawValue instanceof Boolean b) ? (b ? 1 : 0)
@@ -1270,6 +1223,29 @@ public class ConferenceHandler extends BaseResourceHandler {
 
     private static boolean isOrganizerOrAdmin(final String role) {
         return role != null && (role.contains("organizer") || role.contains("admin"));
+    }
+
+    /** Exige token valido, rol organizer/admin Y que el caller sea dueño real de la conferencia
+     *  (o admin de plataforma). Envia la respuesta de error y devuelve null si no cumple -- mismo
+     *  patron ya usado por handleSetSeating/handleDefineSeats via los use cases que filtran por
+     *  createdByUserUuid, pero aca para handlers que llaman use cases sin ese filtro propio. */
+    private ValidateTokenUseCase.ValidationResult requireConferenceOwner(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return null; }
+        final var v = validateTokenUseCase.execute(token);
+        if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+            sendError(jx, 403, "forbidden", "Only organizers can perform this action");
+            return null;
+        }
+        final boolean platformAdmin = v.role() != null && v.role().contains("admin");
+        if (!platformAdmin) {
+            final var conference = getConferenceUseCase.byId(conferenceId);
+            if (conference.isEmpty() || !conference.get().getCreatedByUserUuid().equals(v.subjectUuid())) {
+                sendError(jx, 403, "forbidden", "You are not the organizer of this conference");
+                return null;
+            }
+        }
+        return v;
     }
 
     private String extractToken(final JettyHttpExchange jx) {

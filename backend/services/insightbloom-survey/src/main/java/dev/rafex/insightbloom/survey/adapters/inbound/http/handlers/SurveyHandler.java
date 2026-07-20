@@ -136,12 +136,14 @@ public class SurveyHandler extends BaseResourceHandler {
         final String path = jx.path();
         try {
             if (path.endsWith("/survey/questions/suggest")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
                 final var body = parseBody(jx);
                 final int count = body.get("count") == null ? 5 : ((Number) body.get("count")).intValue();
                 sendOk(jx, suggestQuestionsUseCase.execute(conferenceId, count));
                 return true;
             }
             if (path.endsWith("/survey/questions/improve")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
                 final var body = parseBody(jx);
                 final List<String> options = (List<String>) body.get("options");
                 sendOk(jx, improveQuestionUseCase.execute(new ImproveQuestionUseCase.Request(
@@ -150,6 +152,7 @@ public class SurveyHandler extends BaseResourceHandler {
                 return true;
             }
             if (path.endsWith("/survey/questions")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
                 final var body = parseBody(jx);
                 final List<String> options = (List<String>) body.get("options");
                 final int orderIndex = body.get("orderIndex") == null ? 0
@@ -162,6 +165,7 @@ public class SurveyHandler extends BaseResourceHandler {
                 return true;
             }
             if (path.endsWith("/update")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
                 final var body = parseBody(jx);
                 final List<String> options = (List<String>) body.get("options");
                 final Integer orderIndex = body.get("orderIndex") == null ? null
@@ -174,11 +178,13 @@ public class SurveyHandler extends BaseResourceHandler {
                 return true;
             }
             if (path.endsWith("/deactivate")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
                 deactivateQuestionUseCase.execute(jx.pathParam("questionId"));
                 sendOk(jx, Map.of("status", "deactivated"));
                 return true;
             }
             if (path.endsWith("/responses/purge")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
                 purgeResponsesUseCase.execute(jx.pathParam("questionId"));
                 sendOk(jx, Map.of("status", "purged"));
                 return true;
@@ -257,5 +263,23 @@ public class SurveyHandler extends BaseResourceHandler {
     private String extractToken(final JettyHttpExchange jx) {
         final String auth = jx.request().getHeaders().get("Authorization");
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
+    }
+
+    /** Exige rol organizer/admin Y que el caller sea dueño real de la conferencia (o admin
+     *  plataforma). Envía la respuesta de error y devuelve null si no cumple. */
+    private UsersPort.ValidationResult requireConferenceOwner(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return null; }
+        final var v = usersPort.validate(token);
+        if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+            sendError(jx, 403, "forbidden", "Only organizers can manage survey questions");
+            return null;
+        }
+        final boolean platformAdmin = v.role() != null && v.role().contains("admin");
+        if (!platformAdmin && !usersPort.isConferenceOwner(conferenceId, v.subjectUuid())) {
+            sendError(jx, 403, "forbidden", "You are not the organizer of this conference");
+            return null;
+        }
+        return v;
     }
 }

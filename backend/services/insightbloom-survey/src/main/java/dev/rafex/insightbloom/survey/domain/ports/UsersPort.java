@@ -9,4 +9,8 @@ public interface UsersPort {
 
     /** Resolves a user's display name for organizer-facing results. Empty if unknown/unreachable. */
     Optional<String> getDisplayName(String userUuid);
+
+    /** True si userUuid es el creador (organizador dueño) de conferenceUuid. Usado para exigir
+     *  ownership real, no solo "tiene algún rol organizer", en las mutaciones de encuesta. */
+    boolean isConferenceOwner(String conferenceUuid, String userUuid);
 }

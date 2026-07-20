@@ -4,6 +4,7 @@ import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
+import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListWorkspaceFilesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ReadWorkspaceFileUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
@@ -25,15 +26,18 @@ public class SandboxFilesHandler extends BaseResourceHandler {
     private final ListWorkspaceFilesUseCase listWorkspaceFilesUseCase;
     private final ReadWorkspaceFileUseCase readWorkspaceFileUseCase;
     private final WriteWorkspaceFileUseCase writeWorkspaceFileUseCase;
+    private final GetConferenceUseCase getConferenceUseCase;
 
     public SandboxFilesHandler(final ValidateTokenUseCase validateTokenUseCase,
                                 final ListWorkspaceFilesUseCase listWorkspaceFilesUseCase,
                                 final ReadWorkspaceFileUseCase readWorkspaceFileUseCase,
-                                final WriteWorkspaceFileUseCase writeWorkspaceFileUseCase) {
+                                final WriteWorkspaceFileUseCase writeWorkspaceFileUseCase,
+                                final GetConferenceUseCase getConferenceUseCase) {
         this.validateTokenUseCase = validateTokenUseCase;
         this.listWorkspaceFilesUseCase = listWorkspaceFilesUseCase;
         this.readWorkspaceFileUseCase = readWorkspaceFileUseCase;
         this.writeWorkspaceFileUseCase = writeWorkspaceFileUseCase;
+        this.getConferenceUseCase = getConferenceUseCase;
     }
 
     @Override
@@ -84,8 +88,9 @@ public class SandboxFilesHandler extends BaseResourceHandler {
         return role != null && (role.contains("organizer") || role.contains("admin"));
     }
 
-    /** @return null (con el error ya enviado) si el request no esta autorizado. */
-    private String requireOrganizer(final JettyHttpExchange jx) {
+    /** @return null (con el error ya enviado) si el request no esta autorizado -- exige rol
+     *  organizer/admin Y que el caller sea dueño real de esta conferencia (o admin plataforma). */
+    private String requireOrganizer(final JettyHttpExchange jx, final String conferenceId) {
         final String token = extractToken(jx);
         if (token == null) {
             sendError(jx, 401, "token_missing", "Authorization required");
@@ -96,11 +101,19 @@ public class SandboxFilesHandler extends BaseResourceHandler {
             sendError(jx, 403, "forbidden", "Only organizers can view sandbox files");
             return null;
         }
+        final boolean platformAdmin = v.role() != null && v.role().contains("admin");
+        if (!platformAdmin) {
+            final var conference = getConferenceUseCase.byId(conferenceId);
+            if (conference.isEmpty() || !conference.get().getCreatedByUserUuid().equals(v.subjectUuid())) {
+                sendError(jx, 403, "forbidden", "You are not the organizer of this conference");
+                return null;
+            }
+        }
         return token;
     }
 
     private boolean handleListFiles(final JettyHttpExchange jx, final String conferenceId) {
-        if (requireOrganizer(jx) == null) return true;
+        if (requireOrganizer(jx, conferenceId) == null) return true;
         final String userUuid = queryParam(jx, "userUuid");
         final String path = queryParam(jx, "path");
         try {
@@ -115,7 +128,7 @@ public class SandboxFilesHandler extends BaseResourceHandler {
     }
 
     private boolean handleReadFile(final JettyHttpExchange jx, final String conferenceId) {
-        if (requireOrganizer(jx) == null) return true;
+        if (requireOrganizer(jx, conferenceId) == null) return true;
         final String userUuid = queryParam(jx, "userUuid");
         final String path = queryParam(jx, "path");
         try {
@@ -130,7 +143,7 @@ public class SandboxFilesHandler extends BaseResourceHandler {
     }
 
     private boolean handleWriteFile(final JettyHttpExchange jx, final String conferenceId) {
-        if (requireOrganizer(jx) == null) return true;
+        if (requireOrganizer(jx, conferenceId) == null) return true;
         final String userUuid = queryParam(jx, "userUuid");
         final String path = queryParam(jx, "path");
         try {

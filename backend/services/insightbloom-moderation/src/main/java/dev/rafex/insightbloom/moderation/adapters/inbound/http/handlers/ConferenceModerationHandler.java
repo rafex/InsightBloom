@@ -61,19 +61,27 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return path.contains("/moderation/messages/") && path.endsWith("/answer");
     }
 
-    private boolean requireOrganizer(final JettyHttpExchange jx) {
+    /** Exige token valido, rol organizer/admin Y que el caller sea dueño real de la conferencia
+     *  (o admin de plataforma). Devuelve la validacion (para usar subjectUuid() como autor real
+     *  en vez de confiar en los *ByUserUuid que manda el body) o null si no cumple. */
+    private UsersPort.ValidationResult requireOrganizer(final JettyHttpExchange jx, final String conferenceId) {
         final String authHeader = jx.request().getHeaders().get("Authorization");
         final String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
         if (token == null) {
             sendError(jx, 401, "unauthorized", "Missing bearer token");
-            return false;
+            return null;
         }
         final var validation = usersPort.validate(token);
         if (!validation.valid() || !isOrganizerOrAdmin(validation.role())) {
             sendError(jx, 403, "forbidden", "Only organizers can moderate");
-            return false;
+            return null;
         }
-        return true;
+        final boolean platformAdmin = validation.role() != null && validation.role().contains("admin");
+        if (!platformAdmin && !usersPort.isConferenceOwner(conferenceId, validation.subjectUuid())) {
+            sendError(jx, 403, "forbidden", "You are not the organizer of this conference");
+            return null;
+        }
+        return validation;
     }
 
     private static boolean isOrganizerOrAdmin(final String role) {
@@ -125,7 +133,7 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         final String conferenceId = jx.pathParam("conferenceId");
         final String path = jx.path();
-        if (!isPublicGet(path) && !requireOrganizer(jx)) {
+        if (!isPublicGet(path) && requireOrganizer(jx, conferenceId) == null) {
             return true;
         }
         try {
@@ -149,30 +157,32 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
         final String path = jx.path();
-        if (!requireOrganizer(jx)) {
+        final String conferenceId = jx.pathParam("conferenceId");
+        final var v = requireOrganizer(jx, conferenceId);
+        if (v == null) {
             return true;
         }
         try {
             if (path.contains("/moderation/messages/") && path.endsWith("/answer")) {
-                return handleAnswerMessage(jx, jx.pathParam("msgId"));
+                return handleAnswerMessage(jx, jx.pathParam("msgId"), v.subjectUuid());
             }
             if (path.contains("/moderation/words/") && path.endsWith("/censor")) {
-                return handleCensorWord(jx, jx.pathParam("wordId"));
+                return handleCensorWord(jx, jx.pathParam("wordId"), v.subjectUuid());
             }
             if (path.contains("/moderation/words/") && path.endsWith("/restore")) {
-                return handleRestoreWord(jx, jx.pathParam("wordId"));
+                return handleRestoreWord(jx, jx.pathParam("wordId"), v.subjectUuid());
             }
             if (path.contains("/moderation/words/") && path.endsWith("/delete")) {
-                return handleDeleteWord(jx, jx.pathParam("wordId"));
+                return handleDeleteWord(jx, jx.pathParam("wordId"), v.subjectUuid());
             }
             if (path.contains("/moderation/messages/") && path.endsWith("/censor")) {
-                return handleCensorMessage(jx, jx.pathParam("msgId"));
+                return handleCensorMessage(jx, jx.pathParam("msgId"), v.subjectUuid());
             }
             if (path.contains("/moderation/messages/") && path.endsWith("/restore")) {
-                return handleRestoreMessage(jx, jx.pathParam("msgId"));
+                return handleRestoreMessage(jx, jx.pathParam("msgId"), v.subjectUuid());
             }
             if (path.contains("/moderation/messages/") && path.endsWith("/delete")) {
-                return handleDeleteMessage(jx, jx.pathParam("msgId"));
+                return handleDeleteMessage(jx, jx.pathParam("msgId"), v.subjectUuid());
             }
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -186,15 +196,17 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
     public boolean patch(final HttpExchange x) {
         final var jx = asJetty(x);
         final String path = jx.path();
-        if (!requireOrganizer(jx)) {
+        final String conferenceId = jx.pathParam("conferenceId");
+        final var v = requireOrganizer(jx, conferenceId);
+        if (v == null) {
             return true;
         }
         try {
             if (path.contains("/moderation/words/")) {
-                return handleEditWord(jx, jx.pathParam("wordId"));
+                return handleEditWord(jx, jx.pathParam("wordId"), v.subjectUuid());
             }
             if (path.contains("/moderation/messages/")) {
-                return handleEditMessage(jx, jx.pathParam("msgId"));
+                return handleEditMessage(jx, jx.pathParam("msgId"), v.subjectUuid());
             }
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -224,11 +236,11 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return true;
     }
 
-    private boolean handleCensorWord(final JettyHttpExchange jx, final String wordId) throws Exception {
+    private boolean handleCensorWord(final JettyHttpExchange jx, final String wordId, final String authorUuid) throws Exception {
         final var body = parseBody(jx);
         try {
             censorWordUseCase.execute(new CensorWordUseCase.Request(
-                    wordId, (String) body.get("reason"), (String) body.get("updatedByUserUuid")));
+                    wordId, (String) body.get("reason"), authorUuid));
             sendOk(jx, Map.of("status", "censored"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Word not found");
@@ -236,10 +248,9 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return true;
     }
 
-    private boolean handleRestoreWord(final JettyHttpExchange jx, final String wordId) throws Exception {
-        final var body = parseBody(jx);
+    private boolean handleRestoreWord(final JettyHttpExchange jx, final String wordId, final String authorUuid) throws Exception {
         try {
-            restoreWordUseCase.execute(wordId, (String) body.getOrDefault("updatedByUserUuid", "system"));
+            restoreWordUseCase.execute(wordId, authorUuid);
             sendOk(jx, Map.of("status", "restored"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Word not found");
@@ -247,11 +258,11 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return true;
     }
 
-    private boolean handleEditWord(final JettyHttpExchange jx, final String wordId) throws Exception {
+    private boolean handleEditWord(final JettyHttpExchange jx, final String wordId, final String authorUuid) throws Exception {
         final var body = parseBody(jx);
         try {
             editWordUseCase.execute(new EditWordUseCase.Request(
-                    wordId, (String) body.get("value"), (String) body.get("updatedByUserUuid")));
+                    wordId, (String) body.get("value"), authorUuid));
             sendOk(jx, Map.of("status", "updated"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Word not found");
@@ -259,14 +270,14 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return true;
     }
 
-    private boolean handleCensorMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
+    private boolean handleCensorMessage(final JettyHttpExchange jx, final String msgId, final String authorUuid) throws Exception {
         final var body = parseBody(jx);
         try {
             censorMessageUseCase.execute(new CensorMessageUseCase.Request(
                     msgId,
                     (String) body.getOrDefault("target", "detail"),
                     (String) body.get("reason"),
-                    (String) body.get("updatedByUserUuid"),
+                    authorUuid,
                     (String) body.get("conferenceUuid"),
                     (String) body.get("wordText"),
                     (String) body.get("detailText")));
@@ -277,10 +288,9 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return true;
     }
 
-    private boolean handleRestoreMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
-        final var body = parseBody(jx);
+    private boolean handleRestoreMessage(final JettyHttpExchange jx, final String msgId, final String authorUuid) throws Exception {
         try {
-            restoreMessageUseCase.execute(msgId, (String) body.getOrDefault("updatedByUserUuid", "system"));
+            restoreMessageUseCase.execute(msgId, authorUuid);
             sendOk(jx, Map.of("status", "restored"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Message not found");
@@ -288,12 +298,12 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return true;
     }
 
-    private boolean handleEditMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
+    private boolean handleEditMessage(final JettyHttpExchange jx, final String msgId, final String authorUuid) throws Exception {
         final var body = parseBody(jx);
         try {
             editMessageUseCase.execute(new EditMessageUseCase.Request(
                     msgId, (String) body.get("editedWord"), (String) body.get("editedDetail"),
-                    (String) body.get("updatedByUserUuid")));
+                    authorUuid));
             sendOk(jx, Map.of("status", "updated"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Message not found");
@@ -301,11 +311,9 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return true;
     }
 
-    private boolean handleDeleteWord(final JettyHttpExchange jx, final String wordId) throws Exception {
-        final var body = parseBody(jx);
+    private boolean handleDeleteWord(final JettyHttpExchange jx, final String wordId, final String authorUuid) throws Exception {
         try {
-            deleteWordUseCase.execute(new DeleteWordUseCase.Request(
-                    wordId, (String) body.getOrDefault("deletedByUserUuid", "system")));
+            deleteWordUseCase.execute(new DeleteWordUseCase.Request(wordId, authorUuid));
             sendOk(jx, Map.of("status", "deleted"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Word not found");
@@ -313,11 +321,11 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return true;
     }
 
-    private boolean handleAnswerMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
+    private boolean handleAnswerMessage(final JettyHttpExchange jx, final String msgId, final String authorUuid) throws Exception {
         final var body = parseBody(jx);
         try {
             answerMessageUseCase.execute(new AnswerMessageUseCase.Request(
-                    msgId, (String) body.get("answerText"), (String) body.get("answeredByUserUuid")));
+                    msgId, (String) body.get("answerText"), authorUuid));
             sendOk(jx, Map.of("status", "answered"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Message not found");
@@ -335,11 +343,9 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
         return true;
     }
 
-    private boolean handleDeleteMessage(final JettyHttpExchange jx, final String msgId) throws Exception {
-        final var body = parseBody(jx);
+    private boolean handleDeleteMessage(final JettyHttpExchange jx, final String msgId, final String authorUuid) throws Exception {
         try {
-            deleteMessageUseCase.execute(new DeleteMessageUseCase.Request(
-                    msgId, (String) body.getOrDefault("deletedByUserUuid", "system")));
+            deleteMessageUseCase.execute(new DeleteMessageUseCase.Request(msgId, authorUuid));
             sendOk(jx, Map.of("status", "deleted"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Message not found");
