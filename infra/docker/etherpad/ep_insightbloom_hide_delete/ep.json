@@ -3,7 +3,7 @@
     {
       "name": "hideDeletePad",
       "hooks": {
-        "eejsBlock_customStyles": "index.js:eejsBlock_customStyles"
+        "eejsBlock_customStyles": "ep_insightbloom_hide_delete/index.js:eejsBlock_customStyles"
       }
     }
   ]
