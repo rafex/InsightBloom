@@ -3,12 +3,15 @@ import axios from 'axios'
 import { register, sendOtp, verifyOtp } from '../authApi'
 
 vi.mock('axios')
+vi.mock('@/services/auth/fingerprint', () => ({
+  getFingerprint: vi.fn().mockResolvedValue('fp-test')
+}))
 
 const BASE = '/api/users/api/v1/auth'
 
 describe('authApi', () => {
   beforeEach(() => {
-    vi.resetAllMocks()
+    vi.clearAllMocks()
   })
 
   it('register posts the full registration payload', async () => {
@@ -19,7 +22,7 @@ describe('authApi', () => {
     })
     expect(axios.post).toHaveBeenCalledWith(`${BASE}/register`, {
       displayName: 'Ana', email: 'a@x.com', phone: '555',
-      password: 'secret', socialLinks: { linkedin: 'x' }
+      password: 'secret', socialLinks: { linkedin: 'x' }, deviceFingerprint: 'fp-test'
     })
   })
 

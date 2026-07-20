@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import axios from 'axios'
 
 vi.mock('axios')
+vi.mock('@/services/auth/fingerprint', () => ({
+  getFingerprint: vi.fn().mockResolvedValue('fp-test')
+}))
 
 // authStore keeps its state in a module-level singleton, so localStorage must be
 // stubbed before the first import and every test must clean up after itself.
@@ -12,7 +15,7 @@ describe('authStore', () => {
   let useAuthStore
 
   beforeEach(async () => {
-    vi.resetAllMocks()
+    vi.clearAllMocks()
     localStorageMock.getItem.mockReturnValue(null)
     ;({ useAuthStore } = await import('../authStore'))
     // The store is a module-level singleton, so state leaks across tests unless reset here.
@@ -31,7 +34,8 @@ describe('authStore', () => {
     const auth = useAuthStore()
     const result = await auth.login('a@x.com', 'secret')
 
-    expect(axios.post).toHaveBeenCalledWith('/api/users/api/v1/auth/login', { username: 'a@x.com', password: 'secret' })
+    expect(axios.post).toHaveBeenCalledWith('/api/users/api/v1/auth/login',
+      { username: 'a@x.com', password: 'secret', deviceFingerprint: 'fp-test' })
     expect(result).toEqual({ token: 'tok', role: 'organizer', userUuid: 'u1' })
     expect(auth.state.token).toBe('tok')
     expect(auth.isAuthenticated()).toBe(true)
