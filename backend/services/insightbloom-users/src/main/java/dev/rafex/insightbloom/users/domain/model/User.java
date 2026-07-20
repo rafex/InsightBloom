@@ -24,6 +24,9 @@ public class User {
     private String firstName;
     private String lastName;
     private Instant lastLoginAt;
+    // Huella del dispositivo desde el que se creo la cuenta -- inmutable en la practica (se fija
+    // una sola vez al registrarse, ver RegisterUseCase/PlatformDeviceGuard.checkRegistration).
+    private String registrationDeviceFingerprint;
 
     public User(String uuid, String username, String displayName, String email, UserRole role) {
         this(uuid, username, displayName, email, null, List.of(), false, false, Set.of(role));
@@ -102,4 +105,8 @@ public class User {
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public Instant getLastLoginAt() { return lastLoginAt; }
+    public String getRegistrationDeviceFingerprint() { return registrationDeviceFingerprint; }
+    public void setRegistrationDeviceFingerprint(String registrationDeviceFingerprint) {
+        this.registrationDeviceFingerprint = registrationDeviceFingerprint;
+    }
 }

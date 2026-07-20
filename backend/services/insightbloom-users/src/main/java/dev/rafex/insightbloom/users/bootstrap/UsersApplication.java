@@ -78,10 +78,12 @@ public class UsersApplication {
         final var sandboxIncidentRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteSandboxIncidentRepository(db);
         final var toolDeviceSessionRepo = new SqliteToolDeviceSessionRepository(db);
         final var deviceBlockRepo = new SqliteDeviceBlockRepository(db);
+        final var platformDeviceBlockRepo = new SqlitePlatformDeviceBlockRepository(db);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
         final var deviceAccessGuard = new DeviceAccessGuard(toolDeviceSessionRepo, deviceBlockRepo);
+        final var platformDeviceGuard = new PlatformDeviceGuard(tokenRepo, userRepo, platformDeviceBlockRepo);
         final var passwordService = new PasswordService();
         final var friendlyIdService = new FriendlyIdService(conferenceRepo);
         final var cascadeDeletePort = new HttpCascadeDeleteClient(
@@ -94,12 +96,12 @@ public class UsersApplication {
                 etherpadBaseUrl, etherpadApiKey);
 
         // Use cases
-        final var loginUseCase = new LoginUseCase(userRepo, tokenService, passwordService);
-        final var createGuestUseCase = new CreateGuestUseCase(guestRepo, conferenceRepo, tokenService);
+        final var loginUseCase = new LoginUseCase(userRepo, tokenService, passwordService, platformDeviceGuard, platformSettingsRepo);
+        final var createGuestUseCase = new CreateGuestUseCase(guestRepo, conferenceRepo, tokenService, platformDeviceGuard, platformSettingsRepo);
         final var validateTokenUseCase = new ValidateTokenUseCase(tokenService, userRepo, guestRepo);
         final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService, timezoneRepo, eventRoleRepo);
         final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo, cascadeDeletePort, membershipRepo);
-        final var registerUseCase = new RegisterUseCase(userRepo, passwordService);
+        final var registerUseCase = new RegisterUseCase(userRepo, passwordService, platformDeviceGuard, platformSettingsRepo);
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
         final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);
         final var getUserProfileUseCase = new GetUserProfileUseCase(userRepo);
@@ -172,6 +174,9 @@ public class UsersApplication {
         final var getChatAiSettingUseCase = new GetChatAiSettingUseCase(platformSettingsRepo);
         final var setChatAiSettingUseCase = new SetChatAiSettingUseCase(platformSettingsRepo);
         final var setChatSettingsUseCase = new SetChatSettingsUseCase(platformSettingsRepo);
+        final var setDeviceAccessSettingsUseCase = new SetDeviceAccessSettingsUseCase(platformSettingsRepo);
+        final var listPlatformDeviceBlocksUseCase = new ListPlatformDeviceBlocksUseCase(platformDeviceBlockRepo);
+        final var unblockPlatformDeviceUseCase = new UnblockPlatformDeviceUseCase(platformDeviceBlockRepo);
         final String gatewayBaseUrl = System.getenv().getOrDefault("GATEWAY_BASE_URL", "https://ide-insightbloom.v1.rafex.cloud");
         // El link de descarga del workspace NO pasa por el tools-gateway (ese solo sabe proxear,
         // no puede armar un zip): apunta al host publico de este mismo servicio, proxeado por el
@@ -307,7 +312,9 @@ public class UsersApplication {
                 setRoleActiveUseCase, validateTokenUseCase);
         final var permissionHandler = new PermissionHandler();
         final var platformSettingsHandler = new PlatformSettingsHandler(
-                getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase, validateTokenUseCase);
+                getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase,
+                setDeviceAccessSettingsUseCase, listPlatformDeviceBlocksUseCase, unblockPlatformDeviceUseCase,
+                validateTokenUseCase);
         final var internalSandboxTargetHandler = new InternalSandboxTargetHandler(resolveSandboxTargetUseCase);
         final var internalSandboxIncidentHandler =
                 new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalSandboxIncidentHandler(

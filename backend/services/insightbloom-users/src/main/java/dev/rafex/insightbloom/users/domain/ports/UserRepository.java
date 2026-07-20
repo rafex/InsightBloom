@@ -3,6 +3,7 @@ package dev.rafex.insightbloom.users.domain.ports;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.model.UserRole;
 import dev.rafex.insightbloom.users.domain.model.UserStatus;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,4 +21,8 @@ public interface UserRepository {
      */
     List<User> findAll(int page, int pageSize, UserStatus status, UserRole role, String sort);
     long countAll(UserStatus status, UserRole role);
+
+    /** Cuentas creadas desde este fingerprint desde {@code since} -- ver
+     *  PlatformDeviceGuard.checkRegistration, freno a spam de registro. */
+    long countByRegistrationFingerprintSince(String deviceFingerprint, Instant since);
 }

@@ -29,8 +29,9 @@ public class SqliteUserRepository implements UserRepository {
         String sql = """
             INSERT OR REPLACE INTO users
                 (uuid, username, display_name, email, phone, social_links, email_verified, phone_verified,
-                 role, status, password_hash, created_at, updated_at, first_name, last_name, last_login_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 role, status, password_hash, created_at, updated_at, first_name, last_name, last_login_at,
+                 registration_device_fingerprint)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getUuid());
@@ -49,6 +50,7 @@ public class SqliteUserRepository implements UserRepository {
             ps.setString(14, user.getFirstName());
             ps.setString(15, user.getLastName());
             ps.setString(16, user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null);
+            ps.setString(17, user.getRegistrationDeviceFingerprint());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -110,6 +112,20 @@ public class SqliteUserRepository implements UserRepository {
         return 0;
     }
 
+    @Override
+    public long countByRegistrationFingerprintSince(final String deviceFingerprint, final Instant since) {
+        final String sql = "SELECT COUNT(*) FROM users WHERE registration_device_fingerprint = ? AND created_at > ?";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, deviceFingerprint);
+            ps.setString(2, since.toString());
+            final ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getLong(1);
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
     private void appendFilters(StringBuilder sql, List<Object> params, UserStatus status, UserRole role) {
         if (status != null) {
             sql.append(" AND status = ?");
@@ -146,6 +162,7 @@ public class SqliteUserRepository implements UserRepository {
         user.setLastName(rs.getString("last_name"));
         final String lastLoginAt = rs.getString("last_login_at");
         if (lastLoginAt != null) user.setLastLoginAt(parseInstant(lastLoginAt));
+        user.setRegistrationDeviceFingerprint(rs.getString("registration_device_fingerprint"));
         return user;
     }
 

@@ -46,8 +46,14 @@ public class DatabaseManager {
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "first_name", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "last_name", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "last_login_at", "TEXT");
+            // Huella del dispositivo desde el que se creo la cuenta (inmutable, fijada una sola
+            // vez al registrarse) -- ver PlatformDeviceGuard.checkRegistration, que cuenta cuantas
+            // cuentas se crearon desde el mismo dispositivo en un dia para frenar spam de registro.
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "registration_device_fingerprint", "TEXT");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_registration_fingerprint "
+                    + "ON users(registration_device_fingerprint)");
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS guest_users (
@@ -72,6 +78,13 @@ public class DatabaseManager {
                     revoked_at TEXT
                 )
             """);
+            // Huella de dispositivo capturada en el login (real o guest) -- ver PlatformDeviceGuard.
+            // Como el token ya expira solo (24h usuario / 8h guest), contar "sesiones activas de
+            // este fingerprint" contra esta tabla se auto-limpia sin necesidad de una tabla de
+            // sesiones aparte.
+            ColumnMigrationHelper.addColumnIfMissing(conn, "tokens", "device_fingerprint", "TEXT");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tokens_device_fingerprint "
+                    + "ON tokens(device_fingerprint)");
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS conferences (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -330,6 +343,30 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE platform_settings ADD COLUMN chat_temperature REAL");
             } catch (final SQLException ignored) { /* columna ya existe */ }
+            // Umbrales de PlatformDeviceGuard (2026-07): nullable, defaults efectivos en el guard
+            // (5/3/3) si el admin de plataforma no los configuro todavia.
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "max_accounts_per_device", "INTEGER");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "max_sessions_per_user", "INTEGER");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings",
+                    "max_registrations_per_device_per_day", "INTEGER");
+
+            // Dispositivos bloqueados a nivel PLATAFORMA (no un evento puntual) por multicuenta o
+            // spam de registro -- ver PlatformDeviceGuard. Un system_admin decide desbloquear
+            // desde /dashboard/admin/device-access.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS platform_device_blocks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    device_fingerprint TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    related_count INTEGER NOT NULL,
+                    blocked_at TEXT NOT NULL,
+                    unblocked_at TEXT,
+                    unblocked_by TEXT
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_platform_device_blocks_fingerprint "
+                    + "ON platform_device_blocks(device_fingerprint)");
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS sandbox_assignments (

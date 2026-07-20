@@ -17,17 +17,25 @@ public class TokenService {
     }
 
     public Token issueUserToken(String userUuid, TokenKind kind) {
+        return issueUserToken(userUuid, kind, null);
+    }
+
+    public Token issueUserToken(String userUuid, TokenKind kind, String deviceFingerprint) {
         String value = generateTokenValue();
         Instant expiresAt = Instant.now().plus(24, ChronoUnit.HOURS);
-        Token token = new Token(userUuid, null, kind, value, expiresAt);
+        Token token = new Token(userUuid, null, kind, value, expiresAt, deviceFingerprint);
         tokenRepository.save(token);
         return token;
     }
 
     public Token issueGuestToken(String guestUserUuid) {
+        return issueGuestToken(guestUserUuid, null);
+    }
+
+    public Token issueGuestToken(String guestUserUuid, String deviceFingerprint) {
         String value = generateTokenValue();
         Instant expiresAt = Instant.now().plus(8, ChronoUnit.HOURS);
-        Token token = new Token(null, guestUserUuid, TokenKind.GUEST, value, expiresAt);
+        Token token = new Token(null, guestUserUuid, TokenKind.GUEST, value, expiresAt, deviceFingerprint);
         tokenRepository.save(token);
         return token;
     }
@@ -42,9 +50,9 @@ public class TokenService {
         return validate(tokenValue).map(current -> {
             tokenRepository.revokeByValue(tokenValue);
             if (current.getTokenKind() == TokenKind.GUEST) {
-                return issueGuestToken(current.getGuestUserUuid());
+                return issueGuestToken(current.getGuestUserUuid(), current.getDeviceFingerprint());
             }
-            return issueUserToken(current.getUserUuid(), current.getTokenKind());
+            return issueUserToken(current.getUserUuid(), current.getTokenKind(), current.getDeviceFingerprint());
         });
     }
 

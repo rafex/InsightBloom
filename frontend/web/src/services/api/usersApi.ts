@@ -5,7 +5,7 @@ import type {
   SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
-  WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock
+  WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 
@@ -468,6 +468,29 @@ export async function setChatSettings(
   const res = await axios.put('/api/users/api/v1/settings/chat-ai',
     { chatAiEnabled, chatSystemPrompt, chatTemperature }, authHeader(token))
   return res.data.data
+}
+
+export async function getDeviceAccessSettings(token: string): Promise<DeviceAccessSettings> {
+  const res = await axios.get('/api/users/api/v1/settings/device-access', authHeader(token))
+  return res.data.data
+}
+
+export async function setDeviceAccessSettings(
+  maxAccountsPerDevice: number | null, maxSessionsPerUser: number | null,
+  maxRegistrationsPerDevicePerDay: number | null, token: string
+): Promise<DeviceAccessSettings> {
+  const res = await axios.put('/api/users/api/v1/settings/device-access',
+    { maxAccountsPerDevice, maxSessionsPerUser, maxRegistrationsPerDevicePerDay }, authHeader(token))
+  return res.data.data
+}
+
+export async function listPlatformDeviceBlocks(token: string): Promise<PlatformDeviceBlock[]> {
+  const res = await axios.get('/api/users/api/v1/settings/device-blocks', authHeader(token))
+  return res.data.data
+}
+
+export async function unblockPlatformDevice(blockUuid: string, token: string): Promise<void> {
+  await axios.post(`/api/users/api/v1/settings/device-blocks/${blockUuid}/unblock`, {}, authHeader(token))
 }
 
 /** Lista los roles asignados a un evento; el backend devuelve 403 si quien pide no tiene ASSIGN_EVENT_ROLES. */

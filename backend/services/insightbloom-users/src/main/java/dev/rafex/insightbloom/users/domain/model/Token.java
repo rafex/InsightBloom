@@ -11,9 +11,11 @@ public class Token {
     private final String tokenValue;
     private final Instant expiresAt;
     private final Instant createdAt;
+    private final String deviceFingerprint;
     private Instant revokedAt;
 
-    public Token(String userUuid, String guestUserUuid, TokenKind tokenKind, String tokenValue, Instant expiresAt) {
+    public Token(String userUuid, String guestUserUuid, TokenKind tokenKind, String tokenValue,
+                 Instant expiresAt, String deviceFingerprint) {
         this.uuid = UUID.randomUUID().toString();
         this.userUuid = userUuid;
         this.guestUserUuid = guestUserUuid;
@@ -21,10 +23,12 @@ public class Token {
         this.tokenValue = tokenValue;
         this.expiresAt = expiresAt;
         this.createdAt = Instant.now();
+        this.deviceFingerprint = deviceFingerprint;
     }
 
     public Token(String uuid, String userUuid, String guestUserUuid, TokenKind tokenKind,
-                 String tokenValue, Instant expiresAt, Instant createdAt, Instant revokedAt) {
+                 String tokenValue, Instant expiresAt, Instant createdAt, Instant revokedAt,
+                 String deviceFingerprint) {
         this.uuid = uuid;
         this.userUuid = userUuid;
         this.guestUserUuid = guestUserUuid;
@@ -33,6 +37,7 @@ public class Token {
         this.expiresAt = expiresAt;
         this.createdAt = createdAt;
         this.revokedAt = revokedAt;
+        this.deviceFingerprint = deviceFingerprint;
     }
 
     public boolean isValid() {
@@ -47,4 +52,10 @@ public class Token {
     public Instant getExpiresAt() { return expiresAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getRevokedAt() { return revokedAt; }
+    public String getDeviceFingerprint() { return deviceFingerprint; }
+
+    /** Sujeto de la sesion: userUuid si es de usuario, guestUserUuid si es de invitado. */
+    public String subjectUuid() {
+        return userUuid != null ? userUuid : guestUserUuid;
+    }
 }

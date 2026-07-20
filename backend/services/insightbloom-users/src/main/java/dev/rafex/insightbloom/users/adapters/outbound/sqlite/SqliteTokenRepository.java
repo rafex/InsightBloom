@@ -7,6 +7,8 @@ import dev.rafex.insightbloom.users.domain.services.PasswordService;
 
 import java.sql.*;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class SqliteTokenRepository implements TokenRepository {
@@ -25,8 +27,8 @@ public class SqliteTokenRepository implements TokenRepository {
     @Override
     public void save(final Token token) {
         final String sql = """
-            INSERT INTO tokens (uuid, user_uuid, guest_user_uuid, token_kind, token_value, expires_at, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tokens (uuid, user_uuid, guest_user_uuid, token_kind, token_value, expires_at, created_at, device_fingerprint)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, token.getUuid());
@@ -36,6 +38,7 @@ public class SqliteTokenRepository implements TokenRepository {
             ps.setString(5, hashToken(token.getTokenValue()));
             ps.setString(6, token.getExpiresAt().toString());
             ps.setString(7, token.getCreatedAt().toString());
+            ps.setString(8, token.getDeviceFingerprint());
             ps.executeUpdate();
         } catch (final SQLException e) {
             throw new RuntimeException(e);
@@ -55,7 +58,8 @@ public class SqliteTokenRepository implements TokenRepository {
                     rs.getString("uuid"), rs.getString("user_uuid"), rs.getString("guest_user_uuid"),
                     TokenKind.valueOf(rs.getString("token_kind")), tokenValue,
                     parseInstant(rs.getString("expires_at")), parseInstant(rs.getString("created_at")),
-                    revokedStr != null ? parseInstant(revokedStr) : null
+                    revokedStr != null ? parseInstant(revokedStr) : null,
+                    rs.getString("device_fingerprint")
                 ));
             }
         } catch (final SQLException e) {
@@ -86,6 +90,81 @@ public class SqliteTokenRepository implements TokenRepository {
         } catch (final SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public List<Token> findActiveByUser(final String userUuid) {
+        final String sql = """
+            SELECT * FROM tokens
+            WHERE user_uuid = ? AND revoked_at IS NULL AND expires_at > ?
+            ORDER BY created_at ASC
+        """;
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userUuid);
+            ps.setString(2, Instant.now().toString());
+            return queryList(ps);
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public List<Token> findActiveByFingerprint(final String deviceFingerprint) {
+        final String sql = """
+            SELECT * FROM tokens
+            WHERE device_fingerprint = ? AND revoked_at IS NULL AND expires_at > ?
+            ORDER BY created_at ASC
+        """;
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, deviceFingerprint);
+            ps.setString(2, Instant.now().toString());
+            return queryList(ps);
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void revokeAllForFingerprint(final String deviceFingerprint) {
+        final String sql = "UPDATE tokens SET revoked_at = ? WHERE device_fingerprint = ? AND revoked_at IS NULL";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, Instant.now().toString());
+            ps.setString(2, deviceFingerprint);
+            ps.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void revokeByUuid(final String tokenUuid) {
+        final String sql = "UPDATE tokens SET revoked_at = ? WHERE uuid = ? AND revoked_at IS NULL";
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, Instant.now().toString());
+            ps.setString(2, tokenUuid);
+            ps.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // El valor crudo del token no se recupera del hash almacenado -- estas filas se usan solo
+    // para contar/identificar sesiones (uuid, sujeto, fingerprint), nunca para reautenticar.
+    private static List<Token> queryList(final PreparedStatement ps) throws SQLException {
+        final List<Token> result = new ArrayList<>();
+        try (ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                final String revokedStr = rs.getString("revoked_at");
+                result.add(new Token(
+                    rs.getString("uuid"), rs.getString("user_uuid"), rs.getString("guest_user_uuid"),
+                    TokenKind.valueOf(rs.getString("token_kind")), null,
+                    parseInstant(rs.getString("expires_at")), parseInstant(rs.getString("created_at")),
+                    revokedStr != null ? parseInstant(revokedStr) : null,
+                    rs.getString("device_fingerprint")
+                ));
+            }
+        }
+        return result;
     }
 
     private static Instant parseInstant(String s) {

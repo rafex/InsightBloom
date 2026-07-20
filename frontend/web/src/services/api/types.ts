@@ -122,6 +122,26 @@ export interface DeviceBlock {
   unblockedBy: string | null
 }
 
+// Umbrales de PlatformDeviceGuard -- alcance plataforma, no un evento puntual (ver DeviceBlock,
+// que es el equivalente por conferencia).
+export interface DeviceAccessSettings {
+  maxAccountsPerDevice: number | null
+  maxSessionsPerUser: number | null
+  maxRegistrationsPerDevicePerDay: number | null
+}
+
+// Dispositivo bloqueado a nivel PLATAFORMA por PlatformDeviceGuard (multicuenta entre eventos o
+// spam de registro) -- distinto de DeviceBlock, que es por conferencia.
+export interface PlatformDeviceBlock {
+  uuid: string
+  deviceFingerprint: string
+  reason: 'MULTI_ACCOUNT' | 'REGISTRATION_SPAM'
+  relatedCount: number
+  blockedAt: string
+  unblockedAt: string | null
+  unblockedBy: string | null
+}
+
 export type ReservationStatus = 'RESERVED' | 'CHECKED_IN'
 
 export interface Reservation {

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getFingerprint } from '@/services/auth/fingerprint'
 
 const BASE = '/api/users/api/v1/auth'
 
@@ -16,7 +17,11 @@ export interface RegisterRequest {
 }
 
 export async function register({ displayName, email, phone, password, socialLinks }: RegisterRequest): Promise<unknown> {
-  const res = await axios.post(`${BASE}/register`, { displayName, email, phone, password, socialLinks })
+  // La huella (ThumbmarkJS) tambien viaja en el registro para que PlatformDeviceGuard pueda
+  // frenar spam de creacion de cuentas desde el mismo dispositivo -- ver checkRegistration.
+  const deviceFingerprint = await getFingerprint()
+  const res = await axios.post(`${BASE}/register`,
+    { displayName, email, phone, password, socialLinks, deviceFingerprint })
   return res.data.data
 }
 

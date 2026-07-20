@@ -95,12 +95,16 @@ public class AuthHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final String username = (String) body.get("username");
             final String password = (String) body.get("password");
-            final var result = loginUseCase.execute(new LoginUseCase.LoginRequest(username, password));
+            final String deviceFingerprint = (String) body.get("deviceFingerprint");
+            final var result = loginUseCase.execute(new LoginUseCase.LoginRequest(username, password, deviceFingerprint));
             if (result.isPresent()) {
                 sendOk(jx, 201, result.get());
             } else {
                 sendError(jx, 401, "invalid_credentials", "Invalid username or password");
             }
+        } catch (final dev.rafex.insightbloom.users.domain.services.PlatformDeviceBlockedException e) {
+            sendError(jx, 403, "platform_device_blocked",
+                    "Este dispositivo fue bloqueado por uso indebido de la plataforma");
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -115,6 +119,9 @@ public class AuthHandler extends BaseResourceHandler {
                     (String) body.get("deviceFingerprint"),
                     (String) body.get("conferenceUuid")));
             sendOk(jx, 201, result);
+        } catch (final dev.rafex.insightbloom.users.domain.services.PlatformDeviceBlockedException e) {
+            sendError(jx, 403, "platform_device_blocked",
+                    "Este dispositivo fue bloqueado por uso indebido de la plataforma");
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Conference not found");
         } catch (final Exception e) {
@@ -157,9 +164,12 @@ public class AuthHandler extends BaseResourceHandler {
             }
             final var user = registerUseCase.execute(new RegisterUseCase.Request(
                     (String) body.get("displayName"), (String) body.get("email"), (String) body.get("phone"),
-                    (String) body.get("password"), socialLinks));
+                    (String) body.get("password"), socialLinks, (String) body.get("deviceFingerprint")));
             sendOk(jx, 201, Map.of("userUuid", user.getUuid(), "email", user.getEmail() == null ? "" : user.getEmail(),
                     "phone", user.getPhone() == null ? "" : user.getPhone()));
+        } catch (final dev.rafex.insightbloom.users.domain.services.PlatformDeviceBlockedException e) {
+            sendError(jx, 403, "platform_device_blocked",
+                    "Este dispositivo fue bloqueado por uso indebido de la plataforma");
         } catch (final IllegalArgumentException e) {
             sendError(jx, 409, e.getMessage(), e.getMessage());
         } catch (final Exception e) {

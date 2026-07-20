@@ -1,13 +1,16 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.*;
+import dev.rafex.insightbloom.users.domain.ports.PlatformSettingsRepository;
 import dev.rafex.insightbloom.users.domain.ports.TokenRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.domain.services.PasswordService;
+import dev.rafex.insightbloom.users.domain.services.PlatformDeviceGuard;
 import dev.rafex.insightbloom.users.domain.services.TokenService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -17,7 +20,16 @@ class LoginUseCaseTest {
     private final PasswordService passwordService = new PasswordService();
 
     private LoginUseCase useCase(final UserRepository repo) {
-        return new LoginUseCase(repo, new TokenService(Mockito.mock(TokenRepository.class)), passwordService);
+        final TokenRepository tokenRepo = Mockito.mock(TokenRepository.class);
+        Mockito.when(tokenRepo.findActiveByUser(Mockito.anyString())).thenReturn(List.of());
+        Mockito.when(tokenRepo.findActiveByFingerprint(Mockito.anyString())).thenReturn(List.of());
+        final PlatformSettingsRepository settingsRepo = Mockito.mock(PlatformSettingsRepository.class);
+        Mockito.when(settingsRepo.get()).thenReturn(PlatformSettings.defaults());
+        final var platformDeviceBlockRepo =
+                Mockito.mock(dev.rafex.insightbloom.users.domain.ports.PlatformDeviceBlockRepository.class);
+        Mockito.when(platformDeviceBlockRepo.findActive(Mockito.anyString())).thenReturn(Optional.empty());
+        final var platformDeviceGuard = new PlatformDeviceGuard(tokenRepo, repo, platformDeviceBlockRepo);
+        return new LoginUseCase(repo, new TokenService(tokenRepo), passwordService, platformDeviceGuard, settingsRepo);
     }
 
     @Test
@@ -31,7 +43,7 @@ class LoginUseCaseTest {
         Mockito.when(repo.findByUsername("admin")).thenReturn(Optional.of(user));
         Mockito.when(repo.findByEmail("admin")).thenReturn(Optional.empty());
 
-        final var result = useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "pass"));
+        final var result = useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "pass", null));
         assertTrue(result.isPresent());
         assertNotNull(result.get().token());
         assertEquals("uuid-1", result.get().userUuid());
@@ -48,7 +60,7 @@ class LoginUseCaseTest {
         Mockito.when(repo.findByUsername("admin")).thenReturn(Optional.of(user));
         Mockito.when(repo.findByEmail("admin")).thenReturn(Optional.empty());
 
-        final var result = useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "pass"));
+        final var result = useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "pass", null));
         assertTrue(result.isPresent());
     }
 
@@ -58,7 +70,7 @@ class LoginUseCaseTest {
         Mockito.when(repo.findByUsername("nobody")).thenReturn(Optional.empty());
         Mockito.when(repo.findByEmail("nobody")).thenReturn(Optional.empty());
 
-        assertTrue(useCase(repo).execute(new LoginUseCase.LoginRequest("nobody", "pass")).isEmpty());
+        assertTrue(useCase(repo).execute(new LoginUseCase.LoginRequest("nobody", "pass", null)).isEmpty());
     }
 
     @Test
@@ -71,12 +83,12 @@ class LoginUseCaseTest {
         Mockito.when(repo.findByUsername("admin")).thenReturn(Optional.of(user));
         Mockito.when(repo.findByEmail("admin")).thenReturn(Optional.empty());
 
-        assertTrue(useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "wrong")).isEmpty());
+        assertTrue(useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "wrong", null)).isEmpty());
     }
 
     @Test
     void login_blankPassword_returnsEmpty() {
         final UserRepository repo = Mockito.mock(UserRepository.class);
-        assertTrue(useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "")).isEmpty());
+        assertTrue(useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "", null)).isEmpty());
     }
 }

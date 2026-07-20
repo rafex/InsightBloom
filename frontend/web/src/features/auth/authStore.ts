@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
 import axios from 'axios'
+import { getFingerprint } from '@/services/auth/fingerprint'
 
 interface AuthState {
   token: string | null
@@ -30,7 +31,11 @@ export interface SessionInfo {
 
 export function useAuthStore() {
   async function login(username: string, password: string): Promise<{ token: string, role: string, userUuid: string }> {
-    const res = await axios.post('/api/users/api/v1/auth/login', { username, password })
+    // La huella (ThumbmarkJS, ver services/auth/fingerprint.ts) viaja desde el login para que
+    // PlatformDeviceGuard pueda controlar abuso a nivel plataforma (multicuenta, sesiones
+    // simultaneas) desde el primer momento, no solo dentro de Jitsi/IDE de un evento puntual.
+    const deviceFingerprint = await getFingerprint()
+    const res = await axios.post('/api/users/api/v1/auth/login', { username, password, deviceFingerprint })
     const { token, userUuid, role, expiresAt } = res.data.data
     state.token = token
     state.role = role

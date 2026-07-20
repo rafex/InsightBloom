@@ -43,7 +43,9 @@ export default {
         await auth.login(username.value.trim(), password.value)
         router.push('/dashboard')
       } catch (e: any) {
-        error.value = 'Credenciales inválidas o error de conexión'
+        error.value = e?.response?.status === 403
+          ? 'Este dispositivo fue bloqueado por uso indebido de la plataforma. Contactá a un administrador.'
+          : 'Credenciales inválidas o error de conexión'
       } finally {
         loading.value = false
       }

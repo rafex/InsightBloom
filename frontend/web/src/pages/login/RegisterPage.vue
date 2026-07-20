@@ -102,7 +102,9 @@ export default {
         await sendOtpWithFallback()
         step.value = 'verify'
       } catch (e: any) {
-        error.value = e.response?.data?.error?.message || 'No se pudo crear la cuenta. Intenta de nuevo.'
+        error.value = e?.response?.status === 403
+          ? 'Este dispositivo fue bloqueado por uso indebido de la plataforma. Contactá a un administrador.'
+          : (e.response?.data?.error?.message || 'No se pudo crear la cuenta. Intenta de nuevo.')
       } finally {
         loading.value = false
       }
