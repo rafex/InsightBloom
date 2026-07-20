@@ -4,7 +4,10 @@
   .unavailable(v-else-if="!drawioUrl")
     p ⚠️ La pizarra de diagramas no está disponible en este momento.
     p.hint Intenta más tarde o contacta al organizador.
-  iframe.drawio-frame(v-else ref="frameRef" :src="drawioUrl" title="Diagramas" allow="clipboard-write")
+  template(v-else)
+    .save-banner(v-if="saveError" class="save-banner-error") ⚠️ No se pudo guardar el diagrama: {{ saveError }}
+    .save-banner(v-else-if="saveStatus === 'saved'" class="save-banner-ok") ✓ Diagrama guardado
+    iframe.drawio-frame(ref="frameRef" :src="drawioUrl" title="Diagramas" allow="clipboard-write")
 </template>
 
 <script lang="ts">
@@ -25,6 +28,8 @@ export default {
     const loading = ref(true)
     const drawioBaseUrl = ref('')
     const frameRef = ref<HTMLIFrameElement | null>(null)
+    const saveError = ref('')
+    const saveStatus = ref<'' | 'saved' | 'error'>('')
     let savedXml = ''
 
     onMounted(async () => {
@@ -63,11 +68,24 @@ export default {
 
     async function persist(xml: string) {
       if (!props.conferenceId || xml === savedXml) return
+      const previous = savedXml
       savedXml = xml
       try {
         await saveEventDiagram(props.conferenceId, xml, auth.state.token as string)
+        saveError.value = ''
+        saveStatus.value = 'saved'
+        setTimeout(() => { if (saveStatus.value === 'saved') saveStatus.value = '' }, 3000)
       } catch (e: any) {
-        // best-effort: un fallo de red no debe interrumpir la edicion del diagrama
+        // Antes esto se tragaba en silencio -- el diagrama se veia "guardado" en la UI pero el
+        // PUT nunca llegaba al backend, asi que desaparecia al volver a esta pagina (reportado
+        // 2026-07-19). savedXml se revierte para que un reintento (ej. otro click en Guardar)
+        // no quede bloqueado por el chequeo "xml === savedXml" de arriba.
+        savedXml = previous
+        saveStatus.value = 'error'
+        saveError.value = e?.response?.status
+          ? `${e.response.status} ${e.response.data?.error?.message || e.message}`
+          : (e?.message || 'error de red')
+        console.error('DiagrammingPage: fallo guardando el diagrama', e)
       }
     }
 
@@ -91,14 +109,17 @@ export default {
     onMounted(() => window.addEventListener('message', onMessage))
     onBeforeUnmount(() => window.removeEventListener('message', onMessage))
 
-    return { loading, drawioUrl, friendlyId, frameRef }
+    return { loading, drawioUrl, friendlyId, frameRef, saveError, saveStatus }
   }
 }
 </script>
 
 <style scoped>
-.diagramming-page { height: calc(100vh - 220px); min-height: 480px; display: flex; }
+.diagramming-page { height: calc(100vh - 220px); min-height: 480px; display: flex; flex-direction: column; }
 .drawio-frame { flex: 1; border: none; width: 100%; }
+.save-banner { flex: 0 0 auto; padding: 8px 16px; font-size: 0.85rem; text-align: center; }
+.save-banner-ok { background: #dcfce7; color: #166534; }
+.save-banner-error { background: #fee2e2; color: #991b1b; }
 .loading-text { padding: 40px; text-align: center; color: #6b7280; }
 .unavailable { margin: 40px auto; text-align: center; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; max-width: 420px; }
 .unavailable .hint { color: #78350f; font-size: 0.85rem; margin-top: 6px; }
