@@ -14,4 +14,9 @@ FROM etherpad/etherpad:2.3.1
 
 COPY infra/docker/etherpad/ep_insightbloom_hide_delete/ \
     /opt/etherpad-lite/local_plugins/ep_insightbloom_hide_delete/
-RUN ETHERPAD_LOCAL_PLUGINS=ep_insightbloom_hide_delete /opt/etherpad-lite/bin/installLocalPlugins.sh
+# El install (corre como root, el pnpm workspace toca node_modules/plugin_packages/etc) deja
+# algunas rutas con dueno root -- el contenedor corre como uid 1000 (ver securityContext del
+# chart), asi que hay que devolver el arbol a ese uid o Etherpad no puede ni crear el
+# directorio de bookkeeping de plugins al arrancar (EACCES: mkdir plugin_packages).
+RUN ETHERPAD_LOCAL_PLUGINS=ep_insightbloom_hide_delete /opt/etherpad-lite/bin/installLocalPlugins.sh && \
+    chown -R 1000:1000 /opt/etherpad-lite/src /opt/etherpad-lite/local_plugins
