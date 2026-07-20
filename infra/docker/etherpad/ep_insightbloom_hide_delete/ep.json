@@ -1,0 +1,10 @@
+{
+  "parts": [
+    {
+      "name": "hideDeletePad",
+      "hooks": {
+        "eejsBlock_customStyles": "index.js:eejsBlock_customStyles"
+      }
+    }
+  ]
+}

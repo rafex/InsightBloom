@@ -1,0 +1,6 @@
+{
+  "name": "ep_insightbloom_hide_delete",
+  "version": "1.0.0",
+  "description": "Oculta el boton nativo 'Delete pad' de Etherpad. Las notas de InsightBloom son un documento oficial compartido por todo el evento -- nadie debe poder borrarlo desde la UI.",
+  "license": "MIT"
+}

@@ -1,0 +1,58 @@
+# Imagen custom de Etherpad (etherpad/etherpad + ep_insightbloom_hide_delete, ver
+# infra/docker/Dockerfile.etherpad). Solo CI (build + push a GHCR) -- no despliega a k3s, eso
+# se hace aparte y manualmente contra el cluster. Deliberadamente independiente de los demas
+# publish-*.yml, mismo patron que publish-code-ide.yml.
+name: Publish etherpad image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*'
+    paths:
+      - 'infra/docker/Dockerfile.etherpad'
+      - 'infra/docker/etherpad/**'
+      - '.github/workflows/publish-etherpad.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: rafex
+
+jobs:
+  build-and-push-etherpad:
+    name: Build and push etherpad
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/Dockerfile.etherpad
+          push: true
+          provenance: false
+          sbom: false
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/rafex/insightbloom-etherpad:2.3.1
+            ghcr.io/rafex/insightbloom-etherpad:build-${{ github.run_id }}
+          cache-from: type=gha,scope=etherpad
+          cache-to: type=gha,mode=max,scope=etherpad
