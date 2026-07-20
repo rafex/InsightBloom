@@ -89,7 +89,7 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
+import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
 import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -199,6 +199,15 @@ export default {
         error.value = 'Conferencia no encontrada. Verifica el ID.'
       } finally {
         loading.value = false
+      }
+
+      // Inscripción implícita: quien llega por un link/QR compartido (el camino normal) nunca
+      // pasaba por /dashboard/join, así que nunca quedaba ConferenceMembership ni se emitía el
+      // boleto automático (GENERAL/NONE, ver JoinConferenceUseCase) — "Mi boleto" quedaba
+      // efectivamente inalcanzable para ese flujo. Best-effort: nunca bloquea el render ni
+      // muestra error si falla (ej. conferencia ya vencida).
+      if (conference.value && auth.isAuthenticated() && auth.state.role !== 'guest') {
+        joinConference(friendlyId, auth.state.token as string).catch(() => {})
       }
     })
 
