@@ -49,6 +49,18 @@
       p.field-hint Determina qué herramientas están disponibles (boletos, encuestas, videollamada...). Se puede cambiar después.
 
     .form-group
+      label Lienzo del evento (opcional)
+      select(v-model="canvasTool")
+        option(value="") Usar las herramientas del tipo de evento
+        option(value="DRAWIO") Drawio
+        option(value="EXCALIDRAW") Excalidraw
+        option(value="ETHERPAD") Etherpad
+      select(v-model="canvasAudienceMode")
+        option(value="INDEPENDENT") Ediciones independientes (solo persiste el moderador)
+        option(value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
+      p.field-hint La persistencia del material nativo y sus exportaciones se completará en la siguiente fase.
+
+    .form-group
       label Aforo máximo
       input(v-model.number="capacity" type="number" min="1" placeholder="10")
       p.field-hint Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), incluso si es virtual — la infraestructura tiene recursos limitados. Recomendado hasta {{ recommendedMaxCapacity }}. Se puede cambiar después.
@@ -115,7 +127,7 @@
 import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
-import type { Conference, Timezone, EventType } from '@/services/api/types'
+import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, DEFAULT_CAPACITY, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 
@@ -151,6 +163,8 @@ export default {
     const timezoneId = ref<number | null>(null)
     const eventTypes = ref<EventType[]>([])
     const eventTypeKey = ref('conference')
+    const canvasTool = ref<CanvasTool | ''>('')
+    const canvasAudienceMode = ref<CanvasAudienceMode>('INDEPENDENT')
     const capacity = ref<number | null>(DEFAULT_CAPACITY)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
     const capacityAlert = computed(() => capacityWarning(capacity.value))
@@ -191,7 +205,8 @@ export default {
         const lng = (longitude.value != null && !isNaN(longitude.value)) ? longitude.value : null
         created.value = await createConference(name.value.trim(), expiresAt, auth.state.token as string, lat, lng,
           eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null,
-          displayName.value.trim() || null, timezoneId.value, eventTypeKey.value, capacity.value)
+          displayName.value.trim() || null, timezoneId.value, eventTypeKey.value, capacity.value,
+          canvasTool.value || null, canvasAudienceMode.value)
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Error al crear el evento'
       } finally { loading.value = false }
@@ -205,11 +220,13 @@ export default {
       name.value = ''; displayName.value = ''; created.value = null; expiryMode.value = 'none';
       customDate.value = ''; latitude.value = null; longitude.value = null
       eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
+      canvasTool.value = ''; canvasAudienceMode.value = 'INDEPENDENT'
       capacity.value = DEFAULT_CAPACITY
     }
 
     return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
              eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey,
+             canvasTool, canvasAudienceMode,
              capacity, recommendedMaxCapacity, capacityAlert,
              expiryOptions: EXPIRY_OPTIONS, setExpiryMode, create, formatDate, reset }
   }
@@ -224,6 +241,7 @@ label { font-weight: 600; font-size: 0.9rem; color: #374151; }
 input[type="text"], input[type="datetime-local"], input[type="number"] {
   padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem;
 }
+select { padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; background: #fff; }
 input:focus { outline: none; border-color: #4f46e5; }
 
 .expiry-options { display: flex; gap: 6px; flex-wrap: wrap; }

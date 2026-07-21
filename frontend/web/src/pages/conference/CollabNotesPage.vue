@@ -15,9 +15,11 @@ import { useAuthStore } from '@/features/auth/authStore'
 export default {
   name: 'CollabNotesPage',
   props: {
-    conferenceId: { type: String, default: '' }
+    conferenceId: { type: String, default: '' },
+    canvasAudienceMode: { type: String, default: '' },
+    canvasModerator: { type: Boolean, default: false }
   },
-  setup(props: { conferenceId?: string }) {
+  setup(props: { conferenceId?: string, canvasAudienceMode?: string, canvasModerator?: boolean }) {
     const auth = useAuthStore()
     const loading = ref(true)
     const padUrl = ref('')

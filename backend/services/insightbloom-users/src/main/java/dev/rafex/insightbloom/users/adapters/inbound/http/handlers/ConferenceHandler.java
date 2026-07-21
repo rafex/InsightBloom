@@ -37,6 +37,7 @@ import dev.rafex.insightbloom.users.application.usecases.RecordDownloadUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ReserveGeneralUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ReserveSeatUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetEventTypeUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetCanvasConfigUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetDeviceAccessConfigUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListDeviceBlocksUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UnblockDeviceUseCase;
@@ -94,6 +95,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GetConferenceSeatMapUseCase getConferenceSeatMapUseCase;
     private final ReserveSeatUseCase reserveSeatUseCase;
     private final SetEventTypeUseCase setEventTypeUseCase;
+    private final SetCanvasConfigUseCase setCanvasConfigUseCase;
     private final EventCapabilityGuard eventCapabilityGuard;
     private final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase;
     private final AssignEventRoleUseCase assignEventRoleUseCase;
@@ -142,6 +144,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GetConferenceSeatMapUseCase getConferenceSeatMapUseCase,
                              final ReserveSeatUseCase reserveSeatUseCase,
                              final SetEventTypeUseCase setEventTypeUseCase,
+                             final SetCanvasConfigUseCase setCanvasConfigUseCase,
                              final EventCapabilityGuard eventCapabilityGuard,
                              final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase,
                              final AssignEventRoleUseCase assignEventRoleUseCase,
@@ -189,6 +192,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.getConferenceSeatMapUseCase = getConferenceSeatMapUseCase;
         this.reserveSeatUseCase = reserveSeatUseCase;
         this.setEventTypeUseCase = setEventTypeUseCase;
+        this.setCanvasConfigUseCase = setCanvasConfigUseCase;
         this.eventCapabilityGuard = eventCapabilityGuard;
         this.getOrCreateEventPadUseCase = getOrCreateEventPadUseCase;
         this.assignEventRoleUseCase = assignEventRoleUseCase;
@@ -233,6 +237,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/downloads/count", Set.of("GET")),
                 Route.of("/{id}/seating", Set.of("PUT")),
                 Route.of("/{id}/event-type", Set.of("PUT")),
+                Route.of("/{id}/canvas-config", Set.of("PUT")),
                 Route.of("/{id}/active", Set.of("PUT")),
                 Route.of("/{id}/venue-map", Set.of("PUT")),
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
@@ -409,6 +414,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/event-type")) {
             return handleSetEventType(jx, jx.pathParam("id"));
         }
+        if (jx.path().endsWith("/canvas-config")) {
+            return handleSetCanvasConfig(jx, jx.pathParam("id"));
+        }
         if (jx.path().endsWith("/active")) {
             return handleSetActive(jx, jx.pathParam("id"));
         }
@@ -468,8 +476,11 @@ public class ConferenceHandler extends BaseResourceHandler {
                     (String) body.get("expiresAt"),
                     latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue"),
                     (String) body.get("startTime"), (String) body.get("endTime"), timezoneId,
-                    (String) body.get("eventTypeKey"), capacity));
+                    (String) body.get("eventTypeKey"), capacity,
+                    (String) body.get("canvasTool"), (String) body.get("canvasAudienceMode")));
             sendOk(jx, 201, result);
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -792,10 +803,10 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             final var body = parseBody(jx);
             final String xml = (String) body.get("xml");
-            if (saveEventDiagramUseCase.execute(id, xml != null ? xml : "")) {
+            if (saveEventDiagramUseCase.execute(id, xml != null ? xml : "", v.subjectUuid())) {
                 sendOk(jx, 200, java.util.Map.of("saved", true));
             } else {
-                sendError(jx, 404, "conference_not_found", "Conference not found");
+                sendError(jx, 403, "moderator_only", "Solo el moderador puede guardar el material del lienzo");
             }
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -901,6 +912,42 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
         } catch (final IllegalStateException e) {
             sendError(jx, 409, e.getMessage(), "No se puede cambiar el tipo de evento con reservas de asiento activas");
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSetCanvasConfig(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only organizers can configure the event canvas");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String canvasTool = (String) body.get("canvasTool");
+            final String audienceMode = (String) body.get("canvasAudienceMode");
+            final EventCapability requiredCapability = canvasTool == null ? null : switch (canvasTool) {
+                    case "DRAWIO" -> EventCapability.DIAGRAMMING;
+                    case "EXCALIDRAW" -> EventCapability.WHITEBOARD;
+                    case "ETHERPAD" -> EventCapability.COLLAB_NOTES;
+                    default -> null;
+                };
+            if (requiredCapability != null && !hasCapability(id, requiredCapability)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita la herramienta seleccionada");
+                return true;
+            }
+            final var updated = setCanvasConfigUseCase.execute(id, v.subjectUuid(), canvasTool, audienceMode);
+            if (updated.isPresent()) {
+                sendOk(jx, 200, updated.get());
+            } else {
+                sendError(jx, 404, "not_found", "Conference not found or not owned by you");
+            }
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {

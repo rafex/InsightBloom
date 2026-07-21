@@ -57,13 +57,13 @@
         router-link.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
           span.tool-icon 🎥
           span.tool-label Videollamada
-        router-link.tool-btn(v-if="privateAllowed('DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
+        router-link.tool-btn(v-if="canvasAllowed('DRAWIO', 'DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
           span.tool-icon 🧩
           span.tool-label Diagramas
-        router-link.tool-btn(v-if="privateAllowed('WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
+        router-link.tool-btn(v-if="canvasAllowed('EXCALIDRAW', 'WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
           span.tool-icon 🖍️
           span.tool-label Pizarra
-        router-link.tool-btn(v-if="privateAllowed('COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
+        router-link.tool-btn(v-if="canvasAllowed('ETHERPAD', 'COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
           span.tool-icon 🗒️
           span.tool-label Notas
         router-link.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
@@ -79,7 +79,7 @@
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
         router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
-      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :access-granted="privateAccess")
+      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :access-granted="privateAccess" :canvas-audience-mode="conference.canvasAudienceMode" :canvas-moderator="isCanvasModerator")
 
     OnboardingTour(storage-key="ib_onboarding_conference" :steps="attendeeTourSteps")
 
@@ -126,6 +126,7 @@ export default {
     const capabilities = ref<Set<string>>(new Set())
     const privateAccess = ref(false)
     const headerCollapsed = ref(TOOL_ROUTE_SUFFIXES.some((s) => route.path.endsWith(s)))
+    const auth = useAuthStore()
 
     watch(() => route.path, (newPath) => {
       headerCollapsed.value = TOOL_ROUTE_SUFFIXES.some((s) => newPath.endsWith(s))
@@ -141,10 +142,19 @@ export default {
       return privateAccess.value && hasCapability(capability)
     }
 
+    function canvasAllowed(tool: 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD', capability: EventCapability): boolean {
+      const selected = conference.value?.canvasTool
+      return privateAllowed(capability) && (!selected || selected === tool)
+    }
+
+    const isCanvasModerator = computed(() => {
+      const userUuid = auth.state.userUuid
+      return !!userUuid && (userUuid === conference.value?.createdByUserUuid || auth.isAdmin())
+    })
+
     const isTicketRoute = computed(() => route.path.endsWith('/ticket'))
     const isPublicRoute = computed(() => route.path.endsWith('/presentation'))
 
-    const auth = useAuthStore()
     const isAnonymous = !auth.isAuthenticated() || auth.state.role === 'guest'
     const attendeeTourSteps = ATTENDEE_TOUR_STEPS
     const chatHost = location.hostname.startsWith('chat-') ? location.hostname : `chat-${location.hostname}`
@@ -228,7 +238,8 @@ export default {
     return {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
-      googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, privateAccess, isTicketRoute, isPublicRoute, headerCollapsed
+      googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator,
+      privateAccess, isTicketRoute, isPublicRoute, headerCollapsed
     }
   }
 }

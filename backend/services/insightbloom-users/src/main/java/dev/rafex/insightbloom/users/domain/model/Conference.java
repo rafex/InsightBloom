@@ -66,6 +66,10 @@ public class Conference {
     // Nullable, defaults efectivos en DeviceAccessGuard (2 y 3 respectivamente) si no se configura.
     private Integer maxDevicesPerUser;
     private Integer maxAccountsPerDevice;
+    // Configuracion del lienzo del evento. Null conserva el comportamiento legado: todas las
+    // herramientas habilitadas por el tipo de evento siguen visibles y persistiendo como antes.
+    private String canvasTool; // DRAWIO | EXCALIDRAW | ETHERPAD | null (legacy/all)
+    private String canvasAudienceMode; // INDEPENDENT | MODERATOR_ONLY | null (legacy)
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -192,6 +196,10 @@ public class Conference {
     public void setSandboxSeatsPerPod(Integer sandboxSeatsPerPod) { this.sandboxSeatsPerPod = sandboxSeatsPerPod; }
     public Integer getMaxDevicesPerUser() { return maxDevicesPerUser; }
     public Integer getMaxAccountsPerDevice() { return maxAccountsPerDevice; }
+    public String getCanvasTool() { return canvasTool; }
+    public String getCanvasAudienceMode() { return canvasAudienceMode; }
     public void setMaxDevicesPerUser(Integer maxDevicesPerUser) { this.maxDevicesPerUser = maxDevicesPerUser; }
     public void setMaxAccountsPerDevice(Integer maxAccountsPerDevice) { this.maxAccountsPerDevice = maxAccountsPerDevice; }
+    public void setCanvasTool(String canvasTool) { this.canvasTool = canvasTool; }
+    public void setCanvasAudienceMode(String canvasAudienceMode) { this.canvasAudienceMode = canvasAudienceMode; }
 }
