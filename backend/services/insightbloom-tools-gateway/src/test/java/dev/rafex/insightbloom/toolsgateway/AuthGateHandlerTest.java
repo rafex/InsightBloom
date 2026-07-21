@@ -34,12 +34,14 @@ class AuthGateHandlerTest {
     private Server gateway;
     private int gatewayPort;
     private volatile String lastAuthHeaderSeen;
+    private volatile String lastUpstreamAcceptEncoding;
     private volatile boolean authServerAccepts = true;
 
     @BeforeEach
     void setUp() throws Exception {
         upstream = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
         upstream.createContext("/", exchange -> {
+            lastUpstreamAcceptEncoding = exchange.getRequestHeaders().getFirst("Accept-Encoding");
             final byte[] body = "hello from upstream".getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, body.length);
             exchange.getResponseBody().write(body);
@@ -114,6 +116,7 @@ class AuthGateHandlerTest {
         assertEquals(200, resp.statusCode());
         assertEquals("hello from upstream", resp.body());
         assertEquals("Bearer good-token", lastAuthHeaderSeen);
+        assertEquals("identity", lastUpstreamAcceptEncoding);
 
         final Optional<String> setCookie = resp.headers().firstValue("Set-Cookie");
         assertTrue(setCookie.isPresent());

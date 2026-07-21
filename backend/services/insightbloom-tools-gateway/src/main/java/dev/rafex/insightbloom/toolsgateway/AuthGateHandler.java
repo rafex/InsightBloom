@@ -55,6 +55,13 @@ final class AuthGateHandler extends Handler.Abstract {
     private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
             "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
             "te", "trailers", "transfer-encoding", "upgrade", "content-length", "host");
+    /**
+     * El gateway reconstruye la respuesta con el cuerpo ya bufferizado. No puede reenviar
+     * {@code Accept-Encoding} del navegador porque el upstream podria comprimir el cuerpo y
+     * luego Jetty/HAProxy volver a procesarlo con un Content-Length distinto. Se fuerza
+     * identidad de extremo a extremo para assets estaticos grandes como drawio/app.min.js.
+     */
+    private static final String ACCEPT_ENCODING = "accept-encoding";
 
     private final Map<String, String> routesByHost;
     private final String authValidateUrl;
@@ -398,10 +405,14 @@ final class AuthGateHandler extends Handler.Abstract {
         final HttpRequest.Builder upstreamBuilder = HttpRequest.newBuilder(URI.create(uri))
                 .timeout(Duration.ofSeconds(30));
         for (final HttpField field : request.getHeaders()) {
-            if (!HOP_BY_HOP_HEADERS.contains(field.getLowerCaseName())) {
+            if (!HOP_BY_HOP_HEADERS.contains(field.getLowerCaseName())
+                    && !ACCEPT_ENCODING.equals(field.getLowerCaseName())) {
                 upstreamBuilder.header(field.getName(), field.getValue());
             }
         }
+        // La respuesta se bufferiza y se vuelve a enmarcar abajo; pedirla sin compresion evita
+        // que Content-Encoding y Content-Length describan representaciones distintas del body.
+        upstreamBuilder.header("Accept-Encoding", "identity");
         final String method = request.getMethod();
         final HttpRequest.BodyPublisher body = ("GET".equals(method) || "HEAD".equals(method))
                 ? HttpRequest.BodyPublishers.noBody()
