@@ -185,6 +185,7 @@ export interface ConferenceHistoryEntry {
   name?: string
   joinedAt: string
   available: boolean
+  seatingMode?: SeatingMode
 }
 
 export interface UpdateConferenceRequest {

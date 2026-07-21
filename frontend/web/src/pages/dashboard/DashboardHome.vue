@@ -64,6 +64,7 @@
         p.joined-at Te uniste {{ formatDate(h.joinedAt) }}
         .conf-actions(v-if="h.available")
           router-link.btn-outline(:to="`/c/${h.friendlyId}/doubts`") Entrar
+          router-link.btn-outline(v-if="h.seatingMode && h.seatingMode !== 'NONE'" :to="`/c/${h.friendlyId}/ticket`") 🎟️ Mi boleto
         p.unavailable-note(v-else) Esta conferencia ya no se encuentra disponible.
 </template>
 

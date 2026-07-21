@@ -16,15 +16,15 @@ public class GetConferenceHistoryUseCase {
     }
 
     public record HistoryEntry(String conferenceUuid, String friendlyId, String name, boolean available,
-                                String joinedAt) {}
+                                String joinedAt, String seatingMode) {}
 
     public List<HistoryEntry> execute(final String userUuid) {
         return membershipRepository.findByUser(userUuid).stream()
                 .map(m -> conferenceRepository.findByUuid(m.getConferenceUuid())
                         .map(c -> new HistoryEntry(c.getUuid(), c.getFriendlyId(), c.getName(), true,
-                                m.getJoinedAt().toString()))
+                                m.getJoinedAt().toString(), c.getSeatingMode()))
                         .orElseGet(() -> new HistoryEntry(m.getConferenceUuid(), m.getConferenceFriendlyIdSnapshot(),
-                                m.getConferenceNameSnapshot(), false, m.getJoinedAt().toString())))
+                                m.getConferenceNameSnapshot(), false, m.getJoinedAt().toString(), null)))
                 .toList();
     }
 }
