@@ -200,7 +200,8 @@ export default {
 
 <style scoped>
 .whiteboard-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; position: relative; }
-.editor-shell { flex: 1; min-height: 480px; width: 100%; }
+.editor-shell { flex: 1 1 auto; height: calc(100vh - 112px); min-height: 480px; width: 100%; overflow: hidden; }
+.editor-shell :deep(.excalidraw) { width: 100%; height: 100%; min-height: 480px; }
 .loading-text { padding: 40px; text-align: center; color: #6b7280; }
 .unavailable { margin: 40px auto; text-align: center; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; max-width: 420px; }
 .unavailable .hint { color: #78350f; font-size: 0.85rem; margin-top: 6px; }
