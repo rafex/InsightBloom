@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.outbound.sqlite;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
+import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 
@@ -96,11 +97,46 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     }
 
     @Override
+    public void replaceCanvasConfigs(final String conferenceUuid, final List<CanvasConfig> configs) {
+        final String deleteSql = "DELETE FROM conference_canvas_configs WHERE conference_uuid = ?";
+        final String insertSql = "INSERT INTO conference_canvas_configs "
+                + "(conference_uuid, canvas_tool, audience_mode) VALUES (?, ?, ?)";
+        try (Connection conn = db.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement delete = conn.prepareStatement(deleteSql);
+                 PreparedStatement insert = conn.prepareStatement(insertSql)) {
+                delete.setString(1, conferenceUuid);
+                delete.executeUpdate();
+                for (final CanvasConfig config : configs) {
+                    insert.setString(1, conferenceUuid);
+                    insert.setString(2, config.tool());
+                    insert.setString(3, config.audienceMode());
+                    insert.addBatch();
+                }
+                insert.executeBatch();
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public void delete(String uuid) {
         String sql = "DELETE FROM conferences WHERE uuid = ?";
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, uuid);
             ps.executeUpdate();
+            try (PreparedStatement canvas = conn.prepareStatement(
+                    "DELETE FROM conference_canvas_configs WHERE conference_uuid = ?")) {
+                canvas.setString(1, uuid);
+                canvas.executeUpdate();
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -142,7 +178,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(
                 "SELECT * FROM conferences ORDER BY created_at DESC");
              ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) list.add(map(rs));
+            while (rs.next()) list.add(map(conn, rs));
         } catch (SQLException e) { throw new RuntimeException(e); }
         return list;
     }
@@ -154,7 +190,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, userUuid);
             ResultSet rs = ps.executeQuery();
-            while (rs.next()) list.add(map(rs));
+            while (rs.next()) list.add(map(conn, rs));
         } catch (SQLException e) { throw new RuntimeException(e); }
         return list;
     }
@@ -169,12 +205,12 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) list.add(map(rs));
+            while (rs.next()) list.add(map(conn, rs));
         } catch (SQLException e) { throw new RuntimeException(e); }
         return list;
     }
 
-    private Conference map(ResultSet rs) throws SQLException {
+    private Conference map(final Connection conn, ResultSet rs) throws SQLException {
         double lat = rs.getDouble("latitude");
         Double latitude = rs.wasNull() ? null : lat;
         double lng = rs.getDouble("longitude");
@@ -224,6 +260,25 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.setMaxAccountsPerDevice(rs.wasNull() ? null : maxAccountsPerDevice);
         conference.setCanvasTool(rs.getString("canvas_tool"));
         conference.setCanvasAudienceMode(rs.getString("canvas_audience_mode"));
+        final List<CanvasConfig> configs = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT canvas_tool, audience_mode FROM conference_canvas_configs "
+                        + "WHERE conference_uuid = ? ORDER BY canvas_tool")) {
+            ps.setString(1, conference.getUuid());
+            try (ResultSet configRs = ps.executeQuery()) {
+                while (configRs.next()) {
+                    configs.add(new CanvasConfig(configRs.getString("canvas_tool"),
+                            configRs.getString("audience_mode")));
+                }
+            }
+        }
+        // Fallback para bases que todavía no ejecutaron la migración de filas hijas.
+        if (configs.isEmpty() && conference.getCanvasTool() != null) {
+            configs.add(new CanvasConfig(conference.getCanvasTool(),
+                    conference.getCanvasAudienceMode() != null
+                            ? conference.getCanvasAudienceMode() : "INDEPENDENT"));
+        }
+        conference.setCanvasConfigs(configs);
         return conference;
     }
 
@@ -236,7 +291,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) list.add(map(rs));
+            while (rs.next()) list.add(map(conn, rs));
         } catch (SQLException e) { throw new RuntimeException(e); }
         return list;
     }
@@ -251,7 +306,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) list.add(map(rs));
+            while (rs.next()) list.add(map(conn, rs));
         } catch (SQLException e) { throw new RuntimeException(e); }
         return list;
     }
@@ -283,7 +338,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, param);
             ResultSet rs = ps.executeQuery();
-            if (rs.next()) return Optional.of(map(rs));
+            if (rs.next()) return Optional.of(map(conn, rs));
         } catch (SQLException e) { throw new RuntimeException(e); }
         return Optional.empty();
     }

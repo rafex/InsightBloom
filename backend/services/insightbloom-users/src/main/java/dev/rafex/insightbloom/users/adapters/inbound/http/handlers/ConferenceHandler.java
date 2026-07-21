@@ -49,6 +49,7 @@ import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.TicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.domain.model.Conference;
+import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Reservation;
 import dev.rafex.insightbloom.users.domain.model.Permission;
@@ -471,13 +472,14 @@ public class ConferenceHandler extends BaseResourceHandler {
             final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
             final Integer timezoneId = body.get("timezoneId") instanceof Number n ? n.intValue() : null;
             final Integer capacity = body.get("capacity") instanceof Number n ? n.intValue() : null;
+            final List<CanvasConfig> canvasConfigs = parseCanvasConfigs(body.get("canvasConfigs"));
             final var result = createConferenceUseCase.execute(new CreateConferenceUseCase.CreateRequest(
                     (String) body.get("name"), (String) body.get("displayName"), v.subjectUuid(),
                     (String) body.get("expiresAt"),
                     latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue"),
                     (String) body.get("startTime"), (String) body.get("endTime"), timezoneId,
                     (String) body.get("eventTypeKey"), capacity,
-                    (String) body.get("canvasTool"), (String) body.get("canvasAudienceMode")));
+                    (String) body.get("canvasTool"), (String) body.get("canvasAudienceMode"), canvasConfigs));
             sendOk(jx, 201, result);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
@@ -932,6 +934,17 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final String canvasTool = (String) body.get("canvasTool");
             final String audienceMode = (String) body.get("canvasAudienceMode");
+            final List<CanvasConfig> canvasConfigs = parseCanvasConfigs(body.get("canvasConfigs"));
+            if (canvasConfigs != null) {
+                for (final CanvasConfig config : canvasConfigs) {
+                    final EventCapability required = canvasCapability(config.tool());
+                    if (required != null && !hasCapability(id, required)) {
+                        sendError(jx, 409, "capability_not_available",
+                                "El tipo de evento no habilita una de las herramientas seleccionadas");
+                        return true;
+                    }
+                }
+            }
             final EventCapability requiredCapability = canvasTool == null ? null : switch (canvasTool) {
                     case "DRAWIO" -> EventCapability.DIAGRAMMING;
                     case "EXCALIDRAW" -> EventCapability.WHITEBOARD;
@@ -942,7 +955,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita la herramienta seleccionada");
                 return true;
             }
-            final var updated = setCanvasConfigUseCase.execute(id, v.subjectUuid(), canvasTool, audienceMode);
+            final var updated = canvasConfigs != null
+                    ? setCanvasConfigUseCase.execute(id, v.subjectUuid(), canvasConfigs)
+                    : setCanvasConfigUseCase.execute(id, v.subjectUuid(), canvasTool, audienceMode);
             if (updated.isPresent()) {
                 sendOk(jx, 200, updated.get());
             } else {
@@ -954,6 +969,32 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private static List<CanvasConfig> parseCanvasConfigs(final Object raw) {
+        if (!(raw instanceof List<?> items)) return null;
+        final List<CanvasConfig> configs = new ArrayList<>();
+        for (final Object item : items) {
+            if (!(item instanceof Map<?, ?> map)) {
+                configs.add(new CanvasConfig(null, null));
+                continue;
+            }
+            final Object tool = map.get("tool");
+            final Object mode = map.get("audienceMode");
+            configs.add(new CanvasConfig(tool instanceof String ? (String) tool : null,
+                    mode instanceof String ? (String) mode : null));
+        }
+        return configs;
+    }
+
+    private static EventCapability canvasCapability(final String tool) {
+        if (tool == null) return null;
+        return switch (tool) {
+            case "DRAWIO" -> EventCapability.DIAGRAMMING;
+            case "EXCALIDRAW" -> EventCapability.WHITEBOARD;
+            case "ETHERPAD" -> EventCapability.COLLAB_NOTES;
+            default -> null;
+        };
     }
 
     private boolean handleSetActive(final JettyHttpExchange jx, final String id) {

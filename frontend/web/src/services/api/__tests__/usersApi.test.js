@@ -6,7 +6,8 @@ import {
   getUniqueRegisteredAttendeesCount,
   getRegisteredAttendeesCount,
   getTimezones,
-  setCanvasConfig
+  setCanvasConfig,
+  setCanvasConfigs
 } from '../usersApi'
 
 vi.mock('axios')
@@ -103,6 +104,22 @@ describe('usersApi', () => {
       expect(axios.put).toHaveBeenCalledWith(
         '/api/users/api/v1/conferences/c1/canvas-config',
         { canvasTool: 'DRAWIO', canvasAudienceMode: 'MODERATOR_ONLY' },
+        { headers: { Authorization: 'Bearer tok' } }
+      )
+    })
+
+    it('sends one audience mode per selected tool', async () => {
+      axios.put.mockResolvedValue({ data: { data: { uuid: 'c1' } } })
+      const canvasConfigs = [
+        { tool: 'DRAWIO', audienceMode: 'MODERATOR_ONLY' },
+        { tool: 'EXCALIDRAW', audienceMode: 'MODERATOR_ONLY' },
+        { tool: 'ETHERPAD', audienceMode: 'INDEPENDENT' }
+      ]
+      await setCanvasConfigs('c1', canvasConfigs, 'tok')
+
+      expect(axios.put).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/canvas-config',
+        { canvasConfigs },
         { headers: { Authorization: 'Bearer tok' } }
       )
     })

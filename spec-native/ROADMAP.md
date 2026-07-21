@@ -5,7 +5,8 @@ Direccion del proyecto en el tiempo. Actualizado post-PoC, fase producto.
 ## Ahora (activo)
 
 - Documentar el sistema con SpecNative v0.7 (`spec-native/` completo).
-- Estabilizar el pipeline CI/CD (9 servicios, GHCR, K3s).
+- Estabilizar el pipeline CI y el handoff de imágenes a GHCR; el CD de K3s se
+  gestiona desde `InsightBloom-gitops` mediante FluxCD.
 - Cerrar hallazgos de seguridad pendientes del SECURITY.md.
 - Mejorar cobertura de tests (backend Java, chat Python, frontend).
 
@@ -66,7 +67,8 @@ Direccion del proyecto en el tiempo. Actualizado post-PoC, fase producto.
 - CLI administrativo (`insightbloom-cli create-user`).
 - Helm charts para despliegue en K3s.
 - Docker Compose con 9 servicios, healthchecks, volumenes.
-- CI/CD con GitHub Actions (build, test, publish, deploy).
+- CI con GitHub Actions (build, test y publish de imágenes a GHCR); CD de K3s
+  gestionado por FluxCD desde `InsightBloom-gitops`.
 - Migracion de documentacion a SpecNative v0.7.
 - Reservas de boletos gratuitas con QR y check-in (modo GENERAL, aforo).
 - Reserva de asiento especifico via mapa del recinto (modo SEATED).

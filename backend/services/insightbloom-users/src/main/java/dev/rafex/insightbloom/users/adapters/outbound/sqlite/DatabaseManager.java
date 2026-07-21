@@ -190,6 +190,23 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN canvas_audience_mode TEXT");
             } catch (SQLException ignored) {}
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS conference_canvas_configs (
+                    conference_uuid TEXT NOT NULL,
+                    canvas_tool TEXT NOT NULL,
+                    audience_mode TEXT NOT NULL,
+                    PRIMARY KEY (conference_uuid, canvas_tool)
+                )
+            """);
+            // Migra la configuración antigua de una sola herramienta sin duplicarla al
+            // reiniciar. Las filas legacy sin herramienta concreta siguen representando el
+            // comportamiento de todas las herramientas habilitadas por el tipo de evento.
+            stmt.executeUpdate("""
+                INSERT OR IGNORE INTO conference_canvas_configs (conference_uuid, canvas_tool, audience_mode)
+                SELECT uuid, canvas_tool, COALESCE(canvas_audience_mode, 'INDEPENDENT')
+                FROM conferences
+                WHERE canvas_tool IS NOT NULL AND TRIM(canvas_tool) <> ''
+            """);
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS reservations (

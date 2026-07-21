@@ -24,15 +24,16 @@
 
     .form-group.canvas-group
       label Lienzo del evento
-      p.field-hint Elige una herramienta para este evento y define si el trabajo de los asistentes es independiente o si solo se conserva/publica el del moderador. La opción legado mantiene visibles las herramientas actuales.
-      select(v-model="canvasTool")
-        option(value="") Legado: herramientas habilitadas por el tipo
-        option(value="DRAWIO") Drawio
-        option(value="EXCALIDRAW") Excalidraw
-        option(value="ETHERPAD") Etherpad
-      select(v-model="canvasAudienceMode")
-        option(value="INDEPENDENT") Ediciones independientes (solo persiste el moderador)
-        option(value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
+      p.field-hint Selecciona una o varias herramientas y define el modo de cada una. Si no seleccionas ninguna, se mantiene el modo legado del tipo de evento.
+      .canvas-tools
+        label.canvas-tool-option(v-for="tool in canvasToolOptions" :key="tool.value")
+          input(type="checkbox" :value="tool.value" v-model="canvasTools")
+          span {{ tool.label }}
+      .canvas-mode-row(v-for="tool in canvasTools" :key="tool")
+        span.canvas-mode-label {{ canvasToolLabel(tool) }}
+        select(v-model="canvasModes[tool]")
+          option(value="INDEPENDENT") Trabajo independiente (solo persiste el moderador)
+          option(value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
       button.btn-outline(type="button" @click="saveCanvasConfig" :disabled="savingCanvasConfig")
         span(v-if="savingCanvasConfig") Guardando...
         span(v-else) Guardar configuración del lienzo
@@ -180,13 +181,13 @@
 </template>
 
 <script lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import {
   getConference, setSeatingMode, getActiveEventTypes, setEventType,
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
-  listSandboxIncidents, listSandboxStatus, setDeviceAccessConfig, setCanvasConfig
+  listSandboxIncidents, listSandboxStatus, setDeviceAccessConfig, setCanvasConfigs
 } from '@/services/api/usersApi'
-import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, CanvasTool, CanvasAudienceMode } from '@/services/api/types'
+import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, CanvasTool, CanvasAudienceMode, CanvasToolConfig } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
@@ -250,8 +251,10 @@ export default {
     const savingEventType = ref(false)
     const eventTypeSaved  = ref(false)
     const eventTypeError  = ref('')
-    const canvasTool = ref<CanvasTool | ''>('')
-    const canvasAudienceMode = ref<CanvasAudienceMode>('INDEPENDENT')
+    const canvasTools = ref<CanvasTool[]>([])
+    const canvasModes = reactive<Record<CanvasTool, CanvasAudienceMode>>({
+      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'INDEPENDENT'
+    })
     const savingCanvasConfig = ref(false)
     const canvasConfigSaved = ref(false)
     const canvasConfigError = ref('')
@@ -285,8 +288,17 @@ export default {
         sandboxInternetEnabled.value = conference.value.sandboxInternetEnabled === 1
         maxDevicesPerUser.value = conference.value.maxDevicesPerUser ?? null
         maxAccountsPerDevice.value = conference.value.maxAccountsPerDevice ?? null
-        canvasTool.value = conference.value.canvasTool || ''
-        canvasAudienceMode.value = conference.value.canvasAudienceMode || 'INDEPENDENT'
+        const configured = conference.value.canvasConfigs || []
+        if (configured.length > 0) {
+          canvasTools.value = configured.map(c => c.tool)
+          configured.forEach(c => { canvasModes[c.tool] = c.audienceMode })
+        } else if (conference.value.canvasTool) {
+          // Fallback para eventos guardados con el contrato anterior.
+          canvasTools.value = [conference.value.canvasTool]
+          canvasModes[conference.value.canvasTool] = conference.value.canvasAudienceMode || 'INDEPENDENT'
+        } else {
+          canvasTools.value = []
+        }
       } catch (e: any) {
         error.value = 'No se pudo cargar la conferencia.'
       } finally {
@@ -447,8 +459,9 @@ export default {
     async function saveCanvasConfig() {
       savingCanvasConfig.value = true; canvasConfigError.value = ''; canvasConfigSaved.value = false
       try {
-        conference.value = await setCanvasConfig(
-          props.conferenceId as string, canvasTool.value || null, canvasAudienceMode.value,
+        conference.value = await setCanvasConfigs(
+          props.conferenceId as string,
+          canvasTools.value.map((tool): CanvasToolConfig => ({ tool, audienceMode: canvasModes[tool] })),
           auth.state.token as string
         )
         canvasConfigSaved.value = true
@@ -466,6 +479,10 @@ export default {
       { label: 'Configuración' }
     ])
 
+    function canvasToolLabel(tool: CanvasTool): string {
+      return { DRAWIO: 'Drawio', EXCALIDRAW: 'Excalidraw', ETHERPAD: 'Etherpad' }[tool]
+    }
+
     return { conference, loading, error,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
@@ -479,7 +496,13 @@ export default {
              maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
              deviceAccessConfigSaved, deviceAccessConfigError, saveDeviceAccessConfig,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
-             canvasTool, canvasAudienceMode, savingCanvasConfig, canvasConfigSaved, canvasConfigError, saveCanvasConfig,
+             canvasTools, canvasModes, canvasToolLabel,
+             canvasToolOptions: [
+               { value: 'DRAWIO', label: 'Drawio (diagramas)' },
+               { value: 'EXCALIDRAW', label: 'Excalidraw (pizarra)' },
+               { value: 'ETHERPAD', label: 'Etherpad (notas)' }
+             ] as Array<{ value: CanvasTool; label: string }>,
+             savingCanvasConfig, canvasConfigSaved, canvasConfigError, saveCanvasConfig,
              eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
              roleAssigned, roleError, roleName, assignRole, removeRole, breadcrumbItems }
   }
@@ -506,6 +529,11 @@ input:focus { outline: none; border-color: #4f46e5; }
 .toggle-row input { width: auto; }
 
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
+.canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; }
+.canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
+.canvas-tool-option input { width: auto; }
+.canvas-mode-row { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.canvas-mode-label { font-size: 0.8rem; color: #6b7280; font-weight: 600; }
 
 .tickets-group select, .canvas-group select { padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; margin-bottom: 10px; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }

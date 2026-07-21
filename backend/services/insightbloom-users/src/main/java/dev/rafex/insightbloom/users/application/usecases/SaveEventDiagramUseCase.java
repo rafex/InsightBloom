@@ -23,9 +23,14 @@ public class SaveEventDiagramUseCase {
         return conferenceRepository.findByUuid(conferenceUuid).map(conference -> {
             // En las modalidades nuevas solo el moderador/creador deja material persistente.
             // El overload anterior conserva compatibilidad con tareas internas existentes.
+            final String audienceMode = conference.getCanvasConfigs().stream()
+                    .filter(config -> "DRAWIO".equals(config.tool()))
+                    .map(dev.rafex.insightbloom.users.domain.model.CanvasConfig::audienceMode)
+                    .findFirst()
+                    .orElse(conference.getCanvasAudienceMode());
             if (requestingUserUuid != null
-                    && ("INDEPENDENT".equals(conference.getCanvasAudienceMode())
-                    || "MODERATOR_ONLY".equals(conference.getCanvasAudienceMode()))
+                    && ("INDEPENDENT".equals(audienceMode)
+                    || "MODERATOR_ONLY".equals(audienceMode))
                     && !conference.getCreatedByUserUuid().equals(requestingUserUuid)) {
                 return false;
             }

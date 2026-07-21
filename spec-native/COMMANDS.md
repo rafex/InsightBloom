@@ -232,11 +232,14 @@ just ci
 #   push de tag vN.YYYYmmDD → tag versionado en GHCR
 #   workflow_dispatch manual → tag especifico
 
-# Deploy a K3s
-just deploy-k3s
+# El deploy no se ejecuta desde este repositorio.
+# Las imágenes publicadas en GHCR son reconciliadas por FluxCD desde:
+# /Users/rafex/repository/github/rafex/InsightBloom-gitops
 
-# Deploy con tag especifico
-just deploy-k3s v1.20260424
+# Verificación manual del rollout (solo lectura):
+export KUBECONFIG=~/.kube/config_k3s_server1
+kubectl get pods -n insightbloom \
+  -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image
 ```
 
 ## Nota

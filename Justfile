@@ -62,10 +62,10 @@ logs SERVICE="":
 helm-lint:
     helm lint infra/helm/charts/*
 
-# Despliega en k3s via Helm. Requiere kubeconfig configurado.
-#   just deploy-k3s                          # deploy con tag 'latest'
-#   just deploy-k3s v1.20260424              # deploy con tag específico
-#   just deploy-k3s --dry-run                # solo validar, no aplicar
+# Helper legacy para validaciones/manual local con Helm.
+# No es el CD oficial del cluster: el despliegue de k3s-server1 lo gestiona FluxCD
+# desde /Users/rafex/repository/github/rafex/InsightBloom-gitops.
+# Para el rollout normal, publicar la imagen en GHCR y revisar el HelmRelease en GitOps.
 deploy-k3s TAG="latest" DRY="":
     helm upgrade --install insightbloom infra/helm/charts/insightbloom \
       --namespace insightbloom \

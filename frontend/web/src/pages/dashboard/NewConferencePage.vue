@@ -50,15 +50,17 @@
 
     .form-group
       label Lienzo del evento (opcional)
-      select(v-model="canvasTool")
-        option(value="") Usar las herramientas del tipo de evento
-        option(value="DRAWIO") Drawio
-        option(value="EXCALIDRAW") Excalidraw
-        option(value="ETHERPAD") Etherpad
-      select(v-model="canvasAudienceMode")
-        option(value="INDEPENDENT") Ediciones independientes (solo persiste el moderador)
-        option(value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
-      p.field-hint La persistencia del material nativo y sus exportaciones se completará en la siguiente fase.
+      p.field-hint Selecciona una o varias herramientas. Si no eliges ninguna, se usarán las herramientas del tipo de evento.
+      .canvas-tools
+        label.canvas-tool-option(v-for="tool in canvasToolOptions" :key="tool.value")
+          input(type="checkbox" :value="tool.value" v-model="canvasTools")
+          span {{ tool.label }}
+      .canvas-mode-row(v-for="tool in canvasTools" :key="tool")
+        span.canvas-mode-label {{ canvasToolLabel(tool) }}
+        select(v-model="canvasModes[tool]")
+          option(value="INDEPENDENT") Trabajo independiente (solo persiste el moderador)
+          option(value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
+      p.field-hint Cada herramienta puede tener una modalidad distinta. La persistencia del material nativo y sus exportaciones se completará en la siguiente fase.
 
     .form-group
       label Aforo máximo
@@ -124,10 +126,10 @@
 </template>
 
 <script lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
-import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode } from '@/services/api/types'
+import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode, CanvasToolConfig } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, DEFAULT_CAPACITY, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 
@@ -163,8 +165,10 @@ export default {
     const timezoneId = ref<number | null>(null)
     const eventTypes = ref<EventType[]>([])
     const eventTypeKey = ref('conference')
-    const canvasTool = ref<CanvasTool | ''>('')
-    const canvasAudienceMode = ref<CanvasAudienceMode>('INDEPENDENT')
+    const canvasTools = ref<CanvasTool[]>([])
+    const canvasModes = reactive<Record<CanvasTool, CanvasAudienceMode>>({
+      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'INDEPENDENT'
+    })
     const capacity = ref<number | null>(DEFAULT_CAPACITY)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
     const capacityAlert = computed(() => capacityWarning(capacity.value))
@@ -206,7 +210,9 @@ export default {
         created.value = await createConference(name.value.trim(), expiresAt, auth.state.token as string, lat, lng,
           eventDate.value || null, venue.value.trim() || null, startTime.value || null, endTime.value || null,
           displayName.value.trim() || null, timezoneId.value, eventTypeKey.value, capacity.value,
-          canvasTool.value || null, canvasAudienceMode.value)
+          null, null, canvasTools.value.map((tool): CanvasToolConfig => ({
+            tool, audienceMode: canvasModes[tool]
+          })))
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Error al crear el evento'
       } finally { loading.value = false }
@@ -220,13 +226,23 @@ export default {
       name.value = ''; displayName.value = ''; created.value = null; expiryMode.value = 'none';
       customDate.value = ''; latitude.value = null; longitude.value = null
       eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
-      canvasTool.value = ''; canvasAudienceMode.value = 'INDEPENDENT'
+      canvasTools.value = []
+      canvasModes.DRAWIO = 'INDEPENDENT'; canvasModes.EXCALIDRAW = 'INDEPENDENT'; canvasModes.ETHERPAD = 'INDEPENDENT'
       capacity.value = DEFAULT_CAPACITY
+    }
+
+    function canvasToolLabel(tool: CanvasTool): string {
+      return { DRAWIO: 'Drawio', EXCALIDRAW: 'Excalidraw', ETHERPAD: 'Etherpad' }[tool]
     }
 
     return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
              eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey,
-             canvasTool, canvasAudienceMode,
+             canvasTools, canvasModes, canvasToolLabel,
+             canvasToolOptions: [
+               { value: 'DRAWIO', label: 'Drawio (diagramas)' },
+               { value: 'EXCALIDRAW', label: 'Excalidraw (pizarra)' },
+               { value: 'ETHERPAD', label: 'Etherpad (notas)' }
+             ] as Array<{ value: CanvasTool; label: string }>,
              capacity, recommendedMaxCapacity, capacityAlert,
              expiryOptions: EXPIRY_OPTIONS, setExpiryMode, create, formatDate, reset }
   }
@@ -259,6 +275,11 @@ input:focus { outline: none; border-color: #4f46e5; }
 .coord-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
 .coord-hint { margin: 6px 0 0; font-size: 0.8rem; color: #9ca3af; }
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
+.canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; }
+.canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
+.canvas-tool-option input { width: auto; }
+.canvas-mode-row { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.canvas-mode-label { font-size: 0.8rem; color: #6b7280; font-weight: 600; }
 .map-preview { margin-bottom: 20px; border-radius: 12px; overflow: hidden; }
 
 .capacity-alert { margin: 6px 0 0; font-size: 0.82rem; font-weight: 600; padding: 6px 10px; border-radius: 6px; }

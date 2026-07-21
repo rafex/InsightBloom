@@ -2,6 +2,30 @@
 
 Proceso de entrega y ambientes para InsightBloom.
 
+## Límite de responsabilidad
+
+InsightBloom está separado en dos repositorios operativos:
+
+| Repositorio | Responsabilidad | No hace |
+|-------------|-----------------|---------|
+| `InsightBloom` | Código fuente, pruebas, Dockerfiles y CI para construir/publicar imágenes en GHCR | No administra el rollout del cluster ni es la fuente de verdad de FluxCD |
+| `/Users/rafex/repository/github/rafex/InsightBloom-gitops` | Manifiestos Helm/GitOps, valores de ambiente y configuración observada por FluxCD | No contiene el código de aplicación ni construye las imágenes |
+
+La entrega sigue esta cadena:
+
+```text
+push/merge a main
+  -> GitHub Actions en InsightBloom
+  -> imagen versionada en GHCR
+  -> FluxCD en k3s-server1 detecta la nueva imagen
+  -> InsightBloom-gitops actualiza/reconcilia el HelmRelease
+  -> rollout en el namespace insightbloom
+```
+
+No se debe agregar un workflow de deploy, un `helm upgrade` del cluster o una
+modificación manual de los manifiestos de despliegue en este repositorio como
+parte del flujo normal.
+
 ## Ambientes
 
 | Ambiente | Propósito | Infra | Trigger |
@@ -64,7 +88,7 @@ tags fijos `latest`/`python`/`java`/`web` + `build-${{ github.run_number }}`).
 `scope` por servicio en los reusable workflows para no pisarse cache entre sí),
 `provenance: false` / `sbom: false` (optimización de tiempo de build).
 
-## Deploy a K3s
+## Deploy a K3s mediante FluxCD
 
 El deploy **no vive en este repositorio** — no hay ningún workflow de `deploy`/`helm upgrade`
 aquí. FluxCD corre en el cluster k3s y observa las imágenes publicadas en GHCR vía
@@ -75,14 +99,19 @@ verdad del manifiesto Helm desplegado (valores, secrets, RBAC, etc. — no dupli
 configuración aquí). El polling de Flux no es instantáneo: puede haber un delay entre el
 push de una imagen nueva y el rollout real en el cluster.
 
-Para detalles de secrets/values/política de reconciliación de Flux, ver el repo
-`InsightBloom-gitops` directamente — está fuera del alcance de este documento.
+Para cambiar imágenes, valores, secrets, HelmReleases o la política de reconciliación,
+trabajar en `/Users/rafex/repository/github/rafex/InsightBloom-gitops`. Ese repositorio
+es el lugar correcto para revisar el estado de Flux y solicitar el despliegue.
 
 ## Verificación manual del cluster
 
 ```bash
-ssh my-k3s "sudo kubectl get pods -n insightbloom -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image"
+export KUBECONFIG=~/.kube/config_k3s_server1
+kubectl get pods -n insightbloom \
+  -o custom-columns=NAME:.metadata.name,IMAGE:.spec.containers[0].image
 ```
 
-Confirma qué tag de imagen está corriendo cada Deployment — útil para verificar si Flux ya
-reconcilió una imagen nueva.
+Este comando sólo verifica el estado real; no reemplaza la reconciliación de Flux ni
+debe usarse para aplicar cambios manuales al cluster. Para comprobar una actualización,
+compara el tag desplegado con el tag publicado en GHCR y revisa el `HelmRelease` desde
+`InsightBloom-gitops`.

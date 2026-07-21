@@ -4,7 +4,7 @@
 
 - Estado: `in_progress`
 - Tipo: plan de implementación
-- Alcance actual: fase inicial implementada; persistencia y contrato de configuración del lienzo
+- Alcance actual: fase inicial implementada; configuración múltiple por herramienta y modalidad persistida
 
 ## Objetivo
 
@@ -40,11 +40,11 @@ En `MODERATOR_ONLY`, el resultado que reciben los asistentes será una captura o
 exportación publicada. No se promete actualización en vivo mientras el
 moderador dibuja; el moderador deberá guardar o publicar una nueva versión.
 
-### Herramienta del evento
+### Herramientas del evento
 
-La configuración debe permitir habilitar una herramienta activa por evento y
-dejar el modelo preparado para más de una herramienta si el producto decide
-mostrar varias en el mismo evento:
+La configuración permite habilitar varias herramientas en el mismo evento. Cada
+herramienta tiene su propia modalidad, por lo que no existe una modalidad global
+que obligue a Drawio, Excalidraw y Etherpad a comportarse igual:
 
 ```text
 DRAWIO       -> diagramas XML
@@ -52,9 +52,13 @@ EXCALIDRAW   -> pizarra y escenas JSON
 ETHERPAD     -> documento colaborativo y exportaciones
 ```
 
-La modalidad (`INDEPENDENT` o `MODERATOR_ONLY`) debe aplicarse por herramienta,
-no asumirse globalmente en el frontend. Esto permite que un evento tenga, por
-ejemplo, Drawio sólo para el moderador y Etherpad en espacios independientes.
+La modalidad (`INDEPENDENT` o `MODERATOR_ONLY`) se persiste por herramienta y
+se aplica de forma independiente en el frontend. Esto permite que un evento
+tenga, por ejemplo, Drawio y Excalidraw sólo para el moderador y Etherpad en
+espacios independientes.
+
+Si no se selecciona ninguna herramienta explícitamente, se mantiene el modo
+legado: se muestran las herramientas habilitadas por el tipo de evento.
 
 ## Persistencia y propiedad de los datos
 
@@ -156,7 +160,6 @@ EventCanvasConfig
   conferenceUuid
   tool                 DRAWIO | EXCALIDRAW | ETHERPAD
   audienceMode         INDEPENDENT | MODERATOR_ONLY
-  enabled              boolean
   moderatorSourceId    nullable
   publishedVersion     nullable
   createdAt
@@ -209,7 +212,7 @@ permita. No se requiere WebSocket para estas modalidades.
 
 ### Fase 0 — Cerrar decisiones de producto
 
-- Confirmar si la creación permite una sola herramienta o varias por evento.
+- [x] Confirmar que la creación permite varias herramientas por evento.
 - Confirmar si el resultado del moderador se publica manualmente o también al
   guardar automáticamente.
 - Definir la lista exacta de exportaciones garantizadas para cada herramienta.
@@ -220,9 +223,9 @@ permita. No se requiere WebSocket para estas modalidades.
 
 ### Fase 1 — Modelo, permisos y migración
 
-- [x] Persistir `canvasTool` y `canvasAudienceMode` en `conferences`, con migración SQLite idempotente.
+- [x] Persistir `canvasConfigs` por herramienta en SQLite, con migración idempotente desde `canvasTool` y `canvasAudienceMode` legacy.
 - [x] Añadir validación de valores permitidos y escritura restringida al creador del evento.
-- [x] Evitar que el guardado de Drawio persista cambios de asistentes en las modalidades nuevas.
+- [x] Evitar que el guardado de Drawio persista cambios de asistentes en las modalidades nuevas, usando su modalidad individual.
 - [ ] Crear las tablas versionadas de artefactos del moderador.
 - [ ] Añadir permisos para publicar fuentes por moderador, organizador o administrador autorizado.
 - Definir estados y versionado de artefactos.
@@ -235,7 +238,7 @@ permita. No se requiere WebSocket para estas modalidades.
 Endpoints previstos:
 
 - [ ] `GET /conferences/{id}/canvas-config` — configuración visible del evento.
-- [x] `PUT /conferences/{id}/canvas-config` — configurar herramienta y modalidad.
+- [x] `PUT /conferences/{id}/canvas-config` — configurar varias herramientas y modalidad individual por herramienta.
 - `GET /conferences/{id}/canvas/moderator` — obtener el borrador del moderador.
 - `PUT /conferences/{id}/canvas/moderator` — guardar fuente nativa.
 - `POST /conferences/{id}/canvas/moderator/export` — generar exportaciones.
@@ -294,8 +297,8 @@ Requisitos de API:
 
 ### Fase 6 — Frontend y experiencia de evento
 
-- [x] Agregar la selección de herramienta y modalidad en la creación/configuración
-  del evento.
+- [x] Agregar selección múltiple de herramientas y modalidad independiente por
+  herramienta en la creación/configuración del evento.
 - [x] Mostrar sólo la herramienta seleccionada cuando el evento tiene una selección explícita.
 - [x] Mostrar una advertencia en Drawio cuando el espacio del asistente no se persiste.
 - Mostrar al moderador el editor de la herramienta elegida.
@@ -363,11 +366,11 @@ Frontend/E2E:
 
 La primera rebanada vertical ya está integrada en backend y frontend:
 
-- Los eventos nuevos pueden recibir la selección desde el formulario de creación.
-- Los eventos existentes pueden configurarla desde `Configuración del evento`.
+- Los eventos nuevos pueden recibir varias herramientas y una modalidad distinta para cada una desde el formulario de creación.
+- Los eventos existentes pueden actualizar esa selección desde `Configuración del evento`.
 - La configuración viaja en el modelo de conferencia y sobrevive a una recarga de SQLite.
 - El frontend limita la navegación a la herramienta seleccionada cuando existe una selección.
-- Drawio deja de guardar en backend los cambios de asistentes al usar una modalidad nueva;
+- Drawio deja de guardar en backend los cambios de asistentes al usar su modalidad individual;
   el moderador/creador conserva el guardado.
 
 Todavía no se ha implementado la persistencia de artefactos nativos/exportados, la publicación
@@ -376,7 +379,7 @@ de snapshots ni el ZIP condicionado por encuesta. Esas piezas siguen pendientes 
 
 ## Criterio de cierre
 
-Un evento puede elegir herramienta y modalidad. El moderador puede conservar su
+Un evento puede elegir varias herramientas, cada una con su modalidad. El moderador puede conservar su
 fuente nativa y exportaciones; los asistentes pueden trabajar de forma
 independiente sin que sus cambios se persistan, o visualizar el snapshot del
 moderador sin editarlo. Tras responder la encuesta requerida, un participante

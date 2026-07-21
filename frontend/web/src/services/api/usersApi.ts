@@ -3,7 +3,7 @@ import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
   SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
-  CanvasTool, CanvasAudienceMode,
+  CanvasTool, CanvasAudienceMode, CanvasToolConfig,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
@@ -70,7 +70,8 @@ export async function createConference(
   eventTypeKey?: string | null,
   capacity?: number | null,
   canvasTool?: CanvasTool | null,
-  canvasAudienceMode?: CanvasAudienceMode | null
+  canvasAudienceMode?: CanvasAudienceMode | null,
+  canvasConfigs?: CanvasToolConfig[] | null
 ): Promise<Conference> {
   const body: Record<string, unknown> = { name }
   if (displayName) body.displayName = displayName
@@ -84,8 +85,11 @@ export async function createConference(
   if (timezoneId != null) body.timezoneId = timezoneId
   if (eventTypeKey) body.eventTypeKey = eventTypeKey
   if (capacity != null) body.capacity = capacity
-  if (canvasTool) body.canvasTool = canvasTool
-  if (canvasAudienceMode) body.canvasAudienceMode = canvasAudienceMode
+  if (canvasConfigs != null) body.canvasConfigs = canvasConfigs
+  else {
+    if (canvasTool) body.canvasTool = canvasTool
+    if (canvasAudienceMode) body.canvasAudienceMode = canvasAudienceMode
+  }
   const res = await axios.post('/api/users/api/v1/conferences', body, authHeader(token))
   return res.data.data
 }
@@ -405,6 +409,15 @@ export async function setCanvasConfig(
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/canvas-config`,
     { canvasTool, canvasAudienceMode }, authHeader(token))
+  return res.data.data
+}
+
+/** Configura varias herramientas, cada una con su propia modalidad de audiencia. */
+export async function setCanvasConfigs(
+  conferenceId: string, canvasConfigs: CanvasToolConfig[], token: string
+): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/canvas-config`,
+    { canvasConfigs }, authHeader(token))
   return res.data.data
 }
 

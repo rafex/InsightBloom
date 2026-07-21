@@ -2,6 +2,13 @@
 
 Gates de integración continua para InsightBloom.
 
+## Alcance
+
+Este repositorio controla el código y la integración continua. Sus workflows validan
+el código y, cuando corresponde, construyen y publican imágenes en GHCR. No despliegan
+directamente al cluster K3s; el CD pertenece al repositorio separado
+`/Users/rafex/repository/github/rafex/InsightBloom-gitops` y es ejecutado por FluxCD.
+
 ## Platform
 
 GitHub Actions (`.github/workflows/ci.yml`)

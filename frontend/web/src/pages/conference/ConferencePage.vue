@@ -79,7 +79,7 @@
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
         router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
-      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :access-granted="privateAccess" :canvas-audience-mode="conference.canvasAudienceMode" :canvas-moderator="isCanvasModerator")
+      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :access-granted="privateAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator")
 
     OnboardingTour(storage-key="ib_onboarding_conference" :steps="attendeeTourSteps")
 
@@ -144,8 +144,20 @@ export default {
 
     function canvasAllowed(tool: 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD', capability: EventCapability): boolean {
       const selected = conference.value?.canvasTool
-      return privateAllowed(capability) && (!selected || selected === tool)
+      const configs = conference.value?.canvasConfigs || []
+      const enabledByMultipleConfig = configs.length > 0 && configs.some(config => config.tool === tool)
+      return privateAllowed(capability) && (enabledByMultipleConfig || (configs.length === 0 && (!selected || selected === tool)))
     }
+
+    const currentCanvasAudienceMode = computed(() => {
+      const path = route.path
+      const tool = path.endsWith('/diagrams') ? 'DRAWIO'
+        : path.endsWith('/whiteboard') ? 'EXCALIDRAW'
+          : path.endsWith('/notes') ? 'ETHERPAD' : null
+      const configs = conference.value?.canvasConfigs || []
+      if (tool && configs.length > 0) return configs.find(config => config.tool === tool)?.audienceMode || ''
+      return conference.value?.canvasAudienceMode || ''
+    })
 
     const isCanvasModerator = computed(() => {
       const userUuid = auth.state.userUuid
@@ -238,7 +250,7 @@ export default {
     return {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
-      googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator,
+      googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
       privateAccess, isTicketRoute, isPublicRoute, headerCollapsed
     }
   }

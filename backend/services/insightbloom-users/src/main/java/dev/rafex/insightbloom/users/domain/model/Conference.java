@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.domain.model;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public class Conference {
@@ -66,10 +67,11 @@ public class Conference {
     // Nullable, defaults efectivos en DeviceAccessGuard (2 y 3 respectivamente) si no se configura.
     private Integer maxDevicesPerUser;
     private Integer maxAccountsPerDevice;
-    // Configuracion del lienzo del evento. Null conserva el comportamiento legado: todas las
-    // herramientas habilitadas por el tipo de evento siguen visibles y persistiendo como antes.
+    // Configuracion legacy del lienzo. Se conserva para compatibilidad con clientes y filas
+    // antiguas; las configuraciones nuevas viven en canvasConfigs, una por herramienta.
     private String canvasTool; // DRAWIO | EXCALIDRAW | ETHERPAD | null (legacy/all)
     private String canvasAudienceMode; // INDEPENDENT | MODERATOR_ONLY | null (legacy)
+    private List<CanvasConfig> canvasConfigs = List.of();
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -198,8 +200,12 @@ public class Conference {
     public Integer getMaxAccountsPerDevice() { return maxAccountsPerDevice; }
     public String getCanvasTool() { return canvasTool; }
     public String getCanvasAudienceMode() { return canvasAudienceMode; }
+    public List<CanvasConfig> getCanvasConfigs() { return canvasConfigs; }
     public void setMaxDevicesPerUser(Integer maxDevicesPerUser) { this.maxDevicesPerUser = maxDevicesPerUser; }
     public void setMaxAccountsPerDevice(Integer maxAccountsPerDevice) { this.maxAccountsPerDevice = maxAccountsPerDevice; }
     public void setCanvasTool(String canvasTool) { this.canvasTool = canvasTool; }
     public void setCanvasAudienceMode(String canvasAudienceMode) { this.canvasAudienceMode = canvasAudienceMode; }
+    public void setCanvasConfigs(List<CanvasConfig> canvasConfigs) {
+        this.canvasConfigs = canvasConfigs == null ? List.of() : List.copyOf(canvasConfigs);
+    }
 }

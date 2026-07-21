@@ -10,6 +10,10 @@ export type SeatingMode = 'NONE' | 'GENERAL' | 'SEATED'
 
 export type CanvasTool = 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD'
 export type CanvasAudienceMode = 'INDEPENDENT' | 'MODERATOR_ONLY'
+export interface CanvasToolConfig {
+  tool: CanvasTool
+  audienceMode: CanvasAudienceMode
+}
 
 export type EventCapability =
   | 'TICKETING_GENERAL' | 'TICKETING_SEATED' | 'SURVEY' | 'PRESENTATION' | 'WORD_CLOUD'
@@ -95,6 +99,7 @@ export interface Conference {
   sandboxRemoteGitUrl?: string | null
   canvasTool?: CanvasTool | null
   canvasAudienceMode?: CanvasAudienceMode | null
+  canvasConfigs?: CanvasToolConfig[]
   sandboxJvmHeapMb?: number | null
   sandboxSeatsPerPod?: number | null
   sandboxCliPoolSize?: number | null
