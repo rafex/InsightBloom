@@ -98,6 +98,31 @@ class TicketUseCaseTest {
     }
 
     @Test
+    void revokingTicketReleasesReservedCapacity() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final ConferenceMembershipRepository memberships = mock(ConferenceMembershipRepository.class);
+        final ReservationRepository reservations = mock(ReservationRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference(
+                "event", "Evento", "owner");
+        conference.setCapacity(10);
+        final var ticket = new Ticket(conference.getUuid(), "owner", null, null);
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByUuid(ticket.getUuid())).thenReturn(Optional.of(ticket));
+        when(tickets.revoke(ticket.getUuid())).thenReturn(true);
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets, memberships,
+                mock(EmailPort.class), "", reservations);
+
+        useCase.revoke(conference.getUuid(), ticket.getUuid());
+
+        verify(conferences).decrementReservedCount(conference.getUuid());
+    }
+
+    @Test
     void expiresTicketsFiveHoursAfterEventStart() {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
