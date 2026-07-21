@@ -76,6 +76,28 @@ class TicketUseCaseTest {
     }
 
     @Test
+    void revokedTicketDoesNotRetainAccessThroughReservation() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final ReservationRepository reservations = mock(ReservationRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference(
+                "event", "Evento", "owner");
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByConferenceAndUser(conference.getUuid(), "user")).thenReturn(Optional.empty());
+        when(reservations.findByConferenceAndUser(conference.getUuid(), "user"))
+                .thenReturn(Optional.of(new dev.rafex.insightbloom.users.domain.model.Reservation(
+                        conference.getUuid(), "user", null)));
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "", reservations);
+
+        assertFalse(useCase.hasAccess(conference, "user"));
+        verify(tickets).findByConferenceAndUser(conference.getUuid(), "user");
+    }
+
+    @Test
     void expiresTicketsFiveHoursAfterEventStart() {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EventTypeRepository eventTypes = mock(EventTypeRepository.class);

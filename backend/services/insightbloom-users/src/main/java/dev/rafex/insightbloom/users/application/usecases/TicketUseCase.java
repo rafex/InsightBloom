@@ -144,8 +144,10 @@ public class TicketUseCase {
             return false;
         }
         expireIfNeeded(conference);
-        return ticketRepository.findByConferenceAndUser(conference.getUuid(), userUuid).isPresent()
-                || reservationRepository.findByConferenceAndUser(conference.getUuid(), userUuid).isPresent();
+        // En un evento ticketed, la reserva sólo aparta aforo; el acceso efectivo depende de un
+        // boleto CLAIMED/CHECKED_IN vigente. Mantener la reserva como alternativa permitía que un
+        // usuario conservara acceso después de que el moderador revocara su boleto.
+        return ticketRepository.findByConferenceAndUser(conference.getUuid(), userUuid).isPresent();
     }
 
     public boolean isTicketed(final Conference conference) {
