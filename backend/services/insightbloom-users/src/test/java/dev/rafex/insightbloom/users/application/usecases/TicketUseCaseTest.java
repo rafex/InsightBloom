@@ -112,14 +112,52 @@ class TicketUseCaseTest {
         when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
                 new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
         when(tickets.findByUuid(ticket.getUuid())).thenReturn(Optional.of(ticket));
-        when(tickets.revoke(ticket.getUuid())).thenReturn(true);
+        when(tickets.revoke(eq(ticket.getUuid()), eq("moderator"), anyString())).thenReturn(true);
 
         final var useCase = new TicketUseCase(conferences, eventTypes, tickets, memberships,
                 mock(EmailPort.class), "", reservations);
 
-        useCase.revoke(conference.getUuid(), ticket.getUuid());
+        useCase.revoke(conference.getUuid(), ticket.getUuid(), "moderator");
 
         verify(conferences).decrementReservedCount(conference.getUuid());
+    }
+
+    @Test
+    void revokedUserLosesAccessButCanClaimAnotherTicket() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final ConferenceMembershipRepository memberships = mock(ConferenceMembershipRepository.class);
+        final ReservationRepository reservations = mock(ReservationRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference(
+                "event", "Evento", "owner");
+        final var revokedTicket = new Ticket(conference.getUuid(), "owner", null, null);
+        final var replacementTicket = new Ticket(conference.getUuid(), "owner", null, null);
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByUuid(revokedTicket.getUuid())).thenReturn(Optional.of(revokedTicket));
+        when(tickets.revoke(eq(revokedTicket.getUuid()), eq("moderator"), anyString())).thenReturn(true);
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets, memberships,
+                mock(EmailPort.class), "", reservations);
+
+        useCase.revoke(conference.getUuid(), revokedTicket.getUuid(), "moderator");
+        when(tickets.findByConferenceAndUser(conference.getUuid(), "user")).thenReturn(Optional.empty());
+        assertFalse(useCase.hasAccess(conference, "user"));
+
+        when(tickets.findByCode(conference.getUuid(), replacementTicket.getTicketCode()))
+                .thenReturn(Optional.of(replacementTicket));
+        when(tickets.claim(eq(replacementTicket.getUuid()), eq("user"), anyString())).thenReturn(true);
+        when(tickets.findByUuid(replacementTicket.getUuid())).thenReturn(Optional.of(replacementTicket));
+        when(memberships.exists("user", conference.getUuid())).thenReturn(false);
+
+        assertSame(replacementTicket, useCase.claim(conference.getUuid(), replacementTicket.getTicketCode(), "user"));
+        when(tickets.findByConferenceAndUser(conference.getUuid(), "user"))
+                .thenReturn(Optional.of(replacementTicket));
+        assertTrue(useCase.hasAccess(conference, "user"));
+        verify(tickets).revoke(eq(revokedTicket.getUuid()), eq("moderator"), anyString());
+        verify(tickets).claim(eq(replacementTicket.getUuid()), eq("user"), anyString());
     }
 
     @Test

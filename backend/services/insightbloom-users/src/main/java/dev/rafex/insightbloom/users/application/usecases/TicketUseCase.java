@@ -128,13 +128,15 @@ public class TicketUseCase {
         return ticketRepository.findByUuid(ticket.getUuid()).orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
     }
 
-    public Ticket revoke(final String conferenceUuid, final String ticketUuid) {
+    public Ticket revoke(final String conferenceUuid, final String ticketUuid, final String revokedByUserUuid) {
         final Conference conference = conference(conferenceUuid);
         expireIfNeeded(conference);
         final Ticket ticket = ticketRepository.findByUuid(ticketUuid)
                 .filter(t -> conferenceUuid.equals(t.getConferenceUuid()))
                 .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
-        if (!ticketRepository.revoke(ticketUuid)) throw new IllegalStateException("ticket_already_used");
+        if (!ticketRepository.revoke(ticketUuid, revokedByUserUuid, Instant.now().toString())) {
+            throw new IllegalStateException("ticket_already_used");
+        }
         if (conference.getCapacity() != null) {
             conferenceRepository.decrementReservedCount(conferenceUuid);
         }

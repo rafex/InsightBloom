@@ -16,6 +16,8 @@ public class Ticket {
     private final Instant issuedAt;
     private Instant claimedAt;
     private Instant checkedInAt;
+    private String revokedByUserUuid;
+    private Instant revokedAt;
 
     public Ticket(final String conferenceUuid, final String issuedByUserUuid,
                   final String recipientEmail, final String seatUuid) {
@@ -33,6 +35,15 @@ public class Ticket {
                   final String issuedByUserUuid, final String recipientEmail, final String seatUuid,
                   final TicketStatus status, final String claimedByUserUuid,
                   final Instant issuedAt, final Instant claimedAt, final Instant checkedInAt) {
+        this(uuid, conferenceUuid, ticketCode, issuedByUserUuid, recipientEmail, seatUuid, status,
+                claimedByUserUuid, issuedAt, claimedAt, checkedInAt, null, null);
+    }
+
+    public Ticket(final String uuid, final String conferenceUuid, final String ticketCode,
+                  final String issuedByUserUuid, final String recipientEmail, final String seatUuid,
+                  final TicketStatus status, final String claimedByUserUuid,
+                  final Instant issuedAt, final Instant claimedAt, final Instant checkedInAt,
+                  final String revokedByUserUuid, final Instant revokedAt) {
         this.uuid = uuid;
         this.conferenceUuid = conferenceUuid;
         this.ticketCode = ticketCode;
@@ -44,6 +55,8 @@ public class Ticket {
         this.issuedAt = issuedAt;
         this.claimedAt = claimedAt;
         this.checkedInAt = checkedInAt;
+        this.revokedByUserUuid = revokedByUserUuid;
+        this.revokedAt = revokedAt;
     }
 
     public String getUuid() { return uuid; }
@@ -57,4 +70,6 @@ public class Ticket {
     public Instant getIssuedAt() { return issuedAt; }
     public Instant getClaimedAt() { return claimedAt; }
     public Instant getCheckedInAt() { return checkedInAt; }
+    public String getRevokedByUserUuid() { return revokedByUserUuid; }
+    public Instant getRevokedAt() { return revokedAt; }
 }

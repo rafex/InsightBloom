@@ -12,6 +12,6 @@ public interface TicketRepository {
     List<Ticket> findByConference(String conferenceUuid);
     boolean claim(String uuid, String userUuid, String claimedAt);
     boolean checkIn(String uuid, String checkedInAt);
-    boolean revoke(String uuid);
+    boolean revoke(String uuid, String revokedByUserUuid, String revokedAt);
     void expireByConference(String conferenceUuid, String expiredAt);
 }

@@ -215,9 +215,13 @@ public class DatabaseManager {
                     claimed_by_user_uuid TEXT,
                     issued_at TEXT NOT NULL,
                     claimed_at TEXT,
-                    checked_in_at TEXT
+                    checked_in_at TEXT,
+                    revoked_by_user_uuid TEXT,
+                    revoked_at TEXT
                 )
             """);
+            ColumnMigrationHelper.addColumnIfMissing(conn, "tickets", "revoked_by_user_uuid", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "tickets", "revoked_at", "TEXT");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tickets_conference ON tickets(conference_uuid)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tickets_claimed_user ON tickets(conference_uuid, claimed_by_user_uuid)");
             // Migración idempotente de reservas históricas al modelo de boletos.

@@ -194,6 +194,8 @@ export interface Ticket {
   issuedAt: string
   claimedAt?: string | null
   checkedInAt?: string | null
+  revokedByUserUuid?: string | null
+  revokedAt?: string | null
 }
 
 export interface VenueSeat {

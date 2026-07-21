@@ -1054,7 +1054,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid() || !canManageTickets(id, v)) { sendError(jx, 403, "forbidden", "No tienes permiso para revocar boletos"); return true; }
-            sendOk(jx, 200, ticketUseCase.revoke(id, ticketUuid));
+            sendOk(jx, 200, ticketUseCase.revoke(id, ticketUuid, v.subjectUuid()));
         } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "El boleto ya fue utilizado");
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Boleto no encontrado");
         } catch (final Exception e) { sendError(jx, 500, "internal_error", e.getMessage()); }

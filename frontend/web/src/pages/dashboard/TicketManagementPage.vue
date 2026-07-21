@@ -15,7 +15,8 @@
     .ticket-row(v-for="ticket in tickets" :key="ticket.uuid")
       .ticket-main
         strong {{ ticket.ticketCode }}
-        span {{ ticket.status }} · {{ ticket.claimedByUserUuid ? 'Canjeado' : 'Sin canjear' }}
+        span.status-line {{ ticket.status }} · {{ ticket.claimedByUserUuid ? 'Canjeado' : 'Sin canjear' }}
+        span.audit-line(v-if="ticket.status === 'REVOKED'") Revocado por: {{ ticket.revokedByUserUuid || 'desconocido' }} · {{ formatAuditDate(ticket.revokedAt) }}
       .row-actions
         button.btn-copy(type="button" @click="showQr(ticket)") QR
         button.btn-copy(type="button" @click="copy(ticket.ticketCode)") Copiar UUID
@@ -99,6 +100,11 @@ export default {
       feedback.value = 'Boleto revocado.'; feedbackError.value = false
     }
 
+    function formatAuditDate(value?: string | null) {
+      if (!value) return 'fecha no disponible'
+      return new Date(value).toLocaleString()
+    }
+
     const breadcrumbItems = computed(() => [
       { label: 'Dashboard', to: '/dashboard' },
       { label: 'Eventos', to: '/dashboard/conferences' },
@@ -107,7 +113,7 @@ export default {
     ])
 
     onMounted(load)
-    return { tickets, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, breadcrumbItems }
+    return { tickets, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, formatAuditDate, breadcrumbItems }
   }
 }
 </script>
@@ -128,6 +134,7 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid #d1d5db; bor
 .ticket-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ticket-main strong { font: 0.8rem monospace; overflow-wrap: anywhere; }
 .ticket-main span, .empty, .issue-card p { color: #6b7280; font-size: 0.9rem; }
+.audit-line { color: #b91c1c !important; overflow-wrap: anywhere; }
 .feedback { margin: 12px 0 0; color: #166534; }
 .feedback.error { color: #b91c1c; }
 </style>
