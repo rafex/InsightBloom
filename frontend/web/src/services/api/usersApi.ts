@@ -3,6 +3,7 @@ import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
   SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
+  CanvasTool, CanvasAudienceMode,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
@@ -67,7 +68,9 @@ export async function createConference(
   displayName?: string | null,
   timezoneId?: number | null,
   eventTypeKey?: string | null,
-  capacity?: number | null
+  capacity?: number | null,
+  canvasTool?: CanvasTool | null,
+  canvasAudienceMode?: CanvasAudienceMode | null
 ): Promise<Conference> {
   const body: Record<string, unknown> = { name }
   if (displayName) body.displayName = displayName
@@ -81,6 +84,8 @@ export async function createConference(
   if (timezoneId != null) body.timezoneId = timezoneId
   if (eventTypeKey) body.eventTypeKey = eventTypeKey
   if (capacity != null) body.capacity = capacity
+  if (canvasTool) body.canvasTool = canvasTool
+  if (canvasAudienceMode) body.canvasAudienceMode = canvasAudienceMode
   const res = await axios.post('/api/users/api/v1/conferences', body, authHeader(token))
   return res.data.data
 }
@@ -390,6 +395,16 @@ export async function reserveSeat(conferenceId: string, seatUuid: string, token:
 export async function setEventType(conferenceId: string, eventTypeKey: string, token: string): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/event-type`,
     { eventTypeKey }, authHeader(token))
+  return res.data.data
+}
+
+/** Configura qué lienzo se usa en el evento y si la edición es independiente o solo del moderador. */
+export async function setCanvasConfig(
+  conferenceId: string, canvasTool: CanvasTool | null, canvasAudienceMode: CanvasAudienceMode | null,
+  token: string
+): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/canvas-config`,
+    { canvasTool, canvasAudienceMode }, authHeader(token))
   return res.data.data
 }
 

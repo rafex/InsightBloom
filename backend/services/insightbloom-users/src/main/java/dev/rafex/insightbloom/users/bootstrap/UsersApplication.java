@@ -273,6 +273,7 @@ public class UsersApplication {
         final int maxJvmHeapMbNeovim = Math.max(64, parseK8sMemoryToMb(sandboxNeovimMemoryLimit) - 150);
         final var setSandboxConfigUseCase = new SetSandboxConfigUseCase(
                 conferenceRepo, maxPoolSizePerEvent, maxJvmHeapMbDebian, maxJvmHeapMbNeovim);
+        final var setCanvasConfigUseCase = new dev.rafex.insightbloom.users.application.usecases.SetCanvasConfigUseCase(conferenceRepo);
         final var setDeviceAccessConfigUseCase = new SetDeviceAccessConfigUseCase(conferenceRepo);
         final var listDeviceBlocksUseCase = new ListDeviceBlocksUseCase(deviceBlockRepo);
         final var unblockDeviceUseCase = new UnblockDeviceUseCase(deviceBlockRepo);
@@ -294,7 +295,8 @@ public class UsersApplication {
                 listReservationsUseCase, checkInTicketUseCase,
                 ticketUseCase, eventPermissionGuard, createGuestUseCase,
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
-                setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase,
+                setEventTypeUseCase, setCanvasConfigUseCase,
+                eventCapabilityGuard, getOrCreateEventPadUseCase,
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
                 getEventDiagramUseCase, saveEventDiagramUseCase, generateJaasTokenUseCase, generateSeatLayoutUseCase,
                 setSandboxConfigUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,

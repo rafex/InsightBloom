@@ -16,7 +16,19 @@ public class SaveEventDiagramUseCase {
     }
 
     public boolean execute(final String conferenceUuid, final String xml) {
+        return execute(conferenceUuid, xml, null);
+    }
+
+    public boolean execute(final String conferenceUuid, final String xml, final String requestingUserUuid) {
         return conferenceRepository.findByUuid(conferenceUuid).map(conference -> {
+            // En las modalidades nuevas solo el moderador/creador deja material persistente.
+            // El overload anterior conserva compatibilidad con tareas internas existentes.
+            if (requestingUserUuid != null
+                    && ("INDEPENDENT".equals(conference.getCanvasAudienceMode())
+                    || "MODERATOR_ONLY".equals(conference.getCanvasAudienceMode()))
+                    && !conference.getCreatedByUserUuid().equals(requestingUserUuid)) {
+                return false;
+            }
             conference.setDiagramXml(xml);
             conference.setDiagramPurgedAt(null);
             conferenceRepository.save(conference);

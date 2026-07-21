@@ -184,6 +184,12 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN max_accounts_per_device INTEGER");
             } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN canvas_tool TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN canvas_audience_mode TEXT");
+            } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS reservations (

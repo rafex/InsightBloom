@@ -8,6 +8,9 @@ export interface Timezone {
 
 export type SeatingMode = 'NONE' | 'GENERAL' | 'SEATED'
 
+export type CanvasTool = 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD'
+export type CanvasAudienceMode = 'INDEPENDENT' | 'MODERATOR_ONLY'
+
 export type EventCapability =
   | 'TICKETING_GENERAL' | 'TICKETING_SEATED' | 'SURVEY' | 'PRESENTATION' | 'WORD_CLOUD'
   | 'CHAT_BOT' | 'VIDEO_CONFERENCE' | 'WHITEBOARD' | 'DIAGRAMMING' | 'COLLAB_NOTES' | 'CODE_IDE'
@@ -65,6 +68,7 @@ export interface EventType {
 
 export interface Conference {
   uuid: string
+  createdByUserUuid?: string
   friendlyId: string
   name: string
   displayName?: string | null
@@ -89,6 +93,8 @@ export interface Conference {
   sandboxInternetEnabled?: number | null
   sandboxExtraPackages?: string | null
   sandboxRemoteGitUrl?: string | null
+  canvasTool?: CanvasTool | null
+  canvasAudienceMode?: CanvasAudienceMode | null
   sandboxJvmHeapMb?: number | null
   sandboxSeatsPerPod?: number | null
   sandboxCliPoolSize?: number | null

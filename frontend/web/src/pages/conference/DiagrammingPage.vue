@@ -5,6 +5,7 @@
     p ⚠️ La pizarra de diagramas no está disponible en este momento.
     p.hint Intenta más tarde o contacta al organizador.
   template(v-else)
+    .save-banner(v-if="!canPersist" class="save-banner-info") ℹ️ Tu edición es local y no se conservará; solo el material del moderador se persiste.
     .save-banner(v-if="saveError" class="save-banner-error") ⚠️ No se pudo guardar el diagrama: {{ saveError }}
     .save-banner(v-else-if="saveStatus === 'saved'" class="save-banner-ok") ✓ Diagrama guardado
     iframe.drawio-frame(ref="frameRef" :src="drawioUrl" title="Diagramas" allow="clipboard-write")
@@ -19,9 +20,11 @@ import { useAuthStore } from '@/features/auth/authStore'
 export default {
   name: 'DiagrammingPage',
   props: {
-    conferenceId: { type: String, default: '' }
+    conferenceId: { type: String, default: '' },
+    canvasAudienceMode: { type: String, default: '' },
+    canvasModerator: { type: Boolean, default: false }
   },
-  setup(props: { conferenceId?: string }) {
+  setup(props: { conferenceId?: string, canvasAudienceMode?: string, canvasModerator?: boolean }) {
     const route = useRoute()
     const auth = useAuthStore()
     const friendlyId = route.params.friendlyId as string
@@ -30,6 +33,8 @@ export default {
     const frameRef = ref<HTMLIFrameElement | null>(null)
     const saveError = ref('')
     const saveStatus = ref<'' | 'saved' | 'error'>('')
+    const canPersist = computed(() => props.canvasAudienceMode !== 'INDEPENDENT'
+      && props.canvasAudienceMode !== 'MODERATOR_ONLY' || props.canvasModerator === true)
     let savedXml = ''
 
     onMounted(async () => {
@@ -67,7 +72,7 @@ export default {
     }
 
     async function persist(xml: string) {
-      if (!props.conferenceId || xml === savedXml) return
+      if (!canPersist.value || !props.conferenceId || xml === savedXml) return
       const previous = savedXml
       savedXml = xml
       try {
@@ -109,7 +114,7 @@ export default {
     onMounted(() => window.addEventListener('message', onMessage))
     onBeforeUnmount(() => window.removeEventListener('message', onMessage))
 
-    return { loading, drawioUrl, friendlyId, frameRef, saveError, saveStatus }
+    return { loading, drawioUrl, friendlyId, frameRef, saveError, saveStatus, canPersist }
   }
 }
 </script>
