@@ -195,7 +195,10 @@ export default {
     function requestSvgExport(xml: string) {
       pendingXml = xml
       if (exportTimeout) clearTimeout(exportTimeout)
-      postToFrame({ action: 'export', format: 'svg', spin: 1 })
+      // Drawio 24.7.17 implements `snapshot` as the reliable embed-mode SVG
+      // export. The generic `export` action opens the file-export path in this
+      // build and can fail with "Not a diagram file" / `substring` errors.
+      postToFrame({ action: 'snapshot' })
       // Si una versión antigua de Drawio no responde al export, al menos conserva el XML y
       // la última imagen publicada en lugar de perder el guardado completo.
       exportTimeout = setTimeout(() => {
