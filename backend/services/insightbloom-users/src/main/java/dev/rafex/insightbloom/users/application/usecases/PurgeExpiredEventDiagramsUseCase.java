@@ -15,7 +15,8 @@ import java.time.ZoneOffset;
  * Ticked periodicamente (ver scheduler en {@code UsersApplication}) para borrar el XML del
  * diagrama de drawio guardado de eventos cuya hora de fin quedo mas de 1 hora atras (TTL de
  * datos efimeros, ver DEC-0020). No borra ningun pod: drawio es una instancia compartida sin
- * estado propio, el dato vive solo en la columna {@code diagram_xml} de {@code conferences}.
+ * estado propio, los datos viven en las columnas {@code diagram_xml} y
+ * {@code diagram_published_svg} de {@code conferences}.
  */
 public class PurgeExpiredEventDiagramsUseCase {
 

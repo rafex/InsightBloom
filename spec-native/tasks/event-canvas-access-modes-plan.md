@@ -4,7 +4,7 @@
 
 - Estado: `in_progress`
 - Tipo: plan de implementación
-- Alcance actual: fase inicial implementada; configuración múltiple por herramienta y modalidad persistida
+- Alcance actual: configuración múltiple persistida y primera rebanada de publicación de Drawio implementada
 
 ## Objetivo
 
@@ -37,8 +37,11 @@ presencia, sincronización, resolución de conflictos ni comunicación entre los
 lienzos de los asistentes.
 
 En `MODERATOR_ONLY`, el resultado que reciben los asistentes será una captura o
-exportación publicada. No se promete actualización en vivo mientras el
-moderador dibuja; el moderador deberá guardar o publicar una nueva versión.
+exportación publicada. El guardado/autoguardado del moderador publica una nueva
+versión de Drawio; el asistente intenta recibirla mediante SSE y también cuenta
+con polling y un botón flotante de actualización como respaldo. Esto no es
+colaboración en vivo: nunca se envían las ediciones del asistente ni se muestra
+el editor de Drawio en su vista.
 
 ### Herramientas del evento
 
@@ -213,12 +216,13 @@ permita. No se requiere WebSocket para estas modalidades.
 ### Fase 0 — Cerrar decisiones de producto
 
 - [x] Confirmar que la creación permite varias herramientas por evento.
-- Confirmar si el resultado del moderador se publica manualmente o también al
-  guardar automáticamente.
+- [x] Confirmar que el guardado/autoguardado del moderador publica también el
+  snapshot visible para asistentes.
 - Definir la lista exacta de exportaciones garantizadas para cada herramienta.
 - Definir el formato canónico de fuente de Etherpad.
-- Confirmar si los asistentes en `MODERATOR_ONLY` ven el último snapshot al
-  recargar o si existirá un botón explícito de actualizar.
+- [x] Confirmar que los asistentes en `MODERATOR_ONLY` ven el último snapshot al
+  recargar y reciben actualizaciones por SSE/polling, con botón explícito de
+  actualizar.
 - Confirmar el nombre y la política de la encuesta requerida para descargar.
 
 ### Fase 1 — Modelo, permisos y migración
@@ -239,8 +243,13 @@ Endpoints previstos:
 
 - [ ] `GET /conferences/{id}/canvas-config` — configuración visible del evento.
 - [x] `PUT /conferences/{id}/canvas-config` — configurar varias herramientas y modalidad individual por herramienta.
-- `GET /conferences/{id}/canvas/moderator` — obtener el borrador del moderador.
-- `PUT /conferences/{id}/canvas/moderator` — guardar fuente nativa.
+- [ ] `GET /conferences/{id}/canvas/moderator` — obtener el borrador del moderador.
+- [ ] `PUT /conferences/{id}/canvas/moderator` — guardar fuente nativa.
+- [x] `GET/PUT /conferences/{id}/diagram` — contrato existente extendido con
+  XML nativo, SVG publicado, versión y fecha de actualización.
+- [x] `GET /conferences/{id}/diagram/stream` — SSE autenticado para notificar
+  nuevas versiones publicadas; el token se recibe como `ib_token` porque
+  `EventSource` no permite headers personalizados.
 - `POST /conferences/{id}/canvas/moderator/export` — generar exportaciones.
 - `POST /conferences/{id}/canvas/moderator/publish` — publicar snapshot.
 - `GET /conferences/{id}/canvas/published` — leer el resultado público del evento.
@@ -257,12 +266,14 @@ Requisitos de API:
 
 ### Fase 3 — Integración de Drawio
 
-- Mantener el iframe `embed=1` y el protocolo JSON existente.
-- Guardar el XML únicamente en el espacio del moderador.
-- Añadir exportación controlada desde Drawio o mediante el adaptador del
-  despliegue.
-- En `MODERATOR_ONLY`, permitir a los asistentes leer sólo el snapshot
-  publicado.
+- [x] Mantener el iframe `embed=1` y el protocolo JSON existente.
+- [x] Guardar el XML únicamente en el espacio del moderador.
+- [x] Solicitar exportación SVG controlada mediante el protocolo `postMessage`
+  de Drawio y persistirla junto con la fuente nativa.
+- [x] En `MODERATOR_ONLY`, permitir a los asistentes leer sólo el snapshot SVG
+  publicado, sin cargar un iframe editable.
+- [x] Notificar nuevas versiones por SSE dentro de la instancia de Users y
+  mantener polling/botón de refresco como respaldo.
 - En `INDEPENDENT`, crear un estado inicial para cada asistente sin guardar
   sus cambios en backend.
 - Revisar concurrencia de guardados del moderador y usar versión/ETag para no
@@ -304,8 +315,11 @@ Requisitos de API:
 - Mostrar al moderador el editor de la herramienta elegida.
 - Mostrar una advertencia visible en `INDEPENDENT`: “este espacio no se guarda
   y no lo verá el moderador”.
-- Mostrar a asistentes el snapshot publicado en `MODERATOR_ONLY`.
-- Añadir botón de guardar/publicar para el moderador.
+- [x] Mostrar a asistentes el snapshot publicado en `MODERATOR_ONLY`.
+- [x] El guardado/autoguardado del moderador publica el SVG; la interfaz indica
+  el estado de publicación.
+- [x] Añadir actualización automática por SSE/polling y botón flotante de
+  refresco para asistentes.
 - Añadir botón de descarga del ZIP sólo cuando el backend confirme que el
   usuario cumple la encuesta.
 - Mostrar motivo de bloqueo cuando la encuesta aún no está respondida y enlazar
@@ -373,9 +387,17 @@ La primera rebanada vertical ya está integrada en backend y frontend:
 - Drawio deja de guardar en backend los cambios de asistentes al usar su modalidad individual;
   el moderador/creador conserva el guardado.
 
-Todavía no se ha implementado la persistencia de artefactos nativos/exportados, la publicación
-de snapshots ni el ZIP condicionado por encuesta. Esas piezas siguen pendientes en las fases
-3–8 y deben reutilizar la comprobación backend de encuesta existente.
+La rebanada de Drawio también persiste la fuente XML y un SVG publicado, con
+versión/fecha, y expone un stream SSE para que las vistas de asistentes
+actualicen la imagen sin cargar el editor. El polling y el botón flotante
+permiten recuperar el estado si el stream no está disponible. El stream es un
+bus local del servicio Users; es apropiado mientras Users se mantenga con la
+topología actual de una instancia SQLite y no sustituye un bus distribuido.
+
+Todavía no se han implementado las tablas versionadas de artefactos, las
+exportaciones adicionales de Drawio, Excalidraw/Etherpad ni el ZIP condicionado
+por encuesta. Esas piezas siguen pendientes en las fases 1–8 y deben reutilizar
+la comprobación backend de encuesta existente.
 
 ## Criterio de cierre
 

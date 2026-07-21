@@ -19,6 +19,12 @@
     <dependency>
       <groupId>dev.rafex.ether.http</groupId>
       <artifactId>ether-http-jetty12</artifactId>
+      <version>${ether.http.sse.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>dev.rafex.ether.http</groupId>
+      <artifactId>ether-http-core</artifactId>
+      <version>${ether.http.sse.version}</version>
     </dependency>
 
     <!-- JSON -->

@@ -475,15 +475,25 @@ export async function getEventNotes(conferenceId: string, token: string): Promis
   return res.data.data
 }
 
-/** Ultimo XML de drawio guardado para el evento (vacio si nunca se guardo). */
-export async function getEventDiagram(conferenceId: string, token: string): Promise<{ xml: string }> {
+/** Ultimo XML y exportacion publicada de drawio para el evento. */
+export async function getEventDiagram(conferenceId: string, token: string): Promise<{
+  xml: string, publishedSvg?: string | null, updatedAt?: string | null, version?: number
+}> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/diagram`, authHeader(token))
   return res.data.data
 }
 
-/** Guarda (reemplaza) el XML del diagrama de drawio del evento. */
-export async function saveEventDiagram(conferenceId: string, xml: string, token: string): Promise<void> {
-  await axios.put(`/api/users/api/v1/conferences/${conferenceId}/diagram`, { xml }, authHeader(token))
+/** Guarda el XML y publica la exportacion SVG visible para asistentes. */
+export async function saveEventDiagram(
+  conferenceId: string, xml: string, token: string, publishedSvg?: string | null
+): Promise<void> {
+  await axios.put(`/api/users/api/v1/conferences/${conferenceId}/diagram`, { xml, publishedSvg }, authHeader(token))
+}
+
+/** Stream de cambios de la exportacion publicada. EventSource no admite headers Bearer. */
+export function streamEventDiagram(conferenceId: string, token: string): EventSource {
+  const url = `/api/users/api/v1/conferences/${conferenceId}/diagram/stream?ib_token=${encodeURIComponent(token)}`
+  return new EventSource(url)
 }
 
 /** Token JWT firmado para unirse a la sala de JaaS (8x8.vc) de este evento, si esta configurado. */

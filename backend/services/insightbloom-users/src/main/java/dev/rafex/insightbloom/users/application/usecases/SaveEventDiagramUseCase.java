@@ -4,9 +4,9 @@ import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 
 /**
- * Guarda temporalmente el ultimo XML del diagrama de drawio de un evento (para poder
- * descargarlo/distribuirlo despues), reemplazando el guardado anterior. Se purga por TTL
- * junto con el resto de datos efimeros del evento (ver DEC-0020 y PurgeExpiredEventDiagramsUseCase).
+ * Guarda temporalmente la fuente XML y la exportacion publicada del diagrama de drawio de un
+ * evento, reemplazando la version anterior. Se purga por TTL junto con el resto de datos
+ * efimeros del evento (ver DEC-0020 y PurgeExpiredEventDiagramsUseCase).
  */
 public class SaveEventDiagramUseCase {
     private final ConferenceRepository conferenceRepository;
@@ -16,10 +16,15 @@ public class SaveEventDiagramUseCase {
     }
 
     public boolean execute(final String conferenceUuid, final String xml) {
-        return execute(conferenceUuid, xml, null);
+        return execute(conferenceUuid, xml, null, null);
     }
 
     public boolean execute(final String conferenceUuid, final String xml, final String requestingUserUuid) {
+        return execute(conferenceUuid, xml, null, requestingUserUuid);
+    }
+
+    public boolean execute(final String conferenceUuid, final String xml, final String publishedSvg,
+                            final String requestingUserUuid) {
         return conferenceRepository.findByUuid(conferenceUuid).map(conference -> {
             // En las modalidades nuevas solo el moderador/creador deja material persistente.
             // El overload anterior conserva compatibilidad con tareas internas existentes.
@@ -34,7 +39,7 @@ public class SaveEventDiagramUseCase {
                     && !conference.getCreatedByUserUuid().equals(requestingUserUuid)) {
                 return false;
             }
-            conference.setDiagramXml(xml);
+            conference.setDiagramXmlAndPublishedSvg(xml, publishedSvg);
             conference.setDiagramPurgedAt(null);
             conferenceRepository.save(conference);
             return true;

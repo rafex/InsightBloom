@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import axios from 'axios'
 import {
   createConference,
@@ -7,14 +7,26 @@ import {
   getRegisteredAttendeesCount,
   getTimezones,
   setCanvasConfig,
-  setCanvasConfigs
+  setCanvasConfigs,
+  getEventDiagram,
+  saveEventDiagram,
+  streamEventDiagram
 } from '../usersApi'
 
 vi.mock('axios')
 
+class FakeEventSource {
+  constructor(url) { this.url = url }
+  close() {}
+}
+
 describe('usersApi', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    vi.stubGlobal('EventSource', FakeEventSource)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   describe('createConference', () => {
@@ -122,6 +134,30 @@ describe('usersApi', () => {
         { canvasConfigs },
         { headers: { Authorization: 'Bearer tok' } }
       )
+    })
+  })
+
+  describe('moderator diagram publication', () => {
+    it('reads and sends the published SVG together with the native XML', async () => {
+      axios.get.mockResolvedValue({ data: { data: {
+        xml: '<mxGraphModel/>', publishedSvg: 'data:image/svg+xml;base64,AAA', version: 4
+      } } })
+      axios.put.mockResolvedValue({ data: { data: { saved: true } } })
+
+      const diagram = await getEventDiagram('c1', 'tok')
+      await saveEventDiagram('c1', diagram.xml, 'tok', diagram.publishedSvg)
+
+      expect(diagram.version).toBe(4)
+      expect(axios.put).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/diagram',
+        { xml: '<mxGraphModel/>', publishedSvg: 'data:image/svg+xml;base64,AAA' },
+        { headers: { Authorization: 'Bearer tok' } }
+      )
+    })
+
+    it('opens the authenticated SSE stream using the EventSource-compatible query token', () => {
+      const stream = streamEventDiagram('c 1', 'token/1')
+      expect(stream.url).toBe('/api/users/api/v1/conferences/c 1/diagram/stream?ib_token=token%2F1')
     })
   })
 })

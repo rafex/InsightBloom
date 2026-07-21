@@ -354,7 +354,13 @@ public class DatabaseManager {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN diagram_xml TEXT");
             } catch (SQLException ignored) {}
             try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN diagram_published_svg TEXT");
+            } catch (SQLException ignored) {}
+            try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN diagram_updated_at TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN diagram_version INTEGER NOT NULL DEFAULT 0");
             } catch (SQLException ignored) {}
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN diagram_purged_at TEXT");

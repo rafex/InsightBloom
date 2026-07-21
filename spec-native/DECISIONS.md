@@ -1360,3 +1360,29 @@ Registrar una decision cuando cambie:
     nota en ese archivo -- la fuente de verdad es esta entrada de DECISIONS.md y
     `spec-native/specs/device-fingerprinting/SPEC.md`).
 - Reemplaza: `none`.
+
+### DEC-0031 - Publicación de Drawio con snapshot SVG y actualización best-effort
+
+- Fecha: 2026-07-21
+- Estado: accepted
+- Contexto:
+  En `MODERATOR_ONLY` los asistentes no deben recibir el editor de Drawio ni sus propios
+  cambios. Necesitan, sin embargo, ver el material del moderador después de cada guardado.
+- Decision:
+  - El servicio Users conserva el XML nativo del moderador y el SVG publicado en la fila de la
+    conferencia, junto con `diagram_version` y `diagram_updated_at`.
+  - El editor solicita la exportación SVG mediante el protocolo JSON `postMessage` de Drawio y
+    guarda ambas representaciones en una sola operación.
+  - Los asistentes reciben únicamente el SVG en `MODERATOR_ONLY`. La actualización intenta ser
+    inmediata mediante SSE autenticado; además existe polling de 30 segundos y un botón flotante
+    de refresco.
+  - El registro SSE vive en memoria del servicio Users. Se acepta porque la topología actual
+    mantiene Users con SQLite y una sola instancia; si se escala horizontalmente, el bus deberá
+    moverse a NATS u otro mecanismo distribuido.
+- Consecuencias:
+  - El SVG es la representación pública y no permite edición ni recuperación del XML desde la
+    vista del asistente.
+  - `EventSource` requiere el token `ib_token` en la query porque no permite headers Bearer; el
+    endpoint valida el token antes de abrir el stream.
+  - La publicación completa en artefactos versionados, más formatos y ZIP permanece pendiente.
+- Reemplaza: `none`.

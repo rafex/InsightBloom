@@ -8,6 +8,8 @@ import dev.rafex.insightbloom.users.application.usecases.SetSandboxInternetUseCa
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
+import dev.rafex.ether.http.core.HttpExchange.EventStream;
+import dev.rafex.ether.json.JsonUtils;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.CancelReservationUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CheckInTicketUseCase;
@@ -62,8 +64,16 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class ConferenceHandler extends BaseResourceHandler {
+
+    private static final long DIAGRAM_STREAM_HEARTBEAT_SECONDS = 25;
 
     private static final java.util.logging.Logger LOGGER =
         java.util.logging.Logger.getLogger(ConferenceHandler.class.getName());
@@ -116,6 +126,12 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final UnblockDeviceUseCase unblockDeviceUseCase;
     private final SandboxHandler sandboxHandler;
     private final SandboxFilesHandler sandboxFilesHandler;
+    private final Map<String, CopyOnWriteArrayList<EventStream>> diagramSubscribers = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService diagramStreamScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        final Thread thread = new Thread(r, "diagram-sse-heartbeat");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     public ConferenceHandler(final CreateConferenceUseCase createConferenceUseCase,
                              final GetConferenceUseCase getConferenceUseCase,
@@ -265,6 +281,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/tickets/check-in", Set.of("POST")),
                 Route.of("/{id}/tickets/{ticketUuid}/revoke", Set.of("POST")),
                 Route.of("/{id}/notes", Set.of("GET")),
+                Route.of("/{id}/diagram/stream", Set.of("GET")),
                 Route.of("/{id}/diagram", Set.of("GET", "PUT")),
                 Route.of("/{id}/jaas-token", Set.of("GET")),
                 Route.of("/{id}/roles", Set.of("GET", "POST")),
@@ -319,6 +336,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/notes")) {
             return handleGetNotes(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/diagram/stream")) {
+            return handleDiagramStream(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/diagram")) {
             return handleGetDiagram(jx, jx.pathParam("id"));
@@ -805,7 +825,13 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             final var body = parseBody(jx);
             final String xml = (String) body.get("xml");
-            if (saveEventDiagramUseCase.execute(id, xml != null ? xml : "", v.subjectUuid())) {
+            final String publishedSvg = body.get("publishedSvg") instanceof String svg ? svg : null;
+            if (publishedSvg != null && publishedSvg.length() > 12_000_000) {
+                sendError(jx, 413, "diagram_too_large", "La exportacion del diagrama excede el limite permitido");
+                return true;
+            }
+            if (saveEventDiagramUseCase.execute(id, xml != null ? xml : "", publishedSvg, v.subjectUuid())) {
+                getEventDiagramUseCase.execute(id).ifPresent(diagram -> publishDiagramUpdate(id, diagram));
                 sendOk(jx, 200, java.util.Map.of("saved", true));
             } else {
                 sendError(jx, 403, "moderator_only", "Solo el moderador puede guardar el material del lienzo");
@@ -814,6 +840,47 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private boolean handleDiagramStream(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (!hasCapability(id, EventCapability.DIAGRAMMING)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita diagramas");
+                return true;
+            }
+            final var stream = jx.startEventStream();
+            final var subscribers = diagramSubscribers.computeIfAbsent(id, ignored -> new CopyOnWriteArrayList<>());
+            subscribers.add(stream);
+            getEventDiagramUseCase.execute(id).ifPresent(diagram -> stream.send("snapshot", diagramMetadata(diagram)));
+            final ScheduledFuture<?> heartbeat = diagramStreamScheduler.scheduleAtFixedRate(
+                    () -> stream.comment("ping"), DIAGRAM_STREAM_HEARTBEAT_SECONDS,
+                    DIAGRAM_STREAM_HEARTBEAT_SECONDS, TimeUnit.SECONDS);
+            stream.onClose(() -> {
+                heartbeat.cancel(true);
+                subscribers.remove(stream);
+                if (subscribers.isEmpty()) diagramSubscribers.remove(id, subscribers);
+            });
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private void publishDiagramUpdate(final String id, final GetEventDiagramUseCase.DiagramInfo diagram) {
+        final var subscribers = diagramSubscribers.get(id);
+        if (subscribers == null || subscribers.isEmpty()) return;
+        final String payload = diagramMetadata(diagram);
+        subscribers.forEach(stream -> stream.send("update", payload));
+    }
+
+    private static String diagramMetadata(final GetEventDiagramUseCase.DiagramInfo diagram) {
+        return JsonUtils.toJson(java.util.Map.of(
+                "version", diagram.version(),
+                "updatedAt", diagram.updatedAt() != null ? diagram.updatedAt().toString() : ""));
     }
 
     private boolean handleGetJaasToken(final JettyHttpExchange jx, final String id) {
@@ -1520,7 +1587,10 @@ public class ConferenceHandler extends BaseResourceHandler {
 
     private String extractToken(final JettyHttpExchange jx) {
         final String auth = jx.request().getHeaders().get("Authorization");
-        return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
+        if (auth != null && auth.startsWith("Bearer ")) return auth.substring(7);
+        // EventSource no permite headers Authorization; el stream de diagramas usa ib_token
+        // como query param, igual que los iframes de las herramientas integradas.
+        return queryParam(jx, "ib_token");
     }
 
     private String extractDeviceFingerprint(final JettyHttpExchange jx) {

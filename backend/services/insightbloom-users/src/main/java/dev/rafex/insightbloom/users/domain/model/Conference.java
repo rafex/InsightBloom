@@ -33,7 +33,9 @@ public class Conference {
     private String eventTypeKey = "conference"; // FK a event_types.key; toda conferencia existente cae aquí
     private Instant notesPurgedAt; // marca cuándo se borró el pad de Etherpad (TTL, ver DEC-0020), nullable
     private String diagramXml; // ultimo XML guardado del diagrama de drawio, nullable
+    private String diagramPublishedSvg; // ultima exportacion SVG publicada para asistentes, nullable
     private Instant diagramUpdatedAt; // nullable
+    private long diagramVersion;
     private Instant diagramPurgedAt; // marca cuándo se purgó el diagrama por TTL, nullable
     // Vestigial (2026-07, pools Web/CLI independientes): ya no selecciona "la" variante -- las
     // dos conviven siempre para toda conferencia con CODE_IDE habilitada, cada una con su propio
@@ -153,13 +155,29 @@ public class Conference {
     public String getEventTypeKey() { return eventTypeKey; }
     public Instant getNotesPurgedAt() { return notesPurgedAt; }
     public String getDiagramXml() { return diagramXml; }
+    public String getDiagramPublishedSvg() { return diagramPublishedSvg; }
     public Instant getDiagramUpdatedAt() { return diagramUpdatedAt; }
+    public long getDiagramVersion() { return diagramVersion; }
     public Instant getDiagramPurgedAt() { return diagramPurgedAt; }
-    public void setDiagramXml(String diagramXml) { this.diagramXml = diagramXml; this.diagramUpdatedAt = Instant.now(); }
+    public void setDiagramXml(String diagramXml) {
+        setDiagramXmlAndPublishedSvg(diagramXml, null);
+    }
+    public void setDiagramXmlAndPublishedSvg(String diagramXml, String publishedSvg) {
+        this.diagramXml = diagramXml;
+        this.diagramPublishedSvg = publishedSvg;
+        this.diagramUpdatedAt = Instant.now();
+        this.diagramVersion++;
+    }
     /** Usado solo por el repositorio al reconstruir la entidad desde la BD (no actualiza updatedAt). */
     public void restoreDiagramXml(String diagramXml, Instant diagramUpdatedAt) {
+        restoreDiagram(diagramXml, null, diagramUpdatedAt, 0);
+    }
+    /** Usado solo por el repositorio al reconstruir la entidad desde la BD. */
+    public void restoreDiagram(String diagramXml, String publishedSvg, Instant diagramUpdatedAt, long version) {
         this.diagramXml = diagramXml;
+        this.diagramPublishedSvg = publishedSvg;
         this.diagramUpdatedAt = diagramUpdatedAt;
+        this.diagramVersion = version;
     }
     public void setDiagramPurgedAt(Instant diagramPurgedAt) { this.diagramPurgedAt = diagramPurgedAt; }
     public void setSeatingMode(String seatingMode) { this.seatingMode = seatingMode; }

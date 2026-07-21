@@ -1,21 +1,40 @@
 <template lang="pug">
 .diagramming-page
   .loading-text(v-if="loading") Cargando pizarra de diagramas...
+  template(v-else-if="isModeratorOnlyViewer")
+    .published-banner
+      span 🔒 Vista publicada por el moderador
+      span.update-state(v-if="streamConnected") ● SSE en vivo
+      span.update-state Actualización automática en {{ refreshCountdown }}s
+      span.update-state(v-if="publishedUpdatedAt") Publicado {{ publishedUpdatedAt }}
+    .published-content
+      img.published-diagram(v-if="publishedSvg" :src="publishedSvg" alt="Diagrama publicado por el moderador")
+      .published-empty(v-else)
+        p El moderador todavía no ha publicado un diagrama.
+        p.hint Esta vista se actualizará automáticamente cuando exista una publicación.
+    button.refresh-floating(
+      :class="{ 'has-update': newVersionAvailable }"
+      :disabled="refreshing"
+      aria-label="Actualizar diagrama publicado"
+      title="Actualizar diagrama publicado"
+      @click="refreshPublishedDiagram"
+    ) {{ refreshing ? '…' : '↻' }}
   .unavailable(v-else-if="!drawioUrl")
     p ⚠️ La pizarra de diagramas no está disponible en este momento.
     p.hint Intenta más tarde o contacta al organizador.
   template(v-else)
     .save-banner(v-if="!canPersist" class="save-banner-info") ℹ️ Tu edición es local y no se conservará; solo el material del moderador se persiste.
-    .save-banner(v-if="saveError" class="save-banner-error") ⚠️ No se pudo guardar el diagrama: {{ saveError }}
-    .save-banner(v-else-if="saveStatus === 'saved'" class="save-banner-ok") ✓ Diagrama guardado
+    .save-banner(v-if="saveError" class="save-banner-error") ⚠️ No se pudo publicar el diagrama: {{ saveError }}
+    .save-banner(v-else-if="saveStatus === 'saved'" class="save-banner-ok") ✓ Diagrama publicado
     iframe.drawio-frame(ref="frameRef" :src="drawioUrl" title="Diagramas" allow="clipboard-write")
 </template>
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
-import { getIntegrationConfig, getEventDiagram, saveEventDiagram } from '@/services/api/usersApi'
+import { getIntegrationConfig, getEventDiagram, saveEventDiagram, streamEventDiagram } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+
+const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'DiagrammingPage',
@@ -25,44 +44,113 @@ export default {
     canvasModerator: { type: Boolean, default: false }
   },
   setup(props: { conferenceId?: string, canvasAudienceMode?: string, canvasModerator?: boolean }) {
-    const route = useRoute()
     const auth = useAuthStore()
-    const friendlyId = route.params.friendlyId as string
     const loading = ref(true)
     const drawioBaseUrl = ref('')
     const frameRef = ref<HTMLIFrameElement | null>(null)
     const saveError = ref('')
     const saveStatus = ref<'' | 'saved' | 'error'>('')
+    const publishedSvg = ref<string | null>(null)
+    const publishedVersion = ref(0)
+    const publishedUpdatedAt = ref<string | null>(null)
+    const newVersionAvailable = ref(false)
+    const refreshing = ref(false)
+    const refreshCountdown = ref(REFRESH_INTERVAL_SECONDS)
+    const streamConnected = ref(false)
+    const isModeratorOnlyViewer = computed(() => props.canvasAudienceMode === 'MODERATOR_ONLY'
+      && props.canvasModerator !== true)
     const canPersist = computed(() => props.canvasAudienceMode !== 'INDEPENDENT'
       && props.canvasAudienceMode !== 'MODERATOR_ONLY' || props.canvasModerator === true)
     let savedXml = ''
+    let savedPublishedSvg: string | null = null
+    let pendingXml = ''
+    let exportTimeout: ReturnType<typeof setTimeout> | null = null
+    let eventSource: EventSource | null = null
+    let refreshTimer: ReturnType<typeof setInterval> | null = null
+    let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+    function applyDiagram(diagram: {
+      xml?: string, publishedSvg?: string | null, updatedAt?: string | null, version?: number
+    }) {
+      savedXml = diagram.xml || ''
+      publishedSvg.value = diagram.publishedSvg || null
+      savedPublishedSvg = publishedSvg.value
+      publishedVersion.value = diagram.version || 0
+      publishedUpdatedAt.value = diagram.updatedAt || null
+      newVersionAvailable.value = false
+      resetRefreshCountdown()
+    }
+
+    async function loadPublishedDiagram() {
+      if (!props.conferenceId || !auth.state.token) return
+      const diagram = await getEventDiagram(props.conferenceId, auth.state.token as string)
+      if ((diagram.version || 0) >= publishedVersion.value) applyDiagram(diagram)
+    }
+
+    async function refreshPublishedDiagram() {
+      if (refreshing.value) return
+      refreshing.value = true
+      try {
+        await loadPublishedDiagram()
+      } catch (e) {
+        console.error('DiagrammingPage: fallo actualizando la publicación', e)
+      } finally {
+        refreshing.value = false
+      }
+    }
+
+    function resetRefreshCountdown() {
+      refreshCountdown.value = REFRESH_INTERVAL_SECONDS
+    }
+
+    function startPublishedUpdates() {
+      if (!props.conferenceId || !auth.state.token) return
+      eventSource = streamEventDiagram(props.conferenceId, auth.state.token as string)
+      eventSource.addEventListener('open', () => { streamConnected.value = true })
+      eventSource.addEventListener('snapshot', onPublishedEvent)
+      eventSource.addEventListener('update', onPublishedEvent)
+      eventSource.onerror = () => { streamConnected.value = false }
+      refreshTimer = setInterval(() => { void refreshPublishedDiagram() }, REFRESH_INTERVAL_SECONDS * 1000)
+      countdownTimer = setInterval(() => {
+        refreshCountdown.value = refreshCountdown.value <= 1
+          ? REFRESH_INTERVAL_SECONDS : refreshCountdown.value - 1
+      }, 1000)
+    }
+
+    function onPublishedEvent(event: Event) {
+      try {
+        const data = JSON.parse((event as MessageEvent).data || '{}') as { version?: number }
+        if ((data.version || 0) > publishedVersion.value) {
+          newVersionAvailable.value = true
+          void refreshPublishedDiagram()
+        }
+      } catch (e) {
+        console.warn('DiagrammingPage: evento de publicación inválido', e)
+      }
+    }
 
     onMounted(async () => {
       try {
-        const [config, diagram] = await Promise.all([
-          getIntegrationConfig(),
-          props.conferenceId ? getEventDiagram(props.conferenceId, auth.state.token as string) : Promise.resolve({ xml: '' })
-        ])
-        drawioBaseUrl.value = config.drawioBaseUrl || ''
-        savedXml = diagram.xml || ''
+        if (props.conferenceId && auth.state.token) {
+          const diagram = await getEventDiagram(props.conferenceId, auth.state.token as string)
+          applyDiagram(diagram)
+        }
+        if (!isModeratorOnlyViewer.value) {
+          const config = await getIntegrationConfig()
+          drawioBaseUrl.value = config.drawioBaseUrl || ''
+        } else {
+          startPublishedUpdates()
+        }
       } catch (e: any) {
-        drawioBaseUrl.value = ''
+        if (!isModeratorOnlyViewer.value) drawioBaseUrl.value = ''
+        else console.error('DiagrammingPage: no se pudo cargar la publicación', e)
       } finally {
         loading.value = false
       }
     })
 
-    // Modo embed=1 de drawio: la pagina que lo embebe (esta) debe implementar el protocolo
-    // postMessage (handshake init/load/save) para orquestar el diagrama — de lo contrario el
-    // canvas se queda esperando indefinidamente (ver bug previo, ya corregido). Guardamos el XML
-    // en el backend (columna efimera, TTL igual que notas/DEC-0020) para poder descargarlo y
-    // distribuirlo despues, sin depender de que drawio persista nada del lado del servidor.
-    // drawio ya no tiene ingress publico propio: esta detras de insightbloom-tools-gateway,
-    // que exige sesion de InsightBloom antes de reenviar el request al pod real (evita que
-    // pegar la URL directo en el navegador de acceso sin login). ib_token en la query arranca
-    // esa sesion en el primer request; el gateway responde con una cookie para el resto.
     const drawioUrl = computed(() => {
-      if (!drawioBaseUrl.value) return ''
+      if (!drawioBaseUrl.value || isModeratorOnlyViewer.value) return ''
       const token = auth.state.token ? `&ib_token=${encodeURIComponent(auth.state.token)}` : ''
       return `${drawioBaseUrl.value}/?embed=1&proto=json&spin=1&noSaveBtn=0&saveAndExit=0${token}`
     })
@@ -71,27 +159,51 @@ export default {
       frameRef.value?.contentWindow?.postMessage(JSON.stringify(message), '*')
     }
 
-    async function persist(xml: string) {
-      if (!canPersist.value || !props.conferenceId || xml === savedXml) return
-      const previous = savedXml
+    function normalizeSvg(value: string): string {
+      const trimmed = value.trim()
+      if (trimmed.startsWith('data:image/')) return trimmed
+      if (trimmed.startsWith('<svg')) return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(trimmed)}`
+      return trimmed
+    }
+
+    async function persist(xml: string, svg: string | null) {
+      if (!canPersist.value || !props.conferenceId) return
+      const nextSvg = svg || publishedSvg.value
+      if (xml === savedXml && nextSvg === savedPublishedSvg) return
+      const previousXml = savedXml
+      const previousSvg = savedPublishedSvg
       savedXml = xml
+      savedPublishedSvg = nextSvg
       try {
-        await saveEventDiagram(props.conferenceId, xml, auth.state.token as string)
+        await saveEventDiagram(props.conferenceId, xml, auth.state.token as string, nextSvg)
+        publishedSvg.value = nextSvg
+        publishedVersion.value += 1
         saveError.value = ''
         saveStatus.value = 'saved'
         setTimeout(() => { if (saveStatus.value === 'saved') saveStatus.value = '' }, 3000)
       } catch (e: any) {
-        // Antes esto se tragaba en silencio -- el diagrama se veia "guardado" en la UI pero el
-        // PUT nunca llegaba al backend, asi que desaparecia al volver a esta pagina (reportado
-        // 2026-07-19). savedXml se revierte para que un reintento (ej. otro click en Guardar)
-        // no quede bloqueado por el chequeo "xml === savedXml" de arriba.
-        savedXml = previous
+        savedXml = previousXml
+        savedPublishedSvg = previousSvg
         saveStatus.value = 'error'
         saveError.value = e?.response?.status
           ? `${e.response.status} ${e.response.data?.error?.message || e.message}`
           : (e?.message || 'error de red')
-        console.error('DiagrammingPage: fallo guardando el diagrama', e)
+        console.error('DiagrammingPage: fallo publicando el diagrama', e)
       }
+    }
+
+    function requestSvgExport(xml: string) {
+      pendingXml = xml
+      if (exportTimeout) clearTimeout(exportTimeout)
+      postToFrame({ action: 'export', format: 'svg', spin: 1 })
+      // Si una versión antigua de Drawio no responde al export, al menos conserva el XML y
+      // la última imagen publicada en lugar de perder el guardado completo.
+      exportTimeout = setTimeout(() => {
+        if (pendingXml === xml) {
+          pendingXml = ''
+          void persist(xml, publishedSvg.value)
+        }
+      }, 5000)
     }
 
     function onMessage(evt: MessageEvent) {
@@ -103,28 +215,53 @@ export default {
         return
       }
       if (!msg || !msg.event) return
-
-      if (msg.event === 'init') {
-        postToFrame({ action: 'load', xml: savedXml, autosave: 1 })
+      if (msg.event === 'init' || msg.event === 'ready') {
+        postToFrame({ action: 'load', xml: savedXml, autosave: 1, exportProtocol: true })
       } else if (msg.event === 'autosave' || msg.event === 'save') {
-        if (typeof msg.xml === 'string') persist(msg.xml)
+        if (typeof msg.xml === 'string' && canPersist.value) requestSvgExport(msg.xml)
+      } else if (msg.event === 'export' && typeof msg.data === 'string' && pendingXml) {
+        if (exportTimeout) clearTimeout(exportTimeout)
+        const xml = pendingXml
+        pendingXml = ''
+        void persist(xml, normalizeSvg(msg.data))
       }
     }
 
     onMounted(() => window.addEventListener('message', onMessage))
-    onBeforeUnmount(() => window.removeEventListener('message', onMessage))
+    onBeforeUnmount(() => {
+      window.removeEventListener('message', onMessage)
+      eventSource?.close()
+      if (refreshTimer) clearInterval(refreshTimer)
+      if (countdownTimer) clearInterval(countdownTimer)
+      if (exportTimeout) clearTimeout(exportTimeout)
+    })
 
-    return { loading, drawioUrl, friendlyId, frameRef, saveError, saveStatus, canPersist }
+    return {
+      loading, drawioUrl, frameRef, saveError, saveStatus, canPersist,
+      isModeratorOnlyViewer, publishedSvg, publishedUpdatedAt, newVersionAvailable,
+      refreshing, refreshCountdown, streamConnected, refreshPublishedDiagram
+    }
   }
 }
 </script>
 
 <style scoped>
-.diagramming-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; }
+.diagramming-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; position: relative; }
 .drawio-frame { flex: 1; border: none; width: 100%; }
 .save-banner { flex: 0 0 auto; padding: 8px 16px; font-size: 0.85rem; text-align: center; }
+.save-banner-info { background: #eff6ff; color: #1e40af; }
 .save-banner-ok { background: #dcfce7; color: #166534; }
 .save-banner-error { background: #fee2e2; color: #991b1b; }
+.published-banner { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 10px 16px; background: #eef2ff; color: #3730a3; font-size: 0.88rem; }
+.update-state { color: #64748b; font-size: 0.8rem; }
+.published-content { flex: 1; min-height: 420px; display: flex; align-items: center; justify-content: center; padding: 24px; background: #f8fafc; overflow: auto; }
+.published-diagram { display: block; max-width: 100%; max-height: 72vh; object-fit: contain; background: white; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); }
+.published-empty { text-align: center; color: #475569; background: white; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 32px; }
+.published-empty .hint { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
+.refresh-floating { position: absolute; right: 22px; bottom: 22px; width: 46px; height: 46px; border: 0; border-radius: 50%; background: #4f46e5; color: white; font-size: 1.6rem; line-height: 1; cursor: pointer; box-shadow: 0 6px 18px rgba(30, 27, 75, 0.28); z-index: 2; }
+.refresh-floating:hover { background: #4338ca; }
+.refresh-floating:disabled { opacity: 0.65; cursor: wait; }
+.refresh-floating.has-update { background: #059669; box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.18), 0 6px 18px rgba(6, 95, 70, 0.3); }
 .loading-text { padding: 40px; text-align: center; color: #6b7280; }
 .unavailable { margin: 40px auto; text-align: center; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; max-width: 420px; }
 .unavailable .hint { color: #78350f; font-size: 0.85rem; margin-top: 6px; }
