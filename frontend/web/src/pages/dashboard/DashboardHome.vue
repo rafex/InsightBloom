@@ -43,16 +43,16 @@
 
 .dashboard-home(v-else)
   .dashboard-header
-    h1 Mis conferencias
-    router-link.btn-primary(to="/dashboard/join") + Unirse a una conferencia
+    h1 Mis eventos
+    router-link.btn-primary(to="/dashboard/join") + Unirse a un evento
 
   .section(v-if="loadingHistory")
     .loading-text Cargando historial...
 
   .section(v-else-if="history.length === 0")
     .empty-state
-      p Aún no te has unido a ninguna conferencia.
-      router-link.btn-primary(to="/dashboard/join") Unirme a una conferencia
+      p Aún no te has unido a ningún evento.
+      router-link.btn-primary(to="/dashboard/join") Unirme a un evento
 
   .section(v-else)
     .conference-grid
@@ -65,7 +65,7 @@
         .conf-actions(v-if="h.available")
           router-link.btn-outline(:to="`/c/${h.friendlyId}/doubts`") Entrar
           router-link.btn-outline(v-if="h.seatingMode && h.seatingMode !== 'NONE'" :to="`/c/${h.friendlyId}/ticket`") 🎟️ Mi boleto
-        p.unavailable-note(v-else) Esta conferencia ya no se encuentra disponible.
+        p.unavailable-note(v-else) Este evento ya no se encuentra disponible.
 </template>
 
 <script lang="ts">

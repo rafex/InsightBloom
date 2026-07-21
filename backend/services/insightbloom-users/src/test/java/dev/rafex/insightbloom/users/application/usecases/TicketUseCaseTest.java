@@ -26,6 +26,34 @@ class TicketUseCaseTest {
     }
 
     @Test
+    void claimsTicketGloballyFromQrPayloadWithoutConferenceId() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final ConferenceMembershipRepository memberships = mock(ConferenceMembershipRepository.class);
+        final ReservationRepository reservations = mock(ReservationRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference(
+                "event", "Evento", "owner");
+        final var ticket = new Ticket(conference.getUuid(), "owner", null, null);
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByTicketCode(ticket.getTicketCode())).thenReturn(Optional.of(ticket));
+        when(tickets.findByCode(conference.getUuid(), ticket.getTicketCode())).thenReturn(Optional.of(ticket));
+        when(tickets.claim(eq(ticket.getUuid()), eq("user"), anyString())).thenReturn(true);
+        when(tickets.findByUuid(ticket.getUuid())).thenReturn(Optional.of(ticket));
+        when(memberships.exists("user", conference.getUuid())).thenReturn(false);
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets, memberships,
+                mock(EmailPort.class), "", reservations);
+
+        assertSame(ticket, useCase.claimByCode(
+                "https://example.test/ticket?ticket=" + ticket.getTicketCode(), "user"));
+        verify(tickets).findByTicketCode(ticket.getTicketCode());
+        verify(tickets).claim(eq(ticket.getUuid()), eq("user"), anyString());
+    }
+
+    @Test
     void rejectsNonV4ManualCode() {
         assertThrows(IllegalArgumentException.class,
                 () -> TicketUseCase.normalizeCode("123e4567-e89b-12d3-a456-426614174000"));

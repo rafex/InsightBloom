@@ -101,6 +101,15 @@ public class TicketUseCase {
         return ticketRepository.findByUuid(ticket.getUuid()).orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
     }
 
+    /** Canjea un boleto cuando el usuario sólo dispone del contenido del QR/UUID. */
+    public Ticket claimByCode(final String qrOrUuid, final String userUuid) {
+        final String code = normalizeCode(qrOrUuid);
+        final Ticket ticket = ticketRepository.findByTicketCode(code)
+                .or(() -> ticketRepository.findByUuid(code))
+                .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
+        return claim(ticket.getConferenceUuid(), ticket.getTicketCode(), userUuid);
+    }
+
     public Optional<Ticket> myTicket(final String conferenceUuid, final String userUuid) {
         final Conference conference = conference(conferenceUuid);
         expireIfNeeded(conference);

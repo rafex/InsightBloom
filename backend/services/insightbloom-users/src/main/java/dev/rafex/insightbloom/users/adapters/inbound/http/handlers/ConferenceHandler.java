@@ -223,6 +223,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/by-short/{shortCode}", Set.of("GET")),
                 Route.of("/join", Set.of("POST")),
                 Route.of("/history", Set.of("GET")),
+                Route.of("/tickets/claim", Set.of("POST")),
                 Route.of("/attendees/registered-summary", Set.of("GET")),
                 Route.of("/attendees/active-summary", Set.of("GET")),
                 Route.of("/{id}/certificate", Set.of("GET")),
@@ -352,6 +353,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/join")) {
             return handleJoin(jx);
+        }
+        if (jx.path().endsWith("/tickets/claim") && jx.pathParam("id") == null) {
+            return handleClaimTicketByCode(jx);
         }
         if (jx.path().endsWith("/derive-name")) {
             return handleDeriveName(jx, jx.pathParam("id"));
@@ -1026,6 +1030,22 @@ public class ConferenceHandler extends BaseResourceHandler {
                 if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
                 sendOk(jx, 200, ticketUseCase.claim(id, input, v.subjectUuid()));
             }
+        } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Este boleto no se puede canjear");
+        } catch (final IllegalArgumentException e) { sendError(jx, 400, e.getMessage(), "El QR o UUID del boleto no es válido");
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", e.getMessage()); }
+        return true;
+    }
+
+    private boolean handleClaimTicketByCode(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final var body = parseBody(jx);
+            final String input = body.get("ticket") instanceof String s ? s
+                    : body.get("ticketCode") instanceof String s ? s : (String) body.get("qr");
+            sendOk(jx, 200, ticketUseCase.claimByCode(input, v.subjectUuid()));
         } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Este boleto no se puede canjear");
         } catch (final IllegalArgumentException e) { sendError(jx, 400, e.getMessage(), "El QR o UUID del boleto no es válido");
         } catch (final Exception e) { sendError(jx, 500, "internal_error", e.getMessage()); }

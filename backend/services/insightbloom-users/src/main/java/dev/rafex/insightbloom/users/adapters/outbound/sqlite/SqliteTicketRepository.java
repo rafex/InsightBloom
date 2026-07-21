@@ -33,6 +33,10 @@ public class SqliteTicketRepository implements TicketRepository {
         return query("SELECT * FROM tickets WHERE conference_uuid = ? AND ticket_code = ?", conferenceUuid, code);
     }
 
+    @Override public Optional<Ticket> findByTicketCode(final String ticketCode) {
+        return query("SELECT * FROM tickets WHERE ticket_code = ?", ticketCode);
+    }
+
     @Override public Optional<Ticket> findByConferenceAndUser(final String conferenceUuid, final String userUuid) {
         return query("SELECT * FROM tickets WHERE conference_uuid = ? AND claimed_by_user_uuid = ? AND status NOT IN ('REVOKED', 'EXPIRED') ORDER BY issued_at DESC LIMIT 1", conferenceUuid, userUuid);
     }

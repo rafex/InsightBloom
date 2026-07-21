@@ -8,6 +8,7 @@ public interface TicketRepository {
     void insert(Ticket ticket);
     Optional<Ticket> findByUuid(String uuid);
     Optional<Ticket> findByCode(String conferenceUuid, String ticketCode);
+    Optional<Ticket> findByTicketCode(String ticketCode);
     Optional<Ticket> findByConferenceAndUser(String conferenceUuid, String userUuid);
     List<Ticket> findByConference(String conferenceUuid);
     boolean claim(String uuid, String userUuid, String claimedAt);

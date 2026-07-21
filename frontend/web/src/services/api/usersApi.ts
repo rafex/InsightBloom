@@ -314,6 +314,11 @@ export async function claimTicket(conferenceId: string, ticket: string, token: s
   return res.data.data
 }
 
+export async function claimTicketByCode(ticket: string, token: string): Promise<Ticket> {
+  const res = await axios.post('/api/users/api/v1/conferences/tickets/claim', { ticket }, authHeader(token))
+  return res.data.data
+}
+
 export async function claimTicketAsGuest(conferenceId: string, ticket: string, displayName: string): Promise<{ ticket: Ticket, token: string, guestUuid: string, expiresAt: string }> {
   const fingerprint = await getFingerprint()
   const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets/claim`,
