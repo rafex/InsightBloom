@@ -30,12 +30,12 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         // codigo (AssignSandboxUseCase), no algo que un organizador hubiera configurado.
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_extra_packages, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_extra_packages, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode)
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -73,25 +73,29 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(28, conference.getDiagramUpdatedAt() != null ? conference.getDiagramUpdatedAt().toString() : null);
             ps.setLong(29, conference.getDiagramVersion());
             ps.setString(30, conference.getDiagramPurgedAt() != null ? conference.getDiagramPurgedAt().toString() : null);
-            ps.setString(31, conference.getSandboxVariant());
-            if (conference.getSandboxPoolSize() != null) ps.setInt(32, conference.getSandboxPoolSize());
-            else ps.setNull(32, Types.INTEGER);
-            final Integer internetEnabled = conference.getSandboxInternetEnabled();
-            ps.setInt(33, internetEnabled != null ? internetEnabled : 0);
-            ps.setString(34, conference.getSandboxExtraPackages());
-            ps.setString(35, conference.getSandboxRemoteGitUrl());
-            if (conference.getSandboxJvmHeapMb() != null) ps.setInt(36, conference.getSandboxJvmHeapMb());
+            ps.setString(31, conference.getWhiteboardSceneJson());
+            ps.setString(32, conference.getWhiteboardPublishedSvg());
+            ps.setString(33, conference.getWhiteboardUpdatedAt() != null ? conference.getWhiteboardUpdatedAt().toString() : null);
+            ps.setLong(34, conference.getWhiteboardVersion());
+            ps.setString(35, conference.getSandboxVariant());
+            if (conference.getSandboxPoolSize() != null) ps.setInt(36, conference.getSandboxPoolSize());
             else ps.setNull(36, Types.INTEGER);
-            if (conference.getSandboxSeatsPerPod() != null) ps.setInt(37, conference.getSandboxSeatsPerPod());
-            else ps.setNull(37, Types.INTEGER);
-            if (conference.getSandboxCliPoolSize() != null) ps.setInt(38, conference.getSandboxCliPoolSize());
-            else ps.setNull(38, Types.INTEGER);
-            if (conference.getMaxDevicesPerUser() != null) ps.setInt(39, conference.getMaxDevicesPerUser());
-            else ps.setNull(39, Types.INTEGER);
-            if (conference.getMaxAccountsPerDevice() != null) ps.setInt(40, conference.getMaxAccountsPerDevice());
+            final Integer internetEnabled = conference.getSandboxInternetEnabled();
+            ps.setInt(37, internetEnabled != null ? internetEnabled : 0);
+            ps.setString(38, conference.getSandboxExtraPackages());
+            ps.setString(39, conference.getSandboxRemoteGitUrl());
+            if (conference.getSandboxJvmHeapMb() != null) ps.setInt(40, conference.getSandboxJvmHeapMb());
             else ps.setNull(40, Types.INTEGER);
-            ps.setString(41, conference.getCanvasTool());
-            ps.setString(42, conference.getCanvasAudienceMode());
+            if (conference.getSandboxSeatsPerPod() != null) ps.setInt(41, conference.getSandboxSeatsPerPod());
+            else ps.setNull(41, Types.INTEGER);
+            if (conference.getSandboxCliPoolSize() != null) ps.setInt(42, conference.getSandboxCliPoolSize());
+            else ps.setNull(42, Types.INTEGER);
+            if (conference.getMaxDevicesPerUser() != null) ps.setInt(43, conference.getMaxDevicesPerUser());
+            else ps.setNull(43, Types.INTEGER);
+            if (conference.getMaxAccountsPerDevice() != null) ps.setInt(44, conference.getMaxAccountsPerDevice());
+            else ps.setNull(44, Types.INTEGER);
+            ps.setString(45, conference.getCanvasTool());
+            ps.setString(46, conference.getCanvasAudienceMode());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -245,6 +249,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.restoreDiagram(rs.getString("diagram_xml"), rs.getString("diagram_published_svg"),
                 parseInstantNullable(rs.getString("diagram_updated_at")), rs.getLong("diagram_version"));
         conference.setDiagramPurgedAt(parseInstantNullable(rs.getString("diagram_purged_at")));
+        conference.restoreWhiteboard(rs.getString("whiteboard_scene_json"), rs.getString("whiteboard_published_svg"),
+                parseInstantNullable(rs.getString("whiteboard_updated_at")), rs.getLong("whiteboard_version"));
         conference.setSandboxVariant(rs.getString("sandbox_variant"));
         final int sandboxPoolSize = rs.getInt("sandbox_pool_size");
         conference.setSandboxPoolSize(rs.wasNull() ? null : sandboxPoolSize);

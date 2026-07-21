@@ -169,6 +169,8 @@ public class UsersApplication {
         final var getOrCreateEventPadUseCase = new GetOrCreateEventPadUseCase(conferenceRepo, etherpadPort);
         final var getEventDiagramUseCase = new GetEventDiagramUseCase(conferenceRepo);
         final var saveEventDiagramUseCase = new SaveEventDiagramUseCase(conferenceRepo);
+        final var getEventWhiteboardUseCase = new GetEventWhiteboardUseCase(conferenceRepo);
+        final var saveEventWhiteboardUseCase = new SaveEventWhiteboardUseCase(conferenceRepo);
         final var purgeExpiredEventDiagramsUseCase = new PurgeExpiredEventDiagramsUseCase(conferenceRepo, timezoneRepo);
         final var generateJaasTokenUseCase = new GenerateJaasTokenUseCase(
                 jaasAppId, jaasApiKeyId, jaasPrivateKeyBase64, eventPermissionGuard, userRepo,
@@ -298,7 +300,9 @@ public class UsersApplication {
                 setEventTypeUseCase, setCanvasConfigUseCase,
                 eventCapabilityGuard, getOrCreateEventPadUseCase,
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
-                getEventDiagramUseCase, saveEventDiagramUseCase, generateJaasTokenUseCase, generateSeatLayoutUseCase,
+                getEventDiagramUseCase, saveEventDiagramUseCase,
+                getEventWhiteboardUseCase, saveEventWhiteboardUseCase,
+                generateJaasTokenUseCase, generateSeatLayoutUseCase,
                 setSandboxConfigUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
                 setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,

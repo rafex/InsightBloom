@@ -365,6 +365,18 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN diagram_purged_at TEXT");
             } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN whiteboard_scene_json TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN whiteboard_published_svg TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN whiteboard_updated_at TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN whiteboard_version INTEGER NOT NULL DEFAULT 0");
+            } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS roles (

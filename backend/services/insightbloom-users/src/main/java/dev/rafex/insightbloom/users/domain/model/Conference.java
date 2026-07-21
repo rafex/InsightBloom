@@ -37,6 +37,10 @@ public class Conference {
     private Instant diagramUpdatedAt; // nullable
     private long diagramVersion;
     private Instant diagramPurgedAt; // marca cuándo se purgó el diagrama por TTL, nullable
+    private String whiteboardSceneJson; // ultima escena nativa de Excalidraw del moderador
+    private String whiteboardPublishedSvg; // ultima exportacion SVG publicada para asistentes
+    private Instant whiteboardUpdatedAt;
+    private long whiteboardVersion;
     // Vestigial (2026-07, pools Web/CLI independientes): ya no selecciona "la" variante -- las
     // dos conviven siempre para toda conferencia con CODE_IDE habilitada, cada una con su propio
     // pool (sandboxPoolSize=web, sandboxCliPoolSize=cli). Se deja la columna sin borrar (evita
@@ -159,6 +163,10 @@ public class Conference {
     public Instant getDiagramUpdatedAt() { return diagramUpdatedAt; }
     public long getDiagramVersion() { return diagramVersion; }
     public Instant getDiagramPurgedAt() { return diagramPurgedAt; }
+    public String getWhiteboardSceneJson() { return whiteboardSceneJson; }
+    public String getWhiteboardPublishedSvg() { return whiteboardPublishedSvg; }
+    public Instant getWhiteboardUpdatedAt() { return whiteboardUpdatedAt; }
+    public long getWhiteboardVersion() { return whiteboardVersion; }
     public void setDiagramXml(String diagramXml) {
         setDiagramXmlAndPublishedSvg(diagramXml, null);
     }
@@ -180,6 +188,19 @@ public class Conference {
         this.diagramVersion = version;
     }
     public void setDiagramPurgedAt(Instant diagramPurgedAt) { this.diagramPurgedAt = diagramPurgedAt; }
+    public void setWhiteboardSceneAndPublishedSvg(String sceneJson, String publishedSvg) {
+        this.whiteboardSceneJson = sceneJson;
+        this.whiteboardPublishedSvg = publishedSvg;
+        this.whiteboardUpdatedAt = Instant.now();
+        this.whiteboardVersion++;
+    }
+    /** Usado solo por el repositorio al reconstruir la entidad desde la BD. */
+    public void restoreWhiteboard(String sceneJson, String publishedSvg, Instant updatedAt, long version) {
+        this.whiteboardSceneJson = sceneJson;
+        this.whiteboardPublishedSvg = publishedSvg;
+        this.whiteboardUpdatedAt = updatedAt;
+        this.whiteboardVersion = version;
+    }
     public void setSeatingMode(String seatingMode) { this.seatingMode = seatingMode; }
     public void setCapacity(Integer capacity) { this.capacity = capacity; }
     public void setReservedCount(int reservedCount) { this.reservedCount = reservedCount; }

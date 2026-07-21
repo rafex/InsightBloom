@@ -496,6 +496,28 @@ export function streamEventDiagram(conferenceId: string, token: string): EventSo
   return new EventSource(url)
 }
 
+/** Escena nativa y exportacion publicada de Excalidraw para el evento. */
+export async function getEventWhiteboard(conferenceId: string, token: string): Promise<{
+  sceneJson: string, publishedSvg?: string | null, updatedAt?: string | null, version?: number
+}> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/whiteboard`, authHeader(token))
+  return res.data.data
+}
+
+/** Guarda la escena .excalidraw y publica el SVG visible para asistentes. */
+export async function saveEventWhiteboard(
+  conferenceId: string, sceneJson: string, token: string, publishedSvg?: string | null
+): Promise<void> {
+  await axios.put(`/api/users/api/v1/conferences/${conferenceId}/whiteboard`,
+    { sceneJson, publishedSvg }, authHeader(token))
+}
+
+/** Stream de cambios de la pizarra publicada. EventSource no admite headers Bearer. */
+export function streamEventWhiteboard(conferenceId: string, token: string): EventSource {
+  const url = `/api/users/api/v1/conferences/${conferenceId}/whiteboard/stream?ib_token=${encodeURIComponent(token)}`
+  return new EventSource(url)
+}
+
 /** Token JWT firmado para unirse a la sala de JaaS (8x8.vc) de este evento, si esta configurado. */
 export async function getJaasToken(conferenceId: string, token: string): Promise<JaasToken> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/jaas-token`,

@@ -28,6 +28,7 @@ import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetDownloadCountsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateJaasTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetEventDiagramUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GetEventWhiteboardUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetMyTicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetOrCreateEventPadUseCase;
 import dev.rafex.insightbloom.users.application.usecases.AssignEventRoleUseCase;
@@ -46,6 +47,7 @@ import dev.rafex.insightbloom.users.application.usecases.UnblockDeviceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSeatingModeUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetVenueMapUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SaveEventDiagramUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SaveEventWhiteboardUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UpdateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.TicketUseCase;
@@ -114,6 +116,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final RemoveEventRoleUseCase removeEventRoleUseCase;
     private final GetEventDiagramUseCase getEventDiagramUseCase;
     private final SaveEventDiagramUseCase saveEventDiagramUseCase;
+    private final GetEventWhiteboardUseCase getEventWhiteboardUseCase;
+    private final SaveEventWhiteboardUseCase saveEventWhiteboardUseCase;
     private final GenerateJaasTokenUseCase generateJaasTokenUseCase;
     private final GenerateSeatLayoutUseCase generateSeatLayoutUseCase;
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
@@ -127,6 +131,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SandboxHandler sandboxHandler;
     private final SandboxFilesHandler sandboxFilesHandler;
     private final Map<String, CopyOnWriteArrayList<EventStream>> diagramSubscribers = new ConcurrentHashMap<>();
+    private final Map<String, CopyOnWriteArrayList<EventStream>> whiteboardSubscribers = new ConcurrentHashMap<>();
     private final ScheduledExecutorService diagramStreamScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         final Thread thread = new Thread(r, "diagram-sse-heartbeat");
         thread.setDaemon(true);
@@ -169,6 +174,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final RemoveEventRoleUseCase removeEventRoleUseCase,
                              final GetEventDiagramUseCase getEventDiagramUseCase,
                              final SaveEventDiagramUseCase saveEventDiagramUseCase,
+                             final GetEventWhiteboardUseCase getEventWhiteboardUseCase,
+                             final SaveEventWhiteboardUseCase saveEventWhiteboardUseCase,
                              final GenerateJaasTokenUseCase generateJaasTokenUseCase,
                              final GenerateSeatLayoutUseCase generateSeatLayoutUseCase,
                              final SetSandboxConfigUseCase setSandboxConfigUseCase,
@@ -217,6 +224,8 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.removeEventRoleUseCase = removeEventRoleUseCase;
         this.getEventDiagramUseCase = getEventDiagramUseCase;
         this.saveEventDiagramUseCase = saveEventDiagramUseCase;
+        this.getEventWhiteboardUseCase = getEventWhiteboardUseCase;
+        this.saveEventWhiteboardUseCase = saveEventWhiteboardUseCase;
         this.generateJaasTokenUseCase = generateJaasTokenUseCase;
         this.generateSeatLayoutUseCase = generateSeatLayoutUseCase;
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
@@ -283,6 +292,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/notes", Set.of("GET")),
                 Route.of("/{id}/diagram/stream", Set.of("GET")),
                 Route.of("/{id}/diagram", Set.of("GET", "PUT")),
+                Route.of("/{id}/whiteboard/stream", Set.of("GET")),
+                Route.of("/{id}/whiteboard", Set.of("GET", "PUT")),
                 Route.of("/{id}/jaas-token", Set.of("GET")),
                 Route.of("/{id}/roles", Set.of("GET", "POST")),
                 Route.of("/{id}/roles/{userUuid}", Set.of("DELETE")),
@@ -342,6 +353,12 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/diagram")) {
             return handleGetDiagram(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/whiteboard/stream")) {
+            return handleWhiteboardStream(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/whiteboard")) {
+            return handleGetWhiteboard(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/jaas-token")) {
             return handleGetJaasToken(jx, jx.pathParam("id"));
@@ -461,6 +478,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/diagram")) {
             return handleSaveDiagram(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/whiteboard")) {
+            return handleSaveWhiteboard(jx, jx.pathParam("id"));
         }
         return handleUpdate(jx, jx.pathParam("id"));
     }
@@ -881,6 +901,96 @@ public class ConferenceHandler extends BaseResourceHandler {
         return JsonUtils.toJson(java.util.Map.of(
                 "version", diagram.version(),
                 "updatedAt", diagram.updatedAt() != null ? diagram.updatedAt().toString() : ""));
+    }
+
+    private boolean handleGetWhiteboard(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (!hasCapability(id, EventCapability.WHITEBOARD)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita pizarra");
+                return true;
+            }
+            getEventWhiteboardUseCase.execute(id).ifPresentOrElse(
+                    whiteboard -> sendOk(jx, 200, whiteboard),
+                    () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSaveWhiteboard(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (!hasCapability(id, EventCapability.WHITEBOARD)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita pizarra");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String sceneJson = body.get("sceneJson") instanceof String scene ? scene : "";
+            final String publishedSvg = body.get("publishedSvg") instanceof String svg ? svg : null;
+            if (sceneJson.length() > 12_000_000 || (publishedSvg != null && publishedSvg.length() > 12_000_000)) {
+                sendError(jx, 413, "whiteboard_too_large", "La pizarra excede el limite permitido");
+                return true;
+            }
+            if (saveEventWhiteboardUseCase.execute(id, sceneJson, publishedSvg, v.subjectUuid())) {
+                getEventWhiteboardUseCase.execute(id).ifPresent(whiteboard -> publishWhiteboardUpdate(id, whiteboard));
+                sendOk(jx, 200, java.util.Map.of("saved", true));
+            } else {
+                sendError(jx, 403, "moderator_only", "Solo el moderador puede guardar el material de la pizarra");
+            }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleWhiteboardStream(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (!hasCapability(id, EventCapability.WHITEBOARD)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita pizarra");
+                return true;
+            }
+            final var stream = jx.startEventStream();
+            final var subscribers = whiteboardSubscribers.computeIfAbsent(id, ignored -> new CopyOnWriteArrayList<>());
+            subscribers.add(stream);
+            getEventWhiteboardUseCase.execute(id).ifPresent(whiteboard ->
+                    stream.send("snapshot", whiteboardMetadata(whiteboard)));
+            final ScheduledFuture<?> heartbeat = diagramStreamScheduler.scheduleAtFixedRate(
+                    () -> stream.comment("ping"), DIAGRAM_STREAM_HEARTBEAT_SECONDS,
+                    DIAGRAM_STREAM_HEARTBEAT_SECONDS, TimeUnit.SECONDS);
+            stream.onClose(() -> {
+                heartbeat.cancel(true);
+                subscribers.remove(stream);
+                if (subscribers.isEmpty()) whiteboardSubscribers.remove(id, subscribers);
+            });
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private void publishWhiteboardUpdate(final String id, final GetEventWhiteboardUseCase.WhiteboardInfo whiteboard) {
+        final var subscribers = whiteboardSubscribers.get(id);
+        if (subscribers == null || subscribers.isEmpty()) return;
+        final String payload = whiteboardMetadata(whiteboard);
+        subscribers.forEach(stream -> stream.send("update", payload));
+    }
+
+    private static String whiteboardMetadata(final GetEventWhiteboardUseCase.WhiteboardInfo whiteboard) {
+        return JsonUtils.toJson(java.util.Map.of(
+                "version", whiteboard.version(),
+                "updatedAt", whiteboard.updatedAt() != null ? whiteboard.updatedAt().toString() : ""));
     }
 
     private boolean handleGetJaasToken(final JettyHttpExchange jx, final String id) {

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@thumbmarkjs/thumbmarkjs": "^1.10.1",
+    "@excalidraw/excalidraw": "^0.18.1",
     "animate.css": "^4.1.1",
     "axios": "^1.7.9",
     "d3": "^7.9.0",
@@ -22,6 +23,8 @@
     "monaco-editor": "^0.52.2",
     "qr-scanner": "^1.4.2",
     "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
@@ -29,6 +32,8 @@
     "@types/d3": "^7.4.3",
     "@types/d3-cloud": "^1.2.9",
     "@types/leaflet": "^1.9.21",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
     "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/test-utils": "^2.4.6",

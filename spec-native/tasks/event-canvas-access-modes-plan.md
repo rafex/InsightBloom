@@ -4,7 +4,7 @@
 
 - Estado: `in_progress`
 - Tipo: plan de implementación
-- Alcance actual: configuración múltiple persistida y primera rebanada de publicación de Drawio implementada
+- Alcance actual: configuración múltiple persistida, publicación de Drawio implementada y publicación de Excalidraw en curso
 
 ## Objetivo
 
@@ -282,11 +282,9 @@ Requisitos de API:
 ### Fase 4 — Integración de Excalidraw
 
 - No activar colaboración nativa ni desplegar un servidor WebSocket.
-- Sustituir gradualmente el iframe localStorage por un wrapper o una instancia
-  controlable que permita obtener la escena nativa del moderador.
-- Guardar `.excalidraw` sólo para el moderador.
-- Generar SVG/PNG/PDF mediante las APIs o exportadores compatibles con la
-  versión instalada.
+- [x] Sustituir el iframe localStorage por una instancia controlable que permita obtener la escena nativa del moderador.
+- [x] Guardar `.excalidraw` sólo para el moderador.
+- [x] Generar y publicar SVG mediante una API compatible con la versión instalada.
 - En `INDEPENDENT`, inicializar cada cliente con una escena independiente y
   no enviar sus cambios al servidor.
 - En `MODERATOR_ONLY`, servir a asistentes el último export publicado, no un
@@ -394,9 +392,15 @@ permiten recuperar el estado si el stream no está disponible. El stream es un
 bus local del servicio Users; es apropiado mientras Users se mantenga con la
 topología actual de una instancia SQLite y no sustituye un bus distribuido.
 
+El contrato operativo y sus gates de verificación están documentados en
+[`workflows/CANVAS-PUBLICATION.md`](../workflows/CANVAS-PUBLICATION.md). La
+rebanada equivalente de Excalidraw usa una instancia controlada del paquete
+embebible, porque el iframe externo no permite recuperar de forma fiable su
+escena desde InsightBloom.
+
 Todavía no se han implementado las tablas versionadas de artefactos, las
-exportaciones adicionales de Drawio, Excalidraw/Etherpad ni el ZIP condicionado
-por encuesta. Esas piezas siguen pendientes en las fases 1–8 y deben reutilizar
+exportaciones adicionales de Drawio, PNG/PDF de Excalidraw, Etherpad ni el ZIP
+condicionado por encuesta. Esas piezas siguen pendientes en las fases 1–8 y deben reutilizar
 la comprobación backend de encuesta existente.
 
 ## Criterio de cierre

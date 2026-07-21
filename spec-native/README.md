@@ -31,6 +31,7 @@
 - [`workflows/PLANNING.md`](./workflows/PLANNING.md) — Cómo planificar iniciativas
 - [`workflows/IMPLEMENTATION.md`](./workflows/IMPLEMENTATION.md) — Cómo implementar tareas
 - [`workflows/REVIEW.md`](./workflows/REVIEW.md) — Cómo revisar contra spec
+- [`workflows/CANVAS-PUBLICATION.md`](./workflows/CANVAS-PUBLICATION.md) — Contrato y verificación de publicación de Drawio/Excalidraw
 
 ## Pipelines
 
