@@ -97,8 +97,29 @@ final class WebSocketProxyCreator implements WebSocketCreator {
         LOGGER.info(() -> "websocket handshake aceptado, creando bridge host=" + host + " path=" + path
             + " backendUri=" + backendUri);
 
+        // ttyd exige que el navegador negocie el subprotocolo "tty". El proxy ya reenvia los
+        // subprotocolos hacia el backend, pero eso ocurre despues de que Jetty termina este
+        // handshake servidor->cliente. Si no se confirma aqui, Chrome rechaza la respuesta 101
+        // porque solicito Sec-WebSocket-Protocol y no recibio el mismo protocolo en la respuesta.
+        final String acceptedSubprotocol = acceptedSubprotocol(isIdeHost, request.getSubProtocols());
+        if (acceptedSubprotocol != null) {
+            response.setAcceptedSubProtocol(acceptedSubprotocol);
+            LOGGER.info(() -> "websocket subprotocolo negociado host=" + host
+                + " subprotocolo=" + acceptedSubprotocol);
+        }
+
         final LoggingWebSocketProxyEndpoint endpoint = new LoggingWebSocketProxyEndpoint(backendUri, java.time.Duration.ofSeconds(10));
         return new JettyWebSocketEndpointBridge(endpoint, path, queryParamsOf(rawQuery), headersOf(request));
+    }
+
+    static String acceptedSubprotocol(final boolean isIdeHost, final List<String> requestedSubprotocols) {
+        if (!isIdeHost || requestedSubprotocols == null) {
+            return null;
+        }
+        return requestedSubprotocols.stream()
+            .filter("tty"::equals)
+            .findFirst()
+            .orElse(null);
     }
 
     private static String originOf(final ServerUpgradeRequest request) {
