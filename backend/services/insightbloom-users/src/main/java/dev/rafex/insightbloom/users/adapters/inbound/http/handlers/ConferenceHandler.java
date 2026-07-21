@@ -922,8 +922,12 @@ public class ConferenceHandler extends BaseResourceHandler {
                     : reserveGeneralUseCase.execute(id, v.subjectUuid());
             sendOk(jx, 201, reservation);
         } catch (final IllegalStateException e) {
-            final String detail = "seat_already_taken".equals(e.getMessage())
-                    ? "Ese asiento ya fue reservado por alguien más" : "No hay cupo disponible para esta conferencia";
+            final String detail = switch (e.getMessage()) {
+                case "seat_already_taken" -> "Ese asiento ya fue reservado por alguien más";
+                case "staff_exempt_no_ticket_needed" ->
+                        "Como organizador, admin o moderador ya tenés acceso garantizado -- no necesitás boleto";
+                default -> "No hay cupo disponible para esta conferencia";
+            };
             sendError(jx, 409, e.getMessage(), detail);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());

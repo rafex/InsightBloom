@@ -4,6 +4,7 @@ import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.Reservation;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.ReservationRepository;
+import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 
 /**
  * Reserva de boleto sin asiento, sujeto al aforo del evento -- aplica tanto a modo GENERAL
@@ -14,11 +15,14 @@ import dev.rafex.insightbloom.users.domain.ports.ReservationRepository;
 public class ReserveGeneralUseCase {
     private final ConferenceRepository conferenceRepository;
     private final ReservationRepository reservationRepository;
+    private final UserRepository userRepository;
 
     public ReserveGeneralUseCase(final ConferenceRepository conferenceRepository,
-                                  final ReservationRepository reservationRepository) {
+                                  final ReservationRepository reservationRepository,
+                                  final UserRepository userRepository) {
         this.conferenceRepository = conferenceRepository;
         this.reservationRepository = reservationRepository;
+        this.userRepository = userRepository;
     }
 
     public Reservation execute(final String conferenceUuid, final String userUuid) {
@@ -26,6 +30,15 @@ public class ReserveGeneralUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
         if ("SEATED".equals(conference.getSeatingMode())) {
             throw new IllegalStateException("not_general_admission");
+        }
+        // Admin/organizer/moderator no consumen boleto/aforo -- su acceso ya está garantizado
+        // por su rol, no por "ganar" un lugar limitado (ver User.isExemptFromTickets()). Su
+        // asistencia se sigue registrando vía ConferenceMembership (JoinConferenceUseCase),
+        // solo quedan afuera del conteo de boletos emitidos.
+        final boolean staffExempt = userRepository.findByUuid(userUuid)
+                .map(dev.rafex.insightbloom.users.domain.model.User::isExemptFromTickets).orElse(false);
+        if (staffExempt) {
+            throw new IllegalStateException("staff_exempt_no_ticket_needed");
         }
         final var existing = reservationRepository.findByConferenceAndUser(conferenceUuid, userUuid);
         if (existing.isPresent()) return existing.get();

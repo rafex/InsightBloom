@@ -110,7 +110,7 @@ public class UsersApplication {
         final var updateProfileUseCase = new UpdateProfileUseCase(userRepo);
         final var changePasswordUseCase = new ChangePasswordUseCase(userRepo, passwordService);
         final var setSeatingModeUseCase = new SetSeatingModeUseCase(conferenceRepo, reservationRepo);
-        final var reserveGeneralUseCase = new ReserveGeneralUseCase(conferenceRepo, reservationRepo);
+        final var reserveGeneralUseCase = new ReserveGeneralUseCase(conferenceRepo, reservationRepo, userRepo);
         final var getMyTicketUseCase = new GetMyTicketUseCase(reservationRepo);
         final var cancelReservationUseCase = new CancelReservationUseCase(reservationRepo, conferenceRepo);
         final var listReservationsUseCase = new ListReservationsUseCase(conferenceRepo, reservationRepo);

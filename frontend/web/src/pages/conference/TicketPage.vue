@@ -85,9 +85,13 @@ export default {
       try {
         ticket.value = await reserveGeneral(props.conferenceId as string, auth.state.token as string)
       } catch (e: any) {
-        error.value = e.response?.status === 409
-          ? 'Ya no hay cupo disponible para esta conferencia.'
-          : 'No se pudo reservar tu lugar. Intenta de nuevo.'
+        if (e.response?.data?.error?.code === 'staff_exempt_no_ticket_needed') {
+          error.value = 'Como organizador, admin o moderador ya tenés acceso garantizado -- no necesitás boleto.'
+        } else if (e.response?.status === 409) {
+          error.value = 'Ya no hay cupo disponible para esta conferencia.'
+        } else {
+          error.value = 'No se pudo reservar tu lugar. Intenta de nuevo.'
+        }
       } finally {
         reserving.value = false
       }
@@ -99,10 +103,15 @@ export default {
       try {
         ticket.value = await reserveSeat(props.conferenceId as string, selectedSeat.value, auth.state.token as string)
       } catch (e: any) {
-        error.value = e.response?.status === 409
-          ? 'Ese asiento ya fue tomado, elige otro.'
-          : 'No se pudo reservar el asiento. Intenta de nuevo.'
-        if (e.response?.status === 409 && props.conferenceId) {
+        const code = e.response?.data?.error?.code
+        if (code === 'staff_exempt_no_ticket_needed') {
+          error.value = 'Como organizador, admin o moderador ya tenés acceso garantizado -- no necesitás boleto.'
+        } else {
+          error.value = e.response?.status === 409
+            ? 'Ese asiento ya fue tomado, elige otro.'
+            : 'No se pudo reservar el asiento. Intenta de nuevo.'
+        }
+        if (e.response?.status === 409 && code !== 'staff_exempt_no_ticket_needed' && props.conferenceId) {
           seatMap.value = await getConferenceSeatMap(props.conferenceId, auth.state.token as string)
           selectedSeat.value = null
         }

@@ -38,6 +38,13 @@ public class ReserveSeatUseCase {
         if (!"SEATED".equals(conference.getSeatingMode())) {
             throw new IllegalStateException("not_seated_admission");
         }
+        // Admin/organizer/moderator no consumen boleto/aforo -- ver ReserveGeneralUseCase para
+        // el mismo chequeo y el porqué (User.isExemptFromTickets()).
+        final boolean staffExempt = userRepository.findByUuid(userUuid)
+                .map(User::isExemptFromTickets).orElse(false);
+        if (staffExempt) {
+            throw new IllegalStateException("staff_exempt_no_ticket_needed");
+        }
         venueSeatRepository.findByConference(conferenceUuid).stream()
                 .filter(s -> s.getUuid().equals(seatUuid))
                 .findFirst()
