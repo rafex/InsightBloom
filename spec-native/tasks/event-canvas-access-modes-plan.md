@@ -4,7 +4,7 @@
 
 - Estado: `in_progress`
 - Tipo: plan de implementación
-- Alcance actual: configuración múltiple persistida, publicación de Drawio implementada y publicación de Excalidraw en curso
+- Alcance actual: configuración múltiple persistida, publicación de Drawio/Excalidraw y notas Etherpad grupales o individuales implementadas
 
 ## Objetivo
 
@@ -19,9 +19,10 @@ La elección debe controlar quién puede editar y qué resultado se conserva. No
 se implementará colaboración multiusuario en tiempo real mediante una nueva
 capa WebSocket.
 
-Las únicas ediciones que se persistirán para distribución serán las realizadas
-por el moderador. Los trabajos independientes de los asistentes serán
-temporales y no formarán parte del material descargable.
+Drawio y Excalidraw conservan para distribución únicamente la publicación del
+moderador. Etherpad tiene una modalidad grupal por defecto y una modalidad
+individual opcional: los pads individuales se conservan durante el evento,
+permiten exportación al asistente y se purgan después del vencimiento.
 
 ## Decisión funcional
 
@@ -31,6 +32,7 @@ temporales y no formarán parte del material descargable.
 |---|---|---|---|
 | `INDEPENDENT` | Moderador y asistentes, cada uno en su propio espacio | Su propio espacio de trabajo; no ven ni modifican el de otros | Sólo el espacio del moderador |
 | `MODERATOR_ONLY` | Sólo el moderador | El último resultado publicado por el moderador, como contenido no editable | Fuente nativa y exportaciones del moderador |
+| `COLLABORATIVE` | Moderador y asistentes sobre el mismo pad de Etherpad | El documento grupal en vivo | El pad grupal mientras dura el evento; se incorpora al ZIP |
 
 `INDEPENDENT` no significa colaboración: no habrá cursores compartidos,
 presencia, sincronización, resolución de conflictos ni comunicación entre los
@@ -55,10 +57,10 @@ EXCALIDRAW   -> pizarra y escenas JSON
 ETHERPAD     -> documento colaborativo y exportaciones
 ```
 
-La modalidad (`INDEPENDENT` o `MODERATOR_ONLY`) se persiste por herramienta y
-se aplica de forma independiente en el frontend. Esto permite que un evento
-tenga, por ejemplo, Drawio y Excalidraw sólo para el moderador y Etherpad en
-espacios independientes.
+La modalidad se persiste por herramienta y se aplica de forma independiente en
+el frontend. `COLLABORATIVE` sólo es válida para Etherpad y es el valor por
+defecto de las notas. Esto permite que un evento tenga Drawio y Excalidraw sólo
+para el moderador y Etherpad grupal o individual.
 
 Si no se selecciona ninguna herramienta explícitamente, se mantiene el modo
 legado: se muestran las herramientas habilitadas por el tipo de evento.
@@ -88,31 +90,29 @@ la respuesta original o snapshot necesario para reproducir las exportaciones.
 
 ### Trabajo de los asistentes
 
-- Cada asistente tendrá un espacio independiente cuando la modalidad sea
-  `INDEPENDENT`.
-- Ese espacio se mantendrá sólo en el navegador o en la sesión de trabajo.
-- No se guardará en SQLite, almacenamiento de objetos, Etherpad ni en el ZIP.
-- No habrá historial, recuperación entre dispositivos ni consulta posterior
-  por parte del moderador.
-- Si el asistente abandona la página o cambia de dispositivo, el trabajo puede
-  perderse; la UI debe indicarlo explícitamente.
+- Cada asistente tendrá un pad privado derivado por backend cuando Etherpad esté
+  en `INDEPENDENT`. El navegador nunca puede elegir el `padId` de otra persona.
+- El pad privado vive durante la vigencia del evento y la purga posterior
+  configurada; la UI debe ofrecer TXT y HTML antes de esa purga.
+- Los pads privados no se guardan en SQLite, no se mezclan con el pad grupal y
+  nunca se agregan al ZIP de materiales.
+- Si el asistente abandona el evento sin exportar, el contenido puede perderse
+  cuando se ejecute la purga; esto debe estar indicado explícitamente.
 
 La única excepción es el resultado del moderador, que sí será persistente y
 descargable.
 
-## Descarga condicionada por encuesta
+## Descarga de materiales y exportación de notas
 
-El ZIP de materiales seguirá la misma política de acceso que la descarga de la
-presentación actual:
+El ZIP de materiales está disponible para un token válido con acceso al evento
+y sigue la política de acceso del evento ticketed:
 
 - Moderador, organizador y administradores autorizados: pueden obtenerlo según
   sus permisos operativos.
-- Participante: debe tener sesión válida, acceso al evento mediante registro y
-  boleto, y haber respondido la encuesta requerida.
-- Sin encuesta completada: el endpoint debe rechazar la descarga aunque el
-  navegador muestre el botón.
-- La comprobación debe realizarse en backend; ocultar el botón en frontend no
-  es una medida de seguridad suficiente.
+- Participante: debe tener sesión válida y acceso al evento mediante el boleto
+  cuando el evento sea ticketed.
+- La comprobación se realiza en backend; ocultar el botón en frontend no es una
+  medida de seguridad suficiente.
 
 El ZIP se generará bajo demanda o desde un artefacto versionado y tendrá una
 estructura estable, por ejemplo:
@@ -121,21 +121,9 @@ estructura estable, por ejemplo:
 event-materials-<friendly-id>.zip
 ├── manifest.json
 ├── moderator/
-│   ├── drawio/
-│   │   ├── source.drawio
-│   │   ├── export.svg
-│   │   ├── export.png
-│   │   └── export.pdf
-│   ├── excalidraw/
-│   │   ├── source.excalidraw
-│   │   ├── export.svg
-│   │   ├── export.png
-│   │   └── export.pdf
-│   └── etherpad/
-│       ├── source.html
-│       ├── export.txt
-│       ├── export.html
-│       └── export.pdf
+│   ├── drawio/       # source.drawio, export.svg, export.png si existe publicación
+│   ├── excalidraw/   # source.excalidraw, export.svg, export.png si existe publicación
+│   └── etherpad/     # sólo notas grupales: source.html, export.html, export.txt
 └── README.txt
 ```
 
@@ -162,7 +150,7 @@ autorización general del evento:
 EventCanvasConfig
   conferenceUuid
   tool                 DRAWIO | EXCALIDRAW | ETHERPAD
-  audienceMode         INDEPENDENT | MODERATOR_ONLY
+  audienceMode         INDEPENDENT | MODERATOR_ONLY | COLLABORATIVE
   moderatorSourceId    nullable
   publishedVersion     nullable
   createdAt
@@ -218,6 +206,10 @@ permita. No se requiere WebSocket para estas modalidades.
 - [x] Confirmar que la creación permite varias herramientas por evento.
 - [x] Confirmar que el guardado/autoguardado del moderador publica también el
   snapshot visible para asistentes.
+- [x] Confirmar que Etherpad es grupal por defecto y que el modo individual
+  expira con el evento y se puede exportar.
+- [x] Definir el ZIP de materiales como descarga de fuentes y publicaciones
+  grupales, excluyendo pads privados.
 - Definir la lista exacta de exportaciones garantizadas para cada herramienta.
 - Definir el formato canónico de fuente de Etherpad.
 - [x] Confirmar que los asistentes en `MODERATOR_ONLY` ven el último snapshot al
@@ -294,15 +286,13 @@ Requisitos de API:
 
 ### Fase 5 — Integración de Etherpad
 
-- Mantener el pad del moderador como fuente persistente.
-- Definir un snapshot canónico y obtenerlo mediante el API de Etherpad.
-- Generar los formatos de descarga permitidos por el despliegue.
-- En `INDEPENDENT`, crear o presentar espacios separados sin persistir los
-  cambios de los asistentes; eliminar o dejar expirar esos espacios según la
-  política de datos efímeros.
-- En `MODERATOR_ONLY`, presentar el snapshot/exportación publicada en modo
-  lectura.
-- Evitar incluir la API key de Etherpad en frontend, URLs o ZIP.
+- [x] Mantener el pad grupal como fuente persistente por evento.
+- [x] Definir snapshot canónico mediante `getText` y `getHTML` del API de Etherpad.
+- [x] En `INDEPENDENT`, crear un pad privado determinista por evento/usuario sin
+  aceptar `padId` desde el frontend; purgarlo después del vencimiento.
+- [x] Ofrecer exportación TXT/HTML al usuario de notas individuales.
+- [x] Evitar incluir la API key de Etherpad en frontend, URLs o ZIP.
+- [ ] Exponer formatos adicionales de Etherpad si el despliegue los requiere.
 
 ### Fase 6 — Frontend y experiencia de evento
 
@@ -318,23 +308,21 @@ Requisitos de API:
   el estado de publicación.
 - [x] Añadir actualización automática por SSE/polling y botón flotante de
   refresco para asistentes.
-- Añadir botón de descarga del ZIP sólo cuando el backend confirme que el
-  usuario cumple la encuesta.
-- Mostrar motivo de bloqueo cuando la encuesta aún no está respondida y enlazar
-  a la encuesta.
+- [x] Añadir botón de descarga del ZIP; el backend valida el acceso al evento.
 - Mantener los permisos de boleto y las áreas privadas ya definidas para el
   evento.
 
 ### Fase 7 — ZIP, exportación y limpieza
 
-- Construir el `manifest.json` y empaquetar sólo artefactos del moderador.
-- Definir nombres de archivo estables y seguros.
-- Aplicar límites de tamaño y tiempo de generación.
-- Registrar quién descargó el ZIP, cuándo y qué versión recibió.
-- Aplicar la política TTL existente a borradores y materiales efímeros del
+- [x] Construir el `manifest.json` y empaquetar sólo artefactos publicados del
+  moderador y notas grupales.
+- [x] Definir nombres de archivo estables y seguros.
+- [x] Convertir SVG publicado a PNG para Drawio y Excalidraw.
+- [ ] Aplicar límites de tamaño y tiempo de generación.
+- [ ] Registrar quién descargó el ZIP, cuándo y qué versión recibió.
+- [x] Aplicar la política TTL existente a notas Etherpad grupales y privadas del
   evento, sin borrar antes de que termine la ventana de descarga definida.
-- No conservar espacios independientes de asistentes después de abandonar o
-  cerrar el evento.
+- [x] No incluir pads privados de asistentes en el ZIP.
 
 ### Fase 8 — Pruebas y despliegue gradual
 
@@ -343,10 +331,9 @@ Backend:
 - configuración por herramienta y modalidad;
 - moderador puede guardar y publicar;
 - asistente no puede guardar material del moderador;
-- espacios independientes no crean registros persistentes;
+- pads privados de Etherpad viven sólo durante el evento y son exportables;
 - snapshot publicado sólo es legible para asistentes;
-- descarga rechazada antes de completar la encuesta;
-- descarga permitida después de completar la encuesta y tener acceso;
+- descarga permitida con acceso válido al evento;
 - ZIP no contiene datos de asistentes;
 - fuentes nativas y exportaciones abren correctamente;
 - versionado evita sobreescrituras accidentales;
@@ -367,14 +354,14 @@ Frontend/E2E:
 
 - colaboración en tiempo real entre participantes;
 - WebSocket, presencia, cursores compartidos o CRDT;
-- persistencia de trabajos independientes de asistentes;
+- persistencia posterior al TTL de las notas individuales de asistentes;
 - revisión o calificación de los dibujos de asistentes;
 - mezcla automática de trabajos individuales;
 - edición del material del moderador por asistentes;
 - exportaciones que no soporte de forma confiable el despliegue seleccionado;
 - reemplazar Drawio, Excalidraw o Etherpad por otra herramienta.
 
-## Progreso de implementación — 2026-07-20
+## Progreso de implementación — 2026-07-21
 
 La primera rebanada vertical ya está integrada en backend y frontend:
 
@@ -398,16 +385,23 @@ rebanada equivalente de Excalidraw usa una instancia controlada del paquete
 embebible, porque el iframe externo no permite recuperar de forma fiable su
 escena desde InsightBloom.
 
-Todavía no se han implementado las tablas versionadas de artefactos, las
-exportaciones adicionales de Drawio, PNG/PDF de Excalidraw, Etherpad ni el ZIP
-condicionado por encuesta. Esas piezas siguen pendientes en las fases 1–8 y deben reutilizar
-la comprobación backend de encuesta existente.
+Etherpad ahora usa `COLLABORATIVE` por defecto. En `INDEPENDENT`, Users calcula
+un pad privado a partir del secreto del servicio, el evento y el usuario; el
+frontend sólo recibe el pad ya resuelto. El job de purga elimina el pad grupal
+y todos los pads privados derivados después del TTL del evento. Antes de la
+purga, el asistente puede exportar sus notas como TXT o HTML.
+
+`GET /conferences/{id}/materials.zip` genera bajo demanda un ZIP con
+`source.drawio`/`source.excalidraw`, sus SVG y PNG publicados, y las notas
+grupales de Etherpad como HTML/TXT. Los pads individuales quedan fuera por
+diseño. La UI de Notas expone la descarga y el backend vuelve a validar el
+acceso al evento.
 
 ## Criterio de cierre
 
-Un evento puede elegir varias herramientas, cada una con su modalidad. El moderador puede conservar su
-fuente nativa y exportaciones; los asistentes pueden trabajar de forma
-independiente sin que sus cambios se persistan, o visualizar el snapshot del
-moderador sin editarlo. Tras responder la encuesta requerida, un participante
-con acceso puede descargar un ZIP que contiene únicamente los materiales del
-moderador en formatos nativos y exportados.
+Un evento puede elegir varias herramientas, cada una con su modalidad. Etherpad
+es grupal por defecto; opcionalmente cada asistente puede tener notas privadas
+temporales y exportarlas. El moderador conserva sus fuentes y publicaciones de
+Drawio/Excalidraw. Un participante con acceso puede descargar un ZIP que
+contiene únicamente esas publicaciones y las notas grupales, nunca las notas
+individuales de otros usuarios.

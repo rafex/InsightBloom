@@ -58,9 +58,9 @@
       .canvas-mode-row(v-for="tool in canvasTools" :key="tool")
         span.canvas-mode-label {{ canvasToolLabel(tool) }}
         select(v-model="canvasModes[tool]")
-          option(value="INDEPENDENT") Trabajo independiente (solo persiste el moderador)
-          option(value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
-      p.field-hint Cada herramienta puede tener una modalidad distinta. La persistencia del material nativo y sus exportaciones se completará en la siguiente fase.
+          option(v-for="option in canvasModeOptions(tool)" :key="option.value" :value="option.value") {{ option.label }}
+      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
+      p.field-hint Cada herramienta puede tener una modalidad distinta.
 
     .form-group
       label Aforo máximo
@@ -167,7 +167,7 @@ export default {
     const eventTypeKey = ref('conference')
     const canvasTools = ref<CanvasTool[]>([])
     const canvasModes = reactive<Record<CanvasTool, CanvasAudienceMode>>({
-      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'INDEPENDENT'
+      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'COLLABORATIVE'
     })
     const capacity = ref<number | null>(DEFAULT_CAPACITY)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
@@ -227,7 +227,7 @@ export default {
       customDate.value = ''; latitude.value = null; longitude.value = null
       eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
       canvasTools.value = []
-      canvasModes.DRAWIO = 'INDEPENDENT'; canvasModes.EXCALIDRAW = 'INDEPENDENT'; canvasModes.ETHERPAD = 'INDEPENDENT'
+      canvasModes.DRAWIO = 'INDEPENDENT'; canvasModes.EXCALIDRAW = 'INDEPENDENT'; canvasModes.ETHERPAD = 'COLLABORATIVE'
       capacity.value = DEFAULT_CAPACITY
     }
 
@@ -235,9 +235,22 @@ export default {
       return { DRAWIO: 'Drawio', EXCALIDRAW: 'Excalidraw', ETHERPAD: 'Etherpad' }[tool]
     }
 
+    function canvasModeOptions(tool: CanvasTool): Array<{ value: CanvasAudienceMode; label: string }> {
+      if (tool === 'ETHERPAD') {
+        return [
+          { value: 'COLLABORATIVE', label: 'Notas grupales (todos colaboran)' },
+          { value: 'INDEPENDENT', label: 'Notas individuales (se borran al vencer el evento)' }
+        ]
+      }
+      return [
+        { value: 'INDEPENDENT', label: 'Trabajo independiente (solo persiste el moderador)' },
+        { value: 'MODERATOR_ONLY', label: 'Solo el moderador edita; asistentes ven la publicación' }
+      ]
+    }
+
     return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
              eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey,
-             canvasTools, canvasModes, canvasToolLabel,
+             canvasTools, canvasModes, canvasToolLabel, canvasModeOptions,
              canvasToolOptions: [
                { value: 'DRAWIO', label: 'Drawio (diagramas)' },
                { value: 'EXCALIDRAW', label: 'Excalidraw (pizarra)' },

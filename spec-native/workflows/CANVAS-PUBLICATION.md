@@ -1,4 +1,4 @@
-# Publicación de lienzos del moderador
+# Publicación de lienzos del moderador y notas del evento
 
 Este documento es el contrato operativo para Drawio y Excalidraw cuando un
 evento usa `MODERATOR_ONLY`. Su objetivo es evitar que una modificación del
@@ -17,6 +17,11 @@ actualización del material publicado.
   colaboración: no hay cursores, presencia, CRDT ni WebSocket de edición.
 - El servicio Users valida evento, boleto, capacidad y autor antes de aceptar
   una escritura.
+- Etherpad es grupal (`COLLABORATIVE`) por defecto. En `INDEPENDENT`, cada
+  asistente recibe un pad privado calculado por Users, puede exportarlo mientras
+  el evento está vigente y el job TTL lo elimina después.
+- El ZIP de materiales contiene sólo publicaciones del moderador y el pad
+  grupal; nunca contiene pads privados.
 
 ## Flujo de Drawio
 
@@ -103,6 +108,38 @@ completa, la respuesta de `GET /whiteboard` debe contener una escena con
 elementos y un SVG publicado cuyo `viewBox` corresponda al dibujo; un SVG
 vacío de `20×20` indica que se guardó la escena inicial y no una modificación
 real.
+
+## Flujo de notas Etherpad
+
+1. La configuración del evento guarda una entrada `CanvasConfig` para
+   `ETHERPAD`. Si no se selecciona una modalidad, la normalización usa
+   `COLLABORATIVE`.
+2. `GET /conferences/{id}/notes` valida el token y devuelve un pad ya resuelto.
+   En modo grupal el `padId` es el UUID del evento; en modo individual es un
+   identificador derivado de evento + usuario + `ETHERPAD_PRIVATE_PAD_SECRET`.
+   Ese secreto debe permanecer estable; si no se define, Users usa como
+   compatibilidad el valor de `ETHERPAD_API_KEY`.
+3. El navegador sólo construye la URL de Etherpad con el `padId` devuelto y el
+   token de sesión. Nunca recibe la API key de Etherpad ni puede enviar un
+   `padId` arbitrario.
+4. `GET /conferences/{id}/notes/export?format=txt|html` vuelve a resolver el
+   pad según el token y lee `getText`/`getHTML` desde backend. La respuesta se
+   descarga como archivo, no como una copia persistente en SQLite.
+5. `GET /conferences/{id}/materials.zip` lee únicamente el pad grupal y agrega
+   `moderator/etherpad/source.html`, `export.html` y `export.txt` si tienen
+   contenido. Los pads individuales se omiten de forma explícita.
+6. `PurgeExpiredEventNotesUseCase` lista y elimina el pad grupal y todos los
+   pads con el prefijo privado del evento después de la ventana TTL.
+
+### Diagnóstico de notas
+
+| Síntoma | Comprobación |
+|---|---|
+| Todas las personas editan el mismo documento cuando se esperaba privacidad | Revisar `canvasConfigs`/`canvasAudienceMode` y confirmar `ETHERPAD: INDEPENDENT`; la configuración se aplica desde Dashboard. |
+| Un asistente recibe las notas de otro | Inspeccionar la respuesta de `GET /notes`: en modo individual debe contener un `padId` con `--private--`; no debe existir un `padId` elegido desde el frontend. |
+| Exportación vacía o falla | Confirmar que el pad existe, revisar `getText`/`getHTML` del adaptador y que la API key sólo esté configurada en Users. |
+| El ZIP no contiene notas | Confirmar que la modalidad es `COLLABORATIVE` y que el pad grupal ya tiene contenido; los pads individuales se excluyen por diseño. |
+| Las notas desaparecieron antes de exportarse | Revisar el TTL y los logs de `event-notes-purge-scheduler`; la expectativa es exportar antes de la purga posterior al vencimiento. |
 
 ## Gates para no regresar
 

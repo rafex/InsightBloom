@@ -31,7 +31,8 @@
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getPresentationStatus, getSlidesUrl, getPresenterWsUrl, createRemoteLinkToken } from '@/services/api/presentationsApi'
+import { getPresentationStatus, getPresenterSlidesUrl, getPresenterWsUrl, createRemoteLinkToken } from '@/services/api/presentationsApi'
+import type { PresentationProvider } from '@/services/api/presentationsApi'
 import { getConference, getRegisteredAttendeesCount } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
@@ -54,6 +55,7 @@ export default {
     const checkedStatus = ref(false)
     const ready = ref(false)
     const slidesUrl = ref('')
+    const provider = ref<PresentationProvider>('MARP')
     const slidesFrame = ref<HTMLIFrameElement | null>(null)
     const wsConnected = ref(false)
     const audienceCount = ref(0)
@@ -69,7 +71,7 @@ export default {
     let wsRetryTimer: ReturnType<typeof setTimeout> | null = null
     let wsClosedByUs = false
     let hashPollTimer: ReturnType<typeof setInterval> | null = null
-    let lastHash: string | null = null
+    let lastState: string | null = null
 
     const HASH_POLL_MS = 250
 
@@ -82,15 +84,24 @@ export default {
       } catch (e: any) { /* same-origin esperado; si falla, no hay sync */ }
     }
 
-    function pollHash() {
-      let hash: string
+    function navigationState(): string {
       try {
-        hash = slidesFrame.value?.contentWindow?.location?.hash || ''
-      } catch (e: any) { return /* same-origin esperado; si falla, no hay sync */ }
-      if (hash !== lastHash) {
-        lastHash = hash
+        const url = new URL(slidesFrame.value!.contentWindow!.location.href)
+        if (provider.value === 'MARP') return url.hash || ''
+        const marker = `/api/presentations/api/v1/conferences/${props.conferenceId}/presentation/`
+        let state = url.pathname.startsWith(marker) ? url.pathname.slice(marker.length) : ''
+        if (state === 'presenter') return ''
+        if (state.startsWith('presenter/')) state = state.slice('presenter/'.length)
+        return `${state}${url.search}${url.hash}`
+      } catch (e: any) { return '' /* same-origin esperado; si falla, no hay sync */ }
+    }
+
+    function pollNavigation() {
+      const state = navigationState()
+      if (state !== lastState) {
+        lastState = state
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'slide', hash }))
+          ws.send(JSON.stringify({ type: 'slide', hash: state, state }))
         }
       }
     }
@@ -100,15 +111,15 @@ export default {
       // posición al recargar), retoma la diapositiva donde estaba en vez de
       // dejar que el deck vuelva al inicio y esa "vuelta al inicio" se
       // propague a toda la audiencia en el próximo poll.
-      if (lastHash) {
+      if (lastState) {
         try {
-          slidesFrame.value!.contentWindow!.location.hash = lastHash
+          if (provider.value === 'MARP') slidesFrame.value!.contentWindow!.location.hash = lastState
         } catch (e: any) { /* same-origin esperado; si falla, no hay sync */ }
       }
-      // bespoke.js (motor de Marp) navega con history.pushState/replaceState,
-      // que no disparan 'hashchange' — por eso se hace polling del hash.
+      // Marp y Slidev pueden navegar sin disparar hashchange; por eso se hace
+      // polling del estado de navegación normalizado por engine.
       if (hashPollTimer) return
-      hashPollTimer = setInterval(pollHash, HASH_POLL_MS)
+      hashPollTimer = setInterval(pollNavigation, HASH_POLL_MS)
     }
 
     function connectPresenterWs() {
@@ -118,8 +129,8 @@ export default {
         wsConnected.value = true
         // Resincroniza de inmediato tras reconectar (no esperar a que cambie
         // el hash), por si el pod de presentaciones perdió el estado.
-        if (lastHash != null && ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'slide', hash: lastHash }))
+        if (lastState != null && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'slide', hash: lastState, state: lastState }))
         }
       }
       ws.onmessage = (event: MessageEvent) => {
@@ -158,8 +169,9 @@ export default {
       try {
         const status = await getPresentationStatus(props.conferenceId as string)
         ready.value = !!status.ready
+        provider.value = status.provider === 'SLIDEV' ? 'SLIDEV' : 'MARP'
         if (ready.value) {
-          slidesUrl.value = getSlidesUrl(props.conferenceId as string, auth.state.token)
+          slidesUrl.value = getPresenterSlidesUrl(props.conferenceId as string, auth.state.token)
           connectPresenterWs()
         }
       } catch (e: any) { ready.value = false }

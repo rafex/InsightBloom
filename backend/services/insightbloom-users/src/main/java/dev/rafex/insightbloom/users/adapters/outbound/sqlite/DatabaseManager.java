@@ -203,9 +203,26 @@ public class DatabaseManager {
             // comportamiento de todas las herramientas habilitadas por el tipo de evento.
             stmt.executeUpdate("""
                 INSERT OR IGNORE INTO conference_canvas_configs (conference_uuid, canvas_tool, audience_mode)
-                SELECT uuid, canvas_tool, COALESCE(canvas_audience_mode, 'INDEPENDENT')
+                SELECT uuid, canvas_tool,
+                       CASE WHEN canvas_tool = 'ETHERPAD'
+                            THEN CASE WHEN canvas_audience_mode = 'INDEPENDENT' THEN 'INDEPENDENT' ELSE 'COLLABORATIVE' END
+                            ELSE CASE WHEN canvas_audience_mode = 'MODERATOR_ONLY' THEN 'MODERATOR_ONLY' ELSE 'INDEPENDENT' END END
                 FROM conferences
                 WHERE canvas_tool IS NOT NULL AND TRIM(canvas_tool) <> ''
+            """);
+            // Corrige configuraciones antiguas que trataban Etherpad como si fuera un lienzo
+            // publicable. Etherpad sólo tiene notas grupales o notas individuales.
+            stmt.executeUpdate("""
+                UPDATE conference_canvas_configs
+                   SET audience_mode = CASE WHEN canvas_tool = 'ETHERPAD' THEN 'COLLABORATIVE' ELSE 'INDEPENDENT' END
+                 WHERE (canvas_tool = 'ETHERPAD' AND audience_mode NOT IN ('COLLABORATIVE', 'INDEPENDENT'))
+                    OR (canvas_tool <> 'ETHERPAD' AND audience_mode NOT IN ('INDEPENDENT', 'MODERATOR_ONLY'))
+            """);
+            stmt.executeUpdate("""
+                UPDATE conferences
+                   SET canvas_audience_mode = CASE WHEN canvas_tool = 'ETHERPAD' THEN 'COLLABORATIVE' ELSE 'INDEPENDENT' END
+                 WHERE (canvas_tool = 'ETHERPAD' AND canvas_audience_mode NOT IN ('COLLABORATIVE', 'INDEPENDENT'))
+                    OR (canvas_tool <> 'ETHERPAD' AND canvas_audience_mode NOT IN ('INDEPENDENT', 'MODERATOR_ONLY'))
             """);
 
             stmt.executeUpdate("""

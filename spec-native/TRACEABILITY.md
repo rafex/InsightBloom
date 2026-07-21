@@ -27,11 +27,12 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | DEC-0015 | decision | spec-native/*, AGENTS.md, opencode.json | Migración SpecNative v0.7 |
 | DEC-0016 | decision | SPEC-EVENT-TYPES-CATALOG | Catalogo de tipos de evento gateado por capacidades (proposed) |
 | DEC-0017 | decision | SPEC-EVENT-TYPES-CATALOG, STACK.md | Jitsi/Excalidraw/drawio/Etherpad self-hosted en K3s (proposed) |
-| DEC-0018 | decision | SPEC-EVENT-TYPES-CATALOG, backend/services/insightbloom-survey | SurveyJS como motor alternativo (proposed, licencia pendiente) |
+| DEC-0018 | decision | SPEC-EVENT-TYPES-CATALOG, backend/services/insightbloom-survey | SurveyJS Form Library como motor independiente (accepted) |
 | DEC-0019 | decision | SPEC-EVENT-TYPES-CATALOG, backend/services/insightbloom-users | seatmap-canvas como motor de mapa alternativo (proposed, mantenimiento pendiente) |
 | DEC-0020 | decision | SPEC-EVENT-TYPES-CATALOG, infra/helm/charts/insightbloom | Instancias compartidas + HPA + TTL de datos para drawio/Etherpad/Jitsi/Excalidraw (accepted) |
 | DEC-0021 | decision | SPEC-EVENT-ROLES, backend/services/insightbloom-users | Esquema de permisos y roles administrables, plataforma + por evento (accepted) |
 | SPEC-DEVICE-FINGERPRINTING | spec | ARCHITECTURE.md, DECISIONS.md | Control de acceso por huella de dispositivo (active) |
+| SPEC-SLIDEV-PRESENTATIONS | spec | DEC-0012, ARCHITECTURE.md, pipelines/CI.md, pipelines/CD.md | Soporte aditivo de Slidev; Marp permanece como default (active) |
 | DEC-0028 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users | Control de acceso por dispositivo, por evento (Jitsi/IDE) (accepted) |
 | DEC-0029 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users, frontend/web | Huella real (ThumbmarkJS) en login + control de abuso a nivel plataforma (accepted) |
 | DEC-0030 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users, frontend/web | Auditoria (no bloqueo) de fingerprint en cada request autenticado (accepted) |
@@ -49,6 +50,7 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | backend-contracts | specs/backend-contracts/SPEC.md | — | draft |
 | event-types-catalog | specs/event-types-catalog/SPEC.md | 0/0/0 (ver tasks/event-types-catalog/TASKS.md) | draft |
 | device-fingerprinting | specs/device-fingerprinting/SPEC.md | — | active (2026-07-20) |
+| slidev-presentations | specs/slidev-presentations/SPEC.md | tasks/slidev-presentations/TASKS.md | active |
 
 ---
 

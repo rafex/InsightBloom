@@ -9,7 +9,7 @@ export interface Timezone {
 export type SeatingMode = 'NONE' | 'GENERAL' | 'SEATED'
 
 export type CanvasTool = 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD'
-export type CanvasAudienceMode = 'INDEPENDENT' | 'MODERATOR_ONLY'
+export type CanvasAudienceMode = 'INDEPENDENT' | 'MODERATOR_ONLY' | 'COLLABORATIVE'
 export interface CanvasToolConfig {
   tool: CanvasTool
   audienceMode: CanvasAudienceMode

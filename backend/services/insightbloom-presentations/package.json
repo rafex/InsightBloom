@@ -9,11 +9,14 @@
   },
   "dependencies": {
     "@marp-team/marp-cli": "^4.0.3",
+    "@slidev/cli": "52.18.0",
+    "@slidev/theme-default": "0.25.0",
     "adm-zip": "^0.5.16",
     "cheerio": "^1.2.0",
     "express": "^4.21.2",
     "multer": "^2.0.1",
     "nats": "^2.29.3",
+    "playwright-chromium": "1.61.1",
     "ws": "^8.18.0"
   }
 }

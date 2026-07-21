@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import axios from 'axios'
 import {
-  uploadPresentation, getPresentationStatus, getSlidesUrl, getSlidesPreviewUrl, getPdfUrl,
+  uploadPresentation, getPresentationStatus, getSlidesUrl, getPresentationRootUrl, getPresenterSlidesUrl, getSlidesPreviewUrl, getPdfUrl,
   getAudienceWsUrl, getPresenterWsUrl, getRemoteWsUrl, createRemoteLinkToken
 } from '../presentationsApi'
 
@@ -17,12 +17,13 @@ describe('presentationsApi', () => {
   it('uploadPresentation sends the file as multipart/form-data with auth header', async () => {
     axios.post.mockResolvedValue({ data: { ok: true } })
     const file = new Blob(['fake'], { type: 'application/zip' })
-    await uploadPresentation('c1', file, 'tok')
+    await uploadPresentation('c1', file, 'tok', 'SLIDEV')
     const [url, form, config] = axios.post.mock.calls[0]
     expect(url).toBe(`${BASE}/conferences/c1/presentation`)
     expect(form).toBeInstanceOf(FormData)
     expect(config.headers['Content-Type']).toBe('multipart/form-data')
     expect(config.headers.Authorization).toBe('Bearer tok')
+    expect(form.get('presentationProvider')).toBe('SLIDEV')
   })
 
   it('getPresentationStatus is a public GET returning the raw body', async () => {
@@ -35,6 +36,8 @@ describe('presentationsApi', () => {
   it('getSlidesUrl / getSlidesPreviewUrl / getPdfUrl build direct asset URLs', () => {
     expect(getSlidesUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/slides`)
     expect(getSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/slides?ib_token=a%20b%2Bc`)
+    expect(getPresentationRootUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/?ib_token=a%20b%2Bc`)
+    expect(getPresenterSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/presenter?ib_token=a%20b%2Bc`)
     expect(getSlidesPreviewUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/slides/preview`)
     expect(getPdfUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/pdf`)
     expect(getPdfUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/pdf?ib_token=a%20b%2Bc`)

@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
+const crypto = require('crypto');
 const { execFile } = require('child_process');
 const express = require('express');
 const multer = require('multer');
@@ -18,15 +19,32 @@ const NATS_URL = process.env.NATS_URL || '';
 const NATS_AUTH_TOKEN = process.env.NATS_AUTH_TOKEN || '';
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || '';
 const MARP_BIN = path.join(__dirname, 'node_modules', '.bin', 'marp');
+const SLIDEV_BIN = path.join(__dirname, 'node_modules', '.bin', 'slidev');
+const CHROMIUM_PATH = process.env.CHROME_PATH || '/usr/bin/chromium';
+const PRESENTATION_MANIFEST = 'manifest.json';
+const DEFAULT_PRESENTATION_PROVIDER = 'MARP';
+const PRESENTATION_PROVIDERS = new Set(['MARP', 'SLIDEV']);
+const MAX_UNCOMPRESSED_ZIP_BYTES = 250 * 1024 * 1024;
+const MAX_ARCHIVE_FILES = 1000;
+const ALLOWED_ARCHIVE_EXTENSIONS = new Set([
+  '.md', '.css', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif',
+  '.woff', '.woff2', '.ttf', '.otf', '.mp4', '.webm', '.ogg', '.mp3', '.wav'
+]);
+const DENIED_ARCHIVE_NAMES = new Set([
+  'package.json', 'package-lock.json', 'npm-shrinkwrap.json', 'vite.config.js',
+  'vite.config.ts', 'vite.config.mjs', 'vite.config.cjs', 'webpack.config.js'
+]);
 
 const upload = multer({ dest: path.join(DATA_DIR, 'tmp'), limits: { fileSize: 100 * 1024 * 1024 } });
 
 const app = express();
 
-// PDF/miniatura se generan bajo demanda (corren Chromium headless vía Marp) y se cachean en
-// disco; estos mapas deduplican generaciones concurrentes para la misma conferencia.
+// PDF/miniatura y previews Slidev se generan bajo demanda con el engine activo y
+// Chromium headless; se cachean en disco y estos mapas deduplican generaciones
+// concurrentes para la misma conferencia.
 const pdfGenerations = new Map();
 const thumbnailGenerations = new Map();
+const slidevPreviewGenerations = new Map();
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -37,7 +55,18 @@ function validConferenceId(id) {
 function requestToken(req) {
   const authorization = req.headers.authorization || '';
   if (authorization.startsWith('Bearer ')) return authorization.slice(7);
-  return typeof req.query.ib_token === 'string' ? req.query.ib_token : null;
+  if (typeof req.query.ib_token === 'string') return req.query.ib_token;
+  const cookieHeader = req.headers.cookie || '';
+  const tokenCookie = cookieHeader.split(';').map((cookie) => cookie.trim()).find((cookie) => cookie.startsWith('ib_token='));
+  if (!tokenCookie) return null;
+  try { return decodeURIComponent(tokenCookie.slice('ib_token='.length)); } catch { return null; }
+}
+
+function setPresentationAccessCookie(req, res, conferenceId) {
+  const token = requestToken(req);
+  if (!token || readManifest(conferenceId).provider !== 'SLIDEV') return;
+  const secure = req.secure || req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `ib_token=${encodeURIComponent(token)}; Path=/api/v1/conferences/${conferenceId}/presentation; HttpOnly; SameSite=Lax${secure}`);
 }
 
 async function hasConferenceAccess(conferenceId, token) {
@@ -63,6 +92,148 @@ async function requireConferenceAccess(req, res) {
 
 function conferenceDir(conferenceId) {
   return path.join(DATA_DIR, 'presentations', conferenceId);
+}
+
+function manifestPath(conferenceId) {
+  return path.join(conferenceDir(conferenceId), PRESENTATION_MANIFEST);
+}
+
+function normalizeProvider(value, { allowMissing = false } = {}) {
+  if (value == null || value === '') return allowMissing ? DEFAULT_PRESENTATION_PROVIDER : null;
+  const provider = String(value).trim().toUpperCase();
+  return PRESENTATION_PROVIDERS.has(provider) ? provider : null;
+}
+
+function readManifest(conferenceId) {
+  const file = manifestPath(conferenceId);
+  if (fs.existsSync(file)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const provider = normalizeProvider(manifest.provider, { allowMissing: true });
+      if (provider) return { ...manifest, provider };
+    } catch {
+      // Un manifiesto incompleto no debe impedir que las presentaciones Marp
+      // antiguas sigan funcionando.
+    }
+  }
+  return {
+    provider: DEFAULT_PRESENTATION_PROVIDER,
+    staticRoot: 'src',
+    indexFile: 'slides.html',
+    legacy: true,
+  };
+}
+
+function presentationStaticRoot(conferenceId, manifest = readManifest(conferenceId)) {
+  return path.join(conferenceDir(conferenceId), manifest.staticRoot || 'src');
+}
+
+function presentationIndexFile(conferenceId, manifest = readManifest(conferenceId)) {
+  return path.join(presentationStaticRoot(conferenceId, manifest), manifest.indexFile || 'slides.html');
+}
+
+function zipEntryIsSymlink(entry) {
+  const externalAttributes = entry.header?.externalFileAttributes || 0;
+  const unixMode = (externalAttributes >>> 16) & 0xffff;
+  return (unixMode & 0xf000) === 0xa000;
+}
+
+function normalizeArchiveEntryName(entryName) {
+  const raw = String(entryName || '').replaceAll('\\', '/');
+  const normalized = raw.endsWith('/') ? raw.slice(0, -1) : raw;
+  if (!normalized || normalized.includes('\0') || normalized.startsWith('/') || /^[A-Za-z]:/.test(normalized)) {
+    throw new Error('invalid_archive_path');
+  }
+  const parts = normalized.split('/');
+  if (parts.some((part) => part === '..' || part === '')) {
+    throw new Error('invalid_archive_path');
+  }
+  return normalized;
+}
+
+function validateArchive(zip) {
+  const entries = zip.getEntries();
+  if (entries.length > MAX_ARCHIVE_FILES) throw new Error('archive_file_count_exceeded');
+  let totalBytes = 0;
+  for (const entry of entries) {
+    if (zipEntryIsSymlink(entry)) throw new Error('archive_symlink_not_allowed');
+    const normalizedName = normalizeArchiveEntryName(entry.entryName);
+    if (entry.isDirectory) continue;
+
+    const basename = path.posix.basename(normalizedName).toLowerCase();
+    const extension = path.posix.extname(basename);
+    if (DENIED_ARCHIVE_NAMES.has(basename) || ['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.vue', '.sh'].includes(extension)) {
+      throw new Error('archive_file_type_not_allowed');
+    }
+    if (!ALLOWED_ARCHIVE_EXTENSIONS.has(extension)) throw new Error('archive_file_type_not_allowed');
+
+    totalBytes += Number(entry.header?.size || 0);
+    if (totalBytes > MAX_UNCOMPRESSED_ZIP_BYTES) throw new Error('archive_uncompressed_size_exceeded');
+  }
+}
+
+function extractArchiveSafely(zip, destination) {
+  validateArchive(zip);
+  for (const entry of zip.getEntries()) {
+    const normalizedName = normalizeArchiveEntryName(entry.entryName);
+    const target = path.join(destination, ...normalizedName.split('/'));
+    if (entry.isDirectory) {
+      fs.mkdirSync(target, { recursive: true });
+      continue;
+    }
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, entry.getData());
+  }
+}
+
+function findMarkdownFiles(rootDir) {
+  const files = [];
+  const stack = [rootDir];
+  while (stack.length) {
+    const dir = stack.pop();
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) stack.push(full);
+      else if (entry.name.toLowerCase().endsWith('.md')) files.push(full);
+    }
+  }
+  return files;
+}
+
+function findPresentationEntry(srcDir, provider) {
+  const markdownFiles = findMarkdownFiles(srcDir);
+  if (!markdownFiles.length) throw new Error('no_markdown_found_in_zip');
+  if (provider === 'SLIDEV') {
+    const slidevEntry = markdownFiles.find((file) => path.basename(file).toLowerCase() === 'slides.md');
+    if (slidevEntry) return slidevEntry;
+    if (markdownFiles.length === 1) return markdownFiles[0];
+    throw new Error('slidev_entry_ambiguous');
+  }
+  return markdownFiles[0];
+}
+
+function presentationBasePath(conferenceId) {
+  return `/api/v1/conferences/${conferenceId}/presentation/`;
+}
+
+function replaceActivePresentation(conferenceId, stagingDir) {
+  const activeDir = conferenceDir(conferenceId);
+  const backupDir = `${activeDir}.previous-${crypto.randomUUID()}`;
+  let backedUp = false;
+  try {
+    if (fs.existsSync(activeDir)) {
+      fs.renameSync(activeDir, backupDir);
+      backedUp = true;
+    }
+    fs.renameSync(stagingDir, activeDir);
+    if (backedUp) fs.rmSync(backupDir, { recursive: true, force: true });
+  } catch (err) {
+    if (fs.existsSync(activeDir) && backedUp) fs.rmSync(activeDir, { recursive: true, force: true });
+    if (backedUp && fs.existsSync(backupDir)) fs.renameSync(backupDir, activeDir);
+    throw err;
+  }
 }
 
 function findFile(rootDir, predicate, maxDepth = 4) {
@@ -153,66 +324,156 @@ function runMarp(args) {
   });
 }
 
+function runSlidev(args) {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      SLIDEV_BIN,
+      args,
+      { timeout: 180000, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' } },
+      (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr || stdout || err.message));
+        resolve(stdout);
+      }
+    );
+    child.stdin?.end();
+  });
+}
+
+async function buildPresentation(provider, conferenceId, stagingDir, srcDir) {
+  const mdFile = findPresentationEntry(srcDir, provider);
+  const title = extractFrontmatterTitle(fs.readFileSync(mdFile, 'utf8'));
+
+  if (provider === 'MARP') {
+    const themeFile = findFile(srcDir, (name, full) => name === 'theme.css' && full.includes(`${path.sep}css${path.sep}`));
+    const slidesHtml = path.join(srcDir, 'slides.html');
+    const baseArgs = [mdFile, '--allow-local-files', '--html'];
+    if (themeFile) baseArgs.push('--theme', themeFile);
+    await runMarp([...baseArgs, '-o', slidesHtml]);
+    return {
+      provider,
+      staticRoot: 'src',
+      indexFile: 'slides.html',
+      sourceFile: path.relative(stagingDir, mdFile),
+      engineVersion: 'marp-cli',
+      title,
+    };
+  }
+
+  const distDir = path.join(stagingDir, 'dist');
+  fs.mkdirSync(distDir, { recursive: true });
+  await runSlidev([
+    'build', mdFile,
+    '--out', distDir,
+    '--base', presentationBasePath(conferenceId),
+    '--without-notes',
+  ]);
+  return {
+    provider,
+    staticRoot: 'dist',
+    indexFile: 'index.html',
+    sourceFile: path.relative(stagingDir, mdFile),
+    engineVersion: '@slidev/cli@52.18.0',
+    title,
+  };
+}
+
 app.post('/api/v1/conferences/:id/presentation', upload.single('file'), async (req, res) => {
   const { id } = req.params;
   if (!validConferenceId(id)) return res.status(400).json({ error: 'invalid_conference_id' });
   if (!req.file) return res.status(400).json({ error: 'file_required' });
 
-  const confDir = conferenceDir(id);
-  const srcDir = path.join(confDir, 'src');
+  const provider = normalizeProvider(req.body.presentationProvider, { allowMissing: true });
+  if (!provider) {
+    try { fs.rmSync(req.file.path, { force: true }); } catch { /* cleanup best effort */ }
+    return res.status(400).json({ error: 'invalid_presentation_provider' });
+  }
+
+  const activeParent = path.dirname(conferenceDir(id));
+  const stagingDir = path.join(activeParent, `${id}.upload-${crypto.randomUUID()}`);
+  const srcDir = path.join(stagingDir, 'src');
 
   try {
-    fs.rmSync(confDir, { recursive: true, force: true });
+    fs.mkdirSync(stagingDir, { recursive: true });
     fs.mkdirSync(srcDir, { recursive: true });
 
     const zip = new AdmZip(req.file.path);
-    zip.extractAllTo(srcDir, true);
-    fs.unlinkSync(req.file.path);
-
-    const mdFile = findFile(srcDir, (name) => name.toLowerCase().endsWith('.md'));
-    if (!mdFile) {
-      return res.status(400).json({ error: 'no_markdown_found_in_zip' });
-    }
-
-    const themeFile = findFile(srcDir, (name, full) => name === 'theme.css' && full.includes(`${path.sep}css${path.sep}`));
-
-    const slidesHtml = path.join(srcDir, 'slides.html');
-
-    const baseArgs = [mdFile, '--allow-local-files', '--html'];
-    if (themeFile) baseArgs.push('--theme', themeFile);
-
-    await runMarp([...baseArgs, '-o', slidesHtml]);
-    // El PDF (requiere Chromium headless vía Marp) se genera bajo demanda en el
-    // endpoint /pdf, no aquí, para no pagar ese costo en cada subida.
+    extractArchiveSafely(zip, srcDir);
+    const manifest = await buildPresentation(provider, id, stagingDir, srcDir);
+    const fullManifest = {
+      ...manifest,
+      provider,
+      generatedAt: new Date().toISOString(),
+      status: 'ready',
+    };
+    fs.writeFileSync(path.join(stagingDir, PRESENTATION_MANIFEST), JSON.stringify(fullManifest, null, 2));
+    replaceActivePresentation(id, stagingDir);
+    pdfGenerations.delete(id);
+    thumbnailGenerations.delete(id);
+    slidevPreviewGenerations.delete(id);
 
     // Completa el nombre de certificado con el title del frontmatter si el organizador
     // no fijó uno explícito al crear/editar la conferencia (best-effort, no bloquea la subida).
-    const title = extractFrontmatterTitle(fs.readFileSync(mdFile, 'utf8'));
-    deriveConferenceName(id, title);
+    deriveConferenceName(id, manifest.title);
 
     res.json({
       ok: true,
       conferenceId: id,
-      slidesUrl: `/api/v1/conferences/${id}/presentation/slides`,
+      provider,
+      presentationProvider: provider,
+      slidesUrl: provider === 'SLIDEV'
+        ? `/api/v1/conferences/${id}/presentation/`
+        : `/api/v1/conferences/${id}/presentation/slides`,
       pdfUrl: `/api/v1/conferences/${id}/presentation/pdf`,
     });
   } catch (err) {
     console.error('presentation_generation_failed', err);
-    res.status(500).json({ error: 'presentation_generation_failed', message: err.message });
+    const status = ['invalid_archive_path', 'archive_symlink_not_allowed', 'archive_file_type_not_allowed',
+      'archive_uncompressed_size_exceeded', 'archive_file_count_exceeded', 'no_markdown_found_in_zip', 'slidev_entry_ambiguous'].includes(err.message)
+      ? 400 : 500;
+    res.status(status).json({ error: status === 400 ? err.message : 'presentation_generation_failed', message: status === 400 ? err.message : 'No se pudo procesar la presentación' });
+  } finally {
+    try { fs.rmSync(req.file.path, { force: true }); } catch { /* cleanup best effort */ }
+    try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch { /* cleanup best effort */ }
   }
 });
 
 app.get('/api/v1/conferences/:id/presentation/slides', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   if (!await requireConferenceAccess(req, res)) return;
-  const file = path.join(conferenceDir(req.params.id), 'src', 'slides.html');
+  const file = presentationIndexFile(req.params.id);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
+  setPresentationAccessCookie(req, res, req.params.id);
   res.sendFile(file);
 });
 
-app.get('/api/v1/conferences/:id/presentation/slides/preview', (req, res) => {
+app.get('/api/v1/conferences/:id/presentation/presenter', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
-  const file = path.join(conferenceDir(req.params.id), 'src', 'slides.html');
+  if (!await requireConferenceAccess(req, res)) return;
+  const manifest = readManifest(req.params.id);
+  const file = presentationIndexFile(req.params.id, manifest);
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
+  setPresentationAccessCookie(req, res, req.params.id);
+  res.sendFile(file);
+});
+
+app.get('/api/v1/conferences/:id/presentation/slides/preview', async (req, res) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  const manifest = readManifest(req.params.id);
+  if (manifest.provider === 'SLIDEV') {
+    try {
+      const images = await ensureSlidevPreview(req.params.id);
+      if (!images.length) return res.status(404).json({ error: 'not_found' });
+      const imageTags = images.slice(0, PREVIEW_SLIDE_LIMIT).map((image) =>
+        `<img src="/api/presentations/api/v1/conferences/${req.params.id}/presentation/preview/${encodeURIComponent(path.basename(image))}" alt="Diapositiva" style="display:block;width:100%;max-width:1200px;margin:0 auto 18px;background:#fff;">`
+      ).join('');
+      return res.type('html').send(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Vista previa</title><style>body{margin:0;padding:24px;background:#f3f4f6;font-family:system-ui,sans-serif}h1{max-width:1200px;margin:0 auto 20px;color:#1e1b4b;font-size:1.1rem}</style></head><body><h1>Vista previa · primeras ${PREVIEW_SLIDE_LIMIT} diapositivas</h1>${imageTags}</body></html>`);
+    } catch (err) {
+      console.error('slidev_preview_generation_failed', err);
+      return res.status(500).json({ error: 'preview_generation_failed', message: 'No se pudo generar la vista previa' });
+    }
+  }
+
+  const file = presentationIndexFile(req.params.id, manifest);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   try {
     const $ = cheerio.load(fs.readFileSync(file, 'utf8'), { decodeEntities: false });
@@ -243,12 +504,38 @@ app.get('/api/v1/conferences/:id/presentation/markdown', async (req, res) => {
 });
 
 app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
-  if (req.path.endsWith('/slides.html')) {
-    return requireConferenceAccess(req, res).then((allowed) => {
-      if (allowed) express.static(path.join(conferenceDir(req.params.id), 'src'))(req, res, next);
-    });
+  const apiEndpointPaths = new Set(['/status', '/markdown', '/slides', '/presenter', '/slides/preview', '/thumbnail', '/pdf', '/remote-token']);
+  if (apiEndpointPaths.has(req.path)) return next();
+  const manifest = readManifest(req.params.id);
+  const root = presentationStaticRoot(req.params.id, manifest);
+  if (manifest.provider === 'SLIDEV' && req.path.startsWith('/preview/')) return next();
+  const serve = () => express.static(root, { index: false })(req, res, (err) => {
+    if (err || manifest.provider !== 'SLIDEV' || path.extname(req.path)) return next(err);
+    const index = presentationIndexFile(req.params.id, manifest);
+    if (fs.existsSync(index)) return res.sendFile(index);
+    next();
+  });
+  if (manifest.provider === 'SLIDEV') return requireConferenceAccess(req, res).then((allowed) => {
+    if (allowed) {
+      setPresentationAccessCookie(req, res, req.params.id);
+      serve();
+    }
+  });
+  serve();
+});
+
+app.get('/api/v1/conferences/:id/presentation/preview/:file', async (req, res) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  const manifest = readManifest(req.params.id);
+  if (manifest.provider !== 'SLIDEV') return res.status(404).json({ error: 'not_found' });
+  const file = path.basename(req.params.file);
+  if (!/^slide-[0-9]+\.png$/i.test(file)) return res.status(404).json({ error: 'not_found' });
+  const target = path.join(conferenceDir(req.params.id), 'preview', file);
+  if (!fs.existsSync(target)) {
+    try { await ensureSlidevPreview(req.params.id); } catch { /* handled below */ }
   }
-  express.static(path.join(conferenceDir(req.params.id), 'src'))(req, res, next);
+  if (!fs.existsSync(target)) return res.status(404).json({ error: 'not_found' });
+  res.type('png').sendFile(target);
 });
 
 async function ensurePdf(conferenceId) {
@@ -259,8 +546,26 @@ async function ensurePdf(conferenceId) {
   if (pdfGenerations.has(conferenceId)) return pdfGenerations.get(conferenceId);
 
   const srcDir = path.join(confDir, 'src');
-  const mdFile = findFile(srcDir, (name) => name.toLowerCase().endsWith('.md'));
+  const manifest = readManifest(conferenceId);
+  const mdFile = manifest.sourceFile
+    ? path.join(confDir, manifest.sourceFile)
+    : findFile(srcDir, (name) => name.toLowerCase().endsWith('.md'));
   if (!mdFile) return null;
+
+  if (manifest.provider === 'SLIDEV') {
+    const generation = runSlidev([
+      'export', mdFile,
+      '--format', 'pdf',
+      '--output', slidesPdf,
+      '--timeout', '120000',
+      '--executable-path', CHROMIUM_PATH,
+    ])
+      .then(() => slidesPdf)
+      .finally(() => pdfGenerations.delete(conferenceId));
+    pdfGenerations.set(conferenceId, generation);
+    return generation;
+  }
+
   const themeFile = findFile(srcDir, (name, full) => name === 'theme.css' && full.includes(`${path.sep}css${path.sep}`));
 
   const baseArgs = [mdFile, '--allow-local-files', '--html'];
@@ -273,12 +578,71 @@ async function ensurePdf(conferenceId) {
   return generation;
 }
 
+function findPngFiles(rootDir) {
+  const files = [];
+  const stack = [rootDir];
+  while (stack.length) {
+    const dir = stack.pop();
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) stack.push(full);
+      else if (entry.name.toLowerCase().endsWith('.png')) files.push(full);
+    }
+  }
+  return files.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+async function ensureSlidevPreview(conferenceId) {
+  const confDir = conferenceDir(conferenceId);
+  const previewDir = path.join(confDir, 'preview');
+  const existing = findPngFiles(previewDir).filter((file) => /^slide-[0-9]+\.png$/i.test(path.basename(file)));
+  if (existing.length) return existing;
+  if (slidevPreviewGenerations.has(conferenceId)) return slidevPreviewGenerations.get(conferenceId);
+
+  const manifest = readManifest(conferenceId);
+  const mdFile = manifest.sourceFile ? path.join(confDir, manifest.sourceFile) : null;
+  if (manifest.provider !== 'SLIDEV' || !mdFile || !fs.existsSync(mdFile)) return [];
+
+  const generation = (async () => {
+    fs.rmSync(previewDir, { recursive: true, force: true });
+    fs.mkdirSync(previewDir, { recursive: true });
+    const outputPrefix = path.join(previewDir, 'slide');
+    await runSlidev([
+      'export', mdFile,
+      '--format', 'png',
+      '--output', outputPrefix,
+      '--timeout', '120000',
+      '--executable-path', CHROMIUM_PATH,
+    ]);
+    const generated = findPngFiles(previewDir).filter((file) => path.basename(file) !== 'thumbnail.png');
+    const normalized = [];
+    generated.slice(0, PREVIEW_SLIDE_LIMIT).forEach((file, index) => {
+      const target = path.join(previewDir, `slide-${index + 1}.png`);
+      if (file !== target) fs.copyFileSync(file, target);
+      normalized.push(target);
+    });
+    return normalized;
+  })().finally(() => slidevPreviewGenerations.delete(conferenceId));
+  slidevPreviewGenerations.set(conferenceId, generation);
+  return generation;
+}
+
 async function ensureThumbnail(conferenceId) {
   const confDir = conferenceDir(conferenceId);
   const thumbnail = path.join(confDir, 'thumbnail.png');
   if (fs.existsSync(thumbnail)) return thumbnail;
 
   if (thumbnailGenerations.has(conferenceId)) return thumbnailGenerations.get(conferenceId);
+
+  const manifest = readManifest(conferenceId);
+  if (manifest.provider === 'SLIDEV') {
+    const images = await ensureSlidevPreview(conferenceId);
+    if (!images.length) return null;
+    fs.copyFileSync(images[0], thumbnail);
+    return thumbnail;
+  }
 
   const srcDir = path.join(confDir, 'src');
   const mdFile = findFile(srcDir, (name) => name.toLowerCase().endsWith('.md'));
@@ -384,8 +748,16 @@ app.get('/api/v1/share/:friendlyId', async (req, res) => {
 app.get('/api/v1/conferences/:id/presentation/status', (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   const confDir = conferenceDir(req.params.id);
+  const manifest = readManifest(req.params.id);
   res.json({
-    ready: fs.existsSync(path.join(confDir, 'src', 'slides.html')),
+    ready: fs.existsSync(presentationIndexFile(req.params.id, manifest)),
+    provider: manifest.provider,
+    presentationProvider: manifest.provider,
+    engineVersion: manifest.engineVersion || null,
+    exports: {
+      pdf: fs.existsSync(path.join(confDir, 'slides.pdf')),
+      preview: manifest.provider === 'SLIDEV' ? fs.existsSync(path.join(confDir, 'preview', 'slide-1.png')) : true,
+    },
   });
 });
 

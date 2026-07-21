@@ -32,8 +32,8 @@
       .canvas-mode-row(v-for="tool in canvasTools" :key="tool")
         span.canvas-mode-label {{ canvasToolLabel(tool) }}
         select(v-model="canvasModes[tool]")
-          option(value="INDEPENDENT") Trabajo independiente (solo persiste el moderador)
-          option(value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
+          option(v-for="option in canvasModeOptions(tool)" :key="option.value" :value="option.value") {{ option.label }}
+      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
       button.btn-outline(type="button" @click="saveCanvasConfig" :disabled="savingCanvasConfig")
         span(v-if="savingCanvasConfig") Guardando...
         span(v-else) Guardar configuración del lienzo
@@ -253,7 +253,7 @@ export default {
     const eventTypeError  = ref('')
     const canvasTools = ref<CanvasTool[]>([])
     const canvasModes = reactive<Record<CanvasTool, CanvasAudienceMode>>({
-      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'INDEPENDENT'
+      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'COLLABORATIVE'
     })
     const savingCanvasConfig = ref(false)
     const canvasConfigSaved = ref(false)
@@ -291,11 +291,12 @@ export default {
         const configured = conference.value.canvasConfigs || []
         if (configured.length > 0) {
           canvasTools.value = configured.map(c => c.tool)
-          configured.forEach(c => { canvasModes[c.tool] = c.audienceMode })
+          configured.forEach(c => { canvasModes[c.tool] = normalizeCanvasMode(c.tool, c.audienceMode) })
         } else if (conference.value.canvasTool) {
           // Fallback para eventos guardados con el contrato anterior.
           canvasTools.value = [conference.value.canvasTool]
-          canvasModes[conference.value.canvasTool] = conference.value.canvasAudienceMode || 'INDEPENDENT'
+          canvasModes[conference.value.canvasTool] = normalizeCanvasMode(
+            conference.value.canvasTool, conference.value.canvasAudienceMode)
         } else {
           canvasTools.value = []
         }
@@ -483,6 +484,24 @@ export default {
       return { DRAWIO: 'Drawio', EXCALIDRAW: 'Excalidraw', ETHERPAD: 'Etherpad' }[tool]
     }
 
+    function canvasModeOptions(tool: CanvasTool): Array<{ value: CanvasAudienceMode; label: string }> {
+      if (tool === 'ETHERPAD') {
+        return [
+          { value: 'COLLABORATIVE', label: 'Notas grupales (todos colaboran)' },
+          { value: 'INDEPENDENT', label: 'Notas individuales (se borran al vencer el evento)' }
+        ]
+      }
+      return [
+        { value: 'INDEPENDENT', label: 'Trabajo independiente (solo persiste el moderador)' },
+        { value: 'MODERATOR_ONLY', label: 'Solo el moderador edita; asistentes ven la publicación' }
+      ]
+    }
+
+    function normalizeCanvasMode(tool: CanvasTool, mode: CanvasAudienceMode | null | undefined): CanvasAudienceMode {
+      if (tool === 'ETHERPAD') return mode === 'INDEPENDENT' ? 'INDEPENDENT' : 'COLLABORATIVE'
+      return mode === 'MODERATOR_ONLY' ? 'MODERATOR_ONLY' : 'INDEPENDENT'
+    }
+
     return { conference, loading, error,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
@@ -496,7 +515,7 @@ export default {
              maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
              deviceAccessConfigSaved, deviceAccessConfigError, saveDeviceAccessConfig,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
-             canvasTools, canvasModes, canvasToolLabel,
+             canvasTools, canvasModes, canvasToolLabel, canvasModeOptions,
              canvasToolOptions: [
                { value: 'DRAWIO', label: 'Drawio (diagramas)' },
                { value: 'EXCALIDRAW', label: 'Excalidraw (pizarra)' },

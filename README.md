@@ -44,8 +44,13 @@ válido, incluyendo las herramientas privadas y el material descargable.
 - Crear, publicar y responder encuestas.
 - Generar sugerencias de preguntas con IA cuando el proveedor está configurado.
 - Emitir certificados de participación.
-- Subir presentaciones en Markdown compatible con Marp y servirlas como slides
-  HTML.
+- Subir presentaciones como ZIP seleccionando el motor `Marp` o `Slidev`.
+  Marp genera HTML tradicional; Slidev genera una SPA estática con navegación
+  pública, modo presentador y sincronización en vivo.
+- Mantener Marp como opción compatible para presentaciones existentes. Los ZIP
+  de Slidev del MVP deben incluir un Markdown de entrada (`slides.md` o un único
+  `.md`) y assets locales; no se aceptan `package.json`, plugins ni código
+  ejecutable arbitrario.
 - Mantener el motor de encuestas actual y planificar `survey-vue3-ui` como una
   segunda forma de crear/renderizar encuestas, sin reemplazar el flujo actual.
 
@@ -104,7 +109,7 @@ Web Vue 3 + nginx ───────────────► Tools Gateway
    └── survey       ┘
 
 Chat FastAPI + WebSocket ───────► ingest / users / proveedor de IA
-Presentations Node + Marp ──────► archivos y slides HTML
+Presentations Node + Marp/Slidev ► archivos, SPA y slides HTML
 ```
 
 El backend Java usa arquitectura hexagonal: dominio, casos de uso, puertos y
@@ -124,7 +129,7 @@ dashboards; las reglas de acceso y permisos se validan en backend.
 | `insightbloom-stats` | Java 25 | agregados y relevancia | 8085 |
 | `insightbloom-survey` | Java 25 | encuestas, respuestas y certificados | 8086 |
 | `insightbloom-tools-gateway` | Java 25 | sesión autenticada y proxy hacia herramientas/IDE | 8090 |
-| `insightbloom-presentations` | Node.js, Express, Marp | conversión y entrega de presentaciones | 8091 |
+| `insightbloom-presentations` | Node.js, Express, Marp, Slidev | conversión, exportación y entrega de presentaciones | 8091 |
 | `insightbloom-chat` | Python, FastAPI | chat, WebSocket y bot IA | según entorno |
 | `insightbloom-telegram` | Python, FastAPI | integración de Telegram | según entorno |
 

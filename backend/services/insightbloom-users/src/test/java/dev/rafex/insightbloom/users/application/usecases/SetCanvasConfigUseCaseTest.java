@@ -59,4 +59,29 @@ class SetCanvasConfigUseCaseTest {
                 new SetCanvasConfigUseCase(repository)
                         .execute("conference", "owner", "UNKNOWN", "INDEPENDENT"));
     }
+
+    @Test
+    void acceptsCollaborativeModeOnlyForEtherpad() {
+        final ConferenceRepository repository = mock(ConferenceRepository.class);
+        final Conference conference = new Conference("evento", "Evento", "owner");
+        when(repository.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+
+        final var result = new SetCanvasConfigUseCase(repository)
+                .execute(conference.getUuid(), "owner", "ETHERPAD", "COLLABORATIVE");
+
+        assertTrue(result.isPresent());
+        assertEquals("COLLABORATIVE", conference.getCanvasAudienceMode());
+        assertThrows(IllegalArgumentException.class, () ->
+                new SetCanvasConfigUseCase(repository)
+                        .execute(conference.getUuid(), "owner", "DRAWIO", "COLLABORATIVE"));
+    }
+
+    @Test
+    void rejectsModeratorOnlyModeForEtherpad() {
+        final ConferenceRepository repository = mock(ConferenceRepository.class);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                new SetCanvasConfigUseCase(repository)
+                        .execute("conference", "owner", "ETHERPAD", "MODERATOR_ONLY"));
+    }
 }

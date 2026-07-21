@@ -4,12 +4,24 @@
   .unavailable(v-else-if="!padUrl")
     p ⚠️ Las notas colaborativas no están disponibles en este momento.
     p.hint Intenta más tarde o contacta al organizador.
-  iframe.etherpad-frame(v-else :src="padUrl" title="Notas")
+  template(v-else)
+    .notes-toolbar
+      span(v-if="isIndividual") Notas individuales: se purgan después de vencer el evento y puedes exportarlas.
+      span(v-else) Notas grupales: las notas se compartirán con los asistentes y quedarán en el ZIP de materiales.
+      button.btn-outline(type="button" @click="downloadNotes('txt')" :disabled="downloading")
+        span(v-if="downloading") Preparando...
+        span(v-else) Descargar TXT
+      button.btn-outline(v-if="isIndividual" type="button" @click="downloadNotes('html')" :disabled="downloading") Descargar HTML
+      button.btn-outline(type="button" @click="downloadMaterials" :disabled="downloadingMaterials")
+        span(v-if="downloadingMaterials") Preparando ZIP...
+        span(v-else) Descargar materiales ZIP
+      span.error(v-if="exportError") {{ exportError }}
+    iframe.etherpad-frame(:src="padUrl" title="Notas")
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
-import { getIntegrationConfig, getEventNotes } from '@/services/api/usersApi'
+import { ref, computed, onMounted } from 'vue'
+import { getIntegrationConfig, getEventNotes, exportEventNotes, downloadEventMaterials } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -23,6 +35,46 @@ export default {
     const auth = useAuthStore()
     const loading = ref(true)
     const padUrl = ref('')
+    const downloading = ref(false)
+    const downloadingMaterials = ref(false)
+    const exportError = ref('')
+    const isIndividual = computed(() => props.canvasAudienceMode === 'INDEPENDENT')
+
+    async function downloadNotes(format: 'txt' | 'html') {
+      downloading.value = true
+      exportError.value = ''
+      try {
+        const blob = await exportEventNotes(props.conferenceId as string, auth.state.token as string, format)
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `mis-notas.${format}`
+        link.click()
+        URL.revokeObjectURL(url)
+      } catch (e: any) {
+        exportError.value = 'No se pudieron exportar tus notas.'
+      } finally {
+        downloading.value = false
+      }
+    }
+
+    async function downloadMaterials() {
+      downloadingMaterials.value = true
+      exportError.value = ''
+      try {
+        const blob = await downloadEventMaterials(props.conferenceId as string, auth.state.token as string)
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'event-materials.zip'
+        link.click()
+        URL.revokeObjectURL(url)
+      } catch (e: any) {
+        exportError.value = 'No se pudieron preparar los materiales del evento.'
+      } finally {
+        downloadingMaterials.value = false
+      }
+    }
 
     onMounted(async () => {
       if (!props.conferenceId) { loading.value = false; return }
@@ -44,13 +96,15 @@ export default {
       }
     })
 
-    return { loading, padUrl }
+    return { loading, padUrl, isIndividual, downloading, downloadingMaterials, exportError, downloadNotes, downloadMaterials }
   }
 }
 </script>
 
 <style scoped>
-.collab-notes-page { flex: 1; min-height: 480px; display: flex; }
+.collab-notes-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; }
+.notes-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; color: #4b5563; font-size: .85rem; background: #f8fafc; border-bottom: 1px solid #e5e7eb; }
+.notes-toolbar .error { color: #b91c1c; }
 .etherpad-frame { flex: 1; border: none; width: 100%; }
 .loading-text { padding: 40px; text-align: center; color: #6b7280; }
 .unavailable { margin: 40px auto; text-align: center; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; max-width: 420px; }

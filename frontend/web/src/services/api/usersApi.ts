@@ -475,6 +475,22 @@ export async function getEventNotes(conferenceId: string, token: string): Promis
   return res.data.data
 }
 
+/** Exporta el pad grupal o privado sin exponer la API key de Etherpad. */
+export async function exportEventNotes(conferenceId: string, token: string, format: 'txt' | 'html' = 'txt'): Promise<Blob> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/notes/export?format=${format}`, {
+    ...authHeader(token), responseType: 'blob'
+  })
+  return res.data
+}
+
+/** Descarga las fuentes y exportaciones publicadas del evento como ZIP. No incluye pads privados. */
+export async function downloadEventMaterials(conferenceId: string, token: string): Promise<Blob> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/materials.zip`, {
+    ...authHeader(token), responseType: 'blob'
+  })
+  return res.data
+}
+
 /** Ultimo XML y exportacion publicada de drawio para el evento. */
 export async function getEventDiagram(conferenceId: string, token: string): Promise<{
   xml: string, publishedSvg?: string | null, updatedAt?: string | null, version?: number

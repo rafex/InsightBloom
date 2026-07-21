@@ -76,7 +76,7 @@ public class Conference {
     // Configuracion legacy del lienzo. Se conserva para compatibilidad con clientes y filas
     // antiguas; las configuraciones nuevas viven en canvasConfigs, una por herramienta.
     private String canvasTool; // DRAWIO | EXCALIDRAW | ETHERPAD | null (legacy/all)
-    private String canvasAudienceMode; // INDEPENDENT | MODERATOR_ONLY | null (legacy)
+    private String canvasAudienceMode; // INDEPENDENT | MODERATOR_ONLY | COLLABORATIVE | null (legacy)
     private List<CanvasConfig> canvasConfigs = List.of();
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {

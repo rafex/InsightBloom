@@ -3,6 +3,8 @@ import axios from 'axios'
 import {
   getQuestions, createQuestion, updateQuestion, suggestQuestions, deactivateQuestion,
   submitResponses, hasResponded, getResults, purgeResponses, improveQuestion, gradeResponses
+  , getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition,
+  publishSurveyDefinition, submitSurveyJs, getSurveyJsSubmissions
 } from '../surveyApi'
 
 vi.mock('axios')
@@ -109,5 +111,41 @@ describe('surveyApi', () => {
     await gradeResponses('c1', ['q1'], 'tok')
     const [, body] = axios.post.mock.calls[0]
     expect(body.regrade).toBe(false)
+  })
+
+  it('uses the fixed-engine SurveyJS definition endpoints', async () => {
+    axios.get.mockResolvedValue({ data: { data: { configured: true, engine: 'SURVEYJS' } } })
+    await getSurveyDefinition('c1', 'tok', true)
+    expect(axios.get).toHaveBeenCalledWith(`${BASE}/conferences/c1/survey/definition`, {
+      params: { draft: true }, headers: { Authorization: 'Bearer tok' }
+    })
+
+    axios.post.mockResolvedValue({ data: { data: {} } })
+    await selectSurveyEngine('c1', 'SURVEYJS', 'tok')
+    await validateSurveyDefinition('c1', { pages: [] }, 'tok')
+    await publishSurveyDefinition('c1', { pages: [] }, 'tok')
+    await submitSurveyJs('c1', { answer: 'yes' }, 'tok')
+    expect(axios.post).toHaveBeenNthCalledWith(1, `${BASE}/conferences/c1/survey/definition/engine`,
+      { engine: 'SURVEYJS' }, { headers: { Authorization: 'Bearer tok' } })
+    expect(axios.post).toHaveBeenNthCalledWith(2, `${BASE}/conferences/c1/survey/definition/validate`,
+      { schema: { pages: [] } }, { headers: { Authorization: 'Bearer tok' } })
+    expect(axios.post).toHaveBeenNthCalledWith(3, `${BASE}/conferences/c1/survey/definition/publish`,
+      { schema: { pages: [] } }, { headers: { Authorization: 'Bearer tok' } })
+    expect(axios.post).toHaveBeenNthCalledWith(4, `${BASE}/conferences/c1/survey/submissions`,
+      { data: { answer: 'yes' } }, { headers: { Authorization: 'Bearer tok' } })
+  })
+
+  it('saves SurveyJS drafts and lists SurveyJS submissions', async () => {
+    axios.put.mockResolvedValue({ data: { data: {} } })
+    axios.get.mockResolvedValue({ data: { data: [] } })
+    const schema = { title: 'T', pages: [{ name: 'p', elements: [] }] }
+    await saveSurveyDefinition('c1', schema, 'tok')
+    await getSurveyJsSubmissions('c1', 'tok')
+    expect(axios.put).toHaveBeenCalledWith(`${BASE}/conferences/c1/survey/definition`, { schema }, {
+      headers: { Authorization: 'Bearer tok' }
+    })
+    expect(axios.get).toHaveBeenCalledWith(`${BASE}/conferences/c1/survey/submissions`, {
+      headers: { Authorization: 'Bearer tok' }
+    })
   })
 })

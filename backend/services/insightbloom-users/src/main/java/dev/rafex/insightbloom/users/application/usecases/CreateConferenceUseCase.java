@@ -93,7 +93,9 @@ public class CreateConferenceUseCase {
         if (canvasTool == null || canvasTool.isBlank()) return List.of();
         return List.of(new CanvasConfig(canvasTool,
                 audienceMode == null || audienceMode.isBlank()
-                        ? SetCanvasConfigUseCase.INDEPENDENT : audienceMode));
+                        ? (SetCanvasConfigUseCase.ETHERPAD.equals(canvasTool)
+                            ? SetCanvasConfigUseCase.COLLABORATIVE : SetCanvasConfigUseCase.INDEPENDENT)
+                        : audienceMode));
     }
 
     private static void validateCanvasConfigs(final List<CanvasConfig> configs) {
@@ -108,8 +110,12 @@ public class CreateConferenceUseCase {
                     && !SetCanvasConfigUseCase.ETHERPAD.equals(config.tool())) {
                 throw new IllegalArgumentException("canvas_tool_invalid");
             }
-            if (!SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
-                    && !SetCanvasConfigUseCase.MODERATOR_ONLY.equals(config.audienceMode())) {
+            final boolean supportedMode = SetCanvasConfigUseCase.ETHERPAD.equals(config.tool())
+                    ? (SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
+                        || SetCanvasConfigUseCase.COLLABORATIVE.equals(config.audienceMode()))
+                    : (SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
+                        || SetCanvasConfigUseCase.MODERATOR_ONLY.equals(config.audienceMode()));
+            if (!supportedMode) {
                 throw new IllegalArgumentException("canvas_audience_mode_invalid");
             }
         }

@@ -63,13 +63,13 @@ sin que el codigo compare contra nombres de tipo especificos.
 - Integracion de notas colaborativas via una instancia propia de
   **Etherpad** autoalojada en K3s, con un pad por evento creado via su API
   HTTP.
-- Motor de encuestas alternativo via **SurveyJS**: el organizador elige, por
-  encuesta, si la construye con el editor propio actual de InsightBloom
-  (`NATIVE`) o con el editor visual de SurveyJS (`SURVEYJS`, drag-and-drop,
-  mas tipos de pregunta que el motor propio). Ambos motores guardan sus
-  datos en el mismo backend `insightbloom-survey`; SurveyJS es una libreria
-  de frontend (sin servidor propio que auto-alojar), la definicion de la
-  encuesta se persiste como el JSON schema nativo de SurveyJS.
+- Motor de encuestas alternativo via **SurveyJS**: el moderador elige, antes
+  de crear la primera pregunta, entre el motor propio de InsightBloom
+  (`NATIVE`) y SurveyJS Form Library (`SURVEYJS`). El motor queda fijo por
+  encuesta; no hay conversion ni mezcla de preguntas, respuestas o resultados.
+  SurveyJS usa `survey-core` + `survey-vue3-ui` para renderizar un JSON schema
+  en el frontend, sin servidor propio que autoalojar. La autoria inicial es
+  controlada dentro de InsightBloom y no integra Survey Creator.
 - Motor de mapa de asientos alternativo via **seatmap-canvas**
   (`alisaitteke/seatmap-canvas`): para `TICKETING_SEATED`, el organizador
   elige entre el editor propio actual (`FREEFORM`, marcadores libres sobre
@@ -197,20 +197,22 @@ sin que el codigo compare contra nombres de tipo especificos.
   Etherpad con su API key) via variables de entorno, siguiendo el mismo
   mecanismo ya usado para `LLM_PROVIDER_BASE_URL` u otras integraciones
   externas.
-- FR-016: si el evento tiene la capacidad `SURVEY`, el organizador elige el
-  motor al crear cada encuesta: `NATIVE` (editor propio actual) o
-  `SURVEYJS` (editor visual SurveyJS Creator).
+- FR-016: si el evento tiene la capacidad `SURVEY`, el moderador elige antes
+  de crear la primera pregunta el motor de la encuesta: `NATIVE` (editor
+  propio actual) o `SURVEYJS` (SurveyJS Form Library). El motor queda fijo y
+  no se puede cambiar dentro de la misma encuesta.
 - FR-017: una encuesta `SURVEYJS` persiste su definicion como el JSON
-  schema nativo de SurveyJS (`survey-core`) en `insightbloom-survey`, y sus
-  respuestas se guardan con la misma asociacion evento/asistente que las
-  encuestas `NATIVE`.
+  schema nativo de SurveyJS (`survey-core`) en una definicion propia de
+  `SURVEYJS` dentro de `insightbloom-survey`; sus submissions se guardan en
+  una persistencia separada con evento, asistente y version publicada. Las
+  tablas y contratos de `NATIVE` no se reutilizan para representar SurveyJS.
 - FR-018: el asistente responde una encuesta `SURVEYJS` a traves del
   componente `Survey` (render) de SurveyJS embebido en la misma pagina de
   encuesta existente, sin una URL ni flujo separado.
-- FR-019: los resultados de una encuesta `SURVEYJS` se listan en el mismo
-  dashboard de resultados que las encuestas `NATIVE`, aunque el detalle
-  pregunta-por-pregunta pueda diferir en formato dado que el modelo de
-  pregunta de SurveyJS es mas amplio que el del motor propio.
+- FR-019: los resultados de una encuesta `SURVEYJS` se administran desde el
+  area de encuestas, pero usan almacenamiento, agregacion y vista especificos
+  de SurveyJS; no se mezclan con el dashboard ni el modelo de resultados de
+  `NATIVE`.
 - FR-020: al activar `TICKETING_SEATED` para un evento, el organizador
   elige el motor de mapa de asientos: `FREEFORM` (editor de marcadores
   libres ya existente) o `SEATMAP_CANVAS` (filas, secciones y butacas
@@ -315,10 +317,11 @@ sin que el codigo compare contra nombres de tipo especificos.
 ### Scenario 9 — Encuesta construida con SurveyJS
 - **Given** un organizador creando una encuesta para un evento con capacidad
   `SURVEY`
-- **When** elige el motor `SURVEYJS` y arma la encuesta con el editor visual
-- **Then** el asistente responde la encuesta con el componente de render de
-  SurveyJS, y las respuestas quedan asociadas al evento y al asistente igual
-  que con el motor `NATIVE`.
+- **When** elige el motor `SURVEYJS` y arma la encuesta con la autoria
+  controlada de InsightBloom
+- **Then** el asistente responde la encuesta con `survey-vue3-ui`, y las
+  submissions quedan asociadas a su definicion SurveyJS, evento, asistente y
+  version publicada, sin reutilizar el modelo de `NATIVE`.
 
 ### Scenario 10 — Mapa de asientos real con seatmap-canvas
 - **Given** un organizador configurando `TICKETING_SEATED` para un teatro
@@ -362,14 +365,11 @@ sin que el codigo compare contra nombres de tipo especificos.
   en el caso de Etherpad, una API key generada al desplegar.
 - Cuenta/dominio de `meet.jit.si` no requiere credenciales (uso publico),
   pero esta sujeto a los limites y terminos de servicio de 8x8/Jitsi.
-- Paquetes npm de SurveyJS (`survey-core`, `survey-js-ui` para el render,
-  `survey-creator-core` + `survey-creator-js` para el editor visual). Las
-  librerias core (form/render) son MIT y libres de usar; **verificar antes
-  de implementar** la licencia vigente de `survey-creator-*` (historicamente
-  tiene un limite de uso gratuito con marca de agua fuera de ese limite,
-  sujeto a cambios de SurveyJS) — si aplica un costo o restriccion, decidir
-  si el `ADMIN` puede activar `SURVEYJS` igual y aceptar la marca de agua,
-  o si se pospone hasta confirmar los terminos.
+- Paquetes npm de SurveyJS `survey-core` + `survey-vue3-ui` para la Form
+  Library. Su licencia MIT permite el alcance inicial sin licencia comercial,
+  conservando los avisos de copyright y licencia. `survey-creator-vue`, PDF
+  Generator y Dashboard/Analytics son componentes comerciales y quedan fuera
+  de esta iniciativa; su adopcion futura requiere una decision separada.
 - Paquete npm `seatmap-canvas` (`alisaitteke/seatmap-canvas`, MIT) —
   verificar antes de implementar que el proyecto siga mantenido/compatible
   con la version de Vue/Vite del frontend (es una libreria orientada a
@@ -404,17 +404,13 @@ sin que el codigo compare contra nombres de tipo especificos.
   de control del proyecto — mitigacion: dejar el self-hosted como
   alternativa ya soportada desde el dia uno (no como plan B tardio).
 - Mantener dos motores de encuesta (`NATIVE` y `SURVEYJS`) duplica el
-  esfuerzo de mantenimiento futuro (dos formatos de pregunta, dos
-  renderizados) — mitigacion: `SURVEYJS` no reemplaza al motor propio, es
-  una opcion adicional; si con el tiempo un motor concentra casi todo el
-  uso, se puede evaluar deprecar el otro sin romper encuestas ya creadas
-  (el motor es fijo por encuesta, ver Excludes).
-- El editor visual `survey-creator-*` puede tener condiciones de licencia
-  que cambien la viabilidad de usarlo gratis en produccion — mitigacion:
-  confirmar la licencia vigente antes de iniciar la implementacion (ver
-  Dependencies), y si no es viable, ofrecer `SURVEYJS` solo con el render
-  (`survey-core`/`survey-js-ui`) contra un JSON schema editado a mano o
-  importado, sin el editor visual.
+  esfuerzo de mantenimiento futuro (dos formatos, dos renderizados y dos
+  vistas de resultados) — mitigacion: fijar el motor al crear la encuesta,
+  mantener persistencia/API separadas y no implementar conversion automatica.
+- Usar por error Survey Creator, PDF Generator o Dashboard/Analytics puede
+  introducir obligaciones comerciales — mitigacion: limitar esta iniciativa
+  a `survey-core` + `survey-vue3-ui`, revisar dependencias en CI y documentar
+  los avisos MIT incluidos.
 - `seatmap-canvas` es un proyecto de un solo mantenedor (no un producto con
   soporte comercial) — mitigacion: si el proyecto queda abandonado o
   incompatible, `FREEFORM` sigue siendo el motor por defecto y totalmente
@@ -464,14 +460,18 @@ Más fricción de la que aparenta inicialmente:
 
 **Complejidad:** media. Riesgo operativo en la configuracion de Helm + build de imagen.
 
-### 4. SurveyJS (5 tareas) — **Complejidad media**
-Dos costos reales:
-1. **Incógnita de licencia:** `survey-creator-core` y `survey-creator-js` (el editor visual drag-and-drop) tienen historicamente un modelo de uso gratuito con marca de agua. Hay que confirmar la licencia vigente antes de iniciar implementacion (TASK-0050 puede cambiar de alcance según el resultado).
-2. **Peso del bundle:** SurveyJS es una libreria grande (survey-core + survey-js-ui + opcionalemente survey-creator). El bundle final del frontend puede aumentar significativamente. No hay forma de evitarlo si se quiere el editor visual — la alternativa es ofrecer solo el render (sin editor) y que los organizadores editen JSON a mano, pero eso es menos util.
+### 4. SurveyJS (6 tareas) — **Complejidad media**
+El alcance inicial usa únicamente `survey-core` + `survey-vue3-ui` (Form
+Library MIT), por lo que no depende de una licencia comercial. La complejidad
+principal está en mantener la separación entre motores: selección inmutable,
+schema y submissions propios, validación server-side, renderer Vue y resultados
+específicos. La autoría controlada evita introducir Survey Creator en el bundle.
 
-El resto es recto: persistencia de la definicion como JSON schema de SurveyJS en la BD existente (`insightbloom-survey`), render via componente de SurveyJS en la misma pagina de encuesta actual, resultados en el mismo dashboard de resultados (con posible diferencia de formato en el detalle).
+La sugerencia de preguntas con IA se comparte mediante un contrato neutral, pero
+la aprobación final siempre se adapta al motor elegido. Los avisos MIT deben
+permanecer en la distribución.
 
-**Complejidad media, con riesgo no-tecnico (licencia).**
+**Complejidad media, sin licencia comercial en el alcance inicial.**
 
 ### 5. seatmap-canvas (6 tareas) — **Complejidad media-alta, con riesgo de dependencia**
 Depende de una libreria muy especializada:
@@ -506,7 +506,7 @@ El riesgo es principalmente **infraestructura, no codigo**:
 **3. Etherpad** (parte de Fase 3 + 4) — poco mas que drawio.  
 **4. Jitsi público** (parte de Fase 3 + 4, solo iframe de meet.jit.si) — **adelantarlo de su fase**, antes de tocarel self-hosted. Con EventType + drawio/Etherpad/Jitsi-público ya tienes valor demostrable rápido: un tipo de evento "Taller remoto" completamente funcional sin tocar infraestructura riesgosa.  
 **5. Excalidraw** — colaboracion en vivo, pero con friccion de configuracion. Ya hay confianza en Helm charts tras drawio/Etherpad/Jitsi.  
-**6. SurveyJS** — encuestas alternativas. Riesgo de licencia resuelto en TASK-0050; si hay problema, se posterga.  
+**6. SurveyJS** — encuestas alternativas con Form Library MIT; TASK-0050 deja fuera los componentes comerciales y fija la autoria controlada.
 **7. seatmap-canvas** — verificacion de mantenimiento (TASK-0060) puede descartarla, pero `FREEFORM` ya es totalmente funcional como fallback.  
 **8. Jitsi Self-hosted** — **al final**, cuando la infraestructura del cluster este estable y haya tiempo para resolver NAT/TURN. La ruta publica `meet.jit.si` sigue funcionando como fallback.
 
@@ -534,9 +534,9 @@ Esta secuencia tiene una ventaja crítica: **rapidez de valor demostrable** (pas
   edicion colaborativa en vivo; abrir drawio y confirmar que el editor
   carga; crear un pad de Etherpad para un evento y confirmar que dos
   sesiones editan el mismo documento en tiempo real; crear una encuesta
-  `SURVEYJS` con el editor visual, responderla como asistente y confirmar
-  que la respuesta aparece en el dashboard de resultados junto a las
-  encuestas `NATIVE`; definir un recinto con `SEATMAP_CANVAS` (filas y
+  `SURVEYJS` con autoria controlada, responderla como asistente y confirmar
+  que la respuesta aparece en su vista especifica de resultados, separada de
+  `NATIVE`; definir un recinto con `SEATMAP_CANVAS` (filas y
   butacas), reservar un asiento desde dos sesiones al mismo tiempo y
   confirmar que exactamente una tiene exito (mismo criterio de concurrencia
   que `FREEFORM`).
