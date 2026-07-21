@@ -203,6 +203,38 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_reservations_user ON reservations(user_uuid)");
 
             stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS tickets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    ticket_code TEXT NOT NULL UNIQUE,
+                    issued_by_user_uuid TEXT NOT NULL,
+                    recipient_email TEXT,
+                    seat_uuid TEXT,
+                    status TEXT NOT NULL,
+                    claimed_by_user_uuid TEXT,
+                    issued_at TEXT NOT NULL,
+                    claimed_at TEXT,
+                    checked_in_at TEXT
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tickets_conference ON tickets(conference_uuid)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tickets_claimed_user ON tickets(conference_uuid, claimed_by_user_uuid)");
+            // Migración idempotente de reservas históricas al modelo de boletos.
+            stmt.executeUpdate("""
+                INSERT OR IGNORE INTO tickets
+                    (uuid, conference_uuid, ticket_code, issued_by_user_uuid, seat_uuid, status, claimed_by_user_uuid, issued_at)
+                SELECT uuid, conference_uuid, ticket_code, user_uuid, seat_uuid, 'CLAIMED', user_uuid, created_at
+                FROM reservations
+            """);
+            // El modelo legacy no tenía unicidad por usuario; conserva la más antigua antes de
+            // instalar el índice que evita nuevas dobles emisiones concurrentes.
+            stmt.executeUpdate("DELETE FROM reservations WHERE id NOT IN "
+                    + "(SELECT MIN(id) FROM reservations GROUP BY conference_uuid, user_uuid)");
+            stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_reservations_conference_user "
+                    + "ON reservations(conference_uuid, user_uuid)");
+
+            stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS venue_seats (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     uuid TEXT NOT NULL UNIQUE,
@@ -701,8 +733,8 @@ public class DatabaseManager {
             {"event_type_admin", "Administrador de tipos de evento", "PLATFORM", "MANAGE_EVENT_TYPES"},
             {"organizer", "Organizador", "PLATFORM", "HOST_EVENT"},
             {"host", "Host/Anfitrión", "EVENT",
-                "MANAGE_EVENT_SETTINGS,ASSIGN_EVENT_ROLES,MODERATE_CONTENT,CHECK_IN,MANAGE_PRESENTATION,MANAGE_SURVEY,MANAGE_CERTIFICATE,VIDEO_MODERATE"},
-            {"moderator", "Moderador", "EVENT", "MODERATE_CONTENT,VIDEO_MODERATE"},
+                "MANAGE_EVENT_SETTINGS,ASSIGN_EVENT_ROLES,MANAGE_TICKETS,MODERATE_CONTENT,CHECK_IN,MANAGE_PRESENTATION,MANAGE_SURVEY,MANAGE_CERTIFICATE,VIDEO_MODERATE"},
+            {"moderator", "Moderador", "EVENT", "MANAGE_TICKETS,MODERATE_CONTENT,VIDEO_MODERATE"},
             {"checkin_staff", "Staff de acceso", "EVENT", "CHECK_IN"},
             {"guest_presenter", "Presentador invitado", "EVENT", "MANAGE_PRESENTATION"},
             {"survey_manager", "Encargado de encuesta", "EVENT", "MANAGE_SURVEY"}
@@ -723,6 +755,9 @@ public class DatabaseManager {
                 ps.executeUpdate();
             }
         }
+        // Agrega el permiso a instalaciones existentes sin duplicarlo.
+        stmt.executeUpdate("UPDATE roles SET permissions = permissions || ',MANAGE_TICKETS' "
+                + "WHERE key IN ('host','moderator') AND instr(',' || permissions || ',', ',MANAGE_TICKETS,') = 0");
     }
 
     /**

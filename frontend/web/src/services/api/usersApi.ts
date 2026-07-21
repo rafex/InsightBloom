@@ -2,11 +2,11 @@ import axios from 'axios'
 import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
-  SeatingMode, Reservation, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
+  SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
-  DeviceFingerprintFlag
+  DeviceFingerprintFlag, ConferenceAccess
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 
@@ -116,6 +116,11 @@ export async function getConference(id: string, token: string): Promise<Conferen
 
 export async function getConferenceByFriendlyId(friendlyId: string): Promise<Conference> {
   const res = await axios.get(`/api/users/api/v1/conferences/by-friendly/${friendlyId}`)
+  return res.data.data
+}
+
+export async function getConferenceAccess(conferenceId: string, token?: string | null): Promise<ConferenceAccess> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/access`, token ? authHeader(token) : undefined)
   return res.data.data
 }
 
@@ -279,6 +284,51 @@ export async function getMyTicket(conferenceId: string, token: string): Promise<
     if (e.response?.status === 404) return null
     throw e
   }
+}
+
+export async function getMyIssuedTicket(conferenceId: string, token: string): Promise<Ticket | null> {
+  try {
+    const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/tickets/me`, authHeader(token))
+    return res.data.data
+  } catch (e: any) {
+    if (e.response?.status === 404) return null
+    throw e
+  }
+}
+
+export async function issueTicket(
+  conferenceId: string, recipientEmail: string | null, seatUuid: string | null, token: string
+): Promise<Ticket> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets`,
+    { recipientEmail, seatUuid }, authHeader(token))
+  return res.data.data
+}
+
+export async function listTickets(conferenceId: string, token: string): Promise<Ticket[]> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/tickets`, authHeader(token))
+  return res.data.data
+}
+
+export async function claimTicket(conferenceId: string, ticket: string, token: string): Promise<Ticket> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets/claim`, { ticket }, authHeader(token))
+  return res.data.data
+}
+
+export async function claimTicketAsGuest(conferenceId: string, ticket: string, displayName: string): Promise<{ ticket: Ticket, token: string, guestUuid: string, expiresAt: string }> {
+  const fingerprint = await getFingerprint()
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets/claim`,
+    { ticket, displayName, deviceFingerprint: fingerprint })
+  return res.data.data
+}
+
+export async function checkInIssuedTicket(conferenceId: string, ticket: string, token: string): Promise<Ticket> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets/check-in`, { ticket }, authHeader(token))
+  return res.data.data
+}
+
+export async function revokeTicket(conferenceId: string, ticketUuid: string, token: string): Promise<Ticket> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets/${ticketUuid}/revoke`, {}, authHeader(token))
+  return res.data.data
 }
 
 export async function cancelReservation(conferenceId: string, token: string): Promise<void> {

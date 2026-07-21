@@ -70,6 +70,7 @@ public class UsersApplication {
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
         final var timezoneRepo = new SqliteTimezoneRepository(db);
         final var reservationRepo = new SqliteReservationRepository(db);
+        final var ticketRepo = new SqliteTicketRepository(db);
         final var venueSeatRepo = new SqliteVenueSeatRepository(db);
         final var eventTypeRepo = new SqliteEventTypeRepository(db);
         final var roleRepo = new SqliteRoleRepository(db);
@@ -80,6 +81,8 @@ public class UsersApplication {
         final var deviceBlockRepo = new SqliteDeviceBlockRepository(db);
         final var platformDeviceBlockRepo = new SqlitePlatformDeviceBlockRepository(db);
         final var deviceFingerprintFlagRepo = new SqliteDeviceFingerprintFlagRepository(db);
+        final var eventPermissionGuard = new dev.rafex.insightbloom.users.domain.services.EventPermissionGuard(
+                eventRoleRepo, roleRepo);
 
         // Domain services
         final var tokenService = new TokenService(tokenRepo);
@@ -115,6 +118,8 @@ public class UsersApplication {
         final var cancelReservationUseCase = new CancelReservationUseCase(reservationRepo, conferenceRepo);
         final var listReservationsUseCase = new ListReservationsUseCase(conferenceRepo, reservationRepo);
         final var checkInTicketUseCase = new CheckInTicketUseCase(reservationRepo);
+        final var ticketUseCase = new TicketUseCase(
+                conferenceRepo, eventTypeRepo, ticketRepo, membershipRepo, emailPort, frontendBaseUrl, reservationRepo, timezoneRepo);
         final var setVenueMapUseCase = new SetVenueMapUseCase(conferenceRepo);
         final var defineVenueSeatsUseCase = new DefineVenueSeatsUseCase(conferenceRepo, venueSeatRepo, reservationRepo);
         final var getConferenceSeatMapUseCase = new GetConferenceSeatMapUseCase(venueSeatRepo, reservationRepo);
@@ -122,7 +127,7 @@ public class UsersApplication {
                 conferenceRepo, reservationRepo, venueSeatRepo, userRepo, emailPort, frontendBaseUrl);
         final var joinConferenceUseCase = new JoinConferenceUseCase(
                 getConferenceUseCase, membershipRepo, userRepo, emailPort, timezoneRepo,
-                reserveGeneralUseCase, frontendBaseUrl);
+                reserveGeneralUseCase, frontendBaseUrl, ticketUseCase, eventPermissionGuard);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
         final var generateCertificateUseCase = new GenerateCertificateUseCase(
                 conferenceRepo, userRepo, surveyPort, certificateSettingsRepo);
@@ -152,8 +157,6 @@ public class UsersApplication {
         final var createRoleUseCase = new CreateRoleUseCase(roleRepo);
         final var updateRoleUseCase = new UpdateRoleUseCase(roleRepo);
         final var setRoleActiveUseCase = new SetRoleActiveUseCase(roleRepo);
-        final var eventPermissionGuard = new dev.rafex.insightbloom.users.domain.services.EventPermissionGuard(
-                eventRoleRepo, roleRepo);
         final var assignEventRoleUseCase = new AssignEventRoleUseCase(eventRoleRepo, roleRepo, userRepo, eventPermissionGuard);
         final var listEventRolesUseCase = new ListEventRolesUseCase(eventRoleRepo, userRepo, eventPermissionGuard);
         final var removeEventRoleUseCase = new RemoveEventRoleUseCase(eventRoleRepo, conferenceRepo, eventPermissionGuard);
@@ -289,6 +292,7 @@ public class UsersApplication {
                 recordDownloadUseCase, getDownloadCountsUseCase,
                 setSeatingModeUseCase, reserveGeneralUseCase, getMyTicketUseCase, cancelReservationUseCase,
                 listReservationsUseCase, checkInTicketUseCase,
+                ticketUseCase, eventPermissionGuard, createGuestUseCase,
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
                 setEventTypeUseCase, eventCapabilityGuard, getOrCreateEventPadUseCase,
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
@@ -389,6 +393,14 @@ public class UsersApplication {
                 }
             } catch (final Exception e) {
                 System.err.println("sandbox-pool-purge-scheduler: tick failed: " + e.getMessage());
+            }
+            try {
+                final int expired = ticketUseCase.expireTickets(java.time.Instant.now());
+                if (expired > 0) {
+                    System.out.println("ticket-expiration-scheduler: expired tickets in " + expired + " conferences");
+                }
+            } catch (final Exception e) {
+                System.err.println("ticket-expiration-scheduler: tick failed: " + e.getMessage());
             }
         }, 1, 5, java.util.concurrent.TimeUnit.MINUTES);
 

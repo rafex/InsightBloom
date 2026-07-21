@@ -61,7 +61,7 @@
 <script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { register, sendOtp, verifyOtp, type SocialLink } from '@/services/api/authApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -70,6 +70,7 @@ export default {
   components: { AppHeader },
   setup() {
     const router = useRouter()
+    const route = useRoute()
     const auth = useAuthStore()
     const step = ref('form')
     const loading = ref(false)
@@ -148,7 +149,7 @@ export default {
         const result = await verifyOtp(verifyIdentifier.value, code.value.trim())
         auth.setSession(result)
         step.value = 'done'
-        setTimeout(() => router.push('/'), 1500)
+        setTimeout(() => router.push(String(route.query.redirect || '/')), 1500)
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Código inválido o expirado.'
       } finally {

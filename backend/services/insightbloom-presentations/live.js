@@ -89,6 +89,20 @@ async function isOrganizerOrAdmin(token) {
   }
 }
 
+async function hasConferenceAccess(conferenceId, token) {
+  if (!token || !usersUrlRef) return false;
+  try {
+    const res = await fetch(`${usersUrlRef}/api/v1/conferences/${conferenceId}/access`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return false;
+    const body = await res.json();
+    return body?.data?.hasAccess === true;
+  } catch {
+    return false;
+  }
+}
+
 // Token de control remoto autoverificable (HMAC), sin estado compartido entre
 // pods: cualquier pod puede emitirlo o validarlo con la misma clave
 // (INTERNAL_API_KEY, ya es un secreto compartido en el cluster).
@@ -286,6 +300,11 @@ function attachLiveSync(server, { usersUrl, natsUrl, natsToken, internalApiKey }
     const audienceMatch = url.pathname.match(AUDIENCE_WS_RE);
     if (audienceMatch) {
       const conferenceId = audienceMatch[1];
+      const token = url.searchParams.get('ib_token');
+      if (!await hasConferenceAccess(conferenceId, token)) {
+        socket.destroy();
+        return;
+      }
       wss.handleUpgrade(req, socket, head, async (ws) => {
         const r = room(conferenceId);
         r.audience.add(ws);

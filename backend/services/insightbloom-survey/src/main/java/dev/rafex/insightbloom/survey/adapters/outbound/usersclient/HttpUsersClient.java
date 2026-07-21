@@ -40,6 +40,18 @@ public class HttpUsersClient implements UsersPort {
     }
 
     @Override
+    public boolean hasConferenceAccess(final String conferenceUuid, final String token) {
+        try {
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/v1/conferences/" + conferenceUuid + "/access"))
+                    .header("Authorization", "Bearer " + token).timeout(Duration.ofSeconds(5)).GET().build();
+            final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) return false;
+            return dev.rafex.ether.json.JsonUtils.codec().readTree(response.body()).path("data").path("hasAccess").asBoolean(false);
+        } catch (Exception e) { return false; }
+    }
+
+    @Override
     public Optional<String> getDisplayName(final String userUuid) {
         try {
             final var builder = HttpRequest.newBuilder()

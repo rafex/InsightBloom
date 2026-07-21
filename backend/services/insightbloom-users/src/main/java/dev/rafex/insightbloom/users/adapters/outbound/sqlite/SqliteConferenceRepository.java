@@ -130,6 +130,17 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     }
 
     @Override
+    public List<Conference> findAll() {
+        final List<Conference> list = new ArrayList<>();
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(
+                "SELECT * FROM conferences ORDER BY created_at DESC");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) list.add(map(rs));
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return list;
+    }
+
+    @Override
     public List<Conference> findByUser(String userUuid) {
         List<Conference> list = new ArrayList<>();
         String sql = "SELECT * FROM conferences WHERE created_by_user_uuid = ? ORDER BY created_at DESC";

@@ -159,7 +159,7 @@ export default {
         const status = await getPresentationStatus(props.conferenceId as string)
         ready.value = !!status.ready
         if (ready.value) {
-          slidesUrl.value = getSlidesUrl(props.conferenceId as string)
+          slidesUrl.value = getSlidesUrl(props.conferenceId as string, auth.state.token)
           connectPresenterWs()
         }
       } catch (e: any) { ready.value = false }

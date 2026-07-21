@@ -21,7 +21,7 @@
 <script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/features/auth/authStore'
 export default {
   name: 'LoginPage',
@@ -32,6 +32,7 @@ export default {
     const error = ref('')
     const loading = ref(false)
     const router = useRouter()
+    const route = useRoute()
     const auth = useAuthStore()
     async function doLogin() {
       if (!username.value.trim() || !password.value.trim()) {
@@ -41,7 +42,7 @@ export default {
       loading.value = true; error.value = ''
       try {
         await auth.login(username.value.trim(), password.value)
-        router.push('/dashboard')
+        router.push(String(route.query.redirect || '/dashboard'))
       } catch (e: any) {
         error.value = e?.response?.status === 403
           ? 'Este dispositivo fue bloqueado por uso indebido de la plataforma. Contactá a un administrador.'

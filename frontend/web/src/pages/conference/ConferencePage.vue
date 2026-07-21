@@ -6,7 +6,7 @@
   template(v-else-if="conference")
     //- Fullscreen intro map (only when conference has coordinates)
     ConferenceIntroMap(
-      v-if="showIntro"
+      v-if="showIntro && privateAccess"
       :latitude="conference.latitude"
       :longitude="conference.longitude"
       :label="conference.name"
@@ -21,11 +21,11 @@
       template(v-if="!headerCollapsed")
         .conf-title-row
           h1 {{ conference.name }}
-          .conf-location(v-if="conference.latitude != null")
+          .conf-location(v-if="privateAccess && conference.latitude != null")
             span.location-icon 📍
             span.location-coords {{ conference.latitude.toFixed(4) }}, {{ conference.longitude.toFixed(4) }}
-          button.btn-qr(type="button" @click="showQr = true") 📱 Mostrar QR
-        .conf-schedule(v-if="conference.eventDate")
+          button.btn-qr(v-if="privateAccess" type="button" @click="showQr = true") 📱 Mostrar QR
+        .conf-schedule(v-if="privateAccess && conference.eventDate")
           span.schedule-icon 🗓️
           span {{ formattedEventDate }}
           span(v-if="conference.startTime") &nbsp;· {{ conference.startTime }}{{ conference.endTime ? ` - ${conference.endTime}` : '' }}
@@ -36,46 +36,50 @@
               a(:href="googleCalendarUrl" target="_blank" rel="noopener" @click="showCalendarMenu = false") Google Calendar
               button(type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
       nav.conf-toolbar
-        router-link#onboarding-tab-doubts.tool-btn(v-if="hasCapability('WORD_CLOUD')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab" title="Dudas")
+        router-link#onboarding-tab-doubts.tool-btn(v-if="privateAllowed('WORD_CLOUD')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab" title="Dudas")
           span.tool-icon ❓
           span.tool-label Dudas
-        router-link#onboarding-tab-topics.tool-btn(v-if="hasCapability('WORD_CLOUD')" :to="`/c/${friendlyId}/topics`" active-class="active-tab" title="Temas")
+        router-link#onboarding-tab-topics.tool-btn(v-if="privateAllowed('WORD_CLOUD')" :to="`/c/${friendlyId}/topics`" active-class="active-tab" title="Temas")
           span.tool-icon 💡
           span.tool-label Temas
         router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
           span.tool-icon 📽️
           span.tool-label Presentación
-        a.tool-btn.tab-disabled(v-if="hasCapability('CHAT_BOT') && isAnonymous" title="Inicia sesión para acceder al chat")
+        a.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
           span.tool-icon 💬
           span.tool-label Chat
-        a.tool-btn.tab-secondary(v-else-if="hasCapability('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo (opcional)")
+        a.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo")
           span.tool-icon 💬
           span.tool-label Chat
-        router-link#onboarding-tab-survey.tool-btn(v-if="hasCapability('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
+        router-link#onboarding-tab-survey.tool-btn(v-if="privateAllowed('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
           span.tool-icon 📝
           span.tool-label Encuesta
-        router-link.tool-btn(v-if="hasCapability('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
+        router-link.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
           span.tool-icon 🎥
           span.tool-label Videollamada
-        router-link.tool-btn(v-if="hasCapability('DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
+        router-link.tool-btn(v-if="privateAllowed('DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
           span.tool-icon 🧩
           span.tool-label Diagramas
-        router-link.tool-btn(v-if="hasCapability('WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
+        router-link.tool-btn(v-if="privateAllowed('WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
           span.tool-icon 🖍️
           span.tool-label Pizarra
-        router-link.tool-btn(v-if="hasCapability('COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
+        router-link.tool-btn(v-if="privateAllowed('COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
           span.tool-icon 🗒️
           span.tool-label Notas
-        router-link.tool-btn(v-if="conference.seatingMode && conference.seatingMode !== 'NONE'" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
+        router-link.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
           span.tool-icon 🎟️
           span.tool-label Mi boleto
-        router-link.tool-btn(v-if="hasCapability('CODE_IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
+        router-link.tool-btn(v-if="privateAllowed('CODE_IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
           span.tool-icon 💻
           span.tool-label IDE
     .conf-body
       .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
         span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
-      router-view(:conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode")
+      .private-access-block(v-if="!privateAccess && !isTicketRoute && !isPublicRoute")
+        h2 Registro y boleto requeridos
+        p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
+        router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
+      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :access-granted="privateAccess")
 
     OnboardingTour(storage-key="ib_onboarding_conference" :steps="attendeeTourSteps")
 
@@ -89,7 +93,7 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference } from '@/services/api/usersApi'
+import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
 import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -120,6 +124,7 @@ export default {
     const timezones  = ref<Timezone[]>([])
     const showCalendarMenu = ref(false)
     const capabilities = ref<Set<string>>(new Set())
+    const privateAccess = ref(false)
     const headerCollapsed = ref(TOOL_ROUTE_SUFFIXES.some((s) => route.path.endsWith(s)))
 
     watch(() => route.path, (newPath) => {
@@ -131,6 +136,13 @@ export default {
       // y deja que el backend siga siendo la fuente de verdad autoritativa (409 si no aplica).
       return capabilities.value.size === 0 || capabilities.value.has(capability)
     }
+
+    function privateAllowed(capability: EventCapability): boolean {
+      return privateAccess.value && hasCapability(capability)
+    }
+
+    const isTicketRoute = computed(() => route.path.endsWith('/ticket'))
+    const isPublicRoute = computed(() => route.path.endsWith('/presentation'))
 
     const auth = useAuthStore()
     const isAnonymous = !auth.isAuthenticated() || auth.state.role === 'guest'
@@ -190,6 +202,8 @@ export default {
           getActiveEventTypes().catch(() => [])
         ])
         conference.value = conf
+        const access = await getConferenceAccess(conf.uuid, auth.state.token)
+        privateAccess.value = !access.ticketRequired || access.hasAccess
         timezones.value = tzList
         const eventType = eventTypes.find((t) => t.key === conf.eventTypeKey)
         if (eventType) capabilities.value = new Set(eventType.capabilities)
@@ -214,7 +228,7 @@ export default {
     return {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
-      googleCalendarUrl, downloadCalendarFile, hasCapability, headerCollapsed
+      googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, privateAccess, isTicketRoute, isPublicRoute, headerCollapsed
     }
   }
 }

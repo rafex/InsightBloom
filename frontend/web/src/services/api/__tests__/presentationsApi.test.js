@@ -34,8 +34,10 @@ describe('presentationsApi', () => {
 
   it('getSlidesUrl / getSlidesPreviewUrl / getPdfUrl build direct asset URLs', () => {
     expect(getSlidesUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/slides`)
+    expect(getSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/slides?ib_token=a%20b%2Bc`)
     expect(getSlidesPreviewUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/slides/preview`)
     expect(getPdfUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/pdf`)
+    expect(getPdfUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/pdf?ib_token=a%20b%2Bc`)
   })
 
   describe('websocket URL builders', () => {

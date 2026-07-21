@@ -8,6 +8,8 @@ import dev.rafex.insightbloom.users.domain.ports.ConferenceMembershipRepository;
 import dev.rafex.insightbloom.users.domain.ports.EmailPort;
 import dev.rafex.insightbloom.users.domain.ports.TimezoneRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
+import dev.rafex.insightbloom.users.domain.model.Permission;
+import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
 
 public class JoinConferenceUseCase {
     private final GetConferenceUseCase getConferenceUseCase;
@@ -16,6 +18,8 @@ public class JoinConferenceUseCase {
     private final EmailPort emailPort;
     private final TimezoneRepository timezoneRepository;
     private final ReserveGeneralUseCase reserveGeneralUseCase;
+    private final TicketUseCase ticketUseCase;
+    private final EventPermissionGuard eventPermissionGuard;
     private final String frontendBaseUrl;
 
     public JoinConferenceUseCase(final GetConferenceUseCase getConferenceUseCase,
@@ -25,6 +29,19 @@ public class JoinConferenceUseCase {
                                   final TimezoneRepository timezoneRepository,
                                   final ReserveGeneralUseCase reserveGeneralUseCase,
                                   final String frontendBaseUrl) {
+        this(getConferenceUseCase, membershipRepository, userRepository, emailPort, timezoneRepository,
+                reserveGeneralUseCase, frontendBaseUrl, null, null);
+    }
+
+    public JoinConferenceUseCase(final GetConferenceUseCase getConferenceUseCase,
+                                  final ConferenceMembershipRepository membershipRepository,
+                                  final UserRepository userRepository,
+                                  final EmailPort emailPort,
+                                  final TimezoneRepository timezoneRepository,
+                                  final ReserveGeneralUseCase reserveGeneralUseCase,
+                                  final String frontendBaseUrl,
+                                  final TicketUseCase ticketUseCase,
+                                  final EventPermissionGuard eventPermissionGuard) {
         this.getConferenceUseCase = getConferenceUseCase;
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
@@ -32,11 +49,21 @@ public class JoinConferenceUseCase {
         this.timezoneRepository = timezoneRepository;
         this.reserveGeneralUseCase = reserveGeneralUseCase;
         this.frontendBaseUrl = frontendBaseUrl;
+        this.ticketUseCase = ticketUseCase;
+        this.eventPermissionGuard = eventPermissionGuard;
     }
 
     public Conference execute(final String userUuid, final String identifier) {
         final Conference conference = getConferenceUseCase.resolveAny(identifier)
                 .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+        final boolean ticketed = ticketUseCase != null && ticketUseCase.isTicketed(conference);
+        final boolean staffOrManager = userRepository.findByUuid(userUuid)
+                .map(User::isExemptFromTickets).orElse(false)
+                || (eventPermissionGuard != null && eventPermissionGuard.hasPermission(
+                conference.getUuid(), userUuid, null, Permission.MANAGE_TICKETS));
+        if (ticketed && !staffOrManager && !ticketUseCase.hasAccess(conference, userUuid)) {
+            throw new IllegalStateException("ticket_required");
+        }
         final boolean firstJoin = !membershipRepository.exists(userUuid, conference.getUuid());
         membershipRepository.recordJoin(new ConferenceMembership(
                 userUuid, conference.getUuid(), conference.getName(), conference.getFriendlyId()));
@@ -45,7 +72,7 @@ public class JoinConferenceUseCase {
         // Modo SEATED no auto-reserva: el asistente debe elegir un asiento explícitamente.
         // GENERAL y NONE emiten boleto sin asiento, sujeto al aforo del evento (el aforo ya no es
         // exclusivo de GENERAL -- el servidor tiene recursos finitos y todo evento lo declara).
-        if (firstJoin && !"SEATED".equals(conference.getSeatingMode())) {
+        if (ticketUseCase == null && firstJoin && !"SEATED".equals(conference.getSeatingMode())) {
             try {
                 reservation = reserveGeneralUseCase.execute(conference.getUuid(), userUuid);
             } catch (final Exception e) {

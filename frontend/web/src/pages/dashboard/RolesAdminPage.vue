@@ -80,6 +80,7 @@ const PERMISSION_LABELS: Record<string, string> = {
   ASSIGN_EVENT_ROLES: 'Asignar roles del evento',
   MODERATE_CONTENT: 'Moderar contenido',
   CHECK_IN: 'Check-in de boletos',
+  MANAGE_TICKETS: 'Emitir y administrar boletos',
   MANAGE_PRESENTATION: 'Controlar presentación',
   MANAGE_SURVEY: 'Gestionar encuesta',
   MANAGE_CERTIFICATE: 'Configurar certificado',

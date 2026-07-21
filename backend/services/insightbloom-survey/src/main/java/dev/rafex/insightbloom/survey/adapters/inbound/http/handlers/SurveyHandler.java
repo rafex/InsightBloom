@@ -212,6 +212,10 @@ public class SurveyHandler extends BaseResourceHandler {
                     sendError(jx, 403, "forbidden", "You must be a verified user to answer the survey");
                     return true;
                 }
+                if (!usersPort.hasConferenceAccess(conferenceId, token)) {
+                    sendError(jx, 403, "ticket_required", "Necesitas un boleto canjeado para responder esta encuesta");
+                    return true;
+                }
                 final var body = parseBody(jx);
                 final List<Map<String, Object>> rawAnswers = (List<Map<String, Object>>) body.get("answers");
                 final List<SubmitResponsesUseCase.Answer> answers = rawAnswers.stream()
