@@ -50,13 +50,16 @@ InsightBloom:
 
 1. La página solicita `GET /conferences/{id}/whiteboard`.
 2. El moderador recibe la escena JSON nativa `.excalidraw`.
-3. `onChange` serializa la escena con `serializeAsJSON` y genera el SVG con
-   `exportToSvg`.
-4. Una escritura con debounce envía ambos valores a
+3. El wrapper ignora el `onChange` del ciclo de carga y los cambios de viewport
+   mientras la lista de elementos siga igual; así una escena inicial vacía no
+   puede sobrescribir una publicación.
+4. Después de una modificación real, `onChange` serializa la escena con
+   `serializeAsJSON` y genera el SVG con `exportToSvg`.
+5. Una escritura con debounce envía ambos valores a
    `PUT /conferences/{id}/whiteboard`.
-5. Users incrementa la versión y publica el evento en
+6. Users incrementa la versión y publica el evento en
    `GET /conferences/{id}/whiteboard/stream`.
-6. El asistente en `MODERATOR_ONLY` sólo muestra el SVG guardado y actualiza
+7. El asistente en `MODERATOR_ONLY` sólo muestra el SVG guardado y actualiza
    por SSE, polling y botón flotante.
 
 La instancia controlada no crea una capa WebSocket propia. La documentación
@@ -116,8 +119,8 @@ sitio.
 | Síntoma | Comprobación |
 |---|---|
 | El asistente ve el editor | Revisar que el modo sea `MODERATOR_ONLY` y que el template no monte la instancia editable para asistentes. |
-| El asistente ve un lienzo vacío | Revisar respuesta de `GET`, que la exportación no sea nula y la respuesta de `PUT`. |
+| El asistente ve un lienzo vacío | Revisar respuesta de `GET`: `sceneJson.elements` no debe ser `[]` después de dibujar y el SVG no debe ser el export de `20×20` de la escena inicial; confirmar también la respuesta de `PUT`. |
 | No llegan cambios | Revisar SSE, luego polling y el botón de refresco; la persistencia debe funcionar aun sin SSE. |
 | Drawio muestra `Not a diagram file` | Confirmar que la solicitud usa `action: "snapshot"`, no el export genérico del host. |
-| Excalidraw no publica | Confirmar que la instancia controlada dispara `onChange`, que el debounce termina y que el JSON y SVG pasan los límites del backend. |
+| Excalidraw no publica | Confirmar que la instancia controlada dispara `onChange` después de una modificación real (no sólo durante la carga), que el debounce termina y que el JSON y SVG pasan los límites del backend. |
 | El código funciona local pero el sitio no cambia | Revisar GHCR, la reconciliación de ImagePolicy y el commit generado por Flux en el repositorio GitOps. |

@@ -52,13 +52,21 @@ export function mountExcalidrawEditor(
   onChange: ExcalidrawChangeHandler
 ): () => void {
   const initialScene = parseExcalidrawScene(sceneJson)
+  const initialElementsSignature = JSON.stringify(initialScene.elements)
   const root: Root = createRoot(container)
   let changeTimer: ReturnType<typeof setTimeout> | undefined
   let disposed = false
   let ready = false
+  let hasObservedContentChange = false
 
   const publish = (elements: any[], appState: any, files: Record<string, any>) => {
     if (!ready || disposed) return
+    // Excalidraw calls onChange while finishing the initial scene load. Do not
+    // interpret that lifecycle callback as an edit: otherwise a new event (or
+    // a previously published scene) is immediately overwritten by elements: [].
+    // Viewport-only changes are also local and need no publication.
+    if (!hasObservedContentChange && JSON.stringify(elements) === initialElementsSignature) return
+    hasObservedContentChange = true
     if (changeTimer) clearTimeout(changeTimer)
     changeTimer = setTimeout(async () => {
       if (disposed) return
