@@ -12,6 +12,7 @@ import java.util.Optional;
 public class HttpPresentationsClient implements PresentationsPort {
     private final String baseUrl;
     private final HttpClient httpClient;
+    private final String internalApiKey;
 
     public HttpPresentationsClient(final String baseUrl) {
         this.baseUrl = baseUrl;
@@ -22,15 +23,18 @@ public class HttpPresentationsClient implements PresentationsPort {
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
+        this.internalApiKey = System.getenv("INTERNAL_API_KEY");
     }
 
     @Override
     public Optional<String> fetchMarkdown(final String conferenceId) {
-        final HttpRequest request = HttpRequest.newBuilder()
+        final var builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/v1/conferences/" + conferenceId + "/presentation/markdown"))
-                .timeout(Duration.ofSeconds(10))
-                .GET()
-                .build();
+                .timeout(Duration.ofSeconds(10));
+        if (internalApiKey != null && !internalApiKey.isBlank()) {
+            builder.header("X-Internal-API-Key", internalApiKey);
+        }
+        final HttpRequest request = builder.GET().build();
         try {
             final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) return Optional.empty();

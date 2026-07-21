@@ -36,7 +36,7 @@ const routes: RouteRecordRaw[] = [
     path: '/c/:friendlyId',
     component: () => import('@/pages/conference/ConferencePage.vue'),
     children: [
-      { path: '', redirect: to => `/c/${to.params.friendlyId}/doubts` },
+      { path: '', redirect: to => `/c/${to.params.friendlyId}/presentation` },
       { path: 'doubts', component: () => import('@/pages/conference/CloudDoubtsPage.vue') },
       { path: 'topics', component: () => import('@/pages/conference/CloudTopicsPage.vue') },
       { path: 'words/:word', component: () => import('@/pages/conference/WordTimelinePage.vue') },
@@ -115,6 +115,11 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'conferences/:conferenceId/check-in',
         component: () => import('@/pages/dashboard/CheckInScannerPage.vue'),
+        props: true
+      },
+      {
+        path: 'conferences/:conferenceId/tickets',
+        component: () => import('@/pages/dashboard/TicketManagementPage.vue'),
         props: true
       },
       {

@@ -34,7 +34,7 @@ export type RoleScopeValue = 'PLATFORM' | 'EVENT'
 export type PermissionValue =
   | 'MANAGE_USERS' | 'MANAGE_EVENT_TYPES' | 'HOST_EVENT' | 'MANAGE_EVENT_SETTINGS'
   | 'ASSIGN_EVENT_ROLES' | 'MODERATE_CONTENT' | 'CHECK_IN' | 'MANAGE_PRESENTATION'
-  | 'MANAGE_SURVEY' | 'MANAGE_CERTIFICATE' | 'VIDEO_MODERATE'
+  | 'MANAGE_TICKETS' | 'MANAGE_SURVEY' | 'MANAGE_CERTIFICATE' | 'VIDEO_MODERATE'
 
 export interface Role {
   uuid: string
@@ -130,6 +130,15 @@ export interface DeviceAccessSettings {
   maxRegistrationsPerDevicePerDay: number | null
 }
 
+export interface ConferenceAccess {
+  ticketRequired: boolean
+  hasAccess: boolean
+  publicOnly: boolean
+  publicAreas: string[]
+  privateAreas: string[]
+  previewSlideLimit: number
+}
+
 // Dispositivo bloqueado a nivel PLATAFORMA por PlatformDeviceGuard (multicuenta entre eventos o
 // spam de registro) -- distinto de DeviceBlock, que es por conferencia.
 export interface PlatformDeviceBlock {
@@ -168,6 +177,22 @@ export interface Reservation {
   ticketCode: string
   status: ReservationStatus
   createdAt: string
+  checkedInAt?: string | null
+}
+
+export type TicketStatus = 'ISSUED' | 'CLAIMED' | 'CHECKED_IN' | 'REVOKED' | 'EXPIRED'
+
+export interface Ticket {
+  uuid: string
+  conferenceUuid: string
+  ticketCode: string
+  issuedByUserUuid: string
+  recipientEmail?: string | null
+  seatUuid?: string | null
+  status: TicketStatus
+  claimedByUserUuid?: string | null
+  issuedAt: string
+  claimedAt?: string | null
   checkedInAt?: string | null
 }
 

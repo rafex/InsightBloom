@@ -39,7 +39,8 @@
         span(v-else) Guardar configuración de boletos
       p.success(v-if="seatingSaved") Configuración de boletos guardada.
       p.error(v-if="seatingError") {{ seatingError }}
-      .ticket-links(v-if="seatingMode !== 'NONE'")
+      .ticket-links(v-if="seatingMode !== 'NONE' || eventTypes.find(t => t.key === eventTypeKey)?.capabilities.some(c => c.startsWith('TICKETING_'))")
+        router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/tickets`") Administrar boletos
         router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
         router-link.btn-outline(v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
 

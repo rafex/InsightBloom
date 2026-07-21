@@ -18,8 +18,8 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import QrScanner from 'qr-scanner'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
-import { checkInTicket, getConference } from '@/services/api/usersApi'
-import type { Reservation } from '@/services/api/types'
+import { checkInIssuedTicket, checkInTicket, getConference } from '@/services/api/usersApi'
+import type { Ticket, Reservation } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -30,7 +30,7 @@ export default {
     const auth = useAuthStore()
     const videoEl = ref<HTMLVideoElement | null>(null)
     const lastResult = ref<{ ok: boolean, message: string } | null>(null)
-    const recent = ref<Reservation[]>([])
+    const recent = ref<Array<Ticket | Reservation>>([])
     const conferenceName = ref('')
     let scanner: QrScanner | null = null
     let processing = false
@@ -39,7 +39,13 @@ export default {
       if (processing || !props.conferenceId) return
       processing = true
       try {
-        const reservation = await checkInTicket(props.conferenceId, ticketCode, auth.state.token as string)
+        let reservation: Ticket | Reservation
+        try {
+          reservation = await checkInIssuedTicket(props.conferenceId, ticketCode, auth.state.token as string)
+        } catch (ticketError: any) {
+          // Compatibilidad con boletos de reservas emitidos antes de la migración.
+          reservation = await checkInTicket(props.conferenceId, ticketCode, auth.state.token as string)
+        }
         lastResult.value = { ok: true, message: '✅ Ingreso registrado' }
         recent.value = [reservation, ...recent.value].slice(0, 10)
       } catch (e: any) {

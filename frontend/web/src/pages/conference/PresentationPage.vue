@@ -8,56 +8,48 @@
   .presentation-loading(v-if="loading") Verificando presentación...
   .presentation-empty(v-else-if="!ready")
     p El organizador aún no ha subido la presentación de esta conferencia.
-  template(v-else-if="timeUp")
-    .preview-expired
-      h3 Tiempo de vista previa agotado
-      p Inicia sesión o crea una cuenta para ver la presentación completa sin límites.
-      .login-actions
-        router-link.btn-primary(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
-        router-link.btn-secondary(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Crear cuenta
   template(v-else)
     .preview-banner(v-if="!canParticipate")
-      span ⏱ Vista previa: primeras {{ previewSlideLimit }} diapositivas · se cierra en {{ remainingSeconds }}s
-      router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión para ver completa
+      span Vista pública: primeras {{ previewSlideLimit }} diapositivas
+      router-link(:to="`/c/${friendlyId}/ticket`") Regístrate y canjea tu boleto para continuar
     iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides")
     .presentation-actions
-      router-link.btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Descargar PDF
-      a.btn-secondary(v-if="presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
-      router-link.btn-secondary(:to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
+      a.btn-secondary(v-if="canParticipate && presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
+      router-link.btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPresentationStatus, getSlidesUrl, getSlidesPreviewUrl, getAudienceWsUrl } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
-const ANONYMOUS_PREVIEW_SECONDS = 60
 const PREVIEW_SLIDE_LIMIT = 5
 
 export default {
   name: 'PresentationPage',
-  props: { conferenceId: String, presentationSourceUrl: String },
-  setup(props: { conferenceId?: string, presentationSourceUrl?: string }) {
+  props: {
+    conferenceId: String,
+    presentationSourceUrl: String,
+    accessGranted: { type: Boolean, default: false }
+  },
+  setup(props: { conferenceId?: string, presentationSourceUrl?: string, accessGranted?: boolean }) {
     const route = useRoute()
     const auth = useAuthStore()
-    const canParticipate = auth.isAuthenticated() && auth.state.role !== 'guest'
+    const canParticipate = computed(() => props.accessGranted === true)
     const friendlyId = route.params.friendlyId as string
     const loading = ref(true)
     const ready = ref(false)
     const slidesUrl = ref('')
-    const timeUp = ref(false)
-    const remainingSeconds = ref(ANONYMOUS_PREVIEW_SECONDS)
     const slidesFrame = ref<HTMLIFrameElement | null>(null)
     const wsConnected = ref(false)
-    let timer: ReturnType<typeof setInterval> | null = null
     let ws: WebSocket | null = null
     let wsRetryTimer: ReturnType<typeof setTimeout> | null = null
     let wsClosedByUs = false
 
     function connectAudienceWs() {
       if (!props.conferenceId) return
-      ws = new WebSocket(getAudienceWsUrl(props.conferenceId))
+      ws = new WebSocket(getAudienceWsUrl(props.conferenceId, auth.state.token))
       ws.onopen = () => { wsConnected.value = true }
       ws.onmessage = (event: MessageEvent) => {
         try {
@@ -81,27 +73,16 @@ export default {
         const status = await getPresentationStatus(props.conferenceId)
         ready.value = !!status.ready
         if (ready.value) {
-          slidesUrl.value = canParticipate
-            ? getSlidesUrl(props.conferenceId)
+          slidesUrl.value = canParticipate.value
+            ? getSlidesUrl(props.conferenceId, auth.state.token)
             : getSlidesPreviewUrl(props.conferenceId)
-          connectAudienceWs()
+          if (canParticipate.value) connectAudienceWs()
         }
       } catch (e: any) { ready.value = false }
       finally { loading.value = false }
 
-      if (!canParticipate) {
-        timer = setInterval(() => {
-          remainingSeconds.value -= 1
-          if (remainingSeconds.value <= 0) {
-            clearInterval(timer as ReturnType<typeof setInterval>)
-            timeUp.value = true
-          }
-        }, 1000)
-      }
     })
-
     onBeforeUnmount(() => {
-      if (timer) clearInterval(timer)
       if (wsRetryTimer) clearTimeout(wsRetryTimer)
       wsClosedByUs = true
       if (ws) ws.close()
@@ -109,7 +90,7 @@ export default {
 
     return {
       friendlyId, loading, ready, slidesUrl, canParticipate, slidesFrame, wsConnected,
-      timeUp, remainingSeconds, previewSlideLimit: PREVIEW_SLIDE_LIMIT
+      previewSlideLimit: PREVIEW_SLIDE_LIMIT
     }
   }
 }

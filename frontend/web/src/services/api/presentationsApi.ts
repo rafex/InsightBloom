@@ -20,16 +20,18 @@ export async function getPresentationStatus(conferenceId: string): Promise<{ rea
   return res.data
 }
 
-export function getSlidesUrl(conferenceId: string): string {
-  return `${BASE}/conferences/${conferenceId}/presentation/slides`
+export function getSlidesUrl(conferenceId: string, token?: string | null): string {
+  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
+  return `${BASE}/conferences/${conferenceId}/presentation/slides${query}`
 }
 
 export function getSlidesPreviewUrl(conferenceId: string): string {
   return `${BASE}/conferences/${conferenceId}/presentation/slides/preview`
 }
 
-export function getPdfUrl(conferenceId: string): string {
-  return `${BASE}/conferences/${conferenceId}/presentation/pdf`
+export function getPdfUrl(conferenceId: string, token?: string | null): string {
+  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
+  return `${BASE}/conferences/${conferenceId}/presentation/pdf${query}`
 }
 
 function wsBase(): string {
@@ -37,8 +39,9 @@ function wsBase(): string {
   return `${proto}//${window.location.host}${BASE}`
 }
 
-export function getAudienceWsUrl(conferenceId: string): string {
-  return `${wsBase()}/conferences/${conferenceId}/presentation/ws/audience`
+export function getAudienceWsUrl(conferenceId: string, token?: string | null): string {
+  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
+  return `${wsBase()}/conferences/${conferenceId}/presentation/ws/audience${query}`
 }
 
 export function getPresenterWsUrl(conferenceId: string, token: string): string {

@@ -272,7 +272,7 @@ export default {
       try {
         const status = await getPresentationStatus(props.conferenceId)
         pdfReady.value = !!status.ready
-        if (pdfReady.value) pdfUrl.value = getPdfUrl(props.conferenceId)
+        if (pdfReady.value) pdfUrl.value = getPdfUrl(props.conferenceId, auth.state.token)
       } catch (e: any) { pdfReady.value = false }
     }
 

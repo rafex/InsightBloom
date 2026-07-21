@@ -34,6 +34,33 @@ function validConferenceId(id) {
   return typeof id === 'string' && UUID_RE.test(id);
 }
 
+function requestToken(req) {
+  const authorization = req.headers.authorization || '';
+  if (authorization.startsWith('Bearer ')) return authorization.slice(7);
+  return typeof req.query.ib_token === 'string' ? req.query.ib_token : null;
+}
+
+async function hasConferenceAccess(conferenceId, token) {
+  if (!token) return false;
+  try {
+    const response = await fetch(`${USERS_URL}/api/v1/conferences/${conferenceId}/access`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return false;
+    const body = await response.json();
+    return body?.data?.hasAccess === true;
+  } catch {
+    return false;
+  }
+}
+
+async function requireConferenceAccess(req, res) {
+  if (INTERNAL_API_KEY && req.headers['x-internal-api-key'] === INTERNAL_API_KEY) return true;
+  if (await hasConferenceAccess(req.params.id, requestToken(req))) return true;
+  res.status(403).json({ error: 'ticket_required', message: 'Registro y boleto requeridos' });
+  return false;
+}
+
 function conferenceDir(conferenceId) {
   return path.join(DATA_DIR, 'presentations', conferenceId);
 }
@@ -175,8 +202,9 @@ app.post('/api/v1/conferences/:id/presentation', upload.single('file'), async (r
   }
 });
 
-app.get('/api/v1/conferences/:id/presentation/slides', (req, res) => {
+app.get('/api/v1/conferences/:id/presentation/slides', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  if (!await requireConferenceAccess(req, res)) return;
   const file = path.join(conferenceDir(req.params.id), 'src', 'slides.html');
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   res.sendFile(file);
@@ -205,7 +233,9 @@ app.get('/api/v1/conferences/:id/presentation/slides/preview', (req, res) => {
   }
 });
 
-app.get('/api/v1/conferences/:id/presentation/markdown', (req, res) => {
+app.get('/api/v1/conferences/:id/presentation/markdown', async (req, res) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  if (!await requireConferenceAccess(req, res)) return;
   const srcDir = path.join(conferenceDir(req.params.id), 'src');
   const mdFile = findFile(srcDir, (name) => name.toLowerCase().endsWith('.md'));
   if (!mdFile) return res.status(404).json({ error: 'not_found' });
@@ -213,6 +243,11 @@ app.get('/api/v1/conferences/:id/presentation/markdown', (req, res) => {
 });
 
 app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
+  if (req.path.endsWith('/slides.html')) {
+    return requireConferenceAccess(req, res).then((allowed) => {
+      if (allowed) express.static(path.join(conferenceDir(req.params.id), 'src'))(req, res, next);
+    });
+  }
   express.static(path.join(conferenceDir(req.params.id), 'src'))(req, res, next);
 });
 
@@ -274,6 +309,7 @@ app.get('/api/v1/conferences/:id/presentation/thumbnail', async (req, res) => {
 
 app.get('/api/v1/conferences/:id/presentation/pdf', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  if (!await requireConferenceAccess(req, res)) return;
   try {
     const file = await ensurePdf(req.params.id);
     if (!file) return res.status(404).json({ error: 'not_found' });
