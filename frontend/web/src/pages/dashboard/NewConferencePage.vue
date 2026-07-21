@@ -58,9 +58,12 @@
       .canvas-mode-row(v-for="tool in canvasTools" :key="tool")
         span.canvas-mode-label {{ canvasToolLabel(tool) }}
         select(v-model="canvasModes[tool]")
-          option(value="INDEPENDENT") Trabajo independiente (solo persiste el moderador)
-          option(value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
-      p.field-hint Cada herramienta puede tener una modalidad distinta. La persistencia del material nativo y sus exportaciones se completará en la siguiente fase.
+          option(v-if="tool === 'ETHERPAD'" value="COLLABORATIVE") Notas grupales (todos colaboran)
+          option(v-if="tool === 'ETHERPAD'" value="INDEPENDENT") Notas individuales (se borran al vencer el evento)
+          option(v-if="tool !== 'ETHERPAD'" value="INDEPENDENT") Trabajo independiente (solo persiste el moderador)
+          option(v-if="tool !== 'ETHERPAD'" value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
+      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Las notas grupales son compartidas por todos. Las notas individuales son privadas por asistente y sólo viven hasta que vence el evento; cada asistente puede exportarlas.
+      p.field-hint Cada herramienta puede tener una modalidad distinta.
 
     .form-group
       label Aforo máximo
@@ -167,7 +170,7 @@ export default {
     const eventTypeKey = ref('conference')
     const canvasTools = ref<CanvasTool[]>([])
     const canvasModes = reactive<Record<CanvasTool, CanvasAudienceMode>>({
-      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'INDEPENDENT'
+      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'COLLABORATIVE'
     })
     const capacity = ref<number | null>(DEFAULT_CAPACITY)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
@@ -227,7 +230,7 @@ export default {
       customDate.value = ''; latitude.value = null; longitude.value = null
       eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
       canvasTools.value = []
-      canvasModes.DRAWIO = 'INDEPENDENT'; canvasModes.EXCALIDRAW = 'INDEPENDENT'; canvasModes.ETHERPAD = 'INDEPENDENT'
+      canvasModes.DRAWIO = 'INDEPENDENT'; canvasModes.EXCALIDRAW = 'INDEPENDENT'; canvasModes.ETHERPAD = 'COLLABORATIVE'
       capacity.value = DEFAULT_CAPACITY
     }
 

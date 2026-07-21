@@ -32,8 +32,11 @@
       .canvas-mode-row(v-for="tool in canvasTools" :key="tool")
         span.canvas-mode-label {{ canvasToolLabel(tool) }}
         select(v-model="canvasModes[tool]")
-          option(value="INDEPENDENT") Trabajo independiente (solo persiste el moderador)
-          option(value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
+          option(v-if="tool === 'ETHERPAD'" value="COLLABORATIVE") Notas grupales (todos colaboran)
+          option(v-if="tool === 'ETHERPAD'" value="INDEPENDENT") Notas individuales (se borran al vencer el evento)
+          option(v-if="tool !== 'ETHERPAD'" value="INDEPENDENT") Trabajo independiente (solo persiste el moderador)
+          option(v-if="tool !== 'ETHERPAD'" value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
+      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Las notas grupales son compartidas por todos. Las notas individuales son privadas por asistente y sólo viven hasta que vence el evento; cada asistente puede exportarlas.
       button.btn-outline(type="button" @click="saveCanvasConfig" :disabled="savingCanvasConfig")
         span(v-if="savingCanvasConfig") Guardando...
         span(v-else) Guardar configuración del lienzo
@@ -253,7 +256,7 @@ export default {
     const eventTypeError  = ref('')
     const canvasTools = ref<CanvasTool[]>([])
     const canvasModes = reactive<Record<CanvasTool, CanvasAudienceMode>>({
-      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'INDEPENDENT'
+      DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'COLLABORATIVE'
     })
     const savingCanvasConfig = ref(false)
     const canvasConfigSaved = ref(false)
@@ -295,7 +298,8 @@ export default {
         } else if (conference.value.canvasTool) {
           // Fallback para eventos guardados con el contrato anterior.
           canvasTools.value = [conference.value.canvasTool]
-          canvasModes[conference.value.canvasTool] = conference.value.canvasAudienceMode || 'INDEPENDENT'
+          canvasModes[conference.value.canvasTool] = conference.value.canvasAudienceMode
+            || (conference.value.canvasTool === 'ETHERPAD' ? 'COLLABORATIVE' : 'INDEPENDENT')
         } else {
           canvasTools.value = []
         }

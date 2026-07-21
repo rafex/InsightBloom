@@ -203,7 +203,9 @@ public class DatabaseManager {
             // comportamiento de todas las herramientas habilitadas por el tipo de evento.
             stmt.executeUpdate("""
                 INSERT OR IGNORE INTO conference_canvas_configs (conference_uuid, canvas_tool, audience_mode)
-                SELECT uuid, canvas_tool, COALESCE(canvas_audience_mode, 'INDEPENDENT')
+                SELECT uuid, canvas_tool,
+                       CASE WHEN canvas_tool = 'ETHERPAD' THEN COALESCE(canvas_audience_mode, 'COLLABORATIVE')
+                            ELSE COALESCE(canvas_audience_mode, 'INDEPENDENT') END
                 FROM conferences
                 WHERE canvas_tool IS NOT NULL AND TRIM(canvas_tool) <> ''
             """);

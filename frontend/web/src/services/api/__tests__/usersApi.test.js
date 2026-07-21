@@ -8,6 +8,7 @@ import {
   getTimezones,
   setCanvasConfig,
   setCanvasConfigs,
+  downloadEventMaterials,
   getEventDiagram,
   saveEventDiagram,
   streamEventDiagram
@@ -158,6 +159,21 @@ describe('usersApi', () => {
     it('opens the authenticated SSE stream using the EventSource-compatible query token', () => {
       const stream = streamEventDiagram('c 1', 'token/1')
       expect(stream.url).toBe('/api/users/api/v1/conferences/c 1/diagram/stream?ib_token=token%2F1')
+    })
+  })
+
+  describe('event materials', () => {
+    it('downloads the ZIP through the authenticated users endpoint', async () => {
+      const blob = new Blob(['zip'])
+      axios.get.mockResolvedValue({ data: blob })
+
+      const result = await downloadEventMaterials('c1', 'tok')
+
+      expect(result).toBe(blob)
+      expect(axios.get).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/materials.zip',
+        { headers: { Authorization: 'Bearer tok' }, responseType: 'blob' }
+      )
     })
   })
 })

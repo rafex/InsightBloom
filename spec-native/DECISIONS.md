@@ -514,6 +514,11 @@ Registrar una decision cuando cambie:
   lado del servidor. Excalidraw queda pendiente de verificar en su propia
   tarea de implementacion si `excalidraw-room` ya limpia salas inactivas o si
   hace falta agregarlo.
+- La modalidad de notas se separa de la topología: Etherpad es grupal por
+  defecto (`COLLABORATIVE`) usando el pad del evento. Si el moderador elige
+  notas individuales (`INDEPENDENT`), Users deriva un pad privado por
+  usuario/evento con `ETHERPAD_PRIVATE_PAD_SECRET`; esos pads también se
+  eliminan al ejecutar el TTL y nunca se incluyen en el ZIP de materiales.
 - Consecuencias:
   se reutiliza el mismo patron de Helm ya usado para NATS (Deployment +
   Service dedicados, fuera del loop generico de `.Values.services`, con su

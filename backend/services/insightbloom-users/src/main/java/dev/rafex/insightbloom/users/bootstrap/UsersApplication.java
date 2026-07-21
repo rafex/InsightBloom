@@ -29,6 +29,10 @@ public class UsersApplication {
         final String excalidrawBaseUrl = System.getenv().getOrDefault("EXCALIDRAW_BASE_URL", "");
         final String etherpadBaseUrl = System.getenv().getOrDefault("ETHERPAD_BASE_URL", "");
         final String etherpadApiKey = System.getenv().getOrDefault("ETHERPAD_API_KEY", "");
+        // Debe permanecer estable mientras existan pads privados. Si no se define por separado,
+        // se conserva compatibilidad con despliegues que ya sólo tienen ETHERPAD_API_KEY.
+        final String etherpadPrivatePadSecret = System.getenv().getOrDefault(
+                "ETHERPAD_PRIVATE_PAD_SECRET", etherpadApiKey);
         final String jaasAppId = System.getenv().getOrDefault("JAAS_APP_ID", "");
         final String jaasApiKeyId = System.getenv().getOrDefault("JAAS_API_KEY_ID", "");
         final String jaasPrivateKeyBase64 = System.getenv().getOrDefault("JAAS_PRIVATE_KEY", "");
@@ -166,11 +170,15 @@ public class UsersApplication {
                 conferenceRepo, timezoneRepo, etherpadPort);
         final var eventCapabilityGuard = new dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard(eventTypeRepo);
         final var setEventTypeUseCase = new SetEventTypeUseCase(conferenceRepo, eventTypeRepo, reservationRepo);
-        final var getOrCreateEventPadUseCase = new GetOrCreateEventPadUseCase(conferenceRepo, etherpadPort);
+        final var getOrCreateEventPadUseCase = new GetOrCreateEventPadUseCase(
+                conferenceRepo, etherpadPort, etherpadPrivatePadSecret);
+        final var exportEventNotesUseCase = new ExportEventNotesUseCase(getOrCreateEventPadUseCase, etherpadPort);
         final var getEventDiagramUseCase = new GetEventDiagramUseCase(conferenceRepo);
         final var saveEventDiagramUseCase = new SaveEventDiagramUseCase(conferenceRepo);
         final var getEventWhiteboardUseCase = new GetEventWhiteboardUseCase(conferenceRepo);
         final var saveEventWhiteboardUseCase = new SaveEventWhiteboardUseCase(conferenceRepo);
+        final var eventMaterialsDownloadUseCase = new EventMaterialsDownloadUseCase(
+                conferenceRepo, eventCapabilityGuard, getEventDiagramUseCase, getEventWhiteboardUseCase, etherpadPort);
         final var purgeExpiredEventDiagramsUseCase = new PurgeExpiredEventDiagramsUseCase(conferenceRepo, timezoneRepo);
         final var generateJaasTokenUseCase = new GenerateJaasTokenUseCase(
                 jaasAppId, jaasApiKeyId, jaasPrivateKeyBase64, eventPermissionGuard, userRepo,
@@ -299,6 +307,8 @@ public class UsersApplication {
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
                 setEventTypeUseCase, setCanvasConfigUseCase,
                 eventCapabilityGuard, getOrCreateEventPadUseCase,
+                exportEventNotesUseCase,
+                eventMaterialsDownloadUseCase,
                 assignEventRoleUseCase, listEventRolesUseCase, removeEventRoleUseCase,
                 getEventDiagramUseCase, saveEventDiagramUseCase,
                 getEventWhiteboardUseCase, saveEventWhiteboardUseCase,

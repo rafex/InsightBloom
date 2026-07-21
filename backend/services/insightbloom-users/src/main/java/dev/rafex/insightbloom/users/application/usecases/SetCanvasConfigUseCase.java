@@ -12,6 +12,7 @@ public class SetCanvasConfigUseCase {
     public static final String DRAWIO = "DRAWIO";
     public static final String EXCALIDRAW = "EXCALIDRAW";
     public static final String ETHERPAD = "ETHERPAD";
+    public static final String COLLABORATIVE = "COLLABORATIVE";
     public static final String INDEPENDENT = "INDEPENDENT";
     public static final String MODERATOR_ONLY = "MODERATOR_ONLY";
 
@@ -27,7 +28,7 @@ public class SetCanvasConfigUseCase {
         final List<CanvasConfig> configs = canvasTool == null || canvasTool.isBlank()
                 ? List.of()
                 : List.of(new CanvasConfig(canvasTool, audienceMode == null || audienceMode.isBlank()
-                        ? INDEPENDENT : audienceMode));
+                        ? defaultMode(canvasTool) : audienceMode));
         return execute(conferenceUuid, requestingUserUuid, configs);
     }
 
@@ -63,9 +64,17 @@ public class SetCanvasConfigUseCase {
                     && !ETHERPAD.equals(config.tool())) {
                 throw new IllegalArgumentException("canvas_tool_invalid");
             }
-            if (!INDEPENDENT.equals(config.audienceMode()) && !MODERATOR_ONLY.equals(config.audienceMode())) {
+            if (!INDEPENDENT.equals(config.audienceMode()) && !MODERATOR_ONLY.equals(config.audienceMode())
+                    && !COLLABORATIVE.equals(config.audienceMode())) {
+                throw new IllegalArgumentException("canvas_audience_mode_invalid");
+            }
+            if (COLLABORATIVE.equals(config.audienceMode()) && !ETHERPAD.equals(config.tool())) {
                 throw new IllegalArgumentException("canvas_audience_mode_invalid");
             }
         }
+    }
+
+    private static String defaultMode(final String tool) {
+        return ETHERPAD.equals(tool) ? COLLABORATIVE : INDEPENDENT;
     }
 }

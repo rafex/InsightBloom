@@ -16,7 +16,8 @@ import java.time.ZoneOffset;
  * Ticked periodicamente (ver scheduler en {@code UsersApplication}) para borrar el pad de
  * Etherpad de eventos cuya hora de fin quedo mas de 1 hora atras (TTL de datos efimeros, ver
  * DEC-0020) — el pad, no el pod: la instancia de Etherpad sigue corriendo y compartida entre
- * eventos. Cada evento se purga como maximo una vez, marcado via {@code notes_purged_at}.
+ * eventos. Borra tanto el pad grupal como los pads individuales. Cada evento se purga como
+ * maximo una vez, marcado via {@code notes_purged_at}.
  */
 public class PurgeExpiredEventNotesUseCase {
 
@@ -41,7 +42,7 @@ public class PurgeExpiredEventNotesUseCase {
             if (Duration.between(endInstant, now).toMinutes() < TTL_MINUTES_AFTER_END) continue;
 
             try {
-                etherpadPort.deletePad(conference.getUuid());
+                etherpadPort.deletePadsForConference(conference.getUuid());
             } catch (final Exception e) {
                 // best-effort: un fallo de red no debe frenar la purga de otros eventos
             }

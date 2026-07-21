@@ -31,6 +31,8 @@ import dev.rafex.insightbloom.users.application.usecases.GetEventDiagramUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetEventWhiteboardUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetMyTicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetOrCreateEventPadUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ExportEventNotesUseCase;
+import dev.rafex.insightbloom.users.application.usecases.EventMaterialsDownloadUseCase;
 import dev.rafex.insightbloom.users.application.usecases.AssignEventRoleUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListEventRolesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RemoveEventRoleUseCase;
@@ -111,6 +113,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SetCanvasConfigUseCase setCanvasConfigUseCase;
     private final EventCapabilityGuard eventCapabilityGuard;
     private final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase;
+    private final ExportEventNotesUseCase exportEventNotesUseCase;
+    private final EventMaterialsDownloadUseCase eventMaterialsDownloadUseCase;
     private final AssignEventRoleUseCase assignEventRoleUseCase;
     private final ListEventRolesUseCase listEventRolesUseCase;
     private final RemoveEventRoleUseCase removeEventRoleUseCase;
@@ -169,6 +173,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final SetCanvasConfigUseCase setCanvasConfigUseCase,
                              final EventCapabilityGuard eventCapabilityGuard,
                              final GetOrCreateEventPadUseCase getOrCreateEventPadUseCase,
+                             final ExportEventNotesUseCase exportEventNotesUseCase,
+                             final EventMaterialsDownloadUseCase eventMaterialsDownloadUseCase,
                              final AssignEventRoleUseCase assignEventRoleUseCase,
                              final ListEventRolesUseCase listEventRolesUseCase,
                              final RemoveEventRoleUseCase removeEventRoleUseCase,
@@ -219,6 +225,8 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.setCanvasConfigUseCase = setCanvasConfigUseCase;
         this.eventCapabilityGuard = eventCapabilityGuard;
         this.getOrCreateEventPadUseCase = getOrCreateEventPadUseCase;
+        this.exportEventNotesUseCase = exportEventNotesUseCase;
+        this.eventMaterialsDownloadUseCase = eventMaterialsDownloadUseCase;
         this.assignEventRoleUseCase = assignEventRoleUseCase;
         this.listEventRolesUseCase = listEventRolesUseCase;
         this.removeEventRoleUseCase = removeEventRoleUseCase;
@@ -290,6 +298,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/tickets/check-in", Set.of("POST")),
                 Route.of("/{id}/tickets/{ticketUuid}/revoke", Set.of("POST")),
                 Route.of("/{id}/notes", Set.of("GET")),
+                Route.of("/{id}/notes/export", Set.of("GET")),
+                Route.of("/{id}/materials.zip", Set.of("GET")),
                 Route.of("/{id}/diagram/stream", Set.of("GET")),
                 Route.of("/{id}/diagram", Set.of("GET", "PUT")),
                 Route.of("/{id}/whiteboard/stream", Set.of("GET")),
@@ -347,6 +357,12 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/notes")) {
             return handleGetNotes(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/notes/export")) {
+            return handleExportNotes(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/materials.zip")) {
+            return handleMaterialsDownload(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/diagram/stream")) {
             return handleDiagramStream(jx, jx.pathParam("id"));
@@ -805,9 +821,72 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita notas colaborativas");
                 return true;
             }
-            getOrCreateEventPadUseCase.execute(id).ifPresentOrElse(
+            getOrCreateEventPadUseCase.execute(id, v.subjectUuid()).ifPresentOrElse(
                     pad -> sendOk(jx, 200, pad),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleExportNotes(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (!hasCapability(id, EventCapability.COLLAB_NOTES)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita notas");
+                return true;
+            }
+            final String format = queryParam(jx, "format");
+            final boolean html = "html".equalsIgnoreCase(format);
+            final var export = exportEventNotesUseCase.execute(id, v.subjectUuid()).orElseThrow(
+                    () -> new IllegalArgumentException("conference_not_found"));
+            final byte[] body = (html ? export.html() : export.text()).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            jx.response().setStatus(200);
+            jx.response().getHeaders().put("Content-Type", html ? "text/html; charset=utf-8" : "text/plain; charset=utf-8");
+            jx.response().getHeaders().put("Content-Disposition", "attachment; filename=\"notas-"
+                    + (export.individual() ? "individuales" : "grupales") + "." + (html ? "html" : "txt") + "\"");
+            jx.response().getHeaders().put("Content-Length", Integer.toString(body.length));
+            jx.response().write(true, ByteBuffer.wrap(body), jx.callback());
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), e.getMessage());
+        } catch (final IllegalStateException e) {
+            sendError(jx, 502, "etherpad_export_failed", "No se pudieron leer las notas");
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleMaterialsDownload(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final var conference = getConferenceUseCase.byId(id);
+            if (conference.isEmpty()) { sendError(jx, 404, "conference_not_found", "Conference not found"); return true; }
+            final boolean manager = v.role() != null && v.role().contains("admin")
+                    || (isOrganizerOrAdmin(v.role())
+                    && conference.get().getCreatedByUserUuid().equals(v.subjectUuid()));
+            if (!manager && !ticketUseCase.hasAccess(conference.get(), v.subjectUuid())) {
+                sendError(jx, 403, "forbidden", "No tienes acceso a los materiales de este evento");
+                return true;
+            }
+            final byte[] body = eventMaterialsDownloadUseCase.execute(id);
+            jx.response().setStatus(200);
+            jx.response().getHeaders().put("Content-Type", "application/zip");
+            jx.response().getHeaders().put("Content-Disposition", "attachment; filename=\"event-materials-"
+                    + conference.get().getFriendlyId() + ".zip\"");
+            jx.response().getHeaders().put("Content-Length", Integer.toString(body.length));
+            jx.response().write(true, ByteBuffer.wrap(body), jx.callback());
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), e.getMessage());
+        } catch (final IllegalStateException e) {
+            sendError(jx, 502, "materials_export_failed", "No se pudieron preparar los materiales");
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
