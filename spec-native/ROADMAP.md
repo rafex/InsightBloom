@@ -26,8 +26,9 @@ Direccion del proyecto en el tiempo. Actualizado post-PoC, fase producto.
   palabras, chat, videollamada/transmision (Jitsi publico `meet.jit.si` o
   self-hosted en K3s), pizarra colaborativa (Excalidraw self-hosted),
   diagramas (drawio self-hosted), notas colaborativas (Etherpad
-  self-hosted), un motor de encuestas alternativo con editor visual
-  (SurveyJS, ademas del motor propio) y un motor de mapa de asientos
+  self-hosted), un motor de encuestas alternativo basado en SurveyJS Form
+  Library (ademas del motor propio; autoria controlada, sin Survey Creator) y
+  un motor de mapa de asientos
   alternativo para recintos con distribucion real de filas/butacas
   (seatmap-canvas, ademas del editor de marcadores libres actual). Ver
   `specs/event-types-catalog/SPEC.md` (draft).

@@ -411,33 +411,38 @@ Registrar una decision cuando cambie:
 
 ### DEC-0018 - SurveyJS como motor de encuestas alternativo, no reemplazo
 
-- Fecha: 2026-07-10
-- Estado: proposed
+- Fecha: 2026-07-21
+- Estado: accepted
 - Contexto:
   el motor de encuestas propio (`insightbloom-survey`) cubre tipos de
-  pregunta basicos y calificacion LLM opcional (DEC-0014). SurveyJS ofrece
-  un editor visual (drag-and-drop) y un modelo de pregunta mas amplio, util
-  para organizadores que quieren armar encuestas complejas sin depender del
-  editor propio.
+  pregunta basicos y calificacion LLM opcional (DEC-0014). Se quiere ofrecer
+  SurveyJS como un motor independiente, igual que los motores alternativos de
+  presentaciones: el moderador debe elegir el motor al iniciar la encuesta y
+  no deben aparecer conflictos de compatibilidad entre ambos modelos.
 - Decision:
-  el organizador elige, por encuesta, un `engine` (`NATIVE` o `SURVEYJS`),
-  fijo despues de creada. Ambos motores viven dentro de
-  `insightbloom-survey` y comparten la misma asociacion evento/asistente y
-  el mismo dashboard de resultados; una encuesta `SURVEYJS` persiste su
-  definicion como el JSON schema nativo de `survey-core`. **Pendiente**:
-  confirmar antes de implementar (TASK-0050) si `survey-creator-*` (el
-  editor visual) se puede usar en produccion sin costo ni marca de agua
-  bajo la licencia vigente de SurveyJS; si no, la primera version solo
-  ofrece el render (`survey-core`/`survey-js-ui`) sobre un schema
-  editado/importado a mano, sin editor visual.
+  el moderador elige, antes de crear la primera pregunta, un `engine`
+  (`NATIVE` o `SURVEYJS`). El motor queda fijo durante toda la vida de esa
+  encuesta. No se convierten ni mezclan preguntas, respuestas, definiciones,
+  resultados o reglas de calificacion entre motores. `SURVEYJS` usa solo
+  `survey-core` + `survey-vue3-ui` como Form Library para renderizar esquemas
+  JSON; la autoria inicial es controlada por InsightBloom.
+
+  La Form Library de SurveyJS es MIT y gratuita. La integracion debe conservar
+  sus avisos de copyright y licencia. `survey-creator-vue`, PDF Generator y
+  Dashboard/Analytics requieren licencia comercial y quedan fuera de esta
+  iniciativa; cualquier adopcion futura requiere una decision y presupuesto
+  separados.
+
+  La unica funcionalidad compartida es la sugerencia de preguntas con IA: se
+  entrega como propuesta neutral, el moderador la revisa y la adapta al motor
+  elegido antes de guardarla. No hay conversion automatica entre motores.
 - Consecuencias:
-  el organizador gana una alternativa mas rica para encuestas complejas sin
-  perder el motor propio ya construido;
-  se duplica el esfuerzo de mantenimiento entre dos motores de encuesta;
-  la calificacion automatica con LLM (DEC-0014) sigue disponible solo para
-  `NATIVE` en esta primera version;
-  el estado `proposed` debe pasar a `accepted` una vez resuelto el punto de
-  licencia pendiente.
+  el organizador gana una alternativa de formularios mas rica sin perder el
+  motor propio ya construido; la persistencia, API, render y resultados de
+  `SURVEYJS` se mantienen separados de `NATIVE`; el esfuerzo de mantenimiento
+  se duplica de forma explicita; la calificacion automatica con LLM (DEC-0014)
+  sigue disponible solo para `NATIVE` en esta primera version; no se necesita
+  licencia comercial para el alcance inicial.
 - Reemplaza: `none`
 
 ### DEC-0019 - seatmap-canvas como motor alternativo de mapa de asientos, no reemplazo

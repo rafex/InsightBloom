@@ -9,7 +9,7 @@ const NAV_DIRECTIONS = new Set(['next', 'prev']);
 const REMOTE_TOKEN_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
 
 /**
- * Sincronización en vivo del slide actual entre presentador y audiencia.
+ * Sincronización en vivo del estado de navegación entre presentador y audiencia.
  *
  * Cada pod mantiene un caché en memoria (Map por conferencia) y reparte
  * directo a sus sockets locales sin depender de NATS para eso — eso sigue
@@ -178,11 +178,11 @@ async function subscribeWildcards() {
     const sub = nc.subscribe('presentation.*.slide');
     for await (const msg of sub) {
       try {
-        const { conferenceId, hash, origin } = JSON.parse(sc.decode(msg.data));
+        const { conferenceId, hash, state, origin } = JSON.parse(sc.decode(msg.data));
         if (origin === HOSTNAME) continue; // ya se entregó por el camino local
         const r = room(conferenceId);
-        r.currentHash = hash;
-        const payload = JSON.stringify({ type: 'slide', hash });
+        r.currentHash = state || hash;
+        const payload = JSON.stringify({ type: 'slide', hash: hash || state, state: state || hash });
         for (const a of r.audience) {
           if (a.readyState === a.OPEN) a.send(payload);
         }
@@ -279,15 +279,18 @@ function attachLiveSync(server, { usersUrl, natsUrl, natsToken, internalApiKey }
           } catch {
             return;
           }
-          if (msg && msg.type === 'slide' && typeof msg.hash === 'string') {
-            r.currentHash = msg.hash;
-            kvWriteHash(conferenceId, msg.hash);
-            const payload = JSON.stringify({ type: 'slide', hash: msg.hash });
+          const state = msg && msg.type === 'slide'
+            ? (typeof msg.state === 'string' ? msg.state : msg.hash)
+            : null;
+          if (typeof state === 'string' && state.length <= 2048) {
+            r.currentHash = state;
+            kvWriteHash(conferenceId, state);
+            const payload = JSON.stringify({ type: 'slide', hash: state, state });
             for (const a of r.audience) {
               if (a.readyState === a.OPEN) a.send(payload);
             }
             publishBestEffort('presentation.' + conferenceId + '.slide',
-              { conferenceId, hash: msg.hash, origin: HOSTNAME });
+              { conferenceId, hash: state, state, origin: HOSTNAME });
           }
         });
         ws.on('close', () => {
@@ -315,7 +318,7 @@ function attachLiveSync(server, { usersUrl, natsUrl, natsToken, internalApiKey }
           r.currentHash = await kvReadHash(conferenceId);
         }
         if (r.currentHash && ws.readyState === ws.OPEN) {
-          ws.send(JSON.stringify({ type: 'slide', hash: r.currentHash }));
+          ws.send(JSON.stringify({ type: 'slide', hash: r.currentHash, state: r.currentHash }));
         }
         publishBestEffort('presentation.' + conferenceId + '.audience-delta', { conferenceId, delta: 1 });
         if (!nc) broadcastCount(conferenceId);

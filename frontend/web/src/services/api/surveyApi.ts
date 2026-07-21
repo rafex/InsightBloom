@@ -16,6 +16,19 @@ export interface SurveyQuestionInput {
   required?: boolean
 }
 
+export type SurveyEngine = 'NATIVE' | 'SURVEYJS'
+
+export interface SurveyDefinition {
+  configured: boolean
+  engine: SurveyEngine | null
+  uuid?: string
+  schema?: Record<string, unknown> | null
+  schemaVersion?: number
+  status?: string
+  updatedAt?: string
+  publishedAt?: string | null
+}
+
 export async function getQuestions(conferenceId: string, onlyActive = true): Promise<{ data: any[] }> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/questions`, {
     params: { onlyActive }
@@ -97,5 +110,55 @@ export async function gradeResponses(conferenceId: string, questionUuids: string
   const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/grade`,
     { questionUuids, regrade },
     { headers: authHeader(token) })
+  return res.data
+}
+
+export async function getSurveyDefinition(conferenceId: string, token?: string | null, draft = false): Promise<{ data: SurveyDefinition }> {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/definition`, {
+    params: draft ? { draft: true } : undefined,
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function selectSurveyEngine(conferenceId: string, engine: SurveyEngine, token: string): Promise<{ data: SurveyDefinition }> {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/definition/engine`, { engine }, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function saveSurveyDefinition(conferenceId: string, schema: Record<string, unknown>, token: string): Promise<{ data: SurveyDefinition }> {
+  const res = await axios.put(`${BASE}/conferences/${conferenceId}/survey/definition`, { schema }, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function validateSurveyDefinition(conferenceId: string, schema: Record<string, unknown>, token: string): Promise<{ data: { valid: boolean } }> {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/definition/validate`, { schema }, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function publishSurveyDefinition(conferenceId: string, schema: Record<string, unknown>, token: string): Promise<{ data: SurveyDefinition }> {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/definition/publish`, { schema }, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function submitSurveyJs(conferenceId: string, data: Record<string, unknown>, token: string): Promise<unknown> {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/submissions`, { data }, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function getSurveyJsSubmissions(conferenceId: string, token: string): Promise<{ data: any[] }> {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/submissions`, {
+    headers: authHeader(token)
+  })
   return res.data
 }

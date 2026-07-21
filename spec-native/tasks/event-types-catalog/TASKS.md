@@ -12,7 +12,7 @@ Ver sección "Complexity Ranking & Execution Order" en SPEC.md para el análisis
 3. **Etherpad** (parte de Fase 3/4): TASK-0030 + TASK-0040. Poco más que drawio.
 4. **Jitsi público** (parte de Fase 3/4, solo `meet.jit.si`): **adelantarlo** — no esperar al self-hosted. TASK-0032 + TASK-0042 con solo la instancia pública, sin el Helm chart de Jitsi self-hosted.
 5. **Excalidraw** (parte de Fase 3/4): TASK-0033 + TASK-0043. Colaboración en vivo, más fricción.
-6. **SurveyJS** (Fase 5): TASK-0050 a TASK-0054. Encuestas alternativas, riesgo de licencia.
+6. **SurveyJS** (Fase 5): TASK-0050 a TASK-0055. Form Library MIT como motor independiente; Creator/PDF/Dashboard quedan fuera.
 7. **seatmap-canvas** (Fase 6): TASK-0060 a TASK-0065. Alternativa a FREEFORM, mantenedor único.
 8. **Jitsi self-hosted** (parte de Fase 3/4, JVB + NAT/TURN): **al final**. Riesgo de infraestructura más alto; `meet.jit.si` es funcional como fallback.
 
@@ -366,73 +366,94 @@ las 4 integraciones en preview contra las instancias desplegadas.
 
 ## Fase 5 — Motor de encuestas alternativo SurveyJS
 
-### TASK-0050: Confirmar licencia de survey-creator-* antes de implementar
+### TASK-0050: Confirmar alcance y licencia de SurveyJS Form Library
 
-**Estado:** todo
+**Estado:** done
 **Owner:** —
 **Dependencias:** ninguna
 **Archivos esperados:** ninguno (investigacion) — el resultado se registra
 como nota en `spec-native/DECISIONS.md` (actualizar DEC-0018 con el
 hallazgo antes de continuar).
-**Criterio de cierre:** se sabe con certeza si `survey-creator-core` +
-`survey-creator-js` se pueden usar en produccion sin costo/marca de agua, o
-si el editor visual queda fuera del alcance inicial (ver Risks del SPEC).
+**Criterio de cierre:** queda documentado que `survey-core` +
+`survey-vue3-ui` son la Form Library MIT y no requieren licencia comercial;
+se conservan sus avisos de copyright/licencia; `survey-creator-vue`, PDF
+Generator y Dashboard/Analytics requieren licencia comercial y quedan fuera.
 **Validacion:** revision manual de la licencia vigente publicada por
 SurveyJS.
 
-### TASK-0051: `surveyEngine` en el modelo de encuesta + persistencia del schema SurveyJS
+### TASK-0051: Seleccion fija de motor y persistencia del schema SurveyJS
 
-**Estado:** todo
+**Estado:** in_progress
 **Owner:** —
 **Dependencias:** TASK-0050
-**Archivos esperados** (en `insightbloom-survey`): modelo de encuesta
-(campo `engine`: `NATIVE` | `SURVEYJS`, fijo al crear), columna nueva para
-guardar el JSON schema de SurveyJS cuando `engine = SURVEYJS` (migracion
-idempotente, mismo patron que el resto del proyecto).
+**Archivos esperados** (en `insightbloom-survey`): modelo/definicion de
+encuesta con `engine`: `NATIVE` | `SURVEYJS`, fijo antes de crear la primera
+pregunta; persistencia separada para el JSON schema de SurveyJS cuando
+`engine = SURVEYJS` (migracion idempotente, mismo patron que el resto del
+proyecto). Las tablas y filas actuales de `NATIVE` no se reinterpretan.
 **Criterio de cierre:** una encuesta `SURVEYJS` guarda y recupera su schema
-completo sin perdida de datos.
+completo sin perdida de datos y el backend rechaza cambiar de motor o mezclar
+definiciones.
 **Validacion:** tests de dominio/casos de uso del servicio `survey`.
 
-### TASK-0052: Endpoint de respuestas compatible con ambos motores
+### TASK-0052: Endpoint de respuestas aislado de `NATIVE`
 
-**Estado:** todo
+**Estado:** in_progress
 **Owner:** —
 **Dependencias:** TASK-0051
 **Archivos esperados:** casos de uso/handler de respuesta de encuesta en
-`insightbloom-survey`, aceptando el payload de resultado de SurveyJS
-(`survey.data`) para `engine = SURVEYJS` sin romper el contrato existente
-de `NATIVE`.
+`insightbloom-survey`, con un endpoint de `SURVEYJS` que acepte el payload
+completo (`survey.data`) en una persistencia de submissions propia. Las rutas
+y el contrato actuales de `NATIVE` permanecen sin cambios.
 **Criterio de cierre:** una respuesta a encuesta `SURVEYJS` queda asociada
-al evento y al asistente, visible en el listado de respuestas.
+al evento, al asistente y a la version publicada, visible en su listado de
+respuestas; el contrato unificado de participacion/certificado reconoce ambos
+motores sin compartir sus modelos de datos.
 **Validacion:** test del handler + prueba manual.
 
-### TASK-0053: Frontend — editor visual SurveyJS Creator (organizer)
+### TASK-0053: Frontend — seleccion de motor y autoria controlada SurveyJS
 
-**Estado:** todo
+**Estado:** in_progress
 **Owner:** —
 **Dependencias:** TASK-0050, TASK-0051
 **Archivos esperados:** `frontend/web/package.json` (`survey-core`,
-`survey-creator-core`, `survey-creator-js` o el paquete Vue equivalente si
-existe), nueva vista dentro de `SurveyManagePage.vue` o pagina dedicada
-para elegir motor al crear una encuesta y, si es `SURVEYJS`, abrir el
-editor visual.
-**Criterio de cierre:** el organizador arma una encuesta completa con el
-editor SurveyJS y la guarda sin salir del dashboard.
+`survey-vue3-ui` solo para el render/previsualizacion), nueva vista dentro de
+`SurveyManagePage.vue` o pagina dedicada para elegir el motor antes de la
+primera pregunta. Para `SURVEYJS`, la autoria usa un catalogo controlado de
+propiedades y schema, no `survey-creator-vue`.
+**Criterio de cierre:** el moderador elige el motor, arma una encuesta
+`SURVEYJS` con autoria controlada, revisa la previsualizacion y guarda un
+borrador/publicacion sin mezclarla con `NATIVE`.
 **Validacion:** `npm run build` (confirmar que el bundle no rompe con las
 nuevas dependencias), prueba manual en preview.
 
 ### TASK-0054: Frontend — render de encuesta SurveyJS para el asistente
 
-**Estado:** todo
+**Estado:** in_progress
 **Owner:** —
 **Dependencias:** TASK-0052, TASK-0053
-**Archivos esperados:** `survey-js-ui` (o el paquete Vue equivalente),
+**Archivos esperados:** `survey-core` + `survey-vue3-ui`,
 `SurveyPage.vue` (renderiza el componente SurveyJS cuando
 `engine = SURVEYJS`, mantiene el flujo actual cuando `engine = NATIVE`).
 **Criterio de cierre:** el asistente responde una encuesta `SURVEYJS` desde
 la misma pagina y flujo de siempre, sin URL ni paso adicional.
 **Validacion:** `npx vue-tsc --noEmit`, `npx vitest run`, prueba manual de
 punta a punta (crear, responder, ver resultado).
+
+### TASK-0055: IA — sugerencias de preguntas compartidas
+
+**Estado:** in_progress
+**Owner:** —
+**Dependencias:** TASK-0053
+**Archivos esperados:** contrato neutral de sugerencia y adaptadores de
+presentacion para `NATIVE` y `SURVEYJS`; UI de aceptar, editar o rechazar en
+cada editor. No se agregan preguntas automaticamente ni se convierten
+definiciones entre motores.
+**Criterio de cierre:** el moderador puede pedir sugerencias de IA desde
+cualquiera de los dos editores, aprobarlas y guardarlas en el formato del
+motor seleccionado; una sugerencia no aprobada nunca se publica.
+**Validacion:** tests de contrato/adaptacion para ambos motores y prueba
+manual de aprobacion, edicion y rechazo.
 
 ## Fase 6 — Motor de mapa de asientos alternativo seatmap-canvas
 

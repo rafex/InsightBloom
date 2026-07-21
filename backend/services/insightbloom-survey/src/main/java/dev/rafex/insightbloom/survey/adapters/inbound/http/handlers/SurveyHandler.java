@@ -3,6 +3,7 @@ package dev.rafex.insightbloom.survey.adapters.inbound.http.handlers;
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
+import dev.rafex.ether.json.JsonUtils;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.survey.application.usecases.CreateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeactivateQuestionUseCase;
@@ -13,12 +14,22 @@ import dev.rafex.insightbloom.survey.application.usecases.ImproveQuestionUseCase
 import dev.rafex.insightbloom.survey.application.usecases.ListQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.PurgeResponsesUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SubmitResponsesUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.SubmitSurveyJsSubmissionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SuggestQuestionsUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.SurveyDefinitionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.UpdateQuestionUseCase;
+import dev.rafex.insightbloom.survey.domain.model.SurveyDefinition;
+import dev.rafex.insightbloom.survey.domain.model.SurveyEngine;
+import dev.rafex.insightbloom.survey.domain.model.SurveyJsSubmission;
+import dev.rafex.insightbloom.survey.domain.ports.SurveyDefinitionRepository;
+import dev.rafex.insightbloom.survey.domain.ports.SurveyJsSubmissionRepository;
 import dev.rafex.insightbloom.survey.domain.ports.UsersPort;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 public class SurveyHandler extends BaseResourceHandler {
@@ -34,6 +45,10 @@ public class SurveyHandler extends BaseResourceHandler {
     private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
     private final ImproveQuestionUseCase improveQuestionUseCase;
     private final GradeResponsesUseCase gradeResponsesUseCase;
+    private final SurveyDefinitionUseCase surveyDefinitionUseCase;
+    private final SubmitSurveyJsSubmissionUseCase submitSurveyJsSubmissionUseCase;
+    private final SurveyDefinitionRepository surveyDefinitionRepository;
+    private final SurveyJsSubmissionRepository surveyJsSubmissionRepository;
     private final UsersPort usersPort;
 
     public SurveyHandler(final CreateQuestionUseCase createQuestionUseCase,
@@ -47,6 +62,10 @@ public class SurveyHandler extends BaseResourceHandler {
                           final DeleteConferenceDataUseCase deleteConferenceDataUseCase,
                           final ImproveQuestionUseCase improveQuestionUseCase,
                           final GradeResponsesUseCase gradeResponsesUseCase,
+                          final SurveyDefinitionUseCase surveyDefinitionUseCase,
+                          final SubmitSurveyJsSubmissionUseCase submitSurveyJsSubmissionUseCase,
+                          final SurveyDefinitionRepository surveyDefinitionRepository,
+                          final SurveyJsSubmissionRepository surveyJsSubmissionRepository,
                           final UsersPort usersPort) {
         this.createQuestionUseCase = createQuestionUseCase;
         this.listQuestionsUseCase = listQuestionsUseCase;
@@ -59,6 +78,10 @@ public class SurveyHandler extends BaseResourceHandler {
         this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
         this.improveQuestionUseCase = improveQuestionUseCase;
         this.gradeResponsesUseCase = gradeResponsesUseCase;
+        this.surveyDefinitionUseCase = surveyDefinitionUseCase;
+        this.submitSurveyJsSubmissionUseCase = submitSurveyJsSubmissionUseCase;
+        this.surveyDefinitionRepository = surveyDefinitionRepository;
+        this.surveyJsSubmissionRepository = surveyJsSubmissionRepository;
         this.usersPort = usersPort;
     }
 
@@ -76,7 +99,12 @@ public class SurveyHandler extends BaseResourceHandler {
                 Route.of("/{conferenceId}/survey/questions/{questionId}/deactivate", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/questions/{questionId}/update", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/questions/{questionId}/responses/purge", Set.of("POST")),
+                Route.of("/{conferenceId}/survey/definition", Set.of("GET", "PUT")),
+                Route.of("/{conferenceId}/survey/definition/engine", Set.of("POST")),
+                Route.of("/{conferenceId}/survey/definition/validate", Set.of("POST")),
+                Route.of("/{conferenceId}/survey/definition/publish", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/responses", Set.of("POST")),
+                Route.of("/{conferenceId}/survey/submissions", Set.of("GET", "POST")),
                 Route.of("/{conferenceId}/survey/responded", Set.of("GET")),
                 Route.of("/{conferenceId}/survey/results", Set.of("GET")),
                 Route.of("/{conferenceId}/survey/grade", Set.of("POST")),
@@ -85,7 +113,7 @@ public class SurveyHandler extends BaseResourceHandler {
 
     @Override
     public Set<String> supportedMethods() {
-        return Set.of("GET", "POST", "DELETE");
+        return Set.of("GET", "POST", "PUT", "DELETE");
     }
 
     @Override
@@ -94,11 +122,28 @@ public class SurveyHandler extends BaseResourceHandler {
         final String conferenceId = jx.pathParam("conferenceId");
         final String path = jx.path();
         try {
+            if (path.endsWith("/survey/definition")) {
+                final boolean draft = "true".equalsIgnoreCase(queryParam(jx, "draft"));
+                if (draft && requireConferenceOwner(jx, conferenceId) == null) return true;
+                sendOk(jx, definitionView(surveyDefinitionUseCase.get(conferenceId, !draft)));
+                return true;
+            }
+            if (path.endsWith("/survey/submissions")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                sendOk(jx, submissionViews(surveyJsSubmissionRepository.findByConference(conferenceId)));
+                return true;
+            }
             if (path.endsWith("/survey/results")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                if (isSurveyJs(conferenceId)) {
+                    sendOk(jx, submissionViews(surveyJsSubmissionRepository.findByConference(conferenceId)));
+                    return true;
+                }
                 sendOk(jx, getResultsUseCase.execute(conferenceId));
                 return true;
             }
             if (path.endsWith("/survey/questions")) {
+                if (isSurveyJs(conferenceId)) { sendOk(jx, List.of()); return true; }
                 final boolean onlyActive = !"false".equalsIgnoreCase(queryParam(jx, "onlyActive"));
                 if (onlyActive) {
                     sendOk(jx, listQuestionsUseCase.executePublic(conferenceId));
@@ -117,7 +162,8 @@ public class SurveyHandler extends BaseResourceHandler {
                 // de usuario); cualquier otro caller solo puede ver el suyo propio.
                 final String targetUuid = (queriedUserUuid != null && isOrganizerOrAdmin(v.role()))
                         ? queriedUserUuid : v.subjectUuid();
-                sendOk(jx, Map.of("responded", submitResponsesUseCase.hasResponded(conferenceId, targetUuid)));
+                sendOk(jx, Map.of("responded", submitResponsesUseCase.hasResponded(conferenceId, targetUuid)
+                        || submitSurveyJsSubmissionUseCase.hasResponded(conferenceId, targetUuid)));
                 return true;
             }
         } catch (final Exception e) {
@@ -135,6 +181,27 @@ public class SurveyHandler extends BaseResourceHandler {
         final String conferenceId = jx.pathParam("conferenceId");
         final String path = jx.path();
         try {
+            if (path.endsWith("/survey/definition/engine")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                final var body = parseBody(jx);
+                final SurveyEngine engine = SurveyEngine.valueOf(String.valueOf(body.get("engine")).toUpperCase());
+                sendOk(jx, definitionView(Optional.of(surveyDefinitionUseCase.selectEngine(conferenceId, engine))));
+                return true;
+            }
+            if (path.endsWith("/survey/definition/validate")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                final var body = parseBody(jx);
+                surveyDefinitionUseCase.validate(schemaFromBody(body));
+                sendOk(jx, Map.of("valid", true));
+                return true;
+            }
+            if (path.endsWith("/survey/definition/publish")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                final var body = parseBody(jx);
+                sendOk(jx, definitionView(Optional.of(
+                        surveyDefinitionUseCase.publish(conferenceId, schemaFromBody(body)))));
+                return true;
+            }
             if (path.endsWith("/survey/questions/suggest")) {
                 if (requireConferenceOwner(jx, conferenceId) == null) return true;
                 final var body = parseBody(jx);
@@ -153,6 +220,10 @@ public class SurveyHandler extends BaseResourceHandler {
             }
             if (path.endsWith("/survey/questions")) {
                 if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                if (isSurveyJs(conferenceId)) {
+                    sendError(jx, 409, "engine_immutable", "This conference uses SurveyJS");
+                    return true;
+                }
                 final var body = parseBody(jx);
                 final List<String> options = (List<String>) body.get("options");
                 final int orderIndex = body.get("orderIndex") == null ? 0
@@ -166,6 +237,10 @@ public class SurveyHandler extends BaseResourceHandler {
             }
             if (path.endsWith("/update")) {
                 if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                if (isSurveyJs(conferenceId)) {
+                    sendError(jx, 409, "engine_immutable", "This conference uses SurveyJS");
+                    return true;
+                }
                 final var body = parseBody(jx);
                 final List<String> options = (List<String>) body.get("options");
                 final Integer orderIndex = body.get("orderIndex") == null ? null
@@ -228,6 +303,23 @@ public class SurveyHandler extends BaseResourceHandler {
                 sendOk(jx, Map.of("status", "submitted"));
                 return true;
             }
+            if (path.endsWith("/survey/submissions")) {
+                final String token = extractToken(jx);
+                if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+                final var v = usersPort.validate(token);
+                if (!v.valid() || "guest".equals(v.kind())) {
+                    sendError(jx, 403, "forbidden", "You must be a verified user to answer the survey");
+                    return true;
+                }
+                if (!usersPort.hasConferenceAccess(conferenceId, token)) {
+                    sendError(jx, 403, "ticket_required", "Necesitas un boleto canjeado para responder esta encuesta");
+                    return true;
+                }
+                final var body = parseBody(jx);
+                submitSurveyJsSubmissionUseCase.execute(conferenceId, v.subjectUuid(), schemaFromDataBody(body));
+                sendOk(jx, Map.of("status", "submitted"));
+                return true;
+            }
         } catch (final IllegalStateException e) {
             if ("llm_not_configured".equals(e.getMessage())) {
                 sendError(jx, 503, e.getMessage(), "LLM grading is not configured for this deployment");
@@ -247,6 +339,30 @@ public class SurveyHandler extends BaseResourceHandler {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public boolean put(final HttpExchange x) {
+        final var jx = asJetty(x);
+        final String conferenceId = jx.pathParam("conferenceId");
+        if (!jx.path().endsWith("/survey/definition")) {
+            sendError(jx, 404, "not_found", "Endpoint not found");
+            return true;
+        }
+        try {
+            if (requireConferenceOwner(jx, conferenceId) == null) return true;
+            final var body = parseBody(jx);
+            sendOk(jx, definitionView(Optional.of(
+                    surveyDefinitionUseCase.saveDraft(conferenceId, schemaFromBody(body)))));
+        } catch (final IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), e.getMessage());
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    @Override
     public boolean delete(final HttpExchange x) {
         final var jx = asJetty(x);
         if (!validInternalAuth(jx)) { sendError(jx, 403, "forbidden", "Internal access only"); return true; }
@@ -262,6 +378,57 @@ public class SurveyHandler extends BaseResourceHandler {
 
     private static boolean isOrganizerOrAdmin(final String role) {
         return role != null && (role.contains("organizer") || role.contains("admin"));
+    }
+
+    private boolean isSurveyJs(final String conferenceId) {
+        return surveyDefinitionRepository.findByConference(conferenceId)
+                .map(d -> d.getEngine() == SurveyEngine.SURVEYJS).orElse(false);
+    }
+
+    private Map<String, Object> definitionView(final Optional<SurveyDefinition> definition) {
+        final Map<String, Object> result = new HashMap<>();
+        result.put("configured", definition.isPresent());
+        if (definition.isEmpty()) {
+            result.put("engine", null);
+            result.put("schema", null);
+            return result;
+        }
+        final SurveyDefinition value = definition.get();
+        result.put("uuid", value.getUuid());
+        result.put("conferenceUuid", value.getConferenceUuid());
+        result.put("engine", value.getEngine().name());
+        result.put("schemaVersion", value.getSchemaVersion());
+        result.put("status", value.getStatus());
+        result.put("updatedAt", value.getUpdatedAt().toString());
+        result.put("publishedAt", value.getPublishedAt() == null ? null : value.getPublishedAt().toString());
+        result.put("schema", value.getEngine() == SurveyEngine.SURVEYJS
+                ? JsonUtils.codec().readValue(value.getSchemaJson(), Map.class) : null);
+        return result;
+    }
+
+    private List<Map<String, Object>> submissionViews(final List<SurveyJsSubmission> submissions) {
+        final List<Map<String, Object>> result = new ArrayList<>();
+        for (final SurveyJsSubmission submission : submissions) {
+            result.add(Map.of("uuid", submission.uuid(), "userUuid", submission.userUuid(),
+                    "definitionVersion", submission.definitionVersion(),
+                    "submittedAt", submission.submittedAt().toString(),
+                    "data", JsonUtils.codec().readValue(submission.payloadJson(), Map.class)));
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> schemaFromBody(final Map<String, Object> body) {
+        final Object schema = body.get("schema");
+        if (!(schema instanceof Map<?, ?>)) throw new IllegalArgumentException("schema_required");
+        return (Map<String, Object>) schema;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> schemaFromDataBody(final Map<String, Object> body) {
+        final Object data = body.get("data");
+        if (!(data instanceof Map<?, ?>)) throw new IllegalArgumentException("data_required");
+        return (Map<String, Object>) data;
     }
 
     private String extractToken(final JettyHttpExchange jx) {

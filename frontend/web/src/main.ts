@@ -5,6 +5,7 @@ import router from './app/router'
 import { getFingerprint } from '@/services/auth/fingerprint'
 import 'animate.css'
 import './styles/global.css'
+import 'survey-core/survey-core.css'
 
 // Adjunta la huella real (ThumbmarkJS) a TODA llamada autenticada, sin tocar cada funcion de
 // usersApi.ts/authApi.ts individualmente. El backend la compara contra la que se guardo al

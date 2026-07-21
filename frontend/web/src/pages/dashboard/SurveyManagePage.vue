@@ -4,12 +4,77 @@
   ConferenceToolsNav(:conferenceId="conferenceId")
   h2 Encuesta de la conferencia
 
-  nav.tabs
+  .engine-card
+    h3 Motor de encuesta
+    p.engine-help El motor se elige una sola vez para este evento. SurveyJS usa la librería Form Library; la autoría se controla desde esta pantalla.
+    .engine-row(v-if="!engine")
+      select(v-model="selectedEngine")
+        option(value="NATIVE") Motor nativo de InsightBloom
+        option(value="SURVEYJS") SurveyJS Form Library
+      button.btn-primary(type="button" :disabled="engineSaving" @click="chooseEngine") {{ engineSaving ? 'Guardando...' : 'Elegir motor' }}
+    p.engine-current(v-else) Motor activo: <strong>{{ engine === 'SURVEYJS' ? 'SurveyJS Form Library' : 'Nativo de InsightBloom' }}</strong>
+    p.ai-shared La sugerencia de preguntas con IA sigue disponible para ambos motores.
+
+  .surveyjs-editor(v-if="engine === 'SURVEYJS'")
+    h3 Editor SurveyJS controlado
+    p.editor-help Solo se guardan tipos compatibles con SurveyJS Form Library. No se incluye Survey Creator ni componentes comerciales.
+    input(v-model="surveyJsTitle" placeholder="Título de la encuesta")
+    .surveyjs-add-row
+      select(v-model="surveyJsType")
+        option(value="text") Texto corto
+        option(value="comment") Texto largo
+        option(value="radiogroup") Opción única
+        option(value="checkbox") Opción múltiple
+        option(value="dropdown") Lista desplegable
+        option(value="rating") Calificación
+        option(value="boolean") Sí / No
+        option(value="ranking") Ordenar elementos
+      input(v-model="surveyJsQuestion" placeholder="Pregunta")
+      input(v-if="['radiogroup', 'checkbox', 'dropdown', 'ranking'].includes(surveyJsType)" v-model="surveyJsChoices" placeholder="Opciones separadas por coma")
+      label.required-check
+        input(type="checkbox" v-model="surveyJsRequired")
+        span Obligatoria
+      button.btn-primary-sm(type="button" @click="addSurveyElement") Agregar
+    .ai-suggest-row
+      button.btn-outline(type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
+      span.ai-error(v-if="suggestError") {{ suggestError }}
+    .suggestions(v-if="suggestions.length")
+      h4 Sugerencias compatibles
+      .suggestion-row(v-for="(s, i) in suggestions" :key="i")
+        label.suggestion-check
+          input(type="checkbox" :value="i" v-model="selectedSuggestions")
+        .suggestion-text
+          strong {{ s.text }}
+          span.suggestion-type {{ typeLabel(s.type) }}
+      .suggestions-actions
+        button.btn-sm.btn-primary-sm(type="button" :disabled="!selectedSuggestions.length || addingSuggestions" @click="addSelectedSuggestions") Agregar seleccionadas
+    .surveyjs-elements(v-if="surveyElements.length")
+      .surveyjs-element(v-for="(element, index) in surveyElements" :key="element.name")
+        span.element-index {{ index + 1 }}
+        .element-details
+          strong {{ element.title }}
+          span {{ element.type }}{{ element.isRequired ? ' · obligatoria' : '' }}
+          small(v-if="element.choices && element.choices.length") {{ element.choices.join(', ') }}
+        button.btn-icon(type="button" @click="removeSurveyElement(index)") ✕
+    .surveyjs-actions
+      button.btn-outline(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(false)") {{ surveyJsSaving ? 'Guardando...' : 'Guardar borrador' }}
+      button.btn-primary(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(true)") Publicar encuesta
+    p.ai-error(v-if="surveyJsError") {{ surveyJsError }}
+    .surveyjs-preview(v-if="surveyPreviewModel")
+      h3 Vista previa
+      SurveyComponent(:model="surveyPreviewModel")
+    .surveyjs-results(v-if="surveyJsSubmissions.length")
+      h3 Respuestas recibidas
+      .surveyjs-submission(v-for="submission in surveyJsSubmissions" :key="submission.uuid")
+        strong {{ submission.submittedAt }}
+        pre {{ JSON.stringify(submission.data, null, 2) }}
+
+  nav.tabs(v-if="engine === 'NATIVE'")
     button.tab-btn(type="button" :class="{ active: activeTab === 'create' }" @click="activeTab = 'create'") {{ editingId ? '✏️ Editando pregunta' : '➕ Alta de preguntas' }}
     button.tab-btn(type="button" :class="{ active: activeTab === 'edit' }" @click="activeTab = 'edit'") 📋 Edición de preguntas
     button.tab-btn(type="button" :class="{ active: activeTab === 'results' }" @click="activeTab = 'results'") 📊 Resultados
 
-  .add-card(v-show="activeTab === 'create'")
+  .add-card(v-if="engine === 'NATIVE'" v-show="activeTab === 'create'")
     h3 {{ editingId ? 'Editar pregunta' : 'Agregar pregunta' }}
     .ai-suggest-row(v-if="!editingId")
       button.btn-outline(type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
@@ -102,7 +167,7 @@
       button.btn-primary(:disabled="!form.text || saving" @click="save") {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Agregar') }}
       button.btn-ghost-sm(v-if="editingId" type="button" @click="cancelEdit") Cancelar
 
-  .questions-card(v-if="questions.length" v-show="activeTab === 'edit'")
+  .questions-card(v-if="engine === 'NATIVE' && questions.length" v-show="activeTab === 'edit'")
     h3 Preguntas activas
     .question-item(v-for="q in questions" :key="q.uuid" :class="{ editing: editingId === q.uuid }")
       .question-item-header
@@ -123,7 +188,7 @@
         button.btn-sm.btn-edit(@click="startEdit(q)") Editar
         button.btn-sm.btn-delete(@click="confirmDelete(q)") 🗑 Eliminar
 
-  .confirm-overlay(v-if="deleteTarget" @click.self="deleteTarget = null")
+  .confirm-overlay(v-if="engine === 'NATIVE' && deleteTarget" @click.self="deleteTarget = null")
     .confirm-dialog
       h4 ¿Eliminar pregunta?
       p Esto quitará <strong>"{{ deleteTarget.text }}"</strong> de la encuesta de forma permanente. Las respuestas ya recibidas se conservan en los resultados.
@@ -131,7 +196,7 @@
         button.btn-cancel(@click="deleteTarget = null") Cancelar
         button.btn-confirm(@click="doDelete") Eliminar
 
-  .confirm-overlay(v-if="purgeTarget" @click.self="purgeTarget = null")
+  .confirm-overlay(v-if="engine === 'NATIVE' && purgeTarget" @click.self="purgeTarget = null")
     .confirm-dialog
       h4 ¿Purgar respuestas?
       p Esto eliminará permanentemente las <strong>{{ purgeTarget.responseCount }} respuestas</strong> recibidas para "{{ purgeTarget.text }}". La pregunta se conserva, solo se borran las respuestas.
@@ -139,7 +204,7 @@
         button.btn-cancel(@click="purgeTarget = null") Cancelar
         button.btn-confirm(@click="doPurge") Purgar
 
-  .results-card(v-if="results.length" v-show="activeTab === 'results'")
+  .results-card(v-if="engine === 'NATIVE' && results.length" v-show="activeTab === 'results'")
     h3 Resultados
 
     .grading-toolbar(v-if="gradeableQuestions.length")
@@ -195,8 +260,10 @@
 </template>
 
 <script lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses } from '@/services/api/surveyApi'
+import { ref, computed, onMounted, shallowRef } from 'vue'
+import { Model } from 'survey-core'
+import { SurveyComponent } from 'survey-vue3-ui'
+import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, type SurveyEngine } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
@@ -272,11 +339,24 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
     const conferenceName = ref('')
+    const engine = ref<SurveyEngine | null>(null)
+    const selectedEngine = ref<SurveyEngine>('NATIVE')
+    const engineSaving = ref(false)
+    const surveySchema = ref<Record<string, any>>(emptySurveySchema())
+    const surveyPreviewModel = shallowRef<Model | null>(null)
+    const surveyJsTitle = ref('Encuesta')
+    const surveyJsType = ref('text')
+    const surveyJsQuestion = ref('')
+    const surveyJsChoices = ref('')
+    const surveyJsRequired = ref(true)
+    const surveyJsSaving = ref(false)
+    const surveyJsError = ref('')
+    const surveyJsSubmissions = ref<any[]>([])
     const activeTab = ref('create')
     const questions = ref<SurveyQuestionRow[]>([])
     const results = ref<SurveyResult[]>([])
@@ -299,6 +379,11 @@ export default {
     const regradeAll = ref(false)
     const grading = ref(false)
     const gradeStatus = ref('')
+
+    const surveyElements = computed<any[]>(() => {
+      const pages = Array.isArray(surveySchema.value.pages) ? surveySchema.value.pages : []
+      return pages.flatMap((page: any) => Array.isArray(page.elements) ? page.elements : [])
+    })
 
     const gradeableQuestions = computed(() =>
       results.value.filter((r) => r.type === 'OPEN_GRADED' || r.type === 'CODE_GRADED' || r.type === 'MULTIPLE_CHOICE'))
@@ -377,6 +462,83 @@ export default {
       }
     }
 
+    function emptySurveySchema(): Record<string, any> {
+      return { title: 'Encuesta', pages: [{ name: 'pagina1', elements: [] }] }
+    }
+
+    function refreshSurveyPreview() {
+      surveyPreviewModel.value = new Model(JSON.parse(JSON.stringify(surveySchema.value)))
+    }
+
+    function surveyJsTypeFor(nativeType: string): string {
+      return ({
+        RATING: 'rating', TEXT: 'text', OPEN_GRADED: 'comment', CODE_GRADED: 'comment',
+        MULTIPLE_CHOICE: 'radiogroup', DRAG_DROP: 'ranking'
+      } as Record<string, string>)[nativeType] || 'comment'
+    }
+
+    function addSurveyElement(spec?: SuggestedQuestion) {
+      const type = spec ? surveyJsTypeFor(spec.type) : surveyJsType.value
+      const title = spec?.text || surveyJsQuestion.value.trim()
+      if (!title) return
+      const choices = spec?.options?.length
+        ? [...spec.options]
+        : surveyJsChoices.value.split(',').map((choice) => choice.trim()).filter(Boolean)
+      const element: Record<string, any> = {
+        type,
+        name: `pregunta_${Date.now()}_${surveyElements.value.length}`,
+        title,
+        isRequired: spec ? true : surveyJsRequired.value
+      }
+      if (['radiogroup', 'checkbox', 'dropdown', 'ranking'].includes(type)) element.choices = choices
+      surveySchema.value.pages[0].elements.push(element)
+      if (!spec) {
+        surveyJsQuestion.value = ''
+        surveyJsChoices.value = ''
+      }
+      refreshSurveyPreview()
+    }
+
+    function removeSurveyElement(index: number) {
+      surveySchema.value.pages[0].elements.splice(index, 1)
+      refreshSurveyPreview()
+    }
+
+    async function chooseEngine() {
+      engineSaving.value = true
+      surveyJsError.value = ''
+      try {
+        const response = await selectSurveyEngine(props.conferenceId as string, selectedEngine.value, auth.state.token as string)
+        engine.value = response.data.engine
+        if (engine.value === 'SURVEYJS') {
+          surveySchema.value = emptySurveySchema()
+          refreshSurveyPreview()
+        } else {
+          await load()
+        }
+      } catch (e: any) {
+        surveyJsError.value = e.response?.data?.error?.message || 'No se pudo seleccionar el motor.'
+      } finally {
+        engineSaving.value = false
+      }
+    }
+
+    async function saveSurveyJs(publish: boolean) {
+      surveyJsSaving.value = true
+      surveyJsError.value = ''
+      surveySchema.value.title = surveyJsTitle.value || 'Encuesta'
+      try {
+        await validateSurveyDefinition(props.conferenceId as string, surveySchema.value, auth.state.token as string)
+        if (publish) await publishSurveyDefinition(props.conferenceId as string, surveySchema.value, auth.state.token as string)
+        else await saveSurveyDefinition(props.conferenceId as string, surveySchema.value, auth.state.token as string)
+        await load()
+      } catch (e: any) {
+        surveyJsError.value = e.response?.data?.error?.message || 'No se pudo guardar la encuesta SurveyJS.'
+      } finally {
+        surveyJsSaving.value = false
+      }
+    }
+
     function addOption() {
       form.value.options.push('')
       form.value.optionsCorrect.push(false)
@@ -398,6 +560,27 @@ export default {
 
     async function load() {
       if (!props.conferenceId) return
+      try {
+        const definition = (await getSurveyDefinition(props.conferenceId, auth.state.token, true)).data
+        engine.value = definition.engine
+        if (definition.engine === 'SURVEYJS') {
+          surveySchema.value = (definition.schema as Record<string, any>) || emptySurveySchema()
+          surveyJsTitle.value = String(surveySchema.value.title || 'Encuesta')
+          refreshSurveyPreview()
+          try {
+            const submissions = await getSurveyJsSubmissions(props.conferenceId, auth.state.token as string)
+            surveyJsSubmissions.value = submissions.data || []
+          } catch (e: any) { surveyJsSubmissions.value = [] }
+          return
+        }
+      } catch (e: any) {
+        engine.value = null
+      }
+      if (engine.value !== 'NATIVE') {
+        questions.value = []
+        results.value = []
+        return
+      }
       try {
         const qRes = await getQuestions(props.conferenceId, false)
         questions.value = (qRes.data || []).filter((q: SurveyQuestionRow) => q.active)
@@ -426,6 +609,12 @@ export default {
       addingSuggestions.value = true
       try {
         const toAdd = selectedSuggestions.value.map((i) => suggestions.value[i]).filter(Boolean)
+        if (engine.value === 'SURVEYJS') {
+          toAdd.forEach((suggestion) => addSurveyElement(suggestion))
+          suggestions.value = []
+          selectedSuggestions.value = []
+          return
+        }
         for (const s of toAdd) {
           const isOptionsType = s.type === 'MULTIPLE_CHOICE' || s.type === 'DRAG_DROP'
           const payload = {
@@ -583,6 +772,9 @@ export default {
 
     return {
       activeTab, questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
+      engine, selectedEngine, engineSaving, chooseEngine, surveyJsTitle, surveyJsType, surveyJsQuestion,
+      surveyJsChoices, surveyJsRequired, surveyJsSaving, surveyJsError, surveyJsSubmissions,
+      surveyElements, surveyPreviewModel, addSurveyElement, removeSurveyElement, saveSurveyJs,
       selectedSuggestions, addingSuggestions,
       deleteTarget, purgeTarget, openDetail, improving, improveError, improvements,
       reviewOpen, selectedForGrading, regradeAll, grading, gradeStatus, gradeableQuestions, allGradeableSelected,
@@ -598,6 +790,27 @@ export default {
 <style scoped>
 .survey-manage-page { padding: 24px; max-width: 720px; }
 h2 { color: #1e1b4b; margin-bottom: 20px; }
+.engine-card, .surveyjs-editor {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px;
+}
+.engine-help, .editor-help, .ai-shared { color: #6b7280; font-size: 0.85rem; line-height: 1.45; }
+.engine-row, .surveyjs-add-row, .surveyjs-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.engine-row select { flex: 1; min-width: 220px; margin-bottom: 0; }
+.engine-row button { flex-shrink: 0; }
+.engine-current { color: #374151; }
+.surveyjs-add-row { align-items: flex-start; margin: 14px 0; }
+.surveyjs-add-row select, .surveyjs-add-row input { flex: 1; min-width: 140px; margin-bottom: 0; }
+.surveyjs-add-row .required-check { flex-shrink: 0; margin: 8px 0 0; }
+.surveyjs-elements { margin: 16px 0; border-top: 1px solid #f3f4f6; }
+.surveyjs-element { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+.element-index { width: 24px; height: 24px; border-radius: 50%; background: #e0e7ff; color: #4338ca; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+.element-details { flex: 1; display: flex; flex-direction: column; gap: 2px; color: #374151; }
+.element-details span, .element-details small { color: #6b7280; font-size: 0.78rem; }
+.surveyjs-actions { justify-content: flex-end; }
+.surveyjs-preview { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e5e7eb; }
+.surveyjs-results { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e5e7eb; }
+.surveyjs-submission { background: #f9fafb; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+.surveyjs-submission pre { white-space: pre-wrap; font-size: 0.78rem; margin: 8px 0 0; }
 .tabs { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
 .tab-btn {
   padding: 10px 16px; border: none; background: none; color: #6b7280; cursor: pointer;

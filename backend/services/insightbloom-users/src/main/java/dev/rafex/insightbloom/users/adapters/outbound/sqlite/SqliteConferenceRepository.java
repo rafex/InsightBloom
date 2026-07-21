@@ -268,7 +268,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         final int maxAccountsPerDevice = rs.getInt("max_accounts_per_device");
         conference.setMaxAccountsPerDevice(rs.wasNull() ? null : maxAccountsPerDevice);
         conference.setCanvasTool(rs.getString("canvas_tool"));
-        conference.setCanvasAudienceMode(rs.getString("canvas_audience_mode"));
+        conference.setCanvasAudienceMode(normalizeCanvasMode(
+                conference.getCanvasTool(), rs.getString("canvas_audience_mode")));
         final List<CanvasConfig> configs = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT canvas_tool, audience_mode FROM conference_canvas_configs "
@@ -276,19 +277,26 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(1, conference.getUuid());
             try (ResultSet configRs = ps.executeQuery()) {
                 while (configRs.next()) {
-                    configs.add(new CanvasConfig(configRs.getString("canvas_tool"),
-                            configRs.getString("audience_mode")));
+                    final String tool = configRs.getString("canvas_tool");
+                    configs.add(new CanvasConfig(tool,
+                            normalizeCanvasMode(tool, configRs.getString("audience_mode"))));
                 }
             }
         }
         // Fallback para bases que todavía no ejecutaron la migración de filas hijas.
         if (configs.isEmpty() && conference.getCanvasTool() != null) {
             configs.add(new CanvasConfig(conference.getCanvasTool(),
-                    conference.getCanvasAudienceMode() != null
-                            ? conference.getCanvasAudienceMode() : "INDEPENDENT"));
+                    normalizeCanvasMode(conference.getCanvasTool(), conference.getCanvasAudienceMode())));
         }
         conference.setCanvasConfigs(configs);
         return conference;
+    }
+
+    private static String normalizeCanvasMode(final String tool, final String mode) {
+        if ("ETHERPAD".equals(tool)) {
+            return "INDEPENDENT".equals(mode) ? "INDEPENDENT" : "COLLABORATIVE";
+        }
+        return "MODERATOR_ONLY".equals(mode) ? "MODERATOR_ONLY" : "INDEPENDENT";
     }
 
     @Override

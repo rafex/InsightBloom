@@ -64,11 +64,10 @@ public class SetCanvasConfigUseCase {
                     && !ETHERPAD.equals(config.tool())) {
                 throw new IllegalArgumentException("canvas_tool_invalid");
             }
-            if (!INDEPENDENT.equals(config.audienceMode()) && !MODERATOR_ONLY.equals(config.audienceMode())
-                    && !COLLABORATIVE.equals(config.audienceMode())) {
-                throw new IllegalArgumentException("canvas_audience_mode_invalid");
-            }
-            if (COLLABORATIVE.equals(config.audienceMode()) && !ETHERPAD.equals(config.tool())) {
+            final boolean supportedMode = ETHERPAD.equals(config.tool())
+                    ? (INDEPENDENT.equals(config.audienceMode()) || COLLABORATIVE.equals(config.audienceMode()))
+                    : (INDEPENDENT.equals(config.audienceMode()) || MODERATOR_ONLY.equals(config.audienceMode()));
+            if (!supportedMode) {
                 throw new IllegalArgumentException("canvas_audience_mode_invalid");
             }
         }

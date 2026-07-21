@@ -2,20 +2,31 @@ import axios from 'axios'
 
 const BASE = '/api/presentations/api/v1'
 
+export type PresentationProvider = 'MARP' | 'SLIDEV'
+
+export interface PresentationStatus {
+  ready: boolean
+  provider?: PresentationProvider
+  presentationProvider?: PresentationProvider
+  engineVersion?: string | null
+  [key: string]: unknown
+}
+
 function authHeader(token?: string | null) {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export async function uploadPresentation(conferenceId: string, file: Blob, token: string): Promise<unknown> {
+export async function uploadPresentation(conferenceId: string, file: Blob, token: string, provider: PresentationProvider = 'MARP'): Promise<unknown> {
   const form = new FormData()
   form.append('file', file)
+  form.append('presentationProvider', provider)
   const res = await axios.post(`${BASE}/conferences/${conferenceId}/presentation`, form, {
     headers: { ...authHeader(token), 'Content-Type': 'multipart/form-data' }
   })
   return res.data
 }
 
-export async function getPresentationStatus(conferenceId: string): Promise<{ ready: boolean, [key: string]: unknown }> {
+export async function getPresentationStatus(conferenceId: string): Promise<PresentationStatus> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/presentation/status`)
   return res.data
 }
@@ -23,6 +34,16 @@ export async function getPresentationStatus(conferenceId: string): Promise<{ rea
 export function getSlidesUrl(conferenceId: string, token?: string | null): string {
   const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
   return `${BASE}/conferences/${conferenceId}/presentation/slides${query}`
+}
+
+export function getPresentationRootUrl(conferenceId: string, token?: string | null): string {
+  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
+  return `${BASE}/conferences/${conferenceId}/presentation/${query}`
+}
+
+export function getPresenterSlidesUrl(conferenceId: string, token?: string | null): string {
+  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
+  return `${BASE}/conferences/${conferenceId}/presentation/presenter${query}`
 }
 
 export function getSlidesPreviewUrl(conferenceId: string): string {

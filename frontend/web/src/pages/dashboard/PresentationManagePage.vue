@@ -5,7 +5,7 @@
   h2 Presentación
 
   .status-card(v-if="checkedStatus")
-    p(v-if="ready") ✅ Ya hay una presentación generada para esta conferencia.
+    p(v-if="ready") ✅ Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }} generada para esta conferencia.
     p(v-else) Aún no se ha subido una presentación.
     .preview-actions(v-if="ready")
       a.btn-secondary(:href="slidesUrl" target="_blank" rel="noopener") Ver slides
@@ -13,7 +13,14 @@
 
   .upload-card
     h3 Subir presentación (.zip)
-    p.hint Sube un ZIP con tu archivo Markdown de Marp, la carpeta assets/css/theme.css y assets/images. Se generará el slideshow y el PDF distribuible.
+    .form-group
+      label Engine de la presentación
+      select.provider-select(v-model="provider")
+        option(value="MARP") Marp
+        option(value="SLIDEV") Slidev
+      p.field-hint(v-if="provider === 'MARP'") ZIP con el Markdown de Marp y sus assets locales (CSS, imágenes y fuentes).
+      p.field-hint(v-else) ZIP de un proyecto Slidev controlado: incluye slides.md y assets locales. No se aceptan package.json, plugins ni archivos ejecutables.
+    p.hint El engine seleccionado se usará para generar la vista pública, el modo Presentar y las exportaciones.
     input(type="file" accept=".zip" @change="onFileChange" ref="fileInput")
     .form-group
       label URL del repositorio o descarga (opcional)
@@ -27,7 +34,8 @@
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { uploadPresentation, getPresentationStatus, getSlidesUrl, getPdfUrl } from '@/services/api/presentationsApi'
+import { uploadPresentation, getPresentationStatus, getSlidesUrl, getPresentationRootUrl, getPdfUrl } from '@/services/api/presentationsApi'
+import type { PresentationProvider } from '@/services/api/presentationsApi'
 import { getConference, updateConference } from '@/services/api/usersApi'
 import type { Conference } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -48,6 +56,7 @@ export default {
     const ready = ref(false)
     const slidesUrl = ref('')
     const pdfUrl = ref('')
+    const provider = ref<PresentationProvider>('MARP')
     const sourceUrl = ref('')
     const conferenceName = ref('')
     let conference: Conference | null = null
@@ -62,8 +71,11 @@ export default {
       try {
         const status = await getPresentationStatus(props.conferenceId as string)
         ready.value = !!status.ready
+        provider.value = status.provider === 'SLIDEV' ? 'SLIDEV' : 'MARP'
         if (ready.value) {
-          slidesUrl.value = getSlidesUrl(props.conferenceId as string, auth.state.token)
+          slidesUrl.value = provider.value === 'SLIDEV'
+            ? getPresentationRootUrl(props.conferenceId as string, auth.state.token)
+            : getSlidesUrl(props.conferenceId as string, auth.state.token)
           pdfUrl.value = getPdfUrl(props.conferenceId as string, auth.state.token)
         }
       } catch (e: any) { ready.value = false }
@@ -84,7 +96,7 @@ export default {
       error.value = ''
       success.value = false
       try {
-        await uploadPresentation(props.conferenceId as string, file.value, auth.state.token as string)
+        await uploadPresentation(props.conferenceId as string, file.value, auth.state.token as string, provider.value)
         success.value = true
         await refreshStatus()
         // Actualiza la URL de origen junto con el resto de campos ya existentes de la
@@ -121,7 +133,7 @@ export default {
 
     return {
       file, uploading, error, success, checkedStatus, ready, slidesUrl, pdfUrl,
-      sourceUrl, onFileChange, upload, breadcrumbItems
+      provider, sourceUrl, onFileChange, upload, breadcrumbItems
     }
   }
 }
@@ -141,6 +153,10 @@ input[type="file"] { display: block; margin-bottom: 12px; }
 .source-input {
   width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px;
   font-size: 0.95rem; box-sizing: border-box;
+}
+.provider-select {
+  width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px;
+  font-size: 0.95rem; box-sizing: border-box; background: #fff;
 }
 .source-input:focus { outline: none; border-color: #4f46e5; }
 .field-hint { margin: 6px 0 0; font-size: 0.8rem; color: #9ca3af; }

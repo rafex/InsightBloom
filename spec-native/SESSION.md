@@ -6,26 +6,28 @@ Estado activo de trabajo para continuidad multi-agente.
 
 ## Estado actual
 
-- **Iniciativa activa**: migración SpecNative v0.7
-- **Branch**: `feature/specnative-migration`
-- **Último agente**: @opencode
-- **Última acción**: Migración de estructura de documentación de `docs/` a `spec-native/`
+- **Iniciativa activa**: `slidev-presentations`
+- **Branch**: `agent/event-notes-materials`
+- **Último agente**: Codex
+- **Última acción**: Integración inicial de Marp/Slidev en carga, build, visor,
+  modo presentador y navegación en vivo.
 
 ---
 
 ## Contexto de la sesión
 
-Migrando el proyecto InsightBloom de una estructura de documentación ad-hoc (`docs/`)
-al estándar SpecNative Development v0.7 (`spec-native/`). El proyecto ha superado
-la fase PoC y requiere una base documental escalable para desarrollo multi-agente.
+InsightBloom conserva Marp como motor compatible y añade Slidev como proveedor
+seleccionable por carga. El MVP acepta ZIP controlados, genera una SPA Slidev
+con base por conferencia, la protege con el acceso existente y traduce sus
+rutas de navegación al WebSocket de presentaciones. El CD continúa fuera de
+este repositorio, en `InsightBloom-gitops`, reconciliado por FluxCD.
 
 ## Próximos pasos
 
-- [ ] Instalar MCP server en `.specnative/specnative_mcp.py`
-- [ ] Derivar tareas desde SPEC.md actual
-- [ ] Actualizar CI/CD pipelines en `pipelines/CI.md`
-- [ ] Poblar `tasks/` con el plan de implementación activo
-- [ ] Validar integridad con `specnative validate`
+- [ ] Completar exportación PPTX y caché por hash de Slidev
+- [ ] Añadir pruebas automatizadas de ZIP malicioso, regresión Marp y WebSocket
+- [ ] Validar el Docker build del servicio cuando Podman esté disponible
+- [ ] Reconciliar el tag de imagen en `InsightBloom-gitops` mediante FluxCD
 
 ## Notas
 

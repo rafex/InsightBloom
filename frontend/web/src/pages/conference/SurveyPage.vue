@@ -45,10 +45,12 @@
 
   template(v-else)
     h2 Cuéntanos qué te pareció la charla
-    .benefits-banner(v-if="!loading && questions.length")
+    .benefits-banner(v-if="!loading && (questions.length || engine === 'SURVEYJS')")
       span.benefits-icon 🎁
       span Al terminar el cuestionario obtienes: los datos de contacto del presentador, tu <strong>certificado de asistencia</strong> y la <strong>presentación en PDF</strong> para descargar.
     .survey-loading(v-if="loading") Cargando encuesta...
+    .survey-empty(v-else-if="engine === 'SURVEYJS' && !surveyModel") Esta conferencia no tiene una encuesta SurveyJS publicada.
+    SurveyComponent.surveyjs-form(v-else-if="engine === 'SURVEYJS' && surveyModel" :model="surveyModel")
     .survey-empty(v-else-if="!questions.length") Esta conferencia no tiene encuesta configurada.
     form.survey-form(v-else @submit.prevent="submit")
       .question(v-for="q in questions" :key="q.uuid")
@@ -114,9 +116,11 @@
 </template>
 
 <script lang="ts">
-import { ref, reactive, onMounted, type PropType } from 'vue'
+import { ref, reactive, shallowRef, onMounted, type PropType } from 'vue'
 import { useRoute } from 'vue-router'
-import { getQuestions, submitResponses, hasResponded } from '@/services/api/surveyApi'
+import { Model } from 'survey-core'
+import { SurveyComponent } from 'survey-vue3-ui'
+import { getQuestions, submitResponses, hasResponded, getSurveyDefinition, submitSurveyJs } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl } from '@/services/api/presentationsApi'
 import { getCertificateBlobUrl } from '@/services/api/usersApi'
 import { organizerContact, telegramContactUrl } from '@/config/contact'
@@ -138,6 +142,7 @@ type PointerLikeEvent = MouseEvent | TouchEvent
 
 export default {
   name: 'SurveyPage',
+  components: { SurveyComponent },
   props: { conferenceId: { type: String as PropType<string | undefined>, default: undefined } },
   setup(props: { conferenceId?: string }) {
     const route = useRoute()
@@ -145,6 +150,8 @@ export default {
     const canParticipate = auth.isAuthenticated() && auth.state.role !== 'guest'
     const friendlyId = route.params.friendlyId as string
     const questions = ref<SurveyQuestion[]>([])
+    const engine = ref<'NATIVE' | 'SURVEYJS' | null>(null)
+    const surveyModel = shallowRef<Model | null>(null)
     const loading = ref(true)
     const submitting = ref(false)
     const submitted = ref(false)
@@ -260,13 +267,21 @@ export default {
       }
 
       try {
-        const res = await getQuestions(props.conferenceId)
-        questions.value = res.data || []
-        for (const q of questions.value) {
-          if (q.type === 'DRAG_DROP') dragOrder[q.uuid] = [...(q.options || [])]
-          else if (q.type === 'MULTIPLE_CHOICE') answersText[q.uuid] = []
+        const definition = (await getSurveyDefinition(props.conferenceId)).data
+        engine.value = definition.engine
+        if (definition.engine === 'SURVEYJS' && definition.schema) {
+          const model = new Model(definition.schema)
+          model.onComplete.add(async (sender) => { await submitSurveyJsForm(sender.data) })
+          surveyModel.value = model
+        } else if (definition.engine !== 'SURVEYJS') {
+          const res = await getQuestions(props.conferenceId)
+          questions.value = res.data || []
+          for (const q of questions.value) {
+            if (q.type === 'DRAG_DROP') dragOrder[q.uuid] = [...(q.options || [])]
+            else if (q.type === 'MULTIPLE_CHOICE') answersText[q.uuid] = []
+          }
         }
-      } catch (e: any) { questions.value = [] }
+      } catch (e: any) { questions.value = []; surveyModel.value = null }
       finally { loading.value = false }
 
       try {
@@ -323,10 +338,27 @@ export default {
       }
     }
 
+    async function submitSurveyJsForm(data: Record<string, unknown>) {
+      if (submitting.value) return
+      error.value = ''
+      submitting.value = true
+      try {
+        await submitSurveyJs(props.conferenceId as string, data, auth.state.token as string)
+        submitted.value = true
+        await loadCertificate()
+      } catch (e: any) {
+        error.value = e.response?.status === 409
+          ? 'Ya habías respondido esta encuesta.'
+          : 'No se pudo enviar tu encuesta. Intenta de nuevo.'
+      } finally {
+        submitting.value = false
+      }
+    }
+
     onMounted(load)
 
     return {
-      friendlyId, questions, loading, submitting, submitted, error, canParticipate,
+      friendlyId, questions, loading, submitting, submitted, error, canParticipate, engine, surveyModel,
       answers, answersText, dragOrder, pdfReady, pdfUrl, contact, telegramUrl, emojiScale, setRating, submit,
       setCanvasRef, startDraw, moveDraw, endDraw, clearCanvas,
       dragStart, dragDrop, moveItem,

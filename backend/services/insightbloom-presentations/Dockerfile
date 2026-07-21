@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV CHROME_PATH=/usr/bin/chromium
 ENV CHROME_NO_SANDBOX=true
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV PORT=8091
 ENV DATA_DIR=/data
 
@@ -17,8 +18,8 @@ ENV GIT_SHA=${GIT_SHA}
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 COPY server.js live.js ./
 

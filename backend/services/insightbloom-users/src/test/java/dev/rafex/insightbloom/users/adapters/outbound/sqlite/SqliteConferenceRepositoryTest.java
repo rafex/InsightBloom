@@ -26,4 +26,20 @@ class SqliteConferenceRepositoryTest {
         assertEquals(1, restored.getWhiteboardVersion());
         assertNotNull(restored.getWhiteboardUpdatedAt());
     }
+
+    @Test
+    void normalizesLegacyModeratorOnlyEtherpadToCollaborative(@TempDir final Path tempDir) {
+        final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
+        database.initialize();
+        final SqliteConferenceRepository repository = new SqliteConferenceRepository(database);
+        final Conference conference = new Conference("etherpad-test", "Etherpad test", "owner");
+        conference.setCanvasTool("ETHERPAD");
+        conference.setCanvasAudienceMode("MODERATOR_ONLY");
+
+        repository.save(conference);
+
+        final Conference restored = repository.findByUuid(conference.getUuid()).orElseThrow();
+        assertEquals("COLLABORATIVE", restored.getCanvasAudienceMode());
+        assertEquals("COLLABORATIVE", restored.getCanvasConfigs().getFirst().audienceMode());
+    }
 }

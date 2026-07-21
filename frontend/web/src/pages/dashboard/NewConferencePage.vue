@@ -58,11 +58,8 @@
       .canvas-mode-row(v-for="tool in canvasTools" :key="tool")
         span.canvas-mode-label {{ canvasToolLabel(tool) }}
         select(v-model="canvasModes[tool]")
-          option(v-if="tool === 'ETHERPAD'" value="COLLABORATIVE") Notas grupales (todos colaboran)
-          option(v-if="tool === 'ETHERPAD'" value="INDEPENDENT") Notas individuales (se borran al vencer el evento)
-          option(v-if="tool !== 'ETHERPAD'" value="INDEPENDENT") Trabajo independiente (solo persiste el moderador)
-          option(v-if="tool !== 'ETHERPAD'" value="MODERATOR_ONLY") Solo el moderador edita; asistentes ven la publicación
-      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Las notas grupales son compartidas por todos. Las notas individuales son privadas por asistente y sólo viven hasta que vence el evento; cada asistente puede exportarlas.
+          option(v-for="option in canvasModeOptions(tool)" :key="option.value" :value="option.value") {{ option.label }}
+      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
       p.field-hint Cada herramienta puede tener una modalidad distinta.
 
     .form-group
@@ -238,9 +235,22 @@ export default {
       return { DRAWIO: 'Drawio', EXCALIDRAW: 'Excalidraw', ETHERPAD: 'Etherpad' }[tool]
     }
 
+    function canvasModeOptions(tool: CanvasTool): Array<{ value: CanvasAudienceMode; label: string }> {
+      if (tool === 'ETHERPAD') {
+        return [
+          { value: 'COLLABORATIVE', label: 'Notas grupales (todos colaboran)' },
+          { value: 'INDEPENDENT', label: 'Notas individuales (se borran al vencer el evento)' }
+        ]
+      }
+      return [
+        { value: 'INDEPENDENT', label: 'Trabajo independiente (solo persiste el moderador)' },
+        { value: 'MODERATOR_ONLY', label: 'Solo el moderador edita; asistentes ven la publicación' }
+      ]
+    }
+
     return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
              eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey,
-             canvasTools, canvasModes, canvasToolLabel,
+             canvasTools, canvasModes, canvasToolLabel, canvasModeOptions,
              canvasToolOptions: [
                { value: 'DRAWIO', label: 'Drawio (diagramas)' },
                { value: 'EXCALIDRAW', label: 'Excalidraw (pizarra)' },

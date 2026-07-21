@@ -110,13 +110,12 @@ public class CreateConferenceUseCase {
                     && !SetCanvasConfigUseCase.ETHERPAD.equals(config.tool())) {
                 throw new IllegalArgumentException("canvas_tool_invalid");
             }
-            if (!SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
-                    && !SetCanvasConfigUseCase.MODERATOR_ONLY.equals(config.audienceMode())
-                    && !SetCanvasConfigUseCase.COLLABORATIVE.equals(config.audienceMode())) {
-                throw new IllegalArgumentException("canvas_audience_mode_invalid");
-            }
-            if (SetCanvasConfigUseCase.COLLABORATIVE.equals(config.audienceMode())
-                    && !SetCanvasConfigUseCase.ETHERPAD.equals(config.tool())) {
+            final boolean supportedMode = SetCanvasConfigUseCase.ETHERPAD.equals(config.tool())
+                    ? (SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
+                        || SetCanvasConfigUseCase.COLLABORATIVE.equals(config.audienceMode()))
+                    : (SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
+                        || SetCanvasConfigUseCase.MODERATOR_ONLY.equals(config.audienceMode()));
+            if (!supportedMode) {
                 throw new IllegalArgumentException("canvas_audience_mode_invalid");
             }
         }

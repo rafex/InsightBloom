@@ -46,6 +46,34 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_r_conf ON survey_responses(conference_uuid)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_r_q ON survey_responses(question_uuid)");
 
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS survey_definitions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL UNIQUE,
+                    engine TEXT NOT NULL,
+                    schema_json TEXT NOT NULL,
+                    schema_version INTEGER NOT NULL DEFAULT 1,
+                    status TEXT NOT NULL DEFAULT 'DRAFT',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    published_at TEXT
+                )""");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS survey_submissions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    definition_uuid TEXT NOT NULL,
+                    definition_version INTEGER NOT NULL,
+                    user_uuid TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    submitted_at TEXT NOT NULL,
+                    UNIQUE(conference_uuid, user_uuid)
+                )""");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_def_conf ON survey_definitions(conference_uuid)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_sub_conf ON survey_submissions(conference_uuid)");
+
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "reference_answer", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "rating_style", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_responses", "grade_score", "REAL");
