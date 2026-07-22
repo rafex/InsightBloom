@@ -21,15 +21,21 @@ moderador autenticado
 
 ## Configuración obligatoria
 
-Se necesitan dos mitades de la misma identidad Ed25519:
+La pareja Ed25519 de firma vive en el repositorio GitOps como un Secret de
+Kubernetes cifrado con SOPS + Age:
 
-- `OFFLINE_MANIFEST_PRIVATE_KEY` en el servicio backend
-  `insightbloom-presentations`. Es una clave PEM privada y debe vivir en el
-  secreto de runtime del despliegue, nunca en Git ni en el frontend.
-- `OFFLINE_MANIFEST_PUBLIC_KEY` como secreto de Actions usado por
-  `publish-web.yml`. Debe ser la clave pública SPKI DER codificada en Base64,
-  sin encabezados PEM. Vite la embebe como
-  `VITE_OFFLINE_MANIFEST_PUBLIC_KEY` durante el build.
+```text
+InsightBloom-gitops/infrastructure/secrets/offline-manifest-secrets.yaml
+  stringData.private-key → OFFLINE_MANIFEST_PRIVATE_KEY
+  stringData.public-key  → OFFLINE_MANIFEST_PUBLIC_KEY
+```
+
+Flux descifra ese manifiesto usando `flux-system/sops-age` y el chart lo
+inyecta sólo en el pod `insightbloom-presentations`. No se usa ningún secreto
+de GitHub Actions y ninguna clave se embebe en el bundle JavaScript del
+frontend. El backend publica la clave pública en runtime mediante
+`GET /api/v1/offline-manifest/public-key`; esa clave sólo sirve para verificar
+firmas y no permite firmar ni descifrar presentaciones.
 
 Para generar una pareja nueva:
 
@@ -39,9 +45,22 @@ openssl pkey -in offline-manifest-private.pem -pubout -outform DER \
   | base64 | tr -d '\\n'
 ```
 
-El segundo comando produce el valor de `OFFLINE_MANIFEST_PUBLIC_KEY`. La
-privada debe entregarse al gestor de secretos como contenido PEM, conservando
-los saltos de línea. Rotar la pareja invalida las firmas de manifiestos
+El segundo comando produce el valor que debe guardarse como `public-key` en el
+Secret SOPS. La privada PEM se guarda como `private-key` en el mismo Secret
+cifrado, conservando los saltos de línea. Se puede editar con el helper
+existente de GitOps:
+
+```bash
+cd /Users/rafex/repository/github/rafex/InsightBloom-gitops
+export SOPS_AGE_KEY_FILE="$HOME/.age/insightbloom-gitops.txt"
+make secret-edit FILE=offline-manifest-secrets.yaml
+make secret-check
+```
+
+La clave Age privada usada para descifrar SOPS **no** se guarda en Git: se
+mantiene fuera del repositorio y se instala en el clúster como
+`flux-system/sops-age`, igual que los demás secretos GitOps. Rotar la pareja
+Ed25519 invalida las firmas de manifiestos
 anteriores; hacerlo sólo cuando se hayan limpiado los paquetes offline de los
 moderadores.
 
@@ -71,6 +90,8 @@ cookies.
 
 - El manifiesto se firma con Ed25519 y el frontend verifica la firma antes de
   descargar.
+- El frontend obtiene la clave pública por HTTPS mientras está online y la
+  guarda junto con el paquete para poder verificarlo sin red.
 - Cada archivo se comprueba contra el SHA-256 recibido antes y después de
   cifrarlo.
 - Cada fragmento usa un IV aleatorio AES-GCM de 96 bits.

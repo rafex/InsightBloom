@@ -33,6 +33,7 @@ const OFFLINE_PRESENTATION_TTL_MS = Math.min(
   7 * 24 * 60 * 60 * 1000,
 );
 const OFFLINE_MANIFEST_PRIVATE_KEY = process.env.OFFLINE_MANIFEST_PRIVATE_KEY || '';
+const OFFLINE_MANIFEST_PUBLIC_KEY = process.env.OFFLINE_MANIFEST_PUBLIC_KEY || '';
 const MAX_UNCOMPRESSED_ZIP_BYTES = 250 * 1024 * 1024;
 const MAX_ARCHIVE_FILES = 1000;
 const ALLOWED_ARCHIVE_EXTENSIONS = new Set([
@@ -240,14 +241,37 @@ function canonicalOfflineManifest(manifest) {
   });
 }
 
-function signOfflineManifest(manifest) {
+function offlineManifestKeyMaterial() {
   if (!OFFLINE_MANIFEST_PRIVATE_KEY) return null;
   try {
     const privateKey = crypto.createPrivateKey(OFFLINE_MANIFEST_PRIVATE_KEY.replaceAll('\\n', '\n'));
+    const derivedPublicKey = crypto.createPublicKey(privateKey);
+    const derivedPublicKeyBase64 = derivedPublicKey.export({ type: 'spki', format: 'der' }).toString('base64');
+    const configuredPublicKey = OFFLINE_MANIFEST_PUBLIC_KEY.trim();
+    if (configuredPublicKey) {
+      const configuredKey = crypto.createPublicKey(
+        configuredPublicKey.includes('BEGIN')
+          ? configuredPublicKey.replaceAll('\\n', '\n')
+          : { key: Buffer.from(configuredPublicKey, 'base64'), type: 'spki', format: 'der' },
+      );
+      const configuredPublicKeyBase64 = configuredKey.export({ type: 'spki', format: 'der' }).toString('base64');
+      if (configuredPublicKeyBase64 !== derivedPublicKeyBase64) throw new Error('offline_manifest_key_mismatch');
+    }
+    return { privateKey, publicKeyBase64: derivedPublicKeyBase64 };
+  } catch (err) {
+    console.error('offline_manifest_key_invalid', err.message);
+    return null;
+  }
+}
+
+function signOfflineManifest(manifest) {
+  const keys = offlineManifestKeyMaterial();
+  if (!keys) return null;
+  try {
     const payload = Buffer.from(canonicalOfflineManifest(manifest), 'utf8');
     return {
       signedPayload: payload.toString('base64'),
-      signature: crypto.sign(null, payload, privateKey).toString('base64'),
+      signature: crypto.sign(null, payload, keys.privateKey).toString('base64'),
     };
   } catch (err) {
     console.error('offline_manifest_signing_failed', err.message);
@@ -764,13 +788,22 @@ app.get('/api/v1/conferences/:id/presentation/markdown', async (req, res) => {
 // El paquete offline sólo lo puede preparar alguien con permiso de administrar
 // la presentación. El navegador descarga los archivos, los divide y cifra
 // localmente; este endpoint nunca devuelve contenido de las diapositivas.
+// La clave pública no es secreta. Se entrega en runtime para que el build del
+// frontend no dependa de secretos de GitHub Actions. La clave privada y la
+// pública configurada llegan al pod desde el Secret SOPS del despliegue.
+app.get('/api/v1/offline-manifest/public-key', (_req, res) => {
+  const keys = offlineManifestKeyMaterial();
+  if (!keys) return res.status(503).json({ error: 'offline_not_configured' });
+  return res.json({ algorithm: 'Ed25519', publicKey: keys.publicKeyBase64 });
+});
+
 app.get('/api/v1/conferences/:id/presentation/offline-manifest', requirePresentationManagement, (req, res) => {
   const conferenceId = req.params.id;
   const manifest = readManifest(conferenceId);
   const root = presentationStaticRoot(conferenceId, manifest);
   const index = presentationIndexFile(conferenceId, manifest);
   if (!fs.existsSync(index)) return res.status(404).json({ error: 'not_found' });
-  if (!OFFLINE_MANIFEST_PRIVATE_KEY) {
+  if (!offlineManifestKeyMaterial()) {
     return res.status(503).json({ error: 'offline_not_configured', message: 'El modo offline no está configurado en el servidor' });
   }
 

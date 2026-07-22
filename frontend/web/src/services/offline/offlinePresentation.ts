@@ -1,5 +1,5 @@
 import type { OfflinePresentationFile, OfflinePresentationManifest } from '@/services/api/presentationsApi'
-import { getOfflinePresentationManifest, getPresentationRootUrl, primePresentationAccess } from '@/services/api/presentationsApi'
+import { getOfflineManifestPublicKey, getOfflinePresentationManifest, getPresentationRootUrl, primePresentationAccess } from '@/services/api/presentationsApi'
 
 const DB_NAME = 'insightbloom-offline-presentations'
 const DB_VERSION = 1
@@ -18,6 +18,7 @@ export interface OfflinePackageRecord {
   artifactHash: string
   signature: string
   signedPayload: string
+  publicKey: string
   key: CryptoKey
   manifestFiles: OfflinePresentationFile[]
   files: OfflinePresentationFile[]
@@ -72,12 +73,18 @@ async function sha256Hex(data: ArrayBuffer): Promise<string> {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
-async function verifyManifest(manifest: OfflinePresentationManifest): Promise<void> {
-  const publicKeyBase64 = import.meta.env.VITE_OFFLINE_MANIFEST_PUBLIC_KEY as string | undefined
-  if (!publicKeyBase64) throw new Error('offline_not_configured')
+let publicKeyPromise: Promise<string> | undefined
+
+function getPublicKey(): Promise<string> {
+  if (!publicKeyPromise) publicKeyPromise = getOfflineManifestPublicKey()
+  return publicKeyPromise
+}
+
+async function verifyManifest(manifest: OfflinePresentationManifest, publicKeyBase64?: string): Promise<void> {
+  const publicKey = publicKeyBase64 || await getPublicKey()
   const key = await crypto.subtle.importKey(
     'spki',
-    base64ToBytes(publicKeyBase64),
+    base64ToBytes(publicKey),
     { name: 'Ed25519' } as AlgorithmIdentifier,
     false,
     ['verify']
@@ -123,7 +130,7 @@ async function verifyStoredPackage(record: OfflinePackageRecord): Promise<void> 
     files: record.manifestFiles,
     signedPayload: record.signedPayload,
     signature: record.signature,
-  })
+  }, record.publicKey)
   await validExpiry(record.expiresAt)
 }
 
@@ -187,7 +194,8 @@ export async function getOfflinePackage(conferenceId: string, userUuid: string):
 
 export async function prepareOfflinePresentation(conferenceId: string, token: string, userUuid: string): Promise<OfflinePackageRecord> {
   const manifest = await getOfflinePresentationManifest(conferenceId, token)
-  await verifyManifest(manifest)
+  const publicKey = await getPublicKey()
+  await verifyManifest(manifest, publicKey)
   await validExpiry(manifest.expiresAt)
   await primePresentationAccess(conferenceId, token, true)
 
@@ -240,6 +248,7 @@ export async function prepareOfflinePresentation(conferenceId: string, token: st
       artifactHash: manifest.artifactHash,
       signature: manifest.signature,
       signedPayload: manifest.signedPayload,
+      publicKey,
       key,
       manifestFiles: manifest.files,
       files: storedFiles,
