@@ -35,6 +35,7 @@
 - [`workflows/CANVAS-PUBLICATION.md`](./workflows/CANVAS-PUBLICATION.md) — Contrato y verificación de publicación de Drawio/Excalidraw
 - [`workflows/SLIDEV-PACKAGING.md`](./workflows/SLIDEV-PACKAGING.md) — Formato, generación y validación del ZIP de Slidev
 - [`workflows/SLIDEV-ARTIFACT-AUDIT.md`](./workflows/SLIDEV-ARTIFACT-AUDIT.md) — Auditoría y aislamiento de artefactos Slidev precompilados
+- [`workflows/JITSI-TROUBLESHOOTING.md`](./workflows/JITSI-TROUBLESHOOTING.md) — Diagnóstico y prevención de fallos de videollamada Jitsi
 
 ## Pipelines
 
