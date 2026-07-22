@@ -12,7 +12,13 @@
     .preview-banner(v-if="!canParticipate")
       span Vista pública: primeras {{ previewSlideLimit }} diapositivas
       router-link(:to="`/c/${friendlyId}/ticket`") Regístrate y canjea tu boleto para continuar
-    iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" sandbox="allow-scripts allow-forms allow-presentation")
+    // Slidev's ES modules are loaded from the same protected presentation
+    // path. `allow-same-origin` is required so the browser keeps the iframe
+    // origin and sends the path-scoped HttpOnly access cookie to the module
+    // and CSS requests. Without it, the sandbox gives the frame an opaque
+    // origin (`null`), the assets are answered with `application/json` from
+    // the access guard, and the deck stays blank with a CORS/MIME error.
+    iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" sandbox="allow-scripts allow-forms allow-presentation allow-same-origin")
     .presentation-actions
       a.btn-secondary(v-if="canParticipate && presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
       router-link.btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
