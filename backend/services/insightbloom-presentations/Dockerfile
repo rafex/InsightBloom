@@ -20,7 +20,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY server.js live.js ./
+COPY server.js live.js access.js ./
 COPY tools/audit-slidev-artifact.js ./tools/audit-slidev-artifact.js
 
 RUN mkdir -p /data && chown -R node:node /app /data
