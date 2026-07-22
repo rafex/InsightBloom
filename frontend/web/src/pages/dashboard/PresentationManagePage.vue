@@ -8,7 +8,7 @@
     p(v-if="ready") ✅ Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }}{{ presentationFormat === 'fat' ? ' FAT precompilada' : '' }} generada para esta conferencia.
     p(v-else) Aún no se ha subido una presentación.
     .preview-actions(v-if="ready")
-      a.btn-secondary(:href="slidesUrl" target="_blank" rel="noopener") Ver slides
+      a.btn-secondary(:href="publicSlidesUrl || slidesUrl" target="_blank" rel="noopener") Ver slides
       a.btn-secondary(:href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
 
   .upload-card
@@ -55,6 +55,8 @@ export default {
     const checkedStatus = ref(false)
     const ready = ref(false)
     const slidesUrl = ref('')
+    const publicSlidesUrl = ref('')
+    const conferenceFriendlyId = ref('')
     const pdfUrl = ref('')
     const provider = ref<PresentationProvider>('MARP')
     const presentationFormat = ref<PresentationFormat>('source')
@@ -90,6 +92,10 @@ export default {
         conference = await getConference(props.conferenceId as string, auth.state.token as string)
         sourceUrl.value = (conference?.presentationSourceUrl as string) || ''
         conferenceName.value = conference?.name || ''
+        conferenceFriendlyId.value = conference?.friendlyId || ''
+        publicSlidesUrl.value = conferenceFriendlyId.value
+          ? `/c/${conferenceFriendlyId.value}/presentation`
+          : ''
       } catch (e: any) { /* el campo simplemente queda vacío */ }
     }
 
@@ -141,7 +147,7 @@ export default {
     ])
 
     return {
-      file, uploading, error, success, checkedStatus, ready, slidesUrl, pdfUrl,
+      file, uploading, error, success, checkedStatus, ready, slidesUrl, publicSlidesUrl, pdfUrl,
       provider, presentationFormat, sourceUrl, onFileChange, upload, breadcrumbItems
     }
   }

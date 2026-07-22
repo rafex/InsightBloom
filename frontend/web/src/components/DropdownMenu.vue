@@ -1,14 +1,15 @@
 <template lang="pug">
 .dropdown-menu(ref="rootEl")
-  button.dropdown-trigger(type="button" @click="open = !open")
+  button.dropdown-trigger(type="button" @click="toggle")
     | {{ label }}
     span.dropdown-caret ▾
-  .dropdown-panel(v-if="open" @click="open = false")
-    slot
+  Teleport(to="body")
+    .dropdown-panel.dropdown-panel-fixed(v-if="open" ref="panelEl" :style="panelStyle" @click="open = false")
+      slot
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 export default {
   name: 'DropdownMenu',
@@ -18,17 +19,61 @@ export default {
   setup() {
     const open = ref(false)
     const rootEl = ref<HTMLElement | null>(null)
+    const panelEl = ref<HTMLElement | null>(null)
+    const panelStyle = ref<Record<string, string>>({})
+
+    function positionPanel() {
+      if (!open.value || !rootEl.value || !panelEl.value) return
+      const trigger = rootEl.value.getBoundingClientRect()
+      const panel = panelEl.value.getBoundingClientRect()
+      const gap = 4
+      const margin = 8
+      const top = trigger.bottom + gap + panel.height <= window.innerHeight
+        ? trigger.bottom + gap
+        : Math.max(margin, trigger.top - panel.height - gap)
+      const left = Math.min(
+        Math.max(margin, trigger.left),
+        Math.max(margin, window.innerWidth - panel.width - margin)
+      )
+      panelStyle.value = {
+        top: `${top}px`,
+        left: `${left}px`
+      }
+    }
+
+    function toggle() {
+      open.value = !open.value
+      if (open.value) {
+        const trigger = rootEl.value?.getBoundingClientRect()
+        if (trigger) {
+          panelStyle.value = {
+            top: `${trigger.bottom + 4}px`,
+            left: `${trigger.left}px`
+          }
+        }
+        nextTick(positionPanel)
+      }
+    }
 
     function onDocumentClick(e: MouseEvent) {
-      if (rootEl.value && !rootEl.value.contains(e.target as Node)) {
+      if (rootEl.value && !rootEl.value.contains(e.target as Node)
+        && !panelEl.value?.contains(e.target as Node)) {
         open.value = false
       }
     }
 
     onMounted(() => document.addEventListener('click', onDocumentClick))
-    onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
+    onMounted(() => {
+      window.addEventListener('resize', positionPanel)
+      window.addEventListener('scroll', positionPanel, true)
+    })
+    onBeforeUnmount(() => {
+      document.removeEventListener('click', onDocumentClick)
+      window.removeEventListener('resize', positionPanel)
+      window.removeEventListener('scroll', positionPanel, true)
+    })
 
-    return { open, rootEl }
+    return { open, rootEl, panelEl, panelStyle, toggle }
   }
 }
 </script>
@@ -45,10 +90,10 @@ export default {
 .dropdown-caret { font-size: 0.7rem; }
 
 .dropdown-panel {
-  position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
   min-width: 160px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.1); padding: 4px; display: flex; flex-direction: column;
 }
+.dropdown-panel-fixed { position: fixed; z-index: 1000; }
 
 .dropdown-panel :deep(a), .dropdown-panel :deep(button) {
   display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 6px;

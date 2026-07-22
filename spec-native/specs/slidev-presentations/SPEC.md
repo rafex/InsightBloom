@@ -41,7 +41,10 @@ usuario durante la carga.
   estructural/estática y hashes; los warnings sólo se permiten explícitamente
   con `SLIDEV_FAT_ALLOW_WARNINGS=true`.
 - Slidev se construye con `@slidev/cli@52.18.0`, tema default fijado y una
-  base por conferencia. El artefacto activo queda descrito por
+  base pública por conferencia bajo
+  `/api/presentations/api/v1/conferences/{uuid}/presentation/`. Esa base debe
+  incluir el prefijo del proxy frontend; usar la ruta interna `/api/v1/...`
+  rompe la carga de los assets JavaScript/CSS. El artefacto activo queda descrito por
   `manifest.json`; el reemplazo ocurre sólo después de validar y construir el
   nuevo directorio.
 - Para Slidev, la URL de reproducción debe ser la raíz

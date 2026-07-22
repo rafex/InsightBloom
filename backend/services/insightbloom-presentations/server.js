@@ -312,7 +312,12 @@ function findPresentationEntry(srcDir, provider) {
 }
 
 function presentationBasePath(conferenceId) {
-  return `/api/v1/conferences/${conferenceId}/presentation/`;
+  // The service is published behind the frontend proxy at /api/presentations.
+  // Slidev writes absolute asset URLs into index.html, so using the internal
+  // service path (/api/v1/...) makes every JS/CSS request bypass the proxy and
+  // leaves the embedded presentation blank.
+  const publicPrefix = process.env.PRESENTATIONS_PUBLIC_PREFIX || '/api/presentations/api/v1';
+  return `${publicPrefix}/conferences/${conferenceId}/presentation/`;
 }
 
 function replaceActivePresentation(conferenceId, stagingDir) {

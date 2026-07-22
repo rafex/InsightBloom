@@ -34,6 +34,8 @@
             a(:href="contact.blog" target="_blank" rel="noopener") 📝 Blog
           li
             a(:href="telegramUrl" target="_blank" rel="noopener") 💬 Telegram {{ contact.telegram }}
+          li
+            a(:href="contact.telegramGroup" target="_blank" rel="noopener") 👥 Grupo de Telegram
       a.btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
 
   .login-required(v-else-if="!canParticipate")
