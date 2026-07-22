@@ -10,6 +10,7 @@ on:
     paths:
       - 'frontend/web/**'
       - 'container/frontend/Dockerfile'
+      - 'container/frontend/nginx.conf'
       - '.github/workflows/publish-web.yml'
   workflow_dispatch:
     inputs:
