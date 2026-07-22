@@ -3,11 +3,13 @@ import axios from 'axios'
 const BASE = '/api/presentations/api/v1'
 
 export type PresentationProvider = 'MARP' | 'SLIDEV'
+export type PresentationFormat = 'source' | 'fat'
 
 export interface PresentationStatus {
   ready: boolean
   provider?: PresentationProvider
   presentationProvider?: PresentationProvider
+  presentationFormat?: PresentationFormat
   engineVersion?: string | null
   [key: string]: unknown
 }
@@ -31,28 +33,34 @@ export async function getPresentationStatus(conferenceId: string): Promise<Prese
   return res.data
 }
 
-export function getSlidesUrl(conferenceId: string, token?: string | null): string {
-  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
-  return `${BASE}/conferences/${conferenceId}/presentation/slides${query}`
+export function getSlidesUrl(conferenceId: string, _token?: string | null): string {
+  return `${BASE}/conferences/${conferenceId}/presentation/slides`
 }
 
-export function getPresentationRootUrl(conferenceId: string, token?: string | null): string {
-  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
-  return `${BASE}/conferences/${conferenceId}/presentation/${query}`
+export function getPresentationRootUrl(conferenceId: string, _token?: string | null): string {
+  return `${BASE}/conferences/${conferenceId}/presentation/`
 }
 
-export function getPresenterSlidesUrl(conferenceId: string, token?: string | null): string {
-  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
-  return `${BASE}/conferences/${conferenceId}/presentation/presenter${query}`
+export function getPresenterSlidesUrl(conferenceId: string, _token?: string | null): string {
+  return `${BASE}/conferences/${conferenceId}/presentation/presenter`
 }
 
 export function getSlidesPreviewUrl(conferenceId: string): string {
   return `${BASE}/conferences/${conferenceId}/presentation/slides/preview`
 }
 
-export function getPdfUrl(conferenceId: string, token?: string | null): string {
-  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
-  return `${BASE}/conferences/${conferenceId}/presentation/pdf${query}`
+export function getPdfUrl(conferenceId: string, _token?: string | null): string {
+  return `${BASE}/conferences/${conferenceId}/presentation/pdf`
+}
+
+/** Prime the HttpOnly, path-scoped presentation cookie before loading an iframe,
+ * WebSocket or download URL. Tokens must not be put in those URLs. */
+export async function primePresentationAccess(conferenceId: string, token: string, presenter = false): Promise<void> {
+  const path = presenter ? 'presenter' : 'slides'
+  await axios.get(`${BASE}/conferences/${conferenceId}/presentation/${path}`, {
+    headers: authHeader(token),
+    responseType: 'text'
+  })
 }
 
 function wsBase(): string {
@@ -60,13 +68,12 @@ function wsBase(): string {
   return `${proto}//${window.location.host}${BASE}`
 }
 
-export function getAudienceWsUrl(conferenceId: string, token?: string | null): string {
-  const query = token ? `?ib_token=${encodeURIComponent(token)}` : ''
-  return `${wsBase()}/conferences/${conferenceId}/presentation/ws/audience${query}`
+export function getAudienceWsUrl(conferenceId: string, _token?: string | null): string {
+  return `${wsBase()}/conferences/${conferenceId}/presentation/ws/audience`
 }
 
-export function getPresenterWsUrl(conferenceId: string, token: string): string {
-  return `${wsBase()}/conferences/${conferenceId}/presentation/ws/presenter?token=${encodeURIComponent(token)}`
+export function getPresenterWsUrl(conferenceId: string, _token: string): string {
+  return `${wsBase()}/conferences/${conferenceId}/presentation/ws/presenter`
 }
 
 export function getRemoteWsUrl(conferenceId: string, remoteToken: string): string {

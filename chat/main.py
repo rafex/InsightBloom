@@ -28,7 +28,7 @@ from fastapi.staticfiles import StaticFiles
 import nats
 
 from bot import Roberto
-from config import INGEST_URL, NATS_URL, NATS_AUTH_TOKEN
+from config import CORS_ORIGINS, INGEST_URL, NATS_URL, NATS_AUTH_TOKEN
 from db import Database
 from services.connection_manager import ConnectionManager
 from routers import auth, conference, webhook, websocket
@@ -65,7 +65,7 @@ app.state.roberto = roberto
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )

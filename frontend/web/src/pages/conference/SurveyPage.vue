@@ -121,7 +121,7 @@ import { useRoute } from 'vue-router'
 import { Model } from 'survey-core'
 import { SurveyComponent } from 'survey-vue3-ui'
 import { getQuestions, submitResponses, hasResponded, getSurveyDefinition, submitSurveyJs } from '@/services/api/surveyApi'
-import { getPresentationStatus, getPdfUrl } from '@/services/api/presentationsApi'
+import { getPresentationStatus, getPdfUrl, primePresentationAccess } from '@/services/api/presentationsApi'
 import { getCertificateBlobUrl } from '@/services/api/usersApi'
 import { organizerContact, telegramContactUrl } from '@/config/contact'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -287,7 +287,10 @@ export default {
       try {
         const status = await getPresentationStatus(props.conferenceId)
         pdfReady.value = !!status.ready
-        if (pdfReady.value) pdfUrl.value = getPdfUrl(props.conferenceId, auth.state.token)
+        if (pdfReady.value) {
+          await primePresentationAccess(props.conferenceId, auth.state.token as string)
+          pdfUrl.value = getPdfUrl(props.conferenceId)
+        }
       } catch (e: any) { pdfReady.value = false }
     }
 

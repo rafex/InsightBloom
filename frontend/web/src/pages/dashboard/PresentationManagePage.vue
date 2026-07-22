@@ -5,7 +5,7 @@
   h2 Presentación
 
   .status-card(v-if="checkedStatus")
-    p(v-if="ready") ✅ Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }} generada para esta conferencia.
+    p(v-if="ready") ✅ Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }}{{ presentationFormat === 'fat' ? ' FAT precompilada' : '' }} generada para esta conferencia.
     p(v-else) Aún no se ha subido una presentación.
     .preview-actions(v-if="ready")
       a.btn-secondary(:href="slidesUrl" target="_blank" rel="noopener") Ver slides
@@ -19,7 +19,7 @@
         option(value="MARP") Marp
         option(value="SLIDEV") Slidev
       p.field-hint(v-if="provider === 'MARP'") ZIP con el Markdown de Marp y sus assets locales (CSS, imágenes y fuentes).
-      p.field-hint(v-else) ZIP de un proyecto Slidev controlado: incluye slides.md y assets locales. No se aceptan package.json, plugins ni archivos ejecutables.
+      p.field-hint(v-else) ZIP fuente con slides.md y assets locales, o ZIP FAT con slidev-artifact.json y dist/ precompilado. El FAT se detecta automáticamente y sólo se acepta si la auditoría está habilitada.
     p.hint El engine seleccionado se usará para generar la vista pública, el modo Presentar y las exportaciones.
     input(type="file" accept=".zip" @change="onFileChange" ref="fileInput")
     .form-group
@@ -34,8 +34,8 @@
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { uploadPresentation, getPresentationStatus, getSlidesUrl, getPresentationRootUrl, getPdfUrl } from '@/services/api/presentationsApi'
-import type { PresentationProvider } from '@/services/api/presentationsApi'
+import { uploadPresentation, getPresentationStatus, getSlidesUrl, getPresentationRootUrl, getPdfUrl, primePresentationAccess } from '@/services/api/presentationsApi'
+import type { PresentationFormat, PresentationProvider } from '@/services/api/presentationsApi'
 import { getConference, updateConference } from '@/services/api/usersApi'
 import type { Conference } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -57,6 +57,7 @@ export default {
     const slidesUrl = ref('')
     const pdfUrl = ref('')
     const provider = ref<PresentationProvider>('MARP')
+    const presentationFormat = ref<PresentationFormat>('source')
     const sourceUrl = ref('')
     const conferenceName = ref('')
     let conference: Conference | null = null
@@ -72,11 +73,13 @@ export default {
         const status = await getPresentationStatus(props.conferenceId as string)
         ready.value = !!status.ready
         provider.value = status.provider === 'SLIDEV' ? 'SLIDEV' : 'MARP'
+        presentationFormat.value = status.presentationFormat === 'fat' ? 'fat' : 'source'
         if (ready.value) {
+          await primePresentationAccess(props.conferenceId as string, auth.state.token as string, true)
           slidesUrl.value = provider.value === 'SLIDEV'
-            ? getPresentationRootUrl(props.conferenceId as string, auth.state.token)
-            : getSlidesUrl(props.conferenceId as string, auth.state.token)
-          pdfUrl.value = getPdfUrl(props.conferenceId as string, auth.state.token)
+            ? getPresentationRootUrl(props.conferenceId as string)
+            : getSlidesUrl(props.conferenceId as string)
+          pdfUrl.value = getPdfUrl(props.conferenceId as string)
         }
       } catch (e: any) { ready.value = false }
       finally { checkedStatus.value = true }
@@ -113,7 +116,13 @@ export default {
           }, auth.state.token as string)
         }
       } catch (e: any) {
-        error.value = e.response?.data?.message || 'No se pudo generar la presentación. Verifica que el ZIP tenga un archivo .md.'
+        const status = e.response?.status
+        const backendMessage = e.response?.data?.message || e.response?.data?.error
+        error.value = status === 504
+          ? 'La generación tardó demasiado. El servidor sigue protegido contra cargas concurrentes; inténtalo nuevamente.'
+          : backendMessage || (status === 400
+            ? 'El ZIP no cumple el formato de la presentación seleccionada.'
+            : 'No se pudo generar la presentación. Revisa los logs del servicio.')
       } finally {
         uploading.value = false
       }
@@ -133,7 +142,7 @@ export default {
 
     return {
       file, uploading, error, success, checkedStatus, ready, slidesUrl, pdfUrl,
-      provider, sourceUrl, onFileChange, upload, breadcrumbItems
+      provider, presentationFormat, sourceUrl, onFileChange, upload, breadcrumbItems
     }
   }
 }

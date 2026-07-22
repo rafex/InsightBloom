@@ -62,6 +62,14 @@ class Database:
             ).fetchone()
             return dict(row) if row else None
 
+    def update_password(self, phone: str, password_hash: str) -> None:
+        with _conn() as c:
+            c.execute(
+                "UPDATE users SET password_enc = ? WHERE phone = ?",
+                (password_hash, phone),
+            )
+            c.commit()
+
     # ── sessions ───────────────────────────────────────────────────────────
 
     def create_session(self, phone: str) -> str:

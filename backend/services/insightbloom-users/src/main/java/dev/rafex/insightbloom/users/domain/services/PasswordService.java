@@ -35,8 +35,13 @@ public class PasswordService {
             final byte[] expected = HexFormat.of().parseHex(parts[2]);
             return hasher.verify(password.toCharArray(), salt, iterations, expected);
         }
-        // Legacy: bare SHA-256 hex (64 chars, no prefix) — still accepted for migration
-        return sha256(password).equals(storedHash);
+        // Legacy accounts are accepted only long enough to transparently migrate
+        // them to PBKDF2 on this successful login. Keep the comparison constant-time
+        // and reject malformed values so this branch cannot become a generic parser.
+        if (!storedHash.matches("[0-9a-fA-F]{64}")) return false;
+        return MessageDigest.isEqual(
+                sha256(password).getBytes(StandardCharsets.US_ASCII),
+                storedHash.toLowerCase(java.util.Locale.ROOT).getBytes(StandardCharsets.US_ASCII));
     }
 
     public boolean isLegacyHash(final String storedHash) {

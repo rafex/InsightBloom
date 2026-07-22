@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 ENV CHROME_PATH=/usr/bin/chromium
-ENV CHROME_NO_SANDBOX=true
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 ENV PORT=8091
 ENV DATA_DIR=/data
@@ -22,6 +21,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY server.js live.js ./
+COPY tools/audit-slidev-artifact.js ./tools/audit-slidev-artifact.js
 
 RUN mkdir -p /data && chown -R node:node /app /data
 USER node

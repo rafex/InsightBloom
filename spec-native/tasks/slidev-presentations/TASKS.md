@@ -193,6 +193,20 @@
   FluxCD; no aplicar cambios manuales con kubectl.
 - Criterio de cierre: checklist operativo ejecutado y sin regresiones de Marp.
 
+### SLIDEV-016 — Soporte de Slidev FAT precompilado
+
+- Estado: `in_progress`
+- Owner: presentations + seguridad + platform
+- Dependencias: SLIDEV-003, SLIDEV-005, SLIDEV-014
+- Aceptar automáticamente `slidev-artifact.json` como formato FAT cuando
+  `SLIDEV_FAT_ENABLED=true`; no añadir un tercer engine al selector.
+- Validar allowlist, límites, hashes, rutas publicables y auditoría estática;
+  conservar la decisión y el resumen en `manifest.json`.
+- Servir `dist/`, previews y PDF empaquetados sin ejecutar Slidev; mantener el
+  ZIP fuente en su flujo actual.
+- Criterio de cierre: fixture FAT válido publicado, fixture con `source/` o
+  hash incorrecto rechazado y comprobación de status/preview/PDF.
+
 ## Dependencias y orden recomendado
 
 ```text

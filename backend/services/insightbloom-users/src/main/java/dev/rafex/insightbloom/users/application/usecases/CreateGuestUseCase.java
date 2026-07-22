@@ -38,15 +38,16 @@ public class CreateGuestUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
 
         GuestUser guest = new GuestUser(request.displayName(), request.deviceFingerprint(), request.conferenceUuid());
-        guestUserRepository.save(guest);
-
-        Token token = tokenService.issueGuestToken(guest.getUuid(), request.deviceFingerprint());
-
         final var access = platformDeviceGuard.checkAndRegisterLogin(
                 request.deviceFingerprint(), guest.getUuid(), TokenKind.GUEST, platformSettingsRepository.get());
         if (access instanceof PlatformDeviceGuard.Result.Blocked) {
             throw new PlatformDeviceBlockedException();
         }
+
+        // Check before persisting the guest or minting a token. Blocked devices
+        // must not be able to amplify database rows and token creation.
+        guestUserRepository.save(guest);
+        Token token = tokenService.issueGuestToken(guest.getUuid(), request.deviceFingerprint());
 
         return new GuestResult(token.getTokenValue(), guest.getUuid(), guest.getDisplayName(),
                 token.getExpiresAt().toString());

@@ -31,7 +31,7 @@
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getPresentationStatus, getPresenterSlidesUrl, getPresenterWsUrl, createRemoteLinkToken } from '@/services/api/presentationsApi'
+import { getPresentationStatus, getPresenterSlidesUrl, getPresenterWsUrl, createRemoteLinkToken, primePresentationAccess } from '@/services/api/presentationsApi'
 import type { PresentationProvider } from '@/services/api/presentationsApi'
 import { getConference, getRegisteredAttendeesCount } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -171,7 +171,8 @@ export default {
         ready.value = !!status.ready
         provider.value = status.provider === 'SLIDEV' ? 'SLIDEV' : 'MARP'
         if (ready.value) {
-          slidesUrl.value = getPresenterSlidesUrl(props.conferenceId as string, auth.state.token)
+          await primePresentationAccess(props.conferenceId as string, auth.state.token as string, true)
+          slidesUrl.value = getPresenterSlidesUrl(props.conferenceId as string)
           connectPresenterWs()
         }
       } catch (e: any) { ready.value = false }

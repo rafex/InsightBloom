@@ -99,7 +99,7 @@ export default {
       api?.dispose()
     })
 
-    return { loading, deviceBlocked, conferenceId: props.conferenceId }
+    return { loading, deviceBlocked }
   }
 }
 </script>

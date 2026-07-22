@@ -12,7 +12,7 @@
     .preview-banner(v-if="!canParticipate")
       span Vista pública: primeras {{ previewSlideLimit }} diapositivas
       router-link(:to="`/c/${friendlyId}/ticket`") Regístrate y canjea tu boleto para continuar
-    iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides")
+    iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" sandbox="allow-scripts allow-forms allow-presentation")
     .presentation-actions
       a.btn-secondary(v-if="canParticipate && presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
       router-link.btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
@@ -21,7 +21,7 @@
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { getPresentationStatus, getSlidesUrl, getPresentationRootUrl, getSlidesPreviewUrl, getAudienceWsUrl } from '@/services/api/presentationsApi'
+import { getPresentationStatus, getSlidesUrl, getPresentationRootUrl, getSlidesPreviewUrl, getAudienceWsUrl, primePresentationAccess } from '@/services/api/presentationsApi'
 import type { PresentationProvider } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -73,15 +73,12 @@ export default {
     function applyNavigationState(state: string) {
       if (!slidesFrame.value) return
       try {
-        const current = new URL(slidesFrame.value.contentWindow!.location.href)
+        const current = new URL(slidesUrl.value, window.location.origin)
         if (provider.value === 'MARP' || state.startsWith('#')) {
           current.hash = state
         } else {
           const marker = `/api/presentations/api/v1/conferences/${props.conferenceId}/presentation/`
-          const base = current.pathname.includes('/presentation/')
-            ? current.pathname.slice(0, current.pathname.indexOf('/presentation/') + '/presentation/'.length)
-            : marker
-          const target = new URL(state, current.origin + base)
+          const target = new URL(state, window.location.origin + marker)
           if (target.pathname.startsWith(`${marker}presenter`)) {
             target.pathname = target.pathname.replace(`${marker}presenter`, marker.slice(0, -1))
           }
@@ -89,7 +86,7 @@ export default {
           current.search = target.search
           current.hash = target.hash
         }
-        slidesFrame.value.contentWindow!.location.href = current.href
+        slidesFrame.value.src = current.href
       } catch (e: any) { /* same-origin esperado; si falla, la audiencia puede refrescar */ }
     }
 
@@ -100,12 +97,15 @@ export default {
         ready.value = !!status.ready
         provider.value = status.provider === 'SLIDEV' ? 'SLIDEV' : 'MARP'
         if (ready.value) {
-          slidesUrl.value = canParticipate.value
-            ? (provider.value === 'SLIDEV'
-              ? getPresentationRootUrl(props.conferenceId, auth.state.token)
-              : getSlidesUrl(props.conferenceId, auth.state.token))
-            : getSlidesPreviewUrl(props.conferenceId)
-          if (canParticipate.value) connectAudienceWs()
+          if (canParticipate.value) {
+            await primePresentationAccess(props.conferenceId, auth.state.token as string)
+            slidesUrl.value = provider.value === 'SLIDEV'
+              ? getPresentationRootUrl(props.conferenceId)
+              : getSlidesUrl(props.conferenceId)
+            connectAudienceWs()
+          } else {
+            slidesUrl.value = getSlidesPreviewUrl(props.conferenceId)
+          }
         }
       } catch (e: any) { ready.value = false }
       finally { loading.value = false }

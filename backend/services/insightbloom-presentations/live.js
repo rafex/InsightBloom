@@ -6,7 +6,7 @@ const PRESENTER_WS_RE = /^\/api\/v1\/conferences\/([^/]+)\/presentation\/ws\/pre
 const AUDIENCE_WS_RE = /^\/api\/v1\/conferences\/([^/]+)\/presentation\/ws\/audience$/;
 const REMOTE_WS_RE = /^\/api\/v1\/conferences\/([^/]+)\/presentation\/ws\/remote$/;
 const NAV_DIRECTIONS = new Set(['next', 'prev']);
-const REMOTE_TOKEN_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
+const REMOTE_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutos
 
 /**
  * Sincronización en vivo del estado de navegación entre presentador y audiencia.
@@ -74,16 +74,24 @@ function broadcastCount(conferenceId) {
   }
 }
 
-async function isOrganizerOrAdmin(token) {
+function cookieToken(req) {
+  const cookieHeader = req.headers.cookie || '';
+  const tokenCookie = cookieHeader.split(';').map((cookie) => cookie.trim()).find((cookie) => cookie.startsWith('ib_token='));
+  if (!tokenCookie) return null;
+  try { return decodeURIComponent(tokenCookie.slice('ib_token='.length)); } catch { return null; }
+}
+
+function requestToken(url, req, queryName) {
+  return url.searchParams.get(queryName) || cookieToken(req);
+}
+
+async function hasPresentationManagementAccess(conferenceId, token) {
   if (!token || !usersUrlRef) return false;
   try {
-    const res = await fetch(`${usersUrlRef}/api/v1/auth/validate`, {
+    const res = await fetch(`${usersUrlRef}/api/v1/conferences/${conferenceId}/presentation-access`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) return false;
-    const body = await res.json();
-    const role = (body && body.data && body.data.role) || '';
-    return !!(body && body.data && body.data.valid) && (role.includes('organizer') || role.includes('admin'));
+    return res.ok;
   } catch {
     return false;
   }
@@ -114,10 +122,12 @@ function signRemoteToken(conferenceId) {
 }
 
 function verifyRemoteToken(conferenceId, token) {
-  if (!token || typeof token !== 'string' || !token.includes('.')) return false;
+  if (!internalApiKeyRef || !token || typeof token !== 'string' || !token.includes('.')) return false;
   const [payload, sig] = token.split('.');
   const expectedSig = crypto.createHmac('sha256', internalApiKeyRef || '').update(payload).digest('base64url');
-  if (sig !== expectedSig) return false;
+  const actual = Buffer.from(sig);
+  const expected = Buffer.from(expectedSig);
+  if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) return false;
   try {
     const { c, exp } = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     return c === conferenceId && typeof exp === 'number' && exp > Date.now();
@@ -127,7 +137,7 @@ function verifyRemoteToken(conferenceId, token) {
 }
 
 async function issueRemoteToken(conferenceId, organizerToken) {
-  const authorized = await isOrganizerOrAdmin(organizerToken);
+  const authorized = await hasPresentationManagementAccess(conferenceId, organizerToken);
   if (!authorized) return null;
   return signRemoteToken(conferenceId);
 }
@@ -261,8 +271,8 @@ function attachLiveSync(server, { usersUrl, natsUrl, natsToken, internalApiKey }
     const presenterMatch = url.pathname.match(PRESENTER_WS_RE);
     if (presenterMatch) {
       const conferenceId = presenterMatch[1];
-      const token = url.searchParams.get('token');
-      const authorized = await isOrganizerOrAdmin(token);
+      const token = requestToken(url, req, 'token');
+      const authorized = await hasPresentationManagementAccess(conferenceId, token);
       if (!authorized) {
         socket.destroy();
         return;
@@ -303,7 +313,7 @@ function attachLiveSync(server, { usersUrl, natsUrl, natsToken, internalApiKey }
     const audienceMatch = url.pathname.match(AUDIENCE_WS_RE);
     if (audienceMatch) {
       const conferenceId = audienceMatch[1];
-      const token = url.searchParams.get('ib_token');
+      const token = requestToken(url, req, 'ib_token');
       if (!await hasConferenceAccess(conferenceId, token)) {
         socket.destroy();
         return;

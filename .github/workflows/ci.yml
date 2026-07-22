@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   services:
     name: Build & Test Services
@@ -37,7 +40,13 @@ jobs:
           cache-dependency-path: frontend/web/package-lock.json
 
       - name: Install frontend deps
-        run: npm --prefix frontend/web install
+        run: npm --prefix frontend/web ci
+
+      - name: Lint frontend
+        run: npm --prefix frontend/web run lint
+
+      - name: Typecheck frontend
+        run: npm --prefix frontend/web run typecheck
 
       - name: Build frontend
         run: npm --prefix frontend/web run build
@@ -61,10 +70,13 @@ jobs:
       - name: Install chat deps
         run: |
           pip install -r chat/requirements.txt
-          pip install pytest pytest-asyncio
+          pip install pytest pytest-asyncio pip-audit
 
       - name: Run chat unit tests
         run: cd chat && python -m pytest -v
+
+      - name: Audit chat dependencies
+        run: pip-audit -r chat/requirements.txt
 
   telegram:
     name: Test Telegram Service
@@ -82,7 +94,32 @@ jobs:
       - name: Install telegram deps
         run: |
           pip install -r telegram/requirements.txt
-          pip install pytest pytest-asyncio
+          pip install pytest pytest-asyncio pip-audit
 
       - name: Run telegram unit tests
         run: cd telegram && python -m pytest -v
+
+      - name: Audit telegram dependencies
+        run: pip-audit -r telegram/requirements.txt
+
+  node-security:
+    name: Audit Node service dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install presentation dependencies
+        run: npm --prefix backend/services/insightbloom-presentations ci --omit=dev
+      - name: Test Slidev FAT artifact auditor
+        run: npm --prefix backend/services/insightbloom-presentations run test:audit:slidev
+      - name: Audit presentation dependencies
+        run: npm --prefix backend/services/insightbloom-presentations audit --omit=dev --audit-level=high
+      - name: Audit frontend dependencies
+        # Excalidraw's Mermaid dependency currently pins lodash-es/nanoid to
+        # versions with upstream advisories. npm's only proposed remediation
+        # is a breaking Excalidraw downgrade, so keep the report visible while
+        # Dependabot tracks the first compatible release.
+        continue-on-error: true
+        run: npm --prefix frontend/web audit --omit=dev --audit-level=high

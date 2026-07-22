@@ -35,12 +35,12 @@ describe('presentationsApi', () => {
 
   it('getSlidesUrl / getSlidesPreviewUrl / getPdfUrl build direct asset URLs', () => {
     expect(getSlidesUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/slides`)
-    expect(getSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/slides?ib_token=a%20b%2Bc`)
-    expect(getPresentationRootUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/?ib_token=a%20b%2Bc`)
-    expect(getPresenterSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/presenter?ib_token=a%20b%2Bc`)
+    expect(getSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/slides`)
+    expect(getPresentationRootUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/`)
+    expect(getPresenterSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/presenter`)
     expect(getSlidesPreviewUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/slides/preview`)
     expect(getPdfUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/pdf`)
-    expect(getPdfUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/pdf?ib_token=a%20b%2Bc`)
+    expect(getPdfUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/pdf`)
   })
 
   describe('websocket URL builders', () => {
@@ -58,10 +58,10 @@ describe('presentationsApi', () => {
       expect(getAudienceWsUrl('c1')).toBe(`ws://localhost:5173${BASE}/conferences/c1/presentation/ws/audience`)
     })
 
-    it('presenter/remote URLs URL-encode the token query param', () => {
+    it('presenter URLs do not carry the session token; remote control keeps its short-lived token', () => {
       vi.stubGlobal('window', { location: { protocol: 'https:', host: 'insightbloom.example.com' } })
       expect(getPresenterWsUrl('c1', 'a b+c')).toBe(
-        `wss://insightbloom.example.com${BASE}/conferences/c1/presentation/ws/presenter?token=a%20b%2Bc`
+        `wss://insightbloom.example.com${BASE}/conferences/c1/presentation/ws/presenter`
       )
       expect(getRemoteWsUrl('c1', 'a b+c')).toBe(
         `wss://insightbloom.example.com${BASE}/conferences/c1/presentation/ws/remote?token=a%20b%2Bc`

@@ -1,14 +1,159 @@
 # Security Audit Report — InsightBloom
 
-_Fecha inicial: 2026-06-26 | Actualizado: 2026-06-30 | Estado: ✅ TODOS LOS HALLAZGOS CERRADOS_
+_Fecha inicial: 2026-06-26 | Actualizado: 2026-07-21 | Estado: ✅ Correcciones implementadas; validar después del despliegue_
 
 ---
 
 ## Resumen ejecutivo
 
-Se realizaron **dos rondas de auditoría**. La primera identificó 7 hallazgos sobre autenticación y exposición de endpoints. La segunda amplió el alcance a criptografía, infraestructura de red, y operaciones. En total **17 issues** fueron identificados y corregidos.
+Se realizaron **tres rondas de auditoría**. Las dos primeras cubrieron autenticación, endpoints, criptografía, red e infraestructura; la tercera cubrió presentaciones, chat, frontend y CD. Los hallazgos confirmados tienen corrección implementada; las dependencias transitivas sin parche compatible quedan bajo seguimiento automatizado.
 
-Estado actual: **ningún hallazgo abierto**.
+Estado actual: **ningún hallazgo de código abierto; dependencias upstream bajo seguimiento**.
+
+---
+
+## Auditoría 3 — Endpoints, servicios, frontend y CD (2026-07-21)
+
+Esta ronda cubrió el flujo que quedó incorporado después del crecimiento del
+proyecto: carga y publicación de presentaciones Marp/Slidev, WebSocket de
+presentaciones, webhook del chat, HTML generado, credenciales y permisos de
+Kubernetes.
+
+### A3 — Upload de presentaciones sin autorización ✅ CORREGIDO
+
+`POST /api/v1/conferences/{id}/presentation` ahora valida el Bearer token en
+`insightbloom-users` **antes** de que Multer lea el ZIP. El endpoint nuevo
+`GET /api/v1/conferences/{id}/presentation-access` permite únicamente a un
+administrador de plataforma, al propietario del evento o a un rol de evento con
+`MANAGE_PRESENTATION`. El servicio de presentaciones usa ese endpoint para
+upload y para emitir/controlar enlaces remotos.
+
+### A4 — Bypass de archivos estáticos y ejecución de preview ✅ CORREGIDO
+
+Todos los archivos de una presentación completa requieren acceso al evento;
+ya no se protege solamente Slidev. El preview Marp elimina scripts, iframes,
+object/embed, handlers `on*` y enlaces `javascript:` y responde con CSP sin
+ejecución de scripts.
+
+### A5 — Tokens en URL de iframe/WebSocket/PDF ✅ CORREGIDO
+
+El frontend primero inicializa una cookie `ib_token` HttpOnly, `SameSite=Lax` y
+acotada al path de la conferencia. Después carga iframe, WebSocket y PDF sin
+poner el token en la URL. El control remoto conserva únicamente su token HMAC
+propio, ahora con TTL de 30 minutos, comparación constant-time y rechazo si la
+clave interna está ausente. La audiencia continúa validando boleto/acceso.
+
+### A6 — Webhook del chat sin autenticación ✅ CORREGIDO
+
+`POST /api/webhook/insightbloom` exige
+`X-InsightBloom-Signature: HMAC-SHA256(raw_body)` y limita el cuerpo a 16 KiB.
+GitOps inyecta la clave existente de chat como secreto para mantener una
+migración coordinada sin publicar valores en Git.
+
+### A7 — XSS y contraseñas reversibles en chat ✅ CORREGIDO
+
+Los datos recientes y las menciones se construyen con `textContent`, nunca con
+HTML interpolado. Los registros nuevos usan scrypt con salt aleatorio; las
+cuentas Fernet antiguas se migran al primer login exitoso. La columna conserva
+su nombre histórico `password_enc` para no romper SQLite.
+
+### A8 — Amplificación de invitados y headers ✅ CORREGIDO
+
+El canje de boleto invitado aplica rate limit por IP en nginx y verifica el
+bloqueo de dispositivo antes de guardar el invitado o emitir el token. Web y
+presentaciones agregan headers de seguridad; CI genera SBOM/provenance y ejecuta
+lint, typecheck, pruebas y auditorías de dependencias.
+
+### A9 — ServiceAccount compartido con permisos de sandbox ✅ CORREGIDO
+
+GitOps deja `automountServiceAccountToken: false` para servicios normales y
+crea `insightbloom-sandbox-manager` exclusivamente para `insightbloom-users`.
+El RoleBinding de Pods/Services/NetworkPolicies apunta a ese ServiceAccount
+dedicado.
+
+### Verificación realizada
+
+- `./mvnw -f pom.xml -pl backend/services/insightbloom-users -am test -DskipITs`
+  — 154 tests correctos.
+- `npm run lint`, `npm run typecheck` y `npm run test -- --run` en frontend —
+  correctos (96 tests).
+- `python3 -m pytest -q` en chat — 36 tests correctos.
+- `node --check server.js` y `node --check live.js` — correctos.
+- `git diff --check` — correcto.
+
+### Riesgos transitorios de dependencias
+
+Estado: **pendiente de resolver en una iniciativa posterior**. Auditoría ejecutada
+el 2026-07-21 con `npm audit --omit=dev --json`.
+
+#### SEC-DEP-001 — Slidev y `@hono/node-server`
+
+- **Ruta:** `@slidev/cli@52.18.0` → `@modelcontextprotocol/sdk` →
+  `@hono/node-server`.
+- **Aviso:** path traversal en `serve-static` mediante una barra invertida
+  codificada en Windows; CWE-22; CVSS 5.9; severidad moderada.
+- **Corrección propuesta por npm:** bajar `@slidev/cli` a `52.16.0`.
+  Es un cambio incompatible y no se aplicó.
+- **Exposición actual:** el servicio ejecuta Slidev en pods Linux/K3s, no
+  publica un servidor Hono directamente y procesa la presentación dentro de un
+  staging aislado. La explotación en el despliegue actual es de baja
+  probabilidad, pero la dependencia vulnerable permanece en la cadena de
+  compilación.
+- **Para resolver:** probar primero un override compatible de
+  `@hono/node-server >=2.0.5`; si no funciona, actualizar Slidev a una versión
+  que lo incorpore o evaluar el downgrade junto con pruebas de Marp/Slidev.
+- **Criterio de cierre:** `npm audit --omit=dev` sin este aviso y build/export
+  de una presentación Slidev real exitoso.
+
+#### SEC-DEP-002 — `lodash-es` en Excalidraw/Mermaid
+
+- **Ruta:** `@excalidraw/excalidraw@0.18.1` →
+  `@excalidraw/mermaid-to-excalidraw` → `mermaid` → `dagre-d3-es` →
+  `lodash-es@4.17.21`.
+- **Avisos:** code injection vía `_.template` (CWE-94, CVSS 8.1, alta) y
+  prototype pollution vía `_.unset`/`_.omit` (CWE-1321, CVSS 6.5, moderada).
+- **Exposición actual:** ocurre en el navegador al convertir contenido Mermaid
+  dentro de Excalidraw; no afecta directamente las sesiones, contraseñas ni
+  tokens de InsightBloom. El riesgo depende de que una entrada controlada por
+  el usuario alcance las funciones vulnerables durante esa conversión.
+- **Corrección propuesta por npm:** bajar Excalidraw a `0.17.6`, con posible
+  ruptura de APIs y comportamiento.
+- **Para resolver:** probar una versión más nueva de Excalidraw/Mermaid,
+  investigar si existe una versión corregida de `lodash-es` o reemplazar la
+  ruta de conversión Mermaid. No usar `npm audit fix --force` sin pruebas de
+  pizarra, exportación y carga de escenas.
+- **Criterio de cierre:** eliminar el aviso de `lodash-es` y demostrar que una
+  escena Mermaid controlada no permite ejecución ni modificación fuera del
+  canvas.
+
+#### SEC-DEP-003 — `nanoid` anidado en Excalidraw
+
+- **Ruta:** `@excalidraw/excalidraw/node_modules/nanoid@3.3.3` y
+  `@excalidraw/mermaid-to-excalidraw/node_modules/nanoid@4.0.2`.
+- **Aviso:** generación predecible de IDs cuando recibe valores no enteros;
+  CWE-835; CVSS 4.3; severidad moderada.
+- **Exposición actual:** afecta identificadores internos de Excalidraw/Mermaid,
+  no los tokens de autenticación ni los UUID de conferencias.
+- **Corrección propuesta por npm:** también bajar Excalidraw a `0.17.6`.
+- **Para resolver:** probar un override de `nanoid` a versiones corregidas o
+  actualizar Excalidraw/Mermaid; verificar compatibilidad ESM/CJS y exportación
+  de escenas.
+- **Criterio de cierre:** no quedan versiones vulnerables en
+  `npm ls nanoid` y las pruebas funcionales de Excalidraw pasan.
+
+Los avisos de `@mermaid-js/parser`, `langium`, `chevrotain`,
+`@chevrotain/gast` y `@chevrotain/cst-dts-gen` son efectos transitivos de la
+misma cadena `lodash-es`; no deben tratarse como cinco problemas independientes.
+
+#### Estado de mitigaciones y seguimiento
+
+- DOMPurify ya se fuerza a `^3.4.12` mediante `overrides` y dejó de aparecer
+  como riesgo activo.
+- El CI ejecuta auditorías de npm, `pip-audit`, Dependabot y genera SBOM.
+- La auditoría del frontend conserva `continue-on-error` porque el arreglo
+  automático actual degrada Excalidraw; el reporte sigue visible en cada CI.
+- No aplicar `npm audit fix --force` sin una rama de compatibilidad y pruebas
+  manuales de Marp, Slidev, Drawio, Excalidraw y la vista pública.
 
 ---
 

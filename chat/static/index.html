@@ -411,9 +411,16 @@ function renderRecentItems() {
     const li = document.createElement('li');
     li.className = 'bg-zinc-700/50 rounded-lg px-2 py-1.5';
     const badgeColor = item.kindEs === 'duda' ? 'text-blue-400' : 'text-purple-400';
-    li.innerHTML = `<span class="${badgeColor} font-mono font-semibold">[${item.word}]</span> ` +
-      `<span class="text-zinc-300">${item.preview}</span><br>` +
-      `<span class="text-zinc-500">— @${item.author}</span>`;
+    const badge = document.createElement('span');
+    badge.className = `${badgeColor} font-mono font-semibold`;
+    badge.textContent = `[${item.word}]`;
+    const preview = document.createElement('span');
+    preview.className = 'text-zinc-300';
+    preview.textContent = ` ${item.preview}`;
+    const author = document.createElement('span');
+    author.className = 'text-zinc-500';
+    author.textContent = `— @${item.author}`;
+    li.append(badge, preview, document.createElement('br'), author);
     ul.appendChild(li);
   }
 }
@@ -530,7 +537,12 @@ document.getElementById('chatInput').addEventListener('input', function() {
     btn.className =
       'w-full text-left px-3 py-1.5 text-sm text-white hover:bg-zinc-600 ' +
       'transition flex items-center gap-2 border-b border-zinc-600/40 last:border-0';
-    btn.innerHTML = `<span class="text-blue-400 font-mono text-xs">@</span>${nick}`;
+    const at = document.createElement('span');
+    at.className = 'text-blue-400 font-mono text-xs';
+    at.textContent = '@';
+    const name = document.createElement('span');
+    name.textContent = nick;
+    btn.append(at, name);
     btn.onclick   = () => insertMention(nick, m[0], before.length - m[0].length);
     box.appendChild(btn);
   });

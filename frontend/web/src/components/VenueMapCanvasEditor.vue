@@ -156,7 +156,6 @@ export default {
       const centerX = 200
       const centerY = 200
       const radiusOuter = 130
-      const radiusInner = 70
 
       const arcsPerSide = Math.floor(count / 3)
       let seatNum = 1

@@ -81,8 +81,8 @@ jobs:
             VITE_APP_VERSION=${{ steps.image_tag.outputs.value }}
             VITE_GIT_SHA=${{ github.sha }}
           push: true
-          provenance: false
-          sbom: false
+          provenance: true
+          sbom: true
           platforms: linux/amd64
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/insightbloom-web:${{ steps.image_tag.outputs.value }}

@@ -19,8 +19,9 @@ correspondiente.
 Slidev se integrará dentro del microservicio existente
 `insightbloom-presentations`, reutilizando autenticación, preview, visor
 público, panel del moderador, sincronización en vivo y almacenamiento por
-conferencia. El primer alcance aceptará proyectos Slidev controlados y
-reproducibles, no una instalación arbitraria de dependencias del usuario.
+conferencia. El alcance operativo conserva el ZIP fuente controlado y añade un
+ZIP FAT precompilado experimental; ninguno permite instalar dependencias del
+usuario durante la carga.
 
 ## Implementación vigente del MVP — 2026-07-21
 
@@ -31,6 +32,14 @@ reproducibles, no una instalación arbitraria de dependencias del usuario.
   1000 entradas; traversal, symlinks, configuraciones de build, scripts,
   componentes Vue y otras extensiones no permitidas se rechazan antes del
   reemplazo del artefacto activo.
+- El formato operativo del ZIP está documentado en
+  [`workflows/SLIDEV-PACKAGING.md`](../../workflows/SLIDEV-PACKAGING.md):
+  `slides.md` más assets declarativos. No se sube `dist/`, `node_modules`, un
+  proyecto npm completo ni el resultado compilado localmente.
+- El formato `slidev-artifact.json` + `dist/` se detecta automáticamente como
+  `presentationFormat=fat`. Requiere `SLIDEV_FAT_ENABLED=true`, auditoría
+  estructural/estática y hashes; los warnings sólo se permiten explícitamente
+  con `SLIDEV_FAT_ALLOW_WARNINGS=true`.
 - Slidev se construye con `@slidev/cli@52.18.0`, tema default fijado y una
   base por conferencia. El artefacto activo queda descrito por
   `manifest.json`; el reemplazo ocurre sólo después de validar y construir el
@@ -50,10 +59,11 @@ reproducibles, no una instalación arbitraria de dependencias del usuario.
   ruta relativa de la diapositiva, conservando `hash` como campo compatible
   con Marp.
 
-El MVP todavía deja fuera la exportación PPTX, la caché por hash de fuente, el
-artefacto separado de notas para el moderador y la ejecución de componentes o
-dependencias arbitrarias del ZIP. Esas capacidades permanecen como tareas
-posteriores y no deben reintroducirse sin revisar la frontera de seguridad.
+El MVP todavía deja fuera la caché por hash de fuente, el artefacto separado de
+notas para el moderador y la ejecución de dependencias arbitrarias del ZIP.
+El FAT permite JavaScript generado por el builder, pero no convierte el ZIP en
+un proyecto ejecutable: requiere auditoría, CSP y el rollout controlado de su
+feature flag.
 
 ## Problem
 
@@ -81,7 +91,8 @@ seguirá funcionando sin cambios ni re-procesamiento.
   tiene proveedor en su manifiesto, se interpreta como `MARP`.
 - Selector y ayudas específicas del proveedor junto al input del ZIP, antes de
   iniciar el procesamiento.
-- Upload de un paquete Slidev validado, con `slides.md` y assets locales.
+- Upload de un paquete Slidev fuente validado, con `slides.md` y assets locales,
+  o de un artefacto FAT con `slidev-artifact.json` y `dist/` ya compilado.
 - Construcción de una SPA estática Slidev con `--base` por conferencia.
 - Artefactos separados para audiencia y moderador cuando sea necesario para no
   exponer notas del ponente a la audiencia.
@@ -130,9 +141,12 @@ seguirá funcionando sin cambios ni re-procesamiento.
   pero sólo después de que la validación, build y artefactos hayan terminado
   correctamente. Una carga fallida no debe borrar ni cambiar la presentación
   anterior.
-- FR-005: Un paquete Slidev válido debe contener una entrada Markdown y sólo
-  archivos permitidos por la política de seguridad del MVP. Los assets locales
-  deben quedar disponibles desde la SPA construida.
+- FR-005: Un paquete Slidev fuente válido debe contener una entrada Markdown y
+  sólo archivos permitidos por la política de seguridad del MVP. Los assets
+  locales deben quedar disponibles desde la SPA construida.
+- FR-016: Un paquete Slidev FAT válido debe contener `slidev-artifact.json`,
+  `dist/index.html`, hashes de sus archivos y sólo ubicaciones publicables. El
+  backend debe auditarlo y servirlo sin ejecutar `slidev build`.
 - FR-006: El backend debe conservar un manifiesto por conferencia con proveedor,
   versión de Slidev/Marp, entrada, fecha, estado, hashes y exportaciones
   disponibles.
@@ -172,10 +186,11 @@ seguirá funcionando sin cambios ni re-procesamiento.
 - NFR-003: El extractor debe rechazar traversal (`../`), enlaces simbólicos,
   nombres ambiguos y archivos fuera de la cuota antes de escribir en
   `DATA_DIR`.
-- NFR-004: El MVP debe permitir únicamente Markdown, imágenes, fuentes y
+- NFR-004: El ZIP fuente debe permitir únicamente Markdown, imágenes, fuentes y
   estilos declarados por la política. `package.json`, `vite.config.*`,
-  `*.vue`, plugins y scripts ejecutables se rechazan hasta diseñar un sandbox
-  específico.
+  `*.vue`, plugins y scripts ejecutables se rechazan. El FAT puede contener
+  JavaScript generado dentro de `dist/`, pero nunca código fuente, dependencias,
+  source maps ni configuración de build.
 - NFR-005: La salida debe ser reproducible con la misma fuente, versión de
   herramienta y configuración. El manifiesto debe permitir diagnosticar qué
   proveedor generó cada artefacto.
@@ -242,6 +257,19 @@ seguirá funcionando sin cambios ni re-procesamiento.
 - **When** termina el build fallido
 - **Then** la versión anterior continúa disponible y el frontend muestra el
   error de la nueva carga.
+
+### Scenario 8 — Slidev FAT
+
+- **Given** un ZIP Slidev con `slidev-artifact.json`, `dist/index.html` y hashes
+  válidos
+- **When** `SLIDEV_FAT_ENABLED=true` y el auditor no encuentra reglas bloqueantes
+- **Then** el servicio publica `presentationFormat=fat`, sirve el `dist` sin
+  recompilar y conserva previews/PDF empaquetados cuando existen.
+
+- **Given** un FAT con `source/`, traversal, hash incorrecto o una regla de
+  seguridad bloqueante
+- **When** se recibe en el endpoint
+- **Then** se rechaza sin reemplazar la presentación activa.
 
 ## Dependencies
 

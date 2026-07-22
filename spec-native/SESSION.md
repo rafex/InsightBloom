@@ -7,7 +7,7 @@ Estado activo de trabajo para continuidad multi-agente.
 ## Estado actual
 
 - **Iniciativa activa**: `slidev-presentations`
-- **Branch**: `agent/event-notes-materials`
+- **Branch**: `main`
 - **Último agente**: Codex
 - **Última acción**: Integración inicial de Marp/Slidev en carga, build, visor,
   modo presentador y navegación en vivo.
@@ -28,6 +28,8 @@ este repositorio, en `InsightBloom-gitops`, reconciliado por FluxCD.
 - [ ] Añadir pruebas automatizadas de ZIP malicioso, regresión Marp y WebSocket
 - [ ] Validar el Docker build del servicio cuando Podman esté disponible
 - [ ] Reconciliar el tag de imagen en `InsightBloom-gitops` mediante FluxCD
+- [ ] Entregar a los agentes de presentaciones el formato de ZIP definido en
+  `workflows/SLIDEV-PACKAGING.md`
 
 ## Notas
 

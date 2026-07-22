@@ -291,6 +291,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
                 Route.of("/{id}/access", Set.of("GET")),
+                Route.of("/{id}/presentation-access", Set.of("GET")),
                 Route.of("/{id}/reservations/check-in", Set.of("POST")),
                 Route.of("/{id}/tickets", Set.of("GET", "POST")),
                 Route.of("/{id}/tickets/me", Set.of("GET")),
@@ -347,6 +348,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             return handleGetMyTicket(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/access")) return handleAccess(jx, jx.pathParam("id"));
+        if (path.endsWith("/presentation-access")) return handlePresentationAccess(jx, jx.pathParam("id"));
         if (path.endsWith("/tickets/me")) return handleGetMyIssuedTicket(jx, jx.pathParam("id"));
         if (path.endsWith("/tickets")) return handleListTickets(jx, jx.pathParam("id"));
         if (path.endsWith("/reservations")) {
@@ -1356,6 +1358,39 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
+    /**
+     * Authorization endpoint for the presentations service. It is deliberately
+     * separate from ticket access: only a platform admin, the conference owner,
+     * or an event role with MANAGE_PRESENTATION may upload/manage its files.
+     */
+    private boolean handlePresentationAccess(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            final boolean allowed = eventPermissionGuard.hasPermission(
+                    id, v.subjectUuid(), v.role(), Permission.MANAGE_PRESENTATION)
+                    || (isOrganizerOrAdmin(v.role()) && getConferenceUseCase.byId(id)
+                    .map(c -> isPlatformAdminRole(v.role()) || v.subjectUuid().equals(c.getCreatedByUserUuid()))
+                    .orElse(false));
+            if (!allowed) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para administrar la presentación");
+                return true;
+            }
+            sendOk(jx, 200, Map.of("allowed", true));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
     private boolean handleClaimTicket(final JettyHttpExchange jx, final String id) {
         final String token = extractToken(jx);
         try {
@@ -1749,6 +1784,10 @@ public class ConferenceHandler extends BaseResourceHandler {
 
     private static boolean isOrganizerOrAdmin(final String role) {
         return role != null && (role.contains("organizer") || role.contains("admin"));
+    }
+
+    private static boolean isPlatformAdminRole(final String role) {
+        return role != null && role.contains("admin");
     }
 
     /** Exige token valido, rol organizer/admin Y que el caller sea dueño real de la conferencia

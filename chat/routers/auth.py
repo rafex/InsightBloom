@@ -5,7 +5,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 
 from config import USERS_URL
-from crypto import decrypt, encrypt
+from crypto import hash_password, verify_password
 from db import Database
 from models.schemas import LoginRequest, RegisterRequest, SsoRequest
 
@@ -32,7 +32,7 @@ async def register(body: RegisterRequest):
         )
 
     try:
-        db.create_user(phone, nickname, encrypt(password))
+        db.create_user(phone, nickname, hash_password(password))
     except Exception:
         raise HTTPException(409, "El teléfono o nickname ya está registrado")
 
@@ -48,13 +48,11 @@ async def login(body: LoginRequest):
     if not user:
         raise HTTPException(401, "Usuario no encontrado")
 
-    try:
-        stored = decrypt(user["password_enc"])
-    except Exception:
-        raise HTTPException(500, "Error al verificar credenciales")
-
-    if stored != password:
+    valid, needs_rehash = verify_password(password, user["password_enc"])
+    if not valid:
         raise HTTPException(401, "Contraseña incorrecta")
+    if needs_rehash:
+        db.update_password(phone, hash_password(password))
 
     token = db.create_session(phone)
     return {"ok": True, "token": token, "nickname": user["nickname"]}
@@ -103,7 +101,7 @@ async def sso(body: SsoRequest):
         nickname = base_nick
         for attempt in range(50):
             try:
-                db.create_user(phone_key, nickname, encrypt(secrets.token_urlsafe(16)))
+                db.create_user(phone_key, nickname, hash_password(secrets.token_urlsafe(16)))
                 break
             except Exception:
                 nickname = f"{base_nick[:16]}{attempt + 1}"

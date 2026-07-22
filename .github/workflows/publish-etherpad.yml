@@ -48,8 +48,8 @@ jobs:
           context: .
           file: infra/docker/Dockerfile.etherpad
           push: true
-          provenance: false
-          sbom: false
+          provenance: true
+          sbom: true
           platforms: linux/amd64
           tags: |
             ghcr.io/rafex/insightbloom-etherpad:2.3.1

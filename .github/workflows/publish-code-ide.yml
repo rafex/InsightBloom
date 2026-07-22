@@ -77,8 +77,8 @@ jobs:
           context: .
           file: ${{ matrix.file }}
           push: true
-          provenance: false
-          sbom: false
+          provenance: true
+          sbom: true
           platforms: linux/amd64
           build-args: |
             RUNTIME_GIT_SHA=${{ github.sha }}
