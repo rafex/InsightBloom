@@ -11,7 +11,7 @@ export const organizerContact = {
   devto: 'https://dev.to/rafex',
   blog: 'https://theworldofrafex.blog/',
   telegram: '@rafex0',
-  telegramGroup: 'https://t.me/+FZvP2s0E0kwRnlCW'
+  telegramGroup: 'https://t.me/tabernadelanoche'
 }
 
 // Construye el deep link de Telegram con un mensaje precargado mencionando
