@@ -72,7 +72,7 @@
           td.actions-cell(data-label="Acciones")
             .conf-actions
               router-link.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/certificate`") 🏅 Certificado
+              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/${c.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") 🏅 Certificado
               router-link.btn-ghost(v-if="hasCapability(c, 'TICKETING_GENERAL') || hasCapability(c, 'TICKETING_SEATED')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/tickets`") 🎟️ Boletos
               button.btn-ghost(v-if="!c.expiresAt" @click="toggleActive(c)" :disabled="c._togglingActive")
                 | {{ c.status === 'ACTIVE' ? 'Desactivar' : 'Activar' }}

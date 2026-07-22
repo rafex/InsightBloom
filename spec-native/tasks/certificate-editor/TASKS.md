@@ -2,6 +2,10 @@
 
 ## Fase 1 — Contrato y persistencia
 
+- [x] Persistir el motor de certificado por evento (`INHOUSE` por defecto o
+      `HTML_CHROME`) y migrar conferencias existentes sin romperlas.
+- [x] Permitir seleccionar el motor al crear un evento y cambiarlo desde la
+      configuración del evento.
 - [x] Catálogo de plantillas base y variables permitidas.
 - [x] Tabla `certificate_templates` por conferencia.
 - [x] Permiso `MANAGE_CERTIFICATE` para el rol de evento `moderator` y
@@ -14,6 +18,9 @@
 - [x] Sanitización de documento, texto, estilos e imágenes.
 - [x] Editor visual MVP con preview, bloques, variables y estilos básicos.
 - [x] Enlace de certificado desde el listado de eventos.
+- [x] Mantener la opción global `Diseño de certificado` como respaldo legacy y
+      abrir la configuración legacy propia desde la acción del evento cuando
+      el motor sea `INHOUSE`.
 - [x] Fallback PDFBox para eventos sin plantilla.
 
 ## Fase 3 — Validación pendiente

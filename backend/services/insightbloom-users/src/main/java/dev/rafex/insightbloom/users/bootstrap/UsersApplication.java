@@ -337,7 +337,8 @@ public class UsersApplication {
         final var certificateSettingsHandler = new CertificateSettingsHandler(
                 getCertificateSettingsUseCase, saveCertificateSettingsUseCase, validateTokenUseCase);
         final var certificateTemplateHandler = new CertificateTemplateHandler(
-                certificateTemplateRepo, conferenceRepo, eventPermissionGuard, validateTokenUseCase);
+                certificateTemplateRepo, conferenceRepo, eventPermissionGuard, validateTokenUseCase,
+                certificateSettingsRepo);
         final var listUserReservationsUseCase =
                 new ListUserReservationsUseCase(reservationRepo, conferenceRepo, downloadEventRepo);
         final var adminUserHandler = new AdminUserHandler(

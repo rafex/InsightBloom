@@ -104,7 +104,8 @@ public class DatabaseManager {
                     end_time TEXT,
                     name_auto_generated INTEGER NOT NULL DEFAULT 0,
                     presentation_source_url TEXT,
-                    flyer_base64 TEXT
+                    flyer_base64 TEXT,
+                    certificate_engine TEXT NOT NULL DEFAULT 'INHOUSE'
                 )
             """);
             // Migrations for existing databases
@@ -123,6 +124,9 @@ public class DatabaseManager {
             } catch (SQLException ignored) {}
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN flyer_base64 TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN certificate_engine TEXT NOT NULL DEFAULT 'INHOUSE'");
             } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""

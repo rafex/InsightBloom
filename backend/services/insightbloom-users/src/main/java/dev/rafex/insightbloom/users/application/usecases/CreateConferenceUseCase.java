@@ -43,13 +43,13 @@ public class CreateConferenceUseCase {
                                 String eventDate, String venue, String startTime, String endTime,
                                 Integer timezoneId, String eventTypeKey, Integer capacity,
                                 String canvasTool, String canvasAudienceMode,
-                                List<CanvasConfig> canvasConfigs) {}
+                                List<CanvasConfig> canvasConfigs, String certificateEngine) {}
     public record CreateResult(String conferenceId, String friendlyId, String name, String status,
                                String expiresAt, Double latitude, Double longitude,
                                String eventDate, String venue, String startTime, String endTime,
                                Integer timezoneId, String eventTypeKey, Integer capacity,
                                String canvasTool, String canvasAudienceMode,
-                               List<CanvasConfig> canvasConfigs) {}
+                               List<CanvasConfig> canvasConfigs, String certificateEngine) {}
 
     public CreateResult execute(CreateRequest request) {
         final List<CanvasConfig> configs = request.canvasConfigs() != null
@@ -73,6 +73,7 @@ public class CreateConferenceUseCase {
             conference.setEventTypeKey(request.eventTypeKey());
         }
         conference.setCapacity(normalizeCapacity(request.capacity()));
+        conference.setCertificateEngine(request.certificateEngine());
         conference.setCanvasConfigs(configs);
         conference.setCanvasTool(configs.size() == 1 ? configs.get(0).tool() : null);
         conference.setCanvasAudienceMode(configs.size() == 1 ? configs.get(0).audienceMode() : null);
@@ -93,7 +94,8 @@ public class CreateConferenceUseCase {
             conference.getEventDate(), conference.getVenue(),
             conference.getStartTime(), conference.getEndTime(),
             conference.getTimezoneId(), conference.getEventTypeKey(), conference.getCapacity(),
-            conference.getCanvasTool(), conference.getCanvasAudienceMode(), conference.getCanvasConfigs()
+            conference.getCanvasTool(), conference.getCanvasAudienceMode(), conference.getCanvasConfigs(),
+            conference.getCertificateEngine()
         );
     }
 

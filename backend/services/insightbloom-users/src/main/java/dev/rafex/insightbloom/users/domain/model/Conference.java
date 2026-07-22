@@ -78,6 +78,8 @@ public class Conference {
     private String canvasTool; // DRAWIO | EXCALIDRAW | ETHERPAD | null (legacy/all)
     private String canvasAudienceMode; // INDEPENDENT | MODERATOR_ONLY | COLLABORATIVE | null (legacy)
     private List<CanvasConfig> canvasConfigs = List.of();
+    // INHOUSE conserva PDFBox; HTML_CHROME usa la plantilla visual con Playwright + Chromium.
+    private String certificateEngine = "INHOUSE";
 
     public Conference(String friendlyId, String name, String createdByUserUuid) {
         this.uuid = UUID.randomUUID().toString();
@@ -240,6 +242,10 @@ public class Conference {
     public String getCanvasTool() { return canvasTool; }
     public String getCanvasAudienceMode() { return canvasAudienceMode; }
     public List<CanvasConfig> getCanvasConfigs() { return canvasConfigs; }
+    public String getCertificateEngine() { return certificateEngine; }
+    public void setCertificateEngine(final String certificateEngine) {
+        this.certificateEngine = "HTML_CHROME".equals(certificateEngine) ? "HTML_CHROME" : "INHOUSE";
+    }
     public void setMaxDevicesPerUser(Integer maxDevicesPerUser) { this.maxDevicesPerUser = maxDevicesPerUser; }
     public void setMaxAccountsPerDevice(Integer maxAccountsPerDevice) { this.maxAccountsPerDevice = maxAccountsPerDevice; }
     public void setCanvasTool(String canvasTool) { this.canvasTool = canvasTool; }

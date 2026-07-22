@@ -7,8 +7,10 @@ import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.domain.model.CertificateTemplate;
+import dev.rafex.insightbloom.users.domain.model.CertificateSettings;
 import dev.rafex.insightbloom.users.domain.model.Permission;
 import dev.rafex.insightbloom.users.domain.ports.CertificateTemplateRepository;
+import dev.rafex.insightbloom.users.domain.ports.CertificateSettingsRepository;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.services.CertificateTemplateCatalog;
 import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
@@ -27,21 +29,27 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
     private final ConferenceRepository conferenceRepository;
     private final EventPermissionGuard permissionGuard;
     private final ValidateTokenUseCase validateTokenUseCase;
+    private final CertificateSettingsRepository certificateSettingsRepository;
     private final JacksonJsonCodec json = JacksonJsonCodec.defaultCodec();
 
     public CertificateTemplateHandler(final CertificateTemplateRepository templateRepository,
                                       final ConferenceRepository conferenceRepository,
                                       final EventPermissionGuard permissionGuard,
-                                      final ValidateTokenUseCase validateTokenUseCase) {
+                                      final ValidateTokenUseCase validateTokenUseCase,
+                                      final CertificateSettingsRepository certificateSettingsRepository) {
         this.templateRepository = templateRepository;
         this.conferenceRepository = conferenceRepository;
         this.permissionGuard = permissionGuard;
         this.validateTokenUseCase = validateTokenUseCase;
+        this.certificateSettingsRepository = certificateSettingsRepository;
     }
 
     @Override protected String basePath() { return "/api/v1/certificate-templates"; }
     @Override protected List<Route> routes() {
-        return List.of(Route.of("/catalog", Set.of("GET")), Route.of("/events/{conferenceUuid}", Set.of("GET", "PUT")));
+        return List.of(Route.of("/catalog", Set.of("GET")),
+                Route.of("/events/{conferenceUuid}", Set.of("GET", "PUT")),
+                Route.of("/events/{conferenceUuid}/engine", Set.of("GET", "PUT")),
+                Route.of("/events/{conferenceUuid}/legacy", Set.of("GET", "PUT")));
     }
     @Override public Set<String> supportedMethods() { return Set.of("GET", "PUT"); }
 
@@ -58,6 +66,16 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
             final var auth = requireEventManager(jx);
             if (auth == null) return true;
             final String conferenceUuid = jx.pathParam("conferenceUuid");
+            if (jx.path().endsWith("/engine")) {
+                final var conference = conferenceRepository.findByUuid(conferenceUuid);
+                if (conference.isEmpty()) { sendError(jx, 404, "conference_not_found", "Evento no encontrado"); return true; }
+                sendOk(jx, Map.of("certificateEngine", conference.get().getCertificateEngine()));
+                return true;
+            }
+            if (jx.path().endsWith("/legacy")) {
+                sendOk(jx, legacySettingsView(loadLegacySettings(conferenceUuid)));
+                return true;
+            }
             final var current = templateRepository.findByConferenceUuid(conferenceUuid);
             final var view = current.map(CertificateTemplateHandler::templateView)
                     .orElseGet(() -> templateView(new CertificateTemplate(conferenceUuid,
@@ -81,10 +99,33 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
         if (auth == null) return true;
         try {
             final String conferenceUuid = jx.pathParam("conferenceUuid");
-            if (conferenceRepository.findByUuid(conferenceUuid).isEmpty()) {
+            final var conference = conferenceRepository.findByUuid(conferenceUuid);
+            if (conference.isEmpty()) {
                 sendError(jx, 404, "conference_not_found", "Evento no encontrado"); return true;
             }
             final Map<String, Object> body = parseBody(jx);
+            if (jx.path().endsWith("/engine")) {
+                final String engine = body.get("certificateEngine") instanceof String s ? s : "INHOUSE";
+                if (!"INHOUSE".equals(engine) && !"HTML_CHROME".equals(engine)) {
+                    throw new IllegalArgumentException("El motor debe ser INHOUSE o HTML_CHROME");
+                }
+                conference.get().setCertificateEngine(engine);
+                conferenceRepository.save(conference.get());
+                sendOk(jx, conference.get());
+                return true;
+            }
+            if (jx.path().endsWith("/legacy")) {
+                final CertificateSettings settings = settingsFromBody(body);
+                final String documentJson = json.toJson(legacySettingsView(settings));
+                final int version = templateRepository.findByConferenceUuid(conferenceUuid).map(t -> t.getVersion() + 1).orElse(1);
+                final CertificateTemplate saved = new CertificateTemplate(conferenceUuid, "inhouse", "Diseño interno",
+                        "INHOUSE", documentJson, version, auth.subjectUuid(), Instant.now());
+                templateRepository.save(saved);
+                conference.get().setCertificateEngine("INHOUSE");
+                conferenceRepository.save(conference.get());
+                sendOk(jx, legacySettingsView(settings));
+                return true;
+            }
             final String key = body.get("templateKey") instanceof String s ? s : "custom";
             final var catalog = CertificateTemplateCatalog.entries().stream().filter(e -> e.key().equals(key)).findFirst();
             final String name = body.get("templateName") instanceof String s && !s.isBlank()
@@ -118,6 +159,73 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
             if (root.path("blocks").size() > 100) throw new IllegalArgumentException("Máximo 100 bloques");
         } catch (IllegalArgumentException e) { throw e; }
         catch (Exception e) { throw new IllegalArgumentException("El documento no es JSON válido"); }
+    }
+
+    private CertificateSettings loadLegacySettings(final String conferenceUuid) {
+        final var current = templateRepository.findByConferenceUuid(conferenceUuid);
+        if (current.isPresent() && "INHOUSE".equals(current.get().getEngine())) {
+            try {
+                return settingsFromNode(json.readTree(current.get().getDocumentJson()), certificateSettingsRepository.get());
+            } catch (Exception ignored) { /* se usa el respaldo global */ }
+        }
+        return certificateSettingsRepository.get();
+    }
+
+    private CertificateSettings settingsFromBody(final Map<String, Object> body) {
+        final CertificateSettings defaults = certificateSettingsRepository.get();
+        if (body.get("logoBase64") instanceof String s) defaults.setLogoBase64(s.isBlank() ? null : s);
+        if (body.get("fontFamily") instanceof String s) defaults.setFontFamily(s);
+        if (body.get("titleFontSize") instanceof Number n) defaults.setTitleFontSize(n.intValue());
+        if (body.get("bodyFontSize") instanceof Number n) defaults.setBodyFontSize(n.intValue());
+        if (body.get("primaryColorHex") instanceof String s) defaults.setPrimaryColorHex(s);
+        if (body.get("showVenue") instanceof Boolean b) defaults.setShowVenue(b);
+        if (body.get("showSchedule") instanceof Boolean b) defaults.setShowSchedule(b);
+        if (body.get("showIssuedDate") instanceof Boolean b) defaults.setShowIssuedDate(b);
+        validateLegacySettings(defaults);
+        return defaults;
+    }
+
+    private static CertificateSettings settingsFromNode(final JsonNode node, final CertificateSettings fallback) {
+        final CertificateSettings settings = CertificateSettings.defaults();
+        settings.setLogoBase64(node.path("logoBase64").isNull() ? null : node.path("logoBase64").asText(fallback.getLogoBase64()));
+        settings.setFontFamily(node.path("fontFamily").asText(fallback.getFontFamily()));
+        settings.setTitleFontSize(node.path("titleFontSize").asInt(fallback.getTitleFontSize()));
+        settings.setBodyFontSize(node.path("bodyFontSize").asInt(fallback.getBodyFontSize()));
+        settings.setPrimaryColorHex(node.path("primaryColorHex").asText(fallback.getPrimaryColorHex()));
+        settings.setShowVenue(node.path("showVenue").asBoolean(fallback.isShowVenue()));
+        settings.setShowSchedule(node.path("showSchedule").asBoolean(fallback.isShowSchedule()));
+        settings.setShowIssuedDate(node.path("showIssuedDate").asBoolean(fallback.isShowIssuedDate()));
+        validateLegacySettings(settings);
+        return settings;
+    }
+
+    private static void validateLegacySettings(final CertificateSettings settings) {
+        if (!Set.of("HELVETICA", "TIMES_ROMAN", "COURIER").contains(settings.getFontFamily())) {
+            throw new IllegalArgumentException("Tipo de letra no permitido");
+        }
+        if (settings.getTitleFontSize() < 14 || settings.getTitleFontSize() > 48
+                || settings.getBodyFontSize() < 8 || settings.getBodyFontSize() > 24) {
+            throw new IllegalArgumentException("Tamaño de texto fuera de rango");
+        }
+        if (settings.getPrimaryColorHex() == null || !settings.getPrimaryColorHex().matches("#[0-9a-fA-F]{6}")) {
+            throw new IllegalArgumentException("Color principal inválido");
+        }
+        if (settings.getLogoBase64() != null && settings.getLogoBase64().length() > 2_000_000) {
+            throw new IllegalArgumentException("El logotipo es demasiado grande");
+        }
+    }
+
+    private static Map<String, Object> legacySettingsView(final CertificateSettings settings) {
+        final Map<String, Object> view = new LinkedHashMap<>();
+        view.put("logoBase64", settings.getLogoBase64());
+        view.put("fontFamily", settings.getFontFamily());
+        view.put("titleFontSize", settings.getTitleFontSize());
+        view.put("bodyFontSize", settings.getBodyFontSize());
+        view.put("primaryColorHex", settings.getPrimaryColorHex());
+        view.put("showVenue", settings.isShowVenue());
+        view.put("showSchedule", settings.isShowSchedule());
+        view.put("showIssuedDate", settings.isShowIssuedDate());
+        return view;
     }
 
     private ValidateTokenUseCase.ValidationResult requireEventManager(final JettyHttpExchange jx) {

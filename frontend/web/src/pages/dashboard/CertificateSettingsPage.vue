@@ -1,7 +1,8 @@
 <template lang="pug">
 .cert-settings-page
-  h2 Diseño del certificado
-  p.hint Configuración global de respaldo para los certificados de asistencia. Para diseñar el certificado de un evento, usa la opción Certificado dentro del evento.
+  h2 {{ isEvent ? 'Diseño del certificado del evento' : 'Diseño del certificado' }}
+  p.hint(v-if="isEvent") Editor legacy Inhouse (PDFBox) para este evento. Este diseño se usa cuando el motor del evento está configurado como Inhouse.
+  p.hint(v-else) Configuración global de respaldo para los certificados de asistencia. Para diseñar el certificado de un evento, usa la acción Certificado dentro del evento.
 
   .loading(v-if="loading") Cargando...
   template(v-else)
@@ -65,14 +66,15 @@
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { getCertificateSettings, saveCertificateSettings } from '@/services/api/usersApi'
+import { getCertificateSettings, saveCertificateSettings, getEventLegacyCertificateSettings, saveEventLegacyCertificateSettings } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 const FONT_MAP: Record<string, string> = { HELVETICA: 'Helvetica, Arial, sans-serif', TIMES_ROMAN: '"Times New Roman", serif', COURIER: '"Courier New", monospace' }
 
 export default {
   name: 'CertificateSettingsPage',
-  setup() {
+  props: { conferenceId: { type: String, required: false } },
+  setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
     const loading = ref(true)
     const saving = ref(false)
@@ -82,12 +84,15 @@ export default {
       logoBase64: '', fontFamily: 'HELVETICA', titleFontSize: 28, bodyFontSize: 14,
       primaryColorHex: '#1e1b4b', showVenue: true, showSchedule: true, showIssuedDate: true
     })
+    const isEvent = computed(() => Boolean(props.conferenceId))
 
     const previewFontFamily = computed(() => FONT_MAP[form.value.fontFamily] || FONT_MAP.HELVETICA)
 
     onMounted(async () => {
       try {
-        const settings = await getCertificateSettings()
+        const settings = props.conferenceId
+          ? await getEventLegacyCertificateSettings(props.conferenceId, auth.state.token as string)
+          : await getCertificateSettings()
         form.value = { ...form.value, ...settings, logoBase64: settings.logoBase64 || '' }
       } catch (e: any) {
         error.value = 'No se pudo cargar la configuración.'
@@ -109,7 +114,11 @@ export default {
       success.value = false
       saving.value = true
       try {
-        await saveCertificateSettings(form.value, auth.state.token as string)
+        if (props.conferenceId) {
+          await saveEventLegacyCertificateSettings(props.conferenceId, form.value, auth.state.token as string)
+        } else {
+          await saveCertificateSettings(form.value, auth.state.token as string)
+        }
         success.value = true
       } catch (e: any) {
         error.value = 'No se pudo guardar la configuración.'
@@ -118,7 +127,7 @@ export default {
       }
     }
 
-    return { loading, saving, error, success, form, previewFontFamily, onLogoChange, save }
+    return { loading, saving, error, success, form, isEvent, previewFontFamily, onLogoChange, save }
   }
 }
 </script>

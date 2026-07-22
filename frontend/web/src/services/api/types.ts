@@ -10,6 +10,7 @@ export type SeatingMode = 'NONE' | 'GENERAL' | 'SEATED'
 
 export type CanvasTool = 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD'
 export type CanvasAudienceMode = 'INDEPENDENT' | 'MODERATOR_ONLY' | 'COLLABORATIVE'
+export type CertificateEngine = 'INHOUSE' | 'HTML_CHROME'
 export interface CanvasToolConfig {
   tool: CanvasTool
   audienceMode: CanvasAudienceMode
@@ -107,6 +108,7 @@ export interface Conference {
   canvasTool?: CanvasTool | null
   canvasAudienceMode?: CanvasAudienceMode | null
   canvasConfigs?: CanvasToolConfig[]
+  certificateEngine?: CertificateEngine
   sandboxJvmHeapMb?: number | null
   sandboxSeatsPerPod?: number | null
   sandboxCliPoolSize?: number | null
@@ -275,7 +277,7 @@ export interface CertificateTemplateCatalogItem {
   key: string
   name: string
   description: string
-  engine: 'HTML_CHROME'
+  engine: CertificateEngine
   documentJson: string
 }
 
@@ -283,7 +285,7 @@ export interface CertificateTemplate {
   conferenceUuid: string
   templateKey: string
   templateName: string
-  engine: 'HTML_CHROME'
+  engine: CertificateEngine
   documentJson: string
   version: number
   updatedAt?: string

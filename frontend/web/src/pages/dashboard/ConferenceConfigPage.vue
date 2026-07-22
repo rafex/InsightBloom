@@ -22,6 +22,18 @@
       p.success(v-if="eventTypeSaved") Tipo de evento actualizado.
       p.error(v-if="eventTypeError") {{ eventTypeError }}
 
+    .form-group.certificate-engine-group
+      label Motor de certificado
+      select(v-model="certificateEngine")
+        option(value="INHOUSE") Inhouse (PDFBox)
+        option(value="HTML_CHROME") HTML + Playwright/Chromium
+      p.field-hint INHOUSE usa el editor legacy y la configuración global como respaldo. HTML + Playwright/Chromium usa el editor visual del evento y su catálogo de diseños.
+      button.btn-outline(type="button" @click="saveCertificateEngine" :disabled="savingCertificateEngine")
+        span(v-if="savingCertificateEngine") Guardando...
+        span(v-else) Guardar motor de certificado
+      p.success(v-if="certificateEngineSaved") Motor de certificado actualizado.
+      p.error(v-if="certificateEngineError") {{ certificateEngineError }}
+
     .form-group.canvas-group
       label Lienzo del evento
       p.field-hint Selecciona una o varias herramientas y define el modo de cada una. Si no seleccionas ninguna, se mantiene el modo legado del tipo de evento.
@@ -185,9 +197,9 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import {
   getConference, setSeatingMode, getActiveEventTypes, setEventType,
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
-  listSandboxIncidents, listSandboxStatus, setDeviceAccessConfig, setCanvasConfigs
+  listSandboxIncidents, listSandboxStatus, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine
 } from '@/services/api/usersApi'
-import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, CanvasTool, CanvasAudienceMode, CanvasToolConfig } from '@/services/api/types'
+import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
@@ -251,6 +263,10 @@ export default {
     const savingEventType = ref(false)
     const eventTypeSaved  = ref(false)
     const eventTypeError  = ref('')
+    const certificateEngine = ref<CertificateEngine>('INHOUSE')
+    const savingCertificateEngine = ref(false)
+    const certificateEngineSaved = ref(false)
+    const certificateEngineError = ref('')
     const canvasTools = ref<CanvasTool[]>([])
     const canvasModes = reactive<Record<CanvasTool, CanvasAudienceMode>>({
       DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'COLLABORATIVE'
@@ -276,6 +292,7 @@ export default {
         conference.value = conf
         eventTypes.value = types
         eventTypeKey.value = conference.value.eventTypeKey || 'conference'
+        certificateEngine.value = conference.value.certificateEngine || 'INHOUSE'
         seatingMode.value = (conference.value.seatingMode as SeatingMode) || 'NONE'
         capacity.value = conference.value.capacity ?? null
         sandboxVariant.value = conference.value.sandboxVariant === 'terminal-nvim' ? 'terminal-nvim' : ''
@@ -457,6 +474,19 @@ export default {
       }
     }
 
+    async function saveCertificateEngine() {
+      savingCertificateEngine.value = true; certificateEngineError.value = ''; certificateEngineSaved.value = false
+      try {
+        conference.value = await setCertificateEngine(
+          props.conferenceId as string, certificateEngine.value, auth.state.token as string)
+        certificateEngineSaved.value = true
+      } catch (e: any) {
+        certificateEngineError.value = e.response?.data?.error?.message || 'No se pudo guardar el motor de certificado'
+      } finally {
+        savingCertificateEngine.value = false
+      }
+    }
+
     async function saveCanvasConfig() {
       savingCanvasConfig.value = true; canvasConfigError.value = ''; canvasConfigSaved.value = false
       try {
@@ -515,6 +545,7 @@ export default {
              maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
              deviceAccessConfigSaved, deviceAccessConfigError, saveDeviceAccessConfig,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
+             certificateEngine, savingCertificateEngine, certificateEngineSaved, certificateEngineError, saveCertificateEngine,
              canvasTools, canvasModes, canvasToolLabel, canvasModeOptions,
              canvasToolOptions: [
                { value: 'DRAWIO', label: 'Drawio (diagramas)' },

@@ -543,7 +543,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                     latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue"),
                     (String) body.get("startTime"), (String) body.get("endTime"), timezoneId,
                     (String) body.get("eventTypeKey"), capacity,
-                    (String) body.get("canvasTool"), (String) body.get("canvasAudienceMode"), canvasConfigs));
+                    (String) body.get("canvasTool"), (String) body.get("canvasAudienceMode"), canvasConfigs,
+                    (String) body.get("certificateEngine")));
             sendOk(jx, 201, result);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());

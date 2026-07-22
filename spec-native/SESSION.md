@@ -27,9 +27,12 @@ Si la audiencia muestra `ticket_required` y el WebSocket devuelve `502`,
 comprobar primero que la imagen del servicio incluya esta corrección: la
 cookie debe tener `Path=/api/presentations/api/v1/conferences/{id}/presentation`.
 
-La iniciativa de certificados por evento agrega un catálogo de plantillas, un
-editor JSON controlado y renderizado interno con Playwright + Chromium. PDFBox
-se conserva como fallback para eventos que aún no tienen plantilla.
+La iniciativa de certificados por evento agrega dos motores seleccionables por
+evento: `INHOUSE` (PDFBox, por defecto y compatible con lo existente) y
+`HTML_CHROME` (catálogo/editor JSON controlado y renderizado interno con
+Playwright + Chromium). La opción global `Diseño de certificado` permanece
+como respaldo del motor Inhouse; la acción del evento abre el editor que
+corresponde al motor configurado.
 
 ## Próximos pasos
 
@@ -40,6 +43,8 @@ se conserva como fallback para eventos que aún no tienen plantilla.
 - [ ] Entregar a los agentes de presentaciones el formato de ZIP definido en
   `workflows/SLIDEV-PACKAGING.md`
 - [ ] Completar tests de autorización y sanitización del editor de certificados
+- [ ] Validar en UI la selección del motor al crear y configurar un evento,
+  incluyendo la ruta legacy por evento y la escala responsive del editor HTML
 
 ## Notas
 

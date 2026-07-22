@@ -15,6 +15,16 @@ certificado se genera bajo demanda en PDF.
 
 ## Design
 
+- Cada evento declara un motor de certificado: `INHOUSE` (valor por defecto y
+  compatible con eventos existentes) o `HTML_CHROME`.
+- `INHOUSE` usa el editor legacy basado en PDFBox. La opción global
+  `Diseño de certificado` continúa siendo la configuración de respaldo; la
+  acción `🏅 Certificado` de un evento abre la configuración propia del evento
+  para que sus cambios no alteren a otros eventos.
+- `HTML_CHROME` usa el catálogo y el editor visual JSON del evento. Su PDF se
+  genera con Playwright + Chromium. Cambiar de motor no elimina la plantilla
+  guardada del otro motor, por lo que es posible volver atrás sin perder el
+  diseño.
 - El catálogo base vive en código y ofrece `classic`, `modern` y `minimal`.
 - Cada evento puede guardar una plantilla en `certificate_templates`.
 - El documento persistido es JSON controlado: `page` y hasta 100 `blocks`.
@@ -38,6 +48,9 @@ certificado se genera bajo demanda en PDF.
   `MANAGE_CERTIFICATE`.
 - La configuración global de plataforma continúa siendo ADMIN-only y funciona
   como respaldo del generador legado.
+- El motor se selecciona al crear el evento y puede modificarse en
+  `Configuración del evento`. Los eventos antiguos se migran con
+  `certificate_engine = INHOUSE`.
 
 ## Variables disponibles
 
@@ -63,13 +76,14 @@ certificado se genera bajo demanda en PDF.
 
 ## Acceptance criteria
 
-1. Un usuario autorizado puede abrir `/dashboard/conferences/{id}/certificate`,
-   elegir un diseño base y guardar cambios.
+1. Un usuario autorizado puede abrir la acción `🏅 Certificado` del evento y
+   editar el diseño correspondiente al motor seleccionado.
 2. Un usuario no autorizado recibe `403` y no puede modificar el documento.
 3. La descarga de certificado de un participante que respondió la encuesta
    usa la plantilla del evento y devuelve PDF generado por Chromium.
 4. Las plantillas no pueden ejecutar scripts, realizar requests externos ni
    inyectar HTML en el PDF.
-5. Los eventos sin plantilla siguen generando su certificado PDFBox.
+5. Los eventos `INHOUSE` sin configuración propia siguen usando la
+   configuración global y generan su certificado con PDFBox.
 6. El catálogo y la lista de variables se entregan por API, evitando que el
    frontend invente nombres no soportados.

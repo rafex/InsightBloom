@@ -49,6 +49,13 @@
       p.field-hint Determina qué herramientas están disponibles (boletos, encuestas, videollamada...). Se puede cambiar después.
 
     .form-group
+      label Motor de certificado
+      select(v-model="certificateEngine")
+        option(value="INHOUSE") Inhouse (PDFBox)
+        option(value="HTML_CHROME") HTML + Playwright/Chromium
+      p.field-hint Elige cómo se generarán los certificados de este evento. Puedes cambiarlo después en Configuración; el diseño global queda como respaldo del motor Inhouse.
+
+    .form-group
       label Lienzo del evento (opcional)
       p.field-hint Selecciona una o varias herramientas. Si no eliges ninguna, se usarán las herramientas del tipo de evento.
       .canvas-tools
@@ -129,7 +136,7 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
-import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode, CanvasToolConfig } from '@/services/api/types'
+import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, DEFAULT_CAPACITY, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 
@@ -165,6 +172,7 @@ export default {
     const timezoneId = ref<number | null>(null)
     const eventTypes = ref<EventType[]>([])
     const eventTypeKey = ref('conference')
+    const certificateEngine = ref<CertificateEngine>('INHOUSE')
     const canvasTools = ref<CanvasTool[]>([])
     const canvasModes = reactive<Record<CanvasTool, CanvasAudienceMode>>({
       DRAWIO: 'INDEPENDENT', EXCALIDRAW: 'INDEPENDENT', ETHERPAD: 'COLLABORATIVE'
@@ -212,7 +220,7 @@ export default {
           displayName.value.trim() || null, timezoneId.value, eventTypeKey.value, capacity.value,
           null, null, canvasTools.value.map((tool): CanvasToolConfig => ({
             tool, audienceMode: canvasModes[tool]
-          })))
+          })), certificateEngine.value)
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Error al crear el evento'
       } finally { loading.value = false }
@@ -228,7 +236,7 @@ export default {
       eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
       canvasTools.value = []
       canvasModes.DRAWIO = 'INDEPENDENT'; canvasModes.EXCALIDRAW = 'INDEPENDENT'; canvasModes.ETHERPAD = 'COLLABORATIVE'
-      capacity.value = DEFAULT_CAPACITY
+      capacity.value = DEFAULT_CAPACITY; certificateEngine.value = 'INHOUSE'
     }
 
     function canvasToolLabel(tool: CanvasTool): string {
@@ -249,7 +257,7 @@ export default {
     }
 
     return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
-             eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey,
+             eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey, certificateEngine,
              canvasTools, canvasModes, canvasToolLabel, canvasModeOptions,
              canvasToolOptions: [
                { value: 'DRAWIO', label: 'Drawio (diagramas)' },

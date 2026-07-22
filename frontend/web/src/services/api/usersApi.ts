@@ -3,7 +3,7 @@ import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
   SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
-  CanvasTool, CanvasAudienceMode, CanvasToolConfig,
+  CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
@@ -71,7 +71,8 @@ export async function createConference(
   capacity?: number | null,
   canvasTool?: CanvasTool | null,
   canvasAudienceMode?: CanvasAudienceMode | null,
-  canvasConfigs?: CanvasToolConfig[] | null
+  canvasConfigs?: CanvasToolConfig[] | null,
+  certificateEngine?: CertificateEngine | null
 ): Promise<Conference> {
   const body: Record<string, unknown> = { name }
   if (displayName) body.displayName = displayName
@@ -85,6 +86,7 @@ export async function createConference(
   if (timezoneId != null) body.timezoneId = timezoneId
   if (eventTypeKey) body.eventTypeKey = eventTypeKey
   if (capacity != null) body.capacity = capacity
+  if (certificateEngine) body.certificateEngine = certificateEngine
   if (canvasConfigs != null) body.canvasConfigs = canvasConfigs
   else {
     if (canvasTool) body.canvasTool = canvasTool
@@ -209,6 +211,33 @@ export async function saveEventCertificateTemplate(
   token: string
 ): Promise<CertificateTemplate> {
   const res = await axios.put(`/api/users/api/v1/certificate-templates/events/${conferenceId}`, template, authHeader(token))
+  return res.data.data
+}
+
+export async function getCertificateEngine(conferenceId: string, token: string): Promise<CertificateEngine> {
+  const res = await axios.get(`/api/users/api/v1/certificate-templates/events/${conferenceId}/engine`, authHeader(token))
+  return res.data.data.certificateEngine as CertificateEngine
+}
+
+export async function setCertificateEngine(
+  conferenceId: string, certificateEngine: CertificateEngine, token: string
+): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/certificate-templates/events/${conferenceId}/engine`,
+    { certificateEngine }, authHeader(token))
+  return res.data.data
+}
+
+export async function getEventLegacyCertificateSettings(
+  conferenceId: string, token: string
+): Promise<CertificateSettings> {
+  const res = await axios.get(`/api/users/api/v1/certificate-templates/events/${conferenceId}/legacy`, authHeader(token))
+  return res.data.data
+}
+
+export async function saveEventLegacyCertificateSettings(
+  conferenceId: string, settings: CertificateSettings, token: string
+): Promise<CertificateSettings> {
+  const res = await axios.put(`/api/users/api/v1/certificate-templates/events/${conferenceId}/legacy`, settings, authHeader(token))
   return res.data.data
 }
 

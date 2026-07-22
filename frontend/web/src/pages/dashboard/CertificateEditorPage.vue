@@ -26,11 +26,12 @@
           input(v-model="form.templateName" maxlength="80")
         button.btn-outline(type="button" @click="addTextBlock") + Texto
         button.btn-outline(type="button" @click="addShapeBlock") + Borde
-      .certificate-preview
-        .certificate-page
-          .preview-block(v-for="(block, index) in document.blocks" :key="index" :class="{ active: selectedIndex === index }" :style="blockStyle(block)" @click.stop="selectedIndex = index")
-            span(v-if="block.type === 'text'") {{ interpolate(block.text || '') }}
-            img(v-else-if="block.type === 'image' && block.src" :src="block.src" alt="")
+      .certificate-preview(ref="previewHost")
+        .certificate-page-wrap(:style="{ width: `${1056 * previewScale}px`, height: `${816 * previewScale}px` }")
+          .certificate-page(:style="{ transform: `scale(${previewScale})` }")
+            .preview-block(v-for="(block, index) in document.blocks" :key="index" :class="{ active: selectedIndex === index }" :style="blockStyle(block)" @click.stop="selectedIndex = index")
+              span(v-if="block.type === 'text'") {{ interpolate(block.text || '') }}
+              img(v-else-if="block.type === 'image' && block.src" :src="block.src" alt="")
       .block-editor(v-if="selectedBlock")
         h2 Editar bloque
         .block-fields
@@ -59,7 +60,7 @@
 </template>
 
 <script lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import { useAuthStore } from '@/features/auth/authStore'
 import { getCertificateTemplateCatalog, getEventCertificateTemplate, saveEventCertificateTemplate } from '@/services/api/usersApi'
@@ -91,6 +92,14 @@ export default {
     const document = reactive<DocumentModel>({ page: {}, blocks: [] })
     const selectedIndex = ref(0)
     const selectedBlock = computed(() => document.blocks[selectedIndex.value] || null)
+    const previewHost = ref<HTMLElement | null>(null)
+    const previewScale = ref(1)
+    let previewObserver: ResizeObserver | null = null
+
+    function updatePreviewScale() {
+      const width = previewHost.value?.clientWidth || 1056
+      previewScale.value = Math.min(1, Math.max(0.35, (width - 44) / 1056))
+    }
 
     function loadDocument(json: string) {
       const parsed = JSON.parse(json) as DocumentModel
@@ -140,9 +149,19 @@ export default {
         catalog.templates = items.templates; catalog.variables = items.variables
         form.templateKey = current.templateKey; form.templateName = current.templateName; form.engine = current.engine; loadDocument(current.documentJson)
       } catch (e: any) { error.value = 'No se pudo cargar el editor' }
-      finally { loaded.value = true }
+      finally {
+        loaded.value = true
+        await nextTick()
+        updatePreviewScale()
+        if (previewHost.value && typeof ResizeObserver !== 'undefined') {
+          previewObserver = new ResizeObserver(updatePreviewScale)
+          previewObserver.observe(previewHost.value)
+        }
+      }
     })
-    return { loaded, saving, saved, error, catalog, form, document, selectedIndex, selectedBlock, applyTemplate, interpolate, blockStyle, insertVariable, addTextBlock, addShapeBlock, removeSelected, save }
+    watch(loaded, async (value) => { if (value) { await nextTick(); updatePreviewScale() } })
+    onBeforeUnmount(() => { previewObserver?.disconnect() })
+    return { loaded, saving, saved, error, catalog, form, document, selectedIndex, selectedBlock, previewHost, previewScale, applyTemplate, interpolate, blockStyle, insertVariable, addTextBlock, addShapeBlock, removeSelected, save }
   }
 }
 </script>
@@ -156,7 +175,7 @@ h1 { margin:0; color:#1e1b4b; } .page-heading p { color:#6b7280; margin:8px 0 0;
 h2 { font-size:1rem; color:#1e1b4b; margin:0 0 12px; } .catalog-card { padding:12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:8px; cursor:pointer; } .catalog-card.selected { border-color:#4f46e5; background:#eef2ff; } .catalog-card strong,.catalog-card small { display:block; } .catalog-card small,.hint,.muted { color:#6b7280; font-size:.82rem; margin-top:4px; }
 .variables { max-height:340px; overflow:auto; margin-bottom:16px; } .variable { display:flex; flex-direction:column; align-items:flex-start; width:100%; border:0; border-bottom:1px solid #f3f4f6; background:transparent; padding:7px 2px; cursor:pointer; text-align:left; } .variable:hover { background:#f8fafc; } code { color:#4f46e5; font-size:.74rem; } .variable span { color:#6b7280; font-size:.75rem; }
 .workspace-toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:16px; } .workspace-toolbar label { color:#6b7280; font-size:.82rem; flex:1; } input,textarea,select { display:block; width:100%; box-sizing:border-box; border:1px solid #d1d5db; border-radius:7px; padding:8px; margin-top:4px; background:#fff; } .workspace-toolbar input { max-width:300px; }
-.certificate-preview { background:#e5e7eb; padding:22px; overflow:auto; border-radius:10px; } .certificate-page { position:relative; width:1056px; height:816px; background:#fff; margin:auto; transform-origin:top left; } .preview-block { position:absolute; box-sizing:border-box; overflow:hidden; white-space:pre-wrap; cursor:pointer; } .preview-block.active { outline:2px solid #4f46e5; outline-offset:2px; } .preview-block img { width:100%; height:100%; object-fit:contain; }
+.certificate-preview { background:#e5e7eb; padding:22px; overflow:auto; border-radius:10px; } .certificate-page-wrap { position:relative; margin:0 auto; } .certificate-page { position:absolute; left:0; top:0; width:1056px; height:816px; background:#fff; transform-origin:top left; } .preview-block { position:absolute; box-sizing:border-box; overflow:hidden; white-space:pre-wrap; cursor:pointer; } .preview-block.active { outline:2px solid #4f46e5; outline-offset:2px; } .preview-block img { width:100%; height:100%; object-fit:contain; }
 .block-editor { border-top:1px solid #e5e7eb; margin-top:18px; padding-top:18px; } .block-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; } .block-fields label { color:#6b7280; font-size:.78rem; } .btn-primary,.btn-outline,.btn-danger { border-radius:8px; padding:9px 13px; cursor:pointer; font-weight:600; } .btn-primary { color:white; border:0; background:#4f46e5; } .btn-outline { color:#4338ca; border:1px solid #818cf8; background:white; } .btn-danger { color:#b91c1c; border:1px solid #fecaca; background:#fff; margin-top:14px; } .full { width:100%; margin-top:10px; } .error { color:#b91c1c; font-size:.85rem; } .loading { padding:40px; color:#6b7280; }
 @media (max-width: 850px) { .editor-grid { grid-template-columns:1fr; } .catalog-panel { order:2; } .workspace { order:1; } .block-fields { grid-template-columns:repeat(2,1fr); } }
 </style>

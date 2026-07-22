@@ -1,5 +1,7 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.insightbloom.users.domain.model.CertificateSettings;
 import dev.rafex.insightbloom.users.domain.model.CertificatePlatformData;
 import dev.rafex.insightbloom.users.domain.model.Conference;
@@ -34,6 +36,7 @@ import java.util.UUID;
  * each download is regenerated on demand (ephemeral by design).
  */
 public class GenerateCertificateUseCase {
+    private static final JacksonJsonCodec JSON = JacksonJsonCodec.defaultCodec();
     private final ConferenceRepository conferenceRepository;
     private final UserRepository userRepository;
     private final SurveyPort surveyPort;
@@ -98,11 +101,39 @@ public class GenerateCertificateUseCase {
                                                 final CertificateSettings settings) throws IOException {
         if (certificateTemplateRepository != null && certificateRenderer != null) {
             final var template = certificateTemplateRepository.findByConferenceUuid(conference.getUuid());
-            if (template.isPresent() && "HTML_CHROME".equals(template.get().getEngine())) {
-                return certificateRenderer.render(template.get().getDocumentJson(), certificateData(conference, user, attendeeName));
+            if (template.isPresent()) {
+                if ("HTML_CHROME".equals(conference.getCertificateEngine())
+                        && "HTML_CHROME".equals(template.get().getEngine())) {
+                    return certificateRenderer.render(template.get().getDocumentJson(), certificateData(conference, user, attendeeName));
+                }
+                if ("INHOUSE".equals(conference.getCertificateEngine())
+                        && "INHOUSE".equals(template.get().getEngine())) {
+                    return renderPdf(conference, attendeeName, profileIncomplete,
+                            legacySettingsFromJson(template.get().getDocumentJson(), settings));
+                }
             }
         }
         return renderPdf(conference, attendeeName, profileIncomplete, settings);
+    }
+
+    private static CertificateSettings legacySettingsFromJson(final String documentJson,
+                                                               final CertificateSettings fallback) {
+        try {
+            final JsonNode node = JSON.readTree(documentJson);
+            final CertificateSettings settings = CertificateSettings.defaults();
+            settings.setLogoBase64(node.path("logoBase64").isNull() ? null
+                    : node.path("logoBase64").asText(fallback.getLogoBase64()));
+            settings.setFontFamily(node.path("fontFamily").asText(fallback.getFontFamily()));
+            settings.setTitleFontSize(node.path("titleFontSize").asInt(fallback.getTitleFontSize()));
+            settings.setBodyFontSize(node.path("bodyFontSize").asInt(fallback.getBodyFontSize()));
+            settings.setPrimaryColorHex(node.path("primaryColorHex").asText(fallback.getPrimaryColorHex()));
+            settings.setShowVenue(node.path("showVenue").asBoolean(fallback.isShowVenue()));
+            settings.setShowSchedule(node.path("showSchedule").asBoolean(fallback.isShowSchedule()));
+            settings.setShowIssuedDate(node.path("showIssuedDate").asBoolean(fallback.isShowIssuedDate()));
+            return settings;
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     private Map<String, Object> certificateData(final Conference conference, final User user, final String attendeeName) {
