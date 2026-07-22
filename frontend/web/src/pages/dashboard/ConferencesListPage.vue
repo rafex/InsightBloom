@@ -301,21 +301,58 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 @media (max-width: 768px) {
   .conferences-list-page { padding: 16px 14px; }
   .list-header { flex-direction: column; align-items: flex-start; }
+  .header-actions { width: 100%; }
+  .header-actions > * { flex: 1 1 0; text-align: center; min-width: 0; }
 
   /* Tabla -> tarjetas apiladas en pantallas angostas */
+  .table-scroll { overflow: visible; }
   .conferences-table thead { display: none; }
   .conferences-table, .conferences-table tbody, .conferences-table tr, .conferences-table td {
     display: block; width: 100%;
   }
+  .conferences-table tbody { display: grid; gap: 14px; }
   .conferences-table tr {
-    margin-bottom: 12px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 4px;
+    position: relative; margin: 0; border: 1px solid #e5e7eb; border-radius: 14px;
+    padding: 12px 14px; background: #fff; box-shadow: 0 2px 8px rgba(30, 27, 75, 0.06);
   }
   .conferences-table td {
-    border-top: none; padding: 6px 10px;
+    border-top: none; padding: 7px 0; min-width: 0;
+    display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px; align-items: center;
   }
   .conferences-table td::before {
-    content: attr(data-label); display: block; font-size: 0.7rem; font-weight: 600;
-    text-transform: uppercase; color: #9ca3af; margin-bottom: 2px;
+    content: attr(data-label); display: block; font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.03em; text-transform: uppercase; color: #9ca3af;
+  }
+  .conferences-table td.qr-col {
+    position: absolute; top: 12px; right: 14px; width: auto; padding: 0; display: block;
+  }
+  .conferences-table td.qr-col::before { display: none; }
+  .conferences-table td[data-label="Nombre"] {
+    display: block; padding: 2px 42px 12px 0; border-bottom: 1px solid #f3f4f6;
+    font-size: 1rem; font-weight: 600; color: #1e1b4b; overflow-wrap: anywhere;
+  }
+  .conferences-table td[data-label="Nombre"]::before { margin-bottom: 3px; }
+  .conferences-table td[data-label="ID amigable"] .friendly-id { overflow-wrap: anywhere; }
+  .conferences-table td[data-label="Descargas"] .downloads-text { white-space: normal; }
+  .conferences-table td.actions-cell {
+    display: block; margin-top: 8px; padding: 12px 0 0; border-top: 1px solid #e5e7eb;
+  }
+  .conferences-table td.actions-cell::before { margin-bottom: 8px; }
+  .conf-actions, .conf-modes { gap: 7px; }
+  .conf-actions .btn-ghost, .conf-actions .btn-trash,
+  .conf-modes .btn-ghost, .conf-modes :deep(.dropdown-trigger) {
+    min-height: 36px; padding: 7px 10px; font-size: 0.76rem;
+  }
+  .conf-actions .btn-trash { width: 36px; }
+  .type-badge, .status-badge { justify-self: start; }
+
+  @media (max-width: 380px) {
+    .conferences-list-page { padding-left: 10px; padding-right: 10px; }
+    .header-actions { flex-direction: column; }
+    .header-actions > * { flex-basis: auto; width: 100%; }
+    .conferences-table td { grid-template-columns: 78px minmax(0, 1fr); gap: 8px; }
+    .conf-actions .btn-ghost, .conf-modes .btn-ghost,
+    .conf-modes :deep(.dropdown-trigger) { padding-left: 8px; padding-right: 8px; }
   }
 }
 </style>
