@@ -98,6 +98,13 @@ En Network filtrar por `external_api.js`:
 
 Los mensajes de `/api/presentations/.../presentation/ws/audience` pertenecen al seguimiento en vivo de presentaciones. Pueden quedar visibles en DevTools si la consola conserva mensajes de una ruta anterior. Limpiar la consola y repetir la prueba desde `/video` antes de atribuirlos a Jitsi.
 
+El certificado de asistencia se previsualiza mediante una URL `blob:` dentro de
+un `iframe`. Si la consola muestra un mensaje `frame-src` que enumera dominios
+de Jitsi pero identifica como recurso bloqueado una URL `blob:`, no es un fallo
+de Jitsi: es la CSP del frontend sin `blob:` en `frame-src`. La política debe
+permitir `blob:` para esa previsualización, sin convertir `frame-src` en una
+allowlist global de cualquier origen.
+
 Abrir directamente un endpoint protegido de presentaciones sin `Authorization` o cookie puede devolver `ticket_required`; ese comportamiento es esperado y no diagnostica la videollamada.
 
 ## Checklist antes de cerrar un cambio de Jitsi
