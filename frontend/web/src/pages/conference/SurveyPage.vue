@@ -125,6 +125,7 @@
 import { ref, reactive, shallowRef, computed, onMounted, type PropType } from 'vue'
 import { useRoute } from 'vue-router'
 import { Model } from 'survey-core'
+import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
 import { getQuestions, submitResponses, hasResponded, getSurveyDefinition, submitSurveyJs } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl, primePresentationAccess } from '@/services/api/presentationsApi'
@@ -316,6 +317,10 @@ export default {
         engine.value = definition.engine
         if (definition.engine === 'SURVEYJS' && definition.schema) {
           const model = new Model(definition.schema)
+          // SurveyJS usa el idioma del modelo para sus textos internos. El
+          // contenido de las preguntas ya viene del moderador y se conserva.
+          model.locale = 'es'
+          model.completeText = 'Enviar respuestas'
           model.onComplete.add(async (sender) => { await submitSurveyJsForm(sender.data) })
           surveyModel.value = model
         } else if (definition.engine !== 'SURVEYJS') {

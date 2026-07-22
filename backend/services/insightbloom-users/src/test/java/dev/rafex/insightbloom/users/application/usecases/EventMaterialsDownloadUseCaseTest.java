@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -54,5 +55,20 @@ class EventMaterialsDownloadUseCaseTest {
         assertTrue(entries.contains("moderator/etherpad/export.txt"));
         assertTrue(entries.contains("manifest.json"));
         assertFalse(entries.stream().anyMatch(name -> name.contains("private")));
+    }
+
+    @Test
+    void failsInsteadOfReturningAnIncompleteZipWhenGroupNotesCannotBeRead() {
+        final ConferenceRepository repository = mock(ConferenceRepository.class);
+        final EtherpadPort etherpad = mock(EtherpadPort.class);
+        final EventCapabilityGuard capabilityGuard = mock(EventCapabilityGuard.class);
+        final Conference conference = new Conference("evento", "Evento", "owner");
+        conference.setCanvasConfigs(java.util.List.of(new CanvasConfig("ETHERPAD", "COLLABORATIVE")));
+        when(repository.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(etherpad.readPad(conference.getUuid())).thenThrow(new IllegalStateException("gateway_unauthorized"));
+
+        assertThrows(IllegalStateException.class, () -> new EventMaterialsDownloadUseCase(
+                repository, capabilityGuard, new GetEventDiagramUseCase(repository),
+                new GetEventWhiteboardUseCase(repository), etherpad).execute(conference.getUuid()));
     }
 }

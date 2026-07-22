@@ -262,6 +262,7 @@
 <script lang="ts">
 import { ref, computed, onMounted, shallowRef } from 'vue'
 import { Model } from 'survey-core'
+import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, type SurveyEngine } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
@@ -467,7 +468,10 @@ export default {
     }
 
     function refreshSurveyPreview() {
-      surveyPreviewModel.value = new Model(JSON.parse(JSON.stringify(surveySchema.value)))
+      const model = new Model(JSON.parse(JSON.stringify(surveySchema.value)))
+      model.locale = 'es'
+      model.completeText = 'Enviar respuestas'
+      surveyPreviewModel.value = model
     }
 
     function surveyJsTypeFor(nativeType: string): string {

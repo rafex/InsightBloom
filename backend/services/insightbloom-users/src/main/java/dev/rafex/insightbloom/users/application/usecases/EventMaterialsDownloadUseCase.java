@@ -84,9 +84,11 @@ public class EventMaterialsDownloadUseCase {
                 addText(textFiles, files, "moderator/etherpad/source.html", notes.html());
                 addText(textFiles, files, "moderator/etherpad/export.html", notes.html());
                 addText(textFiles, files, "moderator/etherpad/export.txt", notes.text());
-            } catch (final RuntimeException ignored) {
-                // El pad se crea de forma perezosa. Un evento sin notas todavía sigue teniendo
-                // un ZIP válido con los demás materiales publicados.
+            } catch (final RuntimeException e) {
+                // Un pad inexistente devuelve contenido vacío desde Etherpad. Otros fallos
+                // (gateway, autenticación, respuesta HTML o caída del servicio) no deben
+                // producir un ZIP aparentemente válido pero incompleto.
+                throw new IllegalStateException("etherpad_materials_export_failed", e);
             }
         }
 

@@ -141,8 +141,20 @@ real.
 | Todas las personas editan el mismo documento cuando se esperaba privacidad | Revisar `canvasConfigs`/`canvasAudienceMode` y confirmar `ETHERPAD: INDEPENDENT`; la configuración se aplica desde Dashboard. |
 | Un asistente recibe las notas de otro | Inspeccionar la respuesta de `GET /notes`: en modo individual debe contener un `padId` con `--private--`; no debe existir un `padId` elegido desde el frontend. |
 | Exportación vacía o falla | Confirmar que el pad existe, revisar `getText`/`getHTML` del adaptador y que la API key sólo esté configurada en Users. En modo grupal la descarga se habilita desde la encuesta respondida; en modo individual se ofrece TXT desde Notas. |
-| El ZIP no contiene notas | Confirmar que la modalidad es `COLLABORATIVE` y que el pad grupal ya tiene contenido; los pads individuales se excluyen por diseño. |
+| El ZIP no contiene notas | Confirmar que la modalidad es `COLLABORATIVE`, que el pad grupal ya tiene contenido y que Users tiene `ETHERPAD_API_BASE_URL=http://insightbloom-etherpad:9001`. `ETHERPAD_BASE_URL` es sólo la URL pública del navegador; no debe usarse para las llamadas API del backend porque pasa por tools-gateway. |
 | Las notas desaparecieron antes de exportarse | Revisar el TTL y los logs de `event-notes-purge-scheduler`; la expectativa es exportar antes de la purga posterior al vencimiento. |
+
+### Separación de URLs de Etherpad
+
+En Kubernetes se mantienen dos URLs intencionalmente:
+
+- `ETHERPAD_BASE_URL`: host público que recibe el navegador (`https://etherpad-insightbloom.v1.rafex.cloud`).
+- `ETHERPAD_API_BASE_URL`: Service interno usado por Users (`http://insightbloom-etherpad:9001`).
+
+El host público está protegido por `tools-gateway` y exige sesión de asistente. Si Users
+lo utiliza para `getText`/`getHTML`, recibe HTML `401` en vez del JSON de Etherpad y el ZIP
+queda incompleto. Los errores de lectura ya no se silencian: el endpoint responde `502` para
+que el problema sea visible y no se descargue un paquete parcial.
 
 ## Gates para no regresar
 

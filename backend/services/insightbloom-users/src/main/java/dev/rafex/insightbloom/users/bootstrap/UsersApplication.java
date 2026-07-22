@@ -28,6 +28,10 @@ public class UsersApplication {
         final String drawioBaseUrl = System.getenv().getOrDefault("DRAWIO_BASE_URL", "");
         final String excalidrawBaseUrl = System.getenv().getOrDefault("EXCALIDRAW_BASE_URL", "");
         final String etherpadBaseUrl = System.getenv().getOrDefault("ETHERPAD_BASE_URL", "");
+        // Etherpad has two addresses: the public one is exposed to the browser through the
+        // tools gateway, while server-side API calls must use the ClusterIP directly. Falling
+        // back to the public URL keeps local/non-Kubernetes deployments compatible.
+        final String etherpadApiBaseUrl = System.getenv().getOrDefault("ETHERPAD_API_BASE_URL", etherpadBaseUrl);
         final String etherpadApiKey = System.getenv().getOrDefault("ETHERPAD_API_KEY", "");
         // Debe permanecer estable mientras existan pads privados. Si no se define por separado,
         // se conserva compatibilidad con despliegues que ya sólo tienen ETHERPAD_API_KEY.
@@ -102,7 +106,7 @@ public class UsersApplication {
         final var surveyPort = new HttpSurveyClient(surveyUrl);
         final var telegramNotifyPort = new HttpTelegramNotifyClient(telegramUrl, internalApiKey);
         final var etherpadPort = new dev.rafex.insightbloom.users.adapters.outbound.etherpadclient.HttpEtherpadPort(
-                etherpadBaseUrl, etherpadApiKey);
+                etherpadApiBaseUrl, etherpadApiKey);
 
         // Use cases
         final var loginUseCase = new LoginUseCase(userRepo, tokenService, passwordService, platformDeviceGuard, platformSettingsRepo);

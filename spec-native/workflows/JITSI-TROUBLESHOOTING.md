@@ -107,6 +107,56 @@ allowlist global de cualquier origen.
 
 Abrir directamente un endpoint protegido de presentaciones sin `Authorization` o cookie puede devolver `ticket_required`; ese comportamiento es esperado y no diagnostica la videollamada.
 
+## Acceso restringido por boleto
+
+Copiar el enlace de una sala pública de `meet.jit.si` no puede quedar restringido
+por InsightBloom: el enlace salta el frontend y Jitsi público no conoce los
+boletos del evento. Una contraseña fija visible en el dashboard tampoco es una
+frontera suficiente; puede copiarse, reenviarse y permanecer válida después de
+que se revoque un boleto.
+
+La estrategia recomendada para producción es:
+
+1. Usar JaaS (`8x8.vc`) o una instancia Jitsi propia con autenticación JWT.
+2. Antes de emitir el JWT, validar sesión, evento, capacidad de videollamada,
+   boleto operativo vigente y control de dispositivo. Exentar únicamente al
+   creador, administradores y moderadores asignados al evento.
+3. Emitir un JWT corto y limitado literalmente a la sala de ese evento; el
+   JWT del moderador lleva `moderator=true` y el de un asistente no.
+4. No exponer el enlace crudo de Jitsi como enlace de acceso; el enlace público
+   debe llevar a `/c/<evento>/video`, que solicita el token por usuario.
+5. En eventos ticketed, no usar `meet.jit.si` como fallback silencioso cuando
+   JaaS no esté configurado: mostrar que la videollamada no está disponible o
+   configurar el proveedor seguro.
+
+El endpoint actual de JaaS ya firma una sala concreta y distingue al moderador,
+pero `handleGetJaasToken` todavía debe incorporar explícitamente la validación
+de boleto para asistentes. Esa es la corrección backend pendiente para cumplir
+la regla “solo quien tiene acceso al evento puede entrar”. La clave compartida
+solo tendría sentido como credencial adicional del anfitrión, nunca como
+autorización principal de asistentes, y no debe aparecer en URLs ni en el JWT
+del público.
+
+Para una instancia propia de Jitsi, la alternativa equivalente es autenticación
+JWT más lobby/espera de moderador. Debe configurarse en Prosody/Jitsi, no solo
+en `configOverwrite` del iframe; cambiar el nombre de sala o esconder el botón
+de compartir no constituye control de acceso.
+
+## Errores de Amplitude
+
+Los mensajes sobre `https://api2.amplitude.com/2/httpapi`, `NetworkError` y
+`exceeded retry count` proceden de la telemetría del cliente de Jitsi/JaaS.
+Suelen aparecer por bloqueadores de privacidad, DNS, red corporativa o una
+política CORS del tercero. No son la autorización de la sala ni la causa de
+que el iframe no cargue. InsightBloom no puede corregir el CORS de Amplitude
+desde su backend; tampoco conviene abrir más `connect-src` para ocultarlo.
+
+Si se desea cero ruido en consola, la vía correcta es desactivar u optar por la
+telemetría desde la configuración soportada por el proveedor de Jitsi/JaaS. Si
+el proveedor no ofrece esa opción para el despliegue, se debe tratar como
+telemetría best-effort y verificar funcionalidad con los errores filtrados por
+`api2.amplitude.com`.
+
 ## Checklist antes de cerrar un cambio de Jitsi
 
 - [ ] `external_api.js` no aparece bloqueado por CSP.
@@ -116,6 +166,8 @@ Abrir directamente un endpoint protegido de presentaciones sin `Authorization` o
 - [ ] Flux selecciona la etiqueta nueva y el pod web queda `Ready`.
 - [ ] Se prueba `/c/<evento>/video` con una pestaña nueva y recarga forzada.
 - [ ] Se prueba tanto JaaS (`8x8.vc`) como el fallback público (`meet.jit.si`) cuando ambos estén configurados en el ambiente.
+- [ ] En eventos ticketed, el endpoint de JaaS rechaza a un usuario autenticado sin boleto y permite al creador/moderador exento.
+- [ ] En producción ticketed no existe fallback silencioso a una sala pública.
 - [ ] Se confirma que el error observado no corresponde a otro módulo por la URL y el iniciador mostrados en DevTools.
 
 ## Regla de seguridad
