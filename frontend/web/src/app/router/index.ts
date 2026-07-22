@@ -33,6 +33,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/conference/IdeSessionPage.vue')
   },
   {
+    // Base personalizada configurada en JaaS. La pantalla valida sesión + boleto y sólo
+    // entonces entra a /c/:friendlyId/video.
+    path: '/jitsi/:friendlyId',
+    component: () => import('@/pages/conference/JitsiInvitePage.vue')
+  },
+  {
     path: '/c/:friendlyId',
     component: () => import('@/pages/conference/ConferencePage.vue'),
     children: [

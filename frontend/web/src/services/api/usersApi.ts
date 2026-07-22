@@ -7,7 +7,7 @@ import type {
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
-  DeviceFingerprintFlag, ConferenceAccess
+  DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 
@@ -125,6 +125,15 @@ export async function getConference(id: string, token: string): Promise<Conferen
 
 export async function getConferenceByFriendlyId(friendlyId: string): Promise<Conference> {
   const res = await axios.get(`/api/users/api/v1/conferences/by-friendly/${friendlyId}`)
+  return res.data.data
+}
+
+/** Valida la ruta de invitación propia antes de cargar la videollamada de JaaS. */
+export async function getJitsiInviteAccess(friendlyId: string, token: string): Promise<JitsiInviteAccess> {
+  const res = await axios.get(
+    `/api/users/api/v1/conferences/by-friendly/${encodeURIComponent(friendlyId)}/jitsi-access`,
+    await authHeaderWithDevice(token)
+  )
   return res.data.data
 }
 

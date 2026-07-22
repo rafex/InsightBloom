@@ -45,9 +45,10 @@ export default {
   name: 'VideoConferencePage',
   props: {
     conferenceId: { type: String, default: '' },
-    ticketed: { type: Boolean, default: false }
+    ticketed: { type: Boolean, default: false },
+    inviteAlias: { type: String, default: '' }
   },
-  setup(props: { conferenceId?: string; ticketed?: boolean }) {
+  setup(props: { conferenceId?: string; ticketed?: boolean; inviteAlias?: string }) {
     const auth = useAuthStore()
     const loading = ref(true)
     const deviceBlocked = ref(false)
@@ -106,7 +107,18 @@ export default {
           width: '100%',
           height: '100%',
           jwt: jaas ? jaas.token : undefined,
-          configOverwrite: { prejoinPageEnabled: false },
+          // No se permite compartir la invitación directa de 8x8.vc. La ruta autorizada es
+          // /jitsi/:friendlyId, que valida sesión + boleto en InsightBloom antes de llegar aquí.
+          // brandingRoomAlias hace que JaaS genere enlaces que regresan a esa ruta propia.
+          configOverwrite: {
+            prejoinPageEnabled: false,
+            brandingRoomAlias: props.inviteAlias || undefined,
+            toolbarButtons: [
+              'microphone', 'camera', 'chat', 'participants-pane', 'settings', 'hangup',
+              'tileview', 'fullscreen', 'raisehand', 'select-background', 'fodeviceselection',
+              'videoquality', 'security', 'help'
+            ]
+          },
           interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false }
         })
       } catch (e: any) {

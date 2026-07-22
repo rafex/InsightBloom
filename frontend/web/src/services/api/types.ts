@@ -32,6 +32,13 @@ export interface JaasToken {
   roomName: string
 }
 
+export interface JitsiInviteAccess {
+  allowed: boolean
+  conferenceId: string
+  friendlyId: string
+  ticketRequired: boolean
+}
+
 export interface EventNotesPad {
   padId: string
 }

@@ -79,7 +79,7 @@
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
         router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
-      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :access-granted="routeAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator")
+      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator")
 
     OnboardingTour(storage-key="ib_onboarding_conference" :steps="attendeeTourSteps")
 

@@ -109,6 +109,40 @@ Abrir directamente un endpoint protegido de presentaciones sin `Authorization` o
 
 ## Acceso restringido por boleto
 
+### Invitación personalizada de InsightBloom
+
+La URL que debe configurarse como base de invitación en JaaS es:
+
+```text
+https://insightbloom.v1.rafex.cloud/jitsi
+```
+
+JaaS puede mostrar una URL con el identificador privado de la sala (`vpaas-magic-cookie-...`).
+Esa URL no debe compartirse como mecanismo de acceso de asistentes. La integración configura
+`brandingRoomAlias` con el `friendlyId` del evento para que la invitación vuelva a
+`/jitsi/<evento>`.
+
+La ruta propia realiza este flujo:
+
+1. Si no existe una sesión de usuario, muestra una página de error con enlaces para iniciar
+   sesión o crear una cuenta.
+2. El frontend llama a
+   `GET /api/users/api/v1/conferences/by-friendly/<evento>/jitsi-access` con el Bearer token.
+3. El backend resuelve el evento, comprueba que tenga `VIDEO_CONFERENCE` y valida el boleto
+   operativo/vigente mediante `TicketUseCase.hasAccess`.
+4. Sólo si la respuesta es `200` se navega a `/c/<evento>/video`, que vuelve a validar el acceso
+   antes de solicitar el JWT de JaaS.
+5. Si falta el boleto, la pantalla muestra `ticket_required`; si el evento no existe o no tiene
+   videollamada, no se carga ningún iframe de JaaS.
+
+El endpoint de acceso no devuelve el JWT. Tampoco se acepta un token de invitado (`guest`). El
+creador y los moderadores asignados pasan por la misma regla porque reciben boletos operativos
+contados y protegidos contra revocación.
+
+Dentro del iframe se oculta el botón `Invite more people`. Esto reduce el riesgo de que alguien
+copie el enlace del proveedor. No sustituye la validación backend: un enlace directo al proveedor
+siempre debe considerarse no autorizado para asistentes.
+
 Copiar el enlace de una sala pública de `meet.jit.si` no puede quedar restringido
 por InsightBloom: el enlace salta el frontend y Jitsi público no conoce los
 boletos del evento. Una contraseña fija visible en el dashboard tampoco es una
@@ -125,7 +159,8 @@ La estrategia recomendada para producción es:
 3. Emitir un JWT corto y limitado literalmente a la sala de ese evento; el
    JWT del moderador lleva `moderator=true` y el de un asistente no.
 4. No exponer el enlace crudo de Jitsi como enlace de acceso; el enlace público
-   debe llevar a `/c/<evento>/video`, que solicita el token por usuario.
+   debe llevar a `/jitsi/<evento>`, que solicita el token por usuario y luego entra a
+   `/c/<evento>/video`.
 5. En eventos ticketed, no usar `meet.jit.si` como fallback silencioso cuando
    JaaS no esté configurado: mostrar que la videollamada no está disponible o
    configurar el proveedor seguro.
@@ -168,6 +203,10 @@ telemetría best-effort y verificar funcionalidad con los errores filtrados por
 - [ ] En eventos ticketed, el endpoint de JaaS rechaza a un usuario autenticado sin boleto.
 - [ ] El creador y los moderadores asignados reciben boletos operativos contados y no revocables.
 - [ ] En producción ticketed no existe fallback silencioso a una sala pública.
+- [ ] JaaS tiene configurada como base de invitación `https://insightbloom.v1.rafex.cloud/jitsi`.
+- [ ] `/jitsi/<evento>` devuelve error sin sesión, con `ticket_required` sin boleto y redirige a
+      `/c/<evento>/video` sólo con acceso autorizado.
+- [ ] La interfaz embebida no muestra `Invite more people`.
 - [ ] Se confirma que el error observado no corresponde a otro módulo por la URL y el iniciador mostrados en DevTools.
 
 ## Regla de seguridad

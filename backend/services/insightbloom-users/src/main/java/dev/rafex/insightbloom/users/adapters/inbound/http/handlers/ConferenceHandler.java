@@ -258,6 +258,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         return List.of(
                 Route.of("/", Set.of("GET", "POST")),
                 Route.of("/by-friendly/{friendlyId}", Set.of("GET")),
+                Route.of("/by-friendly/{friendlyId}/jitsi-access", Set.of("GET")),
                 Route.of("/by-short/{shortCode}", Set.of("GET")),
                 Route.of("/join", Set.of("POST")),
                 Route.of("/history", Set.of("GET")),
@@ -320,6 +321,11 @@ public class ConferenceHandler extends BaseResourceHandler {
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
         final String path = jx.path();
+        // Must precede the generic /by-friendly route: this is an authorization decision,
+        // not a public conference lookup.
+        if (path.endsWith("/jitsi-access")) {
+            return handleJitsiInviteAccess(jx, jx.pathParam("friendlyId"));
+        }
         if (path.contains("/by-friendly/")) {
             return handleGetByFriendly(jx, jx.pathParam("friendlyId"));
         }
@@ -565,6 +571,48 @@ public class ConferenceHandler extends BaseResourceHandler {
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    /** Authorizes the custom JaaS invite without issuing or exposing a provider JWT. */
+    private boolean handleJitsiInviteAccess(final JettyHttpExchange jx, final String friendlyId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Inicia sesión para acceder a la videollamada");
+            return true;
+        }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid() || !"user".equalsIgnoreCase(validation.kind())) {
+                sendError(jx, 401, "token_invalid", "Necesitas una sesión de usuario válida");
+                return true;
+            }
+            final var conference = getConferenceUseCase.byFriendlyId(friendlyId);
+            if (conference.isEmpty()) {
+                sendError(jx, 404, "conference_not_found", "Evento no encontrado");
+                return true;
+            }
+            final Conference event = conference.get();
+            if (!eventCapabilityGuard.hasCapability(event, EventCapability.VIDEO_CONFERENCE)) {
+                sendError(jx, 409, "capability_not_available", "El evento no habilita videollamada");
+                return true;
+            }
+            final boolean ticketRequired = ticketUseCase != null && ticketUseCase.isTicketed(event);
+            // The creator and assigned moderators receive protected operational tickets, so this
+            // check remains counted and auditable instead of using an uncounted staff bypass.
+            if (ticketRequired && !ticketUseCase.hasAccess(event, validation.subjectUuid())) {
+                sendError(jx, 403, "ticket_required", "Regístrate y canjea un boleto para entrar");
+                return true;
+            }
+            sendOk(jx, 200, Map.of(
+                    "allowed", true,
+                    "conferenceId", event.getUuid(),
+                    "friendlyId", event.getFriendlyId(),
+                    "ticketRequired", ticketRequired));
+        } catch (final Exception e) {
+            LOGGER.warning("jitsi_invite_access_failed friendlyId=" + friendlyId + " error=" + e.getMessage());
+            sendError(jx, 500, "internal_error", "No se pudo validar el acceso a la videollamada");
         }
         return true;
     }
