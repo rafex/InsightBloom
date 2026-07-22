@@ -1358,7 +1358,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             // expired attendee ticket must not remove access from event operators.
             final boolean staffAccess = v != null && v.valid() && hasOperationalStaffAccess(id, v);
             final boolean hasAccess = v != null && v.valid() && (staffAccess || ticketUseCase.hasAccess(conference, v.subjectUuid()));
-            final boolean presentationAccess = v != null && v.valid() && (hasAccess || eventPermissionGuard.hasPermission(
+            final boolean presentationAccess = v != null && v.valid() && (hasAccess || staffAccess || eventPermissionGuard.hasPermission(
                     id, v.subjectUuid(), v.role(), Permission.MANAGE_PRESENTATION));
             sendOk(jx, 200, Map.of("ticketRequired", ticketUseCase.isTicketed(conference), "hasAccess", hasAccess,
                     "presentationAccess", presentationAccess,
