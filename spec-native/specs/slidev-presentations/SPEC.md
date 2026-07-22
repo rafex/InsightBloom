@@ -54,7 +54,12 @@ usuario durante la carga.
 - El SPA Slidev de audiencia se genera con `--without-notes`. Sus assets se
   sirven únicamente después de validar el acceso de conferencia; el endpoint
   inicial establece una cookie de token con alcance al directorio de la
-  presentación para que los bundles relativos no pierdan autenticación.
+  presentación para que los bundles relativos no pierdan autenticación. El
+  alcance de esa cookie debe usar la ruta visible del navegador
+  (`/api/presentations/api/v1/...`), no la ruta interna reescrita por Nginx
+  (`/api/v1/...`). La autorización del WebSocket debe reutilizar la misma
+  respuesta de acceso, incluyendo `presentationAccess` para staff sin boleto
+  de asistente.
 - El preview Slidev no sirve el SPA: genera PNG de las primeras diapositivas y
   los entrega mediante una ruta pública separada. PDF y miniatura se generan
   bajo demanda con Chromium y quedan cacheados por conferencia.

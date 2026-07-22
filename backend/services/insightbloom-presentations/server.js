@@ -9,6 +9,7 @@ const AdmZip = require('adm-zip');
 const cheerio = require('cheerio');
 const { attachLiveSync, issueRemoteToken } = require('./live');
 const { auditArchive } = require('./tools/audit-slidev-artifact');
+const { presentationCookiePath, hasConferenceAccess: accessFromResponse } = require('./access');
 
 const PREVIEW_SLIDE_LIMIT = 5;
 
@@ -99,7 +100,10 @@ function setPresentationAccessCookie(req, res, conferenceId) {
   const token = requestToken(req);
   if (!token) return;
   const secure = req.secure || req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `ib_token=${encodeURIComponent(token)}; Path=/api/v1/conferences/${conferenceId}/presentation; HttpOnly; SameSite=Lax${secure}`);
+  // Nginx removes /api/presentations before forwarding to this service. The
+  // cookie is stored by the browser before that rewrite, so using /api/v1 here
+  // silently prevents it from being sent to the iframe and WebSocket.
+  res.setHeader('Set-Cookie', `ib_token=${encodeURIComponent(token)}; Path=${presentationCookiePath(conferenceId)}; HttpOnly; SameSite=Lax${secure}`);
 }
 
 async function hasConferenceAccess(conferenceId, token) {
@@ -112,9 +116,7 @@ async function hasConferenceAccess(conferenceId, token) {
     const body = await response.json();
     // Open events need no token; staff and presentation managers are authorized
     // by role and must not depend on an attendee ticket.
-    return body?.data?.ticketRequired !== true
-      || body?.data?.hasAccess === true
-      || body?.data?.presentationAccess === true;
+    return accessFromResponse(body);
   } catch {
     return false;
   }

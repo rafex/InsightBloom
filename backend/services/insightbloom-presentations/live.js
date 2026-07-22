@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const { connect, StringCodec } = require('nats');
+const { hasConferenceAccess: accessFromResponse } = require('./access');
 
 const PRESENTER_WS_RE = /^\/api\/v1\/conferences\/([^/]+)\/presentation\/ws\/presenter$/;
 const AUDIENCE_WS_RE = /^\/api\/v1\/conferences\/([^/]+)\/presentation\/ws\/audience$/;
@@ -105,7 +106,10 @@ async function hasConferenceAccess(conferenceId, token) {
     });
     if (!res.ok) return false;
     const body = await res.json();
-    return body?.data?.hasAccess === true;
+    // Staff access is role-based and is intentionally independent of an
+    // attendee ticket. Keep the WebSocket rule identical to the HTTP iframe
+    // rule, otherwise the presentation renders but live sync is rejected.
+    return accessFromResponse(body);
   } catch {
     return false;
   }

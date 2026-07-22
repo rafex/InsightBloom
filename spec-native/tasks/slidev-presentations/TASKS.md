@@ -127,6 +127,11 @@
 - Dependencias: SLIDEV-006, SLIDEV-007
 - Implementar un adaptador para traducir el estado de navegación Slidev al
   evento común del WebSocket existente.
+- Mantener el acceso del iframe y del WebSocket alineado: la cookie de sesión
+  debe usar el prefijo público `/api/presentations` y la regla debe aceptar
+  `presentationAccess` para moderadores/admin aunque no tengan un boleto de
+  asistente. Una ruta de cookie interna `/api/v1/...` no funciona detrás del
+  proxy Nginx.
 - Probar navegación, reconexión, refresh y dos sesiones de audiencia.
 - No habilitar el remote control nativo de Slidev como bypass de autorización.
 - Criterio de cierre: moderador y audiencia permanecen en la misma slide con

@@ -9,8 +9,9 @@ Estado activo de trabajo para continuidad multi-agente.
 - **Iniciativa activa**: `slidev-presentations`
 - **Branch**: `main`
 - **Último agente**: Codex
-- **Última acción**: Integración inicial de Marp/Slidev en carga, build, visor,
-  modo presentador y navegación en vivo.
+- **Última acción**: corregido el alcance de la cookie de presentación detrás
+  del proxy `/api/presentations` y alineada la autorización del WebSocket con
+  el acceso operativo de moderadores/admin.
 
 ---
 
@@ -21,6 +22,10 @@ seleccionable por carga. El MVP acepta ZIP controlados, genera una SPA Slidev
 con base por conferencia, la protege con el acceso existente y traduce sus
 rutas de navegación al WebSocket de presentaciones. El CD continúa fuera de
 este repositorio, en `InsightBloom-gitops`, reconciliado por FluxCD.
+
+Si la audiencia muestra `ticket_required` y el WebSocket devuelve `502`,
+comprobar primero que la imagen del servicio incluya esta corrección: la
+cookie debe tener `Path=/api/presentations/api/v1/conferences/{id}/presentation`.
 
 ## Próximos pasos
 
