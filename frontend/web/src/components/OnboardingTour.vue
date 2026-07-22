@@ -2,12 +2,12 @@
 .tour-overlay(v-if="visible" @click.self="skip")
   .tour-highlight(v-if="targetRect" :style="highlightStyle")
   .tour-popover(:style="popoverStyle")
-    p.tour-text {{ steps[stepIndex].text }}
+    p.tour-text {{ activeSteps[stepIndex].text }}
     .tour-actions
-      span.tour-progress {{ stepIndex + 1 }} / {{ steps.length }}
+      span.tour-progress {{ stepIndex + 1 }} / {{ activeSteps.length }}
       button.tour-skip(type="button" @click="skip") Saltar
       button.tour-next(type="button" @click="next")
-        span(v-if="stepIndex < steps.length - 1") Siguiente
+        span(v-if="stepIndex < activeSteps.length - 1") Siguiente
         span(v-else) Entendido
 </template>
 
@@ -29,9 +29,10 @@ export default {
     const visible = ref(false)
     const stepIndex = ref(0)
     const targetRect = ref<DOMRect | null>(null)
+    const activeSteps = ref<TourStep[]>([])
 
     function measure() {
-      const step = props.steps[stepIndex.value]
+      const step = activeSteps.value[stepIndex.value]
       if (!step) return
       const el = document.querySelector(step.selector)
       targetRect.value = el ? el.getBoundingClientRect() : null
@@ -41,9 +42,15 @@ export default {
 
     async function tryStart(attemptsLeft: number) {
       await nextTick()
-      const firstSelector = props.steps[0]?.selector
-      const found = firstSelector && document.querySelector(firstSelector)
+      const found = props.steps.some(step => document.querySelector(step.selector))
       if (found) {
+        // A conference can hide tools according to its capabilities and canvas
+        // configuration. The tour must describe only the controls the attendee
+        // can actually use instead of showing empty steps.
+        await new Promise(resolve => setTimeout(resolve, 150))
+        activeSteps.value = props.steps.filter(step => document.querySelector(step.selector))
+        stepIndex.value = 0
+        if (activeSteps.value.length === 0) return
         visible.value = true
         measure()
         window.addEventListener('resize', updatePosition)
@@ -63,7 +70,7 @@ export default {
     }
 
     function next() {
-      if (stepIndex.value < props.steps.length - 1) {
+      if (stepIndex.value < activeSteps.value.length - 1) {
         stepIndex.value += 1
         measure()
       } else {
@@ -106,7 +113,7 @@ export default {
       return { top: `${top}px`, left: `${left}px` }
     })
 
-    return { visible, stepIndex, targetRect, next, skip, highlightStyle, popoverStyle }
+    return { visible, stepIndex, activeSteps, targetRect, next, skip, highlightStyle, popoverStyle }
   }
 }
 </script>

@@ -45,31 +45,31 @@
         router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
           span.tool-icon 📽️
           span.tool-label Presentación
-        a.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
+        a#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
           span.tool-icon 💬
           span.tool-label Chat
-        a.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo")
+        a#onboarding-tab-chat.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo")
           span.tool-icon 💬
           span.tool-label Chat
         router-link#onboarding-tab-survey.tool-btn(v-if="privateAllowed('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
           span.tool-icon 📝
           span.tool-label Encuesta
-        router-link.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
+        router-link#onboarding-tab-video.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
           span.tool-icon 🎥
           span.tool-label Videollamada
-        router-link.tool-btn(v-if="canvasAllowed('DRAWIO', 'DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
+        router-link#onboarding-tab-diagrams.tool-btn(v-if="canvasAllowed('DRAWIO', 'DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
           span.tool-icon 🧩
           span.tool-label Diagramas
-        router-link.tool-btn(v-if="canvasAllowed('EXCALIDRAW', 'WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
+        router-link#onboarding-tab-whiteboard.tool-btn(v-if="canvasAllowed('EXCALIDRAW', 'WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
           span.tool-icon 🖍️
           span.tool-label Pizarra
-        router-link.tool-btn(v-if="canvasAllowed('ETHERPAD', 'COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
+        router-link#onboarding-tab-notes.tool-btn(v-if="canvasAllowed('ETHERPAD', 'COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
           span.tool-icon 🗒️
           span.tool-label Notas
-        router-link.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
+        router-link#onboarding-tab-ticket.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
           span.tool-icon 🎟️
           span.tool-label Mi boleto
-        router-link.tool-btn(v-if="privateAllowed('CODE_IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
+        router-link#onboarding-tab-ide.tool-btn(v-if="privateAllowed('CODE_IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
           span.tool-icon 💻
           span.tool-label IDE
     .conf-body
@@ -81,7 +81,7 @@
         router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
       router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator")
 
-    OnboardingTour(storage-key="ib_onboarding_conference" :steps="attendeeTourSteps")
+    OnboardingTour(storage-key="ib_onboarding_conference_v2" :steps="attendeeTourSteps")
 
   QrCodeModal(v-if="showQr" :friendlyId="friendlyId" @close="showQr = false")
 </template>
@@ -107,7 +107,14 @@ const ATTENDEE_TOUR_STEPS = [
   { selector: '#onboarding-tab-doubts', text: 'Aquí envías tus dudas sobre la charla — todos las ven en una nube de palabras en vivo.' },
   { selector: '#onboarding-tab-topics', text: 'Aquí propones temas de interés para futuras conferencias.' },
   { selector: '#onboarding-tab-presentation', text: 'Sigue la presentación en vivo, sincronizada con el presentador.' },
-  { selector: '#onboarding-tab-survey', text: 'Al terminar, responde la encuesta para obtener tu certificado.' }
+  { selector: '#onboarding-tab-chat', text: 'Aquí puedes conversar en vivo con el grupo y el moderador.' },
+  { selector: '#onboarding-tab-survey', text: 'Al terminar, responde la encuesta para obtener tu certificado.' },
+  { selector: '#onboarding-tab-video', text: 'Únete a la videollamada del evento. El acceso requiere sesión y boleto cuando el evento está protegido.' },
+  { selector: '#onboarding-tab-diagrams', text: 'Consulta y trabaja con los diagramas del evento según el modo configurado.' },
+  { selector: '#onboarding-tab-whiteboard', text: 'Usa la pizarra para colaborar o consultar la publicación del moderador.' },
+  { selector: '#onboarding-tab-notes', text: 'Toma notas del evento. Según la configuración, pueden ser grupales o individuales.' },
+  { selector: '#onboarding-tab-ticket', text: 'Aquí consultas y gestionas tu boleto de acceso al evento.' },
+  { selector: '#onboarding-tab-ide', text: 'Accede al IDE de código del evento cuando esté habilitado.' }
 ]
 
 export default {

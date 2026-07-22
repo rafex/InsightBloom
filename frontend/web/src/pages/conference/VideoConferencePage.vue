@@ -106,6 +106,9 @@ export default {
           parentNode: document.querySelector('#jitsi-container'),
           width: '100%',
           height: '100%',
+          // JaaS toma el idioma de la propiedad de la API IFrame, no de la configuración
+          // regional del navegador. Fijarlo aquí mantiene la experiencia en español.
+          lang: 'es',
           jwt: jaas ? jaas.token : undefined,
           // No se permite compartir la invitación directa de 8x8.vc. La ruta autorizada es
           // /jitsi/:friendlyId, que valida sesión + boleto en InsightBloom antes de llegar aquí.
