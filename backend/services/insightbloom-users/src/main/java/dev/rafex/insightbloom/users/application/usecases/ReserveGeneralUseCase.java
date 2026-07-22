@@ -31,10 +31,8 @@ public class ReserveGeneralUseCase {
         if ("SEATED".equals(conference.getSeatingMode())) {
             throw new IllegalStateException("not_general_admission");
         }
-        // Admin/organizer/moderator no consumen boleto/aforo -- su acceso ya está garantizado
-        // por su rol, no por "ganar" un lugar limitado (ver User.isExemptFromTickets()). Su
-        // asistencia se sigue registrando vía ConferenceMembership (JoinConferenceUseCase),
-        // solo quedan afuera del conteo de boletos emitidos.
+        // El flujo legacy de reservas mantiene la exención para staff; el flujo de TicketUseCase
+        // ya reservó el aforo del boleto operativo del creador/moderador cuando corresponde.
         final boolean staffExempt = userRepository.findByUuid(userUuid)
                 .map(dev.rafex.insightbloom.users.domain.model.User::isExemptFromTickets).orElse(false);
         if (staffExempt) {

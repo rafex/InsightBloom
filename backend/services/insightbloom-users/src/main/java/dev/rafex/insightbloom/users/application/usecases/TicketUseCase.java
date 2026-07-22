@@ -78,6 +78,31 @@ public class TicketUseCase {
         return ticket;
     }
 
+    /**
+     * Emite el boleto contado del personal operativo. Se entrega ya canjeado al usuario y queda
+     * protegido contra revocación. Es idempotente para no consumir otra plaza si el rol se asigna
+     * nuevamente o si se completa un evento antiguo durante el primer acceso del creador.
+     */
+    public Ticket issueOperational(final String conferenceUuid, final String operatorUserUuid) {
+        final Conference conference = conference(conferenceUuid);
+        ensureConferenceActive(conference);
+        if (!isTicketed(conference)) throw new IllegalStateException("capability_not_available");
+        final Optional<Ticket> existing = ticketRepository.findOperationalByConferenceAndUser(
+                conferenceUuid, operatorUserUuid);
+        if (existing.isPresent()) return existing.get();
+        if (conference.getCapacity() == null || !conferenceRepository.tryIncrementReservedCount(conferenceUuid)) {
+            throw new IllegalStateException("capacity_exceeded");
+        }
+        final Ticket ticket = Ticket.operational(conferenceUuid, conference.getCreatedByUserUuid(), operatorUserUuid);
+        try {
+            ticketRepository.insert(ticket);
+        } catch (RuntimeException e) {
+            conferenceRepository.decrementReservedCount(conferenceUuid);
+            throw e;
+        }
+        return ticket;
+    }
+
     public Ticket claim(final String conferenceUuid, final String qrOrUuid, final String userUuid) {
         final Conference conference = conference(conferenceUuid);
         expireIfNeeded(conference);
@@ -143,6 +168,7 @@ public class TicketUseCase {
         final Ticket ticket = ticketRepository.findByUuid(ticketUuid)
                 .filter(t -> conferenceUuid.equals(t.getConferenceUuid()))
                 .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
+        if (ticket.isOperational()) throw new IllegalStateException("operational_ticket_protected");
         if (!ticketRepository.revoke(ticketUuid, revokedByUserUuid, Instant.now().toString())) {
             throw new IllegalStateException("ticket_already_used");
         }
@@ -159,6 +185,12 @@ public class TicketUseCase {
             return false;
         }
         expireIfNeeded(conference);
+        if (conference.getCreatedByUserUuid() != null
+                && conference.getCreatedByUserUuid().equals(userUuid)
+                && ticketRepository.findOperationalByConferenceAndUser(conference.getUuid(), userUuid).isEmpty()) {
+            // Compatibilidad para eventos creados antes de los boletos operativos.
+            issueOperational(conference.getUuid(), userUuid);
+        }
         // En un evento ticketed, la reserva sólo aparta aforo; el acceso efectivo depende de un
         // boleto CLAIMED/CHECKED_IN vigente. Mantener la reserva como alternativa permitía que un
         // usuario conservara acceso después de que el moderador revocara su boleto.

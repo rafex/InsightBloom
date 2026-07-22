@@ -49,8 +49,8 @@
         option(value="SEATED") Con asientos (mapa del recinto)
       .coord-field
         span.coord-label Aforo máximo
-        input(v-model.number="capacity" type="number" min="1" placeholder="10")
-      p.field-hint Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), sin importar el modo de boletos elegido — la infraestructura tiene recursos limitados. Recomendado hasta {{ recommendedMaxCapacity }}.
+        input(v-model.number="capacity" type="number" min="2" placeholder="10")
+      p.field-hint Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), sin importar el modo de boletos elegido — la infraestructura tiene recursos limitados. El mínimo es 2 porque el creador ocupa un boleto operativo contado. Cada moderador adicional ocupa otra plaza. Recomendado hasta {{ recommendedMaxCapacity }}.
       p.capacity-alert(v-if="capacityAlert" :class="capacityAlert.level") {{ capacityAlert.text }}
       button.btn-outline(type="button" @click="saveSeating" :disabled="savingSeating")
         span(v-if="savingSeating") Guardando...

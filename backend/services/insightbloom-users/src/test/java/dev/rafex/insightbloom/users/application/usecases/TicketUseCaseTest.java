@@ -151,6 +151,61 @@ class TicketUseCaseTest {
     }
 
     @Test
+    void operationalTicketIsCountedClaimedAndIdempotent() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        conference.setCapacity(2);
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findOperationalByConferenceAndUser(conference.getUuid(), "owner"))
+                .thenReturn(Optional.empty());
+        when(conferences.tryIncrementReservedCount(conference.getUuid())).thenReturn(true);
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "", mock(ReservationRepository.class));
+
+        final Ticket issued = useCase.issueOperational(conference.getUuid(), "owner");
+
+        assertTrue(issued.isOperational());
+        assertEquals("CLAIMED", issued.getStatus().name());
+        assertEquals("owner", issued.getClaimedByUserUuid());
+        verify(conferences).tryIncrementReservedCount(conference.getUuid());
+        verify(tickets).insert(issued);
+
+        when(tickets.findOperationalByConferenceAndUser(conference.getUuid(), "owner"))
+                .thenReturn(Optional.of(issued));
+        assertSame(issued, useCase.issueOperational(conference.getUuid(), "owner"));
+        verify(conferences, times(1)).tryIncrementReservedCount(conference.getUuid());
+    }
+
+    @Test
+    void operationalTicketCannotBeRevokedOrReleaseCapacity() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        conference.setCapacity(2);
+        final Ticket operational = Ticket.operational(conference.getUuid(), "owner", "owner");
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByUuid(operational.getUuid())).thenReturn(Optional.of(operational));
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "", mock(ReservationRepository.class));
+
+        final IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> useCase.revoke(conference.getUuid(), operational.getUuid(), "owner"));
+
+        assertEquals("operational_ticket_protected", error.getMessage());
+        verify(tickets, never()).revoke(anyString(), anyString(), anyString());
+        verify(conferences, never()).decrementReservedCount(anyString());
+    }
+
+    @Test
     void revokedUserLosesAccessButCanClaimAnotherTicket() {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EventTypeRepository eventTypes = mock(EventTypeRepository.class);

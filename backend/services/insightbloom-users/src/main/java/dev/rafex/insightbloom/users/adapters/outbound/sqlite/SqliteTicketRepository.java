@@ -16,13 +16,14 @@ public class SqliteTicketRepository implements TicketRepository {
     public SqliteTicketRepository(final DatabaseManager db) { this.db = db; }
 
     @Override public void insert(final Ticket t) {
-        final String sql = "INSERT INTO tickets (uuid, conference_uuid, ticket_code, issued_by_user_uuid, recipient_email, seat_uuid, status, claimed_by_user_uuid, issued_at, claimed_at, checked_in_at, revoked_by_user_uuid, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        final String sql = "INSERT INTO tickets (uuid, conference_uuid, ticket_code, issued_by_user_uuid, recipient_email, seat_uuid, operational, status, claimed_by_user_uuid, issued_at, claimed_at, checked_in_at, revoked_by_user_uuid, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, t.getUuid()); ps.setString(2, t.getConferenceUuid()); ps.setString(3, t.getTicketCode());
             ps.setString(4, t.getIssuedByUserUuid()); ps.setString(5, t.getRecipientEmail()); ps.setString(6, t.getSeatUuid());
-            ps.setString(7, t.getStatus().name()); ps.setString(8, t.getClaimedByUserUuid());
-            ps.setString(9, t.getIssuedAt().toString()); ps.setString(10, null); ps.setString(11, null);
-            ps.setString(12, t.getRevokedByUserUuid()); ps.setString(13, t.getRevokedAt() == null ? null : t.getRevokedAt().toString());
+            ps.setBoolean(7, t.isOperational()); ps.setString(8, t.getStatus().name()); ps.setString(9, t.getClaimedByUserUuid());
+            ps.setString(10, t.getIssuedAt().toString()); ps.setString(11, t.getClaimedAt() == null ? null : t.getClaimedAt().toString());
+            ps.setString(12, t.getCheckedInAt() == null ? null : t.getCheckedInAt().toString());
+            ps.setString(13, t.getRevokedByUserUuid()); ps.setString(14, t.getRevokedAt() == null ? null : t.getRevokedAt().toString());
             ps.executeUpdate();
         } catch (SQLException e) { throw new RuntimeException(e.getMessage(), e); }
     }
@@ -39,6 +40,10 @@ public class SqliteTicketRepository implements TicketRepository {
 
     @Override public Optional<Ticket> findByConferenceAndUser(final String conferenceUuid, final String userUuid) {
         return query("SELECT * FROM tickets WHERE conference_uuid = ? AND claimed_by_user_uuid = ? AND status NOT IN ('REVOKED', 'EXPIRED') ORDER BY issued_at DESC LIMIT 1", conferenceUuid, userUuid);
+    }
+
+    @Override public Optional<Ticket> findOperationalByConferenceAndUser(final String conferenceUuid, final String userUuid) {
+        return query("SELECT * FROM tickets WHERE conference_uuid = ? AND claimed_by_user_uuid = ? AND operational = 1 AND status NOT IN ('REVOKED', 'EXPIRED') ORDER BY issued_at DESC LIMIT 1", conferenceUuid, userUuid);
     }
 
     @Override public List<Ticket> findByConference(final String conferenceUuid) {
@@ -92,7 +97,7 @@ public class SqliteTicketRepository implements TicketRepository {
                 rs.getString("issued_by_user_uuid"), rs.getString("recipient_email"), rs.getString("seat_uuid"),
                 TicketStatus.valueOf(rs.getString("status")), rs.getString("claimed_by_user_uuid"),
                 Instant.parse(rs.getString("issued_at")), parse(rs.getString("claimed_at")), parse(rs.getString("checked_in_at")),
-                rs.getString("revoked_by_user_uuid"), parse(rs.getString("revoked_at")));
+                rs.getString("revoked_by_user_uuid"), parse(rs.getString("revoked_at")), rs.getInt("operational") != 0);
     }
 
     private static Instant parse(final String value) { return value == null ? null : Instant.parse(value); }

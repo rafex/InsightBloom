@@ -186,6 +186,7 @@ export interface Reservation {
   conferenceUuid: string
   userUuid: string
   seatUuid?: string | null
+  operational: boolean
   ticketCode: string
   status: ReservationStatus
   createdAt: string

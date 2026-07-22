@@ -15,12 +15,12 @@
     .ticket-row(v-for="ticket in tickets" :key="ticket.uuid")
       .ticket-main
         strong {{ ticket.ticketCode }}
-        span.status-line {{ ticket.status }} · {{ ticket.claimedByUserUuid ? 'Canjeado' : 'Sin canjear' }}
+        span.status-line {{ ticket.operational ? 'Operativo · no revocable' : ticket.status }} · {{ ticket.claimedByUserUuid ? 'Canjeado' : 'Sin canjear' }}
         span.audit-line(v-if="ticket.status === 'REVOKED'") Revocado por: {{ ticket.revokedByUserUuid || 'desconocido' }} · {{ formatAuditDate(ticket.revokedAt) }}
       .row-actions
         button.btn-copy(type="button" @click="showQr(ticket)") QR
         button.btn-copy(type="button" @click="copy(ticket.ticketCode)") Copiar UUID
-        button.btn-revoke(v-if="ticket.status === 'ISSUED' || ticket.status === 'CLAIMED'" type="button" @click="revoke(ticket.uuid)") Revocar
+        button.btn-revoke(v-if="!ticket.operational && (ticket.status === 'ISSUED' || ticket.status === 'CLAIMED')" type="button" @click="revoke(ticket.uuid)") Revocar
     .qr-preview(v-if="selectedTicket")
       TicketQr(:ticket-code="selectedTicket.ticketCode")
       button.btn-copy(type="button" @click="share(selectedTicket)") Compartir QR

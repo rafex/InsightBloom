@@ -97,9 +97,8 @@ public class User {
     public boolean isPhoneVerified() { return phoneVerified; }
     public Set<UserRole> getRoles() { return roles; }
     public boolean hasRole(UserRole role) { return roles.contains(role); }
-    /** Admin/organizer/moderator no consumen boleto/aforo: su acceso a un evento ya está
-     *  garantizado por su rol, no por haber "ganado" un lugar limitado. Su asistencia se sigue
-     *  registrando (ConferenceMembership), solo se excluyen del conteo de boletos emitidos. */
+    /** Compatibilidad del flujo legacy de reservas: el acceso operativo se resuelve por rol y,
+     *  para eventos ticketados nuevos, también por un boleto operativo contado. */
     public boolean isExemptFromTickets() {
         return hasRole(UserRole.ADMIN) || hasRole(UserRole.ORGANIZER) || hasRole(UserRole.MODERATOR);
     }

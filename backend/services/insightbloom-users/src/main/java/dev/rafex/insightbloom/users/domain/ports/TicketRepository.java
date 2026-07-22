@@ -10,6 +10,7 @@ public interface TicketRepository {
     Optional<Ticket> findByCode(String conferenceUuid, String ticketCode);
     Optional<Ticket> findByTicketCode(String ticketCode);
     Optional<Ticket> findByConferenceAndUser(String conferenceUuid, String userUuid);
+    Optional<Ticket> findOperationalByConferenceAndUser(String conferenceUuid, String userUuid);
     List<Ticket> findByConference(String conferenceUuid);
     boolean claim(String uuid, String userUuid, String claimedAt);
     boolean checkIn(String uuid, String checkedInAt);

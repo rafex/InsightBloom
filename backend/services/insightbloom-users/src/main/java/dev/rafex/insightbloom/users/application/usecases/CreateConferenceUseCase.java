@@ -21,13 +21,21 @@ public class CreateConferenceUseCase {
     private final FriendlyIdService friendlyIdService;
     private final TimezoneRepository timezoneRepository;
     private final EventRoleRepository eventRoleRepository;
+    private final TicketUseCase ticketUseCase;
 
     public CreateConferenceUseCase(ConferenceRepository conferenceRepository, FriendlyIdService friendlyIdService,
                                     TimezoneRepository timezoneRepository, EventRoleRepository eventRoleRepository) {
+        this(conferenceRepository, friendlyIdService, timezoneRepository, eventRoleRepository, null);
+    }
+
+    public CreateConferenceUseCase(ConferenceRepository conferenceRepository, FriendlyIdService friendlyIdService,
+                                    TimezoneRepository timezoneRepository, EventRoleRepository eventRoleRepository,
+                                    TicketUseCase ticketUseCase) {
         this.conferenceRepository = conferenceRepository;
         this.friendlyIdService = friendlyIdService;
         this.timezoneRepository = timezoneRepository;
         this.eventRoleRepository = eventRoleRepository;
+        this.ticketUseCase = ticketUseCase;
     }
 
     public record CreateRequest(String name, String displayName, String createdByUserUuid, String expiresAt,
@@ -64,8 +72,7 @@ public class CreateConferenceUseCase {
         if (blankToNull(request.eventTypeKey()) != null) {
             conference.setEventTypeKey(request.eventTypeKey());
         }
-        conference.setCapacity(request.capacity() != null && request.capacity() >= 1
-                ? request.capacity() : DEFAULT_CAPACITY);
+        conference.setCapacity(normalizeCapacity(request.capacity()));
         conference.setCanvasConfigs(configs);
         conference.setCanvasTool(configs.size() == 1 ? configs.get(0).tool() : null);
         conference.setCanvasAudienceMode(configs.size() == 1 ? configs.get(0).audienceMode() : null);
@@ -73,6 +80,11 @@ public class CreateConferenceUseCase {
         conferenceRepository.replaceCanvasConfigs(conference.getUuid(), configs);
         // El creador se vuelve Host automaticamente (FR-004, DEC-0021) — sin accion manual.
         eventRoleRepository.save(new EventRole(conference.getUuid(), request.createdByUserUuid(), HOST_ROLE_KEY));
+        if (ticketUseCase != null && ticketUseCase.isTicketed(conference)) {
+            // El creador ocupa una plaza real desde el inicio. La segunda plaza queda disponible
+            // para el primer asistente; por eso el backend nunca permite aforo menor a 2.
+            ticketUseCase.issueOperational(conference.getUuid(), request.createdByUserUuid());
+        }
         return new CreateResult(
             conference.getUuid(), conference.getFriendlyId(),
             conference.getName(), conference.getStatus().name().toLowerCase(),
@@ -83,6 +95,11 @@ public class CreateConferenceUseCase {
             conference.getTimezoneId(), conference.getEventTypeKey(), conference.getCapacity(),
             conference.getCanvasTool(), conference.getCanvasAudienceMode(), conference.getCanvasConfigs()
         );
+    }
+
+    private static int normalizeCapacity(final Integer capacity) {
+        if (capacity == null || capacity < 1) return Math.max(2, DEFAULT_CAPACITY);
+        return Math.max(2, capacity);
     }
 
     private static String blankToNull(String s) {

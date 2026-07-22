@@ -79,6 +79,9 @@ permiso especifico que corresponda, sin romper el comportamiento actual.
   `host` automaticamente al crear el evento (sin accion manual).
 - Endpoint y UI para que el Host de un evento asigne/quite roles de
   evento a otros usuarios (busqueda por email/username).
+- Al asignar un rol de moderación, el usuario recibe un boleto operativo
+  contado, ya canjeado e idempotente; ese boleto no puede revocarse y la plaza
+  permanece ocupada durante la vigencia del evento.
 - Endpoint y UI de administracion del catalogo de roles (`ADMIN`-only,
   gateado por `MANAGE_USERS` — ver Risks sobre por que no un permiso
   nuevo dedicado).
