@@ -15,13 +15,21 @@ public class AssignEventRoleUseCase {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final EventPermissionGuard eventPermissionGuard;
+    private final TicketUseCase ticketUseCase;
 
     public AssignEventRoleUseCase(final EventRoleRepository eventRoleRepository, final RoleRepository roleRepository,
                                    final UserRepository userRepository, final EventPermissionGuard eventPermissionGuard) {
+        this(eventRoleRepository, roleRepository, userRepository, eventPermissionGuard, null);
+    }
+
+    public AssignEventRoleUseCase(final EventRoleRepository eventRoleRepository, final RoleRepository roleRepository,
+                                   final UserRepository userRepository, final EventPermissionGuard eventPermissionGuard,
+                                   final TicketUseCase ticketUseCase) {
         this.eventRoleRepository = eventRoleRepository;
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.eventPermissionGuard = eventPermissionGuard;
+        this.ticketUseCase = ticketUseCase;
     }
 
     public EventRole execute(final String eventUuid, final String requestingUserUuid,
@@ -39,6 +47,12 @@ public class AssignEventRoleUseCase {
         if (role.getScope() != RoleScope.EVENT) throw new IllegalArgumentException("role_not_event_scoped");
         if (!role.isActive()) throw new IllegalArgumentException("role_inactive");
 
+        if (ticketUseCase != null && ("moderator".equalsIgnoreCase(roleKey)
+                || role.hasPermission(Permission.MODERATE_CONTENT))) {
+            // La reserva ocurre antes de guardar el rol: si el aforo está lleno, el usuario no
+            // queda con un rol operativo que no podría usar.
+            ticketUseCase.issueOperational(eventUuid, targetUser.getUuid());
+        }
         final EventRole assignment = new EventRole(eventUuid, targetUser.getUuid(), roleKey);
         eventRoleRepository.save(assignment);
         return assignment;

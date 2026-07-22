@@ -38,8 +38,8 @@ public class ReserveSeatUseCase {
         if (!"SEATED".equals(conference.getSeatingMode())) {
             throw new IllegalStateException("not_seated_admission");
         }
-        // Admin/organizer/moderator no consumen boleto/aforo -- ver ReserveGeneralUseCase para
-        // el mismo chequeo y el porqué (User.isExemptFromTickets()).
+        // El flujo legacy de reservas mantiene la exención para staff; el boleto operativo
+        // contado se emite por TicketUseCase al crear/asignar el rol del evento.
         final boolean staffExempt = userRepository.findByUuid(userUuid)
                 .map(User::isExemptFromTickets).orElse(false);
         if (staffExempt) {

@@ -50,6 +50,9 @@ export default defineConfig({
         // protegidas y públicas cuyo contenido cambia por conferencia/sesión.
         // La reproducción offline no compensa mostrar un JSON ticket_required
         // obsoleto ni arriesgar contenido de otro estado de acceso.
+        // El modo offline del moderador usa otro service worker, con scope
+        // aleatorio /offline-presentations/<packageId>/ y archivos cifrados en
+        // IndexedDB. No convertir este flujo en un cache global de Workbox.
       }
     })
   ],

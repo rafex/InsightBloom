@@ -27,6 +27,25 @@ En un evento configurado con boletos, la única área pública es la vista previ
 de presentación con las primeras cinco diapositivas. Todo el resto del evento
 requiere una cuenta registrada y un boleto canjeado.
 
+## Boletos operativos contados
+
+El personal que opera un evento también ocupa aforo. Al crear un evento con
+capacidades de ticketing, el creador recibe automáticamente un boleto
+operativo, ya canjeado y asociado a su cuenta. El backend normaliza el aforo a
+un mínimo de 2: una plaza para ese boleto y al menos una plaza para asistentes.
+
+Cada moderador adicional asignado al evento recibe un boleto operativo propio
+y consume una plaza adicional. La asignación del rol y la reserva se realizan
+en ese orden para no dejar roles operativos sin aforo. La operación es
+idempotente, por lo que reasignar el mismo moderador no duplica su boleto.
+
+Los boletos operativos tienen `operational = 1`, se muestran como
+`Operativo · no revocable` y no pueden revocarse desde API ni desde el panel.
+Quitar el rol no revoca retroactivamente ese boleto: la plaza permanece
+reservada durante la vigencia del evento. Los eventos históricos pueden
+completar el boleto del creador en su primer acceso si todavía tienen una
+plaza disponible.
+
 ## Política formal de áreas
 
 | Área | Acceso | Regla |
@@ -41,7 +60,10 @@ requiere una cuenta registrada y un boleto canjeado.
 ## Reglas de negocio
 
 - El moderador del evento puede emitir boletos.
-- Organizadores y administradores tienen acceso operativo sin consumir boleto.
+- El creador y los moderadores tienen acceso operativo mediante boletos
+  contados y protegidos; el bypass de roles se conserva como compatibilidad y
+  respaldo para la operación del evento.
+- El aforo nunca puede ser menor a 2.
 - El participante necesita boleto aunque tenga cuenta registrada.
 - El boleto puede ser transferible hasta el momento del primer canje.
 - Un boleto solo puede canjearse una vez.
@@ -70,6 +92,9 @@ ISSUED -> CLAIMED -> CHECKED_IN
 - `REVOKED`: invalidado por el moderador u organizador.
 - `EXPIRED`: han transcurrido 5 horas desde el inicio del evento, calculado
   con la fecha, hora y zona horaria de la conferencia.
+
+Un boleto operativo nace en estado `CLAIMED`; no pasa por el flujo de canje
+del asistente y solo puede terminar por expiración automática del evento.
 
 ## Fase 1 — Reglas, permisos y política de acceso
 
@@ -200,6 +225,10 @@ existan registro y canje exitosos.
 - acceso privado sin boleto;
 - bypass de personal autorizado;
 - concurrencia y aforo;
+- emisión automática del boleto del creador;
+- aforo mínimo de 2;
+- un boleto operativo por moderador, sin duplicados;
+- rechazo de revocación de boletos operativos y conservación de su plaza;
 - check-in repetido.
 
 ### Frontend y E2E

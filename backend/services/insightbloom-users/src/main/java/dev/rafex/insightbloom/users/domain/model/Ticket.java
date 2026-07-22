@@ -11,6 +11,7 @@ public class Ticket {
     private final String issuedByUserUuid;
     private final String recipientEmail;
     private final String seatUuid;
+    private final boolean operational;
     private TicketStatus status;
     private String claimedByUserUuid;
     private final Instant issuedAt;
@@ -27,8 +28,19 @@ public class Ticket {
         this.issuedByUserUuid = issuedByUserUuid;
         this.recipientEmail = recipientEmail;
         this.seatUuid = seatUuid;
+        this.operational = false;
         this.status = TicketStatus.ISSUED;
         this.issuedAt = Instant.now();
+    }
+
+    /** Boleto reservado para un operador del evento. Consume aforo y no se puede revocar. */
+    public static Ticket operational(final String conferenceUuid, final String issuedByUserUuid,
+                                     final String operatorUserUuid) {
+        final Instant now = Instant.now();
+        final Ticket ticket = new Ticket(UUID.randomUUID().toString(), conferenceUuid,
+                UUID.randomUUID().toString(), issuedByUserUuid, null, null,
+                TicketStatus.CLAIMED, operatorUserUuid, now, now, null, null, null, true);
+        return ticket;
     }
 
     public Ticket(final String uuid, final String conferenceUuid, final String ticketCode,
@@ -44,12 +56,22 @@ public class Ticket {
                   final TicketStatus status, final String claimedByUserUuid,
                   final Instant issuedAt, final Instant claimedAt, final Instant checkedInAt,
                   final String revokedByUserUuid, final Instant revokedAt) {
+        this(uuid, conferenceUuid, ticketCode, issuedByUserUuid, recipientEmail, seatUuid, status,
+                claimedByUserUuid, issuedAt, claimedAt, checkedInAt, revokedByUserUuid, revokedAt, false);
+    }
+
+    public Ticket(final String uuid, final String conferenceUuid, final String ticketCode,
+                  final String issuedByUserUuid, final String recipientEmail, final String seatUuid,
+                  final TicketStatus status, final String claimedByUserUuid,
+                  final Instant issuedAt, final Instant claimedAt, final Instant checkedInAt,
+                  final String revokedByUserUuid, final Instant revokedAt, final boolean operational) {
         this.uuid = uuid;
         this.conferenceUuid = conferenceUuid;
         this.ticketCode = ticketCode;
         this.issuedByUserUuid = issuedByUserUuid;
         this.recipientEmail = recipientEmail;
         this.seatUuid = seatUuid;
+        this.operational = operational;
         this.status = status;
         this.claimedByUserUuid = claimedByUserUuid;
         this.issuedAt = issuedAt;
@@ -65,6 +87,7 @@ public class Ticket {
     public String getIssuedByUserUuid() { return issuedByUserUuid; }
     public String getRecipientEmail() { return recipientEmail; }
     public String getSeatUuid() { return seatUuid; }
+    public boolean isOperational() { return operational; }
     public TicketStatus getStatus() { return status; }
     public String getClaimedByUserUuid() { return claimedByUserUuid; }
     public Instant getIssuedAt() { return issuedAt; }

@@ -108,7 +108,6 @@ public class UsersApplication {
         final var loginUseCase = new LoginUseCase(userRepo, tokenService, passwordService, platformDeviceGuard, platformSettingsRepo);
         final var createGuestUseCase = new CreateGuestUseCase(guestRepo, conferenceRepo, tokenService, platformDeviceGuard, platformSettingsRepo);
         final var validateTokenUseCase = new ValidateTokenUseCase(tokenService, userRepo, guestRepo);
-        final var createConferenceUseCase = new CreateConferenceUseCase(conferenceRepo, friendlyIdService, timezoneRepo, eventRoleRepo);
         final var getConferenceUseCase = new GetConferenceUseCase(conferenceRepo, cascadeDeletePort, membershipRepo);
         final var registerUseCase = new RegisterUseCase(userRepo, passwordService, platformDeviceGuard, platformSettingsRepo);
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
@@ -124,6 +123,8 @@ public class UsersApplication {
         final var checkInTicketUseCase = new CheckInTicketUseCase(reservationRepo);
         final var ticketUseCase = new TicketUseCase(
                 conferenceRepo, eventTypeRepo, ticketRepo, membershipRepo, emailPort, frontendBaseUrl, reservationRepo, timezoneRepo);
+        final var createConferenceUseCase = new CreateConferenceUseCase(
+                conferenceRepo, friendlyIdService, timezoneRepo, eventRoleRepo, ticketUseCase);
         final var setVenueMapUseCase = new SetVenueMapUseCase(conferenceRepo);
         final var defineVenueSeatsUseCase = new DefineVenueSeatsUseCase(conferenceRepo, venueSeatRepo, reservationRepo);
         final var getConferenceSeatMapUseCase = new GetConferenceSeatMapUseCase(venueSeatRepo, reservationRepo);
@@ -161,7 +162,8 @@ public class UsersApplication {
         final var createRoleUseCase = new CreateRoleUseCase(roleRepo);
         final var updateRoleUseCase = new UpdateRoleUseCase(roleRepo);
         final var setRoleActiveUseCase = new SetRoleActiveUseCase(roleRepo);
-        final var assignEventRoleUseCase = new AssignEventRoleUseCase(eventRoleRepo, roleRepo, userRepo, eventPermissionGuard);
+        final var assignEventRoleUseCase = new AssignEventRoleUseCase(
+                eventRoleRepo, roleRepo, userRepo, eventPermissionGuard, ticketUseCase);
         final var listEventRolesUseCase = new ListEventRolesUseCase(eventRoleRepo, userRepo, eventPermissionGuard);
         final var removeEventRoleUseCase = new RemoveEventRoleUseCase(eventRoleRepo, conferenceRepo, eventPermissionGuard);
         final var sendConferenceRemindersUseCase = new SendConferenceRemindersUseCase(

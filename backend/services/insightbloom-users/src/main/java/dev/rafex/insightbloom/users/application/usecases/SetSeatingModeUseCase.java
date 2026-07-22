@@ -11,7 +11,8 @@ import java.util.Set;
  * Fija el modo de reserva de una conferencia (NONE, GENERAL o SEATED) y su aforo. El aforo ya
  * no es exclusivo de GENERAL -- aplica siempre (DEC 2026-07-18): la infraestructura tiene
  * recursos finitos, así que todo evento declara cuánta gente va a tener acceso, sin excepción
- * de "NONE = sin límite". Si no se manda un valor válido (&gt;=1), se usa el default (10).
+ * de "NONE = sin límite". Si no se manda un valor válido (&gt;=2), se usa el default (10). Una
+ * plaza queda reservada para el creador operativo del evento.
  */
 public class SetSeatingModeUseCase {
     private static final Set<String> VALID_MODES = Set.of("NONE", "GENERAL", "SEATED");
@@ -42,7 +43,8 @@ public class SetSeatingModeUseCase {
                         }
                     }
                     c.setSeatingMode(seatingMode);
-                    c.setCapacity(capacity != null && capacity >= 1 ? capacity : DEFAULT_CAPACITY);
+                    c.setCapacity(capacity == null || capacity < 1
+                            ? Math.max(2, DEFAULT_CAPACITY) : Math.max(2, capacity));
                     conferenceRepository.save(c);
                     return c;
                 });

@@ -14,6 +14,30 @@ export interface PresentationStatus {
   [key: string]: unknown
 }
 
+export interface OfflinePresentationFile {
+  path: string
+  size: number
+  sha256: string
+  contentType: string
+}
+
+export interface OfflinePresentationManifest {
+  conferenceId: string
+  provider: PresentationProvider
+  format: PresentationFormat
+  indexPath: string
+  artifactHash: string
+  expiresAt: string
+  files: OfflinePresentationFile[]
+  signedPayload: string
+  signature: string
+}
+
+export interface OfflineManifestPublicKey {
+  algorithm: 'Ed25519'
+  publicKey: string
+}
+
 function authHeader(token?: string | null) {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
@@ -31,6 +55,21 @@ export async function uploadPresentation(conferenceId: string, file: Blob, token
 export async function getPresentationStatus(conferenceId: string): Promise<PresentationStatus> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/presentation/status`)
   return res.data
+}
+
+export async function getOfflinePresentationManifest(conferenceId: string, token: string): Promise<OfflinePresentationManifest> {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/presentation/offline-manifest`, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function getOfflineManifestPublicKey(): Promise<string> {
+  const res = await axios.get<OfflineManifestPublicKey>(`${BASE}/offline-manifest/public-key`)
+  if (res.data?.algorithm !== 'Ed25519' || typeof res.data.publicKey !== 'string' || !res.data.publicKey) {
+    throw new Error('offline_public_key_invalid')
+  }
+  return res.data.publicKey
 }
 
 export function getSlidesUrl(conferenceId: string, _token?: string | null): string {

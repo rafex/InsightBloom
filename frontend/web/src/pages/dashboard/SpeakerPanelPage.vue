@@ -5,21 +5,28 @@
   .speaker-header
     h2 Presentar
     .speaker-status
-      span.live-dot(:class="{ connected: wsConnected }")
+      span.live-dot(:class="{ connected: wsConnected || offlineMode }")
       span(v-if="wsConnected") 👀 {{ audienceCount }} viendo la presentación ahora
+      span(v-else-if="offlineMode") 🔒 Modo offline del moderador
       span(v-else) Conectando...
       span.registered-count(v-if="registeredCount !== null") · 👥 {{ registeredCount }} registrados al evento
     .speaker-header-actions
       a.btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
       button.btn-secondary(@click="showQr = true") Mostrar QR
       button.btn-secondary(@click="shareRemoteControl") Compartir control remoto
+      button.btn-secondary(v-if="ready && !offlineMode && !offlinePreparing" @click="prepareOffline") Preparar offline
+      button.btn-secondary(v-if="offlinePackage && !offlineMode" @click="openOfflineCached") Abrir offline
+      button.btn-secondary(v-if="offlineMode" @click="openOnlinePresentation") Volver online
+      span.offline-preparing(v-if="offlinePreparing") Cifrando paquete…
+      span.offline-error(v-if="offlineError") {{ offlineError }}
 
   .presentation-empty(v-if="checkedStatus && !ready")
     p Aún no hay una presentación subida para esta conferencia.
     router-link.btn-primary(:to="`/dashboard/conferences/${conferenceId}/presentation`") Subir presentación
 
   template(v-else)
-    p.hint Navega el deck con las flechas del teclado, haciendo clic dentro, o con los botones de abajo — la audiencia te sigue automáticamente.
+    p.hint(v-if="!offlineMode") Navega el deck con las flechas del teclado, haciendo clic dentro, o con los botones de abajo — la audiencia te sigue automáticamente.
+    p.hint(v-else) La presentación está disponible localmente hasta {{ offlinePackage?.expiresAt }}. La sincronización en vivo se reanuda al volver a estar online.
     iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" @load="onIframeLoad")
     .nav-controls
       button.btn-nav(@click="navigate('prev')") ← Anterior
@@ -33,6 +40,8 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getPresentationStatus, getPresenterSlidesUrl, getPresenterWsUrl, createRemoteLinkToken, primePresentationAccess } from '@/services/api/presentationsApi'
 import type { PresentationProvider } from '@/services/api/presentationsApi'
+import { getOfflinePackage, prepareOfflinePresentation, openOfflinePresentation } from '@/services/offline/offlinePresentation'
+import type { OfflinePackageRecord } from '@/services/offline/offlinePresentation'
 import { getConference, getRegisteredAttendeesCount } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
@@ -66,6 +75,10 @@ export default {
     const showRemoteShare = ref(false)
     const remoteShareUrl = ref('')
     const sourceUrl = ref('')
+    const offlinePackage = ref<OfflinePackageRecord | undefined>()
+    const offlineMode = ref(false)
+    const offlinePreparing = ref(false)
+    const offlineError = ref('')
 
     let ws: WebSocket | null = null
     let wsRetryTimer: ReturnType<typeof setTimeout> | null = null
@@ -123,7 +136,7 @@ export default {
     }
 
     function connectPresenterWs() {
-      if (!props.conferenceId || !auth.state.token) return
+      if (offlineMode.value || !props.conferenceId || !auth.state.token) return
       ws = new WebSocket(getPresenterWsUrl(props.conferenceId, auth.state.token))
       ws.onopen = () => {
         wsConnected.value = true
@@ -148,6 +161,15 @@ export default {
       ws.onerror = () => ws!.close()
     }
 
+    function stopPresenterWs() {
+      if (wsRetryTimer) clearTimeout(wsRetryTimer)
+      wsRetryTimer = null
+      wsClosedByUs = true
+      if (ws) ws.close()
+      ws = null
+      wsConnected.value = false
+    }
+
     async function shareRemoteControl() {
       try {
         const token = await createRemoteLinkToken(props.conferenceId as string, auth.state.token as string)
@@ -156,7 +178,68 @@ export default {
       } catch (e: any) { /* no se pudo generar el enlace */ }
     }
 
+    async function openOfflineCached() {
+      if (!offlinePackage.value) return
+      try {
+        offlineError.value = ''
+        slidesUrl.value = await openOfflinePresentation(offlinePackage.value)
+        offlineMode.value = true
+        ready.value = true
+        stopPresenterWs()
+      } catch (e: any) {
+        offlineError.value = 'El paquete offline expiró o no está disponible en este dispositivo.'
+      }
+    }
+
+    async function openOnlinePresentation() {
+      if (!props.conferenceId || !auth.state.token) return
+      try {
+        offlineError.value = ''
+        await primePresentationAccess(props.conferenceId, auth.state.token, true)
+        offlineMode.value = false
+        wsClosedByUs = false
+        slidesUrl.value = getPresenterSlidesUrl(props.conferenceId)
+        connectPresenterWs()
+      } catch (e: any) {
+        offlineError.value = 'No se pudo volver al modo online. Comprueba la conexión.'
+      }
+    }
+
+    async function prepareOffline() {
+      if (!props.conferenceId || !auth.state.token || !auth.state.userUuid) return
+      offlinePreparing.value = true
+      offlineError.value = ''
+      try {
+        offlinePackage.value = await prepareOfflinePresentation(
+          props.conferenceId,
+          auth.state.token,
+          auth.state.userUuid
+        )
+      } catch (e: any) {
+        offlineError.value = 'No se pudo preparar la presentación offline. Revisa la configuración de firma y vuelve a intentar.'
+      } finally {
+        offlinePreparing.value = false
+      }
+    }
+
     onMounted(async () => {
+      if (!props.conferenceId) {
+        checkedStatus.value = true
+        return
+      }
+      if (auth.state.userUuid) {
+        try {
+          offlinePackage.value = await getOfflinePackage(props.conferenceId, auth.state.userUuid)
+        } catch (e: any) { /* IndexedDB/WASM no disponibles: se mantiene el modo online */ }
+      }
+      if (!navigator.onLine) {
+        if (offlinePackage.value) await openOfflineCached()
+        else offlineError.value = auth.state.userUuid
+          ? 'No hay una copia offline preparada en este dispositivo.'
+          : 'No se pudo identificar la sesión del moderador para el modo offline.'
+        checkedStatus.value = true
+        return
+      }
       try {
         const conf = await getConference(props.conferenceId as string, auth.state.token as string)
         friendlyId.value = conf?.friendlyId || ''
@@ -182,8 +265,7 @@ export default {
     onBeforeUnmount(() => {
       if (wsRetryTimer) clearTimeout(wsRetryTimer)
       if (hashPollTimer) clearInterval(hashPollTimer)
-      wsClosedByUs = true
-      if (ws) ws.close()
+      stopPresenterWs()
     })
 
     const breadcrumbItems = computed(() => [
@@ -196,7 +278,8 @@ export default {
     return {
       checkedStatus, ready, slidesUrl, slidesFrame,
       wsConnected, audienceCount, registeredCount, showQr, friendlyId, onIframeLoad, navigate,
-      showRemoteShare, remoteShareUrl, shareRemoteControl, sourceUrl, breadcrumbItems
+      showRemoteShare, remoteShareUrl, shareRemoteControl, sourceUrl, breadcrumbItems,
+      offlinePackage, offlineMode, offlinePreparing, offlineError, prepareOffline, openOfflineCached, openOnlinePresentation
     }
   }
 }
@@ -226,6 +309,8 @@ h2 { margin: 0; color: #1e1b4b; }
 }
 .btn-primary { background: #4f46e5; color: #fff; }
 .btn-secondary { background: #eef2ff; color: #4f46e5; border: 2px solid #c7d2fe; }
+.offline-preparing { color: #4f46e5; font-weight: 600; font-size: 0.85rem; }
+.offline-error { color: #b91c1c; font-size: 0.85rem; font-weight: 600; }
 
 @media (max-width: 640px) {
   .speaker-panel-page { padding: 14px; }
