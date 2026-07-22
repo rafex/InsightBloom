@@ -7,7 +7,7 @@ import type {
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
-  DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess
+  DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 
@@ -190,6 +190,25 @@ export async function getCertificateSettings(): Promise<CertificateSettings> {
 
 export async function saveCertificateSettings(settings: CertificateSettings, token: string): Promise<CertificateSettings> {
   const res = await axios.put('/api/users/api/v1/certificate-settings', settings, authHeader(token))
+  return res.data.data
+}
+
+export async function getCertificateTemplateCatalog(token: string): Promise<CertificateTemplateCatalog> {
+  const res = await axios.get('/api/users/api/v1/certificate-templates/catalog', authHeader(token))
+  return res.data.data
+}
+
+export async function getEventCertificateTemplate(conferenceId: string, token: string): Promise<CertificateTemplate> {
+  const res = await axios.get(`/api/users/api/v1/certificate-templates/events/${conferenceId}`, authHeader(token))
+  return res.data.data
+}
+
+export async function saveEventCertificateTemplate(
+  conferenceId: string,
+  template: Pick<CertificateTemplate, 'templateKey' | 'templateName' | 'engine' | 'documentJson'>,
+  token: string
+): Promise<CertificateTemplate> {
+  const res = await axios.put(`/api/users/api/v1/certificate-templates/events/${conferenceId}`, template, authHeader(token))
   return res.data.data
 }
 

@@ -13,7 +13,7 @@ Capacidades:
 - Todas las capacidades de ORGANIZER (hereda).
 - Gestionar usuarios: listar, editar, banear (soft-delete), restaurar.
 - Ver el dashboard de administracion de usuarios.
-- Configurar certificados por conferencia.
+- Configurar certificados por conferencia y elegir/enriquecer una plantilla base.
 
 Restricciones:
 
@@ -32,6 +32,7 @@ Capacidades:
 - Acceder al dashboard de moderacion.
 - Censurar, restaurar y editar palabras y mensajes.
 - Gestionar encuestas (crear, ver resultados, emitir certificados).
+- Crear y editar el certificado de sus propias conferencias.
 - Subir presentaciones (Marp Markdown) para la conferencia.
 - Enviar mensajes como cualquier participante.
 - Consultar nubes de dudas, temas y timelines.
@@ -55,6 +56,8 @@ Capacidades:
 - Censurar, restaurar y editar palabras y mensajes.
 - Consultar nubes de dudas, temas y timelines.
 - Enviar mensajes como participante.
+- Editar el certificado de un evento cuando su rol de evento tenga
+  `MANAGE_CERTIFICATE`.
 
 Restricciones:
 
@@ -124,7 +127,13 @@ Restricciones:
 | `POST /admin/users/{id}/ban` | ✅ | — | — | — |
 | `POST /admin/users/{id}/restore` | ✅ | — | — | — |
 | `GET /certificates/settings` | ✅ | ✅ | — | — |
+| `GET /certificate-templates/catalog` | ✅ | ✅ | ✅* | — |
+| `GET /certificate-templates/events/{id}` | ✅ | ✅* | ✅* | — |
+| `PUT /certificate-templates/events/{id}` | ✅ | ✅* | ✅* | — |
 | `PATCH /certificates/settings` | ✅ | ✅ | — | — |
+
+`*` Solo si es propietario/host del evento o tiene una asignación de evento
+con `MANAGE_CERTIFICATE`. La configuración global de plataforma no se delega.
 | `GET /profile` | ✅ | ✅ | ✅ | — |
 | `PATCH /profile` | ✅ | ✅ | ✅ | — |
 

@@ -74,6 +74,7 @@ public class UsersApplication {
         final var otpRepo = new SqliteOtpCodeRepository(db);
         final var membershipRepo = new SqliteConferenceMembershipRepository(db);
         final var certificateSettingsRepo = new SqliteCertificateSettingsRepository(db);
+        final var certificateTemplateRepo = new SqliteCertificateTemplateRepository(db);
         final var platformSettingsRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqlitePlatformSettingsRepository(db);
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
         final var timezoneRepo = new SqliteTimezoneRepository(db);
@@ -138,8 +139,15 @@ public class UsersApplication {
                 getConferenceUseCase, membershipRepo, userRepo, emailPort, timezoneRepo,
                 reserveGeneralUseCase, frontendBaseUrl, ticketUseCase, eventPermissionGuard);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
+        final var certificatePlatformData = new dev.rafex.insightbloom.users.domain.model.CertificatePlatformData(
+                "InsightBloom", frontendBaseUrl,
+                contactInfo.email(), contactInfo.github(), contactInfo.linkedin(),
+                System.getenv().getOrDefault("CONTACT_TELEGRAM_GROUP", "https://t.me/tabernadelanoche"));
+        final var certificateRenderer = new dev.rafex.insightbloom.users.adapters.outbound.presentationsclient.HttpCertificateRenderer(
+                presentationsUrl, internalApiKey);
         final var generateCertificateUseCase = new GenerateCertificateUseCase(
-                conferenceRepo, userRepo, surveyPort, certificateSettingsRepo);
+                conferenceRepo, userRepo, surveyPort, certificateSettingsRepo, certificateTemplateRepo,
+                certificateRenderer, certificatePlatformData);
         final var notifyDoubtAnsweredUseCase = new NotifyDoubtAnsweredUseCase(
                 userRepo, conferenceRepo, emailPort, telegramNotifyPort, frontendBaseUrl, contactInfo);
         final var getCertificateSettingsUseCase = new GetCertificateSettingsUseCase(certificateSettingsRepo);
@@ -328,6 +336,8 @@ public class UsersApplication {
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
         final var certificateSettingsHandler = new CertificateSettingsHandler(
                 getCertificateSettingsUseCase, saveCertificateSettingsUseCase, validateTokenUseCase);
+        final var certificateTemplateHandler = new CertificateTemplateHandler(
+                certificateTemplateRepo, conferenceRepo, eventPermissionGuard, validateTokenUseCase);
         final var listUserReservationsUseCase =
                 new ListUserReservationsUseCase(reservationRepo, conferenceRepo, downloadEventRepo);
         final var adminUserHandler = new AdminUserHandler(
@@ -362,6 +372,7 @@ public class UsersApplication {
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);
         routes.add("/api/v1/certificate-settings/*", certificateSettingsHandler);
+        routes.add("/api/v1/certificate-templates/*", certificateTemplateHandler);
         routes.add("/api/v1/admin/users/*", adminUserHandler);
         routes.add("/api/v1/timezones/*", timezoneHandler);
         routes.add("/api/v1/event-types/*", eventTypeHandler);

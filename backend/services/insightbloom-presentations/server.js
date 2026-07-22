@@ -7,6 +7,7 @@ const express = require('express');
 const multer = require('multer');
 const AdmZip = require('adm-zip');
 const cheerio = require('cheerio');
+const { chromium } = require('playwright-chromium');
 const { attachLiveSync, issueRemoteToken } = require('./live');
 const { auditArchive } = require('./tools/audit-slidev-artifact');
 const { presentationCookiePath, hasConferenceAccess: accessFromResponse } = require('./access');
@@ -49,6 +50,7 @@ const DENIED_ARCHIVE_NAMES = new Set([
 const upload = multer({ dest: path.join(DATA_DIR, 'tmp'), limits: { fileSize: 100 * 1024 * 1024 } });
 
 const app = express();
+let certificateBrowserPromise = null;
 
 app.disable('x-powered-by');
 app.use((_req, res, next) => {
@@ -59,6 +61,109 @@ app.use((_req, res, next) => {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
   next();
+});
+
+function certificateBrowser() {
+  if (!certificateBrowserPromise) {
+    certificateBrowserPromise = chromium.launch({
+      headless: true,
+      executablePath: CHROMIUM_PATH,
+      args: ['--no-sandbox', '--disable-dev-shm-usage'],
+    }).catch((error) => {
+      certificateBrowserPromise = null;
+      throw error;
+    });
+  }
+  return certificateBrowserPromise;
+}
+
+function certificateEscape(value) {
+  return String(value == null ? '' : value)
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+}
+
+function certificateValue(data, key) {
+  return key.split('.').reduce((current, part) => current && typeof current === 'object' ? current[part] : '', data) ?? '';
+}
+
+function certificateText(value, data) {
+  const source = String(value == null ? '' : value);
+  const placeholder = /\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g;
+  let output = '';
+  let lastIndex = 0;
+  let match;
+  while ((match = placeholder.exec(source)) !== null) {
+    output += certificateEscape(source.slice(lastIndex, match.index));
+    output += certificateEscape(certificateValue(data, match[1]));
+    lastIndex = match.index + match[0].length;
+  }
+  return output + certificateEscape(source.slice(lastIndex));
+}
+
+function certificateStyle(style = {}) {
+  const css = [];
+  const number = (value, suffix = 'px') => Number.isFinite(Number(value)) ? `${Math.max(-2000, Math.min(2000, Number(value)))}${suffix}` : null;
+  const color = value => typeof value === 'string' && /^(#[0-9a-f]{3,8}|rgba?\([0-9., %]+\)|transparent)$/i.test(value) ? value : null;
+  const text = value => typeof value === 'string' && value.length <= 120 && /^[a-zA-Z0-9 .,()'"_-]+$/.test(value) ? value : null;
+  const add = (key, value) => { if (value != null) css.push(`${key}:${value}`); };
+  add('font-size', number(style.fontSize));
+  add('font-weight', ['400', '500', '600', '700', '800'].includes(String(style.fontWeight)) ? String(style.fontWeight) : null);
+  add('font-family', ['Arial', 'Georgia', 'Verdana', 'Courier New', 'system-ui', 'sans-serif'].includes(style.fontFamily) ? style.fontFamily : null);
+  add('color', color(style.color));
+  add('background', color(style.background));
+  add('text-align', ['left', 'center', 'right'].includes(style.textAlign) ? style.textAlign : null);
+  add('line-height', number(style.lineHeight, ''));
+  const border = typeof style.border === 'string' && /^(none|\d{1,3}px\s+solid\s+#[0-9a-f]{3,8})$/i.test(style.border) ? style.border : null;
+  add('border', border);
+  add('border-radius', number(style.borderRadius));
+  add('padding', number(style.padding));
+  add('opacity', Number.isFinite(Number(style.opacity)) ? Math.max(0, Math.min(1, Number(style.opacity))) : null);
+  return css.join(';');
+}
+
+function certificateBlock(block, data) {
+  if (!block || typeof block !== 'object' || !['text', 'image', 'shape'].includes(block.type)) return '';
+  const n = value => Number.isFinite(Number(value)) ? Math.max(-2000, Math.min(3000, Number(value))) : 0;
+  const position = `left:${n(block.x)}px;top:${n(block.y)}px;width:${Math.max(1, n(block.width))}px;height:${Math.max(1, n(block.height))}px;`;
+  const style = `${position}${certificateStyle(block.style || {})}`;
+  if (block.type === 'text') return `<div class="certificate-block" style="${style};white-space:pre-wrap;overflow:hidden">${certificateText(block.text, data)}</div>`;
+  if (block.type === 'shape') return `<div class="certificate-block" aria-hidden="true" style="${style}"></div>`;
+  const src = typeof block.src === 'string' && /^data:image\/(png|jpeg|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(block.src) ? block.src : '';
+  return src ? `<img class="certificate-block" alt="" src="${src}" style="${style};object-fit:contain">` : '';
+}
+
+function certificateDocument(documentJson, data) {
+  if (typeof documentJson !== 'string' || documentJson.length > 200000) throw new Error('invalid_certificate_document');
+  const document = JSON.parse(documentJson);
+  if (!document || typeof document !== 'object' || !Array.isArray(document.blocks) || document.blocks.length > 100) throw new Error('invalid_certificate_document');
+  const page = document.page && typeof document.page === 'object' ? document.page : {};
+  const background = typeof page.background === 'string' && /^(#[0-9a-f]{3,8}|rgba?\([0-9., %]+\)|transparent)$/i.test(page.background) ? page.background : '#ffffff';
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
+    @page { size: 11in 8.5in; margin: 0; }
+    html,body { margin:0; padding:0; background:#e5e7eb; }
+    .page { position:relative; width:1056px; height:816px; overflow:hidden; background:${background}; box-sizing:border-box; }
+    .certificate-block { position:absolute; box-sizing:border-box; }
+  </style></head><body><main class="page">${document.blocks.map(block => certificateBlock(block, data)).join('')}</main></body></html>`;
+}
+
+app.post('/internal/v1/certificates/render', express.json({ limit: '300kb' }), async (req, res) => {
+  if (!INTERNAL_API_KEY || req.headers['x-internal-api-key'] !== INTERNAL_API_KEY) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const html = certificateDocument(req.body?.documentJson, req.body?.data || {});
+    const browser = await certificateBrowser();
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+    await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
+    const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+    await context.close();
+    res.type('application/pdf').set('Content-Disposition', 'inline').send(pdf);
+  } catch (error) {
+    console.error('certificate_render_failed', error.message);
+    res.status(400).json({ error: 'certificate_render_failed' });
+  }
 });
 
 // Presentation responses depend on the event, the current ticket/role and the

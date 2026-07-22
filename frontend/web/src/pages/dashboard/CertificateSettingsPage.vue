@@ -1,7 +1,7 @@
 <template lang="pug">
 .cert-settings-page
   h2 Diseño del certificado
-  p.hint Personaliza el certificado de asistencia que reciben los participantes al terminar la encuesta. Los cambios aplican a todas las conferencias.
+  p.hint Configuración global de respaldo para los certificados de asistencia. Para diseñar el certificado de un evento, usa la opción Certificado dentro del evento.
 
   .loading(v-if="loading") Cargando...
   template(v-else)

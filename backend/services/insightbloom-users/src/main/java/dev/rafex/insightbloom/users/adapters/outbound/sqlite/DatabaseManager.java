@@ -337,6 +337,21 @@ public class DatabaseManager {
             """);
 
             stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS certificate_templates (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    conference_uuid TEXT NOT NULL UNIQUE,
+                    template_key TEXT NOT NULL,
+                    template_name TEXT NOT NULL,
+                    engine TEXT NOT NULL DEFAULT 'HTML_CHROME',
+                    document_json TEXT NOT NULL,
+                    version INTEGER NOT NULL DEFAULT 1,
+                    updated_by_user_uuid TEXT,
+                    updated_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_certificate_templates_conference ON certificate_templates(conference_uuid)");
+
+            stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS download_events (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     uuid TEXT NOT NULL UNIQUE,
@@ -798,7 +813,7 @@ public class DatabaseManager {
             {"organizer", "Organizador", "PLATFORM", "HOST_EVENT"},
             {"host", "Host/Anfitrión", "EVENT",
                 "MANAGE_EVENT_SETTINGS,ASSIGN_EVENT_ROLES,MANAGE_TICKETS,MODERATE_CONTENT,CHECK_IN,MANAGE_PRESENTATION,MANAGE_SURVEY,MANAGE_CERTIFICATE,VIDEO_MODERATE"},
-            {"moderator", "Moderador", "EVENT", "MANAGE_TICKETS,MODERATE_CONTENT,VIDEO_MODERATE"},
+            {"moderator", "Moderador", "EVENT", "MANAGE_TICKETS,MODERATE_CONTENT,MANAGE_CERTIFICATE,VIDEO_MODERATE"},
             {"checkin_staff", "Staff de acceso", "EVENT", "CHECK_IN"},
             {"guest_presenter", "Presentador invitado", "EVENT", "MANAGE_PRESENTATION"},
             {"survey_manager", "Encargado de encuesta", "EVENT", "MANAGE_SURVEY"}
@@ -822,6 +837,8 @@ public class DatabaseManager {
         // Agrega el permiso a instalaciones existentes sin duplicarlo.
         stmt.executeUpdate("UPDATE roles SET permissions = permissions || ',MANAGE_TICKETS' "
                 + "WHERE key IN ('host','moderator') AND instr(',' || permissions || ',', ',MANAGE_TICKETS,') = 0");
+        stmt.executeUpdate("UPDATE roles SET permissions = permissions || ',MANAGE_CERTIFICATE' "
+                + "WHERE key IN ('host','moderator') AND instr(',' || permissions || ',', ',MANAGE_CERTIFICATE,') = 0");
     }
 
     /**

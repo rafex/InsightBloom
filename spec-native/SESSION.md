@@ -6,7 +6,7 @@ Estado activo de trabajo para continuidad multi-agente.
 
 ## Estado actual
 
-- **Iniciativa activa**: `slidev-presentations`
+- **Iniciativa activa**: `certificate-editor`
 - **Branch**: `main`
 - **Último agente**: Codex
 - **Última acción**: corregido el alcance de la cookie de presentación detrás
@@ -27,6 +27,10 @@ Si la audiencia muestra `ticket_required` y el WebSocket devuelve `502`,
 comprobar primero que la imagen del servicio incluya esta corrección: la
 cookie debe tener `Path=/api/presentations/api/v1/conferences/{id}/presentation`.
 
+La iniciativa de certificados por evento agrega un catálogo de plantillas, un
+editor JSON controlado y renderizado interno con Playwright + Chromium. PDFBox
+se conserva como fallback para eventos que aún no tienen plantilla.
+
 ## Próximos pasos
 
 - [ ] Completar exportación PPTX y caché por hash de Slidev
@@ -35,6 +39,7 @@ cookie debe tener `Path=/api/presentations/api/v1/conferences/{id}/presentation`
 - [ ] Reconciliar el tag de imagen en `InsightBloom-gitops` mediante FluxCD
 - [ ] Entregar a los agentes de presentaciones el formato de ZIP definido en
   `workflows/SLIDEV-PACKAGING.md`
+- [ ] Completar tests de autorización y sanitización del editor de certificados
 
 ## Notas
 

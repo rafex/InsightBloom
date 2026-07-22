@@ -26,6 +26,7 @@
 | Backend Contracts | [`specs/backend-contracts/SPEC.md`](./specs/backend-contracts/SPEC.md) | — | draft |
 | Device Fingerprinting | [`specs/device-fingerprinting/SPEC.md`](./specs/device-fingerprinting/SPEC.md) | — | active |
 | Slidev Presentations | [`specs/slidev-presentations/SPEC.md`](./specs/slidev-presentations/SPEC.md) | [`tasks/slidev-presentations/TASKS.md`](./tasks/slidev-presentations/TASKS.md) | active |
+| Event Certificate Editor | [`specs/certificate-editor/SPEC.md`](./specs/certificate-editor/SPEC.md) | [`tasks/certificate-editor/TASKS.md`](./tasks/certificate-editor/TASKS.md) | active |
 
 ## Workflows
 

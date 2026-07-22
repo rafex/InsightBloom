@@ -119,6 +119,11 @@ const routes: RouteRecordRaw[] = [
         props: true
       },
       {
+        path: 'conferences/:conferenceId/certificate',
+        component: () => import('@/pages/dashboard/CertificateEditorPage.vue'),
+        props: true
+      },
+      {
         path: 'conferences/:conferenceId/check-in',
         component: () => import('@/pages/dashboard/CheckInScannerPage.vue'),
         props: true

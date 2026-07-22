@@ -265,6 +265,35 @@ export interface CertificateSettings {
   [key: string]: unknown
 }
 
+export interface CertificateTemplateVariable {
+  key: string
+  label: string
+  example: string
+}
+
+export interface CertificateTemplateCatalogItem {
+  key: string
+  name: string
+  description: string
+  engine: 'HTML_CHROME'
+  documentJson: string
+}
+
+export interface CertificateTemplate {
+  conferenceUuid: string
+  templateKey: string
+  templateName: string
+  engine: 'HTML_CHROME'
+  documentJson: string
+  version: number
+  updatedAt?: string
+}
+
+export interface CertificateTemplateCatalog {
+  templates: CertificateTemplateCatalogItem[]
+  variables: CertificateTemplateVariable[]
+}
+
 export interface UserProfile {
   uuid: string
   displayName?: string | null

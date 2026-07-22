@@ -1,12 +1,15 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.CertificateSettings;
+import dev.rafex.insightbloom.users.domain.model.CertificatePlatformData;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.User;
+import dev.rafex.insightbloom.users.domain.ports.CertificateTemplateRepository;
 import dev.rafex.insightbloom.users.domain.ports.CertificateSettingsRepository;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.SurveyPort;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
+import dev.rafex.insightbloom.users.adapters.outbound.presentationsclient.CertificateRenderer;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -22,6 +25,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Generates an attendance certificate PDF in-memory. The PDF is never persisted to disk;
@@ -32,15 +38,32 @@ public class GenerateCertificateUseCase {
     private final UserRepository userRepository;
     private final SurveyPort surveyPort;
     private final CertificateSettingsRepository certificateSettingsRepository;
+    private final CertificateTemplateRepository certificateTemplateRepository;
+    private final CertificateRenderer certificateRenderer;
+    private final CertificatePlatformData platformData;
 
     public GenerateCertificateUseCase(final ConferenceRepository conferenceRepository,
                                        final UserRepository userRepository,
                                        final SurveyPort surveyPort,
                                        final CertificateSettingsRepository certificateSettingsRepository) {
+        this(conferenceRepository, userRepository, surveyPort, certificateSettingsRepository, null, null,
+                new CertificatePlatformData("InsightBloom", "https://insightbloom.v1.rafex.cloud", "", "", "", ""));
+    }
+
+    public GenerateCertificateUseCase(final ConferenceRepository conferenceRepository,
+                                      final UserRepository userRepository,
+                                      final SurveyPort surveyPort,
+                                      final CertificateSettingsRepository certificateSettingsRepository,
+                                      final CertificateTemplateRepository certificateTemplateRepository,
+                                      final CertificateRenderer certificateRenderer,
+                                      final CertificatePlatformData platformData) {
         this.conferenceRepository = conferenceRepository;
         this.userRepository = userRepository;
         this.surveyPort = surveyPort;
         this.certificateSettingsRepository = certificateSettingsRepository;
+        this.certificateTemplateRepository = certificateTemplateRepository;
+        this.certificateRenderer = certificateRenderer;
+        this.platformData = platformData;
     }
 
     public record Result(byte[] pdfBytes, String fileName, boolean profileIncomplete) {}
@@ -62,13 +85,46 @@ public class GenerateCertificateUseCase {
         final CertificateSettings settings = certificateSettingsRepository.get();
 
         try {
-            final byte[] pdf = renderPdf(conference, attendeeName, profileIncomplete, settings);
+            final byte[] pdf = renderEventTemplateOrLegacy(conference, user, attendeeName, profileIncomplete, settings);
             final String fileName = "certificado-" + conference.getFriendlyId() + ".pdf";
             return new Result(pdf, fileName, profileIncomplete);
         } catch (final IOException e) {
             throw new RuntimeException("certificate_generation_failed", e);
         }
     }
+
+    private byte[] renderEventTemplateOrLegacy(final Conference conference, final User user,
+                                                final String attendeeName, final boolean profileIncomplete,
+                                                final CertificateSettings settings) throws IOException {
+        if (certificateTemplateRepository != null && certificateRenderer != null) {
+            final var template = certificateTemplateRepository.findByConferenceUuid(conference.getUuid());
+            if (template.isPresent() && "HTML_CHROME".equals(template.get().getEngine())) {
+                return certificateRenderer.render(template.get().getDocumentJson(), certificateData(conference, user, attendeeName));
+            }
+        }
+        return renderPdf(conference, attendeeName, profileIncomplete, settings);
+    }
+
+    private Map<String, Object> certificateData(final Conference conference, final User user, final String attendeeName) {
+        final Map<String, Object> participant = new LinkedHashMap<>();
+        participant.put("displayName", attendeeName); participant.put("firstName", value(user.getFirstName()));
+        participant.put("lastName", value(user.getLastName())); participant.put("email", value(user.getEmail()));
+        participant.put("username", value(user.getUsername())); participant.put("uuid", value(user.getUuid()));
+        final Map<String, Object> event = new LinkedHashMap<>();
+        event.put("name", value(conference.getName())); event.put("displayName", value(conference.getName()));
+        event.put("friendlyId", value(conference.getFriendlyId())); event.put("uuid", value(conference.getUuid()));
+        event.put("date", value(conference.getEventDate())); event.put("startTime", value(conference.getStartTime()));
+        event.put("endTime", value(conference.getEndTime())); event.put("venue", value(conference.getVenue()));
+        event.put("timezone", value(conference.getTimezoneId()));
+        final Map<String, Object> platform = new LinkedHashMap<>();
+        platform.put("name", platformData.name()); platform.put("website", platformData.website());
+        platform.put("email", platformData.email()); platform.put("github", platformData.github());
+        platform.put("linkedin", platformData.linkedin()); platform.put("telegram", platformData.telegram());
+        return Map.of("participant", participant, "event", event, "platform", platform,
+                "certificate", Map.of("issuedDate", java.time.LocalDate.now().toString(), "id", UUID.randomUUID().toString()));
+    }
+
+    private static String value(final Object value) { return value == null ? "" : String.valueOf(value); }
 
     private String buildFullName(final User user) {
         final String first = user.getFirstName();
