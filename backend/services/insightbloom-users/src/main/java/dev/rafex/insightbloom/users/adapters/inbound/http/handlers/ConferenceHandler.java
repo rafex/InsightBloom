@@ -1291,6 +1291,14 @@ public class ConferenceHandler extends BaseResourceHandler {
                 .map(c -> c.getCreatedByUserUuid().equals(v.subjectUuid())).orElse(false);
     }
 
+    /** Operational staff do not need an attendee ticket for the conference. */
+    private boolean hasOperationalStaffAccess(final String conferenceId,
+                                               final ValidateTokenUseCase.ValidationResult v) {
+        final String role = v.role() == null ? "" : v.role().toLowerCase(java.util.Locale.ROOT);
+        return role.contains("admin") || role.contains("organizer") || role.contains("moderator")
+                || canManageTickets(conferenceId, v);
+    }
+
     private boolean canCheckIn(final String conferenceId, final ValidateTokenUseCase.ValidationResult v) {
         return eventPermissionGuard.hasPermission(conferenceId, v.subjectUuid(), v.role(), Permission.CHECK_IN)
                 || (isOrganizerOrAdmin(v.role()) && getConferenceUseCase.byId(conferenceId)
@@ -1346,9 +1354,14 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var conference = getConferenceUseCase.byId(id).orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
             final String token = extractToken(jx);
             final var v = token == null ? null : validateTokenUseCase.execute(token);
-            final boolean manager = v != null && v.valid() && canManageTickets(id, v);
-            final boolean hasAccess = v != null && v.valid() && (manager || ticketUseCase.hasAccess(conference, v.subjectUuid()));
+            // Staff access is role-based and independent of attendee tickets. A revoked or
+            // expired attendee ticket must not remove access from event operators.
+            final boolean staffAccess = v != null && v.valid() && hasOperationalStaffAccess(id, v);
+            final boolean hasAccess = v != null && v.valid() && (staffAccess || ticketUseCase.hasAccess(conference, v.subjectUuid()));
+            final boolean presentationAccess = v != null && v.valid() && (hasAccess || eventPermissionGuard.hasPermission(
+                    id, v.subjectUuid(), v.role(), Permission.MANAGE_PRESENTATION));
             sendOk(jx, 200, Map.of("ticketRequired", ticketUseCase.isTicketed(conference), "hasAccess", hasAccess,
+                    "presentationAccess", presentationAccess,
                     "publicOnly", ticketUseCase.isTicketed(conference) && !hasAccess,
                     "publicAreas", List.of("presentation_preview"),
                     "privateAreas", List.of("event_info", "ticket_claim", "cloud", "presentation_full", "survey", "video", "whiteboard", "diagrams", "notes", "ide"),

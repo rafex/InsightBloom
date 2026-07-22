@@ -89,14 +89,18 @@ function setPresentationAccessCookie(req, res, conferenceId) {
 }
 
 async function hasConferenceAccess(conferenceId, token) {
-  if (!token) return false;
   try {
+    const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
     const response = await fetch(`${USERS_URL}/api/v1/conferences/${conferenceId}/access`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers,
     });
     if (!response.ok) return false;
     const body = await response.json();
-    return body?.data?.hasAccess === true;
+    // Open events need no token; staff and presentation managers are authorized
+    // by role and must not depend on an attendee ticket.
+    return body?.data?.ticketRequired !== true
+      || body?.data?.hasAccess === true
+      || body?.data?.presentationAccess === true;
   } catch {
     return false;
   }

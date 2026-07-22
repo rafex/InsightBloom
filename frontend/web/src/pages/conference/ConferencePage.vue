@@ -79,7 +79,7 @@
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
         router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
-      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :access-granted="privateAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator")
+      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :access-granted="routeAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator")
 
     OnboardingTour(storage-key="ib_onboarding_conference" :steps="attendeeTourSteps")
 
@@ -125,6 +125,7 @@ export default {
     const showCalendarMenu = ref(false)
     const capabilities = ref<Set<string>>(new Set())
     const privateAccess = ref(false)
+    const presentationAccess = ref(false)
     const headerCollapsed = ref(TOOL_ROUTE_SUFFIXES.some((s) => route.path.endsWith(s)))
     const auth = useAuthStore()
 
@@ -166,6 +167,9 @@ export default {
 
     const isTicketRoute = computed(() => route.path.endsWith('/ticket'))
     const isPublicRoute = computed(() => route.path.endsWith('/presentation'))
+    // The presentation route has a narrower authorization contract than the
+    // rest of the private event tools.
+    const routeAccess = computed(() => isPublicRoute.value ? presentationAccess.value : privateAccess.value)
 
     const isAnonymous = !auth.isAuthenticated() || auth.state.role === 'guest'
     const attendeeTourSteps = ATTENDEE_TOUR_STEPS
@@ -226,6 +230,7 @@ export default {
         conference.value = conf
         const access = await getConferenceAccess(conf.uuid, auth.state.token)
         privateAccess.value = !access.ticketRequired || access.hasAccess
+        presentationAccess.value = !access.ticketRequired || access.hasAccess || access.presentationAccess === true
         timezones.value = tzList
         const eventType = eventTypes.find((t) => t.key === conf.eventTypeKey)
         if (eventType) capabilities.value = new Set(eventType.capabilities)
@@ -251,7 +256,7 @@ export default {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
-      privateAccess, isTicketRoute, isPublicRoute, headerCollapsed
+      privateAccess, presentationAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed
     }
   }
 }

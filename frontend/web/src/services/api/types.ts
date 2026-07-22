@@ -144,6 +144,7 @@ export interface DeviceAccessSettings {
 export interface ConferenceAccess {
   ticketRequired: boolean
   hasAccess: boolean
+  presentationAccess: boolean
   publicOnly: boolean
   publicAreas: string[]
   privateAreas: string[]
