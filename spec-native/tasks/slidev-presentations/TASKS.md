@@ -207,6 +207,22 @@
 - Criterio de cierre: fixture FAT válido publicado, fixture con `source/` o
   hash incorrecto rechazado y comprobación de status/preview/PDF.
 
+### SLIDEV-017 — Paquete offline exclusivo del moderador
+
+- Estado: `in_progress`
+- Owner: presentations + frontend + seguridad
+- Dependencias: SLIDEV-009, SLIDEV-010, SLIDEV-014
+- Emitir un manifiesto Ed25519 para quien administra la presentación, descargar
+  los archivos autorizados, verificar hashes, cifrar fragmentos AES-GCM en
+  IndexedDB y servirlos mediante un service worker con scope aleatorio.
+- Aplicar TTL entre una hora y siete días, validar la expiración con el WASM
+  confiable de InsightBloom y no añadir estas respuestas al cache global PWA.
+- Documentar configuración de claves, diagnóstico y la limitación explícita de
+  que no es DRM.
+- Criterio de cierre: paquete vigente abre sin red en el mismo navegador,
+  paquete alterado/expirado no abre, audiencia no puede preparar el manifiesto
+  y build/lint/typecheck pasan.
+
 ## Dependencias y orden recomendado
 
 ```text

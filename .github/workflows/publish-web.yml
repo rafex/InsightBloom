@@ -81,6 +81,7 @@ jobs:
           build-args: |
             VITE_APP_VERSION=${{ steps.image_tag.outputs.value }}
             VITE_GIT_SHA=${{ github.sha }}
+            VITE_OFFLINE_MANIFEST_PUBLIC_KEY=${{ secrets.OFFLINE_MANIFEST_PUBLIC_KEY }}
           push: true
           provenance: true
           sbom: true

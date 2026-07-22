@@ -61,6 +61,12 @@ usuario durante la carga.
 - La navegación de Slidev se traduce al mismo WebSocket existente usando la
   ruta relativa de la diapositiva, conservando `hash` como campo compatible
   con Marp.
+- El moderador puede preparar una copia offline mediante un manifiesto firmado:
+  el navegador verifica hashes, cifra fragmentos AES-GCM en IndexedDB y los
+  sirve con un service worker de scope aleatorio. La copia tiene TTL limitado,
+  no participa en el cache global PWA y no sincroniza por WebSocket sin red.
+  El WASM usado para validar expiración es código confiable de InsightBloom,
+  nunca contenido del ZIP.
 
 El MVP todavía deja fuera la caché por hash de fuente, el artefacto separado de
 notas para el moderador y la ejecución de dependencias arbitrarias del ZIP.
@@ -177,6 +183,13 @@ seguirá funcionando sin cambios ni re-procesamiento.
 - FR-015: Los errores de validación, build, exportación, tamaño, timeout y
   recursos deben mostrarse en el panel de gestión sin revelar logs internos ni
   rutas del contenedor.
+- FR-017: El moderador autorizado podrá preparar una copia offline de la
+  presentación vigente. El manifiesto deberá estar firmado por el backend,
+  cada archivo deberá tener hash, y el endpoint no deberá devolver contenido
+  durante la emisión del manifiesto.
+- FR-018: La copia offline deberá expirar entre una hora y siete días, abrirse
+  sólo en el navegador que la preparó y no habilitar acceso offline para la
+  audiencia ni para otro evento.
 
 ## Non-functional Requirements
 
@@ -205,6 +218,13 @@ seguirá funcionando sin cambios ni re-procesamiento.
 - NFR-008: La imagen del servicio debe conservar compatibilidad con Node 20 y
   Chromium disponible, pero el impacto de tamaño y tiempo de exportación debe
   medirse antes de habilitar Slidev en producción.
+- NFR-009: El cache global de Workbox no deberá almacenar presentaciones ni
+  respuestas dependientes de boleto. El modo offline usará un service worker
+  dedicado, un scope aleatorio por paquete, AES-GCM, SHA-256 y una clave
+  Ed25519 separada del frontend.
+- NFR-010: La implementación offline se documentará como control de acceso y
+  expiración, no como DRM; un usuario que controle el dispositivo o el perfil
+  del navegador puede inspeccionar una presentación mientras está desbloqueada.
 
 ## Acceptance Criteria
 

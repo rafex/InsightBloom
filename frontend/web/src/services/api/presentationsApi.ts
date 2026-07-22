@@ -14,6 +14,25 @@ export interface PresentationStatus {
   [key: string]: unknown
 }
 
+export interface OfflinePresentationFile {
+  path: string
+  size: number
+  sha256: string
+  contentType: string
+}
+
+export interface OfflinePresentationManifest {
+  conferenceId: string
+  provider: PresentationProvider
+  format: PresentationFormat
+  indexPath: string
+  artifactHash: string
+  expiresAt: string
+  files: OfflinePresentationFile[]
+  signedPayload: string
+  signature: string
+}
+
 function authHeader(token?: string | null) {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
@@ -30,6 +49,13 @@ export async function uploadPresentation(conferenceId: string, file: Blob, token
 
 export async function getPresentationStatus(conferenceId: string): Promise<PresentationStatus> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/presentation/status`)
+  return res.data
+}
+
+export async function getOfflinePresentationManifest(conferenceId: string, token: string): Promise<OfflinePresentationManifest> {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/presentation/offline-manifest`, {
+    headers: authHeader(token)
+  })
   return res.data
 }
 

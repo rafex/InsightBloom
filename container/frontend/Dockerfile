@@ -13,8 +13,10 @@ RUN npm ci --prefer-offline
 COPY frontend/web/ ./
 ARG VITE_APP_VERSION=dev
 ARG VITE_GIT_SHA=unknown
+ARG VITE_OFFLINE_MANIFEST_PUBLIC_KEY=
 ENV VITE_APP_VERSION=${VITE_APP_VERSION}
 ENV VITE_GIT_SHA=${VITE_GIT_SHA}
+ENV VITE_OFFLINE_MANIFEST_PUBLIC_KEY=${VITE_OFFLINE_MANIFEST_PUBLIC_KEY}
 RUN npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────

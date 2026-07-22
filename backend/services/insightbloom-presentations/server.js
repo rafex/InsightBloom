@@ -28,6 +28,11 @@ const DEFAULT_PRESENTATION_PROVIDER = 'MARP';
 const PRESENTATION_PROVIDERS = new Set(['MARP', 'SLIDEV']);
 const SLIDEV_FAT_ENABLED = process.env.SLIDEV_FAT_ENABLED === 'true';
 const SLIDEV_FAT_ALLOW_WARNINGS = process.env.SLIDEV_FAT_ALLOW_WARNINGS === 'true';
+const OFFLINE_PRESENTATION_TTL_MS = Math.min(
+  Math.max(Number(process.env.OFFLINE_PRESENTATION_TTL_MS || 24 * 60 * 60 * 1000), 60 * 60 * 1000),
+  7 * 24 * 60 * 60 * 1000,
+);
+const OFFLINE_MANIFEST_PRIVATE_KEY = process.env.OFFLINE_MANIFEST_PRIVATE_KEY || '';
 const MAX_UNCOMPRESSED_ZIP_BYTES = 250 * 1024 * 1024;
 const MAX_ARCHIVE_FILES = 1000;
 const ALLOWED_ARCHIVE_EXTENSIONS = new Set([
@@ -182,6 +187,72 @@ function presentationStaticRoot(conferenceId, manifest = readManifest(conference
 
 function presentationIndexFile(conferenceId, manifest = readManifest(conferenceId)) {
   return path.join(presentationStaticRoot(conferenceId, manifest), manifest.indexFile || 'slides.html');
+}
+
+function contentTypeFor(file) {
+  const extension = path.extname(file).toLowerCase();
+  const types = {
+    '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8', '.mjs': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
+    '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif', '.webp': 'image/webp', '.avif': 'image/avif',
+    '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf',
+    '.mp4': 'video/mp4', '.webm': 'video/webm', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg', '.wav': 'audio/wav',
+  };
+  return types[extension] || 'application/octet-stream';
+}
+
+function listPresentationFiles(rootDir) {
+  const files = [];
+  const stack = [rootDir];
+  while (stack.length) {
+    const dir = stack.pop();
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) stack.push(full);
+      else if (entry.isFile()) {
+        const relative = path.relative(rootDir, full).split(path.sep).join('/');
+        const data = fs.readFileSync(full);
+        files.push({
+          path: relative,
+          size: data.byteLength,
+          sha256: crypto.createHash('sha256').update(data).digest('hex'),
+          contentType: contentTypeFor(full),
+        });
+      }
+    }
+  }
+  return files.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function canonicalOfflineManifest(manifest) {
+  return JSON.stringify({
+    conferenceId: manifest.conferenceId,
+    provider: manifest.provider,
+    format: manifest.format,
+    indexPath: manifest.indexPath,
+    artifactHash: manifest.artifactHash,
+    expiresAt: manifest.expiresAt,
+    files: manifest.files,
+  });
+}
+
+function signOfflineManifest(manifest) {
+  if (!OFFLINE_MANIFEST_PRIVATE_KEY) return null;
+  try {
+    const privateKey = crypto.createPrivateKey(OFFLINE_MANIFEST_PRIVATE_KEY.replaceAll('\\n', '\n'));
+    const payload = Buffer.from(canonicalOfflineManifest(manifest), 'utf8');
+    return {
+      signedPayload: payload.toString('base64'),
+      signature: crypto.sign(null, payload, privateKey).toString('base64'),
+    };
+  } catch (err) {
+    console.error('offline_manifest_signing_failed', err.message);
+    return null;
+  }
 }
 
 function zipEntryIsSymlink(entry) {
@@ -690,8 +761,44 @@ app.get('/api/v1/conferences/:id/presentation/markdown', async (req, res) => {
   res.type('text/plain').send(fs.readFileSync(mdFile, 'utf8'));
 });
 
+// El paquete offline sólo lo puede preparar alguien con permiso de administrar
+// la presentación. El navegador descarga los archivos, los divide y cifra
+// localmente; este endpoint nunca devuelve contenido de las diapositivas.
+app.get('/api/v1/conferences/:id/presentation/offline-manifest', requirePresentationManagement, (req, res) => {
+  const conferenceId = req.params.id;
+  const manifest = readManifest(conferenceId);
+  const root = presentationStaticRoot(conferenceId, manifest);
+  const index = presentationIndexFile(conferenceId, manifest);
+  if (!fs.existsSync(index)) return res.status(404).json({ error: 'not_found' });
+  if (!OFFLINE_MANIFEST_PRIVATE_KEY) {
+    return res.status(503).json({ error: 'offline_not_configured', message: 'El modo offline no está configurado en el servidor' });
+  }
+
+  try {
+    const files = listPresentationFiles(root);
+    const artifactHash = crypto.createHash('sha256')
+      .update(files.map((file) => `${file.path}:${file.sha256}`).join('\n'))
+      .digest('hex');
+    const offlineManifest = {
+      conferenceId,
+      provider: manifest.provider,
+      format: manifest.format || 'source',
+      indexPath: path.relative(root, index).split(path.sep).join('/'),
+      artifactHash,
+      expiresAt: new Date(Date.now() + OFFLINE_PRESENTATION_TTL_MS).toISOString(),
+      files,
+    };
+    const signature = signOfflineManifest(offlineManifest);
+    if (!signature) return res.status(503).json({ error: 'offline_not_configured' });
+    return res.json({ ...offlineManifest, ...signature });
+  } catch (err) {
+    console.error('offline_manifest_generation_failed', err);
+    return res.status(500).json({ error: 'offline_manifest_generation_failed' });
+  }
+});
+
 app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
-  const apiEndpointPaths = new Set(['/status', '/markdown', '/slides', '/presenter', '/slides/preview', '/thumbnail', '/pdf', '/remote-token']);
+  const apiEndpointPaths = new Set(['/status', '/markdown', '/offline-manifest', '/slides', '/presenter', '/slides/preview', '/thumbnail', '/pdf', '/remote-token']);
   if (apiEndpointPaths.has(req.path)) return next();
   const manifest = readManifest(req.params.id);
   const root = presentationStaticRoot(req.params.id, manifest);
