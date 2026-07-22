@@ -188,7 +188,7 @@ public class UsersApplication {
         final var purgeExpiredEventDiagramsUseCase = new PurgeExpiredEventDiagramsUseCase(conferenceRepo, timezoneRepo);
         final var generateJaasTokenUseCase = new GenerateJaasTokenUseCase(
                 jaasAppId, jaasApiKeyId, jaasPrivateKeyBase64, eventPermissionGuard, userRepo,
-                conferenceRepo, deviceAccessGuard);
+                conferenceRepo, deviceAccessGuard, ticketUseCase);
         final var llmClient = new dev.rafex.insightbloom.users.adapters.outbound.llm.GroqLlmClient(
                 llmBaseUrl, llmApiKey, llmModel, JacksonJsonCodec.defaultCodec());
         final var generateSeatLayoutUseCase = new GenerateSeatLayoutUseCase(llmClient, JacksonJsonCodec.defaultCodec());

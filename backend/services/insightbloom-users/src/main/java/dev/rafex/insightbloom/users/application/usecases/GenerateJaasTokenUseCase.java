@@ -26,7 +26,9 @@ import java.util.Optional;
  * evita el limite de 5 minutos del modo demo embebido de meet.jit.si (ver DEC-0020/TASK-0041,
  * "Jitsi self-hosted" originalmente; JaaS cumple el mismo rol sin correr Prosody/Jicofo/JVB
  * propios). Si no hay credenciales de JaaS configuradas, {@link #execute} devuelve
- * {@link Optional#empty()} y el frontend recae en `meet.jit.si` publico.
+ * {@link Optional#empty()} y el frontend solo puede usar `meet.jit.si` publico para eventos sin
+ * boletos. Los eventos ticketed requieren que el usuario tenga un boleto vigente antes de emitir
+ * el JWT.
  */
 public class GenerateJaasTokenUseCase {
 
@@ -41,6 +43,7 @@ public class GenerateJaasTokenUseCase {
     private final UserRepository userRepository;
     private final ConferenceRepository conferenceRepository;
     private final DeviceAccessGuard deviceAccessGuard;
+    private final TicketUseCase ticketUseCase;
 
     public GenerateJaasTokenUseCase(final String appId, final String apiKeyId,
                                      final String privateKeyBase64,
@@ -48,12 +51,24 @@ public class GenerateJaasTokenUseCase {
                                      final UserRepository userRepository,
                                      final ConferenceRepository conferenceRepository,
                                      final DeviceAccessGuard deviceAccessGuard) {
+        this(appId, apiKeyId, privateKeyBase64, eventPermissionGuard, userRepository,
+                conferenceRepository, deviceAccessGuard, null);
+    }
+
+    public GenerateJaasTokenUseCase(final String appId, final String apiKeyId,
+                                     final String privateKeyBase64,
+                                     final EventPermissionGuard eventPermissionGuard,
+                                     final UserRepository userRepository,
+                                     final ConferenceRepository conferenceRepository,
+                                     final DeviceAccessGuard deviceAccessGuard,
+                                     final TicketUseCase ticketUseCase) {
         this.appId = appId;
         this.apiKeyId = apiKeyId;
         this.eventPermissionGuard = eventPermissionGuard;
         this.userRepository = userRepository;
         this.conferenceRepository = conferenceRepository;
         this.deviceAccessGuard = deviceAccessGuard;
+        this.ticketUseCase = ticketUseCase;
         this.privateKey = parsePrivateKey(privateKeyBase64);
     }
 
@@ -64,6 +79,8 @@ public class GenerateJaasTokenUseCase {
     public sealed interface JaasResult {
         record NotConfigured() implements JaasResult {}
         record Blocked() implements JaasResult {}
+        record TicketRequired() implements JaasResult {}
+        record ConferenceNotFound() implements JaasResult {}
         record Issued(JaasToken token) implements JaasResult {}
     }
 
@@ -75,13 +92,29 @@ public class GenerateJaasTokenUseCase {
                                final String userLegacyRole, final String deviceFingerprint) {
         if (!isConfigured()) return new JaasResult.NotConfigured();
 
+        // La emisión del JWT es la frontera de seguridad de JaaS. No basta con haber iniciado
+        // sesión: en un evento ticketed el usuario debe tener un boleto vigente. hasAccess también
+        // crea el boleto operativo contado del creador de eventos antiguos, y mantiene la misma
+        // regla para moderadores a los que se les asignó un rol operativo.
+        final Conference conference = ticketUseCase == null
+                ? null
+                : conferenceRepository.findByUuid(conferenceUuid).orElse(null);
+        if (ticketUseCase != null) {
+            if (conference == null) return new JaasResult.ConferenceNotFound();
+            if (!ticketUseCase.hasAccess(conference, userUuid)) {
+                return new JaasResult.TicketRequired();
+            }
+        }
+
         // deviceFingerprint puede llegar null durante un rollout escalonado (frontend viejo sin
         // el header todavia) -- en ese caso se omite el control de acceso por dispositivo.
         if (deviceFingerprint != null && !deviceFingerprint.isBlank()) {
-            final Conference conference = conferenceRepository.findByUuid(conferenceUuid).orElse(null);
-            if (conference != null) {
+            final Conference deviceConference = conference != null
+                    ? conference
+                    : conferenceRepository.findByUuid(conferenceUuid).orElse(null);
+            if (deviceConference != null) {
                 final var access = deviceAccessGuard.checkAndRegister(
-                        conferenceUuid, userUuid, ToolKind.VIDEO, deviceFingerprint, conference);
+                        conferenceUuid, userUuid, ToolKind.VIDEO, deviceFingerprint, deviceConference);
                 if (access instanceof DeviceAccessGuard.DeviceAccessResult.Blocked) {
                     return new JaasResult.Blocked();
                 }

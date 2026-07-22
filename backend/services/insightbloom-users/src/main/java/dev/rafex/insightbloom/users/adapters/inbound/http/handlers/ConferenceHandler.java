@@ -1090,6 +1090,10 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendOk(jx, 200, issued.token());
             } else if (result instanceof GenerateJaasTokenUseCase.JaasResult.Blocked) {
                 sendError(jx, 403, "device_blocked", "Este dispositivo fue bloqueado por uso con múltiples cuentas");
+            } else if (result instanceof GenerateJaasTokenUseCase.JaasResult.TicketRequired) {
+                sendError(jx, 403, "ticket_required", "Registro y boleto requeridos");
+            } else if (result instanceof GenerateJaasTokenUseCase.JaasResult.ConferenceNotFound) {
+                sendError(jx, 404, "conference_not_found", "Evento no encontrado");
             } else {
                 sendError(jx, 404, "jaas_not_configured", "JaaS no esta configurado en este despliegue");
             }

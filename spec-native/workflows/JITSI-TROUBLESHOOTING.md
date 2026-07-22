@@ -119,8 +119,9 @@ La estrategia recomendada para producción es:
 
 1. Usar JaaS (`8x8.vc`) o una instancia Jitsi propia con autenticación JWT.
 2. Antes de emitir el JWT, validar sesión, evento, capacidad de videollamada,
-   boleto operativo vigente y control de dispositivo. Exentar únicamente al
-   creador, administradores y moderadores asignados al evento.
+   boleto operativo vigente y control de dispositivo. El creador recibe un
+   boleto operativo contado y los moderadores asignados consumen otro; esos
+   boletos no se pueden revocar.
 3. Emitir un JWT corto y limitado literalmente a la sala de ese evento; el
    JWT del moderador lleva `moderator=true` y el de un asistente no.
 4. No exponer el enlace crudo de Jitsi como enlace de acceso; el enlace público
@@ -129,10 +130,8 @@ La estrategia recomendada para producción es:
    JaaS no esté configurado: mostrar que la videollamada no está disponible o
    configurar el proveedor seguro.
 
-El endpoint actual de JaaS ya firma una sala concreta y distingue al moderador,
-pero `handleGetJaasToken` todavía debe incorporar explícitamente la validación
-de boleto para asistentes. Esa es la corrección backend pendiente para cumplir
-la regla “solo quien tiene acceso al evento puede entrar”. La clave compartida
+El endpoint de JaaS firma una sala concreta, distingue al moderador e incorpora
+la validación de boleto antes de emitir el JWT. La clave compartida
 solo tendría sentido como credencial adicional del anfitrión, nunca como
 autorización principal de asistentes, y no debe aparecer en URLs ni en el JWT
 del público.
@@ -165,8 +164,9 @@ telemetría best-effort y verificar funcionalidad con los errores filtrados por
 - [ ] CI pasa y `publish-web` publica una imagen nueva.
 - [ ] Flux selecciona la etiqueta nueva y el pod web queda `Ready`.
 - [ ] Se prueba `/c/<evento>/video` con una pestaña nueva y recarga forzada.
-- [ ] Se prueba tanto JaaS (`8x8.vc`) como el fallback público (`meet.jit.si`) cuando ambos estén configurados en el ambiente.
-- [ ] En eventos ticketed, el endpoint de JaaS rechaza a un usuario autenticado sin boleto y permite al creador/moderador exento.
+- [ ] Se prueba JaaS (`8x8.vc`) y se confirma que el fallback público solo se usa en eventos sin boletos.
+- [ ] En eventos ticketed, el endpoint de JaaS rechaza a un usuario autenticado sin boleto.
+- [ ] El creador y los moderadores asignados reciben boletos operativos contados y no revocables.
 - [ ] En producción ticketed no existe fallback silencioso a una sala pública.
 - [ ] Se confirma que el error observado no corresponde a otro módulo por la URL y el iniciador mostrados en DevTools.
 

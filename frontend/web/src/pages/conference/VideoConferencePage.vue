@@ -7,6 +7,9 @@
   .unavailable(v-else-if="deviceBlocked")
     p 🚫 Este dispositivo fue bloqueado por uso con múltiples cuentas.
     p.hint Contacta al organizador si crees que esto es un error.
+  .unavailable(v-else-if="accessDenied")
+    p 🔒 Esta videollamada requiere acceso al evento.
+    p.hint {{ accessDeniedMessage }}
   #jitsi-container(v-else)
 </template>
 
@@ -41,12 +44,15 @@ function loadJitsiScript(scriptUrl: string): Promise<void> {
 export default {
   name: 'VideoConferencePage',
   props: {
-    conferenceId: { type: String, default: '' }
+    conferenceId: { type: String, default: '' },
+    ticketed: { type: Boolean, default: false }
   },
-  setup(props: { conferenceId?: string }) {
+  setup(props: { conferenceId?: string; ticketed?: boolean }) {
     const auth = useAuthStore()
     const loading = ref(true)
     const deviceBlocked = ref(false)
+    const accessDenied = ref(false)
+    const accessDeniedMessage = ref('Necesitas un boleto vigente para entrar a la videollamada.')
     let api: { dispose: () => void } | null = null
 
     onMounted(async () => {
@@ -55,17 +61,31 @@ export default {
         // JaaS (8x8.vc) requiere un JWT firmado para unirse — a cambio no tiene el limite de
         // 5 minutos que meet.jit.si impone a integraciones embebidas de terceros (ver
         // DEC-0020/TASK-0041). Si no hay credenciales de JaaS configuradas en este despliegue,
-        // se recae en meet.jit.si publico sin token (con ese limite conocido). Un 403
-        // device_blocked es distinto -- NO debe recaer en meet.jit.si publico (eso dejaria a un
-        // dispositivo bloqueado entrar igual, sin JWT, evadiendo el bloqueo por completo).
+        // se recae en meet.jit.si publico sin token solo para eventos sin boletos. Un evento
+        // ticketed nunca debe caer a una sala publica: copiar su URL no puede convertirse en una
+        // forma de evadir el control de boletos.
         const config = await getIntegrationConfig()
-        const jaas = config.jaasAppId
-          ? await getJaasToken(props.conferenceId as string, auth.state.token as string).catch((e: any) => {
-              if (e?.response?.status === 403) { deviceBlocked.value = true }
-              return null
-            })
-          : null
-        if (deviceBlocked.value) { loading.value = false; return }
+        let jaas = null
+        if (config.jaasAppId) {
+          jaas = await getJaasToken(props.conferenceId as string, auth.state.token as string).catch((e: any) => {
+            const code = e?.response?.data?.error
+            if (code === 'device_blocked') {
+              deviceBlocked.value = true
+            } else {
+              accessDenied.value = true
+              if (code === 'ticket_required') {
+                accessDeniedMessage.value = 'Necesitas registrarte y contar con un boleto vigente.'
+              } else {
+                accessDeniedMessage.value = 'El proveedor de videollamadas seguro no pudo autorizar tu acceso.'
+              }
+            }
+            return null
+          })
+        } else if (props.ticketed) {
+          accessDenied.value = true
+          accessDeniedMessage.value = 'El evento requiere una videollamada segura, pero JaaS no está configurado.'
+        }
+        if (deviceBlocked.value || accessDenied.value) { loading.value = false; return }
 
         const domain = jaas ? JAAS_DOMAIN : JITSI_PUBLIC_DOMAIN
         const roomName = jaas ? `${jaas.appId}/${jaas.roomName}` : `insightbloom-${props.conferenceId}`
@@ -90,7 +110,10 @@ export default {
           interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false }
         })
       } catch (e: any) {
-        // degrada silenciosamente: el contenedor queda vacio, no rompe el resto del evento
+        if (props.ticketed) {
+          accessDenied.value = true
+          accessDeniedMessage.value = 'No se pudo cargar la videollamada segura. Intenta nuevamente más tarde.'
+        }
         loading.value = false
       }
     })
@@ -99,7 +122,7 @@ export default {
       api?.dispose()
     })
 
-    return { loading, deviceBlocked }
+    return { loading, deviceBlocked, accessDenied, accessDeniedMessage }
   }
 }
 </script>

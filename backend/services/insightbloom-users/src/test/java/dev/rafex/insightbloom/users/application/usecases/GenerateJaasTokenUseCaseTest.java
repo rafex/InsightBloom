@@ -91,4 +91,30 @@ class GenerateJaasTokenUseCaseTest {
         assertEquals("jitsi", payload.get("aud").asText());
         assertEquals("false", payload.get("context").get("user").get("moderator").asText());
     }
+
+    @Test
+    void rejectsTicketedConferenceWhenUserHasNoTicket() throws Exception {
+        final KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        final KeyPair keyPair = generator.generateKeyPair();
+
+        final EventRoleRepository eventRoleRepo = Mockito.mock(EventRoleRepository.class);
+        final RoleRepository roleRepo = Mockito.mock(RoleRepository.class);
+        final UserRepository userRepo = Mockito.mock(UserRepository.class);
+        final ConferenceRepository conferenceRepo = Mockito.mock(ConferenceRepository.class);
+        final DeviceAccessGuard deviceAccessGuard = Mockito.mock(DeviceAccessGuard.class);
+        final TicketUseCase ticketUseCase = Mockito.mock(TicketUseCase.class);
+        final Conference conference = new Conference("demo-evento", "Demo evento", "creator-1");
+        Mockito.when(conferenceRepo.findByUuid("conference-uuid-1")).thenReturn(Optional.of(conference));
+        Mockito.when(ticketUseCase.hasAccess(conference, "user-1")).thenReturn(false);
+
+        final var guard = new EventPermissionGuard(eventRoleRepo, roleRepo);
+        final var useCase = new GenerateJaasTokenUseCase("app-id", "key-id",
+                base64EnvelopedPem(keyPair), guard, userRepo, conferenceRepo, deviceAccessGuard,
+                ticketUseCase);
+
+        assertInstanceOf(GenerateJaasTokenUseCase.JaasResult.TicketRequired.class,
+                useCase.execute("conference-uuid-1", "user-1", "attendee", null));
+        Mockito.verifyNoInteractions(deviceAccessGuard);
+    }
 }
