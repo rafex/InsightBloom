@@ -32,6 +32,12 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        // Las respuestas de presentaciones dependen del boleto, el rol y la
+        // cookie HttpOnly que se prepara antes de abrir el iframe. Limpiamos
+        // caches antiguos al activar un worker nuevo; las respuestas de estas
+        // rutas no se cachean porque un 403 viejo puede quedar visible después
+        // de emitir un boleto o cambiar la presentación.
+        cleanupOutdatedCaches: true,
         // El chunk principal de monaco-editor (visor de archivos del moderador, carga lazy
         // via import() dinamico -- ver WorkspaceFileEditor.vue) pesa ~3.3MB, por encima del
         // limite por-archivo de precacheo de workbox (2MiB) -- precachearlo en el service
@@ -40,16 +46,10 @@ export default defineConfig({
         // excluye del precache; sigue funcionando igual via fetch normal (cache HTTP del
         // navegador) la primera vez que un moderador realmente lo abre.
         globIgnores: ['**/editor.main-*.js'],
-        runtimeCaching: [
-          {
-            // Slides de una presentación + sus assets estáticos (css/imágenes del
-            // tema) — permite repasar una charla ya vista sin conexión. No cubre
-            // /presentation/pdf (descarga pesada, sin beneficio de cachear).
-            urlPattern: /\/api\/presentations\/api\/v1\/conferences\/[^/]+\/presentation\/(?!pdf)/,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'insightbloom-presentation-slides' }
-          }
-        ]
+        // No agregar runtimeCaching para /api/presentations. Incluye rutas
+        // protegidas y públicas cuyo contenido cambia por conferencia/sesión.
+        // La reproducción offline no compensa mostrar un JSON ticket_required
+        // obsoleto ni arriesgar contenido de otro estado de acceso.
       }
     })
   ],

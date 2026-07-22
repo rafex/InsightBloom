@@ -54,6 +54,14 @@ app.use((_req, res, next) => {
   next();
 });
 
+// Presentation responses depend on the event, the current ticket/role and the
+// latest uploaded artifact. Never let a browser, proxy or service worker reuse
+// an old access error or an older presentation after those values change.
+app.use('/api/v1/conferences/:id/presentation', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  next();
+});
+
 // PDF/miniatura y previews Slidev se generan bajo demanda con el engine activo y
 // Chromium headless; se cachean en disco y estos mapas deduplican generaciones
 // concurrentes para la misma conferencia.
