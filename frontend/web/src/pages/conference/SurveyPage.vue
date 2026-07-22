@@ -36,7 +36,11 @@
             a(:href="telegramUrl" target="_blank" rel="noopener") 💬 Telegram {{ contact.telegram }}
           li
             a(:href="contact.telegramGroup" target="_blank" rel="noopener") 👥 Grupo de Telegram
-      a.btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
+      .download-actions
+        a.btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
+        button.btn-primary(type="button" v-if="isGroupNotes" @click="downloadMaterials" :disabled="materialsDownloading")
+          | {{ materialsDownloading ? 'Preparando materiales...' : 'Descargar materiales ZIP' }}
+      p.cert-error(v-if="materialsError") {{ materialsError }}
 
   .login-required(v-else-if="!canParticipate")
     h2 Inicia sesión para responder la encuesta
@@ -118,13 +122,13 @@
 </template>
 
 <script lang="ts">
-import { ref, reactive, shallowRef, onMounted, type PropType } from 'vue'
+import { ref, reactive, shallowRef, computed, onMounted, type PropType } from 'vue'
 import { useRoute } from 'vue-router'
 import { Model } from 'survey-core'
 import { SurveyComponent } from 'survey-vue3-ui'
 import { getQuestions, submitResponses, hasResponded, getSurveyDefinition, submitSurveyJs } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl, primePresentationAccess } from '@/services/api/presentationsApi'
-import { getCertificateBlobUrl } from '@/services/api/usersApi'
+import { getCertificateBlobUrl, downloadEventMaterials } from '@/services/api/usersApi'
 import { organizerContact, telegramContactUrl } from '@/config/contact'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -145,8 +149,11 @@ type PointerLikeEvent = MouseEvent | TouchEvent
 export default {
   name: 'SurveyPage',
   components: { SurveyComponent },
-  props: { conferenceId: { type: String as PropType<string | undefined>, default: undefined } },
-  setup(props: { conferenceId?: string }) {
+  props: {
+    conferenceId: { type: String as PropType<string | undefined>, default: undefined },
+    canvasAudienceMode: { type: String, default: '' }
+  },
+  setup(props: { conferenceId?: string, canvasAudienceMode?: string }) {
     const route = useRoute()
     const auth = useAuthStore()
     const canParticipate = auth.isAuthenticated() && auth.state.role !== 'guest'
@@ -170,6 +177,9 @@ export default {
     const certUrl = ref('')
     const certError = ref('')
     const certFileName = `certificado-${friendlyId || props.conferenceId}.pdf`
+    const materialsDownloading = ref(false)
+    const materialsError = ref('')
+    const isGroupNotes = computed(() => props.canvasAudienceMode !== 'INDEPENDENT')
 
     async function loadCertificate() {
       certLoading.value = true
@@ -180,6 +190,38 @@ export default {
         certError.value = 'No se pudo generar tu certificado todavía.'
       } finally {
         certLoading.value = false
+      }
+    }
+
+    async function loadPresentationStatus() {
+      try {
+        const status = await getPresentationStatus(props.conferenceId as string)
+        pdfReady.value = !!status.ready
+        if (pdfReady.value) {
+          await primePresentationAccess(props.conferenceId as string, auth.state.token as string)
+          pdfUrl.value = getPdfUrl(props.conferenceId as string)
+        }
+      } catch (e: any) {
+        pdfReady.value = false
+        pdfUrl.value = ''
+      }
+    }
+
+    async function downloadMaterials() {
+      materialsDownloading.value = true
+      materialsError.value = ''
+      try {
+        const blob = await downloadEventMaterials(props.conferenceId as string, auth.state.token as string)
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = 'event-materials.zip'
+        link.click()
+        URL.revokeObjectURL(url)
+      } catch (e: any) {
+        materialsError.value = 'No se pudieron preparar los materiales del evento.'
+      } finally {
+        materialsDownloading.value = false
       }
     }
 
@@ -263,6 +305,7 @@ export default {
             submitted.value = true
             loading.value = false
             await loadCertificate()
+            await loadPresentationStatus()
             return
           }
         } catch (e: any) { /* best-effort: if the check fails, fall through to the form */ }
@@ -286,14 +329,7 @@ export default {
       } catch (e: any) { questions.value = []; surveyModel.value = null }
       finally { loading.value = false }
 
-      try {
-        const status = await getPresentationStatus(props.conferenceId)
-        pdfReady.value = !!status.ready
-        if (pdfReady.value) {
-          await primePresentationAccess(props.conferenceId, auth.state.token as string)
-          pdfUrl.value = getPdfUrl(props.conferenceId)
-        }
-      } catch (e: any) { pdfReady.value = false }
+      await loadPresentationStatus()
     }
 
     function isAnswered(q: SurveyQuestion): boolean {
@@ -330,6 +366,7 @@ export default {
         await submitResponses(props.conferenceId as string, payload, auth.state.token as string)
         submitted.value = true
         await loadCertificate()
+        await loadPresentationStatus()
       } catch (e: any) {
         if (e.response?.status === 409) {
           error.value = 'Ya habías respondido esta encuesta.'
@@ -351,6 +388,7 @@ export default {
         await submitSurveyJs(props.conferenceId as string, data, auth.state.token as string)
         submitted.value = true
         await loadCertificate()
+        await loadPresentationStatus()
       } catch (e: any) {
         error.value = e.response?.status === 409
           ? 'Ya habías respondido esta encuesta.'
@@ -367,7 +405,8 @@ export default {
       answers, answersText, dragOrder, pdfReady, pdfUrl, contact, telegramUrl, emojiScale, setRating, submit,
       setCanvasRef, startDraw, moveDraw, endDraw, clearCanvas,
       dragStart, dragDrop, moveItem,
-      certLoading, certUrl, certError, certFileName
+      certLoading, certUrl, certError, certFileName, isGroupNotes,
+      materialsDownloading, materialsError, downloadMaterials
     }
   }
 }
@@ -417,6 +456,7 @@ textarea {
 }
 .btn-primary:hover { background: #4338ca; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.download-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 
 .canvas-wrap { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .draw-canvas { border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; touch-action: none; max-width: 100%; }

@@ -389,13 +389,14 @@ Etherpad ahora usa `COLLABORATIVE` por defecto. En `INDEPENDENT`, Users calcula
 un pad privado a partir del secreto del servicio, el evento y el usuario; el
 frontend sólo recibe el pad ya resuelto. El job de purga elimina el pad grupal
 y todos los pads privados derivados después del TTL del evento. Antes de la
-purga, el asistente puede exportar sus notas como TXT o HTML.
+purga, el asistente puede exportar sus notas individuales como TXT.
 
 `GET /conferences/{id}/materials.zip` genera bajo demanda un ZIP con
 `source.drawio`/`source.excalidraw`, sus SVG y PNG publicados, y las notas
 grupales de Etherpad como HTML/TXT. Los pads individuales quedan fuera por
-diseño. La UI de Notas expone la descarga y el backend vuelve a validar el
-acceso al evento.
+diseño. La UI muestra el ZIP en la zona de descargas de la encuesta sólo
+después de una respuesta exitosa; el backend vuelve a validar el acceso al
+evento.
 
 ## Criterio de cierre
 

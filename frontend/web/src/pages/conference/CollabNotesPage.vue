@@ -8,20 +8,16 @@
     .notes-toolbar
       span(v-if="isIndividual") Notas individuales: se purgan después de vencer el evento y puedes exportarlas.
       span(v-else) Notas grupales: las notas se compartirán con los asistentes y quedarán en el ZIP de materiales.
-      button.btn-outline(type="button" @click="downloadNotes('txt')" :disabled="downloading")
+      button.btn-outline(v-if="isIndividual" type="button" @click="downloadNotes" :disabled="downloading")
         span(v-if="downloading") Preparando...
         span(v-else) Descargar TXT
-      button.btn-outline(v-if="isIndividual" type="button" @click="downloadNotes('html')" :disabled="downloading") Descargar HTML
-      button.btn-outline(type="button" @click="downloadMaterials" :disabled="downloadingMaterials")
-        span(v-if="downloadingMaterials") Preparando ZIP...
-        span(v-else) Descargar materiales ZIP
       span.error(v-if="exportError") {{ exportError }}
     iframe.etherpad-frame(:src="padUrl" title="Notas")
 </template>
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { getIntegrationConfig, getEventNotes, exportEventNotes, downloadEventMaterials } from '@/services/api/usersApi'
+import { getIntegrationConfig, getEventNotes, exportEventNotes } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -36,43 +32,24 @@ export default {
     const loading = ref(true)
     const padUrl = ref('')
     const downloading = ref(false)
-    const downloadingMaterials = ref(false)
     const exportError = ref('')
     const isIndividual = computed(() => props.canvasAudienceMode === 'INDEPENDENT')
 
-    async function downloadNotes(format: 'txt' | 'html') {
+    async function downloadNotes() {
       downloading.value = true
       exportError.value = ''
       try {
-        const blob = await exportEventNotes(props.conferenceId as string, auth.state.token as string, format)
+        const blob = await exportEventNotes(props.conferenceId as string, auth.state.token as string, 'txt')
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
-        link.download = `mis-notas.${format}`
+        link.download = 'mis-notas.txt'
         link.click()
         URL.revokeObjectURL(url)
       } catch (e: any) {
         exportError.value = 'No se pudieron exportar tus notas.'
       } finally {
         downloading.value = false
-      }
-    }
-
-    async function downloadMaterials() {
-      downloadingMaterials.value = true
-      exportError.value = ''
-      try {
-        const blob = await downloadEventMaterials(props.conferenceId as string, auth.state.token as string)
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = 'event-materials.zip'
-        link.click()
-        URL.revokeObjectURL(url)
-      } catch (e: any) {
-        exportError.value = 'No se pudieron preparar los materiales del evento.'
-      } finally {
-        downloadingMaterials.value = false
       }
     }
 
@@ -96,7 +73,7 @@ export default {
       }
     })
 
-    return { loading, padUrl, isIndividual, downloading, downloadingMaterials, exportError, downloadNotes, downloadMaterials }
+    return { loading, padUrl, isIndividual, downloading, exportError, downloadNotes }
   }
 }
 </script>

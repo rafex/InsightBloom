@@ -847,8 +847,8 @@ app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
   return requireConferenceAccess(req, res).then((allowed) => {
     if (allowed) {
       const contentSecurityPolicy = manifest.format === 'fat'
-        ? "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'none'"
-        : "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self' https: wss:";
+        ? "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'none'"
+        : "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'self' https: wss:";
       res.setHeader('Content-Security-Policy', contentSecurityPolicy);
       setPresentationAccessCookie(req, res, req.params.id);
       serve();

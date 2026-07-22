@@ -156,7 +156,10 @@ export default {
         : path.endsWith('/whiteboard') ? 'EXCALIDRAW'
           : path.endsWith('/notes') ? 'ETHERPAD' : null
       const configs = conference.value?.canvasConfigs || []
-      if (tool && configs.length > 0) return configs.find(config => config.tool === tool)?.audienceMode || ''
+      if (configs.length > 0) {
+        const selectedTool = tool || 'ETHERPAD'
+        return configs.find(config => config.tool === selectedTool)?.audienceMode || ''
+      }
       return conference.value?.canvasAudienceMode || ''
     })
 

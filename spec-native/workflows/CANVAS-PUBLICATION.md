@@ -123,11 +123,14 @@ real.
    token de sesión. Nunca recibe la API key de Etherpad ni puede enviar un
    `padId` arbitrario.
 4. `GET /conferences/{id}/notes/export?format=txt|html` vuelve a resolver el
-   pad según el token y lee `getText`/`getHTML` desde backend. La respuesta se
-   descarga como archivo, no como una copia persistente en SQLite.
+   pad según el token y lee `getText`/`getHTML` desde backend. La UI sólo
+   expone `TXT` para `INDEPENDENT`; la respuesta se descarga como archivo, no
+   como una copia persistente en SQLite.
 5. `GET /conferences/{id}/materials.zip` lee únicamente el pad grupal y agrega
    `moderator/etherpad/source.html`, `export.html` y `export.txt` si tienen
-   contenido. Los pads individuales se omiten de forma explícita.
+   contenido. Los pads individuales se omiten de forma explícita. En la UI el
+   botón de materiales aparece en la zona de descargas de la encuesta sólo
+   después de que el asistente la responde correctamente.
 6. `PurgeExpiredEventNotesUseCase` lista y elimina el pad grupal y todos los
    pads con el prefijo privado del evento después de la ventana TTL.
 
@@ -137,7 +140,7 @@ real.
 |---|---|
 | Todas las personas editan el mismo documento cuando se esperaba privacidad | Revisar `canvasConfigs`/`canvasAudienceMode` y confirmar `ETHERPAD: INDEPENDENT`; la configuración se aplica desde Dashboard. |
 | Un asistente recibe las notas de otro | Inspeccionar la respuesta de `GET /notes`: en modo individual debe contener un `padId` con `--private--`; no debe existir un `padId` elegido desde el frontend. |
-| Exportación vacía o falla | Confirmar que el pad existe, revisar `getText`/`getHTML` del adaptador y que la API key sólo esté configurada en Users. |
+| Exportación vacía o falla | Confirmar que el pad existe, revisar `getText`/`getHTML` del adaptador y que la API key sólo esté configurada en Users. En modo grupal la descarga se habilita desde la encuesta respondida; en modo individual se ofrece TXT desde Notas. |
 | El ZIP no contiene notas | Confirmar que la modalidad es `COLLABORATIVE` y que el pad grupal ya tiene contenido; los pads individuales se excluyen por diseño. |
 | Las notas desaparecieron antes de exportarse | Revisar el TTL y los logs de `event-notes-purge-scheduler`; la expectativa es exportar antes de la purga posterior al vencimiento. |
 
