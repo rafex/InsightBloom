@@ -109,8 +109,33 @@ export default {
         // second presentation pod joins the room. Reassigning src for an
         // identical URL reloads the deck and makes Slidev jump to slide one.
         let frameUrl = slidesFrame.value.src
-        try { frameUrl = slidesFrame.value.contentWindow?.location.href || frameUrl } catch { /* same-origin expected */ }
+        let frameWindow: Window | null = null
+        try {
+          frameWindow = slidesFrame.value.contentWindow
+          frameUrl = frameWindow?.location.href || frameUrl
+        } catch { /* same-origin expected */ }
         if (frameUrl === current.href) return
+
+        // The deck is an SPA. Reassigning iframe.src for every WebSocket
+        // update reloads the whole document and makes Slidev return to slide
+        // one. Keep each engine's native client alive and only update its
+        // route in place: Marp listens to hashchange, while Slidev listens to
+        // the History API/popstate pair.
+        let sameOriginFrame = false
+        try {
+          sameOriginFrame = !!frameWindow && frameWindow.location.origin === current.origin
+        } catch { /* el fallback de src cubre iframes no accesibles */ }
+        if (sameOriginFrame && frameWindow) {
+          if (provider.value === 'MARP') {
+            frameWindow.location.hash = current.hash
+          } else {
+            frameWindow.history.pushState(frameWindow.history.state, '', current.href)
+            frameWindow.dispatchEvent(new PopStateEvent('popstate', { state: frameWindow.history.state }))
+          }
+          return
+        }
+
+        // Keep a defensive fallback for an unavailable or cross-origin frame.
         slidesFrame.value.src = current.href
       } catch (e: any) { /* same-origin esperado; si falla, la audiencia puede refrescar */ }
     }

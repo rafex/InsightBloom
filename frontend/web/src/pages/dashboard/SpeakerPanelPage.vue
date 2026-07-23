@@ -95,7 +95,22 @@ export default {
       if (!spec || !slidesFrame.value) return
       try {
         const doc = slidesFrame.value.contentWindow!.document
-        doc.dispatchEvent(new KeyboardEvent('keydown', { key: spec.key, keyCode: spec.keyCode, which: spec.keyCode, bubbles: true }))
+        const eventInit = {
+          key: spec.key,
+          code: spec.key,
+          keyCode: spec.keyCode,
+          which: spec.keyCode,
+          bubbles: true,
+          cancelable: true,
+        }
+
+        // Slidev tracks pressed keys with useMagicKeys. Sending only keydown
+        // leaves the reactive ArrowLeft/ArrowRight flag enabled, so its
+        // autoRepeat loop keeps navigating until the deck reaches the end.
+        // A button click represents one step, therefore always close the
+        // synthetic key press with the matching keyup event.
+        doc.dispatchEvent(new KeyboardEvent('keydown', eventInit))
+        doc.dispatchEvent(new KeyboardEvent('keyup', eventInit))
       } catch (e: any) { /* same-origin esperado; si falla, no hay sync */ }
     }
 
