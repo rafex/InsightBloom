@@ -16,7 +16,14 @@ public final class HttpCertificateRenderer implements CertificateRenderer {
     private static final Duration RETRY_DELAY = Duration.ofMillis(150);
     private final String presentationsUrl;
     private final String internalApiKey;
-    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+    // El renderer Node/Express atiende HTTP/1.1. No dejar que el cliente intente
+    // negociar HTTP/2 (h2c) contra el Service de Kubernetes: en ese caso Java
+    // puede cerrar la conexión antes de recibir los headers y el certificado
+    // termina expuesto como un 502 aunque Chromium esté sano.
+    private final HttpClient client = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
     private final JacksonJsonCodec json = JacksonJsonCodec.defaultCodec();
 
     public HttpCertificateRenderer(final String presentationsUrl, final String internalApiKey) {

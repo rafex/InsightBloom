@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.net.http.HttpClient;
+import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -18,6 +20,17 @@ class HttpCertificateRendererTest {
     @AfterEach
     void stopServer() {
         if (server != null) server.stop(0);
+    }
+
+    @Test
+    void usesHttp11ForNodeRenderer() throws Exception {
+        final Field clientField = HttpCertificateRenderer.class.getDeclaredField("client");
+        clientField.setAccessible(true);
+
+        final HttpClient client = (HttpClient) clientField.get(
+                new HttpCertificateRenderer("http://localhost:8091", "internal-key"));
+
+        assertEquals(HttpClient.Version.HTTP_1_1, client.version());
     }
 
     @Test
