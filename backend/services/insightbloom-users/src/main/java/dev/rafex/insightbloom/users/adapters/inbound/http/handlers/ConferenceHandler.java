@@ -297,6 +297,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/attendees", Set.of("GET")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
                 Route.of("/{id}/access", Set.of("GET")),
+                Route.of("/{id}/survey-management-access", Set.of("GET")),
                 Route.of("/{id}/presentation-access", Set.of("GET")),
                 Route.of("/{id}/reservations/check-in", Set.of("POST")),
                 Route.of("/{id}/tickets", Set.of("GET", "POST")),
@@ -359,6 +360,9 @@ public class ConferenceHandler extends BaseResourceHandler {
             return handleGetMyTicket(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/access")) return handleAccess(jx, jx.pathParam("id"));
+        if (path.endsWith("/survey-management-access")) {
+            return handleSurveyManagementAccess(jx, jx.pathParam("id"));
+        }
         if (path.endsWith("/presentation-access")) return handlePresentationAccess(jx, jx.pathParam("id"));
         if (path.endsWith("/tickets/me")) return handleGetMyIssuedTicket(jx, jx.pathParam("id"));
         if (path.endsWith("/tickets")) return handleListTickets(jx, jx.pathParam("id"));
@@ -1367,6 +1371,12 @@ public class ConferenceHandler extends BaseResourceHandler {
                 .map(c -> c.getCreatedByUserUuid().equals(v.subjectUuid())).orElse(false);
     }
 
+    private boolean canManageSurvey(final String conferenceId, final ValidateTokenUseCase.ValidationResult v) {
+        return eventPermissionGuard.hasPermission(conferenceId, v.subjectUuid(), v.role(), Permission.MANAGE_SURVEY)
+                || (isOrganizerOrAdmin(v.role()) && getConferenceUseCase.byId(conferenceId)
+                .map(c -> c.getCreatedByUserUuid().equals(v.subjectUuid())).orElse(false));
+    }
+
     /** Operational staff do not need an attendee ticket for the conference. */
     private boolean hasOperationalStaffAccess(final String conferenceId,
                                                final ValidateTokenUseCase.ValidationResult v) {
@@ -1643,11 +1653,30 @@ public class ConferenceHandler extends BaseResourceHandler {
     }
 
     private boolean handleListConferenceAttendees(final JettyHttpExchange jx, final String id) {
-        if (requireConferenceOwner(jx, id) == null) return true;
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !canManageSurvey(id, v)) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para gestionar la encuesta");
+                return true;
+            }
             sendOk(jx, 200, listConferenceAttendeesUseCase.execute(id));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSurveyManagementAccess(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            sendOk(jx, 200, Map.of("allowed", canManageSurvey(id, v)));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", "No se pudo verificar el permiso de la encuesta");
         }
         return true;
     }

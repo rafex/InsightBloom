@@ -130,7 +130,7 @@ public class SurveyHandler extends BaseResourceHandler {
         final String path = jx.path();
         try {
             if (path.endsWith("/survey/access-management")) {
-                if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                if (requireSurveyManager(jx, conferenceId) == null) return true;
                 final String token = extractToken(jx);
                 final boolean releasedForAll = surveyAccessUseCase.isReleasedForAll(conferenceId);
                 final List<Map<String, Object>> attendees = new ArrayList<>();
@@ -230,7 +230,7 @@ public class SurveyHandler extends BaseResourceHandler {
         final String path = jx.path();
         try {
             if (path.endsWith("/survey/access/release")) {
-                if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                if (requireSurveyManager(jx, conferenceId) == null) return true;
                 final var body = parseBody(jx);
                 if (Boolean.TRUE.equals(body.get("all"))) {
                     surveyAccessUseCase.releaseForAll(conferenceId);
@@ -528,6 +528,19 @@ public class SurveyHandler extends BaseResourceHandler {
         final boolean platformAdmin = legacyRoleHasAny(v.role(), "admin");
         if (!platformAdmin && !usersPort.isConferenceOwner(conferenceId, v.subjectUuid())) {
             sendError(jx, 403, "forbidden", "You are not the organizer of this conference");
+            return null;
+        }
+        return v;
+    }
+
+    /** Exige MANAGE_SURVEY en el evento, o ownership/admin para compatibilidad. */
+    private UsersPort.ValidationResult requireSurveyManager(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return null; }
+        final var v = usersPort.validate(token);
+        if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return null; }
+        if (!usersPort.hasSurveyManagementAccess(conferenceId, token)) {
+            sendError(jx, 403, "forbidden", "No tienes permiso para gestionar la encuesta");
             return null;
         }
         return v;

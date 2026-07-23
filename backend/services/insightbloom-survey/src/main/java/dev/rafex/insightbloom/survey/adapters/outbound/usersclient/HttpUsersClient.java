@@ -92,6 +92,22 @@ public class HttpUsersClient implements UsersPort {
     }
 
     @Override
+    public boolean hasSurveyManagementAccess(final String conferenceUuid, final String token) {
+        try {
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/v1/conferences/" + conferenceUuid + "/survey-management-access"))
+                    .header("Authorization", "Bearer " + token)
+                    .timeout(Duration.ofSeconds(5)).GET().build();
+            final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) return false;
+            return dev.rafex.ether.json.JsonUtils.codec().readTree(response.body()).path("data")
+                    .path("allowed").asBoolean(false);
+        } catch (final Exception e) {
+            return false;
+        }
+    }
+
+    @Override
     public List<AttendeeSummary> listConferenceAttendees(final String conferenceUuid, final String token) {
         try {
             final HttpRequest request = HttpRequest.newBuilder()

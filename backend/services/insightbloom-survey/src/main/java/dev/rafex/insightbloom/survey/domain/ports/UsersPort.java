@@ -19,5 +19,8 @@ public interface UsersPort {
      *  ownership real, no solo "tiene algún rol organizer", en las mutaciones de encuesta. */
     boolean isConferenceOwner(String conferenceUuid, String userUuid);
 
+    /** True si el token tiene MANAGE_SURVEY para esta conferencia. */
+    boolean hasSurveyManagementAccess(String conferenceUuid, String token);
+
     List<AttendeeSummary> listConferenceAttendees(String conferenceUuid, String token);
 }

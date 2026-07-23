@@ -850,7 +850,7 @@ public class DatabaseManager {
             {"organizer", "Organizador", "PLATFORM", "HOST_EVENT"},
             {"host", "Host/Anfitrión", "EVENT",
                 "MANAGE_EVENT_SETTINGS,ASSIGN_EVENT_ROLES,MANAGE_TICKETS,MODERATE_CONTENT,CHECK_IN,MANAGE_PRESENTATION,MANAGE_SURVEY,MANAGE_CERTIFICATE,VIDEO_MODERATE"},
-            {"moderator", "Moderador", "EVENT", "MANAGE_TICKETS,MODERATE_CONTENT,MANAGE_CERTIFICATE,VIDEO_MODERATE"},
+            {"moderator", "Moderador", "EVENT", "MANAGE_TICKETS,MODERATE_CONTENT,MANAGE_SURVEY,MANAGE_CERTIFICATE,VIDEO_MODERATE"},
             {"checkin_staff", "Staff de acceso", "EVENT", "CHECK_IN"},
             {"guest_presenter", "Presentador invitado", "EVENT", "MANAGE_PRESENTATION"},
             {"survey_manager", "Encargado de encuesta", "EVENT", "MANAGE_SURVEY"}
@@ -876,6 +876,8 @@ public class DatabaseManager {
                 + "WHERE key IN ('host','moderator') AND instr(',' || permissions || ',', ',MANAGE_TICKETS,') = 0");
         stmt.executeUpdate("UPDATE roles SET permissions = permissions || ',MANAGE_CERTIFICATE' "
                 + "WHERE key IN ('host','moderator') AND instr(',' || permissions || ',', ',MANAGE_CERTIFICATE,') = 0");
+        stmt.executeUpdate("UPDATE roles SET permissions = permissions || ',MANAGE_SURVEY' "
+                + "WHERE key = 'moderator' AND instr(',' || permissions || ',', ',MANAGE_SURVEY,') = 0");
     }
 
     /**
