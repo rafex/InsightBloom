@@ -218,6 +218,22 @@ export interface Ticket {
   checkedInAt?: string | null
   revokedByUserUuid?: string | null
   revokedAt?: string | null
+  operational?: boolean
+}
+
+export interface TicketClaimedUser {
+  uuid: string
+  displayName?: string | null
+  username?: string | null
+  email?: string | null
+}
+
+export interface TicketManagementSummary {
+  capacity?: number | null
+  reservedCount: number
+  remainingToIssue?: number | null
+  tickets: Ticket[]
+  claimedUsers: Record<string, TicketClaimedUser>
 }
 
 export interface VenueSeat {

@@ -12,7 +12,9 @@
         template(v-else-if="certUrl")
           iframe.cert-preview(:src="certUrl")
           a.btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
-        p.cert-error(v-else-if="certError") {{ certError }}
+        template(v-else-if="certError")
+          p.cert-error {{ certError }}
+          router-link.btn-outline-link(v-if="certNeedsLogin" :to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
 
       .contact-card
         h3 Sigamos en contacto
@@ -50,75 +52,81 @@
       router-link.btn-outline-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Crear cuenta
 
   template(v-else)
-    h2 Cuéntanos qué te pareció la charla
-    .benefits-banner(v-if="!loading && (questions.length || engine === 'SURVEYJS')")
-      span.benefits-icon 🎁
-      span Al terminar el cuestionario obtienes: los datos de contacto del presentador, tu <strong>certificado de asistencia</strong> y la <strong>presentación en PDF</strong> para descargar.
-    .survey-loading(v-if="loading") Cargando encuesta...
-    .survey-empty(v-else-if="engine === 'SURVEYJS' && !surveyModel") Esta conferencia no tiene una encuesta SurveyJS publicada.
-    SurveyComponent.surveyjs-form(v-else-if="engine === 'SURVEYJS' && surveyModel" :model="surveyModel")
-    .survey-empty(v-else-if="!questions.length") Esta conferencia no tiene encuesta configurada.
-    form.survey-form(v-else @submit.prevent="submit")
-      .question(v-for="q in questions" :key="q.uuid")
-        label {{ q.text }}
-          span.required-mark(v-if="q.required") &nbsp;*
+    template(v-if="surveyLocked")
+      .survey-locked
+        h2 🔒 Encuesta bloqueada
+        p El moderador todavía no ha liberado la encuesta.
+        p Podrás responderla después de la charla y obtener tu certificado de asistencia.
+    template(v-else)
+      h2 Cuéntanos qué te pareció la charla
+      .benefits-banner(v-if="!loading && (questions.length || engine === 'SURVEYJS')")
+        span.benefits-icon 🎁
+        span Al terminar el cuestionario obtienes: los datos de contacto del presentador, tu <strong>certificado de asistencia</strong> y la <strong>presentación en PDF</strong> para descargar.
+      .survey-loading(v-if="loading") Cargando encuesta...
+      .survey-empty(v-else-if="engine === 'SURVEYJS' && !surveyModel") Esta conferencia no tiene una encuesta SurveyJS publicada.
+      SurveyComponent.surveyjs-form(v-else-if="engine === 'SURVEYJS' && surveyModel" :model="surveyModel")
+      .survey-empty(v-else-if="!questions.length") Esta conferencia no tiene encuesta configurada.
+      form.survey-form(v-else @submit.prevent="submit")
+        .question(v-for="q in questions" :key="q.uuid")
+          label {{ q.text }}
+            span.required-mark(v-if="q.required") &nbsp;*
 
-        .rating(v-if="q.type === 'RATING' && q.ratingStyle !== 'EMOJIS'")
-          button.star(
-            type="button"
-            v-for="n in 5" :key="n"
-            :class="{ active: (answers[q.uuid]?.rating || 0) >= n }"
-            @click="setRating(q.uuid, n)"
-          ) ★
+          .rating(v-if="q.type === 'RATING' && q.ratingStyle !== 'EMOJIS'")
+            button.star(
+              type="button"
+              v-for="n in 5" :key="n"
+              :class="{ active: (answers[q.uuid]?.rating || 0) >= n }"
+              @click="setRating(q.uuid, n)"
+            ) ★
 
-        .rating.emoji-rating(v-else-if="q.type === 'RATING' && q.ratingStyle === 'EMOJIS'")
-          button.emoji(
-            type="button"
-            v-for="(e, idx) in emojiScale" :key="idx"
-            :class="{ active: answers[q.uuid]?.rating === idx + 1 }"
-            @click="setRating(q.uuid, idx + 1)"
-          ) {{ e }}
+          .rating.emoji-rating(v-else-if="q.type === 'RATING' && q.ratingStyle === 'EMOJIS'")
+            button.emoji(
+              type="button"
+              v-for="(e, idx) in emojiScale" :key="idx"
+              :class="{ active: answers[q.uuid]?.rating === idx + 1 }"
+              @click="setRating(q.uuid, idx + 1)"
+            ) {{ e }}
 
-        textarea(v-else-if="q.type === 'TEXT' || q.type === 'OPEN_GRADED'" v-model="answersText[q.uuid]" rows="3" placeholder="Escribe tu respuesta...")
+          textarea(v-else-if="q.type === 'TEXT' || q.type === 'OPEN_GRADED'" v-model="answersText[q.uuid]" rows="3" placeholder="Escribe tu respuesta...")
 
-        textarea.code-input(v-else-if="q.type === 'CODE_GRADED'" v-model="answersText[q.uuid]" rows="8" placeholder="Escribe tu código aquí...")
+          textarea.code-input(v-else-if="q.type === 'CODE_GRADED'" v-model="answersText[q.uuid]" rows="8" placeholder="Escribe tu código aquí...")
 
-        .choices(v-else-if="q.type === 'MULTIPLE_CHOICE'")
-          label.choice(v-for="opt in q.options" :key="opt")
-            input(type="checkbox" :value="opt" v-model="answersText[q.uuid]")
-            span {{ opt }}
+          .choices(v-else-if="q.type === 'MULTIPLE_CHOICE'")
+            label.choice(v-for="opt in q.options" :key="opt")
+              input(type="checkbox" :value="opt" v-model="answersText[q.uuid]")
+              span {{ opt }}
 
-        .canvas-wrap(v-else-if="q.type === 'CANVAS_DRAWING'")
-          canvas.draw-canvas(
-            :ref="el => setCanvasRef(q.uuid, el)"
-            width="500" height="300"
-            @mousedown="startDraw(q.uuid, $event)"
-            @mousemove="moveDraw(q.uuid, $event)"
-            @mouseup="endDraw(q.uuid)"
-            @mouseleave="endDraw(q.uuid)"
-            @touchstart.prevent="startDraw(q.uuid, $event)"
-            @touchmove.prevent="moveDraw(q.uuid, $event)"
-            @touchend.prevent="endDraw(q.uuid)"
-          )
-          button.btn-clear(type="button" @click="clearCanvas(q.uuid)") Borrar dibujo
-
-        .drag-drop(v-else-if="q.type === 'DRAG_DROP'")
-          ul.drag-list
-            li.drag-item(
-              v-for="(item, idx) in dragOrder[q.uuid]" :key="item"
-              draggable="true"
-              @dragstart="dragStart(q.uuid, idx)"
-              @dragover.prevent
-              @drop="dragDrop(q.uuid, idx)"
+          .canvas-wrap(v-else-if="q.type === 'CANVAS_DRAWING'")
+            canvas.draw-canvas(
+              :ref="el => setCanvasRef(q.uuid, el)"
+              width="500" height="300"
+              @mousedown="startDraw(q.uuid, $event)"
+              @mousemove="moveDraw(q.uuid, $event)"
+              @mouseup="endDraw(q.uuid)"
+              @mouseleave="endDraw(q.uuid)"
+              @touchstart.prevent="startDraw(q.uuid, $event)"
+              @touchmove.prevent="moveDraw(q.uuid, $event)"
+              @touchend.prevent="endDraw(q.uuid)"
             )
-              span.drag-handle ⠿
-              span {{ item }}
-              .drag-arrows
-                button.btn-arrow(type="button" @click="moveItem(q.uuid, idx, -1)" :disabled="idx === 0") ↑
-                button.btn-arrow(type="button" @click="moveItem(q.uuid, idx, 1)" :disabled="idx === dragOrder[q.uuid].length - 1") ↓
+            button.btn-clear(type="button" @click="clearCanvas(q.uuid)") Borrar dibujo
 
-      button.btn-primary(type="submit" :disabled="submitting") {{ submitting ? 'Enviando...' : 'Enviar respuestas' }}
-      p.survey-error(v-if="error") {{ error }}
+          .drag-drop(v-else-if="q.type === 'DRAG_DROP'")
+            ul.drag-list
+              li.drag-item(
+                v-for="(item, idx) in dragOrder[q.uuid]" :key="item"
+                draggable="true"
+                @dragstart="dragStart(q.uuid, idx)"
+                @dragover.prevent
+                @drop="dragDrop(q.uuid, idx)"
+              )
+                span.drag-handle ⠿
+                span {{ item }}
+                .drag-arrows
+                  button.btn-arrow(type="button" @click="moveItem(q.uuid, idx, -1)" :disabled="idx === 0") ↑
+                  button.btn-arrow(type="button" @click="moveItem(q.uuid, idx, 1)" :disabled="idx === dragOrder[q.uuid].length - 1") ↓
+
+        button.btn-primary(type="submit" :disabled="submitting") {{ submitting ? 'Enviando...' : 'Enviar respuestas' }}
+        p.survey-error(v-if="error") {{ error }}
 </template>
 
 <script lang="ts">
@@ -127,7 +135,7 @@ import { useRoute } from 'vue-router'
 import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
-import { getQuestions, submitResponses, hasResponded, getSurveyDefinition, submitSurveyJs } from '@/services/api/surveyApi'
+import { getQuestions, submitResponses, getSurveyAccess, getSurveyDefinition, submitSurveyJs } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl, primePresentationAccess } from '@/services/api/presentationsApi'
 import { getCertificateBlobUrl, downloadEventMaterials } from '@/services/api/usersApi'
 import { organizerContact, telegramContactUrl } from '@/config/contact'
@@ -165,6 +173,7 @@ export default {
     const loading = ref(true)
     const submitting = ref(false)
     const submitted = ref(false)
+    const surveyLocked = ref(false)
     const error = ref('')
     const answers = reactive<Record<string, { rating: number }>>({})
     const answersText = reactive<Record<string, string | string[]>>({})
@@ -177,6 +186,7 @@ export default {
     const certLoading = ref(false)
     const certUrl = ref('')
     const certError = ref('')
+    const certNeedsLogin = ref(false)
     const certFileName = `certificado-${friendlyId || props.conferenceId}.pdf`
     const materialsDownloading = ref(false)
     const materialsError = ref('')
@@ -185,10 +195,25 @@ export default {
     async function loadCertificate() {
       certLoading.value = true
       certError.value = ''
+      certNeedsLogin.value = false
       try {
         certUrl.value = await getCertificateBlobUrl(props.conferenceId as string, auth.state.token as string)
       } catch (e: any) {
-        certError.value = 'No se pudo generar tu certificado todavía.'
+        const status = e?.response?.status
+        let payload: any = e?.response?.data
+        // Axios exposes error responses as Blob when the successful response is a PDF.
+        if (payload instanceof Blob) {
+          try { payload = JSON.parse(await payload.text()) } catch { payload = null }
+        }
+        const code = payload?.error?.code
+        if (status === 401 || code === 'token_invalid' || code === 'certificate_user_required') {
+          certNeedsLogin.value = true
+          certError.value = 'Tu sesión no es válida para descargar el certificado. Inicia sesión nuevamente.'
+        } else if (code === 'survey_not_completed') {
+          certError.value = 'Completa la encuesta para generar tu certificado.'
+        } else {
+          certError.value = 'No se pudo generar tu certificado todavía. Intenta nuevamente en unos minutos.'
+        }
       } finally {
         certLoading.value = false
       }
@@ -301,15 +326,28 @@ export default {
 
       if (canParticipate) {
         try {
-          const already = await hasResponded(props.conferenceId, auth.state.token as string)
-          if (already) {
+          const access = (await getSurveyAccess(props.conferenceId, auth.state.token as string)).data
+          if (access.responded) {
             submitted.value = true
             loading.value = false
             await loadCertificate()
             await loadPresentationStatus()
             return
           }
-        } catch (e: any) { /* best-effort: if the check fails, fall through to the form */ }
+          if (!access.released) {
+            surveyLocked.value = true
+            loading.value = false
+            await loadPresentationStatus()
+            return
+          }
+        } catch (e: any) {
+          // El candado debe fallar cerrado: si no podemos consultar el permiso,
+          // no mostramos un formulario que luego no podrá enviarse.
+          surveyLocked.value = true
+          loading.value = false
+          await loadPresentationStatus()
+          return
+        }
       }
 
       try {
@@ -373,7 +411,9 @@ export default {
         await loadCertificate()
         await loadPresentationStatus()
       } catch (e: any) {
-        if (e.response?.status === 409) {
+        if (e.response?.status === 423 || e.response?.data?.error?.code === 'survey_locked') {
+          surveyLocked.value = true
+        } else if (e.response?.status === 409) {
           error.value = 'Ya habías respondido esta encuesta.'
         } else if (e.response?.data?.error?.code === 'required_question_missing') {
           error.value = 'Falta responder alguna pregunta obligatoria.'
@@ -395,6 +435,10 @@ export default {
         await loadCertificate()
         await loadPresentationStatus()
       } catch (e: any) {
+        if (e.response?.status === 423 || e.response?.data?.error?.code === 'survey_locked') {
+          surveyLocked.value = true
+          return
+        }
         error.value = e.response?.status === 409
           ? 'Ya habías respondido esta encuesta.'
           : 'No se pudo enviar tu encuesta. Intenta de nuevo.'
@@ -406,11 +450,11 @@ export default {
     onMounted(load)
 
     return {
-      friendlyId, questions, loading, submitting, submitted, error, canParticipate, engine, surveyModel,
+      friendlyId, questions, loading, submitting, submitted, surveyLocked, error, canParticipate, engine, surveyModel,
       answers, answersText, dragOrder, pdfReady, pdfUrl, contact, telegramUrl, emojiScale, setRating, submit,
       setCanvasRef, startDraw, moveDraw, endDraw, clearCanvas,
       dragStart, dragDrop, moveItem,
-      certLoading, certUrl, certError, certFileName, isGroupNotes,
+      certLoading, certUrl, certError, certNeedsLogin, certFileName, isGroupNotes,
       materialsDownloading, materialsError, downloadMaterials
     }
   }
@@ -421,6 +465,12 @@ export default {
 .survey-page { padding: 24px; max-width: 640px; margin: 0 auto; }
 h2 { color: #1e1b4b; margin-bottom: 16px; }
 .survey-loading, .survey-empty { text-align: center; color: #6b7280; padding: 60px; }
+.survey-locked {
+  text-align: center; background: #fff; border: 1px solid #fde68a; border-radius: 12px;
+  color: #92400e; padding: 48px 24px; margin: 24px 0;
+}
+.survey-locked h2 { color: #92400e; }
+.survey-locked p { margin: 8px 0; }
 .benefits-banner {
   display: flex; align-items: center; gap: 10px; background: #fef3c7; color: #92400e;
   border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.88rem; line-height: 1.4;

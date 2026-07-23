@@ -17,6 +17,7 @@ import dev.rafex.insightbloom.survey.application.usecases.SubmitResponsesUseCase
 import dev.rafex.insightbloom.survey.application.usecases.SubmitSurveyJsSubmissionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SuggestQuestionsUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SurveyDefinitionUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.SurveyAccessUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.UpdateQuestionUseCase;
 import dev.rafex.insightbloom.survey.domain.model.SurveyDefinition;
 import dev.rafex.insightbloom.survey.domain.model.SurveyEngine;
@@ -50,6 +51,7 @@ public class SurveyHandler extends BaseResourceHandler {
     private final SurveyDefinitionRepository surveyDefinitionRepository;
     private final SurveyJsSubmissionRepository surveyJsSubmissionRepository;
     private final UsersPort usersPort;
+    private final SurveyAccessUseCase surveyAccessUseCase;
 
     public SurveyHandler(final CreateQuestionUseCase createQuestionUseCase,
                           final ListQuestionsUseCase listQuestionsUseCase,
@@ -66,7 +68,8 @@ public class SurveyHandler extends BaseResourceHandler {
                           final SubmitSurveyJsSubmissionUseCase submitSurveyJsSubmissionUseCase,
                           final SurveyDefinitionRepository surveyDefinitionRepository,
                           final SurveyJsSubmissionRepository surveyJsSubmissionRepository,
-                          final UsersPort usersPort) {
+                          final UsersPort usersPort,
+                          final SurveyAccessUseCase surveyAccessUseCase) {
         this.createQuestionUseCase = createQuestionUseCase;
         this.listQuestionsUseCase = listQuestionsUseCase;
         this.deactivateQuestionUseCase = deactivateQuestionUseCase;
@@ -83,6 +86,7 @@ public class SurveyHandler extends BaseResourceHandler {
         this.surveyDefinitionRepository = surveyDefinitionRepository;
         this.surveyJsSubmissionRepository = surveyJsSubmissionRepository;
         this.usersPort = usersPort;
+        this.surveyAccessUseCase = surveyAccessUseCase;
     }
 
     @Override
@@ -103,6 +107,9 @@ public class SurveyHandler extends BaseResourceHandler {
                 Route.of("/{conferenceId}/survey/definition/engine", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/definition/validate", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/definition/publish", Set.of("POST")),
+                Route.of("/{conferenceId}/survey/access", Set.of("GET")),
+                Route.of("/{conferenceId}/survey/access-management", Set.of("GET")),
+                Route.of("/{conferenceId}/survey/access/release", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/responses", Set.of("POST")),
                 Route.of("/{conferenceId}/survey/submissions", Set.of("GET", "POST")),
                 Route.of("/{conferenceId}/survey/responded", Set.of("GET")),
@@ -122,6 +129,47 @@ public class SurveyHandler extends BaseResourceHandler {
         final String conferenceId = jx.pathParam("conferenceId");
         final String path = jx.path();
         try {
+            if (path.endsWith("/survey/access-management")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                final String token = extractToken(jx);
+                final boolean releasedForAll = surveyAccessUseCase.isReleasedForAll(conferenceId);
+                final List<Map<String, Object>> attendees = new ArrayList<>();
+                for (final var attendee : usersPort.listConferenceAttendees(conferenceId, token)) {
+                    final boolean released = releasedForAll || surveyAccessUseCase.isReleased(conferenceId, attendee.uuid());
+                    attendees.add(Map.ofEntries(
+                            Map.entry("uuid", attendee.uuid()),
+                            Map.entry("displayName", attendee.displayName() == null ? "" : attendee.displayName()),
+                            Map.entry("email", attendee.email() == null ? "" : attendee.email()),
+                            Map.entry("joinedAt", attendee.joinedAt() == null ? "" : attendee.joinedAt()),
+                            Map.entry("released", released),
+                            Map.entry("responded", submitResponsesUseCase.hasResponded(conferenceId, attendee.uuid())
+                                    || submitSurveyJsSubmissionUseCase.hasResponded(conferenceId, attendee.uuid()))));
+                }
+                sendOk(jx, Map.of("releasedForAll", releasedForAll, "attendees", attendees));
+                return true;
+            }
+            if (path.endsWith("/survey/access")) {
+                final String token = extractToken(jx);
+                if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+                final var v = usersPort.validate(token);
+                if (!v.valid() || "guest".equals(v.kind())) {
+                    sendError(jx, 403, "forbidden", "You must be a verified user to access the survey");
+                    return true;
+                }
+                if (!usersPort.hasConferenceAccess(conferenceId, token)) {
+                    sendError(jx, 403, "ticket_required", "Necesitas un boleto canjeado para responder esta encuesta");
+                    return true;
+                }
+                final boolean surveyJs = isSurveyJs(conferenceId);
+                final boolean published = !surveyJs || surveyDefinitionRepository.findByConference(conferenceId)
+                        .map(definition -> "PUBLISHED".equals(definition.getStatus())).orElse(false);
+                sendOk(jx, Map.of("released", surveyAccessUseCase.isReleased(conferenceId, v.subjectUuid()),
+                        "releasedForAll", surveyAccessUseCase.isReleasedForAll(conferenceId),
+                        "responded", submitResponsesUseCase.hasResponded(conferenceId, v.subjectUuid())
+                                || submitSurveyJsSubmissionUseCase.hasResponded(conferenceId, v.subjectUuid()),
+                        "published", published));
+                return true;
+            }
             if (path.endsWith("/survey/definition")) {
                 final boolean draft = "true".equalsIgnoreCase(queryParam(jx, "draft"));
                 if (draft && requireConferenceOwner(jx, conferenceId) == null) return true;
@@ -181,6 +229,29 @@ public class SurveyHandler extends BaseResourceHandler {
         final String conferenceId = jx.pathParam("conferenceId");
         final String path = jx.path();
         try {
+            if (path.endsWith("/survey/access/release")) {
+                if (requireConferenceOwner(jx, conferenceId) == null) return true;
+                final var body = parseBody(jx);
+                if (Boolean.TRUE.equals(body.get("all"))) {
+                    surveyAccessUseCase.releaseForAll(conferenceId);
+                    sendOk(jx, Map.of("releasedForAll", true, "releasedCount", 0));
+                    return true;
+                }
+                final Object rawUsers = body.get("userUuids");
+                if (!(rawUsers instanceof List<?>)) throw new IllegalArgumentException("user_uuids_required");
+                final List<String> userUuids = ((List<?>) rawUsers).stream().filter(String.class::isInstance)
+                        .map(String.class::cast).distinct().toList();
+                final var registered = usersPort.listConferenceAttendees(conferenceId, extractToken(jx)).stream()
+                        .map(UsersPort.AttendeeSummary::uuid).collect(java.util.stream.Collectors.toSet());
+                if (userUuids.stream().anyMatch(uuid -> !registered.contains(uuid))) {
+                    sendError(jx, 404, "attendee_not_registered", "El asistente no está registrado en esta conferencia");
+                    return true;
+                }
+                surveyAccessUseCase.releaseUsers(conferenceId, userUuids);
+                sendOk(jx, Map.of("releasedForAll", surveyAccessUseCase.isReleasedForAll(conferenceId),
+                        "releasedCount", userUuids.size()));
+                return true;
+            }
             if (path.endsWith("/survey/definition/engine")) {
                 if (requireConferenceOwner(jx, conferenceId) == null) return true;
                 final var body = parseBody(jx);
@@ -291,6 +362,10 @@ public class SurveyHandler extends BaseResourceHandler {
                     sendError(jx, 403, "ticket_required", "Necesitas un boleto canjeado para responder esta encuesta");
                     return true;
                 }
+                if (!surveyAccessUseCase.isReleased(conferenceId, v.subjectUuid())) {
+                    sendError(jx, 423, "survey_locked", "La encuesta aún no ha sido liberada por el moderador");
+                    return true;
+                }
                 final var body = parseBody(jx);
                 final List<Map<String, Object>> rawAnswers = (List<Map<String, Object>>) body.get("answers");
                 final List<SubmitResponsesUseCase.Answer> answers = rawAnswers.stream()
@@ -313,6 +388,10 @@ public class SurveyHandler extends BaseResourceHandler {
                 }
                 if (!usersPort.hasConferenceAccess(conferenceId, token)) {
                     sendError(jx, 403, "ticket_required", "Necesitas un boleto canjeado para responder esta encuesta");
+                    return true;
+                }
+                if (!surveyAccessUseCase.isReleased(conferenceId, v.subjectUuid())) {
+                    sendError(jx, 423, "survey_locked", "La encuesta aún no ha sido liberada por el moderador");
                     return true;
                 }
                 final var body = parseBody(jx);

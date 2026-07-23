@@ -4,6 +4,7 @@ import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.ConferenceMembership;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Ticket;
+import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceMembershipRepository;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.EmailPort;
@@ -11,12 +12,15 @@ import dev.rafex.insightbloom.users.domain.ports.EventTypeRepository;
 import dev.rafex.insightbloom.users.domain.ports.TicketRepository;
 import dev.rafex.insightbloom.users.domain.ports.ReservationRepository;
 import dev.rafex.insightbloom.users.domain.ports.TimezoneRepository;
+import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -34,19 +38,29 @@ public class TicketUseCase {
     private final EmailPort emailPort;
     private final String frontendBaseUrl;
     private final TimezoneRepository timezoneRepository;
+    private final UserRepository userRepository;
 
     public TicketUseCase(final ConferenceRepository conferenceRepository, final EventTypeRepository eventTypeRepository,
                          final TicketRepository ticketRepository, final ConferenceMembershipRepository membershipRepository,
                          final EmailPort emailPort, final String frontendBaseUrl,
                          final ReservationRepository reservationRepository) {
         this(conferenceRepository, eventTypeRepository, ticketRepository, membershipRepository, emailPort,
-                frontendBaseUrl, reservationRepository, null);
+                frontendBaseUrl, reservationRepository, null, null);
     }
 
     public TicketUseCase(final ConferenceRepository conferenceRepository, final EventTypeRepository eventTypeRepository,
                          final TicketRepository ticketRepository, final ConferenceMembershipRepository membershipRepository,
                          final EmailPort emailPort, final String frontendBaseUrl,
                          final ReservationRepository reservationRepository, final TimezoneRepository timezoneRepository) {
+        this(conferenceRepository, eventTypeRepository, ticketRepository, membershipRepository, emailPort,
+                frontendBaseUrl, reservationRepository, timezoneRepository, null);
+    }
+
+    public TicketUseCase(final ConferenceRepository conferenceRepository, final EventTypeRepository eventTypeRepository,
+                         final TicketRepository ticketRepository, final ConferenceMembershipRepository membershipRepository,
+                         final EmailPort emailPort, final String frontendBaseUrl,
+                         final ReservationRepository reservationRepository, final TimezoneRepository timezoneRepository,
+                         final UserRepository userRepository) {
         this.conferenceRepository = conferenceRepository;
         this.eventTypeRepository = eventTypeRepository;
         this.ticketRepository = ticketRepository;
@@ -55,6 +69,7 @@ public class TicketUseCase {
         this.emailPort = emailPort;
         this.frontendBaseUrl = frontendBaseUrl;
         this.timezoneRepository = timezoneRepository;
+        this.userRepository = userRepository;
     }
 
     public Ticket issue(final String conferenceUuid, final String issuerUuid, final String recipientEmail,
@@ -146,6 +161,39 @@ public class TicketUseCase {
         expireIfNeeded(conference);
         return ticketRepository.findByConference(conferenceUuid);
     }
+
+    /**
+     * Datos de gestión protegidos para el dashboard. Mantiene el ticket completo para no romper
+     * QR/copia/revocación y agrega únicamente métricas de aforo y perfiles mínimos de quienes
+     * reclamaron un boleto. Nunca expone credenciales ni datos sensibles del usuario.
+     */
+    public TicketManagementSummary listManagement(final String conferenceUuid) {
+        final Conference conference = conference(conferenceUuid);
+        expireIfNeeded(conference);
+        final List<Ticket> tickets = ticketRepository.findByConference(conferenceUuid);
+        final Map<String, UserSummary> claimedUsers = new LinkedHashMap<>();
+        if (userRepository != null) {
+            tickets.stream()
+                    .map(Ticket::getClaimedByUserUuid)
+                    .filter(uuid -> uuid != null && !claimedUsers.containsKey(uuid))
+                    .forEach(uuid -> userRepository.findByUuid(uuid).ifPresent(user ->
+                            claimedUsers.put(uuid, UserSummary.from(user))));
+        }
+        final Integer remaining = conference.getCapacity() == null
+                ? null
+                : Math.max(0, conference.getCapacity() - conference.getReservedCount());
+        return new TicketManagementSummary(conference.getCapacity(), conference.getReservedCount(),
+                remaining, tickets, claimedUsers);
+    }
+
+    public record UserSummary(String uuid, String displayName, String username, String email) {
+        static UserSummary from(final User user) {
+            return new UserSummary(user.getUuid(), user.getDisplayName(), user.getUsername(), user.getEmail());
+        }
+    }
+
+    public record TicketManagementSummary(Integer capacity, int reservedCount, Integer remainingToIssue,
+                                           List<Ticket> tickets, Map<String, UserSummary> claimedUsers) {}
 
     public Ticket checkIn(final String conferenceUuid, final String qrOrUuid) {
         final Conference conference = conference(conferenceUuid);

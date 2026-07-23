@@ -3,6 +3,7 @@ package dev.rafex.insightbloom.users.application.usecases;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.EventType;
 import dev.rafex.insightbloom.users.domain.model.Ticket;
+import dev.rafex.insightbloom.users.domain.model.UserRole;
 import dev.rafex.insightbloom.users.domain.ports.*;
 import org.junit.jupiter.api.Test;
 
@@ -179,6 +180,36 @@ class TicketUseCaseTest {
                 .thenReturn(Optional.of(issued));
         assertSame(issued, useCase.issueOperational(conference.getUuid(), "owner"));
         verify(conferences, times(1)).tryIncrementReservedCount(conference.getUuid());
+    }
+
+    @Test
+    void managementSummaryIncludesCapacityAndClaimedUser() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final UserRepository users = mock(UserRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        conference.setCapacity(5);
+        conference.setReservedCount(3);
+        final Ticket operational = Ticket.operational(conference.getUuid(), "owner", "moderator");
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByConference(conference.getUuid())).thenReturn(java.util.List.of(operational));
+        when(users.findByUuid("moderator")).thenReturn(Optional.of(
+                new dev.rafex.insightbloom.users.domain.model.User("moderator", "mod", "Moderador", "mod@example.test", UserRole.MODERATOR)));
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "",
+                mock(ReservationRepository.class), null, users);
+
+        final var summary = useCase.listManagement(conference.getUuid());
+
+        assertEquals(5, summary.capacity());
+        assertEquals(3, summary.reservedCount());
+        assertEquals(2, summary.remainingToIssue());
+        assertEquals(1, summary.tickets().size());
+        assertEquals("Moderador", summary.claimedUsers().get("moderator").displayName());
     }
 
     @Test

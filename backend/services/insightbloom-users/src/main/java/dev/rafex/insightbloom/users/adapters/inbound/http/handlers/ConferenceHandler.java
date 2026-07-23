@@ -38,6 +38,7 @@ import dev.rafex.insightbloom.users.application.usecases.ListEventRolesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RemoveEventRoleUseCase;
 import dev.rafex.insightbloom.users.application.usecases.JoinConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListReservationsUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ListConferenceAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RecordDownloadUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ReserveGeneralUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ReserveSeatUseCase;
@@ -101,6 +102,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GetMyTicketUseCase getMyTicketUseCase;
     private final CancelReservationUseCase cancelReservationUseCase;
     private final ListReservationsUseCase listReservationsUseCase;
+    private final ListConferenceAttendeesUseCase listConferenceAttendeesUseCase;
     private final CheckInTicketUseCase checkInTicketUseCase;
     private final TicketUseCase ticketUseCase;
     private final EventPermissionGuard eventPermissionGuard;
@@ -161,6 +163,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GetMyTicketUseCase getMyTicketUseCase,
                              final CancelReservationUseCase cancelReservationUseCase,
                              final ListReservationsUseCase listReservationsUseCase,
+                             final ListConferenceAttendeesUseCase listConferenceAttendeesUseCase,
                              final CheckInTicketUseCase checkInTicketUseCase,
                              final TicketUseCase ticketUseCase,
                              final EventPermissionGuard eventPermissionGuard,
@@ -213,6 +216,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.getMyTicketUseCase = getMyTicketUseCase;
         this.cancelReservationUseCase = cancelReservationUseCase;
         this.listReservationsUseCase = listReservationsUseCase;
+        this.listConferenceAttendeesUseCase = listConferenceAttendeesUseCase;
         this.checkInTicketUseCase = checkInTicketUseCase;
         this.ticketUseCase = ticketUseCase;
         this.eventPermissionGuard = eventPermissionGuard;
@@ -290,6 +294,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/sandbox/file", Set.of("GET", "PUT")),
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
+                Route.of("/{id}/attendees", Set.of("GET")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
                 Route.of("/{id}/access", Set.of("GET")),
                 Route.of("/{id}/presentation-access", Set.of("GET")),
@@ -359,6 +364,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/tickets")) return handleListTickets(jx, jx.pathParam("id"));
         if (path.endsWith("/reservations")) {
             return handleListReservations(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/attendees")) {
+            return handleListConferenceAttendees(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/seats")) {
             return handleGetSeatMap(jx, jx.pathParam("id"));
@@ -761,8 +769,15 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || "guest".equals(v.kind())) {
-                sendError(jx, 403, "forbidden", "You must be a verified user to download a certificate");
+            if (!v.valid()) {
+                // An expired/revoked token is an authentication failure. Returning 401 lets the
+                // frontend clear the stale session instead of presenting a misleading certificate
+                // generation error while retaining an invalid token in the tab.
+                sendError(jx, 401, "token_invalid", "Tu sesión ya no es válida. Inicia sesión nuevamente");
+                return true;
+            }
+            if ("guest".equals(v.kind())) {
+                sendError(jx, 403, "certificate_user_required", "Debes iniciar sesión con una cuenta para descargar el certificado");
                 return true;
             }
             final var result = generateCertificateUseCase.execute(conferenceId, v.subjectUuid(), token);
@@ -772,7 +787,15 @@ public class ConferenceHandler extends BaseResourceHandler {
             jx.response().getHeaders().put("Content-Disposition", "attachment; filename=\"" + result.fileName() + "\"");
             jx.response().write(true, ByteBuffer.wrap(result.pdfBytes()), jx.callback());
         } catch (final IllegalStateException e) {
-            sendError(jx, 409, e.getMessage(), "Debes completar la encuesta antes de descargar tu certificado");
+            if ("survey_not_completed".equals(e.getMessage())) {
+                sendError(jx, 409, e.getMessage(), "Debes completar la encuesta antes de descargar tu certificado");
+            } else if (e.getMessage() != null && e.getMessage().startsWith("certificate_renderer_")) {
+                // Do not expose renderer internals to attendees and do not classify an upstream
+                // rendering failure as an incomplete survey.
+                sendError(jx, 502, "certificate_renderer_unavailable", "El certificado no está disponible temporalmente. Intenta nuevamente");
+            } else {
+                sendError(jx, 500, "certificate_generation_failed", "No se pudo generar el certificado");
+            }
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
@@ -1368,7 +1391,16 @@ public class ConferenceHandler extends BaseResourceHandler {
             final String seatUuid = (String) body.get("seatUuid");
             sendOk(jx, 201, ticketUseCase.issue(id, v.subjectUuid(), recipientEmail, seatUuid));
         } catch (final IllegalStateException e) {
-            sendError(jx, 409, e.getMessage(), "No fue posible emitir el boleto");
+            final String code = e.getMessage() == null ? "ticket_issue_failed" : e.getMessage();
+            final String detail = switch (code) {
+                case "capacity_exceeded" -> "Se alcanzó el límite de boletos del evento. Aumenta el aforo o libera una plaza disponible.";
+                case "capability_not_available" -> "Este evento no tiene habilitada la emisión de boletos.";
+                case "seat_required" -> "Debes seleccionar un asiento para este evento.";
+                case "seat_not_allowed" -> "Este evento no utiliza asientos; elimina el UUID de asiento.";
+                case "conference_expired" -> "El evento ya terminó y no admite nuevos boletos.";
+                default -> "No fue posible emitir el boleto. Revisa la configuración y el aforo del evento.";
+            };
+            sendError(jx, 409, code, detail);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
@@ -1383,7 +1415,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid() || !canManageTickets(id, v)) { sendError(jx, 403, "forbidden", "No tienes permiso para consultar boletos"); return true; }
-            sendOk(jx, 200, ticketUseCase.list(id));
+            sendOk(jx, 200, ticketUseCase.listManagement(id));
         } catch (Exception e) { sendError(jx, 500, "internal_error", e.getMessage()); }
         return true;
     }
@@ -1604,6 +1636,16 @@ public class ConferenceHandler extends BaseResourceHandler {
             listReservationsUseCase.execute(id, v.subjectUuid()).ifPresentOrElse(
                     list -> sendOk(jx, 200, list),
                     () -> sendError(jx, 404, "not_found", "Conference not found or not owned by you"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleListConferenceAttendees(final JettyHttpExchange jx, final String id) {
+        if (requireConferenceOwner(jx, id) == null) return true;
+        try {
+            sendOk(jx, 200, listConferenceAttendeesUseCase.execute(id));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

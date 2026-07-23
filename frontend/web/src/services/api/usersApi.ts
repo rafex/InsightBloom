@@ -7,7 +7,8 @@ import type {
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
-  DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate
+  DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
+  TicketManagementSummary
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 
@@ -441,7 +442,7 @@ export async function issueTicket(
   return res.data.data
 }
 
-export async function listTickets(conferenceId: string, token: string): Promise<Ticket[]> {
+export async function listTickets(conferenceId: string, token: string): Promise<TicketManagementSummary> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/tickets`, authHeader(token))
   return res.data.data
 }

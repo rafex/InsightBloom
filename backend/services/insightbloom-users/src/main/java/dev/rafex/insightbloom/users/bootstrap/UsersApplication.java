@@ -125,9 +125,12 @@ public class UsersApplication {
         final var getMyTicketUseCase = new GetMyTicketUseCase(reservationRepo);
         final var cancelReservationUseCase = new CancelReservationUseCase(reservationRepo, conferenceRepo);
         final var listReservationsUseCase = new ListReservationsUseCase(conferenceRepo, reservationRepo);
+        final var listConferenceAttendeesUseCase = new dev.rafex.insightbloom.users.application.usecases.ListConferenceAttendeesUseCase(
+                membershipRepo, userRepo);
         final var checkInTicketUseCase = new CheckInTicketUseCase(reservationRepo);
         final var ticketUseCase = new TicketUseCase(
-                conferenceRepo, eventTypeRepo, ticketRepo, membershipRepo, emailPort, frontendBaseUrl, reservationRepo, timezoneRepo);
+                conferenceRepo, eventTypeRepo, ticketRepo, membershipRepo, emailPort, frontendBaseUrl,
+                reservationRepo, timezoneRepo, userRepo);
         final var createConferenceUseCase = new CreateConferenceUseCase(
                 conferenceRepo, friendlyIdService, timezoneRepo, eventRoleRepo, ticketUseCase);
         final var setVenueMapUseCase = new SetVenueMapUseCase(conferenceRepo);
@@ -316,7 +319,7 @@ public class UsersApplication {
                 updateConferenceUseCase, setConferenceActiveUseCase,
                 recordDownloadUseCase, getDownloadCountsUseCase,
                 setSeatingModeUseCase, reserveGeneralUseCase, getMyTicketUseCase, cancelReservationUseCase,
-                listReservationsUseCase, checkInTicketUseCase,
+                listReservationsUseCase, listConferenceAttendeesUseCase, checkInTicketUseCase,
                 ticketUseCase, eventPermissionGuard, createGuestUseCase,
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
                 setEventTypeUseCase, setCanvasConfigUseCase,

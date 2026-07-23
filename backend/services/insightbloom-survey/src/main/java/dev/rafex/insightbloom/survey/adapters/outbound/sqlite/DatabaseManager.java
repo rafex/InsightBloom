@@ -73,6 +73,14 @@ public class DatabaseManager {
                 )""");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_def_conf ON survey_definitions(conference_uuid)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_sub_conf ON survey_submissions(conference_uuid)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS survey_access_releases (
+                    conference_uuid TEXT NOT NULL,
+                    user_uuid TEXT NOT NULL,
+                    released_at TEXT NOT NULL,
+                    PRIMARY KEY (conference_uuid, user_uuid)
+                )""");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_access_conf ON survey_access_releases(conference_uuid)");
 
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "reference_answer", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "rating_style", "TEXT");

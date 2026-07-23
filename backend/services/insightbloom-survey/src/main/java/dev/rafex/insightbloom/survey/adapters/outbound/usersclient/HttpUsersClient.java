@@ -7,6 +7,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class HttpUsersClient implements UsersPort {
@@ -86,6 +88,27 @@ public class HttpUsersClient implements UsersPort {
             return userUuid.equals(node.path("createdByUserUuid").asText(null));
         } catch (final Exception e) {
             return false;
+        }
+    }
+
+    @Override
+    public List<AttendeeSummary> listConferenceAttendees(final String conferenceUuid, final String token) {
+        try {
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/v1/conferences/" + conferenceUuid + "/attendees"))
+                    .header("Authorization", "Bearer " + token)
+                    .timeout(Duration.ofSeconds(5)).GET().build();
+            final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) return List.of();
+            final var attendees = dev.rafex.ether.json.JsonUtils.codec().readTree(response.body()).path("data");
+            final List<AttendeeSummary> result = new ArrayList<>();
+            if (!attendees.isArray()) return result;
+            attendees.forEach(node -> result.add(new AttendeeSummary(
+                    node.path("uuid").asText(null), node.path("displayName").asText(null),
+                    node.path("email").asText(null), node.path("joinedAt").asText(null))));
+            return result;
+        } catch (final Exception e) {
+            return List.of();
         }
     }
 }

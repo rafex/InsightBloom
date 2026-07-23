@@ -26,11 +26,14 @@ public class HttpSurveyClient implements SurveyPort {
                     .timeout(Duration.ofSeconds(5))
                     .GET().build();
             final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) return false;
+            if (response.statusCode() != 200) {
+                throw new IllegalStateException("survey_service_unavailable_" + response.statusCode());
+            }
             final var node = dev.rafex.ether.json.JsonUtils.codec().readTree(response.body()).path("data");
             return node.path("responded").asBoolean(false);
         } catch (final Exception e) {
-            return false;
+            if (e instanceof IllegalStateException stateException) throw stateException;
+            throw new IllegalStateException("survey_service_unavailable", e);
         }
     }
 }

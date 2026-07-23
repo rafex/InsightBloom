@@ -15,6 +15,24 @@
     p.engine-current(v-else) Motor activo: <strong>{{ engine === 'SURVEYJS' ? 'SurveyJS Form Library' : 'Nativo de InsightBloom' }}</strong>
     p.ai-shared La sugerencia de preguntas con IA sigue disponible para ambos motores.
 
+  .access-card
+    h3 Liberar encuesta
+    p.access-help La encuesta permanece bloqueada hasta que el moderador la libere. Puedes abrirla para todos los asistentes registrados o solo para los seleccionados.
+    .access-state(:class="{ released: releasedForAll }") {{ releasedForAll ? 'Liberada para todos los asistentes, incluidos los que se registren después.' : 'Bloqueada para los asistentes.' }}
+    .access-actions
+      button.btn-primary(type="button" :disabled="releaseSaving || releasedForAll" @click="releaseAll") 🔓 Liberar para todos
+      button.btn-outline(type="button" :disabled="releaseSaving || !selectedAttendees.length" @click="releaseSelected") 🔓 Liberar seleccionados ({{ selectedAttendees.length }})
+    .attendee-list(v-if="attendees.length")
+      label.attendee-row(v-for="attendee in attendees" :key="attendee.uuid")
+        input(type="checkbox" :value="attendee.uuid" v-model="selectedAttendees" :disabled="releasedForAll || attendee.responded")
+        .attendee-info
+          strong {{ attendee.displayName || 'Sin nombre' }}
+          span {{ attendee.email || attendee.uuid }}
+        span.attendee-status(:class="{ released: attendee.released, responded: attendee.responded }")
+          | {{ attendee.responded ? 'Respondida' : attendee.released ? 'Liberada' : 'Bloqueada' }}
+    p.access-empty(v-else) Aún no hay asistentes registrados en el evento.
+    p.access-error(v-if="accessError") {{ accessError }}
+
   .surveyjs-editor(v-if="engine === 'SURVEYJS'")
     h3 Editor SurveyJS controlado
     p.editor-help Solo se guardan tipos compatibles con SurveyJS Form Library. No se incluye Survey Creator ni componentes comerciales.
@@ -264,7 +282,7 @@ import { ref, computed, onMounted, shallowRef } from 'vue'
 import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
-import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, type SurveyEngine } from '@/services/api/surveyApi'
+import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, getSurveyAccessManagement, releaseSurveyAccess, type SurveyEngine, type SurveyAttendee } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
@@ -380,6 +398,11 @@ export default {
     const regradeAll = ref(false)
     const grading = ref(false)
     const gradeStatus = ref('')
+    const attendees = ref<SurveyAttendee[]>([])
+    const selectedAttendees = ref<string[]>([])
+    const releasedForAll = ref(false)
+    const releaseSaving = ref(false)
+    const accessError = ref('')
 
     const surveyElements = computed<any[]>(() => {
       const pages = Array.isArray(surveySchema.value.pages) ? surveySchema.value.pages : []
@@ -562,8 +585,53 @@ export default {
       form.value.optionsCorrect.splice(newIdx, 0, correct)
     }
 
+    async function loadAccessManagement() {
+      if (!props.conferenceId) return
+      accessError.value = ''
+      try {
+        const response = await getSurveyAccessManagement(props.conferenceId, auth.state.token as string)
+        releasedForAll.value = response.data.releasedForAll
+        attendees.value = response.data.attendees || []
+        selectedAttendees.value = selectedAttendees.value.filter((uuid) =>
+          attendees.value.some((attendee) => attendee.uuid === uuid && !attendee.responded))
+      } catch (e: any) {
+        attendees.value = []
+        accessError.value = 'No se pudo cargar la lista de asistentes.'
+      }
+    }
+
+    async function releaseAll() {
+      if (!props.conferenceId) return
+      releaseSaving.value = true
+      accessError.value = ''
+      try {
+        await releaseSurveyAccess(props.conferenceId, auth.state.token as string, [], true)
+        await loadAccessManagement()
+      } catch (e: any) {
+        accessError.value = e.response?.data?.error?.message || 'No se pudo liberar la encuesta.'
+      } finally {
+        releaseSaving.value = false
+      }
+    }
+
+    async function releaseSelected() {
+      if (!props.conferenceId || !selectedAttendees.value.length) return
+      releaseSaving.value = true
+      accessError.value = ''
+      try {
+        await releaseSurveyAccess(props.conferenceId, auth.state.token as string, selectedAttendees.value)
+        selectedAttendees.value = []
+        await loadAccessManagement()
+      } catch (e: any) {
+        accessError.value = e.response?.data?.error?.message || 'No se pudo liberar la encuesta.'
+      } finally {
+        releaseSaving.value = false
+      }
+    }
+
     async function load() {
       if (!props.conferenceId) return
+      await loadAccessManagement()
       try {
         const definition = (await getSurveyDefinition(props.conferenceId, auth.state.token, true)).data
         engine.value = definition.engine
@@ -785,7 +853,8 @@ export default {
       toggleSelectAllGradeable, runGrading,
       typeLabel, typeIcon, isImage, parseMultiSelect, ratingDisplay, ratingChartData, choiceChartData, toggleDetail, save, confirmDelete, doDelete,
       confirmPurge, doPurge, suggest, addSelectedSuggestions, startEdit, cancelEdit, onTypeChange, addOption,
-      removeOption, moveOption, improve, applyImprovement, breadcrumbItems
+      removeOption, moveOption, improve, applyImprovement, breadcrumbItems,
+      attendees, selectedAttendees, releasedForAll, releaseSaving, accessError, releaseAll, releaseSelected
     }
   }
 }
@@ -797,6 +866,21 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 .engine-card, .surveyjs-editor {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px;
 }
+.access-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px;
+}
+.access-help, .access-empty { color: #6b7280; font-size: 0.85rem; line-height: 1.45; }
+.access-state { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 0.82rem; margin: 4px 0 14px; }
+.access-state.released { background: #dcfce7; color: #166534; }
+.access-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.attendee-list { border-top: 1px solid #f3f4f6; }
+.attendee-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+.attendee-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.attendee-info span { color: #6b7280; font-size: 0.78rem; }
+.attendee-status { color: #92400e; font-size: 0.78rem; }
+.attendee-status.released { color: #166534; }
+.attendee-status.responded { color: #1d4ed8; }
+.access-error { color: #dc2626; font-size: 0.85rem; margin-top: 12px; }
 .engine-help, .editor-help, .ai-shared { color: #6b7280; font-size: 0.85rem; line-height: 1.45; }
 .engine-row, .surveyjs-add-row, .surveyjs-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .engine-row select { flex: 1; min-width: 220px; margin-bottom: 0; }

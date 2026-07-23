@@ -29,6 +29,27 @@ export interface SurveyDefinition {
   publishedAt?: string | null
 }
 
+export interface SurveyAccessStatus {
+  released: boolean
+  releasedForAll: boolean
+  responded: boolean
+  published: boolean
+}
+
+export interface SurveyAttendee {
+  uuid: string
+  displayName: string
+  email: string
+  joinedAt: string
+  released: boolean
+  responded: boolean
+}
+
+export interface SurveyAccessManagement {
+  releasedForAll: boolean
+  attendees: SurveyAttendee[]
+}
+
 export async function getQuestions(conferenceId: string, onlyActive = true): Promise<{ data: any[] }> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/questions`, {
     params: { onlyActive }
@@ -79,6 +100,33 @@ export async function hasResponded(conferenceId: string, token: string, userUuid
     headers: authHeader(token)
   })
   return res.data.data.responded
+}
+
+export async function getSurveyAccess(conferenceId: string, token: string): Promise<{ data: SurveyAccessStatus }> {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/access`, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function getSurveyAccessManagement(conferenceId: string, token: string): Promise<{ data: SurveyAccessManagement }> {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/access-management`, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function releaseSurveyAccess(
+  conferenceId: string,
+  token: string,
+  userUuids: string[] = [],
+  all = false
+): Promise<{ data: { releasedForAll: boolean, releasedCount: number } }> {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/survey/access/release`, {
+    all,
+    userUuids
+  }, { headers: authHeader(token) })
+  return res.data
 }
 
 export async function getResults(conferenceId: string, token: string): Promise<{ data: any[] }> {

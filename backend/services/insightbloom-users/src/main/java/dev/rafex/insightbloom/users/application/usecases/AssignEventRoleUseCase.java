@@ -47,10 +47,16 @@ public class AssignEventRoleUseCase {
         if (role.getScope() != RoleScope.EVENT) throw new IllegalArgumentException("role_not_event_scoped");
         if (!role.isActive()) throw new IllegalArgumentException("role_inactive");
 
-        if (ticketUseCase != null && ("moderator".equalsIgnoreCase(roleKey)
-                || role.hasPermission(Permission.MODERATE_CONTENT))) {
+        final boolean operationalRole = "host".equalsIgnoreCase(roleKey)
+                || "moderator".equalsIgnoreCase(roleKey)
+                || role.hasPermission(Permission.MANAGE_TICKETS)
+                || role.hasPermission(Permission.MANAGE_PRESENTATION)
+                || role.hasPermission(Permission.VIDEO_MODERATE)
+                || role.hasPermission(Permission.MODERATE_CONTENT);
+        if (ticketUseCase != null && operationalRole) {
             // La reserva ocurre antes de guardar el rol: si el aforo está lleno, el usuario no
-            // queda con un rol operativo que no podría usar.
+            // queda con un rol operativo que no podría usar. El boleto operativo es permanente
+            // para mantener trazabilidad y no puede revocarse desde el dashboard.
             ticketUseCase.issueOperational(eventUuid, targetUser.getUuid());
         }
         final EventRole assignment = new EventRole(eventUuid, targetUser.getUuid(), roleKey);
