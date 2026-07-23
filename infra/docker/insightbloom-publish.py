@@ -7,6 +7,7 @@ una copia temporal aislada; este cliente solo empaqueta la carpeta indicada y so
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,7 @@ import urllib.request
 import zipfile
 
 DEFAULT_API_BASE = "https://insightbloom.v1.rafex.cloud/api/users/api/v1"
+DEFAULT_SESSION_FILE = Path("~/.config/insightbloom/session.json").expanduser()
 MAX_FILES = 1000
 MAX_BYTES = 250 * 1024 * 1024
 EXCLUDED_DIRS = {".git", ".hg", ".svn", "node_modules", ".venv", "__pycache__", ".insightbloom"}
@@ -27,18 +29,15 @@ EXCLUDED_FILES = {
 
 CLI_EPILOG = """
 Ejemplos:
-  1) Configurar credenciales y publicar el workspace actual:
-     export INSIGHTBLOOM_CONFERENCE_ID=UUID_DEL_EVENTO
-     export INSIGHTBLOOM_TOKEN=TOKEN_DE_SESION
+  1) Publicar desde un sandbox (el evento se detecta automáticamente):
+     insightbloom login
      insightbloom publish
 
   2) Publicar una carpeta concreta:
      insightbloom publish --root sitio
 
-  3) Evitar que el token quede en el historial del shell:
-     read -rs INSIGHTBLOOM_TOKEN
-     export INSIGHTBLOOM_TOKEN
-     insightbloom publish --conference-id UUID_DEL_EVENTO
+  3) Usar una carpeta concreta sin copiar el UUID del evento:
+     insightbloom publish --root sitio
 
   4) Revocar una publicación:
      insightbloom revoke PUBLICATION_ID
@@ -47,6 +46,11 @@ Notas:
   - La carpeta publicada debe contener index.html.
   - package.json es opcional y nunca se ejecuta.
   - La publicación es temporal, estática y se vuelve a auditar en el servidor.
+  - Dentro de un sandbox el evento se detecta automáticamente desde CONFERENCE_UUID.
+  - En el primer uso puedes ejecutar `insightbloom login`; solo se guarda un token en
+    ~/.config/insightbloom/session.json, nunca la contraseña ni dentro del workspace.
+  - Si la sesión expira durante publish o revoke, el CLI solicita login una sola vez y reintenta.
+  - También se conserva --token-prompt para introducir un token manual oculto.
   - También puedes consultar la ayuda específica con:
      insightbloom publish --help
      insightbloom revoke --help
@@ -56,6 +60,15 @@ Notas:
 def fail(message: str, code: int = 2) -> None:
     print(f"insightbloom: {message}", file=sys.stderr)
     raise SystemExit(code)
+
+
+class ApiError(Exception):
+    """Error HTTP conservando el código para poder renovar una sesión una sola vez."""
+
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status = status
+        self.message = message
 
 
 def read_config(root: Path) -> tuple[Path, str | None]:
@@ -122,43 +135,144 @@ def create_zip(root: Path) -> tuple[Path, int, int]:
     return zip_path, len(files), total
 
 
+def session_file() -> Path:
+    configured = os.environ.get("INSIGHTBLOOM_SESSION_FILE", "").strip()
+    return Path(configured).expanduser() if configured else DEFAULT_SESSION_FILE
+
+
+def read_saved_session() -> dict:
+    path = session_file()
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) and isinstance(value.get("token"), str) else {}
+
+
+def save_session(token: str, username: str, expires_at: str | None) -> None:
+    path = session_file()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.chmod(path.parent, 0o700)
+        except OSError:
+            pass
+        path.write_text(json.dumps({
+            "token": token,
+            "username": username,
+            "expiresAt": expires_at,
+        }, ensure_ascii=False) + "\n", encoding="utf-8")
+        os.chmod(path, 0o600)
+    except OSError as exc:
+        fail(f"no se pudo guardar la sesión fuera del workspace: {exc}", 1)
+
+
+def clear_session() -> None:
+    try:
+        session_file().unlink(missing_ok=True)
+    except OSError as exc:
+        fail(f"no se pudo cerrar la sesión guardada: {exc}", 1)
+
+
 def read_token(args: argparse.Namespace) -> str:
     token = args.token or os.environ.get("INSIGHTBLOOM_TOKEN", "")
-    if args.token_stdin:
+    if args.token_prompt:
+        token = getpass.getpass("Token de sesión (oculto): ").strip()
+    elif args.token_stdin:
         token = sys.stdin.readline().strip()
     if not token:
-        fail("falta INSIGHTBLOOM_TOKEN; usa una variable de entorno o --token-stdin")
+        token = read_saved_session().get("token", "")
     return token
 
 
 def conference_id(args: argparse.Namespace) -> str:
-    value = args.conference_id or os.environ.get("INSIGHTBLOOM_CONFERENCE_ID", "")
+    value = (
+        args.conference_id
+        or os.environ.get("CONFERENCE_UUID", "")
+        or os.environ.get("INSIGHTBLOOM_CONFERENCE_ID", "")
+    )
     if not value:
-        fail("falta INSIGHTBLOOM_CONFERENCE_ID")
+        fail("no se pudo detectar el evento; usa --conference-id UUID_DEL_EVENTO fuera del sandbox")
     return value
 
 
-def request_json(method: str, url: str, token: str, body: bytes | None = None) -> dict:
+def response_error(exc: urllib.error.HTTPError) -> ApiError:
+    raw = exc.read().decode("utf-8", errors="replace")
+    try:
+        detail = json.loads(raw)
+    except json.JSONDecodeError:
+        detail = {"error": raw or exc.reason}
+    message = detail.get("message") or detail.get("error") or str(exc.reason)
+    return ApiError(exc.code, str(message))
+
+
+def request_json(method: str, url: str, token: str | None = None, body: bytes | None = None) -> dict:
     request = urllib.request.Request(url, data=body, method=method)
-    request.add_header("Authorization", f"Bearer {token}")
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
     if body is not None:
         request.add_header("Content-Type", "application/json")
     try:
         with urllib.request.urlopen(request, timeout=45) as response:
             raw = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
-        raw = exc.read().decode("utf-8", errors="replace")
-        try:
-            detail = json.loads(raw)
-        except json.JSONDecodeError:
-            detail = {"error": raw or exc.reason}
-        fail(f"la API rechazó la solicitud ({exc.code}): {detail.get('message') or detail.get('error')}", 1)
+        raise response_error(exc) from exc
     except urllib.error.URLError as exc:
-        fail(f"no se pudo contactar la API: {exc.reason}", 1)
+        raise ApiError(0, f"no se pudo contactar la API: {exc.reason}") from exc
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        fail("la API devolvió una respuesta no válida", 1)
+        raise ApiError(0, "la API devolvió una respuesta no válida")
+
+
+def api_base() -> str:
+    return os.environ.get("INSIGHTBLOOM_API_BASE_URL", DEFAULT_API_BASE).rstrip("/")
+
+
+def login_session(api: str, username: str | None = None) -> str:
+    try:
+        login_name = username.strip() if username else input("Usuario o correo: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        fail("inicio de sesión cancelado")
+    if not login_name:
+        fail("el usuario o correo no puede estar vacío")
+    try:
+        password = getpass.getpass("Contraseña (oculta): ")
+    except (EOFError, KeyboardInterrupt):
+        fail("inicio de sesión cancelado")
+    if not password:
+        fail("la contraseña no puede estar vacía")
+    payload = json.dumps({"username": login_name, "password": password}).encode("utf-8")
+    try:
+        result = request_json("POST", f"{api}/auth/login", body=payload)
+    except ApiError as exc:
+        fail(f"no se pudo iniciar sesión ({exc.status or 'red'}): {exc.message}", 1)
+    data = result.get("data", result) if isinstance(result, dict) else {}
+    token = data.get("token") if isinstance(data, dict) else None
+    if not isinstance(token, str) or not token.strip():
+        fail("la API de inicio de sesión no devolvió un token", 1)
+    save_session(token.strip(), login_name, data.get("expiresAt"))
+    print(f"Sesión iniciada para {login_name}. Se guardó solo el token en {session_file()}.", file=sys.stderr)
+    return token.strip()
+
+
+def authenticated_request(args: argparse.Namespace, operation, api: str):
+    token = read_token(args)
+    if not token:
+        token = login_session(api)
+    try:
+        return operation(token)
+    except ApiError as exc:
+        if exc.status != 401:
+            fail(f"la API rechazó la solicitud ({exc.status or 'red'}): {exc.message}", 1)
+        print("La sesión expiró o dejó de ser válida; inicia sesión nuevamente.", file=sys.stderr)
+        token = login_session(api)
+        try:
+            return operation(token)
+        except ApiError as retry_exc:
+            fail(f"la API rechazó la solicitud después de iniciar sesión ({retry_exc.status or 'red'}): {retry_exc.message}", 1)
 
 
 def publish(args: argparse.Namespace) -> None:
@@ -170,29 +284,30 @@ def publish(args: argparse.Namespace) -> None:
             fail(f"no existe publish.entry: {configured_entry}")
     zip_path, count, bytes_total = create_zip(publish_root)
     try:
-        token = read_token(args)
+        api = api_base()
         conference = conference_id(args)
-        api = os.environ.get("INSIGHTBLOOM_API_BASE_URL", DEFAULT_API_BASE).rstrip("/")
         payload = zip_path.read_bytes()
-        request = urllib.request.Request(
-            f"{api}/conferences/{conference}/sandbox/preview",
-            data=payload,
-            method="POST",
-        )
-        request.add_header("Authorization", f"Bearer {token}")
-        request.add_header("Content-Type", "application/zip")
-        try:
-            with urllib.request.urlopen(request, timeout=90) as response:
-                result = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            raw = exc.read().decode("utf-8", errors="replace")
+        def send(token: str):
+            request = urllib.request.Request(
+                f"{api}/conferences/{conference}/sandbox/preview",
+                data=payload,
+                method="POST",
+            )
+            request.add_header("Authorization", f"Bearer {token}")
+            request.add_header("Content-Type", "application/zip")
             try:
-                detail = json.loads(raw)
-            except json.JSONDecodeError:
-                detail = {"error": raw or exc.reason}
-            fail(f"la API rechazó la publicación ({exc.code}): {detail.get('message') or detail.get('error')}", 1)
-        except urllib.error.URLError as exc:
-            fail(f"no se pudo contactar la API: {exc.reason}", 1)
+                with urllib.request.urlopen(request, timeout=90) as response:
+                    raw = response.read().decode("utf-8")
+                    try:
+                        return json.loads(raw)
+                    except json.JSONDecodeError as exc:
+                        raise ApiError(0, "la API devolvió una respuesta no válida") from exc
+            except urllib.error.HTTPError as exc:
+                raise response_error(exc) from exc
+            except urllib.error.URLError as exc:
+                raise ApiError(0, f"no se pudo contactar la API: {exc.reason}") from exc
+
+        result = authenticated_request(args, send, api)
         result["localFiles"] = count
         result["localBytes"] = bytes_total
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -201,17 +316,29 @@ def publish(args: argparse.Namespace) -> None:
 
 
 def revoke(args: argparse.Namespace) -> None:
-    token = read_token(args)
+    api = api_base()
     conference = conference_id(args)
     if not args.publication_id:
         fail("revoke requiere el publicationId devuelto por publish")
-    api = os.environ.get("INSIGHTBLOOM_API_BASE_URL", DEFAULT_API_BASE).rstrip("/")
-    result = request_json(
-        "DELETE",
-        f"{api}/conferences/{conference}/sandbox/preview/{args.publication_id}",
-        token,
+    result = authenticated_request(
+        args,
+        lambda token: request_json(
+            "DELETE",
+            f"{api}/conferences/{conference}/sandbox/preview/{args.publication_id}",
+            token,
+        ),
+        api,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def login(args: argparse.Namespace) -> None:
+    login_session(api_base(), args.username)
+
+
+def logout(_: argparse.Namespace) -> None:
+    clear_session()
+    print("Sesión local cerrada. La contraseña nunca se almacenó.")
 
 
 def main() -> None:
@@ -222,6 +349,19 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sub = parser.add_subparsers(dest="command")
+    login_parser = sub.add_parser(
+        "login",
+        help="inicia sesión y guarda el token fuera del workspace",
+        description="Solicita usuario y contraseña sin exponerlos en el historial.",
+    )
+    login_parser.add_argument("--username", help="usuario o correo; la contraseña siempre se solicita de forma oculta")
+    login_parser.set_defaults(func=login)
+    logout_parser = sub.add_parser(
+        "logout",
+        help="elimina el token guardado localmente",
+        description="Borra la sesión guardada por el CLI; no revoca sesiones del servidor.",
+    )
+    logout_parser.set_defaults(func=logout)
     publish_parser = sub.add_parser(
         "publish",
         help="publica index.html y sus assets locales",
@@ -234,8 +374,13 @@ def main() -> None:
     )
     publish_parser.add_argument("--root", default=".", help="carpeta del sitio o workspace (default: .)")
     publish_parser.add_argument("--token", help="token de sesión; se recomienda INSIGHTBLOOM_TOKEN")
-    publish_parser.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin sin dejarlo en el historial")
-    publish_parser.add_argument("--conference-id", help="UUID del evento; también INSIGHTBLOOM_CONFERENCE_ID")
+    token_group = publish_parser.add_mutually_exclusive_group()
+    token_group.add_argument("--token-prompt", action="store_true", help="solicita el token oculto, sin variable ni historial")
+    token_group.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin para automatizaciones")
+    publish_parser.add_argument(
+        "--conference-id",
+        help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
+    )
     publish_parser.set_defaults(func=publish)
     revoke_parser = sub.add_parser(
         "revoke",
@@ -246,13 +391,18 @@ def main() -> None:
     )
     revoke_parser.add_argument("publication_id")
     revoke_parser.add_argument("--token", help="token de sesión; se recomienda INSIGHTBLOOM_TOKEN")
-    revoke_parser.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin")
-    revoke_parser.add_argument("--conference-id", help="UUID del evento; también INSIGHTBLOOM_CONFERENCE_ID")
+    revoke_token_group = revoke_parser.add_mutually_exclusive_group()
+    revoke_token_group.add_argument("--token-prompt", action="store_true", help="solicita el token oculto, sin variable ni historial")
+    revoke_token_group.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin para automatizaciones")
+    revoke_parser.add_argument(
+        "--conference-id",
+        help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
+    )
     revoke_parser.set_defaults(func=revoke)
     args = parser.parse_args()
     if not args.command:
         parser.print_help(sys.stderr)
-        fail("falta el subcomando; usa 'insightbloom publish' para publicar o 'insightbloom revoke PUBLICATION_ID' para revocar")
+        fail("falta el subcomando; usa 'insightbloom login', 'insightbloom publish' o 'insightbloom revoke PUBLICATION_ID'")
     args.func(args)
 
 

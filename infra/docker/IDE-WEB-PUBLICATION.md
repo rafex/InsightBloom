@@ -23,8 +23,9 @@ workspace, la envía al backend, muestra la URL aislada y permite copiarla o rev
 El comando está precargado en la imagen y no instala paquetes:
 
 ```bash
-export INSIGHTBLOOM_CONFERENCE_ID="UUID_DEL_EVENTO"
-export INSIGHTBLOOM_TOKEN="TOKEN_DE_SESION"
+# Dentro del sandbox, el evento se detecta automáticamente desde CONFERENCE_UUID.
+# En el primer uso solicita usuario y contraseña de forma oculta.
+insightbloom login
 insightbloom publish
 ```
 
@@ -34,26 +35,26 @@ El comando requiere una operación. Ejecutar solamente `insightbloom` o
 También puedes invocar el script directamente:
 
 ```bash
-insightbloom-publish.py publish
+insightbloom-publish.py publish --token-prompt
 ```
 
-Para no dejar el token en el historial:
+Si necesitas usar un token puntual sin guardarlo en la sesión local:
 
 ```bash
-read -r INSIGHTBLOOM_TOKEN
-export INSIGHTBLOOM_TOKEN
-insightbloom publish --conference-id "UUID_DEL_EVENTO"
+insightbloom publish --token-prompt
 ```
 
 También se puede publicar una carpeta concreta:
 
 ```bash
-insightbloom publish --root dist
+insightbloom publish --root dist --token-prompt
 ```
 
-El token y el UUID son credenciales de sesión; no los guardes en el workspace ni en
-`insightbloom.json`. El CLI no obtiene credenciales por sí solo: el botón del Web IDE es la opción
-recomendada cuando se quiere publicar sin copiar el token al terminal.
+El UUID del evento ya no se considera una credencial manual dentro del sandbox: la plataforma lo
+inyecta como `CONFERENCE_UUID`. La sesión del CLI se guarda fuera del workspace en
+`~/.config/insightbloom/session.json` con permisos restrictivos; solo contiene el token y su fecha
+de expiración. La contraseña nunca se guarda. Si el token caduca, `publish` y `revoke` solicitan
+login nuevamente y repiten la solicitud una sola vez.
 
 ## Configuración opcional
 
@@ -76,7 +77,7 @@ ni se publica.
 ## Revocar
 
 ```bash
-insightbloom revoke PUBLICATION_ID
+insightbloom revoke PUBLICATION_ID --token-prompt
 ```
 
 La publicación no es un servidor de desarrollo: no soporta APIs, WebSockets, procesos persistentes

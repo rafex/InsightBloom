@@ -80,16 +80,19 @@ Ambos IDE incluyen la guía visible `.insightbloom/IDE-WEB-PUBLICATION.md` y el 
 assets locales. El backend crea un snapshot temporal, excluye metadatos de build y vuelve a
 auditar el contenido antes de servirlo desde un origen aislado.
 
-En el Web IDE se usa el botón **Publicar página temporal**. En el CLI se usan credenciales de la
-sesión actual, sin guardar el token en el proyecto:
+En el Web IDE se usa el botón **Publicar página temporal**. En el CLI la primera vez se inicia
+sesión de forma interactiva; el token queda fuera del workspace, nunca la contraseña:
 
 ```bash
-export INSIGHTBLOOM_CONFERENCE_ID="UUID_DEL_EVENTO"
-export INSIGHTBLOOM_TOKEN="TOKEN_DE_SESION"
+insightbloom login
 insightbloom publish                 # publica el workspace actual
 insightbloom publish --root dist     # publica una carpeta concreta
 insightbloom revoke PUBLICATION_ID   # revoca la URL temporal
 ```
+
+Dentro de un sandbox el evento se detecta automáticamente mediante `CONFERENCE_UUID`. Si el token
+caduca durante una publicación o revocación, el CLI pide iniciar sesión nuevamente y reintenta una
+sola vez. Para automatizaciones todavía se pueden usar `INSIGHTBLOOM_TOKEN` o `--token-stdin`.
 
 Un `insightbloom.json` es opcional para declarar la raíz publicada:
 

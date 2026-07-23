@@ -84,12 +84,20 @@ Ejecutar `insightbloom-publish.py` sin argumentos solo muestra la ayuda y el err
 faltante; no es un fallo de la publicación.
 
 ```bash
-export INSIGHTBLOOM_CONFERENCE_ID="UUID_DEL_EVENTO"
-export INSIGHTBLOOM_TOKEN="TOKEN_DE_SESION"
+# Dentro del sandbox, el evento se detecta automáticamente desde CONFERENCE_UUID.
+# En el primer uso se solicitan usuario y contraseña de forma oculta.
+insightbloom login
 insightbloom publish
 insightbloom publish --root sitio
 insightbloom revoke PUBLICATION_ID
 ```
+
+El botón **Publicar página temporal** del Web IDE no requiere copiar credenciales. En el CLI no se
+puede eliminar toda prueba de identidad: el servidor debe comprobar que la publicación pertenece
+al usuario y al evento. Por eso el UUID se detecta automáticamente dentro del sandbox. El CLI guarda
+solo el token, fuera del workspace, en `~/.config/insightbloom/session.json` con permisos `0600`.
+La contraseña nunca se almacena. Si el token caduca, `publish` o `revoke` solicitan login una vez
+y reintentan la solicitud. Fuera del sandbox se puede usar `--conference-id UUID_DEL_EVENTO`.
 
 ## Configuración de despliegue
 

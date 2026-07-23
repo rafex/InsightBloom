@@ -536,6 +536,11 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final boolean terminalMode = IDE_MODE_TERMINAL_NVIM.equals(variant);
 
         final List<Map<String, Object>> runtimeEnv = new ArrayList<>();
+        // El CLI de publicación usa este valor para identificar el evento sin
+        // obligar al alumno a copiar un UUID desde la URL. Es metadato de
+        // enrutamiento, no una credencial; por eso está disponible en todos
+        // los sandboxes, incluidos Web y CLI de un solo asiento.
+        runtimeEnv.add(Map.of("name", "CONFERENCE_UUID", "value", conferenceUuid));
         if (extraPackages != null && !extraPackages.isBlank()) {
             runtimeEnv.add(Map.of("name", "EXTRA_PACKAGES", "value", extraPackages));
         }
@@ -576,7 +581,6 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                     "resourceFieldRef", Map.of("containerName", "sandbox", "resource", "limits.cpu", "divisor", "1m"))));
             runtimeEnv.add(Map.of("name", "POD_MEMORY_LIMIT_MIB", "valueFrom", Map.of(
                     "resourceFieldRef", Map.of("containerName", "sandbox", "resource", "limits.memory", "divisor", "1Mi"))));
-            runtimeEnv.add(Map.of("name", "CONFERENCE_UUID", "value", conferenceUuid));
             runtimeEnv.add(Map.of("name", "SANDBOX_POD_NAME", "value", podName));
             // insightbloom-users vive en el mismo namespace que el gateway (gatewayNamespace,
             // "insightbloom") -- mismo patron de FQDN que ya usa el propio gateway para

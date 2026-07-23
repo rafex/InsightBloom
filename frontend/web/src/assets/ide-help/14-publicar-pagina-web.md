@@ -27,14 +27,15 @@ El comando necesita un subcomando. Ejecutar solo
 `insightbloom-publish.py` muestra el error `the following arguments are
 required: command`; eso significa que falta indicar la operación.
 
-Primero define el evento y tu token de sesión:
+El botón **Publicar página temporal** del Web IDE ya envía la sesión automáticamente. Si usás el
+terminal, la plataforma inyecta el UUID del evento en `CONFERENCE_UUID` y el CLI puede iniciar
+sesión sin copiar credenciales al workspace:
 
 ```bash
-export INSIGHTBLOOM_CONFERENCE_ID="UUID_DEL_EVENTO"
-export INSIGHTBLOOM_TOKEN="TOKEN_DE_SESION"
+insightbloom login
 ```
 
-Publica el workspace actual, que debe contener `index.html`:
+Después publica el workspace actual, que debe contener `index.html`:
 
 ```bash
 insightbloom publish
@@ -43,13 +44,24 @@ insightbloom publish
 También puedes llamar directamente al script:
 
 ```bash
-insightbloom-publish.py publish
+insightbloom-publish.py publish --token-prompt
 ```
+
+Para introducir el token sin mostrarlo en pantalla, ni guardarlo en variables o en el historial:
+
+```bash
+insightbloom publish --token-prompt
+```
+
+El token se guarda únicamente fuera del workspace en `~/.config/insightbloom/session.json` y la
+contraseña nunca se almacena. Si el token caduca, el comando solicita login de nuevo y reintenta
+una sola vez. Para usar un token puntual sin guardar sesión, utiliza `--token-prompt`. Fuera de un
+sandbox se puede usar `--conference-id UUID_DEL_EVENTO`; dentro del IDE no hace falta.
 
 Para publicar una carpeta concreta:
 
 ```bash
-insightbloom publish --root sitio
+insightbloom publish --root sitio --token-prompt
 ```
 
 El resultado incluye el `publicationId`, la URL temporal, la fecha de
@@ -77,7 +89,7 @@ el servidor seguirá exigiendo un `index.html` válido dentro del ZIP.
 Usa el `publicationId` que devolvió el comando:
 
 ```bash
-insightbloom revoke PUBLICATION_ID
+insightbloom revoke PUBLICATION_ID --token-prompt
 ```
 
 La publicación no es un servidor de desarrollo: no admite APIs, WebSockets,
