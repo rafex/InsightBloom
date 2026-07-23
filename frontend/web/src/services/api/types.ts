@@ -363,6 +363,17 @@ export interface SandboxStatusEntry {
   seats: SandboxStatusSeat[]
 }
 
+export interface SandboxPrewarmVariantResult {
+  variant: SandboxVariant
+  desiredPods: number
+  createdPods: number
+}
+
+export interface SandboxPrewarmResult {
+  conferenceUuid: string
+  variants: SandboxPrewarmVariantResult[]
+}
+
 export interface WorkspaceFileEntry {
   path: string
   isDirectory: boolean

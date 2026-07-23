@@ -10,6 +10,11 @@
     button.btn-outline(type="button" @click="load" :disabled="loading")
       span(v-if="loading") Cargando...
       span(v-else) Actualizar
+    button.btn-outline(type="button" @click="prewarm" :disabled="prewarming")
+      span(v-if="prewarming") Preparando...
+      span(v-else) Preparar sandboxes antes del evento
+
+  p.success(v-if="prewarmSummary") {{ prewarmSummary }}
 
   p.error(v-if="error") {{ error }}
   p.empty-text(v-else-if="!loading && pods.length === 0") No hay sandboxes activos en este momento.
@@ -36,7 +41,7 @@
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { listSandboxStatus, getConference } from '@/services/api/usersApi'
+import { listSandboxStatus, getConference, prewarmSandboxPool } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import WorkspaceFileEditor from '@/components/moderator/WorkspaceFileEditor.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
@@ -52,6 +57,8 @@ export default {
     const pods = ref<SandboxStatusEntry[]>([])
     const loading = ref(false)
     const error = ref('')
+    const prewarming = ref(false)
+    const prewarmSummary = ref('')
     const conferenceName = ref('')
     const editorUserUuid = ref<string | null>(null)
 
@@ -65,6 +72,24 @@ export default {
         error.value = e.response?.data?.error?.message || 'No se pudo cargar el estado de los sandboxes'
       } finally {
         loading.value = false
+      }
+    }
+
+    async function prewarm() {
+      if (!props.conferenceId) return
+      prewarming.value = true
+      error.value = ''
+      prewarmSummary.value = ''
+      try {
+        const result = await prewarmSandboxPool(props.conferenceId, auth.state.token as string)
+        const web = result.variants.find(v => v.variant === 'web')
+        const cli = result.variants.find(v => v.variant === 'cli')
+        prewarmSummary.value = `Pool solicitado: Web ${web?.createdPods || 0}/${web?.desiredPods || 0} Pods nuevos; CLI ${cli?.createdPods || 0}/${cli?.desiredPods || 0} Pods nuevos. La fase de arranque continúa en segundo plano.`
+        await load()
+      } catch (e: any) {
+        error.value = e.response?.data?.error?.message || 'No se pudo preparar el pool de sandboxes'
+      } finally {
+        prewarming.value = false
       }
     }
 
@@ -86,7 +111,7 @@ export default {
       { label: 'Editor Monaco' }
     ])
 
-    return { pods, loading, error, conferenceName, editorUserUuid, breadcrumbItems, load, openEditor }
+    return { pods, loading, error, prewarming, prewarmSummary, conferenceName, editorUserUuid, breadcrumbItems, load, prewarm, openEditor }
   }
 }
 </script>
@@ -95,11 +120,12 @@ export default {
 .mod-ide-page { padding: 24px; max-width: 900px; }
 h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
 .field-hint { color: #6b7280; font-size: 0.85rem; margin: 0 0 16px; }
-.toolbar { margin-bottom: 16px; }
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
 .btn-outline { display: inline-block; padding: 6px 14px; border: 1px solid #4f46e5; color: #4f46e5; border-radius: 8px; background: none; font-size: 0.85rem; cursor: pointer; }
 .btn-outline:hover { background: #eef2ff; }
 .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 0.9rem; }
+.success { color: #166534; font-size: 0.9rem; }
 .empty-text { color: #9ca3af; font-size: 0.9rem; }
 
 .pods-list { display: flex; flex-direction: column; gap: 14px; }

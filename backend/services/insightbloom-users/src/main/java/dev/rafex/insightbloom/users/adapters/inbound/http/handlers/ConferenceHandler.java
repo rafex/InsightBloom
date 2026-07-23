@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
 import dev.rafex.insightbloom.users.application.usecases.EnsureUnassignedSandboxUseCase;
+import dev.rafex.insightbloom.users.application.usecases.PrewarmSandboxPoolUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListSandboxIncidentsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListSandboxStatusUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
@@ -130,6 +131,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
     private final SetSandboxInternetUseCase setSandboxInternetUseCase;
     private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
+    private final PrewarmSandboxPoolUseCase prewarmSandboxPoolUseCase;
     private final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase;
     private final ListSandboxStatusUseCase listSandboxStatusUseCase;
     private final SetDeviceAccessConfigUseCase setDeviceAccessConfigUseCase;
@@ -191,6 +193,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final SetSandboxConfigUseCase setSandboxConfigUseCase,
                              final SetSandboxInternetUseCase setSandboxInternetUseCase,
                              final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
+                             final PrewarmSandboxPoolUseCase prewarmSandboxPoolUseCase,
                              final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase,
                              final ListSandboxStatusUseCase listSandboxStatusUseCase,
                              final SetDeviceAccessConfigUseCase setDeviceAccessConfigUseCase,
@@ -244,6 +247,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
         this.setSandboxInternetUseCase = setSandboxInternetUseCase;
         this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
+        this.prewarmSandboxPoolUseCase = prewarmSandboxPoolUseCase;
         this.listSandboxIncidentsUseCase = listSandboxIncidentsUseCase;
         this.listSandboxStatusUseCase = listSandboxStatusUseCase;
         this.setDeviceAccessConfigUseCase = setDeviceAccessConfigUseCase;
@@ -288,6 +292,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/sandbox-internet", Set.of("PUT")),
                 Route.of("/{id}/sandbox-incidents", Set.of("GET")),
                 Route.of("/{id}/sandbox-status", Set.of("GET")),
+                Route.of("/{id}/sandbox/prewarm", Set.of("POST")),
                 Route.of("/{id}/sandbox", Set.of("GET")),
                 Route.of("/{id}/sandbox/availability", Set.of("GET")),
                 Route.of("/{id}/sandbox/download", Set.of("POST")),
@@ -461,6 +466,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/sandbox/download")) {
             return sandboxHandler.post(x);
+        }
+        if (jx.path().endsWith("/sandbox/prewarm")) {
+            return handlePrewarmSandboxPool(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/unblock")) {
             return handleUnblockDevice(jx, jx.pathParam("id"), jx.pathParam("blockId"));
@@ -1882,6 +1890,27 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
+    /** Prepara el pool completo antes de que entren los alumnos; la autorización se mantiene
+     * separada de la configuración para permitir que un moderador operativo lo dispare sin darle
+     * permiso para cambiar el tamaño del pool. */
+    private boolean handlePrewarmSandboxPool(final JettyHttpExchange jx, final String id) {
+        try {
+            final var v = requireSandboxPrewarmAccess(jx, id);
+            if (v == null) return true;
+            if (!hasCapability(id, EventCapability.CODE_IDE)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita el IDE");
+                return true;
+            }
+            sendOk(jx, 200, prewarmSandboxPoolUseCase.execute(id));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            LOGGER.log(java.util.logging.Level.WARNING, "pre-warm explícito falló para " + id, e);
+            sendError(jx, 500, "internal_error", "No se pudo preparar el pool de sandboxes");
+        }
+        return true;
+    }
+
     private boolean handleSetDeviceAccessConfig(final JettyHttpExchange jx, final String id) {
         try {
             if (requireConferenceOwner(jx, id) == null) return true;
@@ -1990,6 +2019,32 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 403, "forbidden", "You are not the organizer of this conference");
                 return null;
             }
+        }
+        return v;
+    }
+
+    /**
+     * El botón de pre-warm no cambia configuración. Por eso también se permite al staff asignado
+     * al evento con MODERATE_CONTENT/HOST_EVENT, además del creador y del admin de plataforma.
+     */
+    private ValidateTokenUseCase.ValidationResult requireSandboxPrewarmAccess(
+            final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return null; }
+        final var v = validateTokenUseCase.execute(token);
+        if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return null; }
+        final boolean owner = isOrganizerOrAdmin(v.role()) &&
+            getConferenceUseCase.byId(conferenceId)
+                .map(c -> legacyRoleHasAny(v.role(), "admin")
+                    || c.getCreatedByUserUuid().equals(v.subjectUuid()))
+                .orElse(false);
+        final boolean eventStaff = eventPermissionGuard.hasPermission(
+                conferenceId, v.subjectUuid(), v.role(), Permission.MODERATE_CONTENT)
+            || eventPermissionGuard.hasPermission(
+                conferenceId, v.subjectUuid(), v.role(), Permission.HOST_EVENT);
+        if (!owner && !eventStaff) {
+            sendError(jx, 403, "forbidden", "No tienes permiso para preparar los sandboxes del evento");
+            return null;
         }
         return v;
     }

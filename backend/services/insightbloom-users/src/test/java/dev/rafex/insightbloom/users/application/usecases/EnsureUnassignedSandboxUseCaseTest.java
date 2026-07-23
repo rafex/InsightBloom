@@ -109,4 +109,52 @@ class EnsureUnassignedSandboxUseCaseTest {
         final var ex = assertThrows(IllegalArgumentException.class, () -> useCase.execute("nonexistent"));
         assertEquals("conference_not_found", ex.getMessage());
     }
+
+    @Test
+    void ensureSpareOpensNextWebSlotWhenAllCurrentPodsAreOccupied() {
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        final var occupied = new Sandbox("conf-1", 0, "user-a", java.time.Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(occupied));
+
+        useCase.ensureSpare("conf-1", Sandbox.VARIANT_WEB);
+
+        Mockito.verify(orchestratorMock).createSandbox(
+            Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_WEB, 1)), Mockito.eq("conf-1"), Mockito.eq("python"),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+        Mockito.verify(sandboxRepoMock).save(Mockito.any(Sandbox.class));
+    }
+
+    @Test
+    void ensureSpareReusesFreeSeatInSharedCliPod() {
+        testConf.setSandboxCliPoolSize(2);
+        testConf.setSandboxSeatsPerPod(4);
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        final var occupied = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_CLI,
+            "user-a", java.time.Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(occupied));
+
+        useCase.ensureSpare("conf-1", Sandbox.VARIANT_CLI);
+
+        Mockito.verifyNoInteractions(orchestratorMock);
+        Mockito.verify(sandboxRepoMock, Mockito.never()).save(Mockito.any());
+    }
+
+    @Test
+    void ensureSpareOpensNextCliSlotWhenAllSeatsAreOccupied() {
+        testConf.setSandboxCliPoolSize(2);
+        testConf.setSandboxSeatsPerPod(4);
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        final var occupied = java.util.stream.IntStream.range(0, 4)
+            .mapToObj(seat -> new Sandbox("conf-1", 0, seat, Sandbox.VARIANT_CLI,
+                "user-" + seat, java.time.Instant.now().plusSeconds(3600)))
+            .toList();
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(occupied);
+
+        useCase.ensureSpare("conf-1", Sandbox.VARIANT_CLI);
+
+        Mockito.verify(orchestratorMock).createSandbox(
+            Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_CLI, 1)), Mockito.eq("conf-1"), Mockito.eq("terminal-nvim"),
+            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.eq(4));
+        Mockito.verify(sandboxRepoMock).save(Mockito.any(Sandbox.class));
+    }
 }

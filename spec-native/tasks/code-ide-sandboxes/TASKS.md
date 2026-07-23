@@ -29,6 +29,26 @@ Derivado de `spec-native/specs/code-ide-sandboxes/SPEC.md`.
 - Fase 2: 1/1 ⏸️ (TASK-0020 bloqueado en Ether — necesita WebSocket bidireccional)
 - Fase 3–5: bloqueadas por Fase 2 (no se puede enrutar code-server sin WebSocket)
 
+### Implementación adicional: pre-warm operativo del pool (2026-07-23)
+
+Aunque el enrutamiento WebSocket del gateway continúa siendo una dependencia de la
+infraestructura, el servicio de usuarios ya permite preparar por adelantado los Pods
+del pool configurado, sin esperar a que llegue el primer alumno:
+
+- `POST /api/v1/conferences/{id}/sandbox/prewarm` crea de forma idempotente los slots
+  Web y CLI configurados, requiere sesión válida y permisos de propietario/admin o
+  staff operativo (`MODERATE_CONTENT`/`HOST_EVENT`), y devuelve cuántos Pods se
+  crearon por variante.
+- La configuración del evento expone **Preparar sandboxes antes del evento** y
+  consulta el estado de fase/ready después de iniciar el proceso.
+- Después de una asignación se repone el siguiente Pod libre cuando corresponde;
+  los Pods CLI aprovechan primero los asientos libres del Pod compartido.
+- La asignación normal conserva su comportamiento idempotente y sigue siendo el
+  respaldo si el pre-warm no se ejecuta o Kubernetes no está disponible.
+
+**Validación:** pruebas de pre-warm, reposición Web/CLI, asignación y carreras de
+concurrencia; build de backend y frontend completados correctamente.
+
 ## Fase 0 — Capacidad `CODE_IDE` + modelo de datos del taller
 
 ### TASK-0001: Agregar `CODE_IDE` al catálogo de capacidades

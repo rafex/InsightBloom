@@ -6,6 +6,7 @@ import type {
   CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
+  SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
   TicketManagementSummary
@@ -372,6 +373,14 @@ export async function listSandboxStatus(
   conferenceId: string, token: string
 ): Promise<SandboxStatusEntry[]> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/sandbox-status`, authHeader(token))
+  return res.data.data
+}
+
+export async function prewarmSandboxPool(
+  conferenceId: string, token: string
+): Promise<SandboxPrewarmResult> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/prewarm`,
+    {}, authHeader(token))
   return res.data.data
 }
 

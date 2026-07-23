@@ -5,6 +5,7 @@ import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.AssignSandboxUseCase;
+import dev.rafex.insightbloom.users.application.usecases.EnsureUnassignedSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateWorkspaceDownloadUrlUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetSandboxAvailabilityUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
@@ -32,6 +33,7 @@ public class SandboxHandler extends BaseResourceHandler {
     private final SandboxOrchestrator sandboxOrchestrator;
     private final ConferenceRepository conferenceRepository;
     private final EventCapabilityGuard eventCapabilityGuard;
+    private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
     private final String gatewayBaseUrl; // ej. "https://ide-insightbloom.v1.rafex.cloud"
 
     public SandboxHandler(final AssignSandboxUseCase assignSandboxUseCase,
@@ -42,6 +44,7 @@ public class SandboxHandler extends BaseResourceHandler {
                          final SandboxOrchestrator sandboxOrchestrator,
                          final ConferenceRepository conferenceRepository,
                          final EventCapabilityGuard eventCapabilityGuard,
+                         final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
                          final String gatewayBaseUrl) {
         this.assignSandboxUseCase = assignSandboxUseCase;
         this.getSandboxAvailabilityUseCase = getSandboxAvailabilityUseCase;
@@ -51,6 +54,7 @@ public class SandboxHandler extends BaseResourceHandler {
         this.sandboxOrchestrator = sandboxOrchestrator;
         this.conferenceRepository = conferenceRepository;
         this.eventCapabilityGuard = eventCapabilityGuard;
+        this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
         this.gatewayBaseUrl = gatewayBaseUrl;
     }
 
@@ -147,6 +151,15 @@ public class SandboxHandler extends BaseResourceHandler {
             final String requestedVariant = queryParam(jx, "variant");
             final Sandbox sandbox = assignSandboxUseCase.execute(conferenceId, v.subjectUuid(), requestedVariant,
                     extractDeviceFingerprint(jx));
+
+            // Mantiene un siguiente Pod libre cuando todavía hay capacidad configurada. En CLI
+            // no crea trabajo innecesario: primero aprovecha los asientos disponibles del Pod
+            // compartido y solo crea otro cuando los actuales están llenos.
+            try {
+                ensureUnassignedSandboxUseCase.ensureSpare(conferenceId, sandbox.getVariant());
+            } catch (final Exception e) {
+                LOGGER.log(Level.WARNING, "No se pudo reponer el sandbox libre de " + conferenceId, e);
+            }
 
             // El Pod pasa a fase "Running" en cuanto arrancan sus contenedores, sin esperar a que
             // pasen su readiness probe -- con el Pod de dos contenedores (ide+runtime) eso dejaba

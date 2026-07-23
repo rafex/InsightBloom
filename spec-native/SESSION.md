@@ -6,12 +6,12 @@ Estado activo de trabajo para continuidad multi-agente.
 
 ## Estado actual
 
-- **Iniciativa activa**: `certificate-editor`
+- **Iniciativa activa**: `code-ide-sandbox-prewarm`
 - **Branch**: `main`
 - **Último agente**: Codex
-- **Última acción**: corregido el alcance de la cookie de presentación detrás
-  del proxy `/api/presentations` y alineada la autorización del WebSocket con
-  el acceso operativo de moderadores/admin.
+- **Última acción**: implementado el pre-warm idempotente del pool Web/CLI de
+  IDE, su endpoint protegido, la acción del dashboard y la reposición automática
+  de capacidad después de una asignación.
 
 ---
 
@@ -34,6 +34,11 @@ Playwright + Chromium). La opción global `Diseño de certificado` permanece
 como respaldo del motor Inhouse; la acción del evento abre el editor que
 corresponde al motor configurado.
 
+La iniciativa actual acelera la entrada al IDE: el organizador o el staff
+operativo puede preparar el pool antes del evento. Kubernetes sigue arrancando
+los Pods de forma asíncrona y la asignación por alumno mantiene el aislamiento y
+los límites de capacidad existentes.
+
 ## Próximos pasos
 
 - [ ] Completar exportación PPTX y caché por hash de Slidev
@@ -45,6 +50,8 @@ corresponde al motor configurado.
 - [ ] Completar tests de autorización y sanitización del editor de certificados
 - [ ] Validar en UI la selección del motor al crear y configurar un evento,
   incluyendo la ruta legacy por evento y la escala responsive del editor HTML
+- [ ] Validar en el cluster el pre-warm del pool completo y el reemplazo de Pods
+  cuando se ocupan todos los asientos configurados
 
 ## Notas
 

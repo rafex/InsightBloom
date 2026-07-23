@@ -80,6 +80,39 @@ function certificateBrowser() {
   return certificateBrowserPromise;
 }
 
+async function resetCertificateBrowser() {
+  const browserPromise = certificateBrowserPromise;
+  certificateBrowserPromise = null;
+  if (!browserPromise) return;
+  try {
+    const browser = await browserPromise;
+    await browser.close();
+  } catch (_error) {
+    // El proceso ya puede estar cerrado; el siguiente intento volverá a lanzarlo.
+  }
+}
+
+function certificateBrowserFailure(error) {
+  const message = String(error?.message || error || '');
+  return /Target .*closed|browser.*closed|browserType\.launch|ECONNRESET|ECONNREFUSED|EPIPE|crash|Protocol error/i.test(message);
+}
+
+async function renderCertificatePdf(html) {
+  let browser = await certificateBrowser();
+  if (typeof browser.isConnected === 'function' && !browser.isConnected()) {
+    await resetCertificateBrowser();
+    browser = await certificateBrowser();
+  }
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
+    return await page.pdf({ printBackground: true, preferCSSPageSize: true });
+  } finally {
+    await context.close().catch(() => undefined);
+  }
+}
+
 function certificateEscape(value) {
   return String(value == null ? '' : value)
     .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -154,19 +187,31 @@ app.post('/internal/v1/certificates/render', express.json({ limit: '300kb' }), a
   if (!constantTimeHeaderMatches(req.headers['x-internal-api-key'], INTERNAL_API_KEY)) {
     return res.status(403).json({ error: 'forbidden' });
   }
+
+  let html;
   try {
-    const html = certificateDocument(req.body?.documentJson, req.body?.data || {});
-    const browser = await certificateBrowser();
-    const context = await browser.newContext({ javaScriptEnabled: false });
-    const page = await context.newPage();
-    await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
-    const pdf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
-    await context.close();
-    res.type('application/pdf').set('Content-Disposition', 'inline').send(pdf);
+    html = certificateDocument(req.body?.documentJson, req.body?.data || {});
   } catch (error) {
-    console.error('certificate_render_failed', error.message);
+    console.error('certificate_document_rejected', error.message);
     res.status(400).json({ error: 'certificate_render_failed' });
+    return;
   }
+
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const pdf = await renderCertificatePdf(html);
+      res.type('application/pdf').set('Content-Disposition', 'inline').send(pdf);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (certificateBrowserFailure(error)) await resetCertificateBrowser();
+      if (attempt < 2) continue;
+    }
+  }
+
+  console.error('certificate_render_failed', lastError?.message || lastError);
+  res.status(503).json({ error: 'certificate_renderer_unavailable' });
 });
 
 function constantTimeHeaderMatches(value, expected) {

@@ -7,7 +7,10 @@ import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Garantiza que una conferencia con CODE_IDE siempre tenga al menos un sandbox — asignado o
@@ -25,6 +28,8 @@ import java.util.List;
 public class EnsureUnassignedSandboxUseCase {
     private static final String IDE_MODE_TERMINAL_NVIM = "terminal-nvim";
     private static final String ORCHESTRATOR_VARIANT_WEB = "python";
+    private static final int DEFAULT_POOL_SIZE = 1;
+    private static final int DEFAULT_SEATS_PER_POD = 4;
     private static final long DEFAULT_TTL_SECONDS = 4 * 3600; // sin fecha de evento: 4h desde ahora
 
     private final SandboxRepository sandboxRepository;
@@ -43,37 +48,90 @@ public class EnsureUnassignedSandboxUseCase {
     }
 
     public void execute(final String conferenceUuid) {
+        ensurePool(conferenceUuid, Sandbox.VARIANT_WEB, 1);
+        ensurePool(conferenceUuid, Sandbox.VARIANT_CLI, 1);
+    }
+
+    /**
+     * Pre-provisiona los slots faltantes hasta {@code desiredSlots}. Es idempotente y devuelve
+     * cuántos Pods nuevos pudo crear; los errores de Kubernetes se manejan como best-effort para
+     * que guardar la configuración del evento no dependa de que el cluster esté disponible.
+     */
+    public int ensurePool(final String conferenceUuid, final String variant, final int desiredSlots) {
         final Conference conference = conferenceRepository.findByUuid(conferenceUuid)
             .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
-
+        final int target = Math.max(1, desiredSlots);
         final List<Sandbox> active = sandboxRepository.findByConferenceUuid(conferenceUuid);
-        boolean hasWeb = false;
-        boolean hasCli = false;
-        for (final Sandbox s : active) {
-            if (Sandbox.VARIANT_CLI.equals(s.getVariant())) {
-                hasCli = true;
-            } else {
-                hasWeb = true;
+        final Set<Integer> existingSlots = new HashSet<>();
+        for (final Sandbox sandbox : active) {
+            if (variant.equals(sandbox.getVariant())) {
+                existingSlots.add(sandbox.getSandboxSlot());
             }
         }
 
-        if (!hasWeb) {
-            preWarm(conference, conferenceUuid, Sandbox.VARIANT_WEB, ORCHESTRATOR_VARIANT_WEB);
+        int created = 0;
+        for (int slot = 0; slot < target; slot++) {
+            if (existingSlots.contains(slot)) continue;
+            if (preWarm(conference, conferenceUuid, variant, slot,
+                    Sandbox.VARIANT_CLI.equals(variant) ? IDE_MODE_TERMINAL_NVIM : ORCHESTRATOR_VARIANT_WEB)) {
+                existingSlots.add(slot);
+                created++;
+            }
         }
-        if (!hasCli) {
-            preWarm(conference, conferenceUuid, Sandbox.VARIANT_CLI, IDE_MODE_TERMINAL_NVIM);
+        return created;
+    }
+
+    /**
+     * Reposición ligera después de una asignación. Solo crea el siguiente Pod si no queda un
+     * asiento libre en los Pods existentes y aún existe capacidad configurada. En Web esto
+     * conserva un Pod libre; en CLI reutiliza primero los asientos libres del Pod compartido.
+     */
+    public void ensureSpare(final String conferenceUuid, final String variant) {
+        final Conference conference = conferenceRepository.findByUuid(conferenceUuid)
+            .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+        final int poolSize = poolSizeFor(variant, conference);
+        final int seatsPerPod = seatsPerPodFor(variant, conference);
+        final List<Sandbox> active = sandboxRepository.findByConferenceUuid(conferenceUuid).stream()
+            .filter(s -> variant.equals(s.getVariant()))
+            .toList();
+
+        if (active.stream().anyMatch(s -> s.getUserUuid() == null)) return;
+
+        final Map<Integer, Long> occupiedBySlot = active.stream()
+            .collect(java.util.stream.Collectors.groupingBy(Sandbox::getSandboxSlot,
+                java.util.stream.Collectors.counting()));
+        if (occupiedBySlot.values().stream().anyMatch(count -> count < seatsPerPod)) return;
+        if (occupiedBySlot.size() >= poolSize) return;
+
+        int nextSlot = 0;
+        while (occupiedBySlot.containsKey(nextSlot) && nextSlot < poolSize) nextSlot++;
+        if (nextSlot < poolSize) {
+            preWarm(conference, conferenceUuid, variant, nextSlot,
+                Sandbox.VARIANT_CLI.equals(variant) ? IDE_MODE_TERMINAL_NVIM : ORCHESTRATOR_VARIANT_WEB);
         }
     }
 
-    private void preWarm(final Conference conference, final String conferenceUuid, final String variant,
-                          final String orchestratorVariant) {
+    private int poolSizeFor(final String variant, final Conference conference) {
+        final Integer configured = Sandbox.VARIANT_CLI.equals(variant)
+            ? conference.getSandboxCliPoolSize() : conference.getSandboxPoolSize();
+        return configured != null ? configured : DEFAULT_POOL_SIZE;
+    }
+
+    private int seatsPerPodFor(final String variant, final Conference conference) {
+        if (!Sandbox.VARIANT_CLI.equals(variant)) return 1;
+        return conference.getSandboxSeatsPerPod() != null
+            ? conference.getSandboxSeatsPerPod() : DEFAULT_SEATS_PER_POD;
+    }
+
+    private boolean preWarm(final Conference conference, final String conferenceUuid, final String variant,
+                             final int sandboxSlot, final String orchestratorVariant) {
         final boolean internetEnabled = conference.getSandboxInternetEnabled() != null
             && conference.getSandboxInternetEnabled() == 1;
         final Instant expiresAt = conference.getExpiresAt() != null
             ? conference.getExpiresAt().plusSeconds(ttlSecondsAfterEventExpiry)
             : Instant.now().plusSeconds(DEFAULT_TTL_SECONDS);
 
-        final Sandbox sandbox = new Sandbox(conferenceUuid, 0, 0, variant, null, expiresAt);
+        final Sandbox sandbox = new Sandbox(conferenceUuid, sandboxSlot, 0, variant, null, expiresAt);
 
         try {
             sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, orchestratorVariant,
@@ -81,7 +139,7 @@ public class EnsureUnassignedSandboxUseCase {
                 conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
         } catch (final IllegalStateException e) {
             if ("kubernetes_not_configured".equals(e.getMessage())) {
-                return;
+                return false;
             }
             throw e;
         }
@@ -90,12 +148,13 @@ public class EnsureUnassignedSandboxUseCase {
             sandboxRepository.save(sandbox);
         } catch (final RuntimeException e) {
             if (e.getMessage() != null && e.getMessage().contains("UNIQUE")) {
-                // Otro request ya pre-provisiono el slot 0 de esta variante en paralelo -- libera
+                // Otro request ya pre-provisionó este slot de la variante en paralelo -- libera
                 // el Pod duplicado.
                 sandboxOrchestrator.deleteSandbox(sandbox.podName());
-                return;
+                return false;
             }
             throw e;
         }
+        return true;
     }
 }

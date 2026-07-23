@@ -113,6 +113,14 @@
           button.btn-outline(type="button" @click="loadSandboxStatus" :disabled="loadingSandboxStatus")
             span(v-if="loadingSandboxStatus") Cargando...
             span(v-else) Ver estado de sandboxes
+        .prewarm-control
+          button.btn-outline(type="button" @click="prewarmSandboxPool" :disabled="prewarmingSandboxPool")
+            span(v-if="prewarmingSandboxPool") Preparando...
+            span(v-else) Preparar sandboxes antes del evento
+          p.field-hint Crea por adelantado los Pods Web y CLI configurados. El arranque de cada Pod continúa en segundo plano y se muestra en el estado de las máquinas.
+        p.success(v-if="sandboxPrewarmResult")
+          | Pool solicitado: Web {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.desiredPods || 0 }}; CLI {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.desiredPods || 0 }}.
+        p.error(v-if="sandboxPrewarmError") {{ sandboxPrewarmError }}
         p.field-hint Pods activos de este evento -- quién los ocupa, en qué modo (Web/CLI) y si ya están listos para usarse. Para revisar y editar los archivos de un alumno, usá el "Editor de código" en Moderación.
         p.error(v-if="sandboxStatusError") {{ sandboxStatusError }}
         table.incidents-table(v-if="sandboxStatusLoaded")
@@ -197,10 +205,10 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import {
   getConference, setSeatingMode, getActiveEventTypes, setEventType,
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
-  listSandboxIncidents, listSandboxStatus, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
+  listSandboxIncidents, listSandboxStatus, prewarmSandboxPool as prewarmSandboxPoolApi, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
   getCertificateEngine
 } from '@/services/api/usersApi'
-import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
+import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, SandboxPrewarmResult, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
@@ -254,6 +262,9 @@ export default {
     const sandboxStatusLoaded = ref(false)
     const loadingSandboxStatus = ref(false)
     const sandboxStatusError = ref('')
+    const prewarmingSandboxPool = ref(false)
+    const sandboxPrewarmResult = ref<SandboxPrewarmResult | null>(null)
+    const sandboxPrewarmError = ref('')
     const maxDevicesPerUser = ref<number | null>(null)
     const maxAccountsPerDevice = ref<number | null>(null)
     const savingDeviceAccessConfig = ref(false)
@@ -454,6 +465,21 @@ export default {
       }
     }
 
+    async function prewarmSandboxPool() {
+      prewarmingSandboxPool.value = true
+      sandboxPrewarmError.value = ''
+      sandboxPrewarmResult.value = null
+      try {
+        sandboxPrewarmResult.value = await prewarmSandboxPoolApi(
+          props.conferenceId as string, auth.state.token as string)
+        await loadSandboxStatus()
+      } catch (e: any) {
+        sandboxPrewarmError.value = e.response?.data?.error?.message || 'No se pudo preparar el pool de sandboxes'
+      } finally {
+        prewarmingSandboxPool.value = false
+      }
+    }
+
     function incidentTypeLabel(type: string): string {
       const labels: Record<string, string> = {
         cpu_abuse: 'Uso excesivo de CPU',
@@ -552,6 +578,7 @@ export default {
              sandboxIncidents, sandboxIncidentsLoaded, loadingSandboxIncidents, sandboxIncidentsError,
              loadSandboxIncidents, incidentTypeLabel,
              sandboxStatus, sandboxStatusLoaded, loadingSandboxStatus, sandboxStatusError, loadSandboxStatus,
+             prewarmingSandboxPool, sandboxPrewarmResult, sandboxPrewarmError, prewarmSandboxPool,
              maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
              deviceAccessConfigSaved, deviceAccessConfigError, saveDeviceAccessConfig,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
@@ -606,6 +633,7 @@ input:focus { outline: none; border-color: #4f46e5; }
 .capacity-alert.critical { background: #fee2e2; color: #991b1b; }
 
 .sandbox-status { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
+.prewarm-control { margin-top: 10px; padding: 10px 12px; border: 1px solid #e0e7ff; border-radius: 8px; background: #f8faff; }
 .sandbox-incidents { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
 .incidents-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
 .incidents-table th { text-align: left; padding: 6px 10px; background: #f9fafb; color: #6b7280; font-weight: 600; }

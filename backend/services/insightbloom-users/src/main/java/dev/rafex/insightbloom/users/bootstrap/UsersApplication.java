@@ -271,6 +271,8 @@ public class UsersApplication {
         final var getSandboxAvailabilityUseCase = new GetSandboxAvailabilityUseCase(conferenceRepo, sandboxRepo);
         final var ensureUnassignedSandboxUseCase = new EnsureUnassignedSandboxUseCase(
                 sandboxRepo, conferenceRepo, sandboxOrchestrator, sandboxTtlSecondsAfterEventExpiry);
+        final var prewarmSandboxPoolUseCase = new PrewarmSandboxPoolUseCase(
+                conferenceRepo, ensureUnassignedSandboxUseCase);
         final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, workspaceDownloadBaseUrl);
         final var downloadWorkspaceZipUseCase = new DownloadWorkspaceZipUseCase(sandboxRepo, sandboxOrchestrator);
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo, sandboxOrchestrator);
@@ -307,7 +309,7 @@ public class UsersApplication {
         final var sandboxHandler = new SandboxHandler(
                 assignSandboxUseCase, getSandboxAvailabilityUseCase, validateTokenUseCase,
                 generateWorkspaceDownloadUrlUseCase, setSandboxConfigUseCase, sandboxOrchestrator,
-                conferenceRepo, eventCapabilityGuard, gatewayBaseUrl);
+                conferenceRepo, eventCapabilityGuard, ensureUnassignedSandboxUseCase, gatewayBaseUrl);
         final var sandboxFilesHandler = new SandboxFilesHandler(
                 validateTokenUseCase, listWorkspaceFilesUseCase, readWorkspaceFileUseCase, writeWorkspaceFileUseCase,
                 getConferenceUseCase);
@@ -331,6 +333,7 @@ public class UsersApplication {
                 getEventWhiteboardUseCase, saveEventWhiteboardUseCase,
                 generateJaasTokenUseCase, generateSeatLayoutUseCase,
                 setSandboxConfigUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
+                prewarmSandboxPoolUseCase,
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
                 setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,
                 sandboxHandler, sandboxFilesHandler);
