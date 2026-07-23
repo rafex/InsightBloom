@@ -43,6 +43,92 @@ export interface SessionInfo {
   expiresAt?: string | null
 }
 
+const SESSION_BRIDGE_REQUEST = 'insightbloom.session.request'
+const SESSION_BRIDGE_RESPONSE = 'insightbloom.session.response'
+
+let resolveSessionBridge: () => void = () => {}
+let sessionBridgeSettled = false
+const sessionBridgeReady = new Promise<void>((resolve) => {
+  resolveSessionBridge = resolve
+})
+
+function settleSessionBridge() {
+  if (sessionBridgeSettled) return
+  sessionBridgeSettled = true
+  resolveSessionBridge()
+}
+
+function randomBridgeNonce(): string {
+  try {
+    return crypto.randomUUID()
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  }
+}
+
+function applySession(session: SessionInfo) {
+  state.token = session.token || null
+  state.role = session.role || null
+  state.userUuid = session.userUuid || null
+  if (session.token) tokenStorage.setItem('ib_token', session.token)
+  else tokenStorage.removeItem('ib_token')
+  if (session.role) localStorage.setItem('ib_role', session.role)
+  else localStorage.removeItem('ib_role')
+  if (session.userUuid) localStorage.setItem('ib_user_uuid', session.userUuid)
+  else localStorage.removeItem('ib_user_uuid')
+  persistExpiresAt(session.expiresAt)
+}
+
+function handleSessionBridgeMessage(event: MessageEvent) {
+  if (typeof window === 'undefined' || event.origin !== window.location.origin) return
+  const message = event.data
+  if (!message || typeof message.type !== 'string') return
+
+  // A newly opened same-origin tab asks its opener for the current session.
+  // The token never travels through the URL or persistent storage.
+  if (message.type === SESSION_BRIDGE_REQUEST && event.source && event.source !== window) {
+    if (!state.token || typeof (event.source as WindowProxy).postMessage !== 'function') return
+    ;(event.source as WindowProxy).postMessage({
+      type: SESSION_BRIDGE_RESPONSE,
+      nonce: message.nonce,
+      session: {
+        token: state.token,
+        role: state.role || '',
+        userUuid: state.userUuid || '',
+        expiresAt: state.expiresAt
+      }
+    }, event.origin)
+    return
+  }
+
+  // Only accept a response from the window that opened this tab.
+  if (message.type === SESSION_BRIDGE_RESPONSE && window.opener && event.source === window.opener) {
+    const session = message.session
+    if (typeof session?.token === 'string' && session.token &&
+        typeof session.role === 'string' && typeof session.userUuid === 'string') {
+      applySession(session)
+    }
+    settleSessionBridge()
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', handleSessionBridgeMessage)
+  if (window.opener && window.opener !== window) {
+    window.opener.postMessage({
+      type: SESSION_BRIDGE_REQUEST,
+      nonce: randomBridgeNonce()
+    }, window.location.origin)
+    // Direct public URLs and blocked/closed openers still fall back to the
+    // normal anonymous preview after a bounded wait.
+    window.setTimeout(settleSessionBridge, 1500)
+  } else {
+    settleSessionBridge()
+  }
+} else {
+  settleSessionBridge()
+}
+
 export function useAuthStore() {
   async function login(username: string, password: string): Promise<{ token: string, role: string, userUuid: string }> {
     // La huella (ThumbmarkJS, ver services/auth/fingerprint.ts) viaja desde el login para que
@@ -76,13 +162,11 @@ export function useAuthStore() {
   }
 
   function setSession({ token, role, userUuid, expiresAt }: SessionInfo) {
-    state.token = token
-    state.role = role
-    state.userUuid = userUuid
-    tokenStorage.setItem('ib_token', token)
-    localStorage.setItem('ib_role', role)
-    localStorage.setItem('ib_user_uuid', userUuid)
-    persistExpiresAt(expiresAt)
+    applySession({ token, role, userUuid, expiresAt })
+  }
+
+  function waitForSessionBridge(): Promise<void> {
+    return sessionBridgeReady
   }
 
   /** Renueva el token actual de forma silenciosa; no lanza si falla (llamada best-effort). */
@@ -132,6 +216,7 @@ export function useAuthStore() {
 
   return {
     state, login, loginAsGuest, logout, setSession, refresh,
+    waitForSessionBridge,
     isAuthenticated, isOrganizer, isModerator, isAdmin
   }
 }

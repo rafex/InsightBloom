@@ -3,7 +3,7 @@ nav.tools-nav(v-if="conferenceId")
   DropdownMenu(v-if="hasCapability('PRESENTATION') || hasCapability('SURVEY')" label="Presentador")
     router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/speaker`") Presentar
     router-link(v-if="hasCapability('SURVEY')" :to="`/dashboard/conferences/${conferenceId}/survey`") Encuesta
-  a.btn-ghost(v-if="hasCapability('PRESENTATION') && friendlyId" :href="`/c/${friendlyId}/presentation`" target="_blank") 📺 Público
+  a.btn-ghost(v-if="hasCapability('PRESENTATION') && friendlyId" :href="`/c/${friendlyId}/presentation`" @click.prevent="openPublic") 📺 Público
   DropdownMenu(v-if="hasCapability('WORD_CLOUD')" label="Moderación")
     router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Mensajes
     router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/words`") Palabras/Nube
@@ -42,6 +42,12 @@ export default {
       return type ? type.capabilities.includes(capability) : true
     }
 
+    function openPublic() {
+      const url = `/c/${friendlyId.value}/presentation`
+      const child = window.open(url, '_blank')
+      if (!child) window.location.assign(url)
+    }
+
     onMounted(async () => {
       if (!props.conferenceId) return
       try {
@@ -55,7 +61,7 @@ export default {
       } catch (e: any) { /* nav degrada a "mostrar todo" si el fetch falla, ver hasCapability */ }
     })
 
-    return { friendlyId, hasCapability }
+    return { friendlyId, hasCapability, openPublic }
   }
 }
 </script>

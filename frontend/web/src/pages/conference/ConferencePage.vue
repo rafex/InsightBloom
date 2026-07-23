@@ -232,6 +232,10 @@ export default {
 
     onMounted(async () => {
       try {
+        // sessionStorage is intentionally tab-scoped. If this page was opened
+        // from the dashboard, wait for the same-origin opener to hand off the
+        // existing session before evaluating ticket/presentation access.
+        await auth.waitForSessionBridge()
         const [conf, tzList, eventTypes] = await Promise.all([
           getConferenceByFriendlyId(friendlyId),
           getTimezones().catch(() => []),

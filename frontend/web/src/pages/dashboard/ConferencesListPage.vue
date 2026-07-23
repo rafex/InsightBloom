@@ -63,7 +63,7 @@
               DropdownMenu(v-if="hasCapability(c, 'PRESENTATION') || hasCapability(c, 'SURVEY')" label="Presentador")
                 router-link(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
                 router-link(v-if="hasCapability(c, 'SURVEY')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
-              a.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :href="`/c/${c.friendlyId}/presentation`" target="_blank") 📺 Público
+              a.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :href="`/c/${c.friendlyId}/presentation`" @click.prevent="openPublic(c)") 📺 Público
               DropdownMenu(v-if="hasCapability(c, 'WORD_CLOUD') || hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE')" label="Moderación")
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/messages`") Mensajes
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Palabras/Nube
@@ -198,6 +198,12 @@ export default {
 
     function confirmDelete(c: ConferenceRow) { deleteTarget.value = c }
 
+    function openPublic(conference: ConferenceRow) {
+      const url = `/c/${conference.friendlyId}/presentation`
+      const child = window.open(url, '_blank')
+      if (!child) window.location.assign(url)
+    }
+
     async function doDelete() {
       const c = deleteTarget.value
       if (!c) return
@@ -214,7 +220,7 @@ export default {
 
     return {
       conferences, loading, deleteTarget, qrTarget, downloadCounts, isAdmin,
-      isExpired, formatRelative, confirmDelete, doDelete, eventTypeName, hasCapability, toggleActive
+      isExpired, formatRelative, confirmDelete, doDelete, eventTypeName, hasCapability, toggleActive, openPublic
     }
   }
 }
