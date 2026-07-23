@@ -276,6 +276,8 @@ public class UsersApplication {
                 sandboxRepo, conferenceRepo, sandboxOrchestrator, sandboxTtlSecondsAfterEventExpiry);
         final var prewarmSandboxPoolUseCase = new PrewarmSandboxPoolUseCase(
                 conferenceRepo, ensureUnassignedSandboxUseCase);
+        final var resetSandboxUseCase = new ResetSandboxUseCase(
+                sandboxRepo, conferenceRepo, sandboxOrchestrator, ensureUnassignedSandboxUseCase);
         final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, workspaceDownloadBaseUrl);
         final var downloadWorkspaceZipUseCase = new DownloadWorkspaceZipUseCase(sandboxRepo, sandboxOrchestrator);
         final var workspacePreviewPublisher =
@@ -346,6 +348,7 @@ public class UsersApplication {
                 generateJaasTokenUseCase, generateSeatLayoutUseCase,
                 setSandboxConfigUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
                 prewarmSandboxPoolUseCase,
+                resetSandboxUseCase,
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
                 setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,
                 sandboxHandler, sandboxFilesHandler);

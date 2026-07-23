@@ -8,10 +8,16 @@
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/edit`") Editor
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/config`") Configuración
 
+  nav.config-tabs(v-if="!loading && !error" aria-label="Secciones de configuración")
+    button.config-tab(type="button" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'") General
+    button.config-tab(type="button" :class="{ active: activeTab === 'tools' }" @click="activeTab = 'tools'") Herramientas
+    button.config-tab(type="button" :class="{ active: activeTab === 'sandbox' }" @click="activeTab = 'sandbox'") IDE y sandboxes
+    button.config-tab(type="button" :class="{ active: activeTab === 'access' }" @click="activeTab = 'access'") Acceso y roles
+
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
   .form(v-else)
-    .form-group(v-if="eventTypes.length")
+    .form-group.general-group(v-if="eventTypes.length" v-show="activeTab === 'general'")
       label Tipo de evento
       select(v-model="eventTypeKey")
         option(v-for="t in eventTypes" :key="t.key" :value="t.key") {{ t.name }}
@@ -22,7 +28,7 @@
       p.success(v-if="eventTypeSaved") Tipo de evento actualizado.
       p.error(v-if="eventTypeError") {{ eventTypeError }}
 
-    .form-group.certificate-engine-group
+    .form-group.certificate-engine-group(v-show="activeTab === 'tools'")
       label Motor de certificado
       select(v-model="certificateEngine")
         option(value="INHOUSE") Inhouse (PDFBox)
@@ -34,7 +40,7 @@
       p.success(v-if="certificateEngineSaved") Motor de certificado actualizado.
       p.error(v-if="certificateEngineError") {{ certificateEngineError }}
 
-    .form-group.canvas-group
+    .form-group.canvas-group(v-show="activeTab === 'tools'")
       label Lienzo del evento
       p.field-hint Selecciona una o varias herramientas y define el modo de cada una. Si no seleccionas ninguna, se mantiene el modo legado del tipo de evento.
       .canvas-tools
@@ -52,7 +58,7 @@
       p.success(v-if="canvasConfigSaved") Configuración del lienzo guardada.
       p.error(v-if="canvasConfigError") {{ canvasConfigError }}
 
-    .form-group.tickets-group
+    .form-group.tickets-group(v-show="activeTab === 'general'")
       label Boletos y aforo
       p.field-hint Elige cómo se registran los asistentes: sin control (solo unirse), con aforo, o con mapa de asientos.
       select(v-model="seatingMode")
@@ -74,7 +80,7 @@
         router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
         router-link.btn-outline(v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
 
-    .form-group.sandbox-group
+    .form-group.sandbox-group(v-show="activeTab === 'sandbox'")
       label IDE de código
       p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE". El ambiente incluye Java, Node.js y Python en el mismo sandbox — no hace falta elegir un lenguaje. Los alumnos eligen ellos mismos entre Web (code-server, un sandbox por alumno) y CLI (terminal con Neovim, se reutiliza entre alumnos) — abajo se configura el tamaño de cada pool por separado.
       .coord-field
@@ -95,8 +101,8 @@
         input(v-model="sandboxRemoteGitUrl" type="text" placeholder="https://github.com/...")
       .coord-field
         span.coord-label Memoria máxima de Java por sandbox (MB, opcional)
-        input(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="256 (por defecto)")
-      p.field-hint Límite de memoria (-Xmx) de las JVMs dentro del sandbox — el Language Server de Java y cualquier programa que corran los asistentes. Por defecto son chicas (256 MB), pensadas para cursos: no toman toda la memoria disponible del sandbox aunque puedan. No puede exceder el límite de memoria del contenedor configurado en la infraestructura; si lo excedés, el servidor rechaza el guardado.
+        input(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="70 (por defecto)")
+      p.field-hint Límite de memoria (-Xmx) de las JVMs dentro del sandbox — el Language Server de Java y cualquier programa que corran los asistentes. Por defecto son chicas (70 MB), pensadas para cursos: no toman toda la memoria disponible del sandbox aunque puedan. No puede exceder el límite de memoria del contenedor configurado en la infraestructura; si lo excedés, el servidor rechaza el guardado.
       button.btn-outline(type="button" @click="saveSandboxConfig" :disabled="savingSandboxConfig")
         span(v-if="savingSandboxConfig") Guardando...
         span(v-else) Guardar configuración del IDE
@@ -131,9 +137,10 @@
               th Fase
               th Listo
               th Asientos
+              th Acciones
           tbody
             tr(v-if="!sandboxStatus.length")
-              td(colspan="5") No hay sandboxes activos.
+              td(colspan="6") No hay sandboxes activos.
             tr(v-for="pod in sandboxStatus" :key="pod.podName")
               td {{ pod.podName }}
               td {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
@@ -143,6 +150,14 @@
                 span.seat-badge(v-for="seat in pod.seats" :key="seat.seatIndex")
                   span.seat-user(v-if="seat.userUuid") {{ seat.userUuid }}
                   span.seat-empty(v-else) (libre)
+              td.sandbox-actions
+                template(v-if="sandboxIsFree(pod)")
+                  button.btn-small(type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName") Eliminar
+                  button.btn-small.btn-recreate(type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
+                    span(v-if="sandboxActionBusy === pod.podName") Procesando...
+                    span(v-else) Recrear
+                span.action-note(v-else) Ocupado
+        p.error(v-if="sandboxActionError") {{ sandboxActionError }}
 
       .sandbox-incidents(v-if="cliEnabled")
         .coord-field
@@ -168,7 +183,7 @@
               td {{ incidentTypeLabel(incident.type) }}
               td {{ incident.detail }}
 
-    .form-group.device-access-group
+    .form-group.device-access-group(v-show="activeTab === 'access'")
       label Acceso por dispositivo
       p.field-hint Controla cuántos dispositivos puede usar a la vez un mismo asistente en Videollamada e IDE, y bloquea automáticamente un dispositivo que se loguea con demasiadas cuentas distintas (podés revisar y desbloquear desde "Bloqueos", en Moderación).
       .coord-field
@@ -183,7 +198,7 @@
       p.success(v-if="deviceAccessConfigSaved") Configuración de acceso por dispositivo guardada.
       p.error(v-if="deviceAccessConfigError") {{ deviceAccessConfigError }}
 
-    .form-group.roles-group(v-if="canManageRoles")
+    .form-group.roles-group(v-if="canManageRoles" v-show="activeTab === 'access'")
       label Roles del evento
       p.field-hint Asigna moderadores, staff de acceso u otros roles a personas solo para este evento.
       .roles-list(v-if="eventRoles.length")
@@ -205,7 +220,8 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import {
   getConference, setSeatingMode, getActiveEventTypes, setEventType,
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
-  listSandboxIncidents, listSandboxStatus, prewarmSandboxPool as prewarmSandboxPoolApi, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
+  listSandboxIncidents, listSandboxStatus, prewarmSandboxPool as prewarmSandboxPoolApi, deleteSandbox as deleteSandboxApi,
+  recreateSandbox as recreateSandboxApi, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
   getCertificateEngine
 } from '@/services/api/usersApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, SandboxPrewarmResult, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
@@ -223,6 +239,7 @@ export default {
     const loading      = ref(true)
     const error        = ref('')
 
+    const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access'>('general')
     const seatingMode  = ref<SeatingMode>('NONE')
     const capacity     = ref<number | null>(null)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
@@ -241,10 +258,10 @@ export default {
     const sandboxExtraPackages = ref('')
     const sandboxRemoteGitUrl = ref('')
     // Heap maximo (-Xmx, en MB) de las JVMs del sandbox -- null = usa el default chico del
-    // backend (256Mi, ver KubernetesPodClient). El backend rechaza (400) valores que excedan el
+    // backend (70Mi, ver KubernetesPodClient). El backend rechaza (400) valores que excedan el
     // limite de memoria del contenedor configurado en el chart de despliegue -- no se valida ese
     // techo exacto aca en el frontend porque depende de infra (values.yaml), no de este repo.
-    const sandboxJvmHeapMb = ref<number | null>(null)
+    const sandboxJvmHeapMb = ref<number | null>(70)
     // Alumnos que comparten un mismo Pod "cli" (usuario Linux propio por alumno dentro del
     // mismo contenedor) -- null = usa el default del backend (4). Solo aplica al pool CLI; el
     // pool Web (code-server) no tiene efecto (no se puede compartir).
@@ -265,6 +282,8 @@ export default {
     const prewarmingSandboxPool = ref(false)
     const sandboxPrewarmResult = ref<SandboxPrewarmResult | null>(null)
     const sandboxPrewarmError = ref('')
+    const sandboxActionBusy = ref<string | null>(null)
+    const sandboxActionError = ref('')
     const maxDevicesPerUser = ref<number | null>(null)
     const maxAccountsPerDevice = ref<number | null>(null)
     const savingDeviceAccessConfig = ref(false)
@@ -312,7 +331,7 @@ export default {
         sandboxCliPoolSize.value = conference.value.sandboxCliPoolSize ?? 1
         sandboxExtraPackages.value = conference.value.sandboxExtraPackages || ''
         sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''
-        sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? null
+        sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? 70
         sandboxSeatsPerPod.value = conference.value.sandboxSeatsPerPod ?? null
         sandboxInternetEnabled.value = conference.value.sandboxInternetEnabled === 1
         maxDevicesPerUser.value = conference.value.maxDevicesPerUser ?? null
@@ -480,6 +499,40 @@ export default {
       }
     }
 
+    function sandboxIsFree(pod: SandboxStatusEntry): boolean {
+      return pod.seats.length === 0 || pod.seats.every((seat) => !seat.userUuid)
+    }
+
+    async function deleteSandbox(pod: SandboxStatusEntry) {
+      if (!sandboxIsFree(pod)) return
+      if (!window.confirm(`¿Eliminar el sandbox ${pod.podName}? Se podrá crear nuevamente después.`)) return
+      sandboxActionBusy.value = pod.podName
+      sandboxActionError.value = ''
+      try {
+        await deleteSandboxApi(props.conferenceId as string, pod.sandboxUuid, auth.state.token as string)
+        await loadSandboxStatus()
+      } catch (e: any) {
+        sandboxActionError.value = e.response?.data?.error?.message || 'No se pudo eliminar el sandbox'
+      } finally {
+        sandboxActionBusy.value = null
+      }
+    }
+
+    async function recreateSandbox(pod: SandboxStatusEntry) {
+      if (!sandboxIsFree(pod)) return
+      if (!window.confirm(`¿Recrear el sandbox ${pod.podName}? Esto aplica la imagen y configuración actuales.`)) return
+      sandboxActionBusy.value = pod.podName
+      sandboxActionError.value = ''
+      try {
+        await recreateSandboxApi(props.conferenceId as string, pod.sandboxUuid, auth.state.token as string)
+        await loadSandboxStatus()
+      } catch (e: any) {
+        sandboxActionError.value = e.response?.data?.error?.message || 'No se pudo recrear el sandbox'
+      } finally {
+        sandboxActionBusy.value = null
+      }
+    }
+
     function incidentTypeLabel(type: string): string {
       const labels: Record<string, string> = {
         cpu_abuse: 'Uso excesivo de CPU',
@@ -568,7 +621,7 @@ export default {
       return mode === 'MODERATOR_ONLY' ? 'MODERATOR_ONLY' : 'INDEPENDENT'
     }
 
-    return { conference, loading, error,
+    return { conference, loading, error, activeTab,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
              sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb,
@@ -579,6 +632,7 @@ export default {
              loadSandboxIncidents, incidentTypeLabel,
              sandboxStatus, sandboxStatusLoaded, loadingSandboxStatus, sandboxStatusError, loadSandboxStatus,
              prewarmingSandboxPool, sandboxPrewarmResult, sandboxPrewarmError, prewarmSandboxPool,
+             sandboxActionBusy, sandboxActionError, sandboxIsFree, deleteSandbox, recreateSandbox,
              maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
              deviceAccessConfigSaved, deviceAccessConfigError, saveDeviceAccessConfig,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
@@ -606,6 +660,10 @@ h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
 }
 .sub-link:hover { border-color: #a5b4fc; color: #4f46e5; }
 .sub-link.router-link-active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+.config-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb; }
+.config-tab { padding: 8px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; color: #4b5563; cursor: pointer; font-size: 0.88rem; font-weight: 600; }
+.config-tab:hover { border-color: #a5b4fc; color: #4f46e5; }
+.config-tab.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
 .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
 label { font-weight: 600; font-size: 0.9rem; color: #374151; }
 input[type="text"], input[type="number"] {
@@ -638,6 +696,11 @@ input:focus { outline: none; border-color: #4f46e5; }
 .incidents-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
 .incidents-table th { text-align: left; padding: 6px 10px; background: #f9fafb; color: #6b7280; font-weight: 600; }
 .incidents-table td { padding: 6px 10px; border-top: 1px solid #f3f4f6; color: #374151; }
+.sandbox-actions { white-space: nowrap; }
+.btn-small { padding: 4px 8px; border: 1px solid #fecaca; border-radius: 6px; background: #fff; color: #b91c1c; cursor: pointer; font-size: 0.75rem; margin-right: 4px; }
+.btn-small:disabled { opacity: 0.55; cursor: wait; }
+.btn-small.btn-recreate { border-color: #c7d2fe; color: #4338ca; }
+.action-note { color: #9ca3af; font-size: 0.75rem; }
 
 .seats-cell { display: flex; flex-wrap: wrap; gap: 6px; }
 .seat-badge { display: inline-flex; }

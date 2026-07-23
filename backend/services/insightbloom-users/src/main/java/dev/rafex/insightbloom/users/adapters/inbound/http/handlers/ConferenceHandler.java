@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
 import dev.rafex.insightbloom.users.application.usecases.EnsureUnassignedSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.PrewarmSandboxPoolUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ResetSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListSandboxIncidentsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListSandboxStatusUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
@@ -132,6 +133,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SetSandboxInternetUseCase setSandboxInternetUseCase;
     private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
     private final PrewarmSandboxPoolUseCase prewarmSandboxPoolUseCase;
+    private final ResetSandboxUseCase resetSandboxUseCase;
     private final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase;
     private final ListSandboxStatusUseCase listSandboxStatusUseCase;
     private final SetDeviceAccessConfigUseCase setDeviceAccessConfigUseCase;
@@ -194,6 +196,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final SetSandboxInternetUseCase setSandboxInternetUseCase,
                              final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
                              final PrewarmSandboxPoolUseCase prewarmSandboxPoolUseCase,
+                             final ResetSandboxUseCase resetSandboxUseCase,
                              final ListSandboxIncidentsUseCase listSandboxIncidentsUseCase,
                              final ListSandboxStatusUseCase listSandboxStatusUseCase,
                              final SetDeviceAccessConfigUseCase setDeviceAccessConfigUseCase,
@@ -248,6 +251,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.setSandboxInternetUseCase = setSandboxInternetUseCase;
         this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
         this.prewarmSandboxPoolUseCase = prewarmSandboxPoolUseCase;
+        this.resetSandboxUseCase = resetSandboxUseCase;
         this.listSandboxIncidentsUseCase = listSandboxIncidentsUseCase;
         this.listSandboxStatusUseCase = listSandboxStatusUseCase;
         this.setDeviceAccessConfigUseCase = setDeviceAccessConfigUseCase;
@@ -293,6 +297,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/sandbox-incidents", Set.of("GET")),
                 Route.of("/{id}/sandbox-status", Set.of("GET")),
                 Route.of("/{id}/sandbox/prewarm", Set.of("POST")),
+                Route.of("/{id}/sandbox/{sandboxUuid}/delete", Set.of("POST")),
+                Route.of("/{id}/sandbox/{sandboxUuid}/recreate", Set.of("POST")),
                 Route.of("/{id}/sandbox", Set.of("GET")),
                 Route.of("/{id}/sandbox/availability", Set.of("GET")),
                 Route.of("/{id}/sandbox/download", Set.of("POST")),
@@ -474,6 +480,12 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/sandbox/prewarm")) {
             return handlePrewarmSandboxPool(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/sandbox/delete")) {
+            return handleResetSandbox(jx, jx.pathParam("id"), jx.pathParam("sandboxUuid"), false);
+        }
+        if (jx.path().endsWith("/sandbox/recreate")) {
+            return handleResetSandbox(jx, jx.pathParam("id"), jx.pathParam("sandboxUuid"), true);
         }
         if (jx.path().endsWith("/unblock")) {
             return handleUnblockDevice(jx, jx.pathParam("id"), jx.pathParam("blockId"));
@@ -1979,6 +1991,35 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendOk(jx, 200, listSandboxStatusUseCase.execute(id));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleResetSandbox(final JettyHttpExchange jx, final String conferenceId,
+                                       final String sandboxUuid, final boolean recreate) {
+        try {
+            if (requireSandboxPrewarmAccess(jx, conferenceId) == null) return true;
+            final var result = recreate
+                ? resetSandboxUseCase.recreate(conferenceId, sandboxUuid)
+                : resetSandboxUseCase.delete(conferenceId, sandboxUuid);
+            sendOk(jx, 200, result);
+        } catch (final IllegalArgumentException e) {
+            final String errorCode = e.getMessage() != null ? e.getMessage() : "invalid_sandbox";
+            final int status = switch (errorCode) {
+                case "sandbox_in_use" -> 409;
+                case "sandbox_not_found", "sandbox_not_in_conference", "conference_not_found" -> 404;
+                default -> 400;
+            };
+            sendError(jx, status, errorCode, switch (errorCode) {
+                case "sandbox_in_use" -> "El sandbox tiene usuarios asignados; libera sus asientos antes de recrearlo";
+                case "sandbox_not_in_conference" -> "El sandbox no pertenece a este evento";
+                case "sandbox_not_found" -> "No se encontró el sandbox";
+                case "conference_not_found" -> "No se encontró el evento";
+                default -> "La operación sobre el sandbox no es válida";
+            });
+        } catch (final Exception e) {
+            LOGGER.log(java.util.logging.Level.WARNING, "reset de sandbox falló para " + conferenceId, e);
+            sendError(jx, 500, "internal_error", "No se pudo restablecer el sandbox");
         }
         return true;
     }

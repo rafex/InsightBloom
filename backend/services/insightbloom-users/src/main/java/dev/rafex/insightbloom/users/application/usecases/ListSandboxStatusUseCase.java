@@ -33,7 +33,8 @@ public class ListSandboxStatusUseCase {
     public record Seat(int seatIndex, String userUuid, Instant assignedAt) {
     }
 
-    public record PodStatus(String podName, String variant, String phase, boolean ready, List<Seat> seats) {
+    public record PodStatus(String sandboxUuid, String podName, String variant, String phase,
+                            boolean ready, List<Seat> seats) {
     }
 
     public List<PodStatus> execute(final String conferenceUuid) {
@@ -62,7 +63,8 @@ public class ListSandboxStatusUseCase {
             // "NotFound" (no confundir con el "Unknown" que puede devolver getPhase para un Pod
             // que si existe pero sin status.phase todavia) -- el Pod no existe en Kubernetes (ej.
             // evicted/borrado a mano), la fila en SQLite sobrevive hasta la proxima purga/reintento.
-            result.add(new PodStatus(podName, variant, phase != null ? phase : "NotFound", ready, seats));
+            result.add(new PodStatus(seatsInPod.get(0).getUuid(), podName, variant,
+                phase != null ? phase : "NotFound", ready, seats));
         }
         return result;
     }

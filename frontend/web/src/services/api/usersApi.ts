@@ -384,6 +384,20 @@ export async function prewarmSandboxPool(
   return res.data.data
 }
 
+export async function deleteSandbox(
+  conferenceId: string, sandboxUuid: string, token: string
+): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/${sandboxUuid}/delete`,
+    {}, authHeader(token))
+}
+
+export async function recreateSandbox(
+  conferenceId: string, sandboxUuid: string, token: string
+): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/${sandboxUuid}/recreate`,
+    {}, authHeader(token))
+}
+
 export async function listWorkspaceFiles(
   conferenceId: string, userUuid: string, path: string, token: string
 ): Promise<WorkspaceFileEntry[]> {

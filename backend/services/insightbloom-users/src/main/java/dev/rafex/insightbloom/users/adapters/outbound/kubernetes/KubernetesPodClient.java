@@ -69,11 +69,12 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     /**
      * Heap por defecto (-Xmx, en MB) cuando la conferencia no configuro uno propio desde el
      * Dashboard -- pedido explicito del usuario: JVMs chicas, pensadas para cursos, no "libres".
-     * 256Mi alcanza para jdt.ls + un programa chico de curso; sigue siendo mucho menor que el
+     * 70Mi es el valor conservador por defecto; el organizador puede aumentarlo desde la
+     * configuración del evento si el lenguaje o el ejercicio lo necesitan. Sigue siendo mucho menor que el
      * limite de memoria del contenedor (ver ContainerResources en UsersApplication), dejando
      * margen real para code-server/extension-host o ttyd+nvim.
      */
-    private static final int DEFAULT_JVM_HEAP_MB = 256;
+    private static final int DEFAULT_JVM_HEAP_MB = 70;
     /**
      * Default de asientos por Pod compartido (modo terminal-nvim) cuando la conferencia no
      * configuro uno propio -- mismo default que AssignSandboxUseCase.DEFAULT_SEATS_PER_POD,

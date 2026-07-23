@@ -356,6 +356,7 @@ export interface SandboxStatusSeat {
 }
 
 export interface SandboxStatusEntry {
+  sandboxUuid: string
   podName: string
   variant: SandboxVariant
   phase: string
