@@ -28,6 +28,15 @@ export INSIGHTBLOOM_TOKEN="TOKEN_DE_SESION"
 insightbloom publish
 ```
 
+El comando requiere una operación. Ejecutar solamente `insightbloom` o
+`insightbloom-publish.py` no publica nada y muestra que falta el argumento
+`command`. `publish` publica y `revoke` revoca una publicación existente.
+También puedes invocar el script directamente:
+
+```bash
+insightbloom-publish.py publish
+```
+
 Para no dejar el token en el historial:
 
 ```bash

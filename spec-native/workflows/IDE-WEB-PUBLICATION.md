@@ -79,6 +79,18 @@ La configuración opcional `insightbloom.json` puede declarar `publish.root` y `
 La guía de uso se copia al iniciar cada sandbox como
 `.insightbloom/IDE-WEB-PUBLICATION.md`.
 
+El CLI exige un subcomando: `publish` para crear la publicación o `revoke` para revocarla.
+Ejecutar `insightbloom-publish.py` sin argumentos solo muestra la ayuda y el error de argumento
+faltante; no es un fallo de la publicación.
+
+```bash
+export INSIGHTBLOOM_CONFERENCE_ID="UUID_DEL_EVENTO"
+export INSIGHTBLOOM_TOKEN="TOKEN_DE_SESION"
+insightbloom publish
+insightbloom publish --root sitio
+insightbloom revoke PUBLICATION_ID
+```
+
 ## Configuración de despliegue
 
 La única configuración funcional vive en

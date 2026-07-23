@@ -26,6 +26,7 @@ import helloJava from '@/assets/ide-help/10-hello-world-java.md?raw'
 import helloPython from '@/assets/ide-help/11-hello-world-python.md?raw'
 import helloJs from '@/assets/ide-help/12-hello-world-javascript-typescript.md?raw'
 import helloBash from '@/assets/ide-help/13-hello-world-bash.md?raw'
+import publishWebPage from '@/assets/ide-help/14-publicar-pagina-web.md?raw'
 
 // Orden fijo a proposito (no alfabetico): lo basico de Neovim primero, despues un "hello world"
 // por lenguaje en el mismo orden en que la imagen del sandbox los instala (ver
@@ -36,7 +37,8 @@ const TOPICS = [
   { id: 'java', title: '☕ Hello World: Java', markdown: helloJava },
   { id: 'python', title: '🐍 Hello World: Python', markdown: helloPython },
   { id: 'js', title: '📜 Hello World: JS/TS', markdown: helloJs },
-  { id: 'bash', title: '💲 Hello World: Bash', markdown: helloBash }
+  { id: 'bash', title: '💲 Hello World: Bash', markdown: helloBash },
+  { id: 'publish-web', title: '🌐 Publicar página web', markdown: publishWebPage }
 ]
 
 export default {

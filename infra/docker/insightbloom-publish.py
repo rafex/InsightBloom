@@ -25,6 +25,33 @@ EXCLUDED_FILES = {
     "vite.config.js", "vite.config.ts", "webpack.config.js", "dockerfile",
 }
 
+CLI_EPILOG = """
+Ejemplos:
+  1) Configurar credenciales y publicar el workspace actual:
+     export INSIGHTBLOOM_CONFERENCE_ID=UUID_DEL_EVENTO
+     export INSIGHTBLOOM_TOKEN=TOKEN_DE_SESION
+     insightbloom publish
+
+  2) Publicar una carpeta concreta:
+     insightbloom publish --root sitio
+
+  3) Evitar que el token quede en el historial del shell:
+     read -rs INSIGHTBLOOM_TOKEN
+     export INSIGHTBLOOM_TOKEN
+     insightbloom publish --conference-id UUID_DEL_EVENTO
+
+  4) Revocar una publicación:
+     insightbloom revoke PUBLICATION_ID
+
+Notas:
+  - La carpeta publicada debe contener index.html.
+  - package.json es opcional y nunca se ejecuta.
+  - La publicación es temporal, estática y se vuelve a auditar en el servidor.
+  - También puedes consultar la ayuda específica con:
+     insightbloom publish --help
+     insightbloom revoke --help
+"""
+
 
 def fail(message: str, code: int = 2) -> None:
     print(f"insightbloom: {message}", file=sys.stderr)
@@ -188,21 +215,44 @@ def revoke(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="insightbloom", description="Publica un sitio estático temporal en InsightBloom")
-    sub = parser.add_subparsers(dest="command", required=True)
-    publish_parser = sub.add_parser("publish", help="publica index.html y sus assets locales")
+    parser = argparse.ArgumentParser(
+        prog="insightbloom",
+        description="Publica un sitio estático temporal en InsightBloom",
+        epilog=CLI_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sub = parser.add_subparsers(dest="command")
+    publish_parser = sub.add_parser(
+        "publish",
+        help="publica index.html y sus assets locales",
+        description="Empaqueta y publica una copia temporal del sitio estático.",
+        epilog=(
+            "Ejemplo: insightbloom publish --root sitio\n"
+            "La carpeta debe contener index.html."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     publish_parser.add_argument("--root", default=".", help="carpeta del sitio o workspace (default: .)")
     publish_parser.add_argument("--token", help="token de sesión; se recomienda INSIGHTBLOOM_TOKEN")
     publish_parser.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin sin dejarlo en el historial")
     publish_parser.add_argument("--conference-id", help="UUID del evento; también INSIGHTBLOOM_CONFERENCE_ID")
     publish_parser.set_defaults(func=publish)
-    revoke_parser = sub.add_parser("revoke", help="revoca una publicación propia")
+    revoke_parser = sub.add_parser(
+        "revoke",
+        help="revoca una publicación propia",
+        description="Revoca una URL temporal usando el publicationId devuelto por publish.",
+        epilog="Ejemplo: insightbloom revoke PUBLICATION_ID",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     revoke_parser.add_argument("publication_id")
     revoke_parser.add_argument("--token", help="token de sesión; se recomienda INSIGHTBLOOM_TOKEN")
     revoke_parser.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin")
     revoke_parser.add_argument("--conference-id", help="UUID del evento; también INSIGHTBLOOM_CONFERENCE_ID")
     revoke_parser.set_defaults(func=revoke)
     args = parser.parse_args()
+    if not args.command:
+        parser.print_help(sys.stderr)
+        fail("falta el subcomando; usa 'insightbloom publish' para publicar o 'insightbloom revoke PUBLICATION_ID' para revocar")
     args.func(args)
 
 
