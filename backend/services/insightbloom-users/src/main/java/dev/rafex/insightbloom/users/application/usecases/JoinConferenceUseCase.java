@@ -9,6 +9,7 @@ import dev.rafex.insightbloom.users.domain.ports.EmailPort;
 import dev.rafex.insightbloom.users.domain.ports.TimezoneRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.domain.model.Permission;
+import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
 
 public class JoinConferenceUseCase {
@@ -56,6 +57,9 @@ public class JoinConferenceUseCase {
     public Conference execute(final String userUuid, final String identifier) {
         final Conference conference = getConferenceUseCase.resolveAny(identifier)
                 .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+        if (conference.getStatus() != ConferenceStatus.ACTIVE) {
+            throw new IllegalStateException("conference_closed");
+        }
         final boolean ticketed = ticketUseCase != null && ticketUseCase.isTicketed(conference);
         final boolean staffOrManager = userRepository.findByUuid(userUuid)
                 .map(User::isExemptFromTickets).orElse(false)

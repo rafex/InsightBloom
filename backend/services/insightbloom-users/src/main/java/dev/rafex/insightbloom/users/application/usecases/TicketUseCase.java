@@ -5,6 +5,7 @@ import dev.rafex.insightbloom.users.domain.model.ConferenceMembership;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Ticket;
 import dev.rafex.insightbloom.users.domain.model.User;
+import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceMembershipRepository;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.EmailPort;
@@ -120,6 +121,9 @@ public class TicketUseCase {
 
     public Ticket claim(final String conferenceUuid, final String qrOrUuid, final String userUuid) {
         final Conference conference = conference(conferenceUuid);
+        if (conference.getStatus() != ConferenceStatus.ACTIVE) {
+            throw new IllegalStateException("conference_closed");
+        }
         expireIfNeeded(conference);
         final String code = normalizeCode(qrOrUuid);
         final Ticket ticket = ticketRepository.findByCode(conferenceUuid, code)
@@ -227,6 +231,7 @@ public class TicketUseCase {
     }
 
     public boolean hasAccess(final Conference conference, final String userUuid) {
+        if (conference.getStatus() != ConferenceStatus.ACTIVE) return false;
         if (!isTicketed(conference)) return true;
         if (conference.getExpiresAt() != null && conference.getExpiresAt().isBefore(Instant.now())) {
             expireIfNeeded(conference);

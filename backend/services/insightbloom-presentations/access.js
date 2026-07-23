@@ -13,6 +13,7 @@ function presentationCookiePath(conferenceId) {
 
 function hasConferenceAccess(body) {
   const data = body?.data || body || {};
+  if (data.eventActive === false || data.eventStatus === 'CLOSED') return false;
   return data.ticketRequired !== true
     || data.hasAccess === true
     || data.presentationAccess === true;

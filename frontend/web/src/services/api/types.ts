@@ -80,6 +80,7 @@ export interface EventType {
 
 export interface Conference {
   uuid: string
+  status?: 'ACTIVE' | 'CLOSED' | string
   createdByUserUuid?: string
   friendlyId: string
   name: string
@@ -151,6 +152,8 @@ export interface DeviceAccessSettings {
 }
 
 export interface ConferenceAccess {
+  eventActive?: boolean
+  eventStatus?: 'ACTIVE' | 'CLOSED' | string
   ticketRequired: boolean
   hasAccess: boolean
   presentationAccess: boolean

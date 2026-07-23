@@ -56,6 +56,7 @@ import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.TicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.domain.model.Conference;
+import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Reservation;
@@ -607,6 +608,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             final Conference event = conference.get();
+            if (rejectIfConferenceClosed(jx, event)) return true;
             if (!eventCapabilityGuard.hasCapability(event, EventCapability.VIDEO_CONFERENCE)) {
                 sendError(jx, 409, "capability_not_available", "El evento no habilita videollamada");
                 return true;
@@ -649,8 +651,14 @@ public class ConferenceHandler extends BaseResourceHandler {
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             final var body = parseBody(jx);
             final String identifier = (String) body.get("identifier");
-            final var conference = joinConferenceUseCase.execute(v.subjectUuid(), identifier);
-            sendOk(jx, 200, conference);
+            final var resolvedConference = getConferenceUseCase.resolveAny(identifier);
+            if (resolvedConference.isEmpty()) {
+                sendError(jx, 404, "conference_not_found", "Esta conferencia ya no se encuentra disponible");
+                return true;
+            }
+            if (rejectIfConferenceClosed(jx, resolvedConference.get())) return true;
+            final var joinedConference = joinConferenceUseCase.execute(v.subjectUuid(), identifier);
+            sendOk(jx, 200, joinedConference);
         } catch (final IllegalStateException e) {
             if ("ticket_required".equals(e.getMessage())) {
                 sendError(jx, 403, "ticket_required", "Necesitas canjear un boleto para acceder a este evento");
@@ -895,6 +903,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
             if (!hasCapability(id, EventCapability.COLLAB_NOTES)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita notas colaborativas");
                 return true;
@@ -914,6 +923,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
             if (!hasCapability(id, EventCapability.COLLAB_NOTES)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita notas");
                 return true;
@@ -977,6 +987,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
             if (!hasCapability(id, EventCapability.DIAGRAMMING)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita diagramas");
                 return true;
@@ -996,6 +1007,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
             if (!hasCapability(id, EventCapability.DIAGRAMMING)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita diagramas");
                 return true;
@@ -1025,6 +1037,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var validation = validateTokenUseCase.execute(token);
             if (!validation.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
             if (!hasCapability(id, EventCapability.DIAGRAMMING)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita diagramas");
                 return true;
@@ -1066,6 +1079,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
             if (!hasCapability(id, EventCapability.WHITEBOARD)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita pizarra");
                 return true;
@@ -1085,6 +1099,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
             if (!hasCapability(id, EventCapability.WHITEBOARD)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita pizarra");
                 return true;
@@ -1114,6 +1129,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var validation = validateTokenUseCase.execute(token);
             if (!validation.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
             if (!hasCapability(id, EventCapability.WHITEBOARD)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita pizarra");
                 return true;
@@ -1156,6 +1172,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
             if (!hasCapability(id, EventCapability.VIDEO_CONFERENCE)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita videollamada");
                 return true;
@@ -1446,23 +1463,46 @@ public class ConferenceHandler extends BaseResourceHandler {
     private boolean handleAccess(final JettyHttpExchange jx, final String id) {
         try {
             final var conference = getConferenceUseCase.byId(id).orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+            final boolean eventActive = conference.getStatus() == ConferenceStatus.ACTIVE;
             final String token = extractToken(jx);
             final var v = token == null ? null : validateTokenUseCase.execute(token);
             // Staff access is role-based and independent of attendee tickets. A revoked or
             // expired attendee ticket must not remove access from event operators.
-            final boolean staffAccess = v != null && v.valid() && hasOperationalStaffAccess(id, v);
-            final boolean hasAccess = v != null && v.valid() && (staffAccess || ticketUseCase.hasAccess(conference, v.subjectUuid()));
-            final boolean presentationAccess = v != null && v.valid() && (hasAccess || staffAccess || eventPermissionGuard.hasPermission(
+            final boolean staffAccess = eventActive && v != null && v.valid() && hasOperationalStaffAccess(id, v);
+            final boolean hasAccess = eventActive && v != null && v.valid() && (staffAccess || ticketUseCase.hasAccess(conference, v.subjectUuid()));
+            final boolean presentationAccess = eventActive && v != null && v.valid() && (hasAccess || staffAccess || eventPermissionGuard.hasPermission(
                     id, v.subjectUuid(), v.role(), Permission.MANAGE_PRESENTATION));
-            sendOk(jx, 200, Map.of("ticketRequired", ticketUseCase.isTicketed(conference), "hasAccess", hasAccess,
+            final List<String> publicAreas = eventActive ? List.of("presentation_preview") : List.of();
+            final List<String> privateAreas = eventActive
+                    ? List.of("event_info", "ticket_claim", "cloud", "presentation_full", "survey", "video", "whiteboard", "diagrams", "notes", "ide")
+                    : List.of();
+            sendOk(jx, 200, Map.of("eventActive", eventActive, "eventStatus", conference.getStatus().name(),
+                    "ticketRequired", ticketUseCase.isTicketed(conference), "hasAccess", hasAccess,
                     "presentationAccess", presentationAccess,
-                    "publicOnly", ticketUseCase.isTicketed(conference) && !hasAccess,
-                    "publicAreas", List.of("presentation_preview"),
-                    "privateAreas", List.of("event_info", "ticket_claim", "cloud", "presentation_full", "survey", "video", "whiteboard", "diagrams", "notes", "ide"),
-                    "previewSlideLimit", 5));
+                    "publicOnly", eventActive && ticketUseCase.isTicketed(conference) && !hasAccess,
+                    "publicAreas", publicAreas,
+                    "privateAreas", privateAreas,
+                    "previewSlideLimit", eventActive ? 5 : 0));
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final Exception e) { sendError(jx, 500, "internal_error", e.getMessage()); }
         return true;
+    }
+
+    private boolean rejectIfConferenceClosed(final JettyHttpExchange jx, final String id) {
+        final var conference = getConferenceUseCase.byId(id);
+        if (conference.isEmpty()) {
+            sendError(jx, 404, "conference_not_found", "Evento no encontrado");
+            return true;
+        }
+        return rejectIfConferenceClosed(jx, conference.get());
+    }
+
+    private boolean rejectIfConferenceClosed(final JettyHttpExchange jx, final Conference conference) {
+        if (conference.getStatus() != ConferenceStatus.ACTIVE) {
+            sendError(jx, 423, "conference_closed", "Este evento está desactivado temporalmente");
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -1501,6 +1541,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private boolean handleClaimTicket(final JettyHttpExchange jx, final String id) {
         final String token = extractToken(jx);
         try {
+            if (rejectIfConferenceClosed(jx, id)) return true;
             final var body = parseBody(jx);
             final String input = body.get("ticket") instanceof String s ? s
                     : body.get("ticketCode") instanceof String s ? s : (String) body.get("qr");

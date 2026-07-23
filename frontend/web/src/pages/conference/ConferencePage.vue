@@ -3,6 +3,9 @@
   AppHeader(v-if="!headerCollapsed")
   .conf-loading(v-if="loading") Cargando conferencia...
   .conf-error(v-else-if="error") {{ error }}
+  .conf-closed(v-else-if="eventClosed")
+    h2 Evento desactivado
+    p Este evento está desactivado temporalmente. El organizador puede reactivarlo desde el dashboard.
   template(v-else-if="conference")
     //- Fullscreen intro map (only when conference has coordinates)
     ConferenceIntroMap(
@@ -91,7 +94,7 @@ import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess, getPresentationManagementAccess } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
@@ -133,12 +136,34 @@ export default {
     const capabilities = ref<Set<string>>(new Set())
     const privateAccess = ref(false)
     const presentationAccess = ref(false)
+    const eventClosed = ref(false)
     const presentationManagementAccess = ref(false)
     const headerCollapsed = ref(TOOL_ROUTE_SUFFIXES.some((s) => route.path.endsWith(s)))
     const auth = useAuthStore()
+    let accessWatchTimer: ReturnType<typeof window.setInterval> | null = null
+
+    async function refreshEventAccess() {
+      if (!conference.value || eventClosed.value) return false
+      try {
+        const access = await getConferenceAccess(conference.value.uuid, auth.state.token)
+        const active = conference.value.status !== 'CLOSED' && access.eventActive !== false && access.eventStatus !== 'CLOSED'
+        if (!active) {
+          eventClosed.value = true
+          privateAccess.value = false
+          presentationAccess.value = false
+          return false
+        }
+        privateAccess.value = !access.ticketRequired || access.hasAccess
+        presentationAccess.value = !access.ticketRequired || access.hasAccess || access.presentationAccess === true
+        return true
+      } catch {
+        return true
+      }
+    }
 
     watch(() => route.path, (newPath) => {
       headerCollapsed.value = TOOL_ROUTE_SUFFIXES.some((s) => newPath.endsWith(s))
+      void refreshEventAccess()
     })
 
     function hasCapability(capability: EventCapability): boolean {
@@ -244,6 +269,11 @@ export default {
         ])
         conference.value = conf
         const access = await getConferenceAccess(conf.uuid, auth.state.token)
+        const active = conf.status !== 'CLOSED' && access.eventActive !== false && access.eventStatus !== 'CLOSED'
+        if (!active) {
+          eventClosed.value = true
+          return
+        }
         privateAccess.value = !access.ticketRequired || access.hasAccess
         presentationAccess.value = !access.ticketRequired || access.hasAccess || access.presentationAccess === true
         if (auth.state.token && auth.state.role !== 'guest') {
@@ -265,16 +295,26 @@ export default {
       // boleto automático (GENERAL/NONE, ver JoinConferenceUseCase) — "Mi boleto" quedaba
       // efectivamente inalcanzable para ese flujo. Best-effort: nunca bloquea el render ni
       // muestra error si falla (ej. conferencia ya vencida).
-      if (conference.value && auth.isAuthenticated() && auth.state.role !== 'guest') {
+      if (conference.value && !eventClosed.value && auth.isAuthenticated() && auth.state.role !== 'guest') {
         joinConference(friendlyId, auth.state.token as string).catch(() => {})
       }
+      if (conference.value && !eventClosed.value) {
+        // This is an event-lifecycle watchdog, not presentation synchronization. It removes
+        // an already-open public event page shortly after the organizer deactivates the event;
+        // each backend tool endpoint remains authoritative and rejects direct requests too.
+        accessWatchTimer = window.setInterval(() => { void refreshEventAccess() }, 10000)
+      }
+    })
+
+    onBeforeUnmount(() => {
+      if (accessWatchTimer != null) window.clearInterval(accessWatchTimer)
     })
 
     return {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
-      privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed
+      privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed
     }
   }
 }
@@ -363,7 +403,8 @@ h1 { margin: 0; color: #1e1b4b; }
   background: #f9fafb;
   border-color: #e5e7eb;
 }
-.conf-loading, .conf-error { padding: 40px; text-align: center; color: #6b7280; }
+.conf-loading, .conf-error, .conf-closed { padding: 40px; text-align: center; color: #6b7280; }
+.conf-closed h2 { color: #1e1b4b; margin-bottom: 8px; }
 
 .anon-banner {
   margin: 16px 24px 0;
