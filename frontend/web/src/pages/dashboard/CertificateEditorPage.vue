@@ -131,7 +131,7 @@ export default {
       selectedIndex.value = document.blocks.length - 1; saved.value = false
     }
     function addShapeBlock() {
-      document.blocks.push({ type: 'shape', x: 50, y: 50, width: 956, height: 716, style: { border: '2px solid #4f46e5', borderRadius: 18 } })
+      document.blocks.push({ type: 'shape', x: 18, y: 18, width: 1020, height: 780, style: { border: '2px solid #4f46e5', borderRadius: 18 } })
       selectedIndex.value = document.blocks.length - 1; saved.value = false
     }
     function removeSelected() { if (selectedIndex.value >= 0) document.blocks.splice(selectedIndex.value, 1); selectedIndex.value = Math.max(0, selectedIndex.value - 1); saved.value = false }

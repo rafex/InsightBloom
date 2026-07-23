@@ -49,6 +49,58 @@ del pool configurado, sin esperar a que llegue el primer alumno:
 **Validación:** pruebas de pre-warm, reposición Web/CLI, asignación y carreras de
 concurrencia; build de backend y frontend completados correctamente.
 
+### Mejora CLI: autocompletado semántico JavaScript/Node.js (2026-07-23)
+
+El modo `terminal-nvim` incorpora `nvim-lspconfig` y
+`typescript-language-server`, además de `nvim-cmp`/`cmp-nvim-lsp` ya existentes. La
+configuración cubre JavaScript, JSX, TypeScript, TSX y JSON/JSONC (`package.json`,
+`jsconfig.json`, `tsconfig.json`) y detecta la raíz por configuración de proyecto o
+`.git`. La imagen precarga también `@types/node`; el script
+`infra/docker/seed-node-types.sh` publica esos tipos en cada workspace efímero sin
+Internet, incluyendo los tipos de `fs`, `http`, `process` y `Buffer`.
+
+**Criterio de cierre:** el Language Server se inicia desde Neovim sin Mason ni
+descargas en runtime; los tipos de Node se resuelven en un Pod de un asiento y en
+un Pod multi-asiento.
+
+### Mejora LSP: contrato común de lenguajes (2026-07-23)
+
+Las dos imágenes del IDE deben entregar estos servidores sin descargas durante la sesión:
+
+| Lenguaje | LSP |
+|---|---|
+| Java | `jdtls` |
+| Python | `pyright-langserver` |
+| JS/TS | `typescript-language-server` |
+| HTML | `vscode-html-language-server` |
+| CSS | `vscode-css-language-server` |
+
+En Web IDE se usan los servicios/extension hosts de code-server (Java/Pyright y los servicios
+integrados de VS Code para JS/TS/HTML/CSS), y los binarios quedan disponibles en la terminal para
+diagnóstico y tareas automatizadas. En CLI se configuran mediante `nvim-lspconfig`, con
+`nvim-cmp`, `cmp-nvim-lsp`, `LuaSnip`, `nvim-tree` y los parsers Tree-sitter precargados.
+
+**Criterio de cierre:** abrir un archivo de cada tipo en Web IDE y CLI inicia el servidor
+correspondiente, ofrece diagnósticos/completado y no intenta instalar plugins o servidores en
+runtime.
+
+### Egress GitHub-only (implementado; falta validación en cluster)
+
+El default sigue siendo deny-all. Una `NetworkPolicy` Kubernetes no filtra FQDN; por tanto no se
+debe permitir GitHub mediante rangos IP hardcodeados. La excepción será una opción separada por
+evento que solo permite llegar a un proxy interno de egress. El proxy permite únicamente los
+hosts de `EGRESS_PROXY_ALLOWED_HOSTS`, bloquea primero `EGRESS_PROXY_BLOCKED_HOSTS`, rechaza
+destinos privados/reservados y limita puertos a HTTP/HTTPS. El sandbox no tiene salida directa
+a Internet.
+
+La configuración declarativa está en `InsightBloom-gitops/infrastructure/config/app-config.yaml`;
+`app-config-cm.yaml` es la salida operativa autogenerada. El workflow publica la imagen
+`ghcr.io/rafex/insightbloom-egress-proxy` con SBOM y provenance.
+
+**Criterio de cierre:** el código y los manifiestos ya están implementados; falta validar en
+cluster que `git clone` HTTPS de un repositorio permitido funciona, que dominios ajenos fallan
+y que los servicios internos siguen bloqueados.
+
 ## Fase 0 — Capacidad `CODE_IDE` + modelo de datos del taller
 
 ### TASK-0001: Agregar `CODE_IDE` al catálogo de capacidades
@@ -297,14 +349,15 @@ visualmente.
 
 ### TASK-0050: `NetworkPolicy` por evento (deny-all + allowlist condicional)
 
-**Estado:** todo
+**Estado:** in_progress
 **Owner:** —
 **Dependencias:** TASK-0012
 **Archivos esperados:**
-`infra/helm/charts/insightbloom/templates/sandbox-networkpolicy.yaml`
+`infrastructure/charts/insightbloom/templates/sandbox-networkpolicy.yaml`,
+`KubernetesPodClient.java`
 (deny-all ingress/egress por defecto dentro de `insightbloom-sandboxes`;
-egress a un proxy con allowlist de dominios — PyPI, npm registry, Maven
-Central, GitHub — solo cuando `sandbox_internet_enabled = 1` para ese
+egress a un proxy con allowlist de dominios — inicialmente los hosts
+necesarios de GitHub — solo cuando `sandbox_internet_enabled = 1` para ese
 evento).
 **Criterio de cierre:** Scenario 6 de la SPEC: ningún sandbox alcanza
 Services internos de InsightBloom bajo ninguna configuración.
@@ -314,15 +367,15 @@ siempre).
 
 ### TASK-0051: Proxy de egress con allowlist
 
-**Estado:** todo
+**Estado:** in_progress
 **Owner:** —
 **Dependencias:** TASK-0050
-**Archivos esperados:** a definir en implementación (opción simple:
-`squid` o `tinyproxy` con ACL de dominios, como Deployment propio en
-`insightbloom-sandboxes`, sin persistencia ni estado sensible).
+**Archivos implementados:** `infra/egress-proxy/`,
+`.github/workflows/publish-egress-proxy.yml`, y los manifiestos
+`egress-proxy-*.yaml` del chart GitOps; sin persistencia ni estado sensible.
 **Criterio de cierre:** con `internet_enabled = true`, un sandbox puede
-`pip install`/`npm install`/`git clone` desde los dominios permitidos y
-falla contra cualquier otro destino.
+`git clone` HTTPS desde los hosts permitidos de GitHub y falla contra
+cualquier otro destino.
 **Validación:** prueba manual con destinos permitidos y no permitidos.
 
 ### TASK-0052: Verificación final de seguridad + commit

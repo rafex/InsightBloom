@@ -1106,6 +1106,29 @@ Registrar una decision cuando cambie:
   a un alumno de poder conectarse al puerto de debug de otro si lo intenta a
   proposito (mismo nivel de confianza que ya existe entre asientos de un Pod
   compartido, no una regresion nueva).
+- **Autocompletado semántico JavaScript/Node.js (2026-07-23):** el modo
+  `terminal-nvim` usa `nvim-lspconfig` 2.3.0 (la última línea compatible con
+  Neovim 0.10 de Alpine 3.21), `typescript-language-server`, `nvim-cmp` y
+  `cmp-nvim-lsp`. El LSP se activa para JavaScript, JSX, TypeScript, TSX y
+  JSON/JSONC, con raíz por `package.json`, `jsconfig.json`, `tsconfig.json` o
+  `.git`. `@types/node` se instala durante el build en una ruta compartida
+  inmutable; `seed-node-types.sh` la enlaza dentro de cada workspace efímero,
+  incluido el flujo multi-asiento. No se usa Mason, Lazy ni instalación de
+  paquetes en runtime: `fs`, `http`, `process`, `Buffer` y los demás tipos de
+  Node están disponibles sin Internet.
+- **Contrato LSP común para IDE Web y CLI (2026-07-23):** ambas imágenes
+  precargan Java con `jdtls`, Python con `pyright-langserver`, JS/TS con
+  `typescript-language-server`, HTML con `vscode-html-language-server` y CSS
+  con `vscode-css-language-server`. code-server usa sus servicios integrados
+  y extensiones oficiales; Neovim los inicia mediante `nvim-lspconfig` y
+  `nvim-cmp`. Ningún servidor o plugin se descarga durante la sesión.
+- **Egress GitHub-only (2026-07-23):** no se implementará una excepción por
+  IP hardcodeada en `NetworkPolicy`; GitHub usa rangos y hosts de descarga que
+  cambian. La salida controlada usa un proxy interno con allowlist FQDN, una
+  lista negra con precedencia, una opción por evento y default-deny directo
+  desde el sandbox. La configuración declarativa vive en GitOps
+  (`app-config.yaml`) y su ConfigMap es una salida autogenerada. La validación
+  pendiente es probar el flujo completo en el cluster.
 - Consecuencias:
   - `SandboxOrchestrator` gano `provisionSeat` y `createSandbox` sumo dos parametros
     (`jvmHeapMb`, `seatsPerPod`) a lo largo de esta sesion -- toda implementacion/mock

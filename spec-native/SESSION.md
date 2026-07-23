@@ -9,9 +9,9 @@ Estado activo de trabajo para continuidad multi-agente.
 - **Iniciativa activa**: `code-ide-sandbox-prewarm`
 - **Branch**: `main`
 - **Último agente**: Codex
-- **Última acción**: implementado el pre-warm idempotente del pool Web/CLI de
-  IDE, su endpoint protegido, la acción del dashboard y la reposición automática
-  de capacidad después de una asignación.
+- **Última acción**: completado el contrato LSP de Web IDE y CLI para Java,
+  Python, JS/TS, HTML y CSS; se añadieron servidores npm precargados, la
+  configuración Neovim y la siembra offline de tipos Node también en code-server.
 
 ---
 
@@ -38,6 +38,12 @@ La iniciativa actual acelera la entrada al IDE: el organizador o el staff
 operativo puede preparar el pool antes del evento. Kubernetes sigue arrancando
 los Pods de forma asíncrona y la asignación por alumno mantiene el aislamiento y
 los límites de capacidad existentes.
+
+El modo `terminal-nvim` ahora tiene soporte LSP para Java, Python, HTML, CSS,
+`.js`, `.jsx`, `.ts`, `.tsx`, `package.json`, `jsconfig.json` y `tsconfig.json`.
+Los tipos de Node se mantienen en la imagen y se enlazan dentro del workspace
+efímero, por lo que ambos IDE no dependen de Internet para autocompletar `fs`,
+`http`, `process`, `Buffer` y APIs relacionadas.
 
 ## Próximos pasos
 

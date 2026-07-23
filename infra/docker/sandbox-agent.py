@@ -59,6 +59,7 @@ import urllib.request
 
 WORKSPACE_ROOT = "/home"
 NVIM_CONFIG_SOURCE = "/etc/insightbloom/nvim-init.lua"
+NODE_TYPES_SEEDER = "/usr/local/bin/seed-node-types.sh"
 SEAT_UID_BASE = 2000
 # ulimit -u por asiento (defensa dura contra fork-bombs, ver Fase C): un fork-bomb pega contra
 # esto de inmediato (EAGAIN), sin depender de que el watchdog lo note a tiempo.
@@ -141,6 +142,13 @@ def _ensure_seat_account(index: int, user_uuid: str):
         with open(NVIM_CONFIG_SOURCE, "r", encoding="utf-8") as src, open(nvim_init, "w", encoding="utf-8") as dst:
             dst.write(src.read())
     subprocess.run(["chown", "-R", f"{uid}:{uid}", home], check=False)
+    # El workspace es un volumen por asiento y no contiene los archivos creados
+    # durante el build. Publicar los tipos precargados mediante enlaces mantiene
+    # el autocompletado de Node.js/TypeScript sin instalar nada en runtime. Se
+    # siembra despues del chown para no arriesgar que un chown recursivo siga un
+    # enlace hacia la copia compartida de la imagen.
+    subprocess.run([NODE_TYPES_SEEDER, workspace], check=True)
+    subprocess.run(["chown", f"{uid}:{uid}", f"{workspace}/node_modules"], check=False)
     return uid, home
 
 

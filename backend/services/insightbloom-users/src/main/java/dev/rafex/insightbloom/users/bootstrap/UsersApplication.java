@@ -263,7 +263,10 @@ public class UsersApplication {
                 // multi-asiento -- solo insightbloom-users puede llamarlo (ver
                 // KubernetesPodClient.ensureIngressPolicy, segunda regla de Ingress).
                 System.getenv().getOrDefault("SANDBOX_USERS_POD_COMPONENT_LABEL", "users"),
-                sandboxIncidentReportKey);
+                sandboxIncidentReportKey,
+                System.getenv().getOrDefault("SANDBOX_EGRESS_PROXY_HOST",
+                        "insightbloom-egress-proxy.insightbloom.svc.cluster.local"),
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_EGRESS_PROXY_PORT", "3128")));
         final long sandboxTtlSecondsAfterEventExpiry =
                 Long.parseLong(System.getenv().getOrDefault("SANDBOX_TTL_SECONDS_AFTER_EVENT_EXPIRY", "3600"));
         final var assignSandboxUseCase = new AssignSandboxUseCase(

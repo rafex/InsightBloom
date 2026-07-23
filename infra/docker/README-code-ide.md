@@ -13,9 +13,11 @@ que ahora selecciona directamente la imagen:
 
 - **`code-server`** (default, valor vacío o cualquier valor historico `python`/`java`/`web`):
   `Dockerfile.code-ide-debian` — VS Code completo en el navegador, con extensiones de
-  Java/Python/JavaScript e idioma español.
+  Java/Python/JavaScript/HTML/CSS e idioma español.
 - **`terminal-nvim`**: `Dockerfile.code-ide-neovim` — Neovim configurado como IDE (explorador de
-  archivos, autocompletado, LSP de Java via `jdtls`, syntax highlighting), servido por `ttyd`
+  archivos, autocompletado semántico de JavaScript/TypeScript/Python/HTML/CSS y Java, LSP de
+  JavaScript/TypeScript via `typescript-language-server`, Python via `pyright-langserver`, HTML
+  via `vscode-html-language-server`, CSS via `vscode-css-language-server` y Java via `jdtls`, servido por `ttyd`
   (terminal web sobre WebSocket). Mas liviano en RAM/CPU y en tiempo de arranque en el navegador
   (sin el JS de VS Code Web que descargar). Ver `nvim-init.lua` para la config completa.
 
@@ -41,8 +43,35 @@ Ademas del toolchain de lenguajes, ambas imagenes incluyen: `git`, `fzf`, `bash-
 `httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `less`+`man`, y
 `opencode` (CLI de agente de codigo IA). Paquetes globales de Python (`jupyter`, `numpy`,
 `pandas`, `matplotlib`, `flask`, `django`, `fastapi`, `pytest`, `black`, `pylint`, `debugpy`) y
-de Node (`typescript`, `eslint`, `prettier`, `vite`, `webpack`, `@vue/cli`, `create-react-app`)
+de Node (`typescript`, `typescript-language-server`, `eslint`, `prettier`, `@types/node`, `vite`, `webpack`, `@vue/cli`, `create-react-app`)
 tambien pre-instalados — nada requiere setup manual del instructor/alumno.
+
+### LSP y autocompletado semántico en ambos IDE
+
+Los dos modos incluyen el mismo contrato de servidores, aunque cada editor los integra de forma
+distinta:
+
+| Lenguaje | Servidor precargado | Web IDE (code-server) | CLI IDE (Neovim) |
+|---|---|---|---|
+| Java | `jdtls` | `redhat.java` incorpora el language server | `jdtls` del paquete Alpine + `nvim-jdtls` |
+| Python | `pyright-langserver` | extensión `ms-pyright.pyright` | `pyright-langserver` vía `nvim-lspconfig` |
+| JS/TS | `typescript-language-server` | servicio TypeScript integrado de VS Code | `typescript-language-server` vía `nvim-lspconfig` |
+| HTML | `vscode-html-language-server` | servicio HTML integrado + HTML/CSS extension | `vscode-html-language-server` vía `nvim-lspconfig` |
+| CSS | `vscode-css-language-server` | servicio CSS integrado + HTML/CSS extension | `vscode-css-language-server` vía `nvim-lspconfig` |
+
+El CLI añade `nvim-cmp`, `cmp-nvim-lsp`, `LuaSnip`, `nvim-tree` y `nvim-lspconfig` 2.3.0
+(compatible con Neovim 0.10). La configuración se activa para `.js`, `.jsx`, `.ts`, `.tsx`,
+`package.json`, `jsconfig.json` y `tsconfig.json`; detecta la raíz mediante esos archivos o
+`.git`. Los tipos incluyen módulos de Node como `fs`, `http`, `process` y `Buffer`.
+
+Los binarios npm también están presentes en el Web IDE para que las tareas de terminal, scripts
+de CI locales y diagnósticos manuales usen las mismas versiones: `pyright`,
+`typescript-language-server` y `vscode-langservers-extracted`.
+
+Como `/home/*/workspace` es un volumen efímero, la imagen guarda una copia inmutable de los
+tipos en `/usr/local/share/insightbloom-node-types`. `seed-node-types.sh` crea enlaces dentro
+del workspace al arrancar el asiento, tanto en el modo de un solo usuario como en el agente
+multi-asiento. El script no ejecuta `npm install`, no usa Mason/Lazy y no requiere Internet.
 
 ## Estructura de las imagenes
 
@@ -105,10 +134,38 @@ codigo arbitrario alcanzable por cualquier otro sandbox del namespace.
 - `NetworkPolicy` de Ingress restringe el trafico ENTRANTE a cada sandbox al Pod del gateway
   unicamente (namespace + label) — bloquea acceso Pod-a-Pod entre sandboxes de distintos
   alumnos (ver DEC-0023, auditoria de seguridad 2026-07-17).
-- `NetworkPolicy` de egress niega salida por defecto para el Pod completo (TASK-0050), se
-  reabre explicitamente por conferencia si `internetEnabled=true`.
+- `NetworkPolicy` de egress niega salida por defecto para el Pod completo (TASK-0050). Una
+  `NetworkPolicy` estándar no puede expresar una allowlist por dominio. Cuando el organizador
+  habilita la salida controlada, el Pod solo llega a `insightbloom-egress-proxy`; la proxy
+  aplica `EGRESS_PROXY_ALLOWED_HOSTS` y `EGRESS_PROXY_BLOCKED_HOSTS`, con la lista negra
+  teniendo precedencia. No se abre una ruta directa desde el sandbox a Internet.
 - SQLite funciona localmente sin red (seguro por diseño).
 - Git remote requiere credenciales explícitas del alumno o token del profesor.
+
+### Excepción de red únicamente para GitHub
+
+Sí es posible permitir que un sandbox descargue repositorios de GitHub manteniendo Internet
+bloqueado para todo lo demás, pero no como una sola regla de `NetworkPolicy` por hostname. El
+diseño recomendado es:
+
+1. El organizador activa la salida controlada para el evento.
+2. El sandbox recibe `HTTP_PROXY`/`HTTPS_PROXY` y solo puede conectar al proxy interno.
+3. El proxy permite únicamente los hosts declarados en `EGRESS_PROXY_ALLOWED_HOSTS` (`github.com`,
+   `api.github.com`, `codeload.github.com`, `raw.githubusercontent.com`,
+   `objects.githubusercontent.com` y los hosts de assets que el flujo requiera).
+4. El proxy rechaza otros dominios, registra evento/usuario/repositorio y limita tamaño,
+   método y redirecciones.
+5. La `NetworkPolicy` mantiene bloqueado el acceso directo desde el sandbox a Internet y a los
+  servicios internos.
+
+La configuración vive en GitOps: `infrastructure/config/app-config.yaml` es la fuente
+declarativa; `app-config-cm.yaml` es la salida operativa autogenerada. `blocked_hosts` se
+evalúa antes de `allowed_hosts` y los destinos privados/reservados se rechazan aunque se
+introduzcan accidentalmente en la lista blanca.
+
+Permitir los rangos publicados por GitHub directamente sería solo una mitigación temporal: no
+cubre de forma estable todos los redirects/CDN, permite más servicios de GitHub de los
+necesarios y requiere actualización operativa.
 
 ## Base de datos SQLite
 

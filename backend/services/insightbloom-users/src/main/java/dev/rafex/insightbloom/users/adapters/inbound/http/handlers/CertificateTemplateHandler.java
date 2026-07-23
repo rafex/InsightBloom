@@ -82,7 +82,7 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
                 return true;
             }
             final var current = templateRepository.findByConferenceUuid(conferenceUuid);
-            final var view = current.map(CertificateTemplateHandler::templateView)
+            final var view = current.map(t -> templateView(upgradedTemplate(t)))
                     .orElseGet(() -> templateView(new CertificateTemplate(conferenceUuid,
                             CertificateTemplateCatalog.defaultEntry().key(),
                             CertificateTemplateCatalog.defaultEntry().name(),
@@ -346,6 +346,16 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
     private static Map<String, Object> entryView(final CertificateTemplateCatalog.Entry e) {
         return Map.of("key", e.key(), "name", e.name(), "description", e.description(), "engine", e.engine(), "documentJson", e.documentJson());
     }
+
+    private static CertificateTemplate upgradedTemplate(final CertificateTemplate template) {
+        final String documentJson = CertificateTemplateCatalog.upgradeLegacyLayout(
+                template.getTemplateKey(), template.getDocumentJson());
+        if (documentJson.equals(template.getDocumentJson())) return template;
+        return new CertificateTemplate(template.getConferenceUuid(), template.getTemplateKey(),
+                template.getTemplateName(), template.getEngine(), documentJson, template.getVersion(),
+                template.getUpdatedByUserUuid(), template.getUpdatedAt());
+    }
+
     private static Map<String, Object> templateView(final CertificateTemplate t) {
         final Map<String, Object> view = new LinkedHashMap<>();
         view.put("conferenceUuid", t.getConferenceUuid()); view.put("templateKey", t.getTemplateKey());

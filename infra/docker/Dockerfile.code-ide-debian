@@ -169,6 +169,9 @@ RUN npm install -g npm@latest && \
     webpack-cli \
     prettier \
     eslint \
+    typescript-language-server@5.3.0 \
+    pyright@1.1.411 \
+    vscode-langservers-extracted@4.10.0 \
     @typescript-eslint/parser \
     @typescript-eslint/eslint-plugin
 
@@ -247,6 +250,7 @@ COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
 COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
 COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
 COPY infra/docker/runtime-fzf.sh /etc/profile.d/insightbloom-fzf.sh
+COPY infra/docker/seed-node-types.sh /usr/local/bin/seed-node-types.sh
 USER coder
 
 RUN mkdir -p /home/coder/.local/share/code-server/User /home/coder/workspace /home/coder/db /home/coder/.m2
@@ -262,7 +266,10 @@ COPY infra/docker/code-ide-launch.json /etc/insightbloom/code-ide-launch.json
 COPY infra/docker/code-ide-entrypoint.sh /usr/local/bin/code-ide-entrypoint.sh
 COPY infra/docker/sandbox-file-agent.py /usr/local/bin/sandbox-file-agent.py
 COPY infra/docker/sandbox_file_api.py /usr/local/bin/sandbox_file_api.py
-RUN chmod +x /usr/local/bin/code-ide-entrypoint.sh /usr/local/bin/sandbox-file-agent.py
+RUN mkdir -p /usr/local/share/insightbloom-node-types && \
+    npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \
+    chmod -R a+rX /usr/local/share/insightbloom-node-types && \
+    chmod +x /usr/local/bin/code-ide-entrypoint.sh /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-file-agent.py
 USER coder
 
 # code-server escucha por defecto en puerto 8080 (sin seguridad propia -- se usa ib_token del gateway)

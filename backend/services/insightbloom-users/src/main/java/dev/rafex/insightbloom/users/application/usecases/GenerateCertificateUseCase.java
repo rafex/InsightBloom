@@ -108,7 +108,7 @@ public class GenerateCertificateUseCase {
                     ? CertificateTemplateCatalog.defaultEntry().documentJson()
                     : certificateTemplateRepository.findByConferenceUuid(conference.getUuid())
                     .filter(t -> "HTML_CHROME".equals(t.getEngine()))
-                    .map(t -> t.getDocumentJson())
+                    .map(t -> CertificateTemplateCatalog.upgradeLegacyLayout(t.getTemplateKey(), t.getDocumentJson()))
                     .orElse(CertificateTemplateCatalog.defaultEntry().documentJson());
             return certificateRenderer.render(documentJson, certificateData(conference, user, attendeeName));
         }

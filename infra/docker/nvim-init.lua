@@ -20,8 +20,14 @@ vim.g.mapleader = " "
 -- tree-sitter-python, etc, ver Dockerfile) -- usa el tree-sitter nativo de Neovim 0.10
 -- (vim.treesitter), sin el plugin nvim-treesitter (que requiere red/compilador en runtime
 -- para instalar parsers via :TSInstall).
-local ts_langs = { "java", "python", "javascript", "typescript", "json", "html", "css", "bash" }
-for _, lang in ipairs(ts_langs) do
+local ts_parser_by_filetype = {
+  javascriptreact = "javascript",
+  typescriptreact = "typescript",
+  jsonc = "json",
+}
+local ts_langs = { "java", "python", "javascript", "javascriptreact", "typescript", "typescriptreact", "json", "jsonc", "html", "css", "bash" }
+local ts_parsers = { "java", "python", "javascript", "typescript", "json", "html", "css", "bash" }
+for _, lang in ipairs(ts_parsers) do
   local parser_path = "/usr/lib/tree-sitter/" .. lang .. ".so"
   if vim.uv.fs_stat(parser_path) then
     pcall(vim.treesitter.language.add, lang, { path = parser_path })
@@ -31,7 +37,7 @@ vim.opt.runtimepath:append("/usr/share/tree-sitter")
 vim.api.nvim_create_autocmd("FileType", {
   pattern = ts_langs,
   callback = function(args)
-    pcall(vim.treesitter.start, args.buf)
+    pcall(vim.treesitter.start, args.buf, ts_parser_by_filetype[vim.bo[args.buf].filetype] or vim.bo[args.buf].filetype)
   end,
 })
 
@@ -57,6 +63,63 @@ cmp.setup({
   },
 })
 local lsp_capabilities = require("cmp_nvim_lsp").default_capabilities()
+
+-- LSP de JavaScript/TypeScript (typescript-language-server, precargado en la imagen).
+-- Se habilita tambien para JSON/JSONC para que package.json, jsconfig.json y
+-- tsconfig.json tengan diagnosticos y asistencia contextual. El root se detecta
+-- por proyecto y single_file_support mantiene util el servidor en archivos sueltos.
+local lspconfig_ok, lspconfig = pcall(require, "lspconfig")
+if lspconfig_ok then
+  local ts_server = lspconfig.ts_ls or lspconfig.tsserver
+  if ts_server then
+    ts_server.setup({
+      cmd = { "typescript-language-server", "--stdio" },
+      capabilities = lsp_capabilities,
+      filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact", "json", "jsonc" },
+      root_dir = lspconfig.util.root_pattern("package.json", "jsconfig.json", "tsconfig.json", ".git"),
+      single_file_support = true,
+      init_options = { hostInfo = "neovim" },
+      settings = {
+        javascript = { inlayHints = { includeInlayParameterNameHints = "all", includeInlayVariableTypeHints = true } },
+        typescript = { inlayHints = { includeInlayParameterNameHints = "all", includeInlayVariableTypeHints = true } },
+      },
+    })
+  end
+
+  -- Python: Pyright viene precargado en la imagen; no depende de Mason ni de Internet.
+  if lspconfig.pyright then
+    lspconfig.pyright.setup({
+      cmd = { "pyright-langserver", "--stdio" },
+      capabilities = lsp_capabilities,
+      filetypes = { "python" },
+      root_dir = lspconfig.util.root_pattern("pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", ".git"),
+      single_file_support = true,
+    })
+  end
+
+  -- HTML/CSS: vscode-langservers-extracted aporta los servidores oficiales extraídos de VS Code.
+  if lspconfig.html then
+    lspconfig.html.setup({
+      cmd = { "vscode-html-language-server", "--stdio" },
+      capabilities = lsp_capabilities,
+      filetypes = { "html" },
+      root_dir = lspconfig.util.root_pattern("package.json", ".git"),
+      single_file_support = true,
+      init_options = { provideFormatter = true },
+    })
+  end
+
+  if lspconfig.cssls then
+    lspconfig.cssls.setup({
+      cmd = { "vscode-css-language-server", "--stdio" },
+      capabilities = lsp_capabilities,
+      filetypes = { "css", "scss", "less" },
+      root_dir = lspconfig.util.root_pattern("package.json", ".git"),
+      single_file_support = true,
+      init_options = { provideFormatter = true },
+    })
+  end
+end
 
 -- LSP de Java (jdtls, instalado via apk -- binario en /usr/bin/jdtls, sin Mason)
 vim.api.nvim_create_autocmd("FileType", {

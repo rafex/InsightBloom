@@ -104,8 +104,8 @@
       p.error(v-if="sandboxConfigError") {{ sandboxConfigError }}
       label.toggle-row
         input(type="checkbox" v-model="sandboxInternetEnabled" @change="saveSandboxInternet" :disabled="savingSandboxInternet")
-        span Permitir acceso a internet desde los sandboxes
-      p.field-hint Por defecto los sandboxes no tienen salida a internet (solo el workspace local). Actívalo si el ejercicio necesita instalar paquetes o clonar repositorios en vivo.
+        span Permitir salida controlada a GitHub desde los sandboxes
+      p.field-hint Por defecto los sandboxes no tienen salida de red. Al activarlo, solo pueden salir mediante la proxy interna hacia los hosts permitidos de GitHub; la lista negra siempre tiene prioridad.
 
       .sandbox-status
         .coord-field

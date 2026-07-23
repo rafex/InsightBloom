@@ -123,13 +123,16 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final String gatewayPodComponentLabel;
     private final String usersPodComponentLabel;
     private final String incidentReportKey;
+    private final String egressProxyHost;
+    private final int egressProxyPort;
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
                                 final String debianImage, final String neovimImage,
                                 final ContainerResources debianResources, final ContainerResources neovimResources,
                                 final int port, final int uid, final int gid, final int fsGroup,
                                 final String gatewayNamespace, final String gatewayPodComponentLabel,
-                                final String usersPodComponentLabel, final String incidentReportKey) {
+                                final String usersPodComponentLabel, final String incidentReportKey,
+                                final String egressProxyHost, final int egressProxyPort) {
         this.jsonCodec = jsonCodec;
         this.namespace = namespace;
         this.debianImage = debianImage;
@@ -141,6 +144,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         this.gatewayPodComponentLabel = gatewayPodComponentLabel;
         this.usersPodComponentLabel = usersPodComponentLabel;
         this.incidentReportKey = incidentReportKey;
+        this.egressProxyHost = egressProxyHost;
+        this.egressProxyPort = egressProxyPort;
         this.uid = uid;
         this.gid = gid;
         this.fsGroup = fsGroup;
@@ -172,7 +177,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             ensureIncidentReportEgressPolicy();
         }
         final String podJson = jsonCodec.toJson(
-                buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl, jvmHeapMb, effectiveSeats));
+                buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl, internetEnabled,
+                        jvmHeapMb, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
         final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
@@ -451,9 +457,16 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "spec", Map.of(
                         "podSelector", Map.of("matchLabels", Map.of("sandbox-conference", conferenceLabel)),
                         "policyTypes", List.of("Egress"),
-                        // Egress abierto: el default-deny egress del namespace (sandbox-networkpolicy.yaml)
-                        // ya bloquea todo lo demas; esta policy solo re-abre para los pods de este evento.
-                        "egress", List.of(Map.of())));
+                        // La salida nunca es directa. Solo se permite el Service de la proxy
+                        // interna; la proxy aplica EGRESS_PROXY_ALLOWED_HOSTS y
+                        // EGRESS_PROXY_BLOCKED_HOSTS antes de abrir el socket externo.
+                        "egress", List.of(Map.of(
+                                "to", List.of(Map.of(
+                                        "namespaceSelector", Map.of("matchLabels", Map.of(
+                                                "kubernetes.io/metadata.name", gatewayNamespace)),
+                                        "podSelector", Map.of("matchLabels", Map.of(
+                                                "app.kubernetes.io/component", "egress-proxy")))),
+                                "ports", List.of(Map.of("protocol", "TCP", "port", egressProxyPort))))));
     }
 
     @Override
@@ -511,7 +524,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
 
     private Map<String, Object> buildPodBody(final String podName, final String conferenceUuid, final String variant,
                                               final String extraPackages, final String remoteGitUrl,
-                                              final Integer jvmHeapMb, final int effectiveSeats) {
+                                              final boolean internetEnabled, final Integer jvmHeapMb,
+                                              final int effectiveSeats) {
         final Map<String, Object> labels = Map.of(
                 "app.kubernetes.io/part-of", "insightbloom",
                 "app.kubernetes.io/component", "sandbox",
@@ -527,6 +541,18 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         }
         if (remoteGitUrl != null && !remoteGitUrl.isBlank()) {
             runtimeEnv.add(Map.of("name", "REMOTE_GIT_URL", "value", remoteGitUrl));
+        }
+        if (internetEnabled) {
+            final String proxyUrl = "http://" + egressProxyHost + ":" + egressProxyPort;
+            final String noProxy = "localhost,127.0.0.1,.svc,.svc.cluster.local," + gatewayNamespace;
+            // Uppercase y lowercase: git/curl usan uppercase; algunas herramientas de
+            // Node/Python solo consultan la variante lowercase.
+            runtimeEnv.add(Map.of("name", "HTTP_PROXY", "value", proxyUrl));
+            runtimeEnv.add(Map.of("name", "HTTPS_PROXY", "value", proxyUrl));
+            runtimeEnv.add(Map.of("name", "http_proxy", "value", proxyUrl));
+            runtimeEnv.add(Map.of("name", "https_proxy", "value", proxyUrl));
+            runtimeEnv.add(Map.of("name", "NO_PROXY", "value", noProxy));
+            runtimeEnv.add(Map.of("name", "no_proxy", "value", noProxy));
         }
         // JDK_JAVA_OPTIONS (JEP 328, JDK 9+): lo lee CUALQUIER invocacion del launcher java/javac
         // dentro del contenedor -- jdt.ls (Language Server de Java), un "java MiClase" que corra

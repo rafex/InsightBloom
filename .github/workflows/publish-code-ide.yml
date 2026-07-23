@@ -24,6 +24,7 @@ on:
       - 'infra/docker/code-ide-entrypoint.sh'
       - 'infra/docker/runtime-*.sh'
       - 'infra/docker/nvim-init.lua'
+      - 'infra/docker/seed-node-types.sh'
       - 'infra/docker/sandbox-agent.py'
       - 'infra/docker/sandbox-file-agent.py'
       - 'infra/docker/sandbox_file_api.py'

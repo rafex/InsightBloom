@@ -5,6 +5,11 @@
 # de debug remoto tiene que pasar aca, al arrancar el contenedor, no en el Dockerfile.
 set -euo pipefail
 
+# El workspace es un emptyDir y oculta los archivos de build. Publicamos los tipos de Node.js
+# precargados antes de iniciar code-server para que el TypeScript language service pueda
+# resolver fs/http/process/Buffer sin npm ni Internet durante la sesión.
+/usr/local/bin/seed-node-types.sh /home/coder/workspace
+
 if [ ! -f /home/coder/workspace/.vscode/launch.json ]; then
     mkdir -p /home/coder/workspace/.vscode
     cp /etc/insightbloom/code-ide-launch.json /home/coder/workspace/.vscode/launch.json
