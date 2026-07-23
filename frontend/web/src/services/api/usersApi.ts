@@ -205,6 +205,16 @@ export async function getConferenceAccess(conferenceId: string, token?: string |
   return res.data.data
 }
 
+/** Confirma el permiso específico para controlar la presentación de este evento. */
+export async function getPresentationManagementAccess(conferenceId: string, token: string): Promise<boolean> {
+  try {
+    await axios.get(`/api/users/api/v1/conferences/${conferenceId}/presentation-access`, authHeader(token))
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function getUserProfile(uuid: string, token: string): Promise<UserProfile> {
   const res = await axios.get(`/api/users/api/v1/users/${uuid}`, authHeader(token))
   return res.data.data

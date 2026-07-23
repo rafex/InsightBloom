@@ -79,7 +79,7 @@
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
         router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
-      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator")
+      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator")
 
     OnboardingTour(storage-key="ib_onboarding_conference_v2" :steps="attendeeTourSteps")
 
@@ -93,7 +93,7 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess } from '@/services/api/usersApi'
+import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess, getPresentationManagementAccess } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
 import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -133,6 +133,7 @@ export default {
     const capabilities = ref<Set<string>>(new Set())
     const privateAccess = ref(false)
     const presentationAccess = ref(false)
+    const presentationManagementAccess = ref(false)
     const headerCollapsed = ref(TOOL_ROUTE_SUFFIXES.some((s) => route.path.endsWith(s)))
     const auth = useAuthStore()
 
@@ -245,6 +246,9 @@ export default {
         const access = await getConferenceAccess(conf.uuid, auth.state.token)
         privateAccess.value = !access.ticketRequired || access.hasAccess
         presentationAccess.value = !access.ticketRequired || access.hasAccess || access.presentationAccess === true
+        if (auth.state.token && auth.state.role !== 'guest') {
+          presentationManagementAccess.value = await getPresentationManagementAccess(conf.uuid, auth.state.token)
+        }
         timezones.value = tzList
         const eventType = eventTypes.find((t) => t.key === conf.eventTypeKey)
         if (eventType) capabilities.value = new Set(eventType.capabilities)
@@ -270,7 +274,7 @@ export default {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
-      privateAccess, presentationAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed
+      privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed
     }
   }
 }

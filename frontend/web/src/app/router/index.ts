@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/features/auth/authStore'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -154,7 +155,10 @@ const router = createRouter({
 
 const GUEST_ROUTES = ['/', '/login', '/register']
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
+  // A dashboard tab opened from the public presentation receives its token
+  // through the same-origin opener bridge. Wait before enforcing requiresAuth.
+  await useAuthStore().waitForSessionBridge()
   const token = sessionStorage.getItem('ib_token')
 
   // Already authenticated → skip landing/login/register

@@ -5,6 +5,7 @@
     .live-status(v-if="wsConnected")
       span.live-dot.connected
       span En vivo · sigue al presentador automáticamente
+    button.btn-presenter(v-if="presentationManager" type="button" @click="openPresenter") 🎛️ Abrir control del presentador
   .presentation-loading(v-if="loading") Verificando presentación...
   .presentation-empty(v-else-if="!ready")
     p El organizador aún no ha subido la presentación de esta conferencia.
@@ -38,9 +39,10 @@ export default {
   props: {
     conferenceId: String,
     presentationSourceUrl: String,
-    accessGranted: { type: Boolean, default: false }
+    accessGranted: { type: Boolean, default: false },
+    presentationManager: { type: Boolean, default: false }
   },
-  setup(props: { conferenceId?: string, presentationSourceUrl?: string, accessGranted?: boolean }) {
+  setup(props: { conferenceId?: string, presentationSourceUrl?: string, accessGranted?: boolean, presentationManager?: boolean }) {
     const route = useRoute()
     const auth = useAuthStore()
     const canParticipate = computed(() => props.accessGranted === true)
@@ -57,6 +59,13 @@ export default {
     let ws: WebSocket | null = null
     let wsRetryTimer: ReturnType<typeof setTimeout> | null = null
     let wsClosedByUs = false
+
+    function openPresenter() {
+      if (!props.conferenceId || props.presentationManager !== true) return
+      const url = `/dashboard/conferences/${props.conferenceId}/speaker`
+      const child = window.open(url, '_blank')
+      if (!child) window.location.assign(url)
+    }
 
     function connectAudienceWs() {
       if (!props.conferenceId) return
@@ -95,6 +104,13 @@ export default {
           current.search = target.search
           current.hash = target.hash
         }
+
+        // The WebSocket can replay the same state after a reconnect or when a
+        // second presentation pod joins the room. Reassigning src for an
+        // identical URL reloads the deck and makes Slidev jump to slide one.
+        let frameUrl = slidesFrame.value.src
+        try { frameUrl = slidesFrame.value.contentWindow?.location.href || frameUrl } catch { /* same-origin expected */ }
+        if (frameUrl === current.href) return
         slidesFrame.value.src = current.href
       } catch (e: any) { /* same-origin esperado; si falla, la audiencia puede refrescar */ }
     }
@@ -128,6 +144,7 @@ export default {
 
     return {
       friendlyId, loading, ready, slidesUrl, canParticipate, slidesFrame, iframeSandbox, wsConnected,
+      openPresenter,
       previewSlideLimit: PREVIEW_SLIDE_LIMIT
     }
   }
@@ -139,6 +156,8 @@ export default {
 .presentation-header { margin-bottom: 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 h2 { margin: 0; color: #1e1b4b; }
 .live-status { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #6b7280; }
+.btn-presenter { margin-left: auto; padding: 8px 14px; border: 2px solid #c7d2fe; border-radius: 8px; background: #eef2ff; color: #4f46e5; font-weight: 700; cursor: pointer; }
+.btn-presenter:hover { background: #e0e7ff; }
 .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; }
 .live-dot.connected { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
 .presentation-loading, .presentation-empty { text-align: center; color: #6b7280; padding: 60px; }

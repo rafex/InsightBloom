@@ -84,9 +84,11 @@ export default {
     let wsRetryTimer: ReturnType<typeof setTimeout> | null = null
     let wsClosedByUs = false
     let hashPollTimer: ReturnType<typeof setInterval> | null = null
+    let navigationObserverCleanup: (() => void) | null = null
     let lastState: string | null = null
+    let restoringState = false
 
-    const HASH_POLL_MS = 250
+    const NAVIGATION_FALLBACK_POLL_MS = 2000
 
     function navigate(direction: NavDirection) {
       const spec = NAV_KEYS[direction]
@@ -109,7 +111,38 @@ export default {
       } catch (e: any) { return '' /* same-origin esperado; si falla, no hay sync */ }
     }
 
+    function navigationUrlForState(state: string): URL {
+      const current = new URL(slidesUrl.value, window.location.origin)
+      if (provider.value === 'MARP' || state.startsWith('#')) {
+        current.hash = state
+        return current
+      }
+
+      const marker = `/api/presentations/api/v1/conferences/${props.conferenceId}/presentation/`
+      const target = new URL(state, window.location.origin + marker)
+      if (target.pathname.startsWith(`${marker}presenter`)) {
+        target.pathname = target.pathname.replace(`${marker}presenter`, marker.slice(0, -1))
+      }
+      return target
+    }
+
+    function restoreNavigationState(): boolean {
+      if (!slidesFrame.value || lastState == null) return false
+      try {
+        const current = new URL(slidesFrame.value.contentWindow!.location.href)
+        const target = navigationUrlForState(lastState)
+        if (current.href === target.href) return false
+        restoringState = true
+        slidesFrame.value.contentWindow!.location.replace(target.href)
+        return true
+      } catch (e: any) {
+        restoringState = false
+        return false /* same-origin esperado; si falla, el polling sigue */
+      }
+    }
+
     function pollNavigation() {
+      if (restoringState) return
       const state = navigationState()
       if (state !== lastState) {
         lastState = state
@@ -119,20 +152,59 @@ export default {
       }
     }
 
-    function onIframeLoad() {
-      // Si el iframe se recarga solo (hiccup de red, bespoke.js no persiste la
-      // posición al recargar), retoma la diapositiva donde estaba en vez de
-      // dejar que el deck vuelva al inicio y esa "vuelta al inicio" se
-      // propague a toda la audiencia en el próximo poll.
-      if (lastState) {
-        try {
-          if (provider.value === 'MARP') slidesFrame.value!.contentWindow!.location.hash = lastState
-        } catch (e: any) { /* same-origin esperado; si falla, no hay sync */ }
+    function installNavigationObservers() {
+      navigationObserverCleanup?.()
+      navigationObserverCleanup = null
+      if (!slidesFrame.value) return
+
+      try {
+        const frameWindow = slidesFrame.value.contentWindow!
+        const frameHistory = frameWindow.history
+        let scheduled = false
+        const notifyNavigation = () => {
+          if (scheduled) return
+          scheduled = true
+          frameWindow.setTimeout(() => {
+            scheduled = false
+            pollNavigation()
+          }, 0)
+        }
+        const onHistoryChange = () => notifyNavigation()
+        const originalPushState = frameHistory.pushState
+        const originalReplaceState = frameHistory.replaceState
+        frameHistory.pushState = function (this: History, ...args: Parameters<History['pushState']>) {
+          const result = originalPushState.apply(this, args)
+          notifyNavigation()
+          return result
+        }
+        frameHistory.replaceState = function (this: History, ...args: Parameters<History['replaceState']>) {
+          const result = originalReplaceState.apply(this, args)
+          notifyNavigation()
+          return result
+        }
+        frameWindow.addEventListener('popstate', onHistoryChange)
+        frameWindow.addEventListener('hashchange', onHistoryChange)
+        navigationObserverCleanup = () => {
+          frameWindow.removeEventListener('popstate', onHistoryChange)
+          frameWindow.removeEventListener('hashchange', onHistoryChange)
+          frameHistory.pushState = originalPushState
+          frameHistory.replaceState = originalReplaceState
+        }
+      } catch (e: any) {
+        /* El fallback de baja frecuencia cubre engines no accesibles. */
       }
-      // Marp y Slidev pueden navegar sin disparar hashchange; por eso se hace
-      // polling del estado de navegación normalizado por engine.
-      if (hashPollTimer) return
-      hashPollTimer = setInterval(pollNavigation, HASH_POLL_MS)
+    }
+
+    function onIframeLoad() {
+      // Si el iframe se recarga solo, retoma la URL completa donde estaba.
+      // Slidev guarda el estado en la ruta/query, no únicamente en el hash.
+      if (restoreNavigationState()) return
+      restoringState = false
+      installNavigationObservers()
+      // La ruta principal es event-driven. Este fallback sólo cubre engines
+      // que cambian su URL sin emitir eventos observables.
+      if (hashPollTimer) clearInterval(hashPollTimer)
+      hashPollTimer = setInterval(pollNavigation, NAVIGATION_FALLBACK_POLL_MS)
     }
 
     function connectPresenterWs() {
@@ -265,6 +337,7 @@ export default {
     onBeforeUnmount(() => {
       if (wsRetryTimer) clearTimeout(wsRetryTimer)
       if (hashPollTimer) clearInterval(hashPollTimer)
+      navigationObserverCleanup?.()
       stopPresenterWs()
     })
 
