@@ -156,7 +156,16 @@ public class AssignSandboxUseCase {
             }
         }
 
-        final var unassigned = sandboxRepository.findUnassigned(conferenceUuid).filter(s -> variant.equals(s.getVariant()));
+        // El repositorio histórico devuelve el primer sandbox libre de cualquier variante.
+        // Si ese primero pertenece al otro pool, buscamos también en las filas de la variante
+        // solicitada; de lo contrario un Pod Web precalentado podía ocultar un Pod CLI libre.
+        var unassigned = sandboxRepository.findUnassigned(conferenceUuid)
+            .filter(s -> variant.equals(s.getVariant()));
+        if (unassigned.isEmpty()) {
+            unassigned = sandboxRepository.findByConferenceUuid(conferenceUuid).stream()
+                .filter(s -> variant.equals(s.getVariant()) && s.getUserUuid() == null)
+                .findFirst();
+        }
         if (unassigned.isPresent()) {
             final Sandbox free = unassigned.get();
             final Instant assignedAt = Instant.now();
@@ -177,9 +186,11 @@ public class AssignSandboxUseCase {
             // como si no hubiera habido un sandbox libre.
         }
 
+        // Las filas sin usuario son Pods listos, no ocupantes. Solo las asignaciones reales
+        // consumen capacidad y participan en el cálculo de asientos.
         final List<Sandbox> activeInVariant = new ArrayList<>();
         for (final Sandbox s : sandboxRepository.findByConferenceUuid(conferenceUuid)) {
-            if (variant.equals(s.getVariant())) {
+            if (variant.equals(s.getVariant()) && s.getUserUuid() != null) {
                 activeInVariant.add(s);
             }
         }
@@ -314,6 +325,7 @@ public class AssignSandboxUseCase {
         final int[] occupiedCount = new int[poolSize];
         final boolean[][] seatTaken = new boolean[poolSize][seatsPerPod];
         for (final Sandbox s : active) {
+            if (s.getUserUuid() == null) continue;
             final int slot = s.getSandboxSlot();
             final int seat = s.getSeatIndex();
             if (slot < 0 || slot >= poolSize) continue;

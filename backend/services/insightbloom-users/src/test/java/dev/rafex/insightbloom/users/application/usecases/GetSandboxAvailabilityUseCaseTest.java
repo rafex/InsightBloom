@@ -62,6 +62,26 @@ class GetSandboxAvailabilityUseCaseTest {
     }
 
     @Test
+    void testPrewarmedUnassignedPodsDoNotConsumeAvailability() {
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        final var preparedWeb = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_WEB,
+            null, Instant.now().plusSeconds(3600));
+        final var preparedCli = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_CLI,
+            null, Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1"))
+            .thenReturn(List.of(preparedWeb, preparedCli));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-a"))
+            .thenReturn(Optional.empty());
+
+        final var availability = useCase.execute("conf-1", "user-a");
+
+        assertEquals(0, availability.web().activeCount());
+        assertTrue(availability.web().available());
+        assertEquals(0, availability.cli().activeCount());
+        assertTrue(availability.cli().available());
+    }
+
+    @Test
     void testOwnerOfFullPoolCanStillReconnect() {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
         final var web = new Sandbox("conf-1", 0, "user-a", Instant.now().plusSeconds(3600));

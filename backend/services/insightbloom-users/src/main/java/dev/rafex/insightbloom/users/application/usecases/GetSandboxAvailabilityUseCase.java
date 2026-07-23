@@ -46,7 +46,10 @@ public class GetSandboxAvailabilityUseCase {
         final var active = sandboxRepository.findByConferenceUuid(conferenceUuid);
         int webCount = 0;
         int cliCount = 0;
+        // Una fila con userUuid == null representa un Pod preprovisionado, no una plaza
+        // ocupada. El botón "Preparar sandboxes" crea precisamente esas filas libres.
         for (final Sandbox s : active) {
+            if (s.getUserUuid() == null) continue;
             if (Sandbox.VARIANT_CLI.equals(s.getVariant())) {
                 cliCount++;
             } else {

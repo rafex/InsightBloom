@@ -117,7 +117,7 @@
           button.btn-outline(type="button" @click="prewarmSandboxPool" :disabled="prewarmingSandboxPool")
             span(v-if="prewarmingSandboxPool") Preparando...
             span(v-else) Preparar sandboxes antes del evento
-          p.field-hint Crea por adelantado los Pods Web y CLI configurados. El arranque de cada Pod continúa en segundo plano y se muestra en el estado de las máquinas.
+          p.field-hint Crea por adelantado los Pods Web y CLI configurados, pero no los asigna a ningún alumno. Quedan listos para reclamarse cuando entren los asistentes.
         p.success(v-if="sandboxPrewarmResult")
           | Pool solicitado: Web {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.desiredPods || 0 }}; CLI {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.desiredPods || 0 }}.
         p.error(v-if="sandboxPrewarmError") {{ sandboxPrewarmError }}

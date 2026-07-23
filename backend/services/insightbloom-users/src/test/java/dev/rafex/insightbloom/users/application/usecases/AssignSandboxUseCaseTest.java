@@ -183,6 +183,33 @@ class AssignSandboxUseCaseTest {
     }
 
     @Test
+    void testAssignClaimsPreparedPoolWithoutCountingItAsOccupied() {
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1"))
+            .thenReturn(Optional.empty());
+        final var preparedWeb = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_WEB,
+            null, java.time.Instant.now().plusSeconds(3600));
+        final var preparedCli = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_CLI,
+            null, java.time.Instant.now().plusSeconds(3600));
+        // Simula el orden real de la consulta: el primer Pod libre puede ser del otro pool.
+        Mockito.when(sandboxRepoMock.findUnassigned("conf-1")).thenReturn(Optional.of(preparedWeb));
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1"))
+            .thenReturn(List.of(preparedWeb, preparedCli));
+        Mockito.when(sandboxRepoMock.claim(Mockito.eq(preparedCli.getUuid()), Mockito.eq("user-student-1"), Mockito.any()))
+            .thenReturn(true);
+
+        final var result = useCase.execute("conf-1", "user-student-1", Sandbox.VARIANT_CLI);
+
+        assertEquals(Sandbox.VARIANT_CLI, result.getVariant());
+        assertEquals(preparedCli.getUuid(), result.getUuid());
+        Mockito.verify(sandboxRepoMock).claim(Mockito.eq(preparedCli.getUuid()),
+            Mockito.eq("user-student-1"), Mockito.any());
+        Mockito.verify(orchestratorMock).ensureSeatReady(
+            Mockito.eq(preparedCli.podName()), Mockito.eq(preparedCli.getSeatIndex()),
+            Mockito.eq("user-student-1"));
+    }
+
+    @Test
     void testAssignSandboxFallsBackToCreateWhenClaimLosesRace() {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
         Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
