@@ -39,6 +39,12 @@ operativo puede preparar el pool antes del evento. Kubernetes sigue arrancando
 los Pods de forma asíncrona y la asignación por alumno mantiene el aislamiento y
 los límites de capacidad existentes.
 
+La publicación web del IDE usa un snapshot ZIP del workspace, no expone el
+sandbox vivo: `users` autoriza y descarga el workspace; `presentations` audita
+HTML, JavaScript, CSS, imágenes y fuentes, lo extrae de forma atómica y lo sirve
+en `preview-insightbloom.v1.rafex.cloud` con CSP estricta, hash, TTL y
+revocación. El procedimiento está en `workflows/IDE-WEB-PUBLICATION.md`.
+
 El modo `terminal-nvim` ahora tiene soporte LSP para Java, Python, HTML, CSS,
 `.js`, `.jsx`, `.ts`, `.tsx`, `package.json`, `jsconfig.json` y `tsconfig.json`.
 Los tipos de Node se mantienen en la imagen y se enlazan dentro del workspace

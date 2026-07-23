@@ -38,6 +38,7 @@
 - [`workflows/SLIDEV-ARTIFACT-AUDIT.md`](./workflows/SLIDEV-ARTIFACT-AUDIT.md) — Auditoría y aislamiento de artefactos Slidev precompilados
 - [`workflows/PRESENTATION-OFFLINE.md`](./workflows/PRESENTATION-OFFLINE.md) — Paquetes offline cifrados y exclusivos del moderador
 - [`workflows/JITSI-TROUBLESHOOTING.md`](./workflows/JITSI-TROUBLESHOOTING.md) — Diagnóstico y prevención de fallos de videollamada Jitsi
+- [`workflows/IDE-WEB-PUBLICATION.md`](./workflows/IDE-WEB-PUBLICATION.md) — Auditoría y publicación temporal de páginas del IDE
 
 ## Pipelines
 

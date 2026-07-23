@@ -245,12 +245,19 @@ ENV TERM=xterm-256color
 # Prompt coloreado + banner de bienvenida + fix de PATH para shells de login -- mismos scripts
 # que usaba la imagen "runtime" vieja, ahora en la unica imagen que los necesita.
 USER root
+RUN mkdir -p /usr/local/share/doc/insightbloom
 COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
 COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
 COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
 COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
 COPY infra/docker/runtime-fzf.sh /etc/profile.d/insightbloom-fzf.sh
 COPY infra/docker/seed-node-types.sh /usr/local/bin/seed-node-types.sh
+COPY infra/docker/insightbloom-publish.py /usr/local/bin/insightbloom-publish.py
+COPY infra/docker/insightbloom /usr/local/bin/insightbloom
+COPY infra/docker/IDE-WEB-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-WEB-PUBLICATION.md
+COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
+RUN chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/insightbloom-publish.py \
+    /usr/local/bin/insightbloom /usr/local/bin/seed-ide-docs.sh
 USER coder
 
 RUN mkdir -p /home/coder/.local/share/code-server/User /home/coder/workspace /home/coder/db /home/coder/.m2

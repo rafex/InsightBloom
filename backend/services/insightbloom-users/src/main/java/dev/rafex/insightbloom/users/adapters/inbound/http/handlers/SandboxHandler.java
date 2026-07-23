@@ -10,6 +10,8 @@ import dev.rafex.insightbloom.users.application.usecases.GenerateWorkspaceDownlo
 import dev.rafex.insightbloom.users.application.usecases.GetSandboxAvailabilityUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
+import dev.rafex.insightbloom.users.application.usecases.PublishWorkspacePreviewUseCase;
+import dev.rafex.insightbloom.users.application.usecases.RevokeWorkspacePreviewUseCase;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
@@ -34,6 +36,9 @@ public class SandboxHandler extends BaseResourceHandler {
     private final ConferenceRepository conferenceRepository;
     private final EventCapabilityGuard eventCapabilityGuard;
     private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
+    private final PublishWorkspacePreviewUseCase publishWorkspacePreviewUseCase;
+    private final RevokeWorkspacePreviewUseCase revokeWorkspacePreviewUseCase;
+    private final long previewTtlSeconds;
     private final String gatewayBaseUrl; // ej. "https://ide-insightbloom.v1.rafex.cloud"
 
     public SandboxHandler(final AssignSandboxUseCase assignSandboxUseCase,
@@ -45,7 +50,10 @@ public class SandboxHandler extends BaseResourceHandler {
                          final ConferenceRepository conferenceRepository,
                          final EventCapabilityGuard eventCapabilityGuard,
                          final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
-                         final String gatewayBaseUrl) {
+                         final String gatewayBaseUrl,
+                         final PublishWorkspacePreviewUseCase publishWorkspacePreviewUseCase,
+                         final RevokeWorkspacePreviewUseCase revokeWorkspacePreviewUseCase,
+                         final long previewTtlSeconds) {
         this.assignSandboxUseCase = assignSandboxUseCase;
         this.getSandboxAvailabilityUseCase = getSandboxAvailabilityUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -56,6 +64,9 @@ public class SandboxHandler extends BaseResourceHandler {
         this.eventCapabilityGuard = eventCapabilityGuard;
         this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
         this.gatewayBaseUrl = gatewayBaseUrl;
+        this.publishWorkspacePreviewUseCase = publishWorkspacePreviewUseCase;
+        this.revokeWorkspacePreviewUseCase = revokeWorkspacePreviewUseCase;
+        this.previewTtlSeconds = previewTtlSeconds;
     }
 
     /**
@@ -91,13 +102,15 @@ public class SandboxHandler extends BaseResourceHandler {
             Route.of("/{id}/sandbox", Set.of("GET")),
             Route.of("/{id}/sandbox/availability", Set.of("GET")),
             Route.of("/{id}/sandbox/download", Set.of("POST")),
+            Route.of("/{id}/sandbox/preview", Set.of("POST")),
+            Route.of("/{id}/sandbox/preview/{publicationId}", Set.of("DELETE")),
             Route.of("/{id}/sandbox/config", Set.of("PUT"))
         );
     }
 
     @Override
     public Set<String> supportedMethods() {
-        return Set.of("GET", "POST", "PUT");
+        return Set.of("GET", "POST", "PUT", "DELETE");
     }
 
     @Override
@@ -118,6 +131,9 @@ public class SandboxHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/sandbox/download")) {
             return handleDownloadRequest(jx, jx.pathParam("id"));
         }
+        if (jx.path().endsWith("/sandbox/preview")) {
+            return handlePublishPreview(jx, jx.pathParam("id"));
+        }
         return false;
     }
 
@@ -126,6 +142,15 @@ public class SandboxHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/sandbox/config")) {
             return handleSetSandboxConfig(jx, jx.pathParam("id"));
+        }
+        return false;
+    }
+
+    @Override
+    public boolean delete(final HttpExchange x) {
+        final var jx = asJetty(x);
+        if (jx.path().contains("/sandbox/preview/")) {
+            return handleRevokePreview(jx, jx.pathParam("id"), jx.pathParam("publicationId"));
         }
         return false;
     }
@@ -328,6 +353,66 @@ public class SandboxHandler extends BaseResourceHandler {
         } catch (final Exception e) {
             LOGGER.log(Level.SEVERE, "SandboxHandler: error inesperado en " + jx.path(), e);
             sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handlePublishPreview(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return true;
+            final var publication = publishWorkspacePreviewUseCase.execute(
+                    conferenceId, validation.subjectUuid(), previewTtlSeconds);
+            sendOk(jx, 201, Map.of(
+                    "publicationId", publication.publicationId(),
+                    "url", publication.url(),
+                    "expiresAt", publication.expiresAt().toString(),
+                    "artifactHash", publication.artifactHash(),
+                    "files", publication.files()));
+        } catch (final IllegalArgumentException e) {
+            final int status = switch (e.getMessage()) {
+                case "sandbox_not_assigned" -> 404;
+                case "sandbox_expired" -> 410;
+                default -> 422;
+            };
+            sendError(jx, status, e.getMessage(), e.getMessage());
+        } catch (final IllegalStateException e) {
+            sendError(jx, 503, e.getMessage(), "El publicador de páginas no está disponible");
+        } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: no se pudo publicar el workspace", e);
+            sendError(jx, 500, "preview_publication_failed", "No se pudo publicar el workspace");
+        }
+        return true;
+    }
+
+    private boolean handleRevokePreview(final JettyHttpExchange jx, final String conferenceId,
+                                        final String publicationId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            revokeWorkspacePreviewUseCase.execute(conferenceId, validation.subjectUuid(), publicationId);
+            sendOk(jx, 200, Map.of("revoked", true));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final IllegalStateException e) {
+            sendError(jx, 503, e.getMessage(), "El publicador de páginas no está disponible");
         }
         return true;
     }

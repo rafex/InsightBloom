@@ -73,6 +73,35 @@ tipos en `/usr/local/share/insightbloom-node-types`. `seed-node-types.sh` crea e
 del workspace al arrancar el asiento, tanto en el modo de un solo usuario como en el agente
 multi-asiento. El script no ejecuta `npm install`, no usa Mason/Lazy y no requiere Internet.
 
+## Publicación de páginas web
+
+Ambos IDE incluyen la guía visible `.insightbloom/IDE-WEB-PUBLICATION.md` y el comando
+`insightbloom`. Publicar no obliga a usar `package.json`: solo se necesita un `index.html` y sus
+assets locales. El backend crea un snapshot temporal, excluye metadatos de build y vuelve a
+auditar el contenido antes de servirlo desde un origen aislado.
+
+En el Web IDE se usa el botón **Publicar página temporal**. En el CLI se usan credenciales de la
+sesión actual, sin guardar el token en el proyecto:
+
+```bash
+export INSIGHTBLOOM_CONFERENCE_ID="UUID_DEL_EVENTO"
+export INSIGHTBLOOM_TOKEN="TOKEN_DE_SESION"
+insightbloom publish                 # publica el workspace actual
+insightbloom publish --root dist     # publica una carpeta concreta
+insightbloom revoke PUBLICATION_ID   # revoca la URL temporal
+```
+
+Un `insightbloom.json` es opcional para declarar la raíz publicada:
+
+```json
+{"publish":{"root":"dist","entry":"index.html"}}
+```
+
+El comando no ejecuta scripts de npm ni requiere Internet. La publicación es solo para sitios
+estáticos: APIs, WebSockets, procesos persistentes y puertos arbitrarios quedan fuera de este
+flujo. La duración de la URL la controla el servicio y la documentación completa se siembra en el
+workspace al iniciar cada sandbox.
+
 ## Estructura de las imagenes
 
 - **Dockerfile.code-ide-debian**: Debian 12-slim, `code-server` (release standalone oficial, sin

@@ -9,7 +9,7 @@ import type {
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
-  TicketManagementSummary
+  TicketManagementSummary, WorkspacePreviewInfo
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 
@@ -809,4 +809,14 @@ export async function getSandboxAvailability(
 export async function generateWorkspaceDownloadUrl(conferenceId: string, token?: string | null): Promise<WorkspaceDownloadInfo> {
   const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/download`, {}, authHeader(token))
   return res.data.data
+}
+
+/** Publica un snapshot estático validado del workspace; nunca expone el sandbox vivo. */
+export async function publishWorkspacePreview(conferenceId: string, token: string): Promise<WorkspacePreviewInfo> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/preview`, {}, authHeader(token))
+  return res.data.data
+}
+
+export async function revokeWorkspacePreview(conferenceId: string, publicationId: string, token: string): Promise<void> {
+  await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/sandbox/preview/${publicationId}`, authHeader(token))
 }

@@ -392,6 +392,14 @@ export interface WorkspaceDownloadInfo {
   expiresInSeconds: number
 }
 
+export interface WorkspacePreviewInfo {
+  publicationId: string
+  url: string
+  expiresAt: string
+  artifactHash: string
+  files: number
+}
+
 export interface ChatSettings {
   chatAiEnabled: boolean
   chatSystemPrompt: string | null

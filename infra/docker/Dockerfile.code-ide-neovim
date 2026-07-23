@@ -207,15 +207,21 @@ COPY --chown=coder:coder infra/docker/nvim-init.lua /home/coder/.config/nvim/ini
 # resto del Dockerfile corre como "coder" (no-root) desde arriba, pero /etc/insightbloom y
 # /usr/local/bin no son escribibles por ese usuario.
 USER root
-RUN mkdir -p /etc/insightbloom
+RUN mkdir -p /etc/insightbloom /usr/local/share/doc/insightbloom
 COPY infra/docker/nvim-init.lua /etc/insightbloom/nvim-init.lua
 COPY infra/docker/seed-node-types.sh /usr/local/bin/seed-node-types.sh
 COPY infra/docker/sandbox-agent.py /usr/local/bin/sandbox-agent.py
 COPY infra/docker/sandbox_file_api.py /usr/local/bin/sandbox_file_api.py
+COPY infra/docker/insightbloom-publish.py /usr/local/bin/insightbloom-publish.py
+COPY infra/docker/insightbloom /usr/local/bin/insightbloom
+COPY infra/docker/IDE-WEB-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-WEB-PUBLICATION.md
+COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
 RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \
     chmod -R a+rX /usr/local/share/insightbloom-node-types && \
-    chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py
+    chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py \
+    /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom \
+    /usr/local/bin/seed-ide-docs.sh
 USER coder
 
 # Puerto ttyd: 8080, mismo puerto publico que usa la imagen Debian (code-server) -- cada
@@ -235,4 +241,4 @@ ENTRYPOINT ["dumb-init", "--"]
 # conexion, perdiendo todo el estado del editor igual que sin tmux (ver incidente 2026-07-19).
 # Precrear la sesion en un proceso que ya termino (sin pty de ttyd de por medio) resuelve la
 # carrera de raiz: cualquier reconexion reatende la MISMA sesion en vez de perder el estado.
-CMD ["sh", "-c", "/usr/local/bin/seed-node-types.sh /home/coder/workspace; tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]
+CMD ["sh", "-c", "/usr/local/bin/seed-node-types.sh /home/coder/workspace; /usr/local/bin/seed-ide-docs.sh /home/coder/workspace; tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]

@@ -278,6 +278,14 @@ public class UsersApplication {
                 conferenceRepo, ensureUnassignedSandboxUseCase);
         final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, workspaceDownloadBaseUrl);
         final var downloadWorkspaceZipUseCase = new DownloadWorkspaceZipUseCase(sandboxRepo, sandboxOrchestrator);
+        final var workspacePreviewPublisher =
+                new dev.rafex.insightbloom.users.adapters.outbound.presentationsclient.HttpWorkspacePreviewPublisher(
+                        presentationsUrl, internalApiKey);
+        final var publishWorkspacePreviewUseCase = new PublishWorkspacePreviewUseCase(
+                sandboxRepo, sandboxOrchestrator, workspacePreviewPublisher);
+        final var revokeWorkspacePreviewUseCase = new RevokeWorkspacePreviewUseCase(workspacePreviewPublisher);
+        final long workspacePreviewTtlSeconds = Long.parseLong(
+                System.getenv().getOrDefault("WORKSPACE_PREVIEW_TTL_SECONDS", "3600"));
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo, sandboxOrchestrator);
         final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
         final var resolveSandboxTargetUseCase = new ResolveSandboxTargetUseCase(
@@ -312,7 +320,8 @@ public class UsersApplication {
         final var sandboxHandler = new SandboxHandler(
                 assignSandboxUseCase, getSandboxAvailabilityUseCase, validateTokenUseCase,
                 generateWorkspaceDownloadUrlUseCase, setSandboxConfigUseCase, sandboxOrchestrator,
-                conferenceRepo, eventCapabilityGuard, ensureUnassignedSandboxUseCase, gatewayBaseUrl);
+                conferenceRepo, eventCapabilityGuard, ensureUnassignedSandboxUseCase, gatewayBaseUrl,
+                publishWorkspacePreviewUseCase, revokeWorkspacePreviewUseCase, workspacePreviewTtlSeconds);
         final var sandboxFilesHandler = new SandboxFilesHandler(
                 validateTokenUseCase, listWorkspaceFilesUseCase, readWorkspaceFileUseCase, writeWorkspaceFileUseCase,
                 getConferenceUseCase);

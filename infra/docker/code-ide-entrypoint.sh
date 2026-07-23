@@ -9,6 +9,7 @@ set -euo pipefail
 # precargados antes de iniciar code-server para que el TypeScript language service pueda
 # resolver fs/http/process/Buffer sin npm ni Internet durante la sesión.
 /usr/local/bin/seed-node-types.sh /home/coder/workspace
+/usr/local/bin/seed-ide-docs.sh /home/coder/workspace
 
 if [ ! -f /home/coder/workspace/.vscode/launch.json ]; then
     mkdir -p /home/coder/workspace/.vscode

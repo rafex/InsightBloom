@@ -140,7 +140,7 @@ export default {
     const presentationManagementAccess = ref(false)
     const headerCollapsed = ref(TOOL_ROUTE_SUFFIXES.some((s) => route.path.endsWith(s)))
     const auth = useAuthStore()
-    let accessWatchTimer: ReturnType<typeof window.setInterval> | null = null
+    let accessWatchTimer: number | null = null
 
     async function refreshEventAccess() {
       if (!conference.value || eventClosed.value) return false

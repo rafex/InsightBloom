@@ -55,10 +55,20 @@
           button.btn-secondary(@click="downloadWorkspace" :disabled="downloadingWorkspace")
             span(v-if="!downloadingWorkspace") 📥 Descargar workspace
             span(v-else) Descargando...
+          button.btn-secondary(@click="publishPreview" :disabled="publishingPreview")
+            span(v-if="!publishingPreview") 🌐 Publicar página temporal
+            span(v-else) Validando y publicando...
           button.btn-tertiary(@click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
             span {{ urlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
           button.btn-tertiary(@click="switchVariant")
             span 🔀 Cambiar de modo
+        .preview-result(v-if="preview")
+          strong Página publicada temporalmente
+          p Esta URL contiene solo una copia estática validada del workspace y vence el {{ formatPreviewExpiry }}.
+          .preview-actions
+            a.btn-tertiary(:href="preview.url" target="_blank" rel="noopener noreferrer") Abrir página
+            button.btn-tertiary(@click="copyPreviewUrl") {{ previewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
+            button.btn-danger(@click="revokePreview") Revocar
 
       div(v-else class="no-sandbox")
         p ❌ No tienes un sandbox asignado en este evento.
@@ -67,8 +77,8 @@
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getSandbox, getSandboxAvailability, generateWorkspaceDownloadUrl } from '@/services/api/usersApi'
-import type { SandboxInfo, SandboxAvailability, SandboxVariant } from '@/services/api/types'
+import { getSandbox, getSandboxAvailability, generateWorkspaceDownloadUrl, publishWorkspacePreview, revokeWorkspacePreview } from '@/services/api/usersApi'
+import type { SandboxInfo, SandboxAvailability, SandboxVariant, WorkspacePreviewInfo } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import SandboxLoadingAnimation from '@/components/SandboxLoadingAnimation.vue'
 
@@ -89,6 +99,9 @@ export default {
     const loading = ref(false)
     const error = ref('')
     const downloadingWorkspace = ref(false)
+    const publishingPreview = ref(false)
+    const preview = ref<WorkspacePreviewInfo | null>(null)
+    const previewUrlCopied = ref(false)
     const urlCopied = ref(false)
     const auth = useAuthStore()
     const availability = ref<SandboxAvailability | null>(null)
@@ -111,6 +124,8 @@ export default {
       if (hours > 0) return `${hours}h ${minutes}m`
       return `${minutes}m`
     })
+
+    const formatPreviewExpiry = computed(() => preview.value ? new Date(preview.value.expiresAt).toLocaleString() : '')
 
     // Fase 3b: el gateway (ide-insightbloom...) no tiene un target fijo — resuelve por-sesion
     // contra el sandbox del usuario a partir de ib_token + conferenceId en la query string
@@ -218,6 +233,35 @@ export default {
       }
     }
 
+    async function publishPreview() {
+      if (!auth.state.token || !sandbox.value) return
+      try {
+        publishingPreview.value = true
+        preview.value = await publishWorkspacePreview(props.conferenceId, auth.state.token)
+      } catch (e: any) {
+        error.value = e.response?.data?.error?.message || e.response?.data?.error || 'No se pudo publicar la página. Verifica que tenga un index.html y archivos estáticos permitidos.'
+      } finally {
+        publishingPreview.value = false
+      }
+    }
+
+    async function revokePreview() {
+      if (!auth.state.token || !preview.value) return
+      try {
+        await revokeWorkspacePreview(props.conferenceId, preview.value.publicationId, auth.state.token)
+        preview.value = null
+      } catch (e: any) {
+        error.value = e.response?.data?.error?.message || 'No se pudo revocar la página'
+      }
+    }
+
+    function copyPreviewUrl() {
+      if (!preview.value) return
+      navigator.clipboard.writeText(preview.value.url)
+      previewUrlCopied.value = true
+      setTimeout(() => { previewUrlCopied.value = false }, 2000)
+    }
+
     function copyGatewayUrl() {
       if (!fullGatewayUrl.value) return
       navigator.clipboard.writeText(fullGatewayUrl.value)
@@ -237,7 +281,8 @@ export default {
       sandbox, loading, error, downloadingWorkspace, urlCopied,
       availability, loadingAvailability, chosenVariant, chooseVariant, switchVariant,
       formattedExpiry, fullGatewayUrl, ideSessionUrl, downloadWorkspace, copyGatewayUrl,
-      pendingMessage
+      pendingMessage, publishingPreview, preview, formatPreviewExpiry, publishPreview,
+      revokePreview, copyPreviewUrl, previewUrlCopied
     }
   }
 }
@@ -445,6 +490,40 @@ export default {
 .btn-tertiary:hover {
   background: #eef2ff;
   border-color: #a5b4fc;
+}
+
+.preview-result {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.preview-result p {
+  margin: 6px 0 12px;
+  font-size: 0.9rem;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-danger {
+  padding: 10px 16px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff;
+  color: #b91c1c;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: #fef2f2;
 }
 
 .no-sandbox {
