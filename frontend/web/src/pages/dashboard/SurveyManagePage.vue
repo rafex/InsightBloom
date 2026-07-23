@@ -23,6 +23,10 @@
       button.btn-primary(type="button" :disabled="releaseSaving || releasedForAll" @click="releaseAll") 🔓 Liberar para todos
       button.btn-outline(type="button" :disabled="releaseSaving || !selectedAttendees.length" @click="releaseSelected") 🔓 Liberar seleccionados ({{ selectedAttendees.length }})
     .attendee-list(v-if="attendees.length")
+      .attendee-header(aria-hidden="true")
+        span
+        span Asistente
+        span Estado
       label.attendee-row(v-for="attendee in attendees" :key="attendee.uuid")
         input(type="checkbox" :value="attendee.uuid" v-model="selectedAttendees" :disabled="releasedForAll || attendee.responded")
         .attendee-info
@@ -874,10 +878,27 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 .access-state.released { background: #dcfce7; color: #166534; }
 .access-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
 .attendee-list { border-top: 1px solid #f3f4f6; }
-.attendee-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
-.attendee-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.attendee-info span { color: #6b7280; font-size: 0.78rem; }
-.attendee-status { color: #92400e; font-size: 0.78rem; }
+.attendee-header, .attendee-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 10px;
+}
+.attendee-header {
+  padding: 8px 0;
+  color: #9ca3af;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.attendee-header span:last-child { text-align: right; }
+.attendee-row { padding: 10px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+.attendee-row input { width: auto; margin: 0; justify-self: center; }
+.attendee-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.attendee-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attendee-info span { color: #6b7280; font-size: 0.78rem; overflow-wrap: anywhere; word-break: break-word; line-height: 1.3; }
+.attendee-status { justify-self: end; color: #92400e; font-size: 0.78rem; white-space: nowrap; text-align: right; }
 .attendee-status.released { color: #166534; }
 .attendee-status.responded { color: #1d4ed8; }
 .access-error { color: #dc2626; font-size: 0.85rem; margin-top: 12px; }
@@ -1070,5 +1091,7 @@ input, select, textarea {
   .survey-manage-page { padding: 14px; }
   .tabs { gap: 4px; }
   .tab-btn { padding: 8px 10px; font-size: 0.82rem; }
+  .attendee-header { display: none; }
+  .attendee-row { grid-template-columns: 24px minmax(0, 1fr) max-content; gap: 8px; padding: 11px 0; }
 }
 </style>
