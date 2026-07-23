@@ -36,7 +36,7 @@ public class StatsHandler extends BaseResourceHandler {
     }
 
     private static boolean isOrganizerOrAdmin(final String role) {
-        return role != null && (role.contains("organizer") || role.contains("admin"));
+        return legacyRoleHasAny(role, "organizer", "admin");
     }
 
     @Override

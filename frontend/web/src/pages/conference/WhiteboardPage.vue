@@ -34,7 +34,8 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import {
   getEventWhiteboard,
   saveEventWhiteboard,
-  streamEventWhiteboard
+  streamEventWhiteboard,
+  AuthenticatedEventStream
 } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import { mountExcalidrawEditor } from '@/components/ExcalidrawEditor'
@@ -68,7 +69,7 @@ export default {
       && props.canvasAudienceMode !== 'MODERATOR_ONLY' || props.canvasModerator === true)
     let savedSceneJson = ''
     let savedPublishedSvg: string | null = null
-    let eventSource: EventSource | null = null
+    let eventSource: AuthenticatedEventStream | null = null
     let refreshTimer: ReturnType<typeof setInterval> | null = null
     let countdownTimer: ReturnType<typeof setInterval> | null = null
     let disposeEditor: (() => void) | null = null

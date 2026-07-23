@@ -23,9 +23,8 @@ import java.util.Set;
 
 /**
  * Configuracion de plataforma, admin-only salvo donde se indique lo contrario:
- * - /chat-ai: kill switch de IA en el chat (GET publico, sin autenticar -- el bot lo consulta sin
- *   token, es solo un booleano sin datos sensibles, para poder cortar rapido el uso de IA ante un
- *   intento de abuso sin depender de un redeploy).
+ * - /chat-ai/public: kill switch de IA en el chat (GET publico, solo devuelve un booleano).
+ * - /chat-ai: configuración completa admin-only.
  * - /device-access: umbrales de PlatformDeviceGuard (GET/PUT admin-only).
  * - /device-blocks: cola de revision de dispositivos bloqueados a nivel plataforma (GET/POST
  *   admin-only) -- ver PlatformDeviceGuard.
@@ -71,6 +70,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     protected List<Route> routes() {
         return List.of(
                 Route.of("/chat-ai", Set.of("GET", "PUT")),
+                Route.of("/chat-ai/public", Set.of("GET")),
                 Route.of("/device-access", Set.of("GET", "PUT")),
                 Route.of("/device-blocks", Set.of("GET")),
                 Route.of("/device-blocks/{blockId}/unblock", Set.of("POST")),
@@ -87,10 +87,25 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
         final String path = jx.path();
+        if (path.endsWith("/chat-ai/public")) {
+            try {
+                sendOk(jx, Map.of("chatAiEnabled", getChatAiSettingUseCase.execute().isChatAiEnabled()));
+            } catch (final Exception e) {
+                sendError(jx, 500, "internal_error", "Could not load chat setting");
+            }
+            return true;
+        }
         if (path.endsWith("/device-access")) return handleGetDeviceAccess(jx);
         if (path.endsWith("/device-blocks")) return handleListDeviceBlocks(jx);
         if (path.endsWith("/device-fingerprint-flags")) return handleListDeviceFingerprintFlags(jx);
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
+                sendError(jx, 403, "forbidden", "Only admins can view chat settings");
+                return true;
+            }
             final var settings = getChatAiSettingUseCase.execute();
             sendOk(jx, toView(settings));
         } catch (final Exception e) {
@@ -107,7 +122,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
                 sendError(jx, 403, "forbidden", "Only admins can change platform settings");
                 return true;
             }
@@ -140,7 +155,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
                 sendError(jx, 403, "forbidden", "Only admins can view device access settings");
                 return true;
             }
@@ -156,7 +171,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
                 sendError(jx, 403, "forbidden", "Only admins can change device access settings");
                 return true;
             }
@@ -180,7 +195,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
                 sendError(jx, 403, "forbidden", "Only admins can view platform device blocks");
                 return true;
             }
@@ -197,7 +212,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
                 sendError(jx, 403, "forbidden", "Only admins can unblock devices");
                 return true;
             }
@@ -214,7 +229,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
                 sendError(jx, 403, "forbidden", "Only admins can view device fingerprint flags");
                 return true;
             }
@@ -231,7 +246,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
                 sendError(jx, 403, "forbidden", "Only admins can review device fingerprint flags");
                 return true;
             }

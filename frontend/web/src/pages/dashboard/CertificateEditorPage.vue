@@ -63,8 +63,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import { useAuthStore } from '@/features/auth/authStore'
-import { getCertificateTemplateCatalog, getEventCertificateTemplate, saveEventCertificateTemplate } from '@/services/api/usersApi'
-import type { CertificateTemplateCatalog, CertificateTemplateCatalogItem } from '@/services/api/types'
+import { getCertificateTemplateCatalog, getEventCertificateTemplate, saveEventCertificateTemplate, setCertificateEngine } from '@/services/api/usersApi'
+import type { CertificateEngine, CertificateTemplateCatalog, CertificateTemplateCatalogItem } from '@/services/api/types'
 
 type Block = { type: 'text' | 'image' | 'shape'; x: number; y: number; width: number; height: number; text?: string; src?: string; style: Record<string, any> }
 type DocumentModel = { page: Record<string, any>; blocks: Block[] }
@@ -88,7 +88,9 @@ export default {
     const auth = useAuthStore()
     const loaded = ref(false); const saving = ref(false); const saved = ref(false); const error = ref('')
     const catalog = reactive<CertificateTemplateCatalog>({ templates: [], variables: [] })
-    const form = reactive({ templateKey: 'classic', templateName: 'Clásico', engine: 'HTML_CHROME' as const })
+    const form = reactive<{ templateKey: string; templateName: string; engine: CertificateEngine }>({
+      templateKey: 'classic', templateName: 'Clásico', engine: 'HTML_CHROME'
+    })
     const document = reactive<DocumentModel>({ page: {}, blocks: [] })
     const selectedIndex = ref(0)
     const selectedBlock = computed(() => document.blocks[selectedIndex.value] || null)
@@ -137,6 +139,9 @@ export default {
       if (!auth.state.token) return
       saving.value = true; error.value = ''; saved.value = false
       try {
+        // El editor es otra entrada válida al flujo. Sincronizar explícitamente el motor antes
+        // de guardar el JSON evita que una plantilla HTML quede asociada a un evento INHOUSE.
+        await setCertificateEngine(props.conferenceId, form.engine, auth.state.token)
         await saveEventCertificateTemplate(props.conferenceId, { templateKey: form.templateKey, templateName: form.templateName, engine: form.engine, documentJson: JSON.stringify(document) }, auth.state.token)
         saved.value = true
       } catch (e: any) { error.value = e?.response?.data?.error?.message || 'No se pudo guardar la plantilla' }

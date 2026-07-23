@@ -22,6 +22,15 @@ public class DatabaseManager {
 
     public void initialize() {
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
+            // Las migraciones de datos deben ejecutarse una sola vez. Sin esta tabla, una
+            // reparación de compatibilidad podría volver a pisar una selección explícita del
+            // organizador en cada reinicio del servicio.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    version TEXT PRIMARY KEY,
+                    applied_at TEXT NOT NULL
+                )
+            """);
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -354,6 +363,30 @@ public class DatabaseManager {
                 )
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_certificate_templates_conference ON certificate_templates(conference_uuid)");
+
+            // Reparación única de datos creados por la primera versión del editor visual. Esa
+            // versión guardaba certificate_templates.engine=HTML_CHROME, pero no sincronizaba
+            // conferences.certificate_engine; la generación pública consulta la segunda columna
+            // y terminaba usando PDFBox/Inhouse. Solo se corrigen filas donde la plantilla HTML
+            // es más reciente que la conferencia, señal de ese estado inconsistente.
+            final int certificateEngineMigration = stmt.executeUpdate("""
+                INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                VALUES ('certificate-engine-template-sync-v1', CURRENT_TIMESTAMP)
+            """);
+            if (certificateEngineMigration > 0) {
+                stmt.executeUpdate("""
+                    UPDATE conferences
+                       SET certificate_engine = 'HTML_CHROME'
+                     WHERE certificate_engine = 'INHOUSE'
+                       AND EXISTS (
+                           SELECT 1
+                             FROM certificate_templates
+                            WHERE certificate_templates.conference_uuid = conferences.uuid
+                              AND certificate_templates.engine = 'HTML_CHROME'
+                              AND certificate_templates.updated_at > conferences.updated_at
+                       )
+                """);
+            }
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS download_events (

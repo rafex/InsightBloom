@@ -9,8 +9,22 @@ interface AuthState {
   expiresAt: string | null
 }
 
+// Access tokens are session material, not application preferences. Keep them
+// out of persistent localStorage so a shared browser profile or an old
+// persisted XSS payload cannot recover a token after the tab/session ends.
+// The backend also issues a scoped HttpOnly cookie for presentation assets.
+const tokenStorage = sessionStorage
+
+function migrateLegacyToken(): void {
+  const legacyToken = localStorage.getItem('ib_token')
+  if (legacyToken && !sessionStorage.getItem('ib_token')) sessionStorage.setItem('ib_token', legacyToken)
+  if (legacyToken) localStorage.removeItem('ib_token')
+}
+
+migrateLegacyToken()
+
 const state: AuthState = reactive({
-  token: localStorage.getItem('ib_token') || null,
+  token: tokenStorage.getItem('ib_token') || null,
   role: localStorage.getItem('ib_role') || null,
   userUuid: localStorage.getItem('ib_user_uuid') || null,
   expiresAt: localStorage.getItem('ib_expires_at') || null
@@ -40,7 +54,7 @@ export function useAuthStore() {
     state.token = token
     state.role = role
     state.userUuid = userUuid
-    localStorage.setItem('ib_token', token)
+    tokenStorage.setItem('ib_token', token)
     localStorage.setItem('ib_role', role)
     localStorage.setItem('ib_user_uuid', userUuid)
     persistExpiresAt(expiresAt)
@@ -55,7 +69,7 @@ export function useAuthStore() {
     state.token = token
     state.role = 'guest'
     state.userUuid = guestUuid
-    localStorage.setItem('ib_token', token)
+    tokenStorage.setItem('ib_token', token)
     localStorage.setItem('ib_role', 'guest')
     persistExpiresAt(expiresAt)
     return { token }
@@ -65,7 +79,7 @@ export function useAuthStore() {
     state.token = token
     state.role = role
     state.userUuid = userUuid
-    localStorage.setItem('ib_token', token)
+    tokenStorage.setItem('ib_token', token)
     localStorage.setItem('ib_role', role)
     localStorage.setItem('ib_user_uuid', userUuid)
     persistExpiresAt(expiresAt)
@@ -81,7 +95,7 @@ export function useAuthStore() {
       const { token, role, expiresAt } = res.data.data
       state.token = token
       if (role) state.role = role
-      localStorage.setItem('ib_token', token)
+      tokenStorage.setItem('ib_token', token)
       if (role) localStorage.setItem('ib_role', role)
       persistExpiresAt(expiresAt)
       return true
@@ -103,6 +117,7 @@ export function useAuthStore() {
     state.token = null
     state.role = null
     state.userUuid = null
+    tokenStorage.removeItem('ib_token')
     localStorage.removeItem('ib_token')
     localStorage.removeItem('ib_role')
     localStorage.removeItem('ib_user_uuid')

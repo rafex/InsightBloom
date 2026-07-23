@@ -83,7 +83,12 @@ function cookieToken(req) {
 }
 
 function requestToken(url, req, queryName) {
-  return url.searchParams.get(queryName) || cookieToken(req);
+  // Tokens must never be accepted from the WebSocket URL. The browser receives
+  // the scoped HttpOnly presentation cookie from the authenticated HTTP route.
+  // Keep queryName in the signature for callers compiled against this helper.
+  void url;
+  void queryName;
+  return cookieToken(req);
 }
 
 async function hasPresentationManagementAccess(conferenceId, token) {

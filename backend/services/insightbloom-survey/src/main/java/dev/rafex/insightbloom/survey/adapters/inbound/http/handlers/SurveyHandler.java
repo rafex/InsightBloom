@@ -377,7 +377,7 @@ public class SurveyHandler extends BaseResourceHandler {
     }
 
     private static boolean isOrganizerOrAdmin(final String role) {
-        return role != null && (role.contains("organizer") || role.contains("admin"));
+        return legacyRoleHasAny(role, "organizer", "admin");
     }
 
     private boolean isSurveyJs(final String conferenceId) {
@@ -446,7 +446,7 @@ public class SurveyHandler extends BaseResourceHandler {
             sendError(jx, 403, "forbidden", "Only organizers can manage survey questions");
             return null;
         }
-        final boolean platformAdmin = v.role() != null && v.role().contains("admin");
+        final boolean platformAdmin = legacyRoleHasAny(v.role(), "admin");
         if (!platformAdmin && !usersPort.isConferenceOwner(conferenceId, v.subjectUuid())) {
             sendError(jx, 403, "forbidden", "You are not the organizer of this conference");
             return null;

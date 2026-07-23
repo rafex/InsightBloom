@@ -156,9 +156,9 @@ describe('usersApi', () => {
       )
     })
 
-    it('opens the authenticated SSE stream using the EventSource-compatible query token', () => {
+    it('opens the authenticated SSE stream without putting the token in the URL', () => {
       const stream = streamEventDiagram('c 1', 'token/1')
-      expect(stream.url).toBe('/api/users/api/v1/conferences/c 1/diagram/stream?ib_token=token%2F1')
+      expect(stream.url).toBe('/api/users/api/v1/conferences/c 1/diagram/stream')
     })
   })
 

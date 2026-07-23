@@ -155,7 +155,7 @@ const router = createRouter({
 const GUEST_ROUTES = ['/', '/login', '/register']
 
 router.beforeEach((to) => {
-  const token = localStorage.getItem('ib_token')
+  const token = sessionStorage.getItem('ib_token')
 
   // Already authenticated → skip landing/login/register
   if (token && GUEST_ROUTES.includes(to.path)) return '/dashboard'

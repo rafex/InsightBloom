@@ -85,7 +85,7 @@ public class SandboxFilesHandler extends BaseResourceHandler {
     }
 
     private static boolean isOrganizerOrAdmin(final String role) {
-        return role != null && (role.contains("organizer") || role.contains("admin"));
+        return legacyRoleHasAny(role, "organizer", "admin");
     }
 
     /** @return null (con el error ya enviado) si el request no esta autorizado -- exige rol
@@ -101,7 +101,7 @@ public class SandboxFilesHandler extends BaseResourceHandler {
             sendError(jx, 403, "forbidden", "Only organizers can view sandbox files");
             return null;
         }
-        final boolean platformAdmin = v.role() != null && v.role().contains("admin");
+        final boolean platformAdmin = legacyRoleHasAny(v.role(), "admin");
         if (!platformAdmin) {
             final var conference = getConferenceUseCase.byId(conferenceId);
             if (conference.isEmpty() || !conference.get().getCreatedByUserUuid().equals(v.subjectUuid())) {

@@ -48,7 +48,7 @@ export default {
 
     onMounted(async () => {
       try {
-        const settings = await getChatSettings()
+        const settings = await getChatSettings(auth.state.token as string)
         chatAiEnabled.value = settings.chatAiEnabled
         chatSystemPrompt.value = settings.chatSystemPrompt || ''
         chatTemperature.value = settings.chatTemperature ?? DEFAULT_TEMPERATURE

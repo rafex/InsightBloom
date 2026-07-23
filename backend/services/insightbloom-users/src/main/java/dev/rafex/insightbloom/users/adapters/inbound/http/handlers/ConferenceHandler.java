@@ -920,7 +920,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             final var conference = getConferenceUseCase.byId(id);
             if (conference.isEmpty()) { sendError(jx, 404, "conference_not_found", "Conference not found"); return true; }
-            final boolean manager = v.role() != null && v.role().contains("admin")
+            final boolean manager = legacyRoleHasAny(v.role(), "admin")
                     || (isOrganizerOrAdmin(v.role())
                     && conference.get().getCreatedByUserUuid().equals(v.subjectUuid()));
             if (!manager && !ticketUseCase.hasAccess(conference.get(), v.subjectUuid())) {
@@ -1347,8 +1347,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     /** Operational staff do not need an attendee ticket for the conference. */
     private boolean hasOperationalStaffAccess(final String conferenceId,
                                                final ValidateTokenUseCase.ValidationResult v) {
-        final String role = v.role() == null ? "" : v.role().toLowerCase(java.util.Locale.ROOT);
-        return role.contains("admin") || role.contains("organizer") || role.contains("moderator")
+        return legacyRoleHasAny(v.role(), "admin", "organizer", "moderator")
                 || canManageTickets(conferenceId, v);
     }
 
@@ -1853,11 +1852,11 @@ public class ConferenceHandler extends BaseResourceHandler {
     }
 
     private static boolean isOrganizerOrAdmin(final String role) {
-        return role != null && (role.contains("organizer") || role.contains("admin"));
+        return legacyRoleHasAny(role, "organizer", "admin");
     }
 
     private static boolean isPlatformAdminRole(final String role) {
-        return role != null && role.contains("admin");
+        return legacyRoleHasAny(role, "admin");
     }
 
     /** Exige token valido, rol organizer/admin Y que el caller sea dueño real de la conferencia
@@ -1872,7 +1871,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 403, "forbidden", "Only organizers can perform this action");
             return null;
         }
-        final boolean platformAdmin = v.role() != null && v.role().contains("admin");
+        final boolean platformAdmin = legacyRoleHasAny(v.role(), "admin");
         if (!platformAdmin) {
             final var conference = getConferenceUseCase.byId(conferenceId);
             if (conference.isEmpty() || !conference.get().getCreatedByUserUuid().equals(v.subjectUuid())) {

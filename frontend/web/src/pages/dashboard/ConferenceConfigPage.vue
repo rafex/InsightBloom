@@ -197,7 +197,8 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import {
   getConference, setSeatingMode, getActiveEventTypes, setEventType,
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
-  listSandboxIncidents, listSandboxStatus, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine
+  listSandboxIncidents, listSandboxStatus, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
+  getCertificateEngine
 } from '@/services/api/usersApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -479,6 +480,15 @@ export default {
       try {
         conference.value = await setCertificateEngine(
           props.conferenceId as string, certificateEngine.value, auth.state.token as string)
+        // Verificar la lectura real después del PUT. Así la UI no muestra "guardado" si un
+        // gateway o una versión antigua del servicio aceptó la petición pero no persistió la
+        // columna certificate_engine.
+        const persistedEngine = await getCertificateEngine(
+          props.conferenceId as string, auth.state.token as string)
+        if (persistedEngine !== certificateEngine.value) {
+          throw new Error('El motor devuelto por el servidor no coincide con la selección')
+        }
+        conference.value.certificateEngine = persistedEngine
         certificateEngineSaved.value = true
       } catch (e: any) {
         certificateEngineError.value = e.response?.data?.error?.message || 'No se pudo guardar el motor de certificado'

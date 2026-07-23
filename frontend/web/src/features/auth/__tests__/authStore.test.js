@@ -9,7 +9,9 @@ vi.mock('@/services/auth/fingerprint', () => ({
 // authStore keeps its state in a module-level singleton, so localStorage must be
 // stubbed before the first import and every test must clean up after itself.
 const localStorageMock = { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() }
+const sessionStorageMock = { getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn() }
 vi.stubGlobal('localStorage', localStorageMock)
+vi.stubGlobal('sessionStorage', sessionStorageMock)
 
 describe('authStore', () => {
   let useAuthStore
@@ -17,6 +19,7 @@ describe('authStore', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     localStorageMock.getItem.mockReturnValue(null)
+    sessionStorageMock.getItem.mockReturnValue(null)
     ;({ useAuthStore } = await import('../authStore'))
     // The store is a module-level singleton, so state leaks across tests unless reset here.
     useAuthStore().setSession({ token: null, role: null, userUuid: null, expiresAt: null })
@@ -39,7 +42,7 @@ describe('authStore', () => {
     expect(result).toEqual({ token: 'tok', role: 'organizer', userUuid: 'u1' })
     expect(auth.state.token).toBe('tok')
     expect(auth.isAuthenticated()).toBe(true)
-    expect(localStorageMock.setItem).toHaveBeenCalledWith('ib_token', 'tok')
+    expect(sessionStorageMock.setItem).toHaveBeenCalledWith('ib_token', 'tok')
     expect(localStorageMock.setItem).toHaveBeenCalledWith('ib_expires_at', '2026-07-08T00:00:00Z')
   })
 
@@ -89,7 +92,7 @@ describe('authStore', () => {
 
     expect(auth.state.token).toBeNull()
     expect(auth.isAuthenticated()).toBe(false)
-    expect(localStorageMock.removeItem).toHaveBeenCalledWith('ib_token')
+    expect(sessionStorageMock.removeItem).toHaveBeenCalledWith('ib_token')
     expect(localStorageMock.removeItem).toHaveBeenCalledWith('ib_expires_at')
   })
 

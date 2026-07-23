@@ -15,6 +15,67 @@ function authHeader(token?: string | null) {
   return { headers: { Authorization: `Bearer ${token}` } }
 }
 
+/** SSE con Authorization; evita poner el token principal en la URL. */
+export class AuthenticatedEventStream {
+  private readonly listeners = new Map<string, Set<(event: Event) => void>>()
+  private closed = false
+  onerror: ((event: Event) => void) | null = null
+
+  constructor(private readonly url: string, private readonly token: string) {
+    void this.connect()
+  }
+
+  addEventListener(type: string, listener: (event: Event) => void): void {
+    const set = this.listeners.get(type) || new Set<(event: Event) => void>()
+    set.add(listener)
+    this.listeners.set(type, set)
+  }
+
+  close(): void {
+    this.closed = true
+  }
+
+  private emit(type: string, event: Event): void {
+    this.listeners.get(type)?.forEach(listener => listener(event))
+    if (type === 'error') this.onerror?.(event)
+  }
+
+  private async connect(): Promise<void> {
+    try {
+      const response = await fetch(this.url, {
+        headers: { Authorization: `Bearer ${this.token}` },
+        credentials: 'same-origin'
+      })
+      if (!response.ok || !response.body) throw new Error(`SSE HTTP ${response.status}`)
+      this.emit('open', new Event('open'))
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (!this.closed) {
+        const next = await reader.read()
+        if (next.done) break
+        buffer += decoder.decode(next.value, { stream: true })
+        let boundary = buffer.indexOf('\n\n')
+        while (boundary >= 0) {
+          const raw = buffer.slice(0, boundary)
+          buffer = buffer.slice(boundary + 2)
+          let eventType = 'message'
+          const data: string[] = []
+          raw.split(/\r?\n/).forEach(line => {
+            if (line.startsWith('event:')) eventType = line.slice(6).trim() || 'message'
+            if (line.startsWith('data:')) data.push(line.slice(5).trimStart())
+          })
+          if (data.length) this.emit(eventType, new MessageEvent(eventType, { data: data.join('\n') }))
+          boundary = buffer.indexOf('\n\n')
+        }
+      }
+      if (!this.closed) this.emit('error', new Event('error'))
+    } catch (error) {
+      if (!this.closed) this.emit('error', new Event('error'))
+    }
+  }
+}
+
 /** Mismo fingerprint que ya usan invitados anonimos (ver services/auth/fingerprint.ts), ahora
  *  tambien mandado en Jitsi/IDE para que DeviceAccessGuard pueda controlar cuantos dispositivos
  *  usa un mismo usuario y cuantas cuentas comparte un mismo dispositivo. */
@@ -185,8 +246,8 @@ export async function getCertificateBlobUrl(conferenceId: string, token: string)
   return URL.createObjectURL(res.data)
 }
 
-export async function getCertificateSettings(): Promise<CertificateSettings> {
-  const res = await axios.get('/api/users/api/v1/certificate-settings')
+export async function getCertificateSettings(token: string): Promise<CertificateSettings> {
+  const res = await axios.get('/api/users/api/v1/certificate-settings', authHeader(token))
   return res.data.data
 }
 
@@ -563,10 +624,10 @@ export async function saveEventDiagram(
   await axios.put(`/api/users/api/v1/conferences/${conferenceId}/diagram`, { xml, publishedSvg }, authHeader(token))
 }
 
-/** Stream de cambios de la exportacion publicada. EventSource no admite headers Bearer. */
-export function streamEventDiagram(conferenceId: string, token: string): EventSource {
-  const url = `/api/users/api/v1/conferences/${conferenceId}/diagram/stream?ib_token=${encodeURIComponent(token)}`
-  return new EventSource(url)
+/** Stream autenticado de cambios de la exportación publicada. */
+export function streamEventDiagram(conferenceId: string, token: string): AuthenticatedEventStream {
+  const url = `/api/users/api/v1/conferences/${conferenceId}/diagram/stream`
+  return new AuthenticatedEventStream(url, token)
 }
 
 /** Escena nativa y exportacion publicada de Excalidraw para el evento. */
@@ -585,10 +646,10 @@ export async function saveEventWhiteboard(
     { sceneJson, publishedSvg }, authHeader(token))
 }
 
-/** Stream de cambios de la pizarra publicada. EventSource no admite headers Bearer. */
-export function streamEventWhiteboard(conferenceId: string, token: string): EventSource {
-  const url = `/api/users/api/v1/conferences/${conferenceId}/whiteboard/stream?ib_token=${encodeURIComponent(token)}`
-  return new EventSource(url)
+/** Stream autenticado de cambios de la pizarra publicada. */
+export function streamEventWhiteboard(conferenceId: string, token: string): AuthenticatedEventStream {
+  const url = `/api/users/api/v1/conferences/${conferenceId}/whiteboard/stream`
+  return new AuthenticatedEventStream(url, token)
 }
 
 /** Token JWT firmado para unirse a la sala de JaaS (8x8.vc) de este evento, si esta configurado. */
@@ -636,12 +697,12 @@ export async function setRoleActive(uuid: string, active: boolean, token: string
 }
 
 export async function getChatAiSetting(): Promise<boolean> {
-  const res = await axios.get('/api/users/api/v1/settings/chat-ai')
+  const res = await axios.get('/api/users/api/v1/settings/chat-ai/public')
   return res.data.data.chatAiEnabled
 }
 
-export async function getChatSettings(): Promise<ChatSettings> {
-  const res = await axios.get('/api/users/api/v1/settings/chat-ai')
+export async function getChatSettings(token: string): Promise<ChatSettings> {
+  const res = await axios.get('/api/users/api/v1/settings/chat-ai', authHeader(token))
   return res.data.data
 }
 

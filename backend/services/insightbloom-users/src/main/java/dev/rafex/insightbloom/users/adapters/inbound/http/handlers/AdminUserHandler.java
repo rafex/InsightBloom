@@ -172,7 +172,7 @@ public class AdminUserHandler extends BaseResourceHandler {
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return false; }
         final var v = validateTokenUseCase.execute(token);
-        if (!v.valid() || v.role() == null || !v.role().contains("admin")) {
+        if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
             sendError(jx, 403, "forbidden", "Only admins can manage users");
             return false;
         }

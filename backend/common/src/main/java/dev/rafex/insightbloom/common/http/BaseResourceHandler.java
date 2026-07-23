@@ -12,7 +12,12 @@ import dev.rafex.insightbloom.contracts.ApiResponse;
 import org.eclipse.jetty.server.Request;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public abstract class BaseResourceHandler extends NonBlockingResourceHandler {
@@ -65,6 +70,19 @@ public abstract class BaseResourceHandler extends NonBlockingResourceHandler {
             return false;
         }
         final String header = jx.request().getHeaders().get("X-Internal-Auth");
-        return key.equals(header);
+        return header != null && MessageDigest.isEqual(
+                key.getBytes(StandardCharsets.UTF_8), header.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** Match legacy CSV roles as complete tokens, never with substring authorization. */
+    protected static boolean legacyRoleHasAny(final String legacyRoles, final String... expectedRoles) {
+        if (legacyRoles == null || legacyRoles.isBlank() || expectedRoles == null) return false;
+        final Set<String> expected = Arrays.stream(expectedRoles)
+                .filter(java.util.Objects::nonNull)
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet());
+        return Arrays.stream(legacyRoles.split("[,\\s]+"))
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .anyMatch(expected::contains);
     }
 }

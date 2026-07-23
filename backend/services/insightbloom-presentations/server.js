@@ -38,6 +38,8 @@ const OFFLINE_MANIFEST_PRIVATE_KEY = process.env.OFFLINE_MANIFEST_PRIVATE_KEY ||
 const OFFLINE_MANIFEST_PUBLIC_KEY = process.env.OFFLINE_MANIFEST_PUBLIC_KEY || '';
 const MAX_UNCOMPRESSED_ZIP_BYTES = 250 * 1024 * 1024;
 const MAX_ARCHIVE_FILES = 1000;
+const UPLOAD_RATE_WINDOW_MS = 60 * 1000;
+const MAX_UPLOADS_PER_IP = 5;
 const ALLOWED_ARCHIVE_EXTENSIONS = new Set([
   '.md', '.css', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.avif',
   '.woff', '.woff2', '.ttf', '.otf', '.mp4', '.webm', '.ogg', '.mp3', '.wav'
@@ -48,6 +50,7 @@ const DENIED_ARCHIVE_NAMES = new Set([
 ]);
 
 const upload = multer({ dest: path.join(DATA_DIR, 'tmp'), limits: { fileSize: 100 * 1024 * 1024 } });
+const uploadRate = new Map();
 
 const app = express();
 let certificateBrowserPromise = null;
@@ -148,7 +151,7 @@ function certificateDocument(documentJson, data) {
 }
 
 app.post('/internal/v1/certificates/render', express.json({ limit: '300kb' }), async (req, res) => {
-  if (!INTERNAL_API_KEY || req.headers['x-internal-api-key'] !== INTERNAL_API_KEY) {
+  if (!constantTimeHeaderMatches(req.headers['x-internal-api-key'], INTERNAL_API_KEY)) {
     return res.status(403).json({ error: 'forbidden' });
   }
   try {
@@ -165,6 +168,34 @@ app.post('/internal/v1/certificates/render', express.json({ limit: '300kb' }), a
     res.status(400).json({ error: 'certificate_render_failed' });
   }
 });
+
+function constantTimeHeaderMatches(value, expected) {
+  if (typeof value !== 'string' || !expected) return false;
+  const actual = Buffer.from(value, 'utf8');
+  const target = Buffer.from(expected, 'utf8');
+  return actual.length === target.length && crypto.timingSafeEqual(actual, target);
+}
+
+function presentationUploadRateLimit(req, res, next) {
+  const now = Date.now();
+  if (uploadRate.size > 10_000) {
+    for (const [key, value] of uploadRate) {
+      if (now - value.startedAt >= UPLOAD_RATE_WINDOW_MS) uploadRate.delete(key);
+    }
+  }
+  const key = req.ip || req.socket.remoteAddress || 'unknown';
+  const current = uploadRate.get(key);
+  if (!current || now - current.startedAt >= UPLOAD_RATE_WINDOW_MS) {
+    uploadRate.set(key, { startedAt: now, count: 1 });
+    return next();
+  }
+  if (current.count >= MAX_UPLOADS_PER_IP) {
+    res.setHeader('Retry-After', String(Math.ceil((UPLOAD_RATE_WINDOW_MS - (now - current.startedAt)) / 1000)));
+    return res.status(429).json({ error: 'upload_rate_limited', message: 'Demasiadas cargas; inténtalo más tarde' });
+  }
+  current.count += 1;
+  return next();
+}
 
 // Presentation responses depend on the event, the current ticket/role and the
 // latest uploaded artifact. Never let a browser, proxy or service worker reuse
@@ -194,7 +225,6 @@ function validConferenceId(id) {
 function requestToken(req) {
   const authorization = req.headers.authorization || '';
   if (authorization.startsWith('Bearer ')) return authorization.slice(7);
-  if (typeof req.query.ib_token === 'string') return req.query.ib_token;
   const cookieHeader = req.headers.cookie || '';
   const tokenCookie = cookieHeader.split(';').map((cookie) => cookie.trim()).find((cookie) => cookie.startsWith('ib_token='));
   if (!tokenCookie) return null;
@@ -228,7 +258,7 @@ async function hasConferenceAccess(conferenceId, token) {
 }
 
 async function requireConferenceAccess(req, res) {
-  if (INTERNAL_API_KEY && req.headers['x-internal-api-key'] === INTERNAL_API_KEY) return true;
+  if (constantTimeHeaderMatches(req.headers['x-internal-api-key'], INTERNAL_API_KEY)) return true;
   if (await hasConferenceAccess(req.params.id, requestToken(req))) return true;
   res.status(403).json({ error: 'ticket_required', message: 'Registro y boleto requeridos' });
   return false;
@@ -596,6 +626,21 @@ function escapeHtml(s) {
   }[c]));
 }
 
+function sanitizeGeneratedMarpHtml(file) {
+  const $ = cheerio.load(fs.readFileSync(file, 'utf8'), { decodeEntities: false });
+  $('script, iframe, object, embed, link[rel="import"]').remove();
+  $('*').each((_, element) => {
+    for (const attribute of Object.keys(element.attribs || {})) {
+      if (attribute.toLowerCase().startsWith('on')) $(element).removeAttr(attribute);
+    }
+    const href = $(element).attr('href');
+    if (href && /^\s*javascript:/i.test(href)) $(element).removeAttr('href');
+    const src = $(element).attr('src');
+    if (src && /^\s*javascript:/i.test(src)) $(element).removeAttr('src');
+  });
+  fs.writeFileSync(file, $.html());
+}
+
 async function deriveConferenceName(conferenceId, title) {
   if (!title || !INTERNAL_API_KEY) return;
   try {
@@ -671,6 +716,7 @@ async function buildPresentation(provider, conferenceId, stagingDir, srcDir) {
     const baseArgs = [mdFile, '--allow-local-files', '--html'];
     if (themeFile) baseArgs.push('--theme', themeFile);
     await runMarp([...baseArgs, '-o', slidesHtml]);
+    sanitizeGeneratedMarpHtml(slidesHtml);
     return {
       provider,
       format: 'source',
@@ -740,7 +786,7 @@ function installSlidevFatPresentation(conferenceId, stagingDir, zip, audit) {
   };
 }
 
-app.post('/api/v1/conferences/:id/presentation', requirePresentationManagement, upload.single('file'), async (req, res) => {
+app.post('/api/v1/conferences/:id/presentation', requirePresentationManagement, presentationUploadRateLimit, upload.single('file'), async (req, res) => {
   const { id } = req.params;
   if (!validConferenceId(id)) return res.status(400).json({ error: 'invalid_conference_id' });
   if (!req.file) return res.status(400).json({ error: 'file_required' });
@@ -837,6 +883,8 @@ app.get('/api/v1/conferences/:id/presentation/presenter', async (req, res) => {
 
 app.get('/api/v1/conferences/:id/presentation/slides/preview', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  if (!await requireConferenceAccess(req, res)) return;
+  setPresentationAccessCookie(req, res, req.params.id);
   const manifest = readManifest(req.params.id);
   if (manifest.provider === 'SLIDEV') {
     try {
@@ -953,7 +1001,9 @@ app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
     if (allowed) {
       const contentSecurityPolicy = manifest.format === 'fat'
         ? "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'none'"
-        : "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'self' https: wss:";
+        : manifest.provider === 'MARP'
+          ? "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'none'; frame-src 'none'"
+          : "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'self' https: wss:";
       res.setHeader('Content-Security-Policy', contentSecurityPolicy);
       setPresentationAccessCookie(req, res, req.params.id);
       serve();
@@ -963,6 +1013,8 @@ app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
 
 app.get('/api/v1/conferences/:id/presentation/preview/:file', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  if (!await requireConferenceAccess(req, res)) return;
+  setPresentationAccessCookie(req, res, req.params.id);
   const manifest = readManifest(req.params.id);
   if (manifest.provider !== 'SLIDEV') return res.status(404).json({ error: 'not_found' });
   const file = path.basename(req.params.file);
@@ -1106,6 +1158,8 @@ async function ensureThumbnail(conferenceId) {
 
 app.get('/api/v1/conferences/:id/presentation/thumbnail', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  if (!await requireConferenceAccess(req, res)) return;
+  setPresentationAccessCookie(req, res, req.params.id);
   try {
     const file = await ensureThumbnail(req.params.id);
     if (!file) return res.status(404).json({ error: 'not_found' });

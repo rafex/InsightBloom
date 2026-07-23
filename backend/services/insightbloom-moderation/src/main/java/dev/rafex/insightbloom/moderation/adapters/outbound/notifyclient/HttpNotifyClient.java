@@ -13,11 +13,13 @@ public class HttpNotifyClient implements NotifyPort {
     private final String usersBaseUrl;
     private final HttpClient client;
     private final ObjectMapper mapper;
+    private final String internalKey;
 
     public HttpNotifyClient(final String usersBaseUrl) {
         this.usersBaseUrl = usersBaseUrl;
         this.client = HttpClient.newHttpClient();
         this.mapper = new ObjectMapper();
+        this.internalKey = System.getenv("INTERNAL_API_KEY");
     }
 
     @Override
@@ -29,11 +31,13 @@ public class HttpNotifyClient implements NotifyPort {
                     "conferenceUuid", conferenceUuid != null ? conferenceUuid : "",
                     "question", question != null ? question : "",
                     "answer", answer != null ? answer : ""));
-            final HttpRequest request = HttpRequest.newBuilder()
+            final var builder = HttpRequest.newBuilder()
                     .uri(URI.create(usersBaseUrl + "/api/v1/notify/doubt-answered"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
+                    .header("Content-Type", "application/json");
+            if (internalKey != null && !internalKey.isBlank()) {
+                builder.header("X-Internal-Auth", internalKey);
+            }
+            final HttpRequest request = builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
             client.send(request, HttpResponse.BodyHandlers.discarding());
         } catch (final Exception e) {
             // best-effort: an answer is still saved even if the email notification fails

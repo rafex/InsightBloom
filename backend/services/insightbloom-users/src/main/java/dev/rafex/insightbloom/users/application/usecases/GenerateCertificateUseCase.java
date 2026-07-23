@@ -12,6 +12,7 @@ import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.SurveyPort;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.adapters.outbound.presentationsclient.CertificateRenderer;
+import dev.rafex.insightbloom.users.domain.services.CertificateTemplateCatalog;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -99,18 +100,23 @@ public class GenerateCertificateUseCase {
     private byte[] renderEventTemplateOrLegacy(final Conference conference, final User user,
                                                 final String attendeeName, final boolean profileIncomplete,
                                                 final CertificateSettings settings) throws IOException {
-        if (certificateTemplateRepository != null && certificateRenderer != null) {
+        if ("HTML_CHROME".equals(conference.getCertificateEngine())) {
+            if (certificateRenderer == null) {
+                throw new IllegalStateException("certificate_html_renderer_unavailable");
+            }
+            final String documentJson = certificateTemplateRepository == null
+                    ? CertificateTemplateCatalog.defaultEntry().documentJson()
+                    : certificateTemplateRepository.findByConferenceUuid(conference.getUuid())
+                    .filter(t -> "HTML_CHROME".equals(t.getEngine()))
+                    .map(t -> t.getDocumentJson())
+                    .orElse(CertificateTemplateCatalog.defaultEntry().documentJson());
+            return certificateRenderer.render(documentJson, certificateData(conference, user, attendeeName));
+        }
+        if (certificateTemplateRepository != null) {
             final var template = certificateTemplateRepository.findByConferenceUuid(conference.getUuid());
-            if (template.isPresent()) {
-                if ("HTML_CHROME".equals(conference.getCertificateEngine())
-                        && "HTML_CHROME".equals(template.get().getEngine())) {
-                    return certificateRenderer.render(template.get().getDocumentJson(), certificateData(conference, user, attendeeName));
-                }
-                if ("INHOUSE".equals(conference.getCertificateEngine())
-                        && "INHOUSE".equals(template.get().getEngine())) {
-                    return renderPdf(conference, attendeeName, profileIncomplete,
-                            legacySettingsFromJson(template.get().getDocumentJson(), settings));
-                }
+            if (template.isPresent() && "INHOUSE".equals(template.get().getEngine())) {
+                return renderPdf(conference, attendeeName, profileIncomplete,
+                        legacySettingsFromJson(template.get().getDocumentJson(), settings));
             }
         }
         return renderPdf(conference, attendeeName, profileIncomplete, settings);

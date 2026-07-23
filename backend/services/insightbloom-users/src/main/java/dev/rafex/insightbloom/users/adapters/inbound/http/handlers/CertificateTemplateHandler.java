@@ -21,10 +21,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /** API de catálogo y edición de plantillas por evento. */
 public final class CertificateTemplateHandler extends BaseResourceHandler {
     private static final int MAX_DOCUMENT_LENGTH = 200_000;
+    private static final int MAX_BLOCK_TEXT_LENGTH = 5_000;
+    private static final Pattern SAFE_COLOR = Pattern.compile("^(#[0-9a-f]{3,8}|rgba?\\([0-9., %]+\\)|transparent)$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SAFE_BORDER = Pattern.compile("^(none|\\d{1,3}px\\s+solid\\s+#[0-9a-f]{3,8})$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SAFE_IMAGE = Pattern.compile("^data:image/(png|jpeg|gif|webp|svg\\+xml);base64,[a-z0-9+/=]+$", Pattern.CASE_INSENSITIVE);
     private final CertificateTemplateRepository templateRepository;
     private final ConferenceRepository conferenceRepository;
     private final EventPermissionGuard permissionGuard;
@@ -109,6 +114,9 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
                 if (!"INHOUSE".equals(engine) && !"HTML_CHROME".equals(engine)) {
                     throw new IllegalArgumentException("El motor debe ser INHOUSE o HTML_CHROME");
                 }
+                if ("HTML_CHROME".equals(engine)) {
+                    ensureHtmlTemplate(conferenceUuid, auth.subjectUuid());
+                }
                 conference.get().setCertificateEngine(engine);
                 conferenceRepository.save(conference.get());
                 sendOk(jx, conference.get());
@@ -137,6 +145,11 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
             final CertificateTemplate saved = new CertificateTemplate(conferenceUuid, key, name, engine, documentJson,
                     version, auth.subjectUuid(), Instant.now());
             templateRepository.save(saved);
+            // La conferencia es la fuente de verdad que consulta GenerateCertificateUseCase.
+            // Mantenerla sincronizada evita que el editor visual guarde HTML_CHROME mientras
+            // el certificado público continúa usando el motor legacy INHOUSE.
+            conference.get().setCertificateEngine(engine);
+            conferenceRepository.save(conference.get());
             sendOk(jx, savedView(saved));
         } catch (IllegalArgumentException e) {
             sendError(jx, 400, "invalid_template", e.getMessage());
@@ -157,8 +170,67 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
                 throw new IllegalArgumentException("El documento debe contener page y blocks");
             }
             if (root.path("blocks").size() > 100) throw new IllegalArgumentException("Máximo 100 bloques");
+            validatePage(root.path("page"));
+            for (final JsonNode block : root.path("blocks")) validateBlock(block);
         } catch (IllegalArgumentException e) { throw e; }
         catch (Exception e) { throw new IllegalArgumentException("El documento no es JSON válido"); }
+    }
+
+    private static void validatePage(final JsonNode page) {
+        if (page.has("background") && (!page.path("background").isTextual()
+                || !SAFE_COLOR.matcher(page.path("background").asText()).matches())) {
+            throw new IllegalArgumentException("El fondo del certificado no es válido");
+        }
+        if (page.has("padding")) validateNumber(page.path("padding"), 0, 200, "padding");
+    }
+
+    private static void validateBlock(final JsonNode block) {
+        if (!block.isObject()) throw new IllegalArgumentException("Cada bloque debe ser un objeto");
+        final String type = block.path("type").asText("");
+        if (!Set.of("text", "image", "shape").contains(type)) {
+            throw new IllegalArgumentException("Tipo de bloque no permitido");
+        }
+        validateNumber(block.path("x"), -2_000, 3_000, "x");
+        validateNumber(block.path("y"), -2_000, 3_000, "y");
+        validateNumber(block.path("width"), 1, 3_000, "width");
+        validateNumber(block.path("height"), 1, 3_000, "height");
+        if ("text".equals(type)) {
+            if (!block.path("text").isTextual() || block.path("text").asText().length() > MAX_BLOCK_TEXT_LENGTH) {
+                throw new IllegalArgumentException("El texto del bloque no es válido");
+            }
+        }
+        if ("image".equals(type)) {
+            if (!block.path("src").isTextual() || !SAFE_IMAGE.matcher(block.path("src").asText()).matches()) {
+                throw new IllegalArgumentException("La imagen debe ser una data URL local permitida");
+            }
+        }
+        if (block.has("style")) validateStyle(block.path("style"));
+    }
+
+    private static void validateStyle(final JsonNode style) {
+        if (!style.isObject()) throw new IllegalArgumentException("El estilo del bloque no es válido");
+        if (style.has("fontSize")) validateNumber(style.path("fontSize"), 1, 200, "fontSize");
+        if (style.has("lineHeight")) validateNumber(style.path("lineHeight"), 0, 200, "lineHeight");
+        if (style.has("borderRadius")) validateNumber(style.path("borderRadius"), 0, 500, "borderRadius");
+        if (style.has("padding")) validateNumber(style.path("padding"), 0, 500, "padding");
+        for (final String key : List.of("color", "background")) {
+            if (style.has(key) && (!style.path(key).isTextual() || !SAFE_COLOR.matcher(style.path(key).asText()).matches())) {
+                throw new IllegalArgumentException("El color del estilo no es válido");
+            }
+        }
+        if (style.has("border") && (!style.path("border").isTextual() || !SAFE_BORDER.matcher(style.path("border").asText()).matches())) {
+            throw new IllegalArgumentException("El borde del estilo no es válido");
+        }
+        if (style.has("textAlign") && (!style.path("textAlign").isTextual()
+                || !Set.of("left", "center", "right").contains(style.path("textAlign").asText()))) {
+            throw new IllegalArgumentException("La alineación no es válida");
+        }
+    }
+
+    private static void validateNumber(final JsonNode value, final double min, final double max, final String field) {
+        if (!value.isNumber() || !Double.isFinite(value.asDouble()) || value.asDouble() < min || value.asDouble() > max) {
+            throw new IllegalArgumentException("El campo " + field + " no es válido");
+        }
     }
 
     private CertificateSettings loadLegacySettings(final String conferenceUuid) {
@@ -169,6 +241,20 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
             } catch (Exception ignored) { /* se usa el respaldo global */ }
         }
         return certificateSettingsRepository.get();
+    }
+
+    /**
+     * Activar HTML_CHROME debe dejar al evento en un estado renderizable aunque
+     * el organizador aún no haya abierto el editor visual. El editor devuelve
+     * este mismo diseño como punto de partida y luego lo reemplaza al guardar.
+     */
+    private void ensureHtmlTemplate(final String conferenceUuid, final String userUuid) {
+        final var current = templateRepository.findByConferenceUuid(conferenceUuid);
+        if (current.isPresent() && "HTML_CHROME".equals(current.get().getEngine())) return;
+        final var entry = CertificateTemplateCatalog.defaultEntry();
+        final int version = current.map(t -> t.getVersion() + 1).orElse(1);
+        templateRepository.save(new CertificateTemplate(conferenceUuid, entry.key(), entry.name(),
+                entry.engine(), entry.documentJson(), version, userUuid, Instant.now()));
     }
 
     private CertificateSettings settingsFromBody(final Map<String, Object> body) {
@@ -236,7 +322,7 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
         final String conferenceUuid = jx.pathParam("conferenceUuid");
         final var conference = conferenceRepository.findByUuid(conferenceUuid);
         final boolean ownerOrganizer = conference.map(c -> c.getCreatedByUserUuid().equals(auth.subjectUuid())
-                && auth.role() != null && auth.role().contains("organizer")).orElse(false);
+                && legacyRoleHasAny(auth.role(), "organizer")).orElse(false);
         final boolean allowed = permissionGuard.hasPermission(conferenceUuid, auth.subjectUuid(), auth.role(), Permission.MANAGE_CERTIFICATE)
                 || ownerOrganizer;
         if (!allowed) { sendError(jx, 403, "forbidden", "No tienes permiso para editar el certificado de este evento"); return null; }

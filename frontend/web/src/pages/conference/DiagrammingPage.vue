@@ -26,12 +26,12 @@
     .save-banner(v-if="!canPersist" class="save-banner-info") ℹ️ Tu edición es local y no se conservará; solo el material del moderador se persiste.
     .save-banner(v-if="saveError" class="save-banner-error") ⚠️ No se pudo publicar el diagrama: {{ saveError }}
     .save-banner(v-else-if="saveStatus === 'saved'" class="save-banner-ok") ✓ Diagrama publicado
-    iframe.drawio-frame(ref="frameRef" :src="drawioUrl" title="Diagramas" allow="clipboard-write")
+    iframe.drawio-frame(ref="frameRef" :src="drawioUrl" title="Diagramas" allow="clipboard-write" @load="stripSessionToken")
 </template>
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getIntegrationConfig, getEventDiagram, saveEventDiagram, streamEventDiagram } from '@/services/api/usersApi'
+import { getIntegrationConfig, getEventDiagram, saveEventDiagram, streamEventDiagram, AuthenticatedEventStream } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 const REFRESH_INTERVAL_SECONDS = 30
@@ -65,7 +65,7 @@ export default {
     let savedPublishedSvg: string | null = null
     let pendingXml = ''
     let exportTimeout: ReturnType<typeof setTimeout> | null = null
-    let eventSource: EventSource | null = null
+    let eventSource: AuthenticatedEventStream | null = null
     let refreshTimer: ReturnType<typeof setInterval> | null = null
     let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -155,6 +155,15 @@ export default {
       return `${drawioBaseUrl.value}/?embed=1&proto=json&spin=1&noSaveBtn=0&saveAndExit=0${token}`
     })
 
+    function stripSessionToken(event: Event) {
+      const frame = event.currentTarget as HTMLIFrameElement | null
+      if (!frame?.src) return
+      const url = new URL(frame.src)
+      if (!url.searchParams.has('ib_token')) return
+      url.searchParams.delete('ib_token')
+      frame.src = url.toString()
+    }
+
     function postToFrame(message: Record<string, unknown>) {
       frameRef.value?.contentWindow?.postMessage(JSON.stringify(message), '*')
     }
@@ -242,7 +251,7 @@ export default {
     return {
       loading, drawioUrl, frameRef, saveError, saveStatus, canPersist,
       isModeratorOnlyViewer, publishedSvg, publishedUpdatedAt, newVersionAvailable,
-      refreshing, refreshCountdown, streamConnected, refreshPublishedDiagram
+      refreshing, refreshCountdown, streamConnected, refreshPublishedDiagram, stripSessionToken
     }
   }
 }

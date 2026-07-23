@@ -1,6 +1,6 @@
 # Security Audit Report — InsightBloom
 
-_Fecha inicial: 2026-06-26 | Actualizado: 2026-07-21 | Estado: ✅ Correcciones implementadas; validar después del despliegue_
+_Fecha inicial: 2026-06-26 | Actualizado: 2026-07-22 | Estado: ✅ Correcciones implementadas; validar después del despliegue_
 
 ---
 
@@ -8,7 +8,9 @@ _Fecha inicial: 2026-06-26 | Actualizado: 2026-07-21 | Estado: ✅ Correcciones 
 
 Se realizaron **tres rondas de auditoría**. Las dos primeras cubrieron autenticación, endpoints, criptografía, red e infraestructura; la tercera cubrió presentaciones, chat, frontend y CD. Los hallazgos confirmados tienen corrección implementada; las dependencias transitivas sin parche compatible quedan bajo seguimiento automatizado.
 
-Estado actual: **ningún hallazgo de código abierto; dependencias upstream bajo seguimiento**.
+Estado actual: **ningún hallazgo crítico/alto de código abierto; dependencias upstream bajo seguimiento**.
+El riesgo de compartir enlaces directos de 8x8 queda fuera de esta ronda porque
+la integración actual ya no expone esos enlaces como mecanismo de entrada.
 
 ---
 
@@ -33,15 +35,19 @@ upload y para emitir/controlar enlaces remotos.
 Todos los archivos de una presentación completa requieren acceso al evento;
 ya no se protege solamente Slidev. El preview Marp elimina scripts, iframes,
 object/embed, handlers `on*` y enlaces `javascript:` y responde con CSP sin
-ejecución de scripts.
+ejecución de scripts. El HTML Marp persistido se sanitiza con las mismas reglas
+y su iframe usa un sandbox sin `allow-scripts`; Slidev mantiene sólo el runtime
+necesario y queda sujeto a la auditoría de artefactos FAT.
 
 ### A5 — Tokens en URL de iframe/WebSocket/PDF ✅ CORREGIDO
 
 El frontend primero inicializa una cookie `ib_token` HttpOnly, `SameSite=Lax` y
 acotada al path de la conferencia. Después carga iframe, WebSocket y PDF sin
-poner el token en la URL. El control remoto conserva únicamente su token HMAC
-propio, ahora con TTL de 30 minutos, comparación constant-time y rechazo si la
-clave interna está ausente. La audiencia continúa validando boleto/acceso.
+poner el token en la URL. El servicio de presentaciones ya no acepta
+`ib_token` desde query string: sólo Authorization o la cookie de acceso. El
+control remoto conserva únicamente su token HMAC propio, ahora con TTL de 30
+minutos, comparación constant-time y rechazo si la clave interna está ausente.
+La audiencia continúa validando boleto/acceso.
 
 ### A6 — Webhook del chat sin autenticación ✅ CORREGIDO
 
@@ -71,6 +77,24 @@ crea `insightbloom-sandbox-manager` exclusivamente para `insightbloom-users`.
 El RoleBinding de Pods/Services/NetworkPolicies apunta a ese ServiceAccount
 dedicado.
 
+### A10 — Autorización por substring y documentos de certificado ✅ CORREGIDO
+
+Los roles legacy se comparan como tokens completos (`admin`, `organizer`,
+`moderator`), no mediante `contains`, evitando que valores como `notadmin`
+obtengan permisos. Los endpoints de configuración de certificados exigen el
+rol correspondiente y validan límites, tipos, colores, imágenes locales y
+bloques del JSON antes de entregarlo a Chromium con JavaScript deshabilitado.
+
+### A11 — Persistencia del token principal en el navegador ✅ MITIGADO
+
+El token `ib_token` ya no se guarda en `localStorage`; se mantiene sólo en
+`sessionStorage` y se elimina al cerrar sesión o recibir un 401. Los tokens
+legacy se migran una sola vez y se borran de `localStorage`. Esto reduce la
+exposición en perfiles compartidos y tras cerrar el navegador. `sessionStorage`
+todavía es legible por JavaScript durante la vida de la pestaña; el cierre
+definitivo requiere migrar el flujo completo a una cookie HttpOnly con defensa
+CSRF y conservar el token sólo en memoria como siguiente iniciativa.
+
 ### Verificación realizada
 
 - `./mvnw -f pom.xml -pl backend/services/insightbloom-users -am test -DskipITs`
@@ -80,6 +104,9 @@ dedicado.
 - `python3 -m pytest -q` en chat — 36 tests correctos.
 - `node --check server.js` y `node --check live.js` — correctos.
 - `git diff --check` — correcto.
+- `node --check backend/services/insightbloom-presentations/server.js` y
+  `node --check backend/services/insightbloom-presentations/live.js` — correctos.
+- Suite Maven completa (`./mvnw -o test`) — BUILD SUCCESS.
 
 ### Riesgos transitorios de dependencias
 
@@ -154,6 +181,18 @@ misma cadena `lodash-es`; no deben tratarse como cinco problemas independientes.
   automático actual degrada Excalidraw; el reporte sigue visible en cada CI.
 - No aplicar `npm audit fix --force` sin una rama de compatibilidad y pruebas
   manuales de Marp, Slidev, Drawio, Excalidraw y la vista pública.
+
+### Controles operativos todavía recomendados
+
+Estos puntos no abren por sí mismos un endpoint ni permiten el acceso directo
+al evento, pero deben permanecer en el backlog de seguridad:
+
+- añadir SAST y escaneo de secretos como jobs bloqueantes del CI;
+- mantener un escaneo de imágenes y SBOM/provenance verificables en el
+  registro;
+- completar la migración de `sessionStorage` a cookie HttpOnly/CSRF;
+- resolver las cadenas transitivas de `lodash-es`, `nanoid` y
+  `@hono/node-server` cuando exista una actualización compatible.
 
 ---
 

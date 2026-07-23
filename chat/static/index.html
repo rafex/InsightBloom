@@ -690,8 +690,14 @@ async function api(path, body) {
    en el sitio principal), saltamos login/registro de chat.
 ══════════════════════════════════════════════════ */
 (async function trySso() {
-  const ibToken = new URLSearchParams(location.search).get('ib_token');
+  const params = new URLSearchParams(location.search);
+  const ibToken = params.get('ib_token');
   if (!ibToken) return;
+  // The main-session token is only needed for this one SSO exchange. Remove it
+  // from the address bar/history before doing any other navigation.
+  params.delete('ib_token');
+  const cleanQuery = params.toString();
+  history.replaceState(null, '', `${location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${location.hash}`);
   try {
     const r = await api('/api/sso', { ib_token: ibToken });
     myToken = r.token;

@@ -12,7 +12,7 @@
         span(v-if="downloading") Preparando...
         span(v-else) Descargar TXT
       span.error(v-if="exportError") {{ exportError }}
-    iframe.etherpad-frame(:src="padUrl" title="Notas")
+    iframe.etherpad-frame(:src="padUrl" title="Notas" @load="stripSessionToken")
 </template>
 
 <script lang="ts">
@@ -53,6 +53,15 @@ export default {
       }
     }
 
+    function stripSessionToken(event: Event) {
+      const frame = event.currentTarget as HTMLIFrameElement | null
+      if (!frame?.src) return
+      const url = new URL(frame.src)
+      if (!url.searchParams.has('ib_token')) return
+      url.searchParams.delete('ib_token')
+      frame.src = url.toString()
+    }
+
     onMounted(async () => {
       if (!props.conferenceId) { loading.value = false; return }
       try {
@@ -73,7 +82,7 @@ export default {
       }
     })
 
-    return { loading, padUrl, isIndividual, downloading, exportError, downloadNotes }
+    return { loading, padUrl, isIndividual, downloading, exportError, downloadNotes, stripSessionToken }
   }
 }
 </script>

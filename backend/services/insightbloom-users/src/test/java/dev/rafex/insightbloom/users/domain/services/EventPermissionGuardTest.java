@@ -29,6 +29,17 @@ class EventPermissionGuardTest {
     }
 
     @Test
+    void roleNameContainingAdmin_isNotTreatedAsSystemAdmin() {
+        final EventRoleRepository eventRoleRepo = Mockito.mock(EventRoleRepository.class);
+        final RoleRepository roleRepo = Mockito.mock(RoleRepository.class);
+        Mockito.when(eventRoleRepo.findByEventAndUser("event-1", "user-1")).thenReturn(Optional.empty());
+
+        final var guard = new EventPermissionGuard(eventRoleRepo, roleRepo);
+
+        assertFalse(guard.hasPermission("event-1", "user-1", "notadmin", Permission.ASSIGN_EVENT_ROLES));
+    }
+
+    @Test
     void userWithMatchingRoleAssignment_hasPermission() {
         final EventRoleRepository eventRoleRepo = Mockito.mock(EventRoleRepository.class);
         final RoleRepository roleRepo = Mockito.mock(RoleRepository.class);

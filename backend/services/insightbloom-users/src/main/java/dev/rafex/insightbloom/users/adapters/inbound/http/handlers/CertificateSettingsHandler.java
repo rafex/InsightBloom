@@ -43,10 +43,17 @@ public class CertificateSettingsHandler extends BaseResourceHandler {
     @Override
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Only platform admins can view certificate settings");
+                return true;
+            }
             sendOk(jx, getUseCase.execute());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendError(jx, 500, "internal_error", "Could not load certificate settings");
         }
         return true;
     }
@@ -86,6 +93,6 @@ public class CertificateSettingsHandler extends BaseResourceHandler {
     }
 
     private static boolean isAdmin(final String role) {
-        return role != null && role.contains("admin");
+        return legacyRoleHasAny(role, "admin");
     }
 }

@@ -12,7 +12,7 @@ import 'survey-core/survey-core.css'
 // emitir el token en el login (DeviceFingerprintAuditHandler) -- si no coincide, solo lo audita
 // para revision de un admin, nunca corta la sesión (ver docs/device-fingerprinting.md).
 axios.interceptors.request.use(async (config) => {
-  if (localStorage.getItem('ib_token')) {
+  if (sessionStorage.getItem('ib_token')) {
     try {
       config.headers = config.headers || {}
       config.headers['X-Device-Fingerprint'] = await getFingerprint()
@@ -30,7 +30,8 @@ axios.interceptors.request.use(async (config) => {
 axios.interceptors.response.use(
   (res) => res,
   (err: AxiosError) => {
-    if (err.response?.status === 401 && localStorage.getItem('ib_token')) {
+    if (err.response?.status === 401 && sessionStorage.getItem('ib_token')) {
+      sessionStorage.removeItem('ib_token')
       localStorage.removeItem('ib_token')
       localStorage.removeItem('ib_role')
       localStorage.removeItem('ib_user_uuid')

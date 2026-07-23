@@ -92,7 +92,7 @@ export default {
       try {
         const settings = props.conferenceId
           ? await getEventLegacyCertificateSettings(props.conferenceId, auth.state.token as string)
-          : await getCertificateSettings()
+          : await getCertificateSettings(auth.state.token as string)
         form.value = { ...form.value, ...settings, logoBase64: settings.logoBase64 || '' }
       } catch (e: any) {
         error.value = 'No se pudo cargar la configuración.'

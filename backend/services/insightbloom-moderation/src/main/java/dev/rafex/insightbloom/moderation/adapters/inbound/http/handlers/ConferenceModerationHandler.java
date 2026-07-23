@@ -76,7 +76,7 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
             sendError(jx, 403, "forbidden", "Only organizers can moderate");
             return null;
         }
-        final boolean platformAdmin = validation.role() != null && validation.role().contains("admin");
+        final boolean platformAdmin = legacyRoleHasAny(validation.role(), "admin");
         if (!platformAdmin && !usersPort.isConferenceOwner(conferenceId, validation.subjectUuid())) {
             sendError(jx, 403, "forbidden", "You are not the organizer of this conference");
             return null;
@@ -85,7 +85,7 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
     }
 
     private static boolean isOrganizerOrAdmin(final String role) {
-        return role != null && (role.contains("organizer") || role.contains("admin"));
+        return legacyRoleHasAny(role, "organizer", "admin");
     }
 
     @Override

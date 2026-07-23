@@ -18,7 +18,7 @@
     // and CSS requests. Without it, the sandbox gives the frame an opaque
     // origin (`null`), the assets are answered with `application/json` from
     // the access guard, and the deck stays blank with a CORS/MIME error.
-    iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" sandbox="allow-scripts allow-forms allow-presentation allow-same-origin")
+    iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" :sandbox="iframeSandbox")
     .presentation-actions
       a.btn-secondary(v-if="canParticipate && presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
       router-link.btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
@@ -50,6 +50,9 @@ export default {
     const provider = ref<PresentationProvider>('MARP')
     const slidesUrl = ref('')
     const slidesFrame = ref<HTMLIFrameElement | null>(null)
+    const iframeSandbox = computed(() => provider.value === 'MARP'
+      ? 'allow-forms allow-presentation allow-same-origin'
+      : 'allow-scripts allow-forms allow-presentation allow-same-origin')
     const wsConnected = ref(false)
     let ws: WebSocket | null = null
     let wsRetryTimer: ReturnType<typeof setTimeout> | null = null
@@ -124,7 +127,7 @@ export default {
     })
 
     return {
-      friendlyId, loading, ready, slidesUrl, canParticipate, slidesFrame, wsConnected,
+      friendlyId, loading, ready, slidesUrl, canParticipate, slidesFrame, iframeSandbox, wsConnected,
       previewSlideLimit: PREVIEW_SLIDE_LIMIT
     }
   }

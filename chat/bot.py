@@ -161,14 +161,10 @@ class Roberto:
         settings = {"enabled": True, "system_prompt": _ENV_SYSTEM_PROMPT, "temperature": _DEFAULT_TEMPERATURE}
         try:
             async with httpx.AsyncClient(timeout=3.0) as client:
-                r = await client.get(f"{USERS_URL}/api/v1/settings/chat-ai")
+                r = await client.get(f"{USERS_URL}/api/v1/settings/chat-ai/public")
                 if r.status_code == 200:
                     data = r.json().get("data", {})
                     settings["enabled"] = bool(data.get("chatAiEnabled", True))
-                    settings["system_prompt"] = data.get("chatSystemPrompt") or _ENV_SYSTEM_PROMPT
-                    settings["temperature"] = data.get("chatTemperature")
-                    if settings["temperature"] is None:
-                        settings["temperature"] = _DEFAULT_TEMPERATURE
         except Exception as exc:
             log.info("No se pudo consultar la configuracion del chat, se asumen los defaults: %s", exc)
         self._chat_settings_cache = (now, settings)

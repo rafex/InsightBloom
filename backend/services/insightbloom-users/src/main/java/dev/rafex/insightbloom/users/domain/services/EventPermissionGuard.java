@@ -4,6 +4,9 @@ import dev.rafex.insightbloom.users.domain.model.Permission;
 import dev.rafex.insightbloom.users.domain.ports.EventRoleRepository;
 import dev.rafex.insightbloom.users.domain.ports.RoleRepository;
 
+import java.util.Arrays;
+import java.util.Locale;
+
 /**
  * Resuelve si un usuario tiene un permiso de alcance EVENT sobre un evento especifico (DEC-0021).
  * Un usuario con el rol de plataforma `system_admin` tiene bypass total (FR-008) sin necesidad de
@@ -39,6 +42,8 @@ public class EventPermissionGuard {
         // Bypass ligado al rol legado "admin" (UserRole.ADMIN, DEC-0011): todo admin de
         // plataforma actua como system_admin. Cuando exista asignacion explicita de roles de
         // plataforma (fuera de alcance de esta iteracion), este chequeo se resuelve por key.
-        return userLegacyRole != null && userLegacyRole.contains("admin");
+        return userLegacyRole != null && Arrays.stream(userLegacyRole.split("[,\\s]+"))
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .anyMatch("admin"::equals);
     }
 }
