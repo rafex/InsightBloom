@@ -11,26 +11,27 @@
       span(v-else) Conectando...
       span.registered-count(v-if="registeredCount !== null") · 👥 {{ registeredCount }} registrados al evento
     .speaker-header-actions
-      a.btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
-      button.btn-secondary(@click="showQr = true") Mostrar QR
-      button.btn-secondary(@click="shareRemoteControl") Compartir control remoto
-      button.btn-secondary(v-if="ready && !offlineMode && !offlinePreparing" @click="prepareOffline") Preparar offline
-      button.btn-secondary(v-if="offlinePackage && !offlineMode" @click="openOfflineCached") Abrir offline
-      button.btn-secondary(v-if="offlineMode" @click="openOnlinePresentation") Volver online
-      span.offline-preparing(v-if="offlinePreparing") Cifrando paquete…
-      span.offline-error(v-if="offlineError") {{ offlineError }}
+      .utility-controls
+        a.btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
+        button.btn-secondary(@click="showQr = true") Mostrar QR
+        button.btn-secondary(@click="shareRemoteControl") Compartir control remoto
+        button.btn-secondary(v-if="ready && !offlineMode && !offlinePreparing" @click="prepareOffline") Preparar offline
+        button.btn-secondary(v-if="offlinePackage && !offlineMode" @click="openOfflineCached") Abrir offline
+        button.btn-secondary(v-if="offlineMode" @click="openOnlinePresentation") Volver online
+        span.offline-preparing(v-if="offlinePreparing") Cifrando paquete…
+        span.offline-error(v-if="offlineError") {{ offlineError }}
+      .nav-controls(v-if="ready")
+        button.btn-nav(type="button" @click="navigate('prev')") ← Anterior
+        button.btn-nav(type="button" @click="navigate('next')") Siguiente →
 
   .presentation-empty(v-if="checkedStatus && !ready")
     p Aún no hay una presentación subida para esta conferencia.
     router-link.btn-primary(:to="`/dashboard/conferences/${conferenceId}/presentation`") Subir presentación
 
   template(v-else)
-    p.hint(v-if="!offlineMode") Navega el deck con las flechas del teclado, haciendo clic dentro, o con los botones de abajo — la audiencia te sigue automáticamente.
+    p.hint(v-if="!offlineMode") Navega el deck con las flechas del teclado, haciendo clic dentro, o con los controles de navegación — la audiencia te sigue automáticamente.
     p.hint(v-else) La presentación está disponible localmente hasta {{ offlinePackage?.expiresAt }}. La sincronización en vivo se reanuda al volver a estar online.
     iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" @load="onIframeLoad")
-    .nav-controls
-      button.btn-nav(@click="navigate('prev')") ← Anterior
-      button.btn-nav(@click="navigate('next')") Siguiente →
 
   QrCodeModal(v-if="showQr && friendlyId" :friendlyId="friendlyId" @close="showQr = false")
   QrCodeModal(v-if="showRemoteShare" :url="remoteShareUrl" @close="showRemoteShare = false")
@@ -134,11 +135,16 @@ export default {
       }
 
       const marker = `/api/presentations/api/v1/conferences/${props.conferenceId}/presentation/`
-      const target = new URL(state, window.location.origin + marker)
-      if (target.pathname.startsWith(`${marker}presenter`)) {
-        target.pathname = target.pathname.replace(`${marker}presenter`, marker.slice(0, -1))
-      }
-      return target
+      const stateUrl = new URL(state || '', window.location.origin + marker)
+      let relativePath = stateUrl.pathname.startsWith(marker)
+        ? stateUrl.pathname.slice(marker.length)
+        : stateUrl.pathname.replace(/^\/+/, '')
+      if (relativePath === 'presenter') relativePath = ''
+      if (relativePath.startsWith('presenter/')) relativePath = relativePath.slice('presenter/'.length)
+      current.pathname = `${marker}presenter${relativePath ? `/${relativePath}` : ''}`
+      current.search = stateUrl.search
+      current.hash = stateUrl.hash
+      return current
     }
 
     function restoreNavigationState(): boolean {
@@ -376,7 +382,8 @@ export default {
 <style scoped>
 .speaker-panel-page { padding: 24px; max-width: 960px; }
 .speaker-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.speaker-header-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.speaker-header-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; margin-left: auto; }
+.utility-controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 h2 { margin: 0; color: #1e1b4b; }
 .speaker-status { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #374151; font-weight: 600; flex-wrap: wrap; }
 .registered-count { color: #6b7280; font-weight: 500; }
@@ -385,7 +392,7 @@ h2 { margin: 0; color: #1e1b4b; }
 .hint { color: #6b7280; font-size: 0.85rem; margin-bottom: 10px; }
 .presentation-empty { text-align: center; color: #6b7280; padding: 60px; }
 .slides-frame { width: 100%; height: 70vh; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
-.nav-controls { display: flex; gap: 10px; margin-top: 12px; }
+.nav-controls { display: flex; gap: 10px; }
 .btn-nav {
   flex: 1; padding: 10px 16px; border-radius: 10px; border: 2px solid #c7d2fe; background: #eef2ff;
   color: #4f46e5; font-weight: 700; font-size: 0.95rem; cursor: pointer;
@@ -404,7 +411,8 @@ h2 { margin: 0; color: #1e1b4b; }
   .speaker-panel-page { padding: 14px; }
   .speaker-header { flex-direction: column; align-items: stretch; }
   .speaker-header-actions { margin-left: 0; }
-  .speaker-header-actions .btn-secondary { flex: 1; }
+  .utility-controls { justify-content: stretch; }
+  .utility-controls .btn-secondary { flex: 1; }
   .slides-frame { height: 45vh; }
   .nav-controls { gap: 8px; }
   .btn-nav { padding: 16px; font-size: 1.05rem; min-height: 48px; }
