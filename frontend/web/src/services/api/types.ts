@@ -150,6 +150,8 @@ export interface PublicConference {
   scheduleLayout?: 'LEFT' | 'RIGHT'
   publicTheme?: PublicTheme
   organizerPhotoBase64?: string | null
+  /** True only for the current authenticated user; no ticket data is exposed. */
+  hasTicket?: boolean
 }
 
 // Fase C (DEC-0025): asiento de un Pod "neovim" compartido que el watchdog del seat-agent tuvo

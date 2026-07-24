@@ -242,13 +242,16 @@ export async function getConferenceByFriendlyId(friendlyId: string): Promise<Con
   return res.data.data
 }
 
-export async function getPublicConferences(): Promise<PublicConference[]> {
-  const res = await axios.get('/api/users/api/v1/conferences/public')
+export async function getPublicConferences(token?: string | null): Promise<PublicConference[]> {
+  const res = await axios.get('/api/users/api/v1/conferences/public', token ? authHeader(token) : undefined)
   return res.data.data
 }
 
-export async function getPublicConference(friendlyId: string): Promise<PublicConference> {
-  const res = await axios.get(`/api/users/api/v1/conferences/public/${encodeURIComponent(friendlyId)}`)
+export async function getPublicConference(friendlyId: string, token?: string | null): Promise<PublicConference> {
+  const res = await axios.get(
+    `/api/users/api/v1/conferences/public/${encodeURIComponent(friendlyId)}`,
+    token ? authHeader(token) : undefined
+  )
   return res.data.data
 }
 

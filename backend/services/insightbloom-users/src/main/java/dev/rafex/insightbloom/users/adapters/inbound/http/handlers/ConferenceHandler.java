@@ -667,12 +667,24 @@ public class ConferenceHandler extends BaseResourceHandler {
                                         boolean ticketPurchaseEnabled, String visibility, String flyerBase64,
                                         String scheduleMarkdown, String scheduleLayout,
                                         String publicTheme, String organizerPhotoBase64,
-                                        String ticketPrice, String ticketCurrency) {}
+                                        String ticketPrice, String ticketCurrency,
+                                        boolean hasTicket) {}
 
     private PublicConferenceView publicView(final Conference conference) {
+        return publicView(conference, null);
+    }
+
+    /**
+     * Public event data may be requested with an optional user session. Only the
+     * boolean access hint is added for that session; ticket identifiers and
+     * claimant data never become part of the public representation.
+     */
+    private PublicConferenceView publicView(final Conference conference, final String userUuid) {
         final boolean ticketRequired = ticketUseCase != null && ticketUseCase.isTicketed(conference);
         final Integer remaining = conference.getCapacity() == null ? null
                 : Math.max(0, conference.getCapacity() - conference.getReservedCount());
+        final boolean hasTicket = userUuid != null && ticketUseCase != null
+                && ticketUseCase.myTicket(conference.getUuid(), userUuid).isPresent();
         final String organizer = userRepository.findByUuid(conference.getCreatedByUserUuid())
                 .map(user -> user.getDisplayName())
                 .filter(name -> name != null && !name.isBlank())
@@ -687,12 +699,14 @@ public class ConferenceHandler extends BaseResourceHandler {
                 conference.getPublicTheme(),
                 userRepository.findByUuid(conference.getCreatedByUserUuid())
                         .map(user -> user.getPublicProfilePhotoBase64()).orElse(null),
-                conference.getTicketPrice(), conference.getTicketCurrency());
+                conference.getTicketPrice(), conference.getTicketCurrency(), hasTicket);
     }
 
     private boolean handlePublicList(final JettyHttpExchange jx) {
         try {
-            sendOk(jx, 200, getConferenceUseCase.publicEvents().stream().map(this::publicView).toList());
+            final String userUuid = optionalAuthenticatedUserUuid(jx);
+            sendOk(jx, 200, getConferenceUseCase.publicEvents().stream()
+                    .map(conference -> publicView(conference, userUuid)).toList());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -701,15 +715,29 @@ public class ConferenceHandler extends BaseResourceHandler {
 
     private boolean handlePublicDetail(final JettyHttpExchange jx, final String friendlyId) {
         try {
+            final String userUuid = optionalAuthenticatedUserUuid(jx);
             getConferenceUseCase.resolveAny(publicIdentifier(jx, friendlyId))
                     .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
                     .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
-                    .ifPresentOrElse(c -> sendOk(jx, 200, publicView(c)),
+                    .ifPresentOrElse(c -> sendOk(jx, 200, publicView(c, userUuid)),
                             () -> sendError(jx, 404, "public_event_not_found", "Evento público no encontrado"));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    /** Invalid or guest sessions do not make an otherwise public request fail. */
+    private String optionalAuthenticatedUserUuid(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null || token.isBlank()) return null;
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            return validation.valid() && !"guest".equalsIgnoreCase(validation.role())
+                    ? validation.subjectUuid() : null;
+        } catch (final Exception ignored) {
+            return null;
+        }
     }
 
     /** Solicitud de boleto público: requiere sesión para ligar el boleto a una cuenta. */

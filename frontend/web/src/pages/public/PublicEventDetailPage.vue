@@ -29,9 +29,9 @@
               dt Precio
               dd {{ Number(event.ticketPrice || 0) > 0 ? `${event.ticketPrice} ${event.ticketCurrency || 'MXN'}` : 'Gratis' }}
           .actions
-            router-link.btn-primary(v-if="event.ticketPurchaseEnabled" :to="`/events/${event.friendlyId}/checkout`")
-              span {{ Number(event.ticketPrice || 0) > 0 ? '💳 Continuar a compra' : '🎟️ Continuar al boleto' }}
-            router-link.btn-outline(v-else :to="`/c/${event.friendlyId}`") Entrar al evento
+            router-link.btn-primary(v-if="event.hasTicket || !event.ticketRequired" :to="`/c/${event.friendlyId}`") Entrar
+            router-link.btn-primary(v-else-if="event.ticketPurchaseEnabled" :to="`/events/${event.friendlyId}/checkout`") Adquirir boleto
+            router-link.btn-outline(v-else :to="`/events/${event.friendlyId}/checkout`") Adquirir boleto
         img.detail-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" alt="Flyer del evento")
         .detail-flyer.placeholder(v-else aria-hidden="true") 🎟️
       section.schedule(v-if="renderedSchedule")
@@ -53,12 +53,14 @@ import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import { getPublicConference } from '@/services/api/usersApi'
 import type { PublicConference } from '@/services/api/types'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'PublicEventDetailPage',
   components: { AppHeader, ConferenceMap },
   setup() {
     const route = useRoute()
+    const auth = useAuthStore()
     const event = ref<PublicConference | null>(null); const loading = ref(true); const error = ref('')
     const renderer = new Renderer(); renderer.html = () => ''
     const renderedSchedule = computed(() => {
@@ -69,7 +71,8 @@ export default {
     const osmUrl = computed(() => event.value && event.value.latitude != null && event.value.longitude != null
       ? `https://www.openstreetmap.org/?mlat=${event.value.latitude}&mlon=${event.value.longitude}#map=16/${event.value.latitude}/${event.value.longitude}` : '#')
     onMounted(async () => {
-      try { event.value = await getPublicConference(route.params.friendlyId as string) }
+      const token = auth.isAuthenticated() && auth.state.role !== 'guest' ? auth.state.token : null
+      try { event.value = await getPublicConference(route.params.friendlyId as string, token) }
       catch { error.value = 'No se encontró el evento público.' }
       finally { loading.value = false }
     })
