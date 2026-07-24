@@ -24,6 +24,8 @@ public class User {
     private String firstName;
     private String lastName;
     private Instant lastLoginAt;
+    // Avatar público opcional. Se guarda normalizado a JPEG por el caso de uso de perfil.
+    private String publicProfilePhotoBase64;
     // Huella del dispositivo desde el que se creo la cuenta -- inmutable en la practica (se fija
     // una sola vez al registrarse, ver RegisterUseCase/PlatformDeviceGuard.checkRegistration).
     private String registrationDeviceFingerprint;
@@ -110,6 +112,10 @@ public class User {
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public Instant getLastLoginAt() { return lastLoginAt; }
+    public String getPublicProfilePhotoBase64() { return publicProfilePhotoBase64; }
+    public void setPublicProfilePhotoBase64(String publicProfilePhotoBase64) {
+        this.publicProfilePhotoBase64 = publicProfilePhotoBase64;
+    }
     public String getRegistrationDeviceFingerprint() { return registrationDeviceFingerprint; }
     public void setRegistrationDeviceFingerprint(String registrationDeviceFingerprint) {
         this.registrationDeviceFingerprint = registrationDeviceFingerprint;

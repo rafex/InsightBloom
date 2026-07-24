@@ -31,7 +31,9 @@
               dt Aforo
               dd {{ event.remainingSeats }} disponibles de {{ event.capacity }}
           .event-card-footer
-            span {{ event.organizer }}
+            span.organizer-name
+              img.organizer-avatar(v-if="event.organizerPhotoBase64" :src="event.organizerPhotoBase64" alt="")
+              span {{ event.organizer }}
             strong Ver detalle →
 </template>
 
@@ -81,6 +83,7 @@ h2 { color: #1e1b4b; margin: 0 0 8px; font-size: 1.3rem; }
 .event-facts dt { color: #9ca3af; font-weight: 700; }
 .event-facts dd { color: #374151; margin: 0; }
 .event-card-footer { border-top: 1px solid #eef0f5; display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 14px; color: #6b7280; font-size: .8rem; }
+.organizer-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }.organizer-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
 .event-card-footer strong { color: #4f46e5; white-space: nowrap; }
 .state, .empty { background: #fff; padding: 30px; border-radius: 16px; color: #6b7280; }
 .error { color: #b91c1c; }

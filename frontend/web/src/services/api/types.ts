@@ -142,6 +142,7 @@ export interface PublicConference {
   flyerBase64?: string | null
   scheduleMarkdown?: string | null
   scheduleLayout?: 'LEFT' | 'RIGHT'
+  organizerPhotoBase64?: string | null
 }
 
 // Fase C (DEC-0025): asiento de un Pod "neovim" compartido que el watchdog del seat-agent tuvo
@@ -352,6 +353,7 @@ export interface UserProfile {
   lastName?: string | null
   email?: string | null
   phone?: string | null
+  publicProfilePhotoBase64?: string | null
   [key: string]: unknown
 }
 

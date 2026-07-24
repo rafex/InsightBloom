@@ -30,8 +30,8 @@ public class SqliteUserRepository implements UserRepository {
             INSERT OR REPLACE INTO users
                 (uuid, username, display_name, email, phone, social_links, email_verified, phone_verified,
                  role, status, password_hash, created_at, updated_at, first_name, last_name, last_login_at,
-                 registration_device_fingerprint)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 registration_device_fingerprint, public_profile_photo_base64)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getUuid());
@@ -51,6 +51,7 @@ public class SqliteUserRepository implements UserRepository {
             ps.setString(15, user.getLastName());
             ps.setString(16, user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null);
             ps.setString(17, user.getRegistrationDeviceFingerprint());
+            ps.setString(18, user.getPublicProfilePhotoBase64());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -163,6 +164,7 @@ public class SqliteUserRepository implements UserRepository {
         final String lastLoginAt = rs.getString("last_login_at");
         if (lastLoginAt != null) user.setLastLoginAt(parseInstant(lastLoginAt));
         user.setRegistrationDeviceFingerprint(rs.getString("registration_device_fingerprint"));
+        user.setPublicProfilePhotoBase64(rs.getString("public_profile_photo_base64"));
         return user;
     }
 

@@ -29,6 +29,15 @@
         .form-group
           label Apellido
           input(v-model="lastName" placeholder="Tu apellido")
+        h3 Perfil público del organizador
+        p.hint Si organizas un evento público, esta imagen aparecerá junto a tu nombre. Se guarda optimizada y sin SVG.
+        .profile-photo-editor
+          img.profile-photo(v-if="profilePhoto" :src="profilePhoto" alt="Vista previa de tu foto pública")
+          .profile-photo.placeholder(v-else aria-hidden="true") 👤
+          .photo-actions
+            label.btn-secondary(for="profile-photo-input") Seleccionar foto
+            input#profile-photo-input.hidden-input(type="file" accept="image/png,image/jpeg" @change="onPhotoSelected")
+            button.btn-ghost(v-if="profilePhoto" type="button" @click="profilePhoto = ''") Quitar foto
         .error(v-if="error") {{ error }}
         .success(v-if="success") ¡Perfil actualizado!
         button.btn-primary(@click="save" :disabled="saving")
@@ -53,6 +62,7 @@
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref, onMounted } from 'vue'
 import { getUserProfile, updateUserProfile, changePassword } from '@/services/api/usersApi'
+import type { UserProfile } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
@@ -66,7 +76,8 @@ export default {
     const success = ref(false)
     const firstName = ref('')
     const lastName = ref('')
-    const profileData = ref({})
+    const profileData = ref<UserProfile>({ uuid: '' })
+    const profilePhoto = ref('')
     const hasPassword = ref(true)
 
     const currentPassword = ref('')
@@ -81,6 +92,7 @@ export default {
         profileData.value = profile
         firstName.value = profile.firstName || ''
         lastName.value = profile.lastName || ''
+        profilePhoto.value = profile.publicProfilePhotoBase64 || ''
       } catch (e: any) {
         error.value = 'No se pudo cargar tu perfil.'
       } finally {
@@ -93,13 +105,46 @@ export default {
       success.value = false
       saving.value = true
       try {
-        await updateUserProfile(auth.state.userUuid as string, { firstName: firstName.value, lastName: lastName.value }, auth.state.token as string)
+        const updated = await updateUserProfile(auth.state.userUuid as string, {
+          firstName: firstName.value, lastName: lastName.value,
+          publicProfilePhotoBase64: profilePhoto.value || null
+        }, auth.state.token as string)
+        profileData.value = updated
         success.value = true
       } catch (e: any) {
         error.value = 'No se pudo guardar tu perfil.'
       } finally {
         saving.value = false
       }
+    }
+
+    function onPhotoSelected(event: Event) {
+      const file = (event.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      if (file.size > 3 * 1024 * 1024) {
+        error.value = 'La imagen no puede superar 3 MB.'
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = () => {
+        const image = new Image()
+        image.onload = () => {
+          const max = 512
+          const scale = Math.min(1, max / Math.max(image.width, image.height))
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.max(1, Math.round(image.width * scale))
+          canvas.height = Math.max(1, Math.round(image.height * scale))
+          const context = canvas.getContext('2d')
+          if (!context) return
+          context.fillStyle = '#ffffff'
+          context.fillRect(0, 0, canvas.width, canvas.height)
+          context.drawImage(image, 0, 0, canvas.width, canvas.height)
+          profilePhoto.value = canvas.toDataURL('image/jpeg', 0.85)
+          error.value = ''
+        }
+        image.src = reader.result as string
+      }
+      reader.readAsDataURL(file)
     }
 
     async function changePasswordHandler() {
@@ -121,7 +166,7 @@ export default {
     }
 
     return {
-      loading, saving, error, success, firstName, lastName, save, profileData, hasPassword,
+      loading, saving, error, success, firstName, lastName, save, profileData, profilePhoto, onPhotoSelected, hasPassword,
       currentPassword, newPassword, changingPassword, passwordError, passwordSuccess,
       changePassword: changePasswordHandler
     }
@@ -143,6 +188,14 @@ label { font-weight: 600; font-size: 0.9rem; color: #374151; }
 input { padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; }
 input:focus { outline: none; border-color: #4f46e5; }
 .btn-primary { width: 100%; padding: 12px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+.profile-photo-editor { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.profile-photo { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; border: 2px solid #e0e7ff; }
+.profile-photo.placeholder { display: grid; place-items: center; background: #eef2ff; font-size: 2.3rem; }
+.photo-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn-secondary, .btn-ghost { padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: .85rem; }
+.btn-secondary { background: #4f46e5; color: #fff; font-weight: 700; }
+.btn-ghost { background: #fff; color: #4f46e5; border: 1px solid #c7d2fe; }
+.hidden-input { display: none; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
 .success { color: #059669; font-size: 0.9rem; margin-bottom: 12px; }

@@ -16,12 +16,13 @@ public class GetUserProfileUseCase {
 
     public record Profile(String uuid, String displayName, String email, String phone,
                           String firstName, String lastName, List<SocialLink> socialLinks,
-                          boolean emailVerified, boolean phoneVerified) {}
+                          boolean emailVerified, boolean phoneVerified,
+                          String publicProfilePhotoBase64) {}
 
     public Optional<Profile> execute(final String uuid) {
         return userRepository.findByUuid(uuid)
                 .map(u -> new Profile(u.getUuid(), u.getDisplayName(), u.getEmail(), u.getPhone(),
                         u.getFirstName(), u.getLastName(), u.getSocialLinks(),
-                        u.isEmailVerified(), u.isPhoneVerified()));
+                        u.isEmailVerified(), u.isPhoneVerified(), u.getPublicProfilePhotoBase64()));
     }
 }

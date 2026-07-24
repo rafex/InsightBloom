@@ -639,7 +639,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                                         String endTime, String venue, Double latitude, Double longitude,
                                         Integer capacity, Integer remainingSeats, boolean ticketRequired,
                                         boolean ticketPurchaseEnabled, String visibility, String flyerBase64,
-                                        String scheduleMarkdown, String scheduleLayout) {}
+                                        String scheduleMarkdown, String scheduleLayout,
+                                        String organizerPhotoBase64) {}
 
     private PublicConferenceView publicView(final Conference conference) {
         final boolean ticketRequired = ticketUseCase != null && ticketUseCase.isTicketed(conference);
@@ -655,7 +656,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                 conference.getLatitude(), conference.getLongitude(), conference.getCapacity(), remaining,
                 ticketRequired, ticketRequired && ("PUBLIC".equals(conference.getVisibility())
                         || "HYBRID".equals(conference.getVisibility())), conference.getVisibility(),
-                conference.getFlyerBase64(), conference.getScheduleMarkdown(), conference.getScheduleLayout());
+                conference.getFlyerBase64(), conference.getScheduleMarkdown(), conference.getScheduleLayout(),
+                userRepository.findByUuid(conference.getCreatedByUserUuid())
+                        .map(user -> user.getPublicProfilePhotoBase64()).orElse(null));
     }
 
     private boolean handlePublicList(final JettyHttpExchange jx) {

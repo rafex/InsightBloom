@@ -55,6 +55,7 @@ public class DatabaseManager {
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "first_name", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "last_name", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "last_login_at", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "public_profile_photo_base64", "TEXT");
             // Huella del dispositivo desde el que se creo la cuenta (inmutable, fijada una sola
             // vez al registrarse) -- ver PlatformDeviceGuard.checkRegistration, que cuenta cuantas
             // cuentas se crearon desde el mismo dispositivo en un dia para frenar spam de registro.

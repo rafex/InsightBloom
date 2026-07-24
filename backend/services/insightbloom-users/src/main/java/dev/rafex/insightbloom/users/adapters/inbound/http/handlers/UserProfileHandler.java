@@ -68,6 +68,8 @@ public class UserProfileHandler extends BaseResourceHandler {
             } else {
                 sendError(jx, 404, "user_not_found", "User not found");
             }
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -88,12 +90,15 @@ public class UserProfileHandler extends BaseResourceHandler {
             }
             final var body = parseBody(jx);
             final var result = updateProfileUseCase.execute(uuid, new UpdateProfileUseCase.Request(
-                    (String) body.get("firstName"), (String) body.get("lastName")));
+                    (String) body.get("firstName"), (String) body.get("lastName"),
+                    (String) body.get("publicProfilePhotoBase64"), body.containsKey("publicProfilePhotoBase64")));
             if (result.isPresent()) {
                 sendOk(jx, 200, result.get());
             } else {
                 sendError(jx, 404, "user_not_found", "User not found");
             }
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }

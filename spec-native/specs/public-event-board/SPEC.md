@@ -20,8 +20,13 @@ La API pública solo devuelve un DTO reducido. No debe reutilizarse el objeto co
 
 El cronograma se limita a 12,000 caracteres y se renderiza sin HTML crudo ni enlaces con esquemas inseguros. La ubicación usa el componente existente basado en OpenStreetMap y el enlace externo lleva `noopener noreferrer`.
 
-## Pendientes deliberados
+## Perfil público del organizador
 
-- Resolver el nombre y perfil público del organizador desde un DTO de perfil, sin exponer correo ni identificadores sensibles.
-- Agregar fotografía del organizador con validación de tipo, límite de tamaño y resize server-side; no se deben aceptar imágenes arbitrarias como HTML o SVG activo.
-- Agregar catálogo y editor visual de la cartelera sin duplicar la fuente de verdad del evento.
+El DTO público incluye el nombre visible y una fotografía opcional del organizador. La foto se
+puede administrar desde `Mi perfil`; solo se aceptan PNG/JPEG, se validan con `ImageIO`, se
+rechazan imágenes mayores de 4096px o 1.5 MB y se normalizan a JPEG de máximo 512px antes de
+guardarlas. No se acepta SVG ni HTML como avatar y nunca se publica correo, UUID o roles.
+
+La cartelera muestra ese perfil únicamente como identidad visual del evento. El catálogo y el
+editor visual de la cartelera siguen siendo una iteración posterior y no deben duplicar la fuente
+de verdad del evento.

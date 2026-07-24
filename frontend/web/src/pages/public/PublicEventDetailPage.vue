@@ -9,7 +9,11 @@
           span.badge {{ event.visibility === 'HYBRID' ? 'Evento híbrido' : 'Evento público' }}
           span.badge.badge-ticket(v-if="event.ticketRequired") 🎟️ Boleto requerido
         h1 {{ event.name }}
-        p.organizer {{ event.organizer }}
+        .organizer-card
+          img.organizer-avatar(v-if="event.organizerPhotoBase64" :src="event.organizerPhotoBase64" alt="")
+          .organizer-copy
+            span.organizer-label Organizado por
+            strong.organizer {{ event.organizer }}
         p.description(v-if="event.description") {{ event.description }}
         dl.event-facts
           template(v-if="event.eventDate")
@@ -97,7 +101,7 @@ export default {
 .detail-hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 34px; align-items: center; margin-top: 26px; }
 .detail-hero.reverse { direction: rtl; }.detail-hero.reverse > * { direction: ltr; }
 .detail-copy { background: #fff; padding: 28px; border-radius: 18px; box-shadow: 0 8px 25px rgba(30,27,75,.08); }
-h1 { color: #1e1b4b; font-size: clamp(2rem, 5vw, 3.4rem); margin: 12px 0 8px; }.organizer { color: #6b7280; font-weight: 700; }
+h1 { color: #1e1b4b; font-size: clamp(2rem, 5vw, 3.4rem); margin: 12px 0 8px; }.organizer-card { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }.organizer-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }.organizer-copy { display: flex; flex-direction: column; gap: 2px; }.organizer-label { color: #9ca3af; font-size: .78rem; }.organizer { color: #6b7280; font-weight: 700; }
 .description { color: #4b5563; line-height: 1.65; white-space: pre-wrap; }.detail-flyer { width: 100%; max-height: 440px; object-fit: cover; border-radius: 18px; box-shadow: 0 8px 25px rgba(30,27,75,.12); }.placeholder { display: grid; place-items: center; min-height: 300px; background: #e0e7ff; font-size: 5rem; }
 .badges { display: flex; flex-wrap: wrap; gap: 7px; }.badge { border-radius: 999px; padding: 5px 10px; background: #e0e7ff; color: #3730a3; font-size: .8rem; font-weight: 700; }.badge-ticket { background: #fef3c7; color: #92400e; }
 .event-facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin: 22px 0; }.event-facts dt { color: #9ca3af; font-weight: 700; }.event-facts dd { margin: 0; color: #374151; }

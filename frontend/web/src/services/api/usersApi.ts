@@ -249,10 +249,14 @@ export async function getUserProfile(uuid: string, token: string): Promise<UserP
 
 export async function updateUserProfile(
   uuid: string,
-  { firstName, lastName }: { firstName?: string | null, lastName?: string | null },
+  { firstName, lastName, publicProfilePhotoBase64 }: {
+    firstName?: string | null, lastName?: string | null, publicProfilePhotoBase64?: string | null
+  },
   token: string
 ): Promise<UserProfile> {
-  const res = await axios.put(`/api/users/api/v1/users/${uuid}`, { firstName, lastName }, authHeader(token))
+  const res = await axios.put(`/api/users/api/v1/users/${uuid}`, {
+    firstName, lastName, publicProfilePhotoBase64
+  }, authHeader(token))
   return res.data.data
 }
 
