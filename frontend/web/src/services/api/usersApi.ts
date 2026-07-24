@@ -9,7 +9,7 @@ import type {
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
-  TicketManagementSummary, WorkspacePreviewInfo
+  TicketManagementSummary, WorkspacePreviewInfo, PublicConference
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 
@@ -135,7 +135,11 @@ export async function createConference(
   canvasTool?: CanvasTool | null,
   canvasAudienceMode?: CanvasAudienceMode | null,
   canvasConfigs?: CanvasToolConfig[] | null,
-  certificateEngine?: CertificateEngine | null
+  certificateEngine?: CertificateEngine | null,
+  description?: string | null,
+  visibility?: 'PRIVATE' | 'PUBLIC' | 'HYBRID',
+  scheduleMarkdown?: string | null,
+  scheduleLayout?: 'LEFT' | 'RIGHT'
 ): Promise<Conference> {
   const body: Record<string, unknown> = { name }
   if (displayName) body.displayName = displayName
@@ -150,6 +154,10 @@ export async function createConference(
   if (eventTypeKey) body.eventTypeKey = eventTypeKey
   if (capacity != null) body.capacity = capacity
   if (certificateEngine) body.certificateEngine = certificateEngine
+  if (description != null) body.description = description
+  if (visibility) body.visibility = visibility
+  if (scheduleMarkdown != null) body.scheduleMarkdown = scheduleMarkdown
+  if (scheduleLayout) body.scheduleLayout = scheduleLayout
   if (canvasConfigs != null) body.canvasConfigs = canvasConfigs
   else {
     if (canvasTool) body.canvasTool = canvasTool
@@ -163,13 +171,13 @@ export async function updateConference(
   uuid: string,
   {
     displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
-    flyerBase64, timezoneId
+    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout
   }: UpdateConferenceRequest,
   token: string
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${uuid}`, {
     displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
-    flyerBase64, timezoneId
+    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout
   }, authHeader(token))
   return res.data.data
 }
@@ -190,6 +198,23 @@ export async function getConference(id: string, token: string): Promise<Conferen
 
 export async function getConferenceByFriendlyId(friendlyId: string): Promise<Conference> {
   const res = await axios.get(`/api/users/api/v1/conferences/by-friendly/${friendlyId}`)
+  return res.data.data
+}
+
+export async function getPublicConferences(): Promise<PublicConference[]> {
+  const res = await axios.get('/api/users/api/v1/conferences/public')
+  return res.data.data
+}
+
+export async function getPublicConference(friendlyId: string): Promise<PublicConference> {
+  const res = await axios.get(`/api/users/api/v1/conferences/public/${encodeURIComponent(friendlyId)}`)
+  return res.data.data
+}
+
+export async function requestPublicTicket(friendlyId: string, token: string): Promise<Ticket> {
+  const res = await axios.post(
+    `/api/users/api/v1/conferences/public/${encodeURIComponent(friendlyId)}/tickets`, {}, authHeader(token)
+  )
   return res.data.data
 }
 

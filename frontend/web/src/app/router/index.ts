@@ -12,6 +12,8 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: () => import('@/pages/landing/LandingPage.vue')
   },
+  { path: '/events', component: () => import('@/pages/public/PublicEventsPage.vue') },
+  { path: '/events/:friendlyId', component: () => import('@/pages/public/PublicEventDetailPage.vue') },
   {
     path: '/login',
     component: () => import('@/pages/login/LoginPage.vue')

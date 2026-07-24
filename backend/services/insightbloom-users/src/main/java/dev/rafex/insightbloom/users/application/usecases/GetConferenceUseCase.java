@@ -36,6 +36,14 @@ public class GetConferenceUseCase {
         return conferenceRepository.findByUser(userUuid);
     }
 
+    /** Eventos publicados en la cartelera; nunca incluye eventos privados o cerrados. */
+    public List<Conference> publicEvents() {
+        return conferenceRepository.findAll().stream()
+                .filter(c -> c.getStatus() == dev.rafex.insightbloom.users.domain.model.ConferenceStatus.ACTIVE)
+                .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
+                .toList();
+    }
+
     private static final java.util.regex.Pattern UUID_RE = java.util.regex.Pattern.compile(
             "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
             java.util.regex.Pattern.CASE_INSENSITIVE);

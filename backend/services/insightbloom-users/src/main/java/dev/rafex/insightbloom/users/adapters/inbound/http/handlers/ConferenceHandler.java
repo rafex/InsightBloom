@@ -59,6 +59,7 @@ import dev.rafex.insightbloom.users.application.usecases.TicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
+import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Reservation;
@@ -141,6 +142,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final UnblockDeviceUseCase unblockDeviceUseCase;
     private final SandboxHandler sandboxHandler;
     private final SandboxFilesHandler sandboxFilesHandler;
+    private final UserRepository userRepository;
     private final Map<String, CopyOnWriteArrayList<EventStream>> diagramSubscribers = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArrayList<EventStream>> whiteboardSubscribers = new ConcurrentHashMap<>();
     private final ScheduledExecutorService diagramStreamScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -203,7 +205,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final ListDeviceBlocksUseCase listDeviceBlocksUseCase,
                              final UnblockDeviceUseCase unblockDeviceUseCase,
                              final SandboxHandler sandboxHandler,
-                             final SandboxFilesHandler sandboxFilesHandler) {
+                             final SandboxFilesHandler sandboxFilesHandler,
+                             final UserRepository userRepository) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -259,6 +262,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.unblockDeviceUseCase = unblockDeviceUseCase;
         this.sandboxHandler = sandboxHandler;
         this.sandboxFilesHandler = sandboxFilesHandler;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -270,6 +274,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     protected List<Route> routes() {
         return List.of(
                 Route.of("/", Set.of("GET", "POST")),
+                Route.of("/public", Set.of("GET")),
+                Route.of("/public/{friendlyId}", Set.of("GET")),
+                Route.of("/public/{friendlyId}/tickets", Set.of("POST")),
                 Route.of("/by-friendly/{friendlyId}", Set.of("GET")),
                 Route.of("/by-friendly/{friendlyId}/jitsi-access", Set.of("GET")),
                 Route.of("/by-short/{shortCode}", Set.of("GET")),
@@ -341,6 +348,10 @@ public class ConferenceHandler extends BaseResourceHandler {
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
         final String path = jx.path();
+        if (path.endsWith("/public")) return handlePublicList(jx);
+        if (path.contains("/public/") && !path.endsWith("/tickets")) {
+            return handlePublicDetail(jx, jx.pathParam("friendlyId"));
+        }
         // Must precede the generic /by-friendly route: this is an authorization decision,
         // not a public conference lookup.
         if (path.endsWith("/jitsi-access")) {
@@ -444,6 +455,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     @Override
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/public/tickets")) {
+            return handlePublicTicket(jx, jx.pathParam("friendlyId"));
+        }
         if (jx.path().endsWith("/join")) {
             return handleJoin(jx);
         }
@@ -585,7 +599,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                     (String) body.get("startTime"), (String) body.get("endTime"), timezoneId,
                     (String) body.get("eventTypeKey"), capacity,
                     (String) body.get("canvasTool"), (String) body.get("canvasAudienceMode"), canvasConfigs,
-                    (String) body.get("certificateEngine")));
+                    (String) body.get("certificateEngine"), (String) body.get("description"),
+                    (String) body.get("visibility"), (String) body.get("scheduleMarkdown"),
+                    (String) body.get("scheduleLayout")));
             sendOk(jx, 201, result);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
@@ -611,6 +627,88 @@ public class ConferenceHandler extends BaseResourceHandler {
             getConferenceUseCase.byFriendlyId(friendlyId).ifPresentOrElse(
                     c -> sendOk(jx, 200, c),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    /** DTO público reducido: no expone sandboxes, tokens ni configuración interna. */
+    private record PublicConferenceView(String friendlyId, String name, String description,
+                                        String organizer, String eventDate, String startTime,
+                                        String endTime, String venue, Double latitude, Double longitude,
+                                        Integer capacity, Integer remainingSeats, boolean ticketRequired,
+                                        boolean ticketPurchaseEnabled, String visibility, String flyerBase64,
+                                        String scheduleMarkdown, String scheduleLayout) {}
+
+    private PublicConferenceView publicView(final Conference conference) {
+        final boolean ticketRequired = ticketUseCase != null && ticketUseCase.isTicketed(conference);
+        final Integer remaining = conference.getCapacity() == null ? null
+                : Math.max(0, conference.getCapacity() - conference.getReservedCount());
+        final String organizer = userRepository.findByUuid(conference.getCreatedByUserUuid())
+                .map(user -> user.getDisplayName())
+                .filter(name -> name != null && !name.isBlank())
+                .orElse("Organizador del evento");
+        return new PublicConferenceView(conference.getFriendlyId(), conference.getName(),
+                conference.getDescription(), organizer, conference.getEventDate(),
+                conference.getStartTime(), conference.getEndTime(), conference.getVenue(),
+                conference.getLatitude(), conference.getLongitude(), conference.getCapacity(), remaining,
+                ticketRequired, ticketRequired && ("PUBLIC".equals(conference.getVisibility())
+                        || "HYBRID".equals(conference.getVisibility())), conference.getVisibility(),
+                conference.getFlyerBase64(), conference.getScheduleMarkdown(), conference.getScheduleLayout());
+    }
+
+    private boolean handlePublicList(final JettyHttpExchange jx) {
+        try {
+            sendOk(jx, 200, getConferenceUseCase.publicEvents().stream().map(this::publicView).toList());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handlePublicDetail(final JettyHttpExchange jx, final String friendlyId) {
+        try {
+            getConferenceUseCase.byFriendlyId(friendlyId)
+                    .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
+                    .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
+                    .ifPresentOrElse(c -> sendOk(jx, 200, publicView(c)),
+                            () -> sendError(jx, 404, "public_event_not_found", "Evento público no encontrado"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    /** Solicitud de boleto público: requiere sesión para ligar el boleto a una cuenta. */
+    private boolean handlePublicTicket(final JettyHttpExchange jx, final String friendlyId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Inicia sesión para solicitar un boleto"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid() || "guest".equalsIgnoreCase(validation.role())) {
+                sendError(jx, 403, "login_required", "Se requiere una cuenta para solicitar el boleto");
+                return true;
+            }
+            final Conference conference = getConferenceUseCase.byFriendlyId(friendlyId)
+                    .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
+                    .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
+                    .orElseThrow(() -> new IllegalArgumentException("public_event_not_found"));
+            if (ticketUseCase == null || !ticketUseCase.isTicketed(conference)) {
+                sendError(jx, 409, "ticket_not_required", "Este evento no requiere boleto");
+                return true;
+            }
+            final var existing = ticketUseCase.myTicket(conference.getUuid(), validation.subjectUuid());
+            final var ticket = existing.orElseGet(() -> {
+                final var issued = ticketUseCase.issue(conference.getUuid(), validation.subjectUuid(), null, null);
+                return ticketUseCase.claim(conference.getUuid(), issued.getTicketCode(), validation.subjectUuid());
+            });
+            sendOk(jx, 201, ticket);
+        } catch (final IllegalStateException e) {
+            final int status = "capacity_exceeded".equals(e.getMessage()) ? 409 : 400;
+            sendError(jx, status, e.getMessage(), e.getMessage());
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -780,7 +878,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                     new UpdateConferenceUseCase.UpdateRequest((String) body.get("displayName"),
                             (String) body.get("venue"), (String) body.get("eventDate"),
                             (String) body.get("startTime"), (String) body.get("endTime"), latitude, longitude,
-                            (String) body.get("presentationSourceUrl"), (String) body.get("flyerBase64"), timezoneId));
+                            (String) body.get("presentationSourceUrl"), (String) body.get("flyerBase64"), timezoneId,
+                            (String) body.get("description"), (String) body.get("visibility"),
+                            (String) body.get("scheduleMarkdown"), (String) body.get("scheduleLayout")));
             if (updated.isPresent()) {
                 sendOk(jx, 200, updated.get());
             } else {

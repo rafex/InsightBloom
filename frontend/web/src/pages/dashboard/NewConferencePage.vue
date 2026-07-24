@@ -13,6 +13,29 @@
       p.field-hint Si lo dejas vacío, se usará el nombre para compartir. Se puede editar después.
 
     .form-group
+      label Detalle del evento (opcional)
+      textarea(v-model="description" rows="4" maxlength="4000" placeholder="Describe el objetivo, público y contenido del evento...")
+      p.field-hint Se mostrará en la cartelera y en la ficha pública del evento.
+
+    .form-group
+      label Visibilidad y boletos públicos
+      select(v-model="visibility")
+        option(value="PRIVATE") Privado: el organizador distribuye los boletos
+        option(value="PUBLIC") Público: aparece en la cartelera y permite solicitar boleto
+        option(value="HYBRID") Híbrido: cartelera pública y boletos adicionales distribuidos por el organizador
+      p.field-hint Los eventos privados nunca aparecen en la cartelera pública.
+
+    .form-group
+      label Cronograma en Markdown (opcional)
+      textarea(v-model="scheduleMarkdown" rows="7" maxlength="12000" placeholder="## 09:00 — Registro\n\nBienvenida y apertura\n\n## 10:00 — Charla principal")
+      .coords-row
+        .coord-field
+          span.coord-label Ubicación del cronograma
+          select(v-model="scheduleLayout")
+            option(value="RIGHT") A la derecha del flyer
+            option(value="LEFT") A la izquierda del flyer
+
+    .form-group
       label Tiempo de vida
       .expiry-options
         button.expiry-btn(
@@ -157,6 +180,10 @@ export default {
   setup() {
     const name       = ref('')
     const displayName = ref('')
+    const description = ref('')
+    const visibility = ref<'PRIVATE' | 'PUBLIC' | 'HYBRID'>('PRIVATE')
+    const scheduleMarkdown = ref('')
+    const scheduleLayout = ref<'LEFT' | 'RIGHT'>('RIGHT')
     const error      = ref('')
     const loading    = ref(false)
     const created    = ref<Conference | null>(null)
@@ -220,7 +247,8 @@ export default {
           displayName.value.trim() || null, timezoneId.value, eventTypeKey.value, capacity.value,
           null, null, canvasTools.value.map((tool): CanvasToolConfig => ({
             tool, audienceMode: canvasModes[tool]
-          })), certificateEngine.value)
+          })), certificateEngine.value, description.value.trim() || null, visibility.value,
+          scheduleMarkdown.value.trim() || null, scheduleLayout.value)
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Error al crear el evento'
       } finally { loading.value = false }
@@ -231,7 +259,8 @@ export default {
     }
 
     function reset() {
-      name.value = ''; displayName.value = ''; created.value = null; expiryMode.value = 'none';
+      name.value = ''; displayName.value = ''; description.value = ''; visibility.value = 'PRIVATE'
+      scheduleMarkdown.value = ''; scheduleLayout.value = 'RIGHT'; created.value = null; expiryMode.value = 'none';
       customDate.value = ''; latitude.value = null; longitude.value = null
       eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
       canvasTools.value = []
@@ -256,7 +285,7 @@ export default {
       ]
     }
 
-    return { name, displayName, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
+    return { name, displayName, description, visibility, scheduleMarkdown, scheduleLayout, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
              eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey, certificateEngine,
              canvasTools, canvasModes, canvasToolLabel, canvasModeOptions,
              canvasToolOptions: [
@@ -278,6 +307,7 @@ label { font-weight: 600; font-size: 0.9rem; color: #374151; }
 input[type="text"], input[type="datetime-local"], input[type="number"] {
   padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem;
 }
+textarea { width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font: inherit; resize: vertical; }
 select { padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; background: #fff; }
 input:focus { outline: none; border-color: #4f46e5; }
 

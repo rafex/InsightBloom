@@ -14,7 +14,9 @@ public class UpdateConferenceUseCase {
 
     public record UpdateRequest(String displayName, String venue, String eventDate, String startTime,
                                  String endTime, Double latitude, Double longitude,
-                                 String presentationSourceUrl, String flyerBase64, Integer timezoneId) {}
+                                 String presentationSourceUrl, String flyerBase64, Integer timezoneId,
+                                 String description, String visibility, String scheduleMarkdown,
+                                 String scheduleLayout) {}
 
     /** Actualiza todo excepto friendlyId y uuid. Solo el creador puede editar. */
     public Optional<Conference> execute(final String uuid, final String requestingUserUuid,
@@ -40,6 +42,14 @@ public class UpdateConferenceUseCase {
                     c.setEventDate(newEventDate);
                     c.setStartTime(newStartTime);
                     c.setEndTime(blankToNull(request.endTime()));
+                    if (request.description() != null) {
+                        c.setDescription(boundedText(request.description(), 4000, "description_too_long"));
+                    }
+                    if (request.visibility() != null) c.setVisibility(request.visibility());
+                    if (request.scheduleMarkdown() != null) {
+                        c.setScheduleMarkdown(boundedText(request.scheduleMarkdown(), 12000, "schedule_too_long"));
+                    }
+                    if (request.scheduleLayout() != null) c.setScheduleLayout(request.scheduleLayout());
                     c.setLatitude(request.latitude());
                     c.setLongitude(request.longitude());
                     if (request.presentationSourceUrl() != null) {
@@ -74,5 +84,11 @@ public class UpdateConferenceUseCase {
 
     private static String blankToNull(final String s) {
         return (s == null || s.isBlank()) ? null : s;
+    }
+
+    private static String boundedText(final String value, final int maxLength, final String errorCode) {
+        final String normalized = blankToNull(value);
+        if (normalized != null && normalized.length() > maxLength) throw new IllegalArgumentException(errorCode);
+        return normalized;
     }
 }

@@ -43,13 +43,17 @@ public class CreateConferenceUseCase {
                                 String eventDate, String venue, String startTime, String endTime,
                                 Integer timezoneId, String eventTypeKey, Integer capacity,
                                 String canvasTool, String canvasAudienceMode,
-                                List<CanvasConfig> canvasConfigs, String certificateEngine) {}
+                                List<CanvasConfig> canvasConfigs, String certificateEngine,
+                                String description, String visibility, String scheduleMarkdown,
+                                String scheduleLayout) {}
     public record CreateResult(String conferenceId, String friendlyId, String name, String status,
                                String expiresAt, Double latitude, Double longitude,
                                String eventDate, String venue, String startTime, String endTime,
                                Integer timezoneId, String eventTypeKey, Integer capacity,
                                String canvasTool, String canvasAudienceMode,
-                               List<CanvasConfig> canvasConfigs, String certificateEngine) {}
+                               List<CanvasConfig> canvasConfigs, String certificateEngine,
+                               String description, String visibility, String scheduleMarkdown,
+                               String scheduleLayout) {}
 
     public CreateResult execute(CreateRequest request) {
         final List<CanvasConfig> configs = request.canvasConfigs() != null
@@ -67,6 +71,10 @@ public class CreateConferenceUseCase {
         conference.setVenue(blankToNull(request.venue()));
         conference.setStartTime(blankToNull(request.startTime()));
         conference.setEndTime(blankToNull(request.endTime()));
+        conference.setDescription(boundedText(request.description(), 4000, "description_too_long"));
+        conference.setVisibility(request.visibility());
+        conference.setScheduleMarkdown(boundedText(request.scheduleMarkdown(), 12000, "schedule_too_long"));
+        conference.setScheduleLayout(request.scheduleLayout());
         conference.setTimezoneId(request.timezoneId() != null ? request.timezoneId()
                 : timezoneRepository.findDefault().id());
         if (blankToNull(request.eventTypeKey()) != null) {
@@ -95,7 +103,8 @@ public class CreateConferenceUseCase {
             conference.getStartTime(), conference.getEndTime(),
             conference.getTimezoneId(), conference.getEventTypeKey(), conference.getCapacity(),
             conference.getCanvasTool(), conference.getCanvasAudienceMode(), conference.getCanvasConfigs(),
-            conference.getCertificateEngine()
+            conference.getCertificateEngine(), conference.getDescription(), conference.getVisibility(),
+            conference.getScheduleMarkdown(), conference.getScheduleLayout()
         );
     }
 
@@ -106,6 +115,12 @@ public class CreateConferenceUseCase {
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s;
+    }
+
+    private static String boundedText(String value, int maxLength, String errorCode) {
+        String normalized = blankToNull(value);
+        if (normalized != null && normalized.length() > maxLength) throw new IllegalArgumentException(errorCode);
+        return normalized;
     }
 
     private static List<CanvasConfig> legacyConfig(final String canvasTool, final String audienceMode) {

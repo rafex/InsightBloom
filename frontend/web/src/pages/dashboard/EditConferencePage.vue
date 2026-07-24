@@ -25,6 +25,28 @@
       input(v-model="displayName" type="text" placeholder="Conferencia de Inteligencia Artificial 2026")
 
     .form-group
+      label Detalle del evento
+      textarea(v-model="description" rows="4" maxlength="4000" placeholder="Describe el objetivo, público y contenido del evento...")
+      p.field-hint Se muestra en la cartelera y la ficha pública cuando el evento es público o híbrido.
+
+    .form-group
+      label Visibilidad y boletos públicos
+      select(v-model="visibility")
+        option(value="PRIVATE") Privado: el organizador distribuye los boletos
+        option(value="PUBLIC") Público: aparece en la cartelera y permite solicitar boleto
+        option(value="HYBRID") Híbrido: cartelera pública y boletos privados adicionales
+
+    .form-group
+      label Cronograma en Markdown (opcional)
+      textarea(v-model="scheduleMarkdown" rows="8" maxlength="12000" placeholder="## 09:00 — Registro\n\nBienvenida y apertura")
+      .coords-row
+        .coord-field
+          span.coord-label Ubicación del cronograma
+          select(v-model="scheduleLayout")
+            option(value="RIGHT") A la derecha del flyer
+            option(value="LEFT") A la izquierda del flyer
+
+    .form-group
       label Fecha del evento (opcional)
       input(v-model="eventDate" type="date")
 
@@ -98,6 +120,10 @@ export default {
     const saved        = ref(false)
 
     const displayName = ref('')
+    const description = ref('')
+    const visibility = ref<'PRIVATE' | 'PUBLIC' | 'HYBRID'>('PRIVATE')
+    const scheduleMarkdown = ref('')
+    const scheduleLayout = ref<'LEFT' | 'RIGHT'>('RIGHT')
     const eventDate    = ref('')
     const venue        = ref('')
     const startTime    = ref('')
@@ -117,6 +143,10 @@ export default {
         conference.value = conf
         timezones.value = tzList
         displayName.value = conference.value.name || ''
+        description.value = conference.value.description || ''
+        visibility.value = conference.value.visibility || 'PRIVATE'
+        scheduleMarkdown.value = conference.value.scheduleMarkdown || ''
+        scheduleLayout.value = conference.value.scheduleLayout || 'RIGHT'
         eventDate.value = (conference.value.eventDate as string) || ''
         venue.value = (conference.value.venue as string) || ''
         startTime.value = (conference.value.startTime as string) || ''
@@ -154,7 +184,11 @@ export default {
           latitude: lat,
           longitude: lng,
           flyerBase64: flyerBase64.value,
-          timezoneId: timezoneId.value
+          timezoneId: timezoneId.value,
+          description: description.value.trim() || null,
+          visibility: visibility.value,
+          scheduleMarkdown: scheduleMarkdown.value.trim() || null,
+          scheduleLayout: scheduleLayout.value
         }, auth.state.token as string)
         saved.value = true
       } catch (e: any) {
@@ -171,9 +205,9 @@ export default {
       { label: 'Editor' }
     ])
 
-    return { conference, loading, error, saving, saveError, saved, displayName,
+    return { conference, loading, error, saving, saveError, saved, displayName, description, visibility,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
-             timezones, timezoneId, breadcrumbItems, onFlyerSelected, save }
+             scheduleMarkdown, scheduleLayout, timezones, timezoneId, breadcrumbItems, onFlyerSelected, save }
   }
 }
 </script>
@@ -193,6 +227,7 @@ label { font-weight: 600; font-size: 0.9rem; color: #374151; }
 input[type="text"], input[type="date"], input[type="time"], input[type="number"] {
   padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem;
 }
+textarea, select { width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font: inherit; background: #fff; }
 input:focus { outline: none; border-color: #4f46e5; }
 
 .readonly-group .readonly-value {

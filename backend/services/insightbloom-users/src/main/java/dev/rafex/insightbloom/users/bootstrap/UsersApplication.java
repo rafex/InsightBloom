@@ -351,7 +351,7 @@ public class UsersApplication {
                 resetSandboxUseCase,
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
                 setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,
-                sandboxHandler, sandboxFilesHandler);
+                sandboxHandler, sandboxFilesHandler, userRepo);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

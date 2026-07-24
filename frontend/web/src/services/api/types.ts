@@ -11,6 +11,7 @@ export type SeatingMode = 'NONE' | 'GENERAL' | 'SEATED'
 export type CanvasTool = 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD'
 export type CanvasAudienceMode = 'INDEPENDENT' | 'MODERATOR_ONLY' | 'COLLABORATIVE'
 export type CertificateEngine = 'INHOUSE' | 'HTML_CHROME'
+export type EventVisibility = 'PRIVATE' | 'PUBLIC' | 'HYBRID'
 export interface CanvasToolConfig {
   tool: CanvasTool
   audienceMode: CanvasAudienceMode
@@ -94,6 +95,10 @@ export interface Conference {
   longitude?: number | null
   presentationSourceUrl?: string | null
   flyerBase64?: string | null
+  description?: string | null
+  visibility?: EventVisibility
+  scheduleMarkdown?: string | null
+  scheduleLayout?: 'LEFT' | 'RIGHT'
   timezoneId?: number | null
   expiresAt?: string | null
   seatingMode?: SeatingMode
@@ -116,6 +121,27 @@ export interface Conference {
   maxDevicesPerUser?: number | null
   maxAccountsPerDevice?: number | null
   [key: string]: unknown
+}
+
+export interface PublicConference {
+  friendlyId: string
+  name: string
+  description?: string | null
+  organizer: string
+  eventDate?: string | null
+  startTime?: string | null
+  endTime?: string | null
+  venue?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  capacity?: number | null
+  remainingSeats?: number | null
+  ticketRequired: boolean
+  ticketPurchaseEnabled: boolean
+  visibility: EventVisibility
+  flyerBase64?: string | null
+  scheduleMarkdown?: string | null
+  scheduleLayout?: 'LEFT' | 'RIGHT'
 }
 
 // Fase C (DEC-0025): asiento de un Pod "neovim" compartido que el watchdog del seat-agent tuvo
@@ -267,6 +293,10 @@ export interface UpdateConferenceRequest {
   presentationSourceUrl?: string | null
   flyerBase64?: string | null
   timezoneId?: number | null
+  description?: string | null
+  visibility?: EventVisibility
+  scheduleMarkdown?: string | null
+  scheduleLayout?: 'LEFT' | 'RIGHT'
 }
 
 export interface DownloadCounts {

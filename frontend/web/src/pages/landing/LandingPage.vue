@@ -17,6 +17,7 @@
         button.btn-primary(@click="enter" :disabled="!friendlyId.trim()") Entrar
       p.hint ¿Organizas la conferencia?
         router-link(to="/login")  Inicia sesión aquí
+      router-link.public-link(to="/events") Ver cartelera de eventos públicos →
 </template>
 
 <script lang="ts">
@@ -52,6 +53,7 @@ input:focus { border-color: #4f46e5; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .hint { color: #6b7280; font-size: 0.9rem; margin-top: 16px; }
 .hint a { color: #4f46e5; }
+.public-link { display: block; margin-top: 18px; color: #4f46e5; font-weight: 700; text-decoration: none; }
 
 @media (max-width: 480px) {
   .landing-main { padding: 40px 16px; }

@@ -114,6 +114,10 @@ public class DatabaseManager {
                     name_auto_generated INTEGER NOT NULL DEFAULT 0,
                     presentation_source_url TEXT,
                     flyer_base64 TEXT,
+                    description TEXT,
+                    visibility TEXT NOT NULL DEFAULT 'PRIVATE',
+                    schedule_markdown TEXT,
+                    schedule_layout TEXT NOT NULL DEFAULT 'RIGHT',
                     certificate_engine TEXT NOT NULL DEFAULT 'INHOUSE'
                 )
             """);
@@ -134,6 +138,10 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN flyer_base64 TEXT");
             } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN description TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN visibility TEXT NOT NULL DEFAULT 'PRIVATE'"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN schedule_markdown TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN schedule_layout TEXT NOT NULL DEFAULT 'RIGHT'"); } catch (SQLException ignored) {}
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN certificate_engine TEXT NOT NULL DEFAULT 'INHOUSE'");
             } catch (SQLException ignored) {}
