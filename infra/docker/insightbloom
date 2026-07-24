@@ -7,6 +7,7 @@ Uso:
   insightbloom publish [opciones]   Publica una copia temporal del sitio estático.
   insightbloom revoke ID            Revoca una publicación.
   insightbloom login                Inicia sesión y guarda el token fuera del workspace.
+  insightbloom logout               Elimina la sesión local del CLI.
   insightbloom mentor [pregunta]    Consulta el tutor IA pedagógico del evento.
 
 Usa `insightbloom mentor --help` para ver las opciones del tutor.
@@ -19,7 +20,11 @@ EOF
     ;;
   login)
     shift
-    exec python3 /usr/local/bin/insightbloom-mentor.py login "$@"
+    exec python3 /usr/local/bin/insightbloom-publish.py login "$@"
+    ;;
+  logout)
+    shift
+    exec python3 /usr/local/bin/insightbloom-publish.py logout "$@"
     ;;
   *)
     exec python3 /usr/local/bin/insightbloom-publish.py "$@"

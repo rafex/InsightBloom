@@ -37,7 +37,7 @@
           button.btn-copy(type="button" @click="copy(ticket.ticketCode)") Copiar UUID
           button.btn-revoke(v-if="!ticket.operational && (ticket.status === 'ISSUED' || ticket.status === 'CLAIMED')" type="button" @click="revoke(ticket.uuid)") Revocar
     .qr-preview(v-if="selectedTicket")
-      TicketQr(:ticket-code="selectedTicket.ticketCode")
+      TicketQr(:ticket-code="selectedTicket.ticketCode" :ticket-url="ticketUrl(selectedTicket)" :show-code="false")
       button.btn-copy(type="button" @click="share(selectedTicket)") Compartir QR
   p.empty(v-if="!loading && !tickets.length") Aún no hay boletos emitidos.
 </template>
@@ -62,6 +62,7 @@ export default {
     const recipientEmail = ref('')
     const seatUuid = ref('')
     const conferenceName = ref('')
+    const conferenceFriendlyId = ref('')
     const loading = ref(true)
     const issuing = ref(false)
     const feedback = ref('')
@@ -75,6 +76,7 @@ export default {
           listTickets(props.conferenceId, auth.state.token)
         ])
         conferenceName.value = conf.name
+        conferenceFriendlyId.value = conf.friendlyId
         summary.value = list
         tickets.value = list.tickets
       } finally { loading.value = false }
@@ -111,10 +113,15 @@ export default {
     function showQr(ticket: Ticket) { selectedTicket.value = ticket }
 
     async function share(ticket: Ticket) {
-      const url = `${location.origin}/c/${props.conferenceId}/ticket?ticket=${ticket.ticketCode}`
+      const url = ticketUrl(ticket)
       if (navigator.share) await navigator.share({ title: 'Boleto del evento', text: ticket.ticketCode, url })
       else await navigator.clipboard?.writeText(url)
       feedback.value = 'Enlace del boleto listo para compartir.'; feedbackError.value = false
+    }
+
+    function ticketUrl(ticket: Ticket) {
+      const friendlyId = conferenceFriendlyId.value || props.conferenceId || ''
+      return `${location.origin}/c/${encodeURIComponent(friendlyId)}/ticket?ticket=${encodeURIComponent(ticket.ticketCode)}`
     }
 
     async function revoke(uuid: string) {
@@ -175,7 +182,7 @@ export default {
     ])
 
     onMounted(load)
-    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, formatAuditDate, statusLabel, claimantLabel, breadcrumbItems }
+    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, statusLabel, claimantLabel, breadcrumbItems }
   }
 }
 </script>

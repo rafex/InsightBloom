@@ -23,6 +23,11 @@ el resultado de la publicación.
 
 ## Desde el terminal CLI
 
+Dentro del sandbox, el CLI ya está configurado para usar el API interno de InsightBloom. No se
+requiere habilitar Internet ni exportar `INSIGHTBLOOM_API_BASE_URL`, `INSIGHTBLOOM_CONFERENCE_ID` o
+`INSIGHTBLOOM_TOKEN`: el evento se identifica con `CONFERENCE_UUID` y la sesión se guarda fuera del
+workspace.
+
 El comando necesita un subcomando. Ejecutar solo
 `insightbloom-publish.py` muestra el error `the following arguments are
 required: command`; eso significa que falta indicar la operación.
@@ -40,6 +45,10 @@ Después publica el workspace actual, que debe contener `index.html`:
 ```bash
 insightbloom publish
 ```
+
+Si aparece `Connection refused`, recrea el sandbox desde el Dashboard después de guardar tu
+workspace; los Pods existentes no reciben automáticamente las nuevas variables y políticas de
+red. El comando correcto es `publish`, no `publis`.
 
 También puedes llamar directamente al script:
 

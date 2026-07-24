@@ -5,12 +5,49 @@
     p Esta conferencia no requiere boleto, solo únete y participa.
 
   template(v-else-if="ticket")
-    .ticket-card
-      h2 Tu boleto
-      TicketQr(:ticket-code="ticket.ticketCode")
-      p.ticket-status(:class="{ checked: ticket.status === 'CHECKED_IN' }")
-        span(v-if="ticket.status === 'CHECKED_IN'") ✅ Ya ingresaste al evento
-        span(v-else) 🎫 Reservado — muestra este QR en la entrada
+    .ticket-canvas
+      .ticket-wrapper
+        .ticket
+          .t-main
+            .t-content
+              .t-header
+                .t-logo
+                  span.logo-mark ◈
+                  span INSIGHTBLOOM
+                .t-type Boleto de acceso
+              .t-title {{ eventName }}
+              .t-subtitle {{ eventSubtitle }}
+              .t-details
+                .t-detail-item
+                  span.t-label Asistente
+                  span.t-value {{ ticketOwnerLabel }}
+                .t-detail-item
+                  span.t-label Fecha
+                  span.t-value {{ eventDateLabel }}
+                .t-detail-item
+                  span.t-label Lugar
+                  span.t-value {{ eventVenueLabel }}
+                .t-detail-item
+                  span.t-label Modalidad
+                  span.t-value {{ eventModeLabel }}
+            .t-perforation
+              .t-perf-line
+          .t-stub
+            .t-qr-container
+              TicketQr(:ticket-code="ticket.ticketCode" :ticket-url="ticketUrl" :show-code="false")
+              span.t-qr-caption Escanea para abrir tu acceso
+            .t-admit
+              span.t-admit-text Estado
+              strong.t-admit-num(:class="{ checked: ticket.status === 'CHECKED_IN' }") {{ ticketStatusLabel }}
+              span.t-admit-hint(v-if="ticket.status === 'CHECKED_IN'") Acceso registrado
+              span.t-admit-hint(v-else) Presenta este boleto en la entrada
+      .ticket-manual
+        span Código manual / UUID del boleto
+        code {{ ticket.ticketCode }}
+        small Si el escaneo falla, proporciona este código al personal de acceso.
+    p.ticket-status(:class="{ checked: ticket.status === 'CHECKED_IN' }")
+      span(v-if="ticket.status === 'CHECKED_IN'") ✅ Ya ingresaste al evento
+      span(v-else) 🎫 Boleto reservado — muestra este QR en la entrada
 
   .ticket-general-cta(v-else)
     p Aún no tienes un boleto canjeado para esta conferencia.
@@ -37,9 +74,11 @@
 
 <script lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import TicketQr from '@/components/TicketQr.vue'
 import QrScanner from 'qr-scanner'
-import { getMyIssuedTicket, getMyTicket, claimTicket, claimTicketAsGuest } from '@/services/api/usersApi'
+import { getConferenceByFriendlyId, getMyIssuedTicket, getMyTicket, claimTicket, claimTicketAsGuest } from '@/services/api/usersApi'
 import type { Ticket, Reservation, SeatingMode } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -53,6 +92,7 @@ export default {
   },
   setup(props: { conferenceId?: string, seatingMode?: SeatingMode, ticketed?: boolean }) {
     const auth = useAuthStore()
+    const route = useRoute()
     const loading = ref(true)
     const ticket = ref<Ticket | Reservation | null>(null)
     const claiming = ref(false)
@@ -63,12 +103,44 @@ export default {
     const videoEl = ref<HTMLVideoElement | null>(null)
     let scanner: QrScanner | null = null
 
+    const eventName = ref('Tu evento')
+    const eventDate = ref<string | null>(null)
+    const eventStartTime = ref<string | null>(null)
+    const eventEndTime = ref<string | null>(null)
+    const eventVenue = ref<string | null>(null)
+    const eventFriendlyId = String(route.params.friendlyId || '')
+    const eventModeLabel = ref('Acceso general')
+    const ticketUrl = computed(() => {
+      if (!ticket.value || !eventFriendlyId) return ''
+      return `${window.location.origin}/c/${encodeURIComponent(eventFriendlyId)}/ticket?ticket=${encodeURIComponent(ticket.value.ticketCode)}`
+    })
+    const eventSubtitle = computed(() => {
+      const times = [eventStartTime.value, eventEndTime.value].filter(Boolean).join(' – ')
+      return [times, eventVenue.value].filter(Boolean).join(' · ') || 'Entrada para participar en este evento'
+    })
+    const eventDateLabel = computed(() => eventDate.value || 'Por confirmar')
+    const eventVenueLabel = computed(() => eventVenue.value || 'Por confirmar')
+    const ticketOwnerLabel = computed(() => {
+      if (auth.state.role === 'guest') return 'Invitado'
+      return 'Asistente registrado'
+    })
+    const ticketStatusLabel = computed(() => ticket.value?.status === 'CHECKED_IN' ? 'LISTO' : 'RESERVADO')
+
     async function load() {
       if (!props.conferenceId || !props.ticketed) {
         loading.value = false
         return
       }
       try {
+        const publicConference = await getConferenceByFriendlyId(eventFriendlyId).catch(() => null)
+        if (publicConference) {
+          eventName.value = publicConference.displayName || publicConference.name
+          eventDate.value = publicConference.eventDate || null
+          eventStartTime.value = publicConference.startTime || null
+          eventEndTime.value = publicConference.endTime || null
+          eventVenue.value = publicConference.venue || null
+          eventModeLabel.value = publicConference.visibility === 'HYBRID' ? 'Híbrido' : publicConference.visibility === 'PUBLIC' ? 'Público' : 'Privado'
+        }
         const routeTicket = new URLSearchParams(location.search).get('ticket')
         if (routeTicket) ticketInput.value = routeTicket
         if (auth.state.token && auth.state.role !== 'guest') {
@@ -132,22 +204,72 @@ export default {
 
     return {
       loading, ticket, claiming, ticketInput, guestName, error, claim, claimAsGuest, auth,
-      scanning, videoEl, toggleScanner
+      scanning, videoEl, toggleScanner, ticketUrl, eventName, eventSubtitle, eventDateLabel,
+      eventVenueLabel, eventModeLabel, ticketOwnerLabel, ticketStatusLabel
     }
   }
 }
 </script>
 
 <style scoped>
-.ticket-page { padding: 24px; max-width: 480px; margin: 0 auto; }
+.ticket-page { padding: 32px 24px 48px; max-width: 820px; margin: 0 auto; }
 .ticket-loading, .ticket-empty { text-align: center; color: #6b7280; padding: 60px 24px; }
-.ticket-card {
-  background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 32px 24px;
-  display: flex; flex-direction: column; align-items: center; gap: 16px;
-}
-.ticket-card h2 { margin: 0; color: #1e1b4b; }
 .ticket-status { font-size: 0.95rem; font-weight: 600; color: #4f46e5; text-align: center; }
 .ticket-status.checked { color: #166534; }
+.ticket-canvas { display: flex; align-items: center; justify-content: center; padding: 8px; }
+.ticket-wrapper {
+  --t-bg: #1e1e24;
+  --t-bg-light: #2b2b36;
+  --t-accent: #7c3aed;
+  --t-accent-glow: rgba(124, 58, 237, 0.5);
+  --t-text-main: #f8fafc;
+  --t-text-muted: #94a3b8;
+  width: min(100%, 720px);
+  perspective: 1000px;
+}
+.ticket {
+  position: relative; color: var(--t-text-main); font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  transform-style: preserve-3d; transition: transform .35s ease, box-shadow .35s ease;
+  box-shadow: 0 20px 40px rgba(0,0,0,.28), 0 0 0 1px rgba(255,255,255,.08);
+  border-radius: 16px; overflow: hidden; filter: drop-shadow(0 0 10px rgba(0,0,0,.2));
+}
+.ticket:hover { transform: rotateX(2deg) rotateY(-2deg) scale(1.01); box-shadow: 12px 18px 35px rgba(0,0,0,.32), 0 0 24px var(--t-accent-glow); }
+.t-main {
+  padding: clamp(24px, 5vw, 42px); position: relative; overflow: hidden;
+  background: radial-gradient(circle at bottom left, transparent 1.2em, var(--t-bg) 1.25em), radial-gradient(circle at bottom right, transparent 1.2em, var(--t-bg) 1.25em);
+  background-size: 51% 100%; background-position: bottom left, bottom right; background-repeat: no-repeat;
+}
+.t-main::after {
+  content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(124,58,237,.14) 1px, transparent 1px), linear-gradient(90deg, rgba(124,58,237,.14) 1px, transparent 1px);
+  background-size: 28px 28px; opacity: .6; z-index: 0; pointer-events: none; transform: perspective(500px) rotateX(20deg) scale(1.5);
+}
+.t-content { position: relative; z-index: 1; }
+.t-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: clamp(24px, 4vw, 38px); gap: 16px; }
+.t-logo { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: .95rem; letter-spacing: .04em; color: #fff; }
+.logo-mark { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: #fff; background: var(--t-accent); box-shadow: 0 0 12px var(--t-accent-glow); font-size: 1.4rem; }
+.t-type { font-size: .68rem; text-transform: uppercase; letter-spacing: .16em; color: #c4b5fd; border: 1px solid #8b5cf6; padding: 6px 10px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+.t-title { font-size: clamp(1.8rem, 5vw, 3.15rem); font-weight: 900; line-height: 1.08; margin-bottom: 8px; text-transform: uppercase; overflow-wrap: anywhere; background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.t-subtitle { color: var(--t-text-muted); font-size: .95rem; margin-bottom: 32px; }
+.t-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; margin-bottom: 12px; }
+.t-detail-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.t-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .12em; color: var(--t-text-muted); }
+.t-value { font-size: 1rem; font-weight: 700; color: var(--t-text-main); overflow-wrap: anywhere; }
+.t-perforation { display: flex; justify-content: space-between; height: 14px; align-items: center; position: relative; z-index: 2; background: var(--t-bg); }
+.t-perf-line { flex-grow: 1; height: 0; border-top: 2px dashed rgba(255,255,255,.25); margin: 0 24px; }
+.t-stub { padding: clamp(22px, 4vw, 34px); background: radial-gradient(circle at top left, transparent 1.2em, var(--t-bg-light) 1.25em), radial-gradient(circle at top right, transparent 1.2em, var(--t-bg-light) 1.25em); background-size: 51% 100%; background-position: top left, top right; background-repeat: no-repeat; display: flex; justify-content: space-between; align-items: center; gap: 24px; position: relative; }
+.t-qr-container { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 220px; }
+.t-qr-container :deep(.ticket-qr) { display: flex; flex-direction: column; align-items: center; }
+.t-qr-container :deep(canvas) { display: block; background: #fff; border: 8px solid #fff; border-radius: 5px; width: min(220px, 42vw); height: auto; }
+.t-qr-caption { color: var(--t-text-muted); font-size: .72rem; text-align: center; }
+.t-admit { text-align: right; min-width: 150px; }
+.t-admit-text { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .12em; color: var(--t-text-muted); }
+.t-admit-num { display: block; font-size: clamp(1.35rem, 3vw, 2.1rem); font-weight: 900; line-height: 1.15; color: #a78bfa; text-shadow: 0 0 15px var(--t-accent-glow); }
+.t-admit-num.checked { color: #86efac; text-shadow: none; }
+.t-admit-hint { display: block; margin-top: 8px; color: var(--t-text-muted); font-size: .72rem; }
+.ticket-manual { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 16px 0; text-align: center; }
+.ticket-manual span { color: #4c1d95; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.ticket-manual code { color: #312e81; font: 700 .84rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.ticket-manual small { color: #6b7280; font-size: .78rem; }
 .btn-cancel {
   padding: 8px 18px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #dc2626;
   cursor: pointer; font-size: 0.85rem;
@@ -168,4 +290,15 @@ export default {
 .ticket-error { color: #dc2626; margin-top: 12px; font-size: 0.9rem; }
 .ticket-seated-picker { padding: 20px 0; text-align: center; }
 .ticket-seated-picker .btn-primary { margin-top: 16px; }
+@media (max-width: 560px) {
+  .ticket-page { padding: 20px 12px 36px; }
+  .ticket-canvas { padding: 0; }
+  .t-header { flex-direction: column; }
+  .t-type { align-self: flex-start; }
+  .t-details { grid-template-columns: 1fr; gap: 14px; }
+  .t-stub { flex-direction: column; align-items: stretch; }
+  .t-qr-container { min-width: 0; }
+  .t-qr-container :deep(canvas) { width: 190px; }
+  .t-admit { text-align: center; }
+}
 </style>
