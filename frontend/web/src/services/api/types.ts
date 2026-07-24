@@ -106,6 +106,8 @@ export interface Conference {
   seatingMode?: SeatingMode
   capacity?: number | null
   reservedCount?: number
+  ticketPrice?: string | null
+  ticketCurrency?: string | null
   venueMapBase64?: string | null
   eventTypeKey?: string
   sandboxVariant?: string | null
@@ -138,6 +140,8 @@ export interface PublicConference {
   longitude?: number | null
   capacity?: number | null
   remainingSeats?: number | null
+  ticketPrice?: string | null
+  ticketCurrency?: string | null
   ticketRequired: boolean
   ticketPurchaseEnabled: boolean
   visibility: EventVisibility
@@ -302,6 +306,8 @@ export interface UpdateConferenceRequest {
   scheduleMarkdown?: string | null
   scheduleLayout?: 'LEFT' | 'RIGHT'
   publicTheme?: PublicTheme
+  ticketPrice?: string | null
+  ticketCurrency?: string | null
 }
 
 export interface DownloadCounts {

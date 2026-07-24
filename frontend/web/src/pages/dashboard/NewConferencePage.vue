@@ -26,6 +26,17 @@
       p.field-hint Los eventos privados nunca aparecen en la cartelera pública.
 
     .form-group
+      label Precio y moneda del boleto
+      .price-row
+        input(v-model="ticketPrice" type="number" min="0" step="0.01" placeholder="0.00")
+        select(v-model="ticketCurrency")
+          option(value="MXN") MXN — Peso mexicano
+          option(value="USD") USD — Dólar estadounidense
+          option(value="EUR") EUR — Euro
+      p.field-hint(v-if="Number(ticketPrice) > 0") Evento de pago. La integración del proveedor de pagos se habilitará después; por ahora no se emitirá ningún boleto.
+      p.field-hint(v-else) Gratis — se podrá solicitar el boleto sin cobro.
+
+    .form-group
       label Cronograma en Markdown (opcional)
       textarea(v-model="scheduleMarkdown" rows="7" maxlength="12000" placeholder="## 09:00 — Registro\n\nBienvenida y apertura\n\n## 10:00 — Charla principal")
       .coords-row
@@ -198,6 +209,8 @@ export default {
     const displayName = ref('')
     const description = ref('')
     const visibility = ref<'PRIVATE' | 'PUBLIC' | 'HYBRID'>('PRIVATE')
+    const ticketPrice = ref('0.00')
+    const ticketCurrency = ref('MXN')
     const scheduleMarkdown = ref('')
     const scheduleLayout = ref<'LEFT' | 'RIGHT'>('RIGHT')
     const publicTheme = ref<'CLASSIC' | 'EDITORIAL' | 'MINIMAL'>('CLASSIC')
@@ -278,7 +291,8 @@ export default {
           null, null, canvasTools.value.map((tool): CanvasToolConfig => ({
             tool, audienceMode: canvasModes[tool]
           })), certificateEngine.value, description.value.trim() || null, visibility.value,
-          scheduleMarkdown.value.trim() || null, scheduleLayout.value, publicTheme.value)
+          scheduleMarkdown.value.trim() || null, scheduleLayout.value, publicTheme.value,
+          ticketPrice.value || '0.00', ticketCurrency.value)
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Error al crear el evento'
       } finally { loading.value = false }
@@ -296,6 +310,7 @@ export default {
       canvasTools.value = []
       canvasModes.DRAWIO = 'INDEPENDENT'; canvasModes.EXCALIDRAW = 'INDEPENDENT'; canvasModes.ETHERPAD = 'COLLABORATIVE'
       capacity.value = DEFAULT_CAPACITY; certificateEngine.value = 'INHOUSE'
+      ticketPrice.value = '0.00'; ticketCurrency.value = 'MXN'
     }
 
     function canvasToolLabel(tool: CanvasTool): string {
@@ -315,7 +330,7 @@ export default {
       ]
     }
 
-    return { name, displayName, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme, error, loading, created, expiryMode, customDate, minDate, latitude, longitude, mapUrl, locationError, extractMapCoordinates,
+    return { name, displayName, description, visibility, ticketPrice, ticketCurrency, scheduleMarkdown, scheduleLayout, publicTheme, error, loading, created, expiryMode, customDate, minDate, latitude, longitude, mapUrl, locationError, extractMapCoordinates,
              eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey, certificateEngine,
              canvasTools, canvasModes, canvasToolLabel, canvasModeOptions,
              canvasToolOptions: [
@@ -369,6 +384,7 @@ input:focus { outline: none; border-color: #4f46e5; }
 .custom-date { margin-top: 8px; }
 
 .coords-row { display: flex; gap: 12px; }
+.price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .coord-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
 .coord-hint { margin: 6px 0 0; font-size: 0.8rem; color: #9ca3af; }

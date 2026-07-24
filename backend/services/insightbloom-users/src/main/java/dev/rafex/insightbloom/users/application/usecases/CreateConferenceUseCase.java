@@ -42,6 +42,7 @@ public class CreateConferenceUseCase {
                                 Double latitude, Double longitude,
                                 String eventDate, String venue, String startTime, String endTime,
                                 Integer timezoneId, String eventTypeKey, Integer capacity,
+                                String ticketPrice, String ticketCurrency,
                                 String canvasTool, String canvasAudienceMode,
                                 List<CanvasConfig> canvasConfigs, String certificateEngine,
                                 String description, String visibility, String scheduleMarkdown,
@@ -50,6 +51,7 @@ public class CreateConferenceUseCase {
                                String expiresAt, Double latitude, Double longitude,
                                String eventDate, String venue, String startTime, String endTime,
                                Integer timezoneId, String eventTypeKey, Integer capacity,
+                               String ticketPrice, String ticketCurrency,
                                String canvasTool, String canvasAudienceMode,
                                List<CanvasConfig> canvasConfigs, String certificateEngine,
                                String description, String visibility, String scheduleMarkdown,
@@ -83,6 +85,8 @@ public class CreateConferenceUseCase {
             conference.setEventTypeKey(request.eventTypeKey());
         }
         conference.setCapacity(normalizeCapacity(request.capacity()));
+        conference.setTicketPrice(request.ticketPrice());
+        conference.setTicketCurrency(request.ticketCurrency());
         conference.setCertificateEngine(request.certificateEngine());
         conference.setCanvasConfigs(configs);
         conference.setCanvasTool(configs.size() == 1 ? configs.get(0).tool() : null);
@@ -104,6 +108,7 @@ public class CreateConferenceUseCase {
             conference.getEventDate(), conference.getVenue(),
             conference.getStartTime(), conference.getEndTime(),
             conference.getTimezoneId(), conference.getEventTypeKey(), conference.getCapacity(),
+            conference.getTicketPrice(), conference.getTicketCurrency(),
             conference.getCanvasTool(), conference.getCanvasAudienceMode(), conference.getCanvasConfigs(),
             conference.getCertificateEngine(), conference.getDescription(), conference.getVisibility(),
             conference.getScheduleMarkdown(), conference.getScheduleLayout(), conference.getPublicTheme()

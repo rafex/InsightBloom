@@ -16,7 +16,8 @@ public class UpdateConferenceUseCase {
                                  String endTime, Double latitude, Double longitude,
                                  String presentationSourceUrl, String flyerBase64, Integer timezoneId,
                                  String description, String visibility, String scheduleMarkdown,
-                                 String scheduleLayout, String publicTheme) {}
+                                 String scheduleLayout, String publicTheme,
+                                 String ticketPrice, String ticketCurrency) {}
 
     /** Actualiza todo excepto friendlyId y uuid. Solo el creador puede editar. */
     public Optional<Conference> execute(final String uuid, final String requestingUserUuid,
@@ -52,6 +53,8 @@ public class UpdateConferenceUseCase {
                     }
                     if (request.scheduleLayout() != null) c.setScheduleLayout(request.scheduleLayout());
                     if (request.publicTheme() != null) c.setPublicTheme(request.publicTheme());
+                    if (request.ticketPrice() != null) c.setTicketPrice(request.ticketPrice());
+                    if (request.ticketCurrency() != null) c.setTicketCurrency(request.ticketCurrency());
                     c.setLatitude(request.latitude());
                     c.setLongitude(request.longitude());
                     if (request.presentationSourceUrl() != null) {

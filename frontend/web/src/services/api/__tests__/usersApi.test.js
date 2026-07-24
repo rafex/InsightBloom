@@ -54,6 +54,14 @@ describe('usersApi', () => {
         timezoneId: 3
       })
     })
+
+    it('forwards the optional ticket price and currency without shifting legacy canvas arguments', async () => {
+      axios.post.mockResolvedValue({ data: { data: { uuid: 'c1' } } })
+      await createConference('Mi charla', null, 'tok', null, null, null, null, null, null, null, null,
+        null, null, null, null, null, null, null, 'PUBLIC', null, 'RIGHT', 'CLASSIC', '12.50', 'USD')
+      const [, body] = axios.post.mock.calls[0]
+      expect(body).toMatchObject({ name: 'Mi charla', visibility: 'PUBLIC', ticketPrice: '12.50', ticketCurrency: 'USD' })
+    })
   })
 
   describe('updateConference', () => {

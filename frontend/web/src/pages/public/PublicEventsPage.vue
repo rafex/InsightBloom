@@ -18,6 +18,7 @@
             span.badge {{ event.visibility === 'HYBRID' ? 'Híbrido' : 'Público' }}
             span.badge.badge-ticket(v-if="event.ticketRequired") 🎟️ Boleto requerido
             span.badge.badge-free(v-else) Acceso libre
+            span.badge.badge-price(v-if="event.ticketRequired") {{ Number(event.ticketPrice || 0) > 0 ? `${event.ticketPrice} ${event.ticketCurrency || 'MXN'}` : 'Gratis' }}
           h2 {{ event.name }}
           p.description(v-if="event.description") {{ event.description }}
           dl.event-facts
@@ -77,6 +78,7 @@ h1 { color: #1e1b4b; margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3.2rem); }
 .badge { border-radius: 999px; padding: 4px 9px; background: #e0e7ff; color: #3730a3; font-size: .75rem; font-weight: 700; }
 .badge-ticket { background: #fef3c7; color: #92400e; }
 .badge-free { background: #dcfce7; color: #166534; }
+.badge-price { background: #eef2ff; color: #3730a3; }
 h2 { color: #1e1b4b; margin: 0 0 8px; font-size: 1.3rem; }
 .description { color: #6b7280; line-height: 1.5; margin: 0 0 16px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .event-facts { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; margin: 0; font-size: .88rem; }

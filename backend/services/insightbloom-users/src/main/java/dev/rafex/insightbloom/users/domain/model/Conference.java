@@ -1,7 +1,10 @@
 package dev.rafex.insightbloom.users.domain.model;
 
 import java.time.Instant;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 public class Conference {
@@ -36,6 +39,10 @@ public class Conference {
     private String seatingMode = "NONE"; // NONE | GENERAL | SEATED
     private Integer capacity; // aforo máximo, solo relevante en modo GENERAL
     private int reservedCount; // contador atómico de reservas activas en modo GENERAL
+    // Precio en unidades mayores. Se conserva como texto decimal para no introducir errores de
+    // punto flotante y dejar el modelo listo para un proveedor de pagos posterior.
+    private String ticketPrice = "0.00";
+    private String ticketCurrency = "MXN";
     private String venueMapBase64; // imagen del recinto (data URL) para modo SEATED, nullable
     private String eventTypeKey = "conference"; // FK a event_types.key; toda conferencia existente cae aquí
     private Instant notesPurgedAt; // marca cuándo se borró el pad de Etherpad (TTL, ver DEC-0020), nullable
@@ -169,6 +176,9 @@ public class Conference {
     public String getSeatingMode() { return seatingMode; }
     public Integer getCapacity() { return capacity; }
     public int getReservedCount() { return reservedCount; }
+    public String getTicketPrice() { return ticketPrice; }
+    public String getTicketCurrency() { return ticketCurrency; }
+    public boolean isFreeTicket() { return new BigDecimal(ticketPrice).signum() == 0; }
     public String getVenueMapBase64() { return venueMapBase64; }
     public String getEventTypeKey() { return eventTypeKey; }
     public Instant getNotesPurgedAt() { return notesPurgedAt; }
@@ -218,6 +228,27 @@ public class Conference {
     public void setSeatingMode(String seatingMode) { this.seatingMode = seatingMode; }
     public void setCapacity(Integer capacity) { this.capacity = capacity; }
     public void setReservedCount(int reservedCount) { this.reservedCount = reservedCount; }
+    public void setTicketPrice(String ticketPrice) {
+        if (ticketPrice == null || ticketPrice.isBlank()) {
+            this.ticketPrice = "0.00";
+            return;
+        }
+        try {
+            final BigDecimal value = new BigDecimal(ticketPrice.trim());
+            if (value.signum() < 0 || value.scale() > 2 || value.precision() > 12) {
+                throw new IllegalArgumentException("ticket_price_invalid");
+            }
+            this.ticketPrice = value.setScale(2, RoundingMode.UNNECESSARY).toPlainString();
+        } catch (NumberFormatException | ArithmeticException e) {
+            throw new IllegalArgumentException("ticket_price_invalid", e);
+        }
+    }
+    public void setTicketCurrency(String ticketCurrency) {
+        final String normalized = ticketCurrency == null || ticketCurrency.isBlank()
+                ? "MXN" : ticketCurrency.trim().toUpperCase(Locale.ROOT);
+        if (!normalized.matches("[A-Z]{3}")) throw new IllegalArgumentException("ticket_currency_invalid");
+        this.ticketCurrency = normalized;
+    }
     public void setVenueMapBase64(String venueMapBase64) { this.venueMapBase64 = venueMapBase64; }
     public void setEventTypeKey(String eventTypeKey) { this.eventTypeKey = eventTypeKey; }
     public void setNotesPurgedAt(Instant notesPurgedAt) { this.notesPurgedAt = notesPurgedAt; }

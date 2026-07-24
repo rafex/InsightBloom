@@ -147,7 +147,9 @@ export async function createConference(
   visibility?: 'PRIVATE' | 'PUBLIC' | 'HYBRID',
   scheduleMarkdown?: string | null,
   scheduleLayout?: 'LEFT' | 'RIGHT',
-  publicTheme?: 'CLASSIC' | 'EDITORIAL' | 'MINIMAL'
+  publicTheme?: 'CLASSIC' | 'EDITORIAL' | 'MINIMAL',
+  ticketPrice?: string | null,
+  ticketCurrency?: string | null
 ): Promise<Conference> {
   const body: Record<string, unknown> = { name }
   if (displayName) body.displayName = displayName
@@ -161,6 +163,8 @@ export async function createConference(
   if (timezoneId != null) body.timezoneId = timezoneId
   if (eventTypeKey) body.eventTypeKey = eventTypeKey
   if (capacity != null) body.capacity = capacity
+  if (ticketPrice != null) body.ticketPrice = ticketPrice
+  if (ticketCurrency) body.ticketCurrency = ticketCurrency
   if (certificateEngine) body.certificateEngine = certificateEngine
   if (description != null) body.description = description
   if (visibility) body.visibility = visibility
@@ -180,13 +184,15 @@ export async function updateConference(
   uuid: string,
   {
     displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
-    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme
+    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme,
+    ticketPrice, ticketCurrency
   }: UpdateConferenceRequest,
   token: string
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${uuid}`, {
     displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
-    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme
+    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme,
+    ticketPrice, ticketCurrency
   }, authHeader(token))
   return res.data.data
 }

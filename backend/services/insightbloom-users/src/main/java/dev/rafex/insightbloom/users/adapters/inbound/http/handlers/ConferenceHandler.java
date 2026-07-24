@@ -615,6 +615,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     latitude, longitude, (String) body.get("eventDate"), (String) body.get("venue"),
                     (String) body.get("startTime"), (String) body.get("endTime"), timezoneId,
                     (String) body.get("eventTypeKey"), capacity,
+                    (String) body.get("ticketPrice"), (String) body.get("ticketCurrency"),
                     (String) body.get("canvasTool"), (String) body.get("canvasAudienceMode"), canvasConfigs,
                     (String) body.get("certificateEngine"), (String) body.get("description"),
                     (String) body.get("visibility"), (String) body.get("scheduleMarkdown"),
@@ -657,7 +658,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                                         Integer capacity, Integer remainingSeats, boolean ticketRequired,
                                         boolean ticketPurchaseEnabled, String visibility, String flyerBase64,
                                         String scheduleMarkdown, String scheduleLayout,
-                                        String publicTheme, String organizerPhotoBase64) {}
+                                        String publicTheme, String organizerPhotoBase64,
+                                        String ticketPrice, String ticketCurrency) {}
 
     private PublicConferenceView publicView(final Conference conference) {
         final boolean ticketRequired = ticketUseCase != null && ticketUseCase.isTicketed(conference);
@@ -676,7 +678,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 conference.getFlyerBase64(), conference.getScheduleMarkdown(), conference.getScheduleLayout(),
                 conference.getPublicTheme(),
                 userRepository.findByUuid(conference.getCreatedByUserUuid())
-                        .map(user -> user.getPublicProfilePhotoBase64()).orElse(null));
+                        .map(user -> user.getPublicProfilePhotoBase64()).orElse(null),
+                conference.getTicketPrice(), conference.getTicketCurrency());
     }
 
     private boolean handlePublicList(final JettyHttpExchange jx) {
@@ -690,7 +693,7 @@ public class ConferenceHandler extends BaseResourceHandler {
 
     private boolean handlePublicDetail(final JettyHttpExchange jx, final String friendlyId) {
         try {
-            getConferenceUseCase.byFriendlyId(friendlyId)
+            getConferenceUseCase.resolveAny(publicIdentifier(jx, friendlyId))
                     .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
                     .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
                     .ifPresentOrElse(c -> sendOk(jx, 200, publicView(c)),
@@ -711,12 +714,17 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 403, "login_required", "Se requiere una cuenta para solicitar el boleto");
                 return true;
             }
-            final Conference conference = getConferenceUseCase.byFriendlyId(friendlyId)
+            final Conference conference = getConferenceUseCase.resolveAny(publicIdentifier(jx, friendlyId))
                     .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
                     .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
                     .orElseThrow(() -> new IllegalArgumentException("public_event_not_found"));
             if (ticketUseCase == null || !ticketUseCase.isTicketed(conference)) {
                 sendError(jx, 409, "ticket_not_required", "Este evento no requiere boleto");
+                return true;
+            }
+            if (!conference.isFreeTicket()) {
+                sendError(jx, 402, "payment_required",
+                        "Este evento requiere pago. La integración de pagos aún no está habilitada");
                 return true;
             }
             final var existing = ticketUseCase.myTicket(conference.getUuid(), validation.subjectUuid());
@@ -734,6 +742,12 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    /** Acepta friendly id, UUID o short code aunque un cliente antiguo construya la ruta con otro identificador. */
+    private static String publicIdentifier(final JettyHttpExchange jx, final String fallback) {
+        final String routeId = jx.pathParam("friendlyId");
+        return routeId == null || routeId.isBlank() ? fallback : routeId;
     }
 
     /** Authorizes the custom JaaS invite without issuing or exposing a provider JWT. */
@@ -1027,7 +1041,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                             (String) body.get("presentationSourceUrl"), (String) body.get("flyerBase64"), timezoneId,
                             (String) body.get("description"), (String) body.get("visibility"),
                             (String) body.get("scheduleMarkdown"), (String) body.get("scheduleLayout"),
-                            (String) body.get("publicTheme")));
+                            (String) body.get("publicTheme"), (String) body.get("ticketPrice"),
+                            (String) body.get("ticketCurrency")));
             if (updated.isPresent()) {
                 sendOk(jx, 200, updated.get());
             } else {

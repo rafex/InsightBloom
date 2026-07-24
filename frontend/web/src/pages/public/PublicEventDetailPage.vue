@@ -25,14 +25,13 @@
             template(v-if="event.capacity != null")
               dt Aforo
               dd {{ event.remainingSeats }} disponibles de {{ event.capacity }}
+            template(v-if="event.ticketRequired")
+              dt Precio
+              dd {{ Number(event.ticketPrice || 0) > 0 ? `${event.ticketPrice} ${event.ticketCurrency || 'MXN'}` : 'Gratis' }}
           .actions
-            button.btn-primary(v-if="event.ticketPurchaseEnabled" type="button" @click="requestTicket" :disabled="requesting")
-              span(v-if="requesting") Solicitando...
-              span(v-else) 🎟️ Solicitar boleto
-            router-link.btn-outline(v-else-if="event.ticketRequired" to="/login") Inicia sesión para acceder
+            router-link.btn-primary(v-if="event.ticketPurchaseEnabled" :to="`/events/${event.friendlyId}/checkout`")
+              span {{ Number(event.ticketPrice || 0) > 0 ? '💳 Continuar a compra' : '🎟️ Continuar al boleto' }}
             router-link.btn-outline(v-else :to="`/c/${event.friendlyId}`") Entrar al evento
-          p.action-message(v-if="message") {{ message }}
-          p.action-error(v-if="actionError") {{ actionError }}
         img.detail-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" alt="Flyer del evento")
         .detail-flyer.placeholder(v-else aria-hidden="true") 🎟️
       section.schedule(v-if="renderedSchedule")
@@ -51,18 +50,16 @@ import { computed, onMounted, ref } from 'vue'
 import { marked, Renderer } from 'marked'
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
-import { getPublicConference, requestPublicTicket } from '@/services/api/usersApi'
+import { getPublicConference } from '@/services/api/usersApi'
 import type { PublicConference } from '@/services/api/types'
-import { useAuthStore } from '@/features/auth/authStore'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 export default {
   name: 'PublicEventDetailPage',
   components: { AppHeader, ConferenceMap },
   setup() {
-    const route = useRoute(); const router = useRouter(); const auth = useAuthStore()
+    const route = useRoute()
     const event = ref<PublicConference | null>(null); const loading = ref(true); const error = ref('')
-    const requesting = ref(false); const message = ref(''); const actionError = ref('')
     const renderer = new Renderer(); renderer.html = () => ''
     const renderedSchedule = computed(() => {
       if (!event.value?.scheduleMarkdown) return ''
@@ -76,20 +73,7 @@ export default {
       catch { error.value = 'No se encontró el evento público.' }
       finally { loading.value = false }
     })
-    async function requestTicket() {
-      if (!event.value) return
-      if (!auth.isAuthenticated() || auth.state.role === 'guest') {
-        await router.push({ path: '/login', query: { redirect: `/events/${event.value.friendlyId}` } }); return
-      }
-      requesting.value = true; actionError.value = ''; message.value = ''
-      try {
-        await requestPublicTicket(event.value.friendlyId, auth.state.token as string)
-        message.value = 'Boleto reservado y canjeado. Ya puedes entrar al evento.'
-        await router.push(`/c/${event.value.friendlyId}`)
-      } catch (e: any) { actionError.value = e.response?.data?.error?.message || 'No se pudo solicitar el boleto.' }
-      finally { requesting.value = false }
-    }
-    return { event, loading, error, requesting, message, actionError, renderedSchedule, osmUrl, requestTicket }
+    return { event, loading, error, renderedSchedule, osmUrl }
   }
 }
 </script>

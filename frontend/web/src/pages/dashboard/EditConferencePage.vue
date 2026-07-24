@@ -37,6 +37,17 @@
         option(value="HYBRID") Híbrido: cartelera pública y boletos privados adicionales
 
     .form-group
+      label Precio y moneda del boleto
+      .price-row
+        input(v-model="ticketPrice" type="number" min="0" step="0.01" placeholder="0.00")
+        select(v-model="ticketCurrency")
+          option(value="MXN") MXN — Peso mexicano
+          option(value="USD") USD — Dólar estadounidense
+          option(value="EUR") EUR — Euro
+      p.field-hint(v-if="Number(ticketPrice) > 0") Evento de pago. La integración del proveedor de pagos se habilitará después; por ahora no se emitirá ningún boleto.
+      p.field-hint(v-else) Gratis — se podrá solicitar el boleto sin cobro.
+
+    .form-group
       label Cronograma en Markdown (opcional)
       textarea(v-model="scheduleMarkdown" rows="8" maxlength="12000" placeholder="## 09:00 — Registro\n\nBienvenida y apertura")
       details.schedule-help
@@ -145,6 +156,8 @@ export default {
     const displayName = ref('')
     const description = ref('')
     const visibility = ref<'PRIVATE' | 'PUBLIC' | 'HYBRID'>('PRIVATE')
+    const ticketPrice = ref('0.00')
+    const ticketCurrency = ref('MXN')
     const scheduleMarkdown = ref('')
     const scheduleLayout = ref<'LEFT' | 'RIGHT'>('RIGHT')
     const publicTheme = ref<'CLASSIC' | 'EDITORIAL' | 'MINIMAL'>('CLASSIC')
@@ -200,6 +213,8 @@ Conclusiones, encuesta y entrega de certificados.`
         displayName.value = conference.value.name || ''
         description.value = conference.value.description || ''
         visibility.value = conference.value.visibility || 'PRIVATE'
+        ticketPrice.value = conference.value.ticketPrice || '0.00'
+        ticketCurrency.value = conference.value.ticketCurrency || 'MXN'
         scheduleMarkdown.value = conference.value.scheduleMarkdown || ''
         scheduleLayout.value = conference.value.scheduleLayout || 'RIGHT'
         publicTheme.value = conference.value.publicTheme || 'CLASSIC'
@@ -272,7 +287,9 @@ Conclusiones, encuesta y entrega de certificados.`
           visibility: visibility.value,
           scheduleMarkdown: scheduleMarkdown.value.trim() || null,
           scheduleLayout: scheduleLayout.value,
-          publicTheme: publicTheme.value
+          publicTheme: publicTheme.value,
+          ticketPrice: ticketPrice.value || '0.00',
+          ticketCurrency: ticketCurrency.value
         }, auth.state.token as string)
         if (flyerFile.value) {
           conference.value = await uploadConferenceFlyer(
@@ -298,6 +315,7 @@ Conclusiones, encuesta y entrega de certificados.`
     ])
 
     return { conference, loading, error, saving, saveError, saved, displayName, description, visibility,
+             ticketPrice, ticketCurrency,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
              mapUrl, locationError, extractMapCoordinates, scheduleMarkdown, scheduleLayout, scheduleExample, publicTheme, timezones, timezoneId, breadcrumbItems, onFlyerSelected, removeFlyer, save,
              publicThemeOptions: [
@@ -352,6 +370,7 @@ input:focus { outline: none; border-color: #4f46e5; }
 .map-url-input { flex: 1; min-width: 0; }
 
 .coords-row { display: flex; gap: 12px; }
+.price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .coord-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
 .map-preview { margin-bottom: 20px; border-radius: 12px; overflow: hidden; }
