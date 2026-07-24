@@ -16,6 +16,10 @@
 
   .image-checkin
     p Si la cámara en vivo no lo detecta, toma una foto o selecciona una captura del QR.
+    button.btn-secondary.image-picker(type="button" :disabled="!scannerReady || imageProcessing || processing" @click="takePhotoAndScan")
+      span(v-if="imageProcessing") Procesando foto...
+      span(v-else) 📸 Tomar foto y leer QR
+    span.image-or O selecciona una imagen:
     label.btn-secondary.image-picker(:for="'qr-image-input'")
       | 📷 Leer QR desde imagen
     input#qr-image-input(type="file" accept="image/*" capture="environment" @change="scanQrImage")
@@ -153,6 +157,37 @@ export default {
       }
     }
 
+    async function takePhotoAndScan() {
+      const video = videoEl.value
+      if (!video || !video.videoWidth || !video.videoHeight || imageProcessing.value || processing) return
+
+      imageProcessing.value = true
+      lastResult.value = null
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        const context = canvas.getContext('2d')
+        if (!context) throw new Error('No se pudo capturar la imagen')
+        context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+        const result = await QrScanner.scanImage(canvas, {
+          returnDetailedScanResult: true,
+          alsoTryWithoutScanRegion: true
+        })
+        const rawValue = scanResultValue(result)
+        if (!rawValue.trim()) throw new Error('QR vacío')
+        await onDecoded(rawValue)
+      } catch (_error) {
+        lastResult.value = {
+          ok: false,
+          message: '❌ La foto no contiene un QR legible. Acerca el boleto, mejora el enfoque y vuelve a intentarlo.'
+        }
+      } finally {
+        imageProcessing.value = false
+      }
+    }
+
     onMounted(() => {
       if (!videoEl.value) return
       scanner = new QrScanner(videoEl.value, handleScanResult, {
@@ -202,7 +237,7 @@ export default {
 
     return {
       videoEl, lastResult, recent, breadcrumbItems, manualCode, submitManualCode,
-      scannerReady, scannerError, scannerStatus, scanQrImage, imageProcessing
+      scannerReady, scannerError, scannerStatus, scanQrImage, takePhotoAndScan, imageProcessing
     }
   }
 }
@@ -228,6 +263,8 @@ h2 { color: #1e1b4b; margin-bottom: 16px; }
 .image-checkin { margin-top: 10px; padding: 12px 14px; border: 1px dashed #c7d2fe; border-radius: 10px; background: #eef2ff; text-align: center; }
 .image-checkin p { margin: 0 0 9px; color: #4b5563; font-size: 0.78rem; }
 .image-picker { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 13px; border-radius: 7px; background: #fff; color: #4338ca; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.image-picker:disabled { cursor: not-allowed; opacity: .55; }
+.image-or { display: inline-block; margin: 0 8px; color: #6b7280; font-size: 0.75rem; }
 .image-checkin input[type="file"] { display: none; }
 .scan-result { text-align: center; font-weight: 600; margin-top: 16px; padding: 10px; border-radius: 8px; }
 .scan-result.ok { background: #dcfce7; color: #166534; }
