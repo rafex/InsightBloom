@@ -1,7 +1,7 @@
 <template lang="pug">
 .ticket-qr
   canvas(ref="qrCanvas")
-  p.ticket-code {{ ticketCode }}
+  p.ticket-code(v-if="showCode") {{ ticketCode }}
 </template>
 
 <script lang="ts">
@@ -11,22 +11,29 @@ import QRCode from 'qrcode'
 export default {
   name: 'TicketQr',
   props: {
-    ticketCode: { type: String, required: true }
+    ticketCode: { type: String, required: true },
+    // The attendee-facing QR opens the ticket page. Check-in remains protected
+    // by the dashboard API and accepts the UUID extracted from that URL.
+    ticketUrl: { type: String, default: '' },
+    showCode: { type: Boolean, default: true }
   },
-  setup(props: { ticketCode: string }) {
+  setup(props: { ticketCode: string, ticketUrl?: string, showCode?: boolean }) {
     const qrCanvas = ref<HTMLCanvasElement | null>(null)
 
     async function render() {
       if (!qrCanvas.value) return
       try {
-        // El QR codifica el ticketCode opaco directamente (no una URL pública) — lo
-        // interpreta la propia página de check-in del organizador, ya autenticada.
-        await QRCode.toCanvas(qrCanvas.value, props.ticketCode, { width: 220 })
+        const value = props.ticketUrl || props.ticketCode
+        await QRCode.toCanvas(qrCanvas.value, value, {
+          width: 220,
+          margin: 2,
+          errorCorrectionLevel: 'M'
+        })
       } catch (e: any) { /* sin QR si falla */ }
     }
 
     onMounted(render)
-    watch(() => props.ticketCode, render)
+    watch(() => [props.ticketCode, props.ticketUrl], render)
 
     return { qrCanvas }
   }

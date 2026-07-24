@@ -193,6 +193,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     /** Puerto interno de insightbloom-users, mismo que ya usa el gateway (ver
      *  GATEWAY_SANDBOX_RESOLVE_URL en GatewayApplication.java). */
     private static final int USERS_INTERNAL_PORT = 8081;
+    /** Puerto interno de insightbloom-survey para el tutor IA del CLI. */
+    private static final int SURVEY_INTERNAL_PORT = 8086;
 
     /**
      * Fase C (DEC-0025): el watchdog del seat-agent necesita reportar incidentes a
@@ -542,6 +544,16 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         // enrutamiento, no una credencial; por eso está disponible en todos
         // los sandboxes, incluidos Web y CLI de un solo asiento.
         runtimeEnv.add(Map.of("name", "CONFERENCE_UUID", "value", conferenceUuid));
+        // Publicación estática y tutor IA: el CLI debe alcanzar únicamente el API interno de
+        // usuarios sin activar salida a internet ni obligar al alumno a copiar la URL pública.
+        // La NetworkPolicy del chart permite este destino explícito; no contiene credenciales.
+        final String usersApiBase = "http://insightbloom-users." + gatewayNamespace
+                + ".svc.cluster.local:" + USERS_INTERNAL_PORT + "/api/v1";
+        final String surveyApiBase = "http://insightbloom-survey." + gatewayNamespace
+                + ".svc.cluster.local:" + SURVEY_INTERNAL_PORT + "/api/v1";
+        runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_API_BASE_URL", "value", usersApiBase));
+        runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_USERS_API", "value", usersApiBase));
+        runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_SURVEY_API", "value", surveyApiBase));
         if (extraPackages != null && !extraPackages.isBlank()) {
             runtimeEnv.add(Map.of("name", "EXTRA_PACKAGES", "value", extraPackages));
         }
