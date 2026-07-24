@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { useAuthStore } from './authStore'
 
-const CHECK_INTERVAL_MS = 30_000
+const CHECK_INTERVAL_MS = 15_000
 const SILENT_REFRESH_THRESHOLD_MS = 2 * 60_000 // refrescar si faltan >2min y hubo actividad reciente
 const ACTIVITY_WINDOW_MS = 5 * 60_000 // "actividad reciente" = últimos 5min
 const WARNING_THRESHOLD_MS = 60_000 // mostrar modal cuando falta <=1min
@@ -58,13 +58,23 @@ export function useSessionManager() {
   }
 
   async function tick() {
-    if (!auth.state.token || !auth.state.expiresAt) return
-    const msRemaining = new Date(auth.state.expiresAt).getTime() - Date.now()
+    if (!auth.state.token) return
+
+    const msRemaining = auth.state.expiresAt
+      ? new Date(auth.state.expiresAt).getTime() - Date.now()
+      : Number.POSITIVE_INFINITY
 
     if (msRemaining <= 0) {
       await forceLogoutAndRedirect()
       return
     }
+
+    // La expiración del JWT no es el único final de sesión: un administrador
+    // puede banear/desactivar al usuario o revocar sus tokens antes de esa
+    // fecha. Validamos sin rotar el token para expulsarlo en cuanto el backend
+    // deje de aceptarlo. Los errores de red se toleran; el interceptor global
+    // procesa los 401/403 de revocación.
+    if (typeof auth.validate === 'function') await auth.validate()
 
     if (msRemaining <= WARNING_THRESHOLD_MS) {
       if (!showWarning.value) {
@@ -75,7 +85,7 @@ export function useSessionManager() {
     }
 
     const activeRecently = (Date.now() - lastActivityAt) <= ACTIVITY_WINDOW_MS
-    if (msRemaining <= SILENT_REFRESH_THRESHOLD_MS + CHECK_INTERVAL_MS && activeRecently) {
+    if (auth.state.expiresAt && msRemaining <= SILENT_REFRESH_THRESHOLD_MS + CHECK_INTERVAL_MS && activeRecently) {
       await auth.refresh()
     }
   }

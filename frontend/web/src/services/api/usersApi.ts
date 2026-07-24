@@ -12,6 +12,7 @@ import type {
   TicketManagementSummary, WorkspacePreviewInfo, PublicConference
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
+import { handleSessionResponse } from '@/features/auth/sessionGuard'
 
 function authHeader(token?: string | null) {
   return { headers: { Authorization: `Bearer ${token}` } }
@@ -48,7 +49,13 @@ export class AuthenticatedEventStream {
         headers: { Authorization: `Bearer ${this.token}` },
         credentials: 'same-origin'
       })
-      if (!response.ok || !response.body) throw new Error(`SSE HTTP ${response.status}`)
+      if (!response.ok) {
+        let payload: unknown
+        try { payload = await response.clone().json() } catch { /* respuesta no JSON */ }
+        handleSessionResponse(response.status, payload)
+        throw new Error(`SSE HTTP ${response.status}`)
+      }
+      if (!response.body) throw new Error(`SSE HTTP ${response.status}`)
       this.emit('open', new Event('open'))
       const reader = response.body.getReader()
       const decoder = new TextDecoder()

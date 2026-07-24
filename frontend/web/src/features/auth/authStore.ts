@@ -1,6 +1,7 @@
 import { reactive } from 'vue'
 import axios from 'axios'
 import { getFingerprint } from '@/services/auth/fingerprint'
+import { clearStoredSession, registerSessionInvalidationHandler } from './sessionGuard'
 
 interface AuthState {
   token: string | null
@@ -29,6 +30,15 @@ const state: AuthState = reactive({
   userUuid: localStorage.getItem('ib_user_uuid') || null,
   expiresAt: localStorage.getItem('ib_expires_at') || null
 })
+
+function clearInMemorySession(): void {
+  state.token = null
+  state.role = null
+  state.userUuid = null
+  state.expiresAt = null
+}
+
+registerSessionInvalidationHandler(clearInMemorySession)
 
 function persistExpiresAt(expiresAt?: string | null) {
   state.expiresAt = expiresAt || null
@@ -188,6 +198,21 @@ export function useAuthStore() {
     }
   }
 
+  /** Comprueba que la sesión siga activa sin rotar el token. */
+  async function validate(): Promise<boolean> {
+    if (!state.token) return false
+    try {
+      await axios.get('/api/users/api/v1/auth/validate', {
+        headers: { Authorization: `Bearer ${state.token}` }
+      })
+      return true
+    } catch {
+      // Un 401/403 de revocación ya fue procesado por el interceptor global;
+      // un error de red no debe expulsar a un usuario que aún puede volver.
+      return false
+    }
+  }
+
   async function logout(): Promise<void> {
     if (state.token) {
       try {
@@ -198,14 +223,8 @@ export function useAuthStore() {
         // best-effort: clear local state regardless of server response
       }
     }
-    state.token = null
-    state.role = null
-    state.userUuid = null
-    tokenStorage.removeItem('ib_token')
-    localStorage.removeItem('ib_token')
-    localStorage.removeItem('ib_role')
-    localStorage.removeItem('ib_user_uuid')
-    persistExpiresAt(null)
+    clearInMemorySession()
+    clearStoredSession()
   }
 
   function roleList(): string[] { return (state.role || '').split(',').map((r) => r.trim()).filter(Boolean) }
@@ -215,7 +234,7 @@ export function useAuthStore() {
   function isAdmin(): boolean { return roleList().includes('admin') }
 
   return {
-    state, login, loginAsGuest, logout, setSession, refresh,
+    state, login, loginAsGuest, logout, setSession, refresh, validate,
     waitForSessionBridge,
     isAuthenticated, isOrganizer, isModerator, isAdmin
   }

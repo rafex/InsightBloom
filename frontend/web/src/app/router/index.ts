@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/features/auth/authStore'
+import { redirectExpiredRoute } from '@/features/auth/sessionGuard'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -162,6 +163,12 @@ router.beforeEach(async (to) => {
   // through the same-origin opener bridge. Wait before enforcing requiresAuth.
   await useAuthStore().waitForSessionBridge()
   const token = sessionStorage.getItem('ib_token')
+
+  const expiresAt = localStorage.getItem('ib_expires_at')
+  if (token && expiresAt && Number.isFinite(Date.parse(expiresAt)) && Date.parse(expiresAt) <= Date.now()) {
+    const loginRedirect = redirectExpiredRoute()
+    if (to.path !== '/login') return loginRedirect || '/login'
+  }
 
   // Already authenticated → skip landing/login/register
   if (token && GUEST_ROUTES.includes(to.path)) return '/dashboard'
