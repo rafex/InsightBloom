@@ -33,6 +33,10 @@ for _, lang in ipairs(ts_parsers) do
     pcall(vim.treesitter.language.add, lang, { path = parser_path })
   end
 end
+-- Alpine distribuye las consultas de Tree-sitter fuera del runtime de Neovim. La imagen
+-- contiene una variante compatible de JavaScript en /etc/insightbloom/queries porque la
+-- consulta original usa #is-not?, que Neovim 0.10.4 no conoce.
+vim.opt.runtimepath:prepend("/etc/insightbloom")
 vim.opt.runtimepath:append("/usr/share/tree-sitter")
 vim.api.nvim_create_autocmd("FileType", {
   pattern = ts_langs,

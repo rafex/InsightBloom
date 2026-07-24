@@ -149,13 +149,14 @@ RUN groupadd -g 1000 coder && \
     chown -R coder:coder /home/coder && \
     chown -R coder:coder /usr/local/lib/python-3.12
 
+# Mantener las herramientas globales fuera del workspace efímero evita ocultarlas si la
+# configuración del Pod monta un volumen más amplio sobre /home.
+ENV NPM_CONFIG_PREFIX=/opt/insightbloom/node-global
+ENV PATH=/opt/insightbloom/node-global/bin:/home/coder/.opencode/bin:$PATH
+RUN mkdir -p /opt/insightbloom/node-global && chown -R coder:coder /opt/insightbloom
+
 USER coder
 WORKDIR /home/coder
-
-# Prefix npm global escribible por 'coder'
-ENV NPM_CONFIG_PREFIX=/home/coder/.npm-global
-ENV PATH=/home/coder/.npm-global/bin:/home/coder/.opencode/bin:$PATH
-RUN mkdir -p /home/coder/.npm-global
 
 RUN npm install -g npm@latest && \
     npm install -g \
@@ -173,7 +174,11 @@ RUN npm install -g npm@latest && \
     pyright@1.1.411 \
     vscode-langservers-extracted@4.10.0 \
     @typescript-eslint/parser \
-    @typescript-eslint/eslint-plugin
+    @typescript-eslint/eslint-plugin && \
+    test -x /opt/insightbloom/node-global/bin/typescript-language-server && \
+    test -x /opt/insightbloom/node-global/bin/pyright-langserver && \
+    test -x /opt/insightbloom/node-global/bin/vscode-html-language-server && \
+    test -x /opt/insightbloom/node-global/bin/vscode-css-language-server
 
 # pip install sin venv es intencional aca (mismo interprete que usa la extension de Python del
 # editor via python.defaultInterpreterPath) -- el Python de python-build-standalone no es el de

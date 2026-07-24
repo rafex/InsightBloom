@@ -148,9 +148,13 @@ RUN addgroup -g 1000 coder && \
     adduser -D -u 1000 -G coder -h /home/coder coder && \
     chown -R coder:coder /home/coder
 
-ENV NPM_CONFIG_PREFIX=/home/coder/.npm-global
-ENV PATH=/home/coder/.npm-global/bin:/home/coder/.opencode/bin:$PATH
-RUN mkdir -p /home/coder/.npm-global && chown coder:coder /home/coder/.npm-global
+# El modo CLI multi-asiento monta el emptyDir del workspace en /home completo. Los binarios
+# instalados bajo /home/coder quedarían ocultos por ese volumen y Neovim perdería los LSP al
+# aprovisionar un asiento. Mantener el prefijo global fuera de /home hace que la instalación
+# siga siendo visible para coder, studentN y el agente aunque cada asiento tenga su propio home.
+ENV NPM_CONFIG_PREFIX=/opt/insightbloom/node-global
+ENV PATH=/opt/insightbloom/node-global/bin:/home/coder/.opencode/bin:$PATH
+RUN mkdir -p /opt/insightbloom/node-global && chown -R coder:coder /opt/insightbloom
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
@@ -221,9 +225,21 @@ COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
 RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \
     chmod -R a+rX /usr/local/share/insightbloom-node-types && \
+    test -x /opt/insightbloom/node-global/bin/typescript-language-server && \
+    test -x /opt/insightbloom/node-global/bin/pyright-langserver && \
+    test -x /opt/insightbloom/node-global/bin/vscode-html-language-server && \
+    test -x /opt/insightbloom/node-global/bin/vscode-css-language-server && \
     chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py \
     /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py /usr/local/bin/insightbloom \
     /usr/local/bin/seed-ide-docs.sh
+
+# La consulta distribuida por Alpine usa #is-not?, un predicado de nvim-treesitter que no
+# existe en Neovim 0.10.4. Se conserva el resaltado JavaScript con una variante compatible
+# para evitar que el highlighter falle al encontrar scripts embebidos en HTML.
+RUN mkdir -p /etc/insightbloom/queries/javascript && \
+    test -f /usr/share/tree-sitter/queries/javascript/highlights.scm && \
+    sed '/#is-not? local/d' /usr/share/tree-sitter/queries/javascript/highlights.scm \
+      > /etc/insightbloom/queries/javascript/highlights.scm
 USER coder
 
 # Puerto ttyd: 8080, mismo puerto publico que usa la imagen Debian (code-server) -- cada
