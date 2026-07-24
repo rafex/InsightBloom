@@ -45,10 +45,12 @@ export function parseMapCoordinates(value: string): MapCoordinates | null {
     }
   }
 
-  const mlat = Number(url.searchParams.get('mlat'))
-  const mlon = Number(url.searchParams.get('mlon'))
-  const fromOsmQuery = validCoordinates(mlat, mlon)
-  if (fromOsmQuery) return fromOsmQuery
+  const mlatValue = url.searchParams.get('mlat')
+  const mlonValue = url.searchParams.get('mlon')
+  if (mlatValue !== null && mlonValue !== null) {
+    const fromOsmQuery = validCoordinates(Number(mlatValue), Number(mlonValue))
+    if (fromOsmQuery) return fromOsmQuery
+  }
 
   const map = url.hash.match(new RegExp(`#map=\\d+/(${NUMBER})/(${NUMBER})`))
   return map ? validCoordinates(Number(map[1]), Number(map[2])) : null

@@ -180,6 +180,24 @@ public class SqliteSandboxRepository implements SandboxRepository {
     }
 
     @Override
+    public void deletePod(final String conferenceUuid, final String variant, final int sandboxSlot) {
+        // Un Pod CLI puede tener varias filas (una por asiento). Borrarlas en una sola sentencia
+        // evita dejar asientos huérfanos si el moderador elimina un Pod ocupado y mantiene esta
+        // operación completamente separada de la tabla conferences.
+        try (final Connection conn = databaseManager.getConnection();
+             final PreparedStatement stmt = conn.prepareStatement(
+                 "DELETE FROM sandbox_assignments "
+                     + "WHERE conference_uuid = ? AND variant = ? AND sandbox_slot = ?")) {
+            stmt.setString(1, conferenceUuid);
+            stmt.setString(2, variant);
+            stmt.setInt(3, sandboxSlot);
+            stmt.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to delete sandbox pod", e);
+        }
+    }
+
+    @Override
     public void updateExpiresAt(final String uuid, final Instant expiresAt) {
         try (final Connection conn = databaseManager.getConnection();
              final PreparedStatement stmt = conn.prepareStatement(

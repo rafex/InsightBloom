@@ -63,7 +63,7 @@ class ResetSandboxUseCaseTest {
         assertEquals("recreated", result.action());
         assertEquals(1, result.recreatedPods());
         verify(orchestrator).deleteSandbox(free.podName());
-        verify(sandboxRepository).deleteByUuid(free.getUuid());
+        verify(sandboxRepository).deletePod("conf-1", Sandbox.VARIANT_WEB, 0);
         verify(ensurePool).ensurePool("conf-1", Sandbox.VARIANT_WEB, 2);
     }
 
@@ -89,8 +89,7 @@ class ResetSandboxUseCaseTest {
 
         assertEquals("deleted", result.action());
         verify(orchestrator).deleteSandbox(assigned.podName());
-        verify(sandboxRepository).deleteByUuid(assigned.getUuid());
-        verify(sandboxRepository).deleteByUuid(freeSeat.getUuid());
+        verify(sandboxRepository).deletePod("conf-1", Sandbox.VARIANT_CLI, 0);
         verify(conferenceRepository, never()).findByUuid("conf-1");
         verify(conferenceRepository, never()).save(any(Conference.class));
         verifyNoInteractions(ensurePool);

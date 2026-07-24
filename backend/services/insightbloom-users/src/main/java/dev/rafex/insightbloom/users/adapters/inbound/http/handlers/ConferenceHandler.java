@@ -2329,11 +2329,14 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return null; }
         final var v = validateTokenUseCase.execute(token);
         if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return null; }
-        final boolean owner = isOrganizerOrAdmin(v.role()) &&
+        // Un admin de plataforma ya tiene bypass global; no hace falta reconstruir/leer el
+        // agregado Conference para autorizar una operación administrativa sobre el Pod. Para un
+        // organizer sí verificamos que sea el creador real del evento.
+        final boolean platformAdmin = legacyRoleHasAny(v.role(), "admin");
+        final boolean owner = platformAdmin || (isOrganizerOrAdmin(v.role()) &&
             getConferenceUseCase.byId(conferenceId)
-                .map(c -> legacyRoleHasAny(v.role(), "admin")
-                    || c.getCreatedByUserUuid().equals(v.subjectUuid()))
-                .orElse(false);
+                .map(c -> c.getCreatedByUserUuid().equals(v.subjectUuid()))
+                .orElse(false));
         final boolean eventStaff = eventPermissionGuard.hasPermission(
                 conferenceId, v.subjectUuid(), v.role(), Permission.MODERATE_CONTENT)
             || eventPermissionGuard.hasPermission(

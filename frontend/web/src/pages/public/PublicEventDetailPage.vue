@@ -1,49 +1,49 @@
 <template lang="pug">
   .public-event-page(:class="`theme-${(event?.publicTheme || 'CLASSIC').toLowerCase()}`")
-  AppHeader
-  main.public-detail(v-if="event")
-    router-link.back(to="/events") ← Volver a la cartelera
-    .detail-hero(:class="{ reverse: event.scheduleLayout === 'LEFT' }")
-      .detail-copy
-        .badges
-          span.badge {{ event.visibility === 'HYBRID' ? 'Evento híbrido' : 'Evento público' }}
-          span.badge.badge-ticket(v-if="event.ticketRequired") 🎟️ Boleto requerido
-        h1 {{ event.name }}
-        .organizer-card
-          img.organizer-avatar(v-if="event.organizerPhotoBase64" :src="event.organizerPhotoBase64" alt="")
-          .organizer-copy
-            span.organizer-label Organizado por
-            strong.organizer {{ event.organizer }}
-        p.description(v-if="event.description") {{ event.description }}
-        dl.event-facts
-          template(v-if="event.eventDate")
-            dt Fecha
-            dd {{ event.eventDate }}{{ event.startTime ? ` · ${event.startTime}` : '' }}{{ event.endTime ? ` – ${event.endTime}` : '' }}
-          template(v-if="event.venue")
-            dt Lugar
-            dd {{ event.venue }}
-          template(v-if="event.capacity != null")
-            dt Aforo
-            dd {{ event.remainingSeats }} disponibles de {{ event.capacity }}
-        .actions
-          button.btn-primary(v-if="event.ticketPurchaseEnabled" type="button" @click="requestTicket" :disabled="requesting")
-            span(v-if="requesting") Solicitando...
-            span(v-else) 🎟️ Solicitar boleto
-          router-link.btn-outline(v-else-if="event.ticketRequired" to="/login") Inicia sesión para acceder
-          router-link.btn-outline(v-else :to="`/c/${event.friendlyId}`") Entrar al evento
-        p.action-message(v-if="message") {{ message }}
-        p.action-error(v-if="actionError") {{ actionError }}
-      img.detail-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" alt="Flyer del evento")
-      .detail-flyer.placeholder(v-else aria-hidden="true") 🎟️
-    section.schedule(v-if="renderedSchedule")
-      h2 Cronograma
-      .markdown-body(v-html="renderedSchedule")
-    section.map-section(v-if="event.latitude != null && event.longitude != null")
-      h2 Ubicación
-      ConferenceMap(:latitude="event.latitude" :longitude="event.longitude" :label="event.venue || event.name")
-      a.map-link(:href="osmUrl" target="_blank" rel="noopener noreferrer") Abrir en OpenStreetMap ↗
-  .state(v-else-if="loading") Cargando evento...
-  .state.error(v-else) {{ error }}
+    AppHeader
+    main.public-detail(v-if="event")
+      router-link.back(to="/events") ← Volver a la cartelera
+      .detail-hero(:class="{ reverse: event.scheduleLayout === 'LEFT' }")
+        .detail-copy
+          .badges
+            span.badge {{ event.visibility === 'HYBRID' ? 'Evento híbrido' : 'Evento público' }}
+            span.badge.badge-ticket(v-if="event.ticketRequired") 🎟️ Boleto requerido
+          h1 {{ event.name }}
+          .organizer-card
+            img.organizer-avatar(v-if="event.organizerPhotoBase64" :src="event.organizerPhotoBase64" alt="")
+            .organizer-copy
+              span.organizer-label Organizado por
+              strong.organizer {{ event.organizer }}
+          p.description(v-if="event.description") {{ event.description }}
+          dl.event-facts
+            template(v-if="event.eventDate")
+              dt Fecha
+              dd {{ event.eventDate }}{{ event.startTime ? ` · ${event.startTime}` : '' }}{{ event.endTime ? ` – ${event.endTime}` : '' }}
+            template(v-if="event.venue")
+              dt Lugar
+              dd {{ event.venue }}
+            template(v-if="event.capacity != null")
+              dt Aforo
+              dd {{ event.remainingSeats }} disponibles de {{ event.capacity }}
+          .actions
+            button.btn-primary(v-if="event.ticketPurchaseEnabled" type="button" @click="requestTicket" :disabled="requesting")
+              span(v-if="requesting") Solicitando...
+              span(v-else) 🎟️ Solicitar boleto
+            router-link.btn-outline(v-else-if="event.ticketRequired" to="/login") Inicia sesión para acceder
+            router-link.btn-outline(v-else :to="`/c/${event.friendlyId}`") Entrar al evento
+          p.action-message(v-if="message") {{ message }}
+          p.action-error(v-if="actionError") {{ actionError }}
+        img.detail-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" alt="Flyer del evento")
+        .detail-flyer.placeholder(v-else aria-hidden="true") 🎟️
+      section.schedule(v-if="renderedSchedule")
+        h2 Cronograma
+        .markdown-body(v-html="renderedSchedule")
+      section.map-section(v-if="event.latitude != null && event.longitude != null")
+        h2 Ubicación
+        ConferenceMap(:latitude="event.latitude" :longitude="event.longitude" :label="event.venue || event.name")
+        a.map-link(:href="osmUrl" target="_blank" rel="noopener noreferrer") Abrir en OpenStreetMap ↗
+    .state(v-else-if="loading") Cargando evento...
+    .state.error(v-else) {{ error }}
 </template>
 
 <script lang="ts">

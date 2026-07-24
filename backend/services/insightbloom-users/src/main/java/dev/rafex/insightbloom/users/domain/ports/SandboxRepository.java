@@ -40,5 +40,8 @@ public interface SandboxRepository {
      *  sandbox activo a la vez, ver AssignSandboxUseCase). */
     void deleteByUuid(String uuid);
 
+    /** Elimina todas las filas que representan el mismo Pod (incluye todos sus asientos CLI). */
+    void deletePod(String conferenceUuid, String variant, int sandboxSlot);
+
     int deleteExpired(Instant now);
 }
