@@ -318,6 +318,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/sandbox/{sandboxUuid}/delete", Set.of("POST")),
                 Route.of("/{id}/sandbox/{sandboxUuid}/recreate", Set.of("POST")),
                 Route.of("/{id}/sandbox", Set.of("GET")),
+                Route.of("/{id}/sandbox/stream", Set.of("GET")),
                 Route.of("/{id}/sandbox/availability", Set.of("GET")),
                 Route.of("/{id}/sandbox/download", Set.of("POST")),
                 Route.of("/{id}/sandbox/preview", Set.of("POST")),
@@ -448,6 +449,9 @@ public class ConferenceHandler extends BaseResourceHandler {
             return handleListDeviceBlocks(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/sandbox/availability")) {
+            return sandboxHandler.get(x);
+        }
+        if (path.endsWith("/sandbox/stream")) {
             return sandboxHandler.get(x);
         }
         if (path.endsWith("/sandbox/files") || path.endsWith("/sandbox/file")) {
