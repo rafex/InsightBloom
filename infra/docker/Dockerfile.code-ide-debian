@@ -253,10 +253,12 @@ COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-hel
 COPY infra/docker/runtime-fzf.sh /etc/profile.d/insightbloom-fzf.sh
 COPY infra/docker/seed-node-types.sh /usr/local/bin/seed-node-types.sh
 COPY infra/docker/insightbloom-publish.py /usr/local/bin/insightbloom-publish.py
+COPY infra/docker/insightbloom-mentor.py /usr/local/bin/insightbloom-mentor.py
 COPY infra/docker/insightbloom /usr/local/bin/insightbloom
 COPY infra/docker/IDE-WEB-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-WEB-PUBLICATION.md
+COPY infra/docker/IDE-AI-MENTOR.md /usr/local/share/doc/insightbloom/IDE-AI-MENTOR.md
 COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
-RUN chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/insightbloom-publish.py \
+RUN chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py \
     /usr/local/bin/insightbloom /usr/local/bin/seed-ide-docs.sh
 USER coder
 

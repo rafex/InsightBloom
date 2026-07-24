@@ -50,9 +50,53 @@ export interface SurveyAccessManagement {
   attendees: SurveyAttendee[]
 }
 
+export interface AiMentorConfig {
+  conferenceUuid?: string
+  enabled: boolean
+  objective: string
+  prompt: string
+  includePresentation: boolean
+  maxRequestsPerMinute: number
+  updatedAt?: string
+}
+
+export interface AiMentorChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export async function getQuestions(conferenceId: string, onlyActive = true): Promise<{ data: any[] }> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/questions`, {
     params: { onlyActive }
+  })
+  return res.data
+}
+
+export async function getAiMentorConfig(conferenceId: string, token: string): Promise<{ data: AiMentorConfig }> {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/mentor/config`, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function setAiMentorConfig(
+  conferenceId: string,
+  config: Omit<AiMentorConfig, 'conferenceUuid' | 'updatedAt'>,
+  token: string
+): Promise<{ data: AiMentorConfig }> {
+  const res = await axios.put(`${BASE}/conferences/${conferenceId}/mentor/config`, config, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function chatAiMentor(
+  conferenceId: string,
+  input: { message: string, fileName?: string, codeContext?: string, history?: AiMentorChatMessage[] },
+  token: string
+): Promise<{ data: { reply: string } }> {
+  const res = await axios.post(`${BASE}/conferences/${conferenceId}/mentor/chat`, input, {
+    headers: authHeader(token)
   })
   return res.data
 }

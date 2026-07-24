@@ -81,6 +81,16 @@ public class DatabaseManager {
                     PRIMARY KEY (conference_uuid, user_uuid)
                 )""");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_survey_access_conf ON survey_access_releases(conference_uuid)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS ai_mentor_configs (
+                    conference_uuid TEXT PRIMARY KEY,
+                    enabled INTEGER NOT NULL DEFAULT 0,
+                    objective TEXT,
+                    prompt TEXT,
+                    include_presentation INTEGER NOT NULL DEFAULT 1,
+                    max_requests_per_minute INTEGER NOT NULL DEFAULT 8,
+                    updated_at TEXT NOT NULL
+                )""");
 
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "reference_answer", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "rating_style", "TEXT");

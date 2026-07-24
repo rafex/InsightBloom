@@ -15,6 +15,7 @@ import dev.rafex.insightbloom.survey.adapters.outbound.sqlite.SqliteSurveyRespon
 import dev.rafex.insightbloom.survey.adapters.outbound.sqlite.SqliteSurveyDefinitionRepository;
 import dev.rafex.insightbloom.survey.adapters.outbound.sqlite.SqliteSurveyJsSubmissionRepository;
 import dev.rafex.insightbloom.survey.adapters.outbound.sqlite.SqliteSurveyAccessRepository;
+import dev.rafex.insightbloom.survey.adapters.outbound.sqlite.SqliteAiMentorConfigRepository;
 import dev.rafex.insightbloom.survey.adapters.outbound.usersclient.HttpUsersClient;
 import dev.rafex.insightbloom.survey.application.usecases.CreateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.DeactivateQuestionUseCase;
@@ -30,6 +31,8 @@ import dev.rafex.insightbloom.survey.application.usecases.SuggestQuestionsUseCas
 import dev.rafex.insightbloom.survey.application.usecases.SurveyDefinitionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.UpdateQuestionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SurveyAccessUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.AiMentorConfigUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.MentorChatUseCase;
 
 import java.util.List;
 
@@ -51,6 +54,7 @@ public class SurveyApplication {
         final var definitionRepo = new SqliteSurveyDefinitionRepository(db);
         final var submissionRepo = new SqliteSurveyJsSubmissionRepository(db);
         final var surveyAccessRepo = new SqliteSurveyAccessRepository(db);
+        final var aiMentorConfigRepo = new SqliteAiMentorConfigRepository(db);
         final var llm = new GroqLlmClient(llmBaseUrl, llmApiKey, llmModel, JsonUtils.codec());
         final var presentationsClient = new HttpPresentationsClient(presentationsBaseUrl);
         final var usersPort = new HttpUsersClient(usersBaseUrl);
@@ -64,20 +68,23 @@ public class SurveyApplication {
         final var updateQuestionUseCase = new UpdateQuestionUseCase(questionRepo);
         final var purgeResponsesUseCase = new PurgeResponsesUseCase(responseRepo);
         final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(
-                questionRepo, responseRepo, definitionRepo, submissionRepo, surveyAccessRepo);
+                questionRepo, responseRepo, definitionRepo, submissionRepo, surveyAccessRepo, aiMentorConfigRepo);
         final var improveQuestionUseCase = new ImproveQuestionUseCase(llm, presentationsClient, JsonUtils.codec());
         final var gradeResponsesUseCase = new GradeResponsesUseCase(questionRepo, responseRepo, llm);
         final var surveyDefinitionUseCase = new SurveyDefinitionUseCase(definitionRepo, questionRepo, JsonUtils.codec());
         final var submitSurveyJsSubmissionUseCase = new SubmitSurveyJsSubmissionUseCase(
                 definitionRepo, submissionRepo, JsonUtils.codec());
         final var surveyAccessUseCase = new SurveyAccessUseCase(surveyAccessRepo);
+        final var aiMentorConfigUseCase = new AiMentorConfigUseCase(aiMentorConfigRepo);
+        final var mentorChatUseCase = new MentorChatUseCase(llm, presentationsClient, aiMentorConfigRepo);
 
         final var surveyHandler = new SurveyHandler(
                 createQuestionUseCase, listQuestionsUseCase, deactivateQuestionUseCase,
                 submitResponsesUseCase, getResultsUseCase, suggestQuestionsUseCase, updateQuestionUseCase,
                 purgeResponsesUseCase, deleteConferenceDataUseCase, improveQuestionUseCase,
                 gradeResponsesUseCase, surveyDefinitionUseCase, submitSurveyJsSubmissionUseCase,
-                definitionRepo, submissionRepo, usersPort, surveyAccessUseCase);
+                definitionRepo, submissionRepo, usersPort, surveyAccessUseCase,
+                aiMentorConfigUseCase, mentorChatUseCase);
 
         final var routes = new JettyRouteRegistry();
         routes.add("/api/v1/conferences/*", surveyHandler);

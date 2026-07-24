@@ -1,3 +1,27 @@
 #!/bin/sh
 set -eu
-exec python3 /usr/local/bin/insightbloom-publish.py "$@"
+case "${1:-}" in
+  -h|--help)
+    cat <<'EOF'
+Uso:
+  insightbloom publish [opciones]   Publica una copia temporal del sitio estático.
+  insightbloom revoke ID            Revoca una publicación.
+  insightbloom login                Inicia sesión y guarda el token fuera del workspace.
+  insightbloom mentor [pregunta]    Consulta el tutor IA pedagógico del evento.
+
+Usa `insightbloom mentor --help` para ver las opciones del tutor.
+EOF
+    exit 0
+    ;;
+  mentor|ask)
+    shift
+    exec python3 /usr/local/bin/insightbloom-mentor.py mentor "$@"
+    ;;
+  login)
+    shift
+    exec python3 /usr/local/bin/insightbloom-mentor.py login "$@"
+    ;;
+  *)
+    exec python3 /usr/local/bin/insightbloom-publish.py "$@"
+    ;;
+esac

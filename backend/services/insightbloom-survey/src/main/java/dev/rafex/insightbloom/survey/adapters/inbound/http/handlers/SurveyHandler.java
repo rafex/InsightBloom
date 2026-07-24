@@ -19,6 +19,9 @@ import dev.rafex.insightbloom.survey.application.usecases.SuggestQuestionsUseCas
 import dev.rafex.insightbloom.survey.application.usecases.SurveyDefinitionUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.SurveyAccessUseCase;
 import dev.rafex.insightbloom.survey.application.usecases.UpdateQuestionUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.AiMentorConfigUseCase;
+import dev.rafex.insightbloom.survey.application.usecases.MentorChatUseCase;
+import dev.rafex.insightbloom.survey.domain.model.AiMentorConfig;
 import dev.rafex.insightbloom.survey.domain.model.SurveyDefinition;
 import dev.rafex.insightbloom.survey.domain.model.SurveyEngine;
 import dev.rafex.insightbloom.survey.domain.model.SurveyJsSubmission;
@@ -52,6 +55,8 @@ public class SurveyHandler extends BaseResourceHandler {
     private final SurveyJsSubmissionRepository surveyJsSubmissionRepository;
     private final UsersPort usersPort;
     private final SurveyAccessUseCase surveyAccessUseCase;
+    private final AiMentorConfigUseCase aiMentorConfigUseCase;
+    private final MentorChatUseCase mentorChatUseCase;
 
     public SurveyHandler(final CreateQuestionUseCase createQuestionUseCase,
                           final ListQuestionsUseCase listQuestionsUseCase,
@@ -69,7 +74,9 @@ public class SurveyHandler extends BaseResourceHandler {
                           final SurveyDefinitionRepository surveyDefinitionRepository,
                           final SurveyJsSubmissionRepository surveyJsSubmissionRepository,
                           final UsersPort usersPort,
-                          final SurveyAccessUseCase surveyAccessUseCase) {
+                          final SurveyAccessUseCase surveyAccessUseCase,
+                          final AiMentorConfigUseCase aiMentorConfigUseCase,
+                          final MentorChatUseCase mentorChatUseCase) {
         this.createQuestionUseCase = createQuestionUseCase;
         this.listQuestionsUseCase = listQuestionsUseCase;
         this.deactivateQuestionUseCase = deactivateQuestionUseCase;
@@ -87,6 +94,8 @@ public class SurveyHandler extends BaseResourceHandler {
         this.surveyJsSubmissionRepository = surveyJsSubmissionRepository;
         this.usersPort = usersPort;
         this.surveyAccessUseCase = surveyAccessUseCase;
+        this.aiMentorConfigUseCase = aiMentorConfigUseCase;
+        this.mentorChatUseCase = mentorChatUseCase;
     }
 
     @Override
@@ -115,6 +124,8 @@ public class SurveyHandler extends BaseResourceHandler {
                 Route.of("/{conferenceId}/survey/responded", Set.of("GET")),
                 Route.of("/{conferenceId}/survey/results", Set.of("GET")),
                 Route.of("/{conferenceId}/survey/grade", Set.of("POST")),
+                Route.of("/{conferenceId}/mentor/config", Set.of("GET", "PUT")),
+                Route.of("/{conferenceId}/mentor/chat", Set.of("POST")),
                 Route.of("/{conferenceId}/survey", Set.of("DELETE")));
     }
 
@@ -129,6 +140,11 @@ public class SurveyHandler extends BaseResourceHandler {
         final String conferenceId = jx.pathParam("conferenceId");
         final String path = jx.path();
         try {
+            if (path.endsWith("/mentor/config")) {
+                if (requireSurveyManager(jx, conferenceId) == null) return true;
+                sendOk(jx, mentorConfigView(aiMentorConfigUseCase.get(conferenceId)));
+                return true;
+            }
             if (path.endsWith("/survey/access-management")) {
                 if (requireSurveyManager(jx, conferenceId) == null) return true;
                 final String token = extractToken(jx);
@@ -229,6 +245,24 @@ public class SurveyHandler extends BaseResourceHandler {
         final String conferenceId = jx.pathParam("conferenceId");
         final String path = jx.path();
         try {
+            if (path.endsWith("/mentor/chat")) {
+                final String token = extractToken(jx);
+                if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+                final var validation = usersPort.validate(token);
+                if (validation == null || !validation.valid()) {
+                    sendError(jx, 401, "token_invalid", "Invalid token"); return true;
+                }
+                if (!usersPort.hasConferenceAccess(conferenceId, token)) {
+                    sendError(jx, 403, "ticket_required", "Necesitas un boleto canjeado para usar el tutor IA");
+                    return true;
+                }
+                final var body = parseBody(jx);
+                sendOk(jx, mentorChatUseCase.execute(new MentorChatUseCase.Request(
+                        conferenceId, validation.subjectUuid(), (String) body.get("message"),
+                        (String) body.get("fileName"), (String) body.get("codeContext"),
+                        mentorHistory(body.get("history")))));
+                return true;
+            }
             if (path.endsWith("/survey/access/release")) {
                 if (requireSurveyManager(jx, conferenceId) == null) return true;
                 final var body = parseBody(jx);
@@ -401,7 +435,13 @@ public class SurveyHandler extends BaseResourceHandler {
             }
         } catch (final IllegalStateException e) {
             if ("llm_not_configured".equals(e.getMessage())) {
-                sendError(jx, 503, e.getMessage(), "LLM grading is not configured for this deployment");
+                sendError(jx, 503, e.getMessage(), "El tutor IA no está configurado en este despliegue");
+            } else if ("mentor_disabled".equals(e.getMessage())) {
+                sendError(jx, 423, e.getMessage(), "El tutor IA está deshabilitado para este evento");
+            } else if ("mentor_rate_limited".equals(e.getMessage())) {
+                sendError(jx, 429, e.getMessage(), "Demasiadas consultas; intenta nuevamente en un minuto");
+            } else if ("empty_llm_reply".equals(e.getMessage())) {
+                sendError(jx, 502, e.getMessage(), "El proveedor de IA no devolvió una respuesta");
             } else {
                 sendError(jx, 409, e.getMessage(), "You already answered this survey");
             }
@@ -422,6 +462,26 @@ public class SurveyHandler extends BaseResourceHandler {
     public boolean put(final HttpExchange x) {
         final var jx = asJetty(x);
         final String conferenceId = jx.pathParam("conferenceId");
+        if (jx.path().endsWith("/mentor/config")) {
+            try {
+                if (requireSurveyManager(jx, conferenceId) == null) return true;
+                final var body = parseBody(jx);
+                final var config = aiMentorConfigUseCase.save(
+                        conferenceId,
+                        Boolean.TRUE.equals(body.get("enabled")),
+                        (String) body.get("objective"),
+                        (String) body.get("prompt"),
+                        !Boolean.FALSE.equals(body.get("includePresentation")),
+                        body.get("maxRequestsPerMinute") == null ? 8
+                                : ((Number) body.get("maxRequestsPerMinute")).intValue());
+                sendOk(jx, mentorConfigView(config));
+            } catch (final IllegalArgumentException e) {
+                sendError(jx, 400, e.getMessage(), e.getMessage());
+            } catch (final Exception e) {
+                sendError(jx, 500, "internal_error", e.getMessage());
+            }
+            return true;
+        }
         if (!jx.path().endsWith("/survey/definition")) {
             sendError(jx, 404, "not_found", "Endpoint not found");
             return true;
@@ -483,6 +543,25 @@ public class SurveyHandler extends BaseResourceHandler {
         result.put("schema", value.getEngine() == SurveyEngine.SURVEYJS
                 ? JsonUtils.codec().readValue(value.getSchemaJson(), Map.class) : null);
         return result;
+    }
+
+    private Map<String, Object> mentorConfigView(final AiMentorConfig config) {
+        return Map.ofEntries(
+                Map.entry("conferenceUuid", config.conferenceUuid()),
+                Map.entry("enabled", config.enabled()),
+                Map.entry("objective", config.objective() == null ? "" : config.objective()),
+                Map.entry("prompt", config.prompt() == null ? "" : config.prompt()),
+                Map.entry("includePresentation", config.includePresentation()),
+                Map.entry("maxRequestsPerMinute", config.maxRequestsPerMinute()),
+                Map.entry("updatedAt", config.updatedAt().toString()));
+    }
+
+    private List<MentorChatUseCase.ChatMessage> mentorHistory(final Object raw) {
+        if (!(raw instanceof List<?> values)) return List.of();
+        return values.stream().limit(8).filter(Map.class::isInstance).map(Map.class::cast)
+                .map(item -> new MentorChatUseCase.ChatMessage(
+                        String.valueOf(item.get("role")), String.valueOf(item.get("content"))))
+                .toList();
     }
 
     private List<Map<String, Object>> submissionViews(final List<SurveyJsSubmission> submissions) {
