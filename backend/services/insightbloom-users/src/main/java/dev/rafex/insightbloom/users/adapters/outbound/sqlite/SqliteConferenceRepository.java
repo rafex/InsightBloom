@@ -30,12 +30,13 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         // codigo (AssignSandboxUseCase), no algo que un organizador hubiera configurado.
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, description, visibility, schedule_markdown, schedule_layout, public_theme, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_extra_packages, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode, ticket_price, ticket_currency, certificate_engine)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, description, visibility, schedule_markdown, schedule_layout, public_theme, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_extra_packages, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode, ticket_price, ticket_currency, certificate_engine, ticket_sales_enabled)
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                , ?
             )
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -108,6 +109,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(52, conference.getTicketPrice());
             ps.setString(53, conference.getTicketCurrency());
             ps.setString(54, conference.getCertificateEngine());
+            ps.setInt(55, conference.isTicketSalesEnabled() ? 1 : 0);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -254,6 +256,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.setPublicTheme(rs.getString("public_theme"));
         conference.setTicketPrice(rs.getString("ticket_price"));
         conference.setTicketCurrency(rs.getString("ticket_currency"));
+        conference.setTicketSalesEnabled(rs.getInt("ticket_sales_enabled") != 0);
         conference.setCertificateEngine(rs.getString("certificate_engine"));
         final int timezoneId = rs.getInt("timezone_id");
         conference.setTimezoneId(rs.wasNull() ? null : timezoneId);

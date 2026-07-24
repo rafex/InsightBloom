@@ -55,9 +55,11 @@ export default {
     const error = ref('')
     const auth = useAuthStore()
     const eventActionLabel = (event: PublicConference) =>
-      event.ticketRequired && !event.hasTicket ? 'Adquirir boleto' : 'Entrar'
-    const eventActionPath = (event: PublicConference) =>
       event.ticketRequired && !event.hasTicket
+        ? (event.ticketPurchaseEnabled ? 'Adquirir boleto' : 'Boletos no disponibles')
+        : 'Entrar'
+    const eventActionPath = (event: PublicConference) =>
+      event.ticketRequired && !event.hasTicket && event.ticketPurchaseEnabled
         ? `/events/${event.friendlyId}/checkout`
         : `/c/${event.friendlyId}`
     onMounted(async () => {

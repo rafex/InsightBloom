@@ -122,6 +122,7 @@ public class DatabaseManager {
                     public_theme TEXT NOT NULL DEFAULT 'CLASSIC',
                     ticket_price TEXT NOT NULL DEFAULT '0.00',
                     ticket_currency TEXT NOT NULL DEFAULT 'MXN',
+                    ticket_sales_enabled INTEGER NOT NULL DEFAULT 1,
                     certificate_engine TEXT NOT NULL DEFAULT 'INHOUSE'
                 )
             """);
@@ -149,6 +150,7 @@ public class DatabaseManager {
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN public_theme TEXT NOT NULL DEFAULT 'CLASSIC'"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN ticket_price TEXT NOT NULL DEFAULT '0.00'"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN ticket_currency TEXT NOT NULL DEFAULT 'MXN'"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN ticket_sales_enabled INTEGER NOT NULL DEFAULT 1"); } catch (SQLException ignored) {}
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN certificate_engine TEXT NOT NULL DEFAULT 'INHOUSE'");
             } catch (SQLException ignored) {}

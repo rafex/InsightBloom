@@ -301,6 +301,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/downloads", Set.of("POST")),
                 Route.of("/{id}/downloads/count", Set.of("GET")),
                 Route.of("/{id}/seating", Set.of("PUT")),
+                Route.of("/{id}/ticket-sales", Set.of("PUT")),
                 Route.of("/{id}/event-type", Set.of("PUT")),
                 Route.of("/{id}/flyer", Set.of("POST", "PUT")),
                 Route.of("/{id}/canvas-config", Set.of("PUT")),
@@ -553,6 +554,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/seating")) {
             return handleSetSeating(jx, jx.pathParam("id"));
         }
+        if (jx.path().endsWith("/ticket-sales")) {
+            return handleSetTicketSales(jx, jx.pathParam("id"));
+        }
         if (jx.path().endsWith("/event-type")) {
             return handleSetEventType(jx, jx.pathParam("id"));
         }
@@ -694,7 +698,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 conference.getStartTime(), conference.getEndTime(), conference.getVenue(),
                 conference.getLatitude(), conference.getLongitude(), conference.getCapacity(), remaining,
                 ticketRequired, ticketRequired && ("PUBLIC".equals(conference.getVisibility())
-                        || "HYBRID".equals(conference.getVisibility())), conference.getVisibility(),
+                        || "HYBRID".equals(conference.getVisibility())) && conference.isTicketSalesEnabled(), conference.getVisibility(),
                 conference.getFlyerBase64(), conference.getScheduleMarkdown(), conference.getScheduleLayout(),
                 conference.getPublicTheme(),
                 userRepository.findByUuid(conference.getCreatedByUserUuid())
@@ -756,6 +760,10 @@ public class ConferenceHandler extends BaseResourceHandler {
                     .orElseThrow(() -> new IllegalArgumentException("public_event_not_found"));
             if (ticketUseCase == null || !ticketUseCase.isTicketed(conference)) {
                 sendError(jx, 409, "ticket_not_required", "Este evento no requiere boleto");
+                return true;
+            }
+            if (!conference.isTicketSalesEnabled()) {
+                sendError(jx, 409, "ticket_sales_closed", "La emisión de boletos está cerrada para este evento");
                 return true;
             }
             if (!conference.isFreeTicket()) {
@@ -1702,6 +1710,29 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
+    private boolean handleSetTicketSales(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+                sendError(jx, 403, "forbidden", "Solo el creador del evento puede cambiar la emisión de boletos");
+                return true;
+            }
+            final var body = parseBody(jx);
+            if (!(body.get("enabled") instanceof Boolean enabled)) {
+                sendError(jx, 400, "enabled_required", "Debes indicar enabled como booleano");
+                return true;
+            }
+            updateConferenceUseCase.setTicketSalesEnabled(id, v.subjectUuid(), enabled).ifPresentOrElse(
+                    updated -> sendOk(jx, 200, updated),
+                    () -> sendError(jx, 404, "not_found", "Evento no encontrado o no es tuyo"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
     private boolean hasCapability(final String conferenceId, final EventCapability capability) {
         return getConferenceUseCase.byId(conferenceId)
                 .map(c -> eventCapabilityGuard.hasCapability(c, capability))
@@ -1739,6 +1770,11 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid() || !canManageTickets(id, v)) { sendError(jx, 403, "forbidden", "No tienes permiso para emitir boletos"); return true; }
+            final var conference = getConferenceUseCase.byId(id).orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+            if (!conference.isTicketSalesEnabled()) {
+                sendError(jx, 409, "ticket_sales_closed", "La emisión de boletos está cerrada para este evento");
+                return true;
+            }
             final var body = parseBody(jx);
             final String recipientEmail = (String) body.get("recipientEmail");
             final String seatUuid = (String) body.get("seatUuid");
@@ -1751,6 +1787,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 case "seat_required" -> "Debes seleccionar un asiento para este evento.";
                 case "seat_not_allowed" -> "Este evento no utiliza asientos; elimina el UUID de asiento.";
                 case "conference_expired" -> "El evento ya terminó y no admite nuevos boletos.";
+                case "ticket_sales_closed" -> "La emisión de boletos está cerrada para este evento.";
                 default -> "No fue posible emitir el boleto. Revisa la configuración y el aforo del evento.";
             };
             sendError(jx, 409, code, detail);
@@ -1944,6 +1981,11 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final var conference = getConferenceUseCase.byId(id).orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+            if (!conference.isTicketSalesEnabled()) {
+                sendError(jx, 409, "ticket_sales_closed", "La emisión de boletos está cerrada para este evento");
+                return true;
+            }
             final var body = parseBody(jx);
             final String seatUuid = (String) body.get("seatUuid");
             final EventCapability requiredCapability = seatUuid != null

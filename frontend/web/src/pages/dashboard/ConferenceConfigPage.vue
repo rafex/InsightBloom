@@ -76,6 +76,15 @@
         span(v-else) Guardar configuración de boletos
       p.success(v-if="seatingSaved") Configuración de boletos guardada.
       p.error(v-if="seatingError") {{ seatingError }}
+      label.toggle-row
+        input(type="checkbox" v-model="ticketSalesEnabled")
+        span Permitir adquisición de boletos desde la cartelera pública
+      p.field-hint El evento puede seguir activo aunque cierres la emisión de boletos. Los boletos ya emitidos conservan su acceso.
+      button.btn-outline(type="button" @click="saveTicketSales" :disabled="savingTicketSales")
+        span(v-if="savingTicketSales") Guardando...
+        span(v-else) Guardar disponibilidad de boletos
+      p.success(v-if="ticketSalesSaved") Disponibilidad de boletos actualizada.
+      p.error(v-if="ticketSalesError") {{ ticketSalesError }}
       .ticket-links(v-if="seatingMode !== 'NONE' || eventTypes.find(t => t.key === eventTypeKey)?.capabilities.some(c => c.startsWith('TICKETING_'))")
         router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/tickets`") Administrar boletos
         router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
@@ -246,7 +255,7 @@
 <script lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
 import {
-  getConference, setSeatingMode, getActiveEventTypes, setEventType,
+  getConference, setSeatingMode, setTicketSalesEnabled, getActiveEventTypes, setEventType,
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
   listSandboxIncidents, listSandboxStatus, prewarmSandboxPool as prewarmSandboxPoolApi, deleteSandbox as deleteSandboxApi,
   recreateSandbox as recreateSandboxApi, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
@@ -276,6 +285,10 @@ export default {
     const savingSeating = ref(false)
     const seatingSaved  = ref(false)
     const seatingError  = ref('')
+    const ticketSalesEnabled = ref(true)
+    const savingTicketSales = ref(false)
+    const ticketSalesSaved = ref(false)
+    const ticketSalesError = ref('')
     // Vestigial (pools Web/CLI independientes, ver AssignSandboxUseCase) -- ya no selecciona "la"
     // variante, se mantiene solo por compatibilidad de lectura de conferencias viejas. La UI ya
     // no lo edita directamente: los dos pools de abajo son la config real.
@@ -363,6 +376,7 @@ export default {
         certificateEngine.value = conference.value.certificateEngine || 'INHOUSE'
         seatingMode.value = (conference.value.seatingMode as SeatingMode) || 'NONE'
         capacity.value = conference.value.capacity ?? null
+        ticketSalesEnabled.value = conference.value.ticketSalesEnabled !== false
         sandboxVariant.value = conference.value.sandboxVariant === 'terminal-nvim' ? 'terminal-nvim' : ''
         sandboxPoolSize.value = conference.value.sandboxPoolSize ?? 1
         sandboxCliPoolSize.value = conference.value.sandboxCliPoolSize ?? 1
@@ -460,6 +474,21 @@ export default {
         seatingError.value = e.response?.data?.error?.message || 'No se pudo guardar la configuración de boletos'
       } finally {
         savingSeating.value = false
+      }
+    }
+
+    async function saveTicketSales() {
+      savingTicketSales.value = true; ticketSalesError.value = ''; ticketSalesSaved.value = false
+      try {
+        conference.value = await setTicketSalesEnabled(
+          props.conferenceId as string, ticketSalesEnabled.value, auth.state.token as string
+        )
+        ticketSalesEnabled.value = conference.value.ticketSalesEnabled !== false
+        ticketSalesSaved.value = true
+      } catch (e: any) {
+        ticketSalesError.value = e.response?.data?.error?.message || 'No se pudo actualizar la disponibilidad de boletos'
+      } finally {
+        savingTicketSales.value = false
       }
     }
 
@@ -699,6 +728,7 @@ export default {
 
     return { conference, loading, error, activeTab,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
+             ticketSalesEnabled, savingTicketSales, ticketSalesSaved, ticketSalesError, saveTicketSales,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
              sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb,
              sandboxSeatsPerPod, sandboxInternetEnabled,

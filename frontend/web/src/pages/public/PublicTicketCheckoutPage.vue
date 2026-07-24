@@ -39,9 +39,10 @@
               strong {{ isFree ? `0.00 ${event.ticketCurrency || 'MXN'}` : formattedPrice }}
             template(v-if="!success")
               router-link.checkout-btn(v-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: `/events/${event.friendlyId}/checkout` } }") Inicia sesión
-              button.checkout-btn(v-else-if="isFree" type="button" :disabled="submitting" @click="confirmFreeTicket")
+              button.checkout-btn(v-else-if="isFree && event.ticketPurchaseEnabled" type="button" :disabled="submitting" @click="confirmFreeTicket")
                 span(v-if="submitting") Procesando...
                 span(v-else) Confirmar boleto
+              span.checkout-closed(v-else) La emisión de boletos está cerrada para este evento.
               button.checkout-btn.disabled(v-else type="button" disabled) Pago próximamente
             router-link.checkout-btn.success-btn(v-else :to="`/c/${event.friendlyId}`") Entrar al evento
           p.error(v-if="actionError") {{ actionError }}

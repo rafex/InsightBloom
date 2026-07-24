@@ -31,7 +31,7 @@
           .actions
             router-link.btn-primary(v-if="event.hasTicket || !event.ticketRequired" :to="`/c/${event.friendlyId}`") Entrar
             router-link.btn-primary(v-else-if="event.ticketPurchaseEnabled" :to="`/events/${event.friendlyId}/checkout`") Adquirir boleto
-            router-link.btn-outline(v-else :to="`/events/${event.friendlyId}/checkout`") Adquirir boleto
+            span.btn-outline(v-else) Boletos no disponibles
         img.detail-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" alt="Flyer del evento")
         .detail-flyer.placeholder(v-else aria-hidden="true") 🎟️
       section.schedule(v-if="renderedSchedule")

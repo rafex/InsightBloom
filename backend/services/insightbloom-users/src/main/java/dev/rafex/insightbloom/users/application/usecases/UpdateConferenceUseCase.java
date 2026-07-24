@@ -71,6 +71,18 @@ public class UpdateConferenceUseCase {
                 });
     }
 
+    /** Cambia únicamente la emisión pública de boletos; el evento y los boletos existentes siguen activos. */
+    public Optional<Conference> setTicketSalesEnabled(final String uuid, final String requestingUserUuid,
+                                                      final boolean enabled) {
+        return conferenceRepository.findByUuid(uuid)
+                .filter(c -> c.getCreatedByUserUuid().equals(requestingUserUuid))
+                .map(c -> {
+                    c.setTicketSalesEnabled(enabled);
+                    conferenceRepository.save(c);
+                    return c;
+                });
+    }
+
     /** Reemplaza el flyer después de validar y normalizar la imagen recibida por multipart. */
     public Optional<Conference> updateFlyer(final String uuid, final String requestingUserUuid,
                                             final byte[] imageBytes, final String contentType) {

@@ -108,6 +108,7 @@ export interface Conference {
   reservedCount?: number
   ticketPrice?: string | null
   ticketCurrency?: string | null
+  ticketSalesEnabled?: boolean
   venueMapBase64?: string | null
   eventTypeKey?: string
   sandboxVariant?: string | null

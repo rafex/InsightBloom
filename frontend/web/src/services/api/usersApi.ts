@@ -395,6 +395,14 @@ export async function setSeatingMode(
   return res.data.data
 }
 
+export async function setTicketSalesEnabled(
+  conferenceId: string, enabled: boolean, token: string
+): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/ticket-sales`,
+    { enabled }, authHeader(token))
+  return res.data.data
+}
+
 export async function setSandboxConfig(
   conferenceId: string,
   sandboxVariant: string,

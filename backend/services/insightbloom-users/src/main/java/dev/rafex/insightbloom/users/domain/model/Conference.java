@@ -43,6 +43,8 @@ public class Conference {
     // punto flotante y dejar el modelo listo para un proveedor de pagos posterior.
     private String ticketPrice = "0.00";
     private String ticketCurrency = "MXN";
+    // Cierra la emisión pública sin desactivar el evento ni revocar boletos existentes.
+    private boolean ticketSalesEnabled = true;
     private String venueMapBase64; // imagen del recinto (data URL) para modo SEATED, nullable
     private String eventTypeKey = "conference"; // FK a event_types.key; toda conferencia existente cae aquí
     private Instant notesPurgedAt; // marca cuándo se borró el pad de Etherpad (TTL, ver DEC-0020), nullable
@@ -178,6 +180,7 @@ public class Conference {
     public int getReservedCount() { return reservedCount; }
     public String getTicketPrice() { return ticketPrice; }
     public String getTicketCurrency() { return ticketCurrency; }
+    public boolean isTicketSalesEnabled() { return ticketSalesEnabled; }
     public boolean isFreeTicket() { return new BigDecimal(ticketPrice).signum() == 0; }
     public String getVenueMapBase64() { return venueMapBase64; }
     public String getEventTypeKey() { return eventTypeKey; }
@@ -249,6 +252,7 @@ public class Conference {
         if (!normalized.matches("[A-Z]{3}")) throw new IllegalArgumentException("ticket_currency_invalid");
         this.ticketCurrency = normalized;
     }
+    public void setTicketSalesEnabled(boolean ticketSalesEnabled) { this.ticketSalesEnabled = ticketSalesEnabled; }
     public void setVenueMapBase64(String venueMapBase64) { this.venueMapBase64 = venueMapBase64; }
     public void setEventTypeKey(String eventTypeKey) { this.eventTypeKey = eventTypeKey; }
     public void setNotesPurgedAt(Instant notesPurgedAt) { this.notesPurgedAt = notesPurgedAt; }
