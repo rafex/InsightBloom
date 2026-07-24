@@ -379,6 +379,21 @@ public class DatabaseManager {
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_certificate_templates_conference ON certificate_templates(conference_uuid)");
 
+            // Reparación única para bases creadas antes de que conferences.name fuera obligatorio.
+            // El friendly_id es el identificador público estable y constituye un respaldo seguro
+            // para que cualquier actualización posterior no falle por la restricción NOT NULL.
+            final int conferenceNameMigration = stmt.executeUpdate("""
+                INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+                VALUES ('conference-name-not-null-repair-v1', CURRENT_TIMESTAMP)
+            """);
+            if (conferenceNameMigration > 0) {
+                stmt.executeUpdate("""
+                    UPDATE conferences
+                       SET name = friendly_id
+                     WHERE name IS NULL OR TRIM(name) = ''
+                """);
+            }
+
             // Reparación única de datos creados por la primera versión del editor visual. Esa
             // versión guardaba certificate_templates.engine=HTML_CHROME, pero no sincronizaba
             // conferences.certificate_engine; la generación pública consulta la segunda columna

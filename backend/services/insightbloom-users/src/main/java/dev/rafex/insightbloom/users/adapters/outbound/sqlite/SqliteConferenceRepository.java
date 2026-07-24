@@ -41,7 +41,11 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, conference.getUuid());
             ps.setString(2, conference.getFriendlyId());
-            ps.setString(3, conference.getName());
+            // Bases antiguas podían contener conferencias sin nombre aunque el esquema actual
+            // lo declara NOT NULL. Nunca permitimos que una actualización incidental (por
+            // ejemplo, durante la limpieza de un sandbox) vuelva a intentar escribir ese valor.
+            final String name = conference.getName();
+            ps.setString(3, name != null && !name.isBlank() ? name : conference.getFriendlyId());
             ps.setString(4, conference.getCreatedByUserUuid());
             ps.setString(5, conference.getStatus().name());
             ps.setString(6, conference.getCreatedAt().toString());
