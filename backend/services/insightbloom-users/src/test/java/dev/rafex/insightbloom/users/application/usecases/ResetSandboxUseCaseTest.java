@@ -66,4 +66,33 @@ class ResetSandboxUseCaseTest {
         verify(sandboxRepository).deleteByUuid(free.getUuid());
         verify(ensurePool).ensurePool("conf-1", Sandbox.VARIANT_WEB, 2);
     }
+
+    @Test
+    void deletesOccupiedPodAndAllSharedSeatRows() {
+        final SandboxRepository sandboxRepository = mock(SandboxRepository.class);
+        final ConferenceRepository conferenceRepository = mock(ConferenceRepository.class);
+        final SandboxOrchestrator orchestrator = mock(SandboxOrchestrator.class);
+        final EnsureUnassignedSandboxUseCase ensurePool = mock(EnsureUnassignedSandboxUseCase.class);
+        final Conference conference = new Conference("conf-1", "Demo", "owner");
+        final Sandbox assigned = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_CLI,
+            "student-1", Instant.now().plusSeconds(3600));
+        final Sandbox freeSeat = new Sandbox("conf-1", 0, 1, Sandbox.VARIANT_CLI,
+            null, Instant.now().plusSeconds(3600));
+        when(conferenceRepository.findByUuid("conf-1")).thenReturn(Optional.of(conference));
+        when(sandboxRepository.findByUuid(assigned.getUuid())).thenReturn(Optional.of(assigned));
+        when(sandboxRepository.findByConferenceUuid("conf-1")).thenReturn(List.of(assigned, freeSeat));
+
+        final var useCase = new ResetSandboxUseCase(
+            sandboxRepository, conferenceRepository, orchestrator, ensurePool);
+
+        final var result = useCase.delete("conf-1", assigned.getUuid());
+
+        assertEquals("deleted", result.action());
+        verify(orchestrator).deleteSandbox(assigned.podName());
+        verify(sandboxRepository).deleteByUuid(assigned.getUuid());
+        verify(sandboxRepository).deleteByUuid(freeSeat.getUuid());
+        verify(conferenceRepository, never()).findByUuid("conf-1");
+        verify(conferenceRepository, never()).save(any(Conference.class));
+        verifyNoInteractions(ensurePool);
+    }
 }

@@ -151,12 +151,14 @@
                   span.seat-user(v-if="seat.userUuid") {{ seat.userUuid }}
                   span.seat-empty(v-else) (libre)
               td.sandbox-actions
+                button.btn-small(type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
+                  span(v-if="sandboxActionBusy === pod.podName") Procesando...
+                  span(v-else) Eliminar
                 template(v-if="sandboxIsFree(pod)")
-                  button.btn-small(type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName") Eliminar
                   button.btn-small.btn-recreate(type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
                     span(v-if="sandboxActionBusy === pod.podName") Procesando...
                     span(v-else) Recrear
-                span.action-note(v-else) Ocupado
+                span.action-note(v-else) Ocupado: eliminación forzada
         p.error(v-if="sandboxActionError") {{ sandboxActionError }}
 
       .sandbox-incidents(v-if="cliEnabled")
@@ -504,8 +506,11 @@ export default {
     }
 
     async function deleteSandbox(pod: SandboxStatusEntry) {
-      if (!sandboxIsFree(pod)) return
-      if (!window.confirm(`¿Eliminar el sandbox ${pod.podName}? Se podrá crear nuevamente después.`)) return
+      const occupied = !sandboxIsFree(pod)
+      const warning = occupied
+        ? `El sandbox ${pod.podName} tiene usuarios asignados. Se cerrarán sus sesiones y se perderá cualquier trabajo no guardado. ¿Eliminarlo de todos modos?`
+        : `¿Eliminar el sandbox ${pod.podName}? Se podrá crear nuevamente después.`
+      if (!window.confirm(warning)) return
       sandboxActionBusy.value = pod.podName
       sandboxActionError.value = ''
       try {
