@@ -271,7 +271,7 @@ function previewExpired(manifest) {
 
 function previewCsp(res) {
   res.setHeader('Content-Security-Policy',
-    "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'none'; " +
+    "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; " +
     "frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self'; " +
     "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; " +
     "media-src 'self' blob:; connect-src 'self'; frame-src 'none'");

@@ -11,12 +11,21 @@ function zip(entries) {
 
 test('accepts a static HTML workspace with local assets', () => {
   const report = auditZipBuffer(zip({
-    'index.html': '<!doctype html><script src="app.js"></script>',
+    'index.html': '<!doctype html><form action="/resultado"><input name="q"></form><script src="app.js"></script>',
     'app.js': 'document.querySelector("body").textContent = "ok";',
     'app.css': 'body { color: #222; }',
   }));
   assert.equal(report.files.length, 3);
   assert.equal(report.artifactHash.length, 64);
+});
+
+test('rejects forms that can exfiltrate data outside the publication', () => {
+  for (const action of ['https://example.test/collect', '//example.test/collect', '../collect']) {
+    assert.throws(() => auditZipBuffer(zip({
+      'index.html': `<form action="${action}"><input name="q"></form>`,
+    })), (error) => error.message === 'preview_artifact_rejected'
+      && error.issues.some((item) => item.rule === 'HTML-FORM-001'));
+  }
 });
 
 test('excludes optional project metadata without requiring package.json', () => {
