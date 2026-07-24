@@ -56,6 +56,7 @@ public class CreateConferenceUseCase {
                                String scheduleLayout, String publicTheme) {}
 
     public CreateResult execute(CreateRequest request) {
+        validateCoordinates(request.latitude(), request.longitude());
         final List<CanvasConfig> configs = request.canvasConfigs() != null
                 ? List.copyOf(request.canvasConfigs())
                 : legacyConfig(request.canvasTool(), request.canvasAudienceMode());
@@ -116,6 +117,16 @@ public class CreateConferenceUseCase {
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s;
+    }
+
+    private static void validateCoordinates(final Double latitude, final Double longitude) {
+        if ((latitude == null) != (longitude == null)) {
+            throw new IllegalArgumentException("coordinates_pair_required");
+        }
+        if (latitude != null && (!Double.isFinite(latitude) || latitude < -90 || latitude > 90
+                || !Double.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+            throw new IllegalArgumentException("coordinates_out_of_range");
+        }
     }
 
     private static String boundedText(String value, int maxLength, String errorCode) {

@@ -21,6 +21,7 @@ public class UpdateConferenceUseCase {
     /** Actualiza todo excepto friendlyId y uuid. Solo el creador puede editar. */
     public Optional<Conference> execute(final String uuid, final String requestingUserUuid,
                                          final UpdateRequest request) {
+        validateCoordinates(request.latitude(), request.longitude());
         return conferenceRepository.findByUuid(uuid)
                 .filter(c -> c.getCreatedByUserUuid().equals(requestingUserUuid))
                 .map(c -> {
@@ -67,6 +68,27 @@ public class UpdateConferenceUseCase {
                 });
     }
 
+    /** Reemplaza el flyer después de validar y normalizar la imagen recibida por multipart. */
+    public Optional<Conference> updateFlyer(final String uuid, final String requestingUserUuid,
+                                            final byte[] imageBytes, final String contentType) {
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw new IllegalArgumentException("flyer_empty");
+        }
+        if (!"image/png".equalsIgnoreCase(contentType) && !"image/jpeg".equalsIgnoreCase(contentType)) {
+            throw new IllegalArgumentException("flyer_format_not_allowed");
+        }
+        final String dataUrl = "data:" + contentType.toLowerCase(java.util.Locale.ROOT)
+                + ";base64," + java.util.Base64.getEncoder().encodeToString(imageBytes);
+        final String normalized = EventFlyerNormalizer.normalize(dataUrl);
+        return conferenceRepository.findByUuid(uuid)
+                .filter(c -> c.getCreatedByUserUuid().equals(requestingUserUuid))
+                .map(c -> {
+                    c.setFlyerBase64(normalized);
+                    conferenceRepository.save(c);
+                    return c;
+                });
+    }
+
     /**
      * Completa el nombre de certificado con el título extraído del markdown de una presentación
      * recién subida, pero solo si el organizador nunca fijó un nombre explícito (create/edit).
@@ -85,6 +107,16 @@ public class UpdateConferenceUseCase {
 
     private static String blankToNull(final String s) {
         return (s == null || s.isBlank()) ? null : s;
+    }
+
+    private static void validateCoordinates(final Double latitude, final Double longitude) {
+        if ((latitude == null) != (longitude == null)) {
+            throw new IllegalArgumentException("coordinates_pair_required");
+        }
+        if (latitude != null && (!Double.isFinite(latitude) || latitude < -90 || latitude > 90
+                || !Double.isFinite(longitude) || longitude < -180 || longitude > 180)) {
+            throw new IllegalArgumentException("coordinates_out_of_range");
+        }
     }
 
     private static String boundedText(final String value, final int maxLength, final String errorCode) {

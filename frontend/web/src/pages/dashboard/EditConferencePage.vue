@@ -39,6 +39,10 @@
     .form-group
       label Cronograma en Markdown (opcional)
       textarea(v-model="scheduleMarkdown" rows="8" maxlength="12000" placeholder="## 09:00 — Registro\n\nBienvenida y apertura")
+      details.schedule-help
+        summary Ver ejemplo detallado de cronograma
+        p.field-hint Usa títulos Markdown para cada bloque y listas para describir actividades. No incluyas HTML, scripts ni enlaces sensibles.
+        pre.schedule-example {{ scheduleExample }}
       .coords-row
         .coord-field
           span.coord-label Ubicación del cronograma
@@ -81,6 +85,11 @@
 
     .form-group
       label Ubicación (opcional)
+      .map-url-row
+        input.map-url-input(v-model.trim="mapUrl" type="url" placeholder="Pega una URL de Google Maps u OpenStreetMap")
+        button.btn-outline(type="button" @click="extractMapCoordinates") Extraer coordenadas
+      p.field-hint Ejemplos: Google Maps con /@latitud,longitud o OpenStreetMap con #map=nivel/latitud/longitud.
+      p.error(v-if="locationError") {{ locationError }}
       .coords-row
         .coord-field
           span.coord-label Latitud
@@ -95,10 +104,10 @@
     .form-group
       label Flyer del evento (opcional)
       p.field-hint Se muestra en la animación de mapa al entrar a la conferencia. No siempre se cuenta con uno.
-      input(type="file" accept="image/*" @change="onFlyerSelected")
+      input(type="file" accept="image/png,image/jpeg" @change="onFlyerSelected")
       .flyer-preview(v-if="flyerBase64")
         img(:src="flyerBase64" alt="Flyer del evento")
-        button.btn-remove-flyer(type="button" @click="flyerBase64 = ''") Quitar flyer
+        button.btn-remove-flyer(type="button" @click="removeFlyer") Quitar flyer
 
     .error(v-if="saveError") {{ saveError }}
     .success(v-if="saved") Cambios guardados correctamente.
@@ -113,9 +122,10 @@
 import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
-import { getConference, updateConference, getTimezones } from '@/services/api/usersApi'
+import { getConference, updateConference, uploadConferenceFlyer, getTimezones } from '@/services/api/usersApi'
 import type { Conference, Timezone } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import { parseMapCoordinates } from '@/utils/mapCoordinates'
 
 export default {
   name: 'EditConferencePage',
@@ -136,13 +146,44 @@ export default {
     const scheduleMarkdown = ref('')
     const scheduleLayout = ref<'LEFT' | 'RIGHT'>('RIGHT')
     const publicTheme = ref<'CLASSIC' | 'EDITORIAL' | 'MINIMAL'>('CLASSIC')
+    const scheduleExample = `## 09:00 — Registro y bienvenida
+
+Registro de asistentes y entrega de materiales.
+
+## 09:30 — Apertura
+
+- Presentación del evento
+- Objetivos y dinámica de trabajo
+
+## 10:00 — Charla principal
+
+**Ponente:** Nombre de la persona
+**Tema:** Introducción práctica
+
+## 11:15 — Pausa
+
+> Regresamos a las 11:30.
+
+## 11:30 — Taller práctico
+
+1. Preparar el entorno
+2. Resolver el ejercicio
+3. Compartir preguntas
+
+## 13:00 — Cierre
+
+Conclusiones, encuesta y entrega de certificados.`
     const eventDate    = ref('')
     const venue        = ref('')
     const startTime    = ref('')
     const endTime      = ref('')
     const latitude     = ref<number | null>(null)
     const longitude    = ref<number | null>(null)
+    const mapUrl       = ref('')
+    const locationError = ref('')
     const flyerBase64  = ref('')
+    const flyerFile    = ref<File | null>(null)
+    const flyerRemoved = ref(false)
     const timezones    = ref<Timezone[]>([])
     const timezoneId   = ref<number | null>(null)
 
@@ -178,9 +219,32 @@ export default {
     function onFlyerSelected(e: Event) {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
+      if (!['image/png', 'image/jpeg'].includes(file.type)) {
+        saveError.value = 'El flyer debe estar en formato PNG o JPEG.'
+        return
+      }
+      flyerFile.value = file
+      flyerRemoved.value = false
       const reader = new FileReader()
       reader.onload = () => { flyerBase64.value = reader.result as string }
       reader.readAsDataURL(file)
+    }
+
+    function extractMapCoordinates() {
+      const coordinates = parseMapCoordinates(mapUrl.value)
+      if (!coordinates) {
+        locationError.value = 'Pega una URL de Google Maps u OpenStreetMap que incluya las coordenadas.'
+        return
+      }
+      latitude.value = coordinates.latitude
+      longitude.value = coordinates.longitude
+      locationError.value = ''
+    }
+
+    function removeFlyer() {
+      flyerBase64.value = ''
+      flyerFile.value = null
+      flyerRemoved.value = true
     }
 
     async function save() {
@@ -196,7 +260,7 @@ export default {
           endTime: endTime.value || null,
           latitude: lat,
           longitude: lng,
-          flyerBase64: flyerBase64.value,
+          flyerBase64: flyerRemoved.value ? '' : undefined,
           timezoneId: timezoneId.value,
           description: description.value.trim() || null,
           visibility: visibility.value,
@@ -204,6 +268,14 @@ export default {
           scheduleLayout: scheduleLayout.value,
           publicTheme: publicTheme.value
         }, auth.state.token as string)
+        if (flyerFile.value) {
+          conference.value = await uploadConferenceFlyer(
+            props.conferenceId as string,
+            flyerFile.value,
+            auth.state.token as string
+          )
+          flyerFile.value = null
+        }
         saved.value = true
       } catch (e: any) {
         saveError.value = e.response?.data?.error?.message || 'Error al guardar los cambios'
@@ -221,7 +293,7 @@ export default {
 
     return { conference, loading, error, saving, saveError, saved, displayName, description, visibility,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
-             scheduleMarkdown, scheduleLayout, publicTheme, timezones, timezoneId, breadcrumbItems, onFlyerSelected, save,
+             mapUrl, locationError, extractMapCoordinates, scheduleMarkdown, scheduleLayout, scheduleExample, publicTheme, timezones, timezoneId, breadcrumbItems, onFlyerSelected, removeFlyer, save,
              publicThemeOptions: [
                { value: 'CLASSIC', label: 'Clásico', description: 'Información clara y equilibrada' },
                { value: 'EDITORIAL', label: 'Editorial', description: 'Flyer protagonista y estilo de revista' },
@@ -266,6 +338,12 @@ input:focus { outline: none; border-color: #4f46e5; }
   background: #f9fafb; color: #6b7280; font-family: monospace; font-size: 0.9rem;
 }
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
+
+.schedule-help { margin-top: 4px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; background: #fafafa; }
+.schedule-help summary { cursor: pointer; color: #4f46e5; font-size: 0.85rem; font-weight: 600; }
+.schedule-example { overflow-x: auto; margin: 8px 0 0; padding: 12px; border-radius: 8px; background: #1e1b4b; color: #eef2ff; font: 0.78rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+.map-url-row { display: flex; gap: 8px; align-items: center; }
+.map-url-input { flex: 1; min-width: 0; }
 
 .coords-row { display: flex; gap: 12px; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }

@@ -67,9 +67,13 @@ import dev.rafex.insightbloom.users.domain.model.Permission;
 import dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard;
 import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
 
-import java.util.ArrayList;
+import org.eclipse.jetty.server.Request;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -79,10 +83,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ConferenceHandler extends BaseResourceHandler {
 
     private static final long DIAGRAM_STREAM_HEARTBEAT_SECONDS = 25;
+    private static final int MAX_FLYER_BYTES = 8 * 1024 * 1024;
+    private static final int MAX_FLYER_REQUEST_BYTES = MAX_FLYER_BYTES + 128 * 1024;
+    private static final Pattern MULTIPART_BOUNDARY = Pattern.compile(
+            "(?:^|;)\\s*boundary=(?:\\\"([^\\\"]+)\\\"|([^;\\s]+))", Pattern.CASE_INSENSITIVE);
 
     private static final java.util.logging.Logger LOGGER =
         java.util.logging.Logger.getLogger(ConferenceHandler.class.getName());
@@ -292,6 +302,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/downloads/count", Set.of("GET")),
                 Route.of("/{id}/seating", Set.of("PUT")),
                 Route.of("/{id}/event-type", Set.of("PUT")),
+                Route.of("/{id}/flyer", Set.of("POST", "PUT")),
                 Route.of("/{id}/canvas-config", Set.of("PUT")),
                 Route.of("/{id}/active", Set.of("PUT")),
                 Route.of("/{id}/venue-map", Set.of("PUT")),
@@ -467,6 +478,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/derive-name")) {
             return handleDeriveName(jx, jx.pathParam("id"));
         }
+        if (jx.path().endsWith("/flyer")) {
+            return handleUploadFlyer(jx, jx.pathParam("id"));
+        }
         if (jx.path().endsWith("/downloads")) {
             return handleRecordDownload(jx, jx.pathParam("id"));
         }
@@ -525,6 +539,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     @Override
     public boolean put(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/flyer")) {
+            return handleUploadFlyer(jx, jx.pathParam("id"));
+        }
         if (jx.path().endsWith("/seating")) {
             return handleSetSeating(jx, jx.pathParam("id"));
         }
@@ -866,6 +883,131 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private boolean handleUploadFlyer(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            final MultipartFlyer upload = readFlyerMultipart(jx);
+            // Keep a JSON part in the contract so the upload can grow without putting metadata
+            // back into the large conference JSON document. Currently only kind and filename
+            // are accepted; the server never trusts either value for storage or authorization.
+            JsonUtils.codec().readValue(upload.metadataJson(), Map.class);
+            final var updated = updateConferenceUseCase.updateFlyer(
+                    id, validation.subjectUuid(), upload.bytes(), upload.contentType());
+            if (updated.isPresent()) {
+                sendOk(jx, 200, updated.get());
+            } else {
+                sendError(jx, 404, "not_found", "Conference not found or not owned by you");
+            }
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final IOException e) {
+            sendError(jx, 400, "invalid_multipart", "El multipart del flyer no es válido");
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private record MultipartFlyer(String metadataJson, byte[] bytes, String contentType) {}
+
+    private MultipartFlyer readFlyerMultipart(final JettyHttpExchange jx) throws IOException {
+        final String contentType = jx.request().getHeaders().get("Content-Type");
+        if (contentType == null || !contentType.toLowerCase(java.util.Locale.ROOT)
+                .startsWith("multipart/form-data")) {
+            throw new IllegalArgumentException("flyer_multipart_required");
+        }
+        final Matcher boundaryMatcher = MULTIPART_BOUNDARY.matcher(contentType);
+        if (!boundaryMatcher.find()) throw new IllegalArgumentException("multipart_boundary_missing");
+        final String boundary = boundaryMatcher.group(1) != null
+                ? boundaryMatcher.group(1) : boundaryMatcher.group(2);
+        if (boundary == null || boundary.length() > 120) {
+            throw new IllegalArgumentException("multipart_boundary_invalid");
+        }
+        final int declaredLength;
+        try {
+            final String lengthHeader = jx.request().getHeaders().get("Content-Length");
+            declaredLength = lengthHeader == null ? -1 : Integer.parseInt(lengthHeader);
+        } catch (NumberFormatException ignored) {
+            throw new IllegalArgumentException("multipart_length_invalid");
+        }
+        if (declaredLength > MAX_FLYER_REQUEST_BYTES) {
+            throw new IllegalArgumentException("flyer_too_large");
+        }
+        final byte[] body = readLimited(Request.asInputStream(jx.request()), MAX_FLYER_REQUEST_BYTES);
+        final String bodyText = new String(body, StandardCharsets.ISO_8859_1);
+        final String delimiter = "--" + boundary;
+        int cursor = bodyText.indexOf(delimiter);
+        if (cursor < 0) throw new IllegalArgumentException("multipart_boundary_invalid");
+        String metadata = null;
+        byte[] file = null;
+        String fileType = null;
+        while (cursor >= 0) {
+            int headersStart = cursor + delimiter.length();
+            if (bodyText.startsWith("--", headersStart)) break;
+            if (bodyText.startsWith("\r\n", headersStart)) headersStart += 2;
+            final int headerEnd = bodyText.indexOf("\r\n\r\n", headersStart);
+            if (headerEnd < 0) throw new IllegalArgumentException("multipart_headers_invalid");
+            final String headers = bodyText.substring(headersStart, headerEnd);
+            final int contentStart = headerEnd + 4;
+            final int nextBoundary = bodyText.indexOf("\r\n" + delimiter, contentStart);
+            if (nextBoundary < 0) throw new IllegalArgumentException("multipart_boundary_invalid");
+            final MultipartHeaders partHeaders = MultipartHeaders.parse(headers);
+            final byte[] part = java.util.Arrays.copyOfRange(body, contentStart, nextBoundary);
+            if ("metadata".equals(partHeaders.name())) {
+                if (part.length > 16_384) throw new IllegalArgumentException("multipart_metadata_too_large");
+                metadata = new String(part, StandardCharsets.UTF_8);
+            } else if ("file".equals(partHeaders.name())) {
+                if (file != null) throw new IllegalArgumentException("flyer_multiple_files");
+                if (part.length == 0 || part.length > MAX_FLYER_BYTES) {
+                    throw new IllegalArgumentException("flyer_too_large");
+                }
+                file = part;
+                fileType = partHeaders.contentType();
+            }
+            cursor = nextBoundary + 2;
+        }
+        if (metadata == null || file == null || fileType == null) {
+            throw new IllegalArgumentException("flyer_file_and_metadata_required");
+        }
+        return new MultipartFlyer(metadata, file, fileType);
+    }
+
+    private static byte[] readLimited(final java.io.InputStream input, final int maxBytes) throws IOException {
+        try (input) {
+            final ByteArrayOutputStream output = new ByteArrayOutputStream(Math.min(maxBytes, 64 * 1024));
+            final byte[] buffer = new byte[16 * 1024];
+            int total = 0;
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                total += read;
+                if (total > maxBytes) throw new IllegalArgumentException("flyer_too_large");
+                output.write(buffer, 0, read);
+            }
+            return output.toByteArray();
+        }
+    }
+
+    private record MultipartHeaders(String name, String contentType) {
+        private static final Pattern NAME = Pattern.compile(
+                "(?:^|;)\\s*name=\\\"([^\\\"]+)\\\"", Pattern.CASE_INSENSITIVE);
+
+        static MultipartHeaders parse(final String raw) {
+            final Matcher nameMatcher = NAME.matcher(raw.replace("\r\n", ";"));
+            if (!nameMatcher.find()) throw new IllegalArgumentException("multipart_name_missing");
+            final String type = raw.lines()
+                    .filter(line -> line.toLowerCase(java.util.Locale.ROOT).startsWith("content-type:"))
+                    .map(line -> line.substring(line.indexOf(':') + 1).trim())
+                    .findFirst().orElse("");
+            return new MultipartHeaders(nameMatcher.group(1), type);
+        }
     }
 
     private boolean handleUpdate(final JettyHttpExchange jx, final String id) {

@@ -25,7 +25,11 @@ import java.util.regex.Pattern;
 
 /** API de catálogo y edición de plantillas por evento. */
 public final class CertificateTemplateHandler extends BaseResourceHandler {
-    private static final int MAX_DOCUMENT_LENGTH = 200_000;
+    // El documento puede incluir un logotipo y un fondo en data URL. Se mantiene
+    // un límite finito para evitar que una plantilla se convierta en un upload
+    // arbitrario o provoque presión de memoria en el servicio de renderizado.
+    private static final int MAX_DOCUMENT_LENGTH = 6_000_000;
+    private static final int MAX_CERTIFICATE_IMAGE_LENGTH = 2_000_000;
     private static final int MAX_BLOCK_TEXT_LENGTH = 5_000;
     private static final Pattern SAFE_COLOR = Pattern.compile("^(#[0-9a-f]{3,8}|rgba?\\([0-9., %]+\\)|transparent)$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SAFE_BORDER = Pattern.compile("^(none|\\d{1,3}px\\s+solid\\s+#[0-9a-f]{3,8})$", Pattern.CASE_INSENSITIVE);
@@ -162,7 +166,7 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
     private void validateDocument(final String engine, final String documentJson) {
         if (!"HTML_CHROME".equals(engine)) throw new IllegalArgumentException("El motor debe ser HTML_CHROME");
         if (documentJson == null || documentJson.isBlank() || documentJson.length() > MAX_DOCUMENT_LENGTH) {
-            throw new IllegalArgumentException("El documento es obligatorio y no puede exceder 200 KB");
+            throw new IllegalArgumentException("El documento es obligatorio y no puede exceder 6 MB");
         }
         try {
             final JsonNode root = json.readTree(documentJson);
@@ -181,7 +185,15 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
                 || !SAFE_COLOR.matcher(page.path("background").asText()).matches())) {
             throw new IllegalArgumentException("El fondo del certificado no es válido");
         }
+        if (page.has("backgroundImage")) validateCertificateImage(page.path("backgroundImage"), "La imagen de fondo");
         if (page.has("padding")) validateNumber(page.path("padding"), 0, 200, "padding");
+    }
+
+    private static void validateCertificateImage(final JsonNode value, final String label) {
+        if (!value.isTextual() || value.asText().length() > MAX_CERTIFICATE_IMAGE_LENGTH
+                || !value.asText().matches("^data:image/(png|jpeg);base64,[a-z0-9+/=]+$")) {
+            throw new IllegalArgumentException(label + " debe ser un PNG o JPEG local y no exceder 2 MB");
+        }
     }
 
     private static void validateBlock(final JsonNode block) {

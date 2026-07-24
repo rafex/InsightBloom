@@ -114,6 +114,11 @@
 
     .form-group
       label Ubicación (opcional)
+      .map-url-row
+        input.map-url-input(v-model.trim="mapUrl" type="url" placeholder="Pega una URL de Google Maps u OpenStreetMap")
+        button.btn-outline(type="button" @click="extractMapCoordinates") Extraer coordenadas
+      p.field-hint Ejemplos: Google Maps con /@latitud,longitud o OpenStreetMap con #map=nivel/latitud/longitud.
+      p.error(v-if="locationError") {{ locationError }}
       .coords-row
         .coord-field
           span.coord-label Latitud
@@ -172,6 +177,7 @@ import { createConference, getTimezones, getActiveEventTypes } from '@/services/
 import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, DEFAULT_CAPACITY, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
+import { parseMapCoordinates } from '@/utils/mapCoordinates'
 
 type ExpiryMode = 'none' | '1h' | '2h' | '4h' | '1d' | 'custom'
 
@@ -202,6 +208,8 @@ export default {
     const customDate = ref('')
     const latitude   = ref<number | null>(null)
     const longitude  = ref<number | null>(null)
+    const mapUrl     = ref('')
+    const locationError = ref('')
     const eventDate  = ref('')
     const venue      = ref('')
     const startTime  = ref('')
@@ -234,6 +242,17 @@ export default {
     const minDate = computed(() => new Date().toISOString().slice(0, 16))
 
     function setExpiryMode(val: ExpiryMode) { expiryMode.value = val }
+
+    function extractMapCoordinates() {
+      const coordinates = parseMapCoordinates(mapUrl.value)
+      if (!coordinates) {
+        locationError.value = 'Pega una URL de Google Maps u OpenStreetMap que incluya las coordenadas.'
+        return
+      }
+      latitude.value = coordinates.latitude
+      longitude.value = coordinates.longitude
+      locationError.value = ''
+    }
 
     function computeExpiresAt(): string | null {
       const now = Date.now()
@@ -272,7 +291,7 @@ export default {
     function reset() {
       name.value = ''; displayName.value = ''; description.value = ''; visibility.value = 'PRIVATE'
       scheduleMarkdown.value = ''; scheduleLayout.value = 'RIGHT'; publicTheme.value = 'CLASSIC'; created.value = null; expiryMode.value = 'none';
-      customDate.value = ''; latitude.value = null; longitude.value = null
+      customDate.value = ''; latitude.value = null; longitude.value = null; mapUrl.value = ''; locationError.value = ''
       eventDate.value = ''; venue.value = ''; startTime.value = ''; endTime.value = ''
       canvasTools.value = []
       canvasModes.DRAWIO = 'INDEPENDENT'; canvasModes.EXCALIDRAW = 'INDEPENDENT'; canvasModes.ETHERPAD = 'COLLABORATIVE'
@@ -296,7 +315,7 @@ export default {
       ]
     }
 
-    return { name, displayName, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme, error, loading, created, expiryMode, customDate, minDate, latitude, longitude,
+    return { name, displayName, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme, error, loading, created, expiryMode, customDate, minDate, latitude, longitude, mapUrl, locationError, extractMapCoordinates,
              eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey, certificateEngine,
              canvasTools, canvasModes, canvasToolLabel, canvasModeOptions,
              canvasToolOptions: [
@@ -354,6 +373,8 @@ input:focus { outline: none; border-color: #4f46e5; }
 .coord-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
 .coord-hint { margin: 6px 0 0; font-size: 0.8rem; color: #9ca3af; }
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
+.map-url-row { display: flex; gap: 8px; align-items: center; }
+.map-url-input { flex: 1; min-width: 0; }
 .canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; }
 .canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
 .canvas-tool-option input { width: auto; }

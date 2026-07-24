@@ -26,9 +26,17 @@
           input(v-model="form.templateName" maxlength="80")
         button.btn-outline(type="button" @click="addTextBlock") + Texto
         button.btn-outline(type="button" @click="addShapeBlock") + Borde
+      .asset-toolbar
+        label.asset-field Logotipo
+          input(type="file" accept="image/png,image/jpeg" @change="handleLogoUpload")
+        button.btn-subtle(v-if="logoBlock" type="button" @click="removeLogo") Quitar logotipo
+        label.asset-field Imagen de fondo
+          input(type="file" accept="image/png,image/jpeg" @change="handleBackgroundUpload")
+        button.btn-subtle(v-if="document.page.backgroundImage" type="button" @click="removeBackground") Quitar fondo
+        small.asset-hint PNG/JPEG, máximo 2 MB por imagen. El fondo cubre toda la hoja y el logotipo se puede mover como un bloque.
       .certificate-preview(ref="previewHost")
         .certificate-page-wrap(:style="{ width: `${1056 * previewScale}px`, height: `${816 * previewScale}px` }")
-          .certificate-page(:style="{ transform: `scale(${previewScale})` }")
+          .certificate-page(:style="pageStyle()")
             .preview-block(v-for="(block, index) in document.blocks" :key="index" :class="{ active: selectedIndex === index }" :style="blockStyle(block)" @click.stop="selectedIndex = index")
               span(v-if="block.type === 'text'") {{ interpolate(block.text || '') }}
               img(v-else-if="block.type === 'image' && block.src" :src="block.src" alt="")
@@ -66,8 +74,9 @@ import { useAuthStore } from '@/features/auth/authStore'
 import { getCertificateTemplateCatalog, getEventCertificateTemplate, saveEventCertificateTemplate, setCertificateEngine } from '@/services/api/usersApi'
 import type { CertificateEngine, CertificateTemplateCatalog, CertificateTemplateCatalogItem } from '@/services/api/types'
 
-type Block = { type: 'text' | 'image' | 'shape'; x: number; y: number; width: number; height: number; text?: string; src?: string; style: Record<string, any> }
+type Block = { type: 'text' | 'image' | 'shape'; role?: 'logo'; x: number; y: number; width: number; height: number; text?: string; src?: string; style: Record<string, any> }
 type DocumentModel = { page: Record<string, any>; blocks: Block[] }
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
 const sampleData: Record<string, string> = {
   'participant.displayName': 'Ana Pérez', 'participant.firstName': 'Ana', 'participant.lastName': 'Pérez',
@@ -94,6 +103,7 @@ export default {
     const document = reactive<DocumentModel>({ page: {}, blocks: [] })
     const selectedIndex = ref(0)
     const selectedBlock = computed(() => document.blocks[selectedIndex.value] || null)
+    const logoBlock = computed(() => document.blocks.find(block => block.type === 'image' && (block as any).role === 'logo') || null)
     const previewHost = ref<HTMLElement | null>(null)
     const previewScale = ref(1)
     let previewObserver: ResizeObserver | null = null
@@ -121,6 +131,18 @@ export default {
         color: s.color || '#111827', background: s.background || 'transparent', border: s.border || 'none', borderRadius: `${s.borderRadius || 0}px`,
         fontSize: `${s.fontSize || 16}px`, fontWeight: `${s.fontWeight || 400}`, textAlign: s.textAlign || 'left', padding: `${s.padding || 0}px` }
     }
+    function pageStyle(): Record<string, string> {
+      const style: Record<string, string> = {
+        transform: `scale(${previewScale.value})`,
+        backgroundColor: document.page.background || '#ffffff'
+      }
+      if (typeof document.page.backgroundImage === 'string' && document.page.backgroundImage) {
+        style.backgroundImage = `url("${document.page.backgroundImage}")`
+        style.backgroundSize = 'cover'
+        style.backgroundPosition = 'center'
+      }
+      return style
+    }
     function insertVariable(key: string) {
       const block = selectedBlock.value
       if (!block || block.type !== 'text') return
@@ -134,6 +156,36 @@ export default {
       document.blocks.push({ type: 'shape', x: 18, y: 18, width: 1020, height: 780, style: { border: '2px solid #4f46e5', borderRadius: 18 } })
       selectedIndex.value = document.blocks.length - 1; saved.value = false
     }
+    function addLogoBlock(src: string) {
+      document.blocks.splice(0, document.blocks.length, ...document.blocks.filter(block => block.role !== 'logo'))
+      document.blocks.push({ type: 'image', role: 'logo', x: 72, y: 54, width: 180, height: 90, src, style: { objectFit: 'contain' } })
+      selectedIndex.value = document.blocks.length - 1; saved.value = false
+    }
+    function readImageFile(event: Event): Promise<string> {
+      const file = (event.target as HTMLInputElement).files?.[0]
+      if (!file) return Promise.reject(new Error('No se seleccionó una imagen'))
+      if (!['image/png', 'image/jpeg'].includes(file.type)) return Promise.reject(new Error('Solo se aceptan imágenes PNG o JPEG'))
+      if (file.size > MAX_IMAGE_BYTES) return Promise.reject(new Error('La imagen no puede exceder 2 MB'))
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onerror = () => reject(new Error('No se pudo leer la imagen'))
+        reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Imagen inválida'))
+        reader.readAsDataURL(file)
+      })
+    }
+    async function handleLogoUpload(event: Event) {
+      try { addLogoBlock(await readImageFile(event)); error.value = '' } catch (e: any) { error.value = e.message || 'No se pudo cargar el logotipo' }
+      ;(event.target as HTMLInputElement).value = ''
+    }
+    async function handleBackgroundUpload(event: Event) {
+      try { document.page.backgroundImage = await readImageFile(event); saved.value = false; error.value = '' } catch (e: any) { error.value = e.message || 'No se pudo cargar el fondo' }
+      ;(event.target as HTMLInputElement).value = ''
+    }
+    function removeLogo() {
+      document.blocks.splice(0, document.blocks.length, ...document.blocks.filter(block => block.role !== 'logo'))
+      selectedIndex.value = Math.min(selectedIndex.value, Math.max(0, document.blocks.length - 1)); saved.value = false
+    }
+    function removeBackground() { delete document.page.backgroundImage; saved.value = false }
     function removeSelected() { if (selectedIndex.value >= 0) document.blocks.splice(selectedIndex.value, 1); selectedIndex.value = Math.max(0, selectedIndex.value - 1); saved.value = false }
     async function save() {
       if (!auth.state.token) return
@@ -166,7 +218,7 @@ export default {
     })
     watch(loaded, async (value) => { if (value) { await nextTick(); updatePreviewScale() } })
     onBeforeUnmount(() => { previewObserver?.disconnect() })
-    return { loaded, saving, saved, error, catalog, form, document, selectedIndex, selectedBlock, previewHost, previewScale, applyTemplate, interpolate, blockStyle, insertVariable, addTextBlock, addShapeBlock, removeSelected, save }
+    return { loaded, saving, saved, error, catalog, form, document, selectedIndex, selectedBlock, logoBlock, previewHost, previewScale, applyTemplate, interpolate, blockStyle, pageStyle, insertVariable, addTextBlock, addShapeBlock, handleLogoUpload, handleBackgroundUpload, removeLogo, removeBackground, removeSelected, save }
   }
 }
 </script>
@@ -180,7 +232,10 @@ h1 { margin:0; color:#1e1b4b; } .page-heading p { color:#6b7280; margin:8px 0 0;
 h2 { font-size:1rem; color:#1e1b4b; margin:0 0 12px; } .catalog-card { padding:12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:8px; cursor:pointer; } .catalog-card.selected { border-color:#4f46e5; background:#eef2ff; } .catalog-card strong,.catalog-card small { display:block; } .catalog-card small,.hint,.muted { color:#6b7280; font-size:.82rem; margin-top:4px; }
 .variables { max-height:340px; overflow:auto; margin-bottom:16px; } .variable { display:flex; flex-direction:column; align-items:flex-start; width:100%; border:0; border-bottom:1px solid #f3f4f6; background:transparent; padding:7px 2px; cursor:pointer; text-align:left; } .variable:hover { background:#f8fafc; } code { color:#4f46e5; font-size:.74rem; } .variable span { color:#6b7280; font-size:.75rem; }
 .workspace-toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:16px; } .workspace-toolbar label { color:#6b7280; font-size:.82rem; flex:1; } input,textarea,select { display:block; width:100%; box-sizing:border-box; border:1px solid #d1d5db; border-radius:7px; padding:8px; margin-top:4px; background:#fff; } .workspace-toolbar input { max-width:300px; }
+.asset-toolbar { display:grid; grid-template-columns:minmax(150px, 1fr) auto minmax(150px, 1fr) auto; gap:10px; align-items:end; margin:-4px 0 16px; padding:12px; border:1px solid #e5e7eb; border-radius:10px; background:#f8fafc; }
+.asset-field { color:#6b7280; font-size:.78rem; } .asset-field input { font-size:.75rem; padding:6px; } .asset-hint { grid-column:1 / -1; color:#6b7280; font-size:.75rem; }
+.btn-subtle { border:1px solid #d1d5db; border-radius:7px; background:white; color:#4b5563; padding:7px 9px; cursor:pointer; font-size:.75rem; }
 .certificate-preview { background:#e5e7eb; padding:22px; overflow:auto; border-radius:10px; } .certificate-page-wrap { position:relative; margin:0 auto; } .certificate-page { position:absolute; left:0; top:0; width:1056px; height:816px; background:#fff; transform-origin:top left; } .preview-block { position:absolute; box-sizing:border-box; overflow:hidden; white-space:pre-wrap; cursor:pointer; } .preview-block.active { outline:2px solid #4f46e5; outline-offset:2px; } .preview-block img { width:100%; height:100%; object-fit:contain; }
 .block-editor { border-top:1px solid #e5e7eb; margin-top:18px; padding-top:18px; } .block-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; } .block-fields label { color:#6b7280; font-size:.78rem; } .btn-primary,.btn-outline,.btn-danger { border-radius:8px; padding:9px 13px; cursor:pointer; font-weight:600; } .btn-primary { color:white; border:0; background:#4f46e5; } .btn-outline { color:#4338ca; border:1px solid #818cf8; background:white; } .btn-danger { color:#b91c1c; border:1px solid #fecaca; background:#fff; margin-top:14px; } .full { width:100%; margin-top:10px; } .error { color:#b91c1c; font-size:.85rem; } .loading { padding:40px; color:#6b7280; }
-@media (max-width: 850px) { .editor-grid { grid-template-columns:1fr; } .catalog-panel { order:2; } .workspace { order:1; } .block-fields { grid-template-columns:repeat(2,1fr); } }
+@media (max-width: 850px) { .editor-grid { grid-template-columns:1fr; } .catalog-panel { order:2; } .workspace { order:1; } .block-fields { grid-template-columns:repeat(2,1fr); } .asset-toolbar { grid-template-columns:1fr auto; } .asset-hint { grid-column:1 / -1; } }
 </style>

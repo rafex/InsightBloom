@@ -191,6 +191,23 @@ export async function updateConference(
   return res.data.data
 }
 
+/** Sube el flyer separado del JSON de la conferencia para evitar enviar imágenes base64 en el PUT. */
+export async function uploadConferenceFlyer(
+  uuid: string,
+  file: File,
+  token: string
+): Promise<Conference> {
+  const form = new FormData()
+  form.append('metadata', JSON.stringify({ kind: 'conference-flyer', filename: file.name }))
+  form.append('file', file, file.name)
+  const res = await axios.put(
+    `/api/users/api/v1/conferences/${uuid}/flyer`,
+    form,
+    authHeader(token)
+  )
+  return res.data.data
+}
+
 export async function getTimezones(): Promise<Timezone[]> {
   const res = await axios.get('/api/users/api/v1/timezones')
   return res.data.data

@@ -19,6 +19,7 @@ import zipfile
 
 DEFAULT_API_BASE = "https://insightbloom.v1.rafex.cloud/api/users/api/v1"
 DEFAULT_SESSION_FILE = Path("~/.config/insightbloom/session.json").expanduser()
+CLI_VERSION = "2026.07-login-session"
 MAX_FILES = 1000
 MAX_BYTES = 250 * 1024 * 1024
 EXCLUDED_DIRS = {".git", ".hg", ".svn", "node_modules", ".venv", "__pycache__", ".insightbloom"}
@@ -177,13 +178,17 @@ def clear_session() -> None:
 
 
 def read_token(args: argparse.Namespace) -> str:
-    token = args.token or os.environ.get("INSIGHTBLOOM_TOKEN", "")
+    # La sesión guardada es la vía normal. La variable queda como fallback explícito
+    # para automatizaciones heredadas, no como requisito para login/publish interactivo.
+    token = args.token or ""
     if args.token_prompt:
         token = getpass.getpass("Token de sesión (oculto): ").strip()
     elif args.token_stdin:
         token = sys.stdin.readline().strip()
     if not token:
         token = read_saved_session().get("token", "")
+    if not token:
+        token = os.environ.get("INSIGHTBLOOM_TOKEN", "")
     return token
 
 
@@ -348,6 +353,7 @@ def main() -> None:
         epilog=CLI_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("--version", action="version", version=f"insightbloom {CLI_VERSION}")
     sub = parser.add_subparsers(dest="command")
     login_parser = sub.add_parser(
         "login",
@@ -373,7 +379,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     publish_parser.add_argument("--root", default=".", help="carpeta del sitio o workspace (default: .)")
-    publish_parser.add_argument("--token", help="token de sesión; se recomienda INSIGHTBLOOM_TOKEN")
+    publish_parser.add_argument("--token", help="token puntual de sesión; normalmente usa insightbloom login")
     token_group = publish_parser.add_mutually_exclusive_group()
     token_group.add_argument("--token-prompt", action="store_true", help="solicita el token oculto, sin variable ni historial")
     token_group.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin para automatizaciones")
@@ -390,7 +396,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     revoke_parser.add_argument("publication_id")
-    revoke_parser.add_argument("--token", help="token de sesión; se recomienda INSIGHTBLOOM_TOKEN")
+    revoke_parser.add_argument("--token", help="token puntual de sesión; normalmente usa insightbloom login")
     revoke_token_group = revoke_parser.add_mutually_exclusive_group()
     revoke_token_group.add_argument("--token-prompt", action="store_true", help="solicita el token oculto, sin variable ni historial")
     revoke_token_group.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin para automatizaciones")

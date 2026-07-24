@@ -181,21 +181,34 @@ function certificateBlock(block, data) {
   return src ? `<img class="certificate-block" alt="" src="${src}" style="${style};object-fit:contain">` : '';
 }
 
+function certificateImageSource(value) {
+  return typeof value === 'string'
+    && value.length <= 2_000_000
+    && /^data:image\/(png|jpeg);base64,[a-z0-9+/=]+$/i.test(value)
+    ? value
+    : '';
+}
+
 function certificateDocument(documentJson, data) {
-  if (typeof documentJson !== 'string' || documentJson.length > 200000) throw new Error('invalid_certificate_document');
+  if (typeof documentJson !== 'string' || documentJson.length > 6_000_000) throw new Error('invalid_certificate_document');
   const document = JSON.parse(documentJson);
   if (!document || typeof document !== 'object' || !Array.isArray(document.blocks) || document.blocks.length > 100) throw new Error('invalid_certificate_document');
   const page = document.page && typeof document.page === 'object' ? document.page : {};
   const background = typeof page.background === 'string' && /^(#[0-9a-f]{3,8}|rgba?\([0-9., %]+\)|transparent)$/i.test(page.background) ? page.background : '#ffffff';
+  const backgroundImage = certificateImageSource(page.backgroundImage);
+  const backgroundMarkup = backgroundImage
+    ? `<img class="page-background" alt="" src="${backgroundImage}">`
+    : '';
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
     @page { size: 11in 8.5in; margin: 0; }
     html,body { margin:0; padding:0; background:#e5e7eb; }
     .page { position:relative; width:1056px; height:816px; overflow:hidden; background:${background}; box-sizing:border-box; }
-    .certificate-block { position:absolute; box-sizing:border-box; }
-  </style></head><body><main class="page">${document.blocks.map(block => certificateBlock(block, data)).join('')}</main></body></html>`;
+    .page-background { position:absolute; z-index:0; inset:0; width:100%; height:100%; object-fit:cover; }
+    .certificate-block { position:absolute; z-index:1; box-sizing:border-box; }
+  </style></head><body><main class="page">${backgroundMarkup}${document.blocks.map(block => certificateBlock(block, data)).join('')}</main></body></html>`;
 }
 
-app.post('/internal/v1/certificates/render', express.json({ limit: '300kb' }), async (req, res) => {
+app.post('/internal/v1/certificates/render', express.json({ limit: '6mb' }), async (req, res) => {
   if (!constantTimeHeaderMatches(req.headers['x-internal-api-key'], INTERNAL_API_KEY)) {
     return res.status(403).json({ error: 'forbidden' });
   }
