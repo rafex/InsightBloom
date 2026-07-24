@@ -112,7 +112,7 @@ export default {
     const eventModeLabel = ref('Acceso general')
     const ticketUrl = computed(() => {
       if (!ticket.value || !eventFriendlyId) return ''
-      return `${window.location.origin}/c/${encodeURIComponent(eventFriendlyId)}/ticket?ticket=${encodeURIComponent(ticket.value.ticketCode)}`
+      return `${window.location.origin}/c/${encodeURIComponent(eventFriendlyId)}/ticket?t=${encodeURIComponent(ticket.value.ticketCode)}`
     })
     const eventSubtitle = computed(() => {
       const times = [eventStartTime.value, eventEndTime.value].filter(Boolean).join(' – ')
@@ -141,7 +141,10 @@ export default {
           eventVenue.value = publicConference.venue || null
           eventModeLabel.value = publicConference.visibility === 'HYBRID' ? 'Híbrido' : publicConference.visibility === 'PUBLIC' ? 'Público' : 'Privado'
         }
-        const routeTicket = new URLSearchParams(location.search).get('ticket')
+        // Accept both the compact QR parameter and older tickets already in
+        // circulation.
+        const query = new URLSearchParams(location.search)
+        const routeTicket = query.get('t') || query.get('ticket')
         if (routeTicket) ticketInput.value = routeTicket
         if (auth.state.token && auth.state.role !== 'guest') {
           ticket.value = await getMyIssuedTicket(props.conferenceId, auth.state.token)
@@ -192,7 +195,8 @@ export default {
         scanner = new QrScanner(videoEl.value, (result) => {
           const rawValue = typeof result === 'string'
             ? result
-            : (result as { data?: unknown } | null)?.data
+            : (result as { data?: unknown, rawValue?: unknown } | null)?.data
+              || (result as { data?: unknown, rawValue?: unknown } | null)?.rawValue
           if (typeof rawValue !== 'string' || !rawValue.trim()) return
           ticketInput.value = rawValue
           stopScanner()
@@ -201,8 +205,14 @@ export default {
         }, {
           highlightScanRegion: true,
           highlightCodeOutline: true,
+          preferredCamera: 'environment',
+          maxScansPerSecond: 10,
           returnDetailedScanResult: true
         })
+        // Some cameras apply contrast/inversion processing to screens. Trying
+        // both modes makes the attendee-facing QR work across laptop and
+        // phone displays while retaining the normal fast path.
+        scanner.setInversionMode('both')
         scanner.start().catch(() => { error.value = 'No se pudo acceder a la cámara.'; stopScanner() })
       }, 0)
     }

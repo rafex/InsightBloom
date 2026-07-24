@@ -42,7 +42,7 @@
               button.checkout-btn(v-else-if="isFree && event.ticketPurchaseEnabled" type="button" :disabled="submitting" @click="confirmFreeTicket")
                 span(v-if="submitting") Procesando...
                 span(v-else) Confirmar boleto
-              span.checkout-closed(v-else) La emisión de boletos está cerrada para este evento.
+              span.checkout-closed(v-else-if="!event.ticketPurchaseEnabled") La emisión de boletos está cerrada para este evento.
               button.checkout-btn.disabled(v-else type="button" disabled) Pago próximamente
             router-link.checkout-btn.success-btn(v-else :to="`/c/${event.friendlyId}`") Entrar al evento
           p.error(v-if="actionError") {{ actionError }}

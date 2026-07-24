@@ -121,7 +121,7 @@ export default {
 
     function ticketUrl(ticket: Ticket) {
       const friendlyId = conferenceFriendlyId.value || props.conferenceId || ''
-      return `${location.origin}/c/${encodeURIComponent(friendlyId)}/ticket?ticket=${encodeURIComponent(ticket.ticketCode)}`
+      return `${location.origin}/c/${encodeURIComponent(friendlyId)}/ticket?t=${encodeURIComponent(ticket.ticketCode)}`
     }
 
     async function revoke(uuid: string) {

@@ -14,6 +14,12 @@
       input#manual-ticket-code(v-model="manualCode" type="text" autocomplete="off" spellcheck="false" placeholder="UUID del boleto" @keyup.enter="submitManualCode")
       button.btn-primary(type="button" :disabled="processing || !manualCode.trim()" @click="submitManualCode") Registrar
 
+  .image-checkin
+    p Si la cámara en vivo no lo detecta, toma una foto o selecciona una captura del QR.
+    label.btn-secondary.image-picker(:for="'qr-image-input'")
+      | 📷 Leer QR desde imagen
+    input#qr-image-input(type="file" accept="image/*" capture="environment" @change="scanQrImage")
+
   p.scan-result(v-if="lastResult" :class="lastResult.ok ? 'ok' : 'error'") {{ lastResult.message }}
 
   .recent-list(v-if="recent.length")
@@ -42,6 +48,7 @@ export default {
     const manualCode = ref('')
     const scannerReady = ref(false)
     const scannerError = ref(false)
+    const imageProcessing = ref(false)
     let scanner: QrScanner | null = null
     let processing = false
 
@@ -56,14 +63,20 @@ export default {
       }
     }
 
-    function handleScanResult(result: unknown) {
+    function scanResultValue(result: unknown): string {
       // qr-scanner returns a string by default; with detailed results enabled it
       // returns { data, ... }. Supporting both keeps the scanner compatible with
       // the installed library and with older cached bundles.
       const rawValue = typeof result === 'string'
         ? result
-        : (result as { data?: unknown } | null)?.data
-      if (typeof rawValue === 'string' && rawValue.trim()) void onDecoded(rawValue)
+        : (result as { data?: unknown, rawValue?: unknown } | null)?.data
+          || (result as { data?: unknown, rawValue?: unknown } | null)?.rawValue
+      return typeof rawValue === 'string' ? rawValue : ''
+    }
+
+    function handleScanResult(result: unknown) {
+      const rawValue = scanResultValue(result)
+      if (rawValue.trim()) void onDecoded(rawValue)
     }
 
     function errorMessage(error: any): string {
@@ -112,13 +125,46 @@ export default {
       await onDecoded(manualCode.value)
     }
 
+    async function scanQrImage(event: Event) {
+      const input = event.target as HTMLInputElement
+      const file = input.files?.[0]
+      // Reset the input so the same screenshot can be selected again after a
+      // failed attempt or after correcting the lighting/focus.
+      input.value = ''
+      if (!file || imageProcessing.value || processing) return
+
+      imageProcessing.value = true
+      lastResult.value = null
+      try {
+        const result = await QrScanner.scanImage(file, {
+          returnDetailedScanResult: true,
+          alsoTryWithoutScanRegion: true
+        })
+        const rawValue = scanResultValue(result)
+        if (!rawValue.trim()) throw new Error('QR vacío')
+        await onDecoded(rawValue)
+      } catch (_error) {
+        lastResult.value = {
+          ok: false,
+          message: '❌ No se encontró un QR legible en la imagen. Usa una foto más nítida o el UUID manual.'
+        }
+      } finally {
+        imageProcessing.value = false
+      }
+    }
+
     onMounted(() => {
       if (!videoEl.value) return
       scanner = new QrScanner(videoEl.value, handleScanResult, {
         highlightScanRegion: true,
         highlightCodeOutline: true,
+        preferredCamera: 'environment',
+        maxScansPerSecond: 10,
         returnDetailedScanResult: true
       })
+      // QR tickets are normally black on white, but the scanner can also see
+      // tickets rendered by displays with inverted/processed contrast.
+      scanner.setInversionMode('both')
       scanner.start().then(() => {
         scannerReady.value = true
         scannerError.value = false
@@ -156,7 +202,7 @@ export default {
 
     return {
       videoEl, lastResult, recent, breadcrumbItems, manualCode, submitManualCode,
-      scannerReady, scannerError, scannerStatus
+      scannerReady, scannerError, scannerStatus, scanQrImage, imageProcessing
     }
   }
 }
@@ -179,6 +225,10 @@ h2 { color: #1e1b4b; margin-bottom: 16px; }
 .manual-checkin input { min-width: 0; flex: 1; border: 1px solid #d1d5db; border-radius: 7px; padding: 9px 10px; font: 0.8rem monospace; }
 .manual-checkin button { border: 0; border-radius: 7px; padding: 9px 12px; cursor: pointer; }
 .manual-checkin button:disabled { opacity: 0.55; cursor: not-allowed; }
+.image-checkin { margin-top: 10px; padding: 12px 14px; border: 1px dashed #c7d2fe; border-radius: 10px; background: #eef2ff; text-align: center; }
+.image-checkin p { margin: 0 0 9px; color: #4b5563; font-size: 0.78rem; }
+.image-picker { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 13px; border-radius: 7px; background: #fff; color: #4338ca; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.image-checkin input[type="file"] { display: none; }
 .scan-result { text-align: center; font-weight: 600; margin-top: 16px; padding: 10px; border-radius: 8px; }
 .scan-result.ok { background: #dcfce7; color: #166534; }
 .scan-result.error { background: #fee2e2; color: #991b1b; }
