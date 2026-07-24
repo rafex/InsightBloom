@@ -144,11 +144,19 @@ def _ensure_seat_account(index: int, user_uuid: str):
     subprocess.run(["chown", "-R", f"{uid}:{uid}", home], check=False)
     # El workspace es un volumen por asiento y no contiene los archivos creados
     # durante el build. Publicar los tipos precargados mediante enlaces mantiene
-    # el autocompletado de Node.js/TypeScript sin instalar nada en runtime. Se
-    # siembra despues del chown para no arriesgar que un chown recursivo siga un
-    # enlace hacia la copia compartida de la imagen.
-    subprocess.run([NODE_TYPES_SEEDER, workspace], check=True)
-    subprocess.run(["chown", f"{uid}:{uid}", f"{workspace}/node_modules"], check=False)
+    # el autocompletado de Node.js/TypeScript sin instalar nada en runtime.
+    #
+    # Importante: este contenedor elimina CAP_DAC_OVERRIDE. Después del chown el
+    # usuario root del agente ya no puede crear archivos dentro de un directorio
+    # propiedad del alumno; en producción eso provocaba Permission denied en
+    # /workspace/node_modules y el endpoint /seats/{index} devolvía 500. Ejecutar
+    # el seeder como el dueño real conserva el hardening y deja los enlaces con el
+    # UID/GID correctos desde el principio.
+    subprocess.run(
+        [NODE_TYPES_SEEDER, workspace],
+        preexec_fn=_drop_privileges(uid, uid),
+        check=True,
+    )
     return uid, home
 
 

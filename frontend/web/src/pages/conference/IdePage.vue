@@ -77,12 +77,25 @@
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getSandbox, getSandboxAvailability, generateWorkspaceDownloadUrl, publishWorkspacePreview, revokeWorkspacePreview } from '@/services/api/usersApi'
+import {
+  getSandbox,
+  getSandboxAvailability,
+  generateWorkspaceDownloadUrl,
+  publishWorkspacePreview,
+  revokeWorkspacePreview,
+  streamSandboxStatus,
+  AuthenticatedEventStream
+} from '@/services/api/usersApi'
 import type { SandboxInfo, SandboxAvailability, SandboxVariant, WorkspacePreviewInfo } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import SandboxLoadingAnimation from '@/components/SandboxLoadingAnimation.vue'
 
-const POLL_INTERVAL_MS = 3000
+// El endpoint devuelve una instantánea; mientras el Pod/seat-agent se prepara
+// usamos backoff para no golpear la API cada pocos segundos durante un cold start.
+// El canal SSE es el camino principal; la consulta inicial y el polling acotado
+// siguen siendo necesarios para reconexiones, proxies y despliegues escalonados.
+const POLL_INITIAL_DELAY_MS = 2000
+const POLL_MAX_DELAY_MS = 10000
 const POLL_TIMEOUT_MS = 5 * 60_000
 
 export default {
@@ -109,10 +122,24 @@ export default {
     const chosenVariant = ref<SandboxVariant | null>(null)
     let pollTimer: ReturnType<typeof setTimeout> | null = null
     let pollDeadline = 0
+    let pollDelayMs = POLL_INITIAL_DELAY_MS
+    let sandboxStream: AuthenticatedEventStream | null = null
 
     function stopPolling() {
       if (pollTimer) clearTimeout(pollTimer)
       pollTimer = null
+    }
+
+    function closeSandboxStream() {
+      sandboxStream?.close()
+      sandboxStream = null
+    }
+
+    function resetPolling() {
+      stopPolling()
+      closeSandboxStream()
+      pollDeadline = 0
+      pollDelayMs = POLL_INITIAL_DELAY_MS
     }
 
     const pendingMessage = ref('🔧 Preparando tu ambiente de desarrollo...')
@@ -168,13 +195,16 @@ export default {
       }
       if (!chosenVariant.value) return
 
+      if (!isPoll) resetPolling()
+
       try {
         if (!isPoll) loading.value = true
         sandbox.value = await getSandbox(props.conferenceId, auth.state.token, chosenVariant.value)
         if (sandbox.value?.status === 'PENDING') {
-          schedulePoll()
+          void openSandboxStream()
         } else {
           stopPolling()
+          closeSandboxStream()
         }
       } catch (e: any) {
         if (e.message?.includes('404')) {
@@ -190,6 +220,56 @@ export default {
       }
     }
 
+    async function openSandboxStream() {
+      if (!auth.state.token || !chosenVariant.value) return
+      closeSandboxStream()
+      try {
+        const stream = await streamSandboxStatus(
+          props.conferenceId,
+          auth.state.token,
+          chosenVariant.value
+        )
+        sandboxStream = stream
+
+        stream.addEventListener('status', (event) => {
+          if (sandboxStream !== stream) return
+          try {
+            const next = JSON.parse((event as MessageEvent).data) as SandboxInfo
+            sandbox.value = { ...(sandbox.value as SandboxInfo), ...next }
+            if (next.status === 'READY') {
+              stopPolling()
+              closeSandboxStream()
+            }
+          } catch {
+            // Un evento malformado no debe dejar la pantalla bloqueada: el
+            // fallback de polling podrá recuperar el estado completo.
+            closeSandboxStream()
+            schedulePoll()
+          }
+        })
+        stream.addEventListener('failure', (event) => {
+          if (sandboxStream !== stream) return
+          try {
+            const failure = JSON.parse((event as MessageEvent).data) as { message?: string }
+            if (failure.message) error.value = failure.message
+          } catch {
+            // El mensaje de fallback es suficiente si el payload no es JSON.
+          }
+          closeSandboxStream()
+          schedulePoll()
+        })
+        stream.onerror = () => {
+          if (sandboxStream !== stream) return
+          closeSandboxStream()
+          schedulePoll()
+        }
+      } catch {
+        // Si el proxy, el navegador o una versión anterior del backend no
+        // soportan el stream, seguimos con el fallback acotado.
+        schedulePoll()
+      }
+    }
+
     function chooseVariant(variant: SandboxVariant) {
       chosenVariant.value = variant
       loadSandbox()
@@ -199,10 +279,9 @@ export default {
     // picker no borra nada todavia, recien se libera el sandbox previo cuando efectivamente se
     // elige la otra variante (mismo GET /sandbox?variant=..., ahora con una distinta).
     function switchVariant() {
-      stopPolling()
+      resetPolling()
       sandbox.value = null
       chosenVariant.value = null
-      pollDeadline = 0
       loadAvailability()
     }
 
@@ -214,7 +293,9 @@ export default {
         return
       }
       stopPolling()
-      pollTimer = setTimeout(() => loadSandbox(true), POLL_INTERVAL_MS)
+      const delay = pollDelayMs
+      pollDelayMs = Math.min(POLL_MAX_DELAY_MS, Math.ceil(pollDelayMs * 1.5))
+      pollTimer = setTimeout(() => loadSandbox(true), delay)
     }
 
     async function downloadWorkspace() {
@@ -275,6 +356,7 @@ export default {
 
     onBeforeUnmount(() => {
       stopPolling()
+      closeSandboxStream()
     })
 
     return {

@@ -21,11 +21,18 @@ function authHeader(token?: string | null) {
 /** SSE con Authorization; evita poner el token principal en la URL. */
 export class AuthenticatedEventStream {
   private readonly listeners = new Map<string, Set<(event: Event) => void>>()
+  private readonly controller = new AbortController()
   private closed = false
   onerror: ((event: Event) => void) | null = null
 
-  constructor(private readonly url: string, private readonly token: string) {
-    void this.connect()
+  constructor(
+    private readonly url: string,
+    private readonly token: string,
+    private readonly extraHeaders: Record<string, string> = {}
+  ) {
+    // Dar oportunidad al consumidor de registrar snapshot/update antes de que
+    // llegue el primer chunk del stream.
+    queueMicrotask(() => void this.connect())
   }
 
   addEventListener(type: string, listener: (event: Event) => void): void {
@@ -36,6 +43,7 @@ export class AuthenticatedEventStream {
 
   close(): void {
     this.closed = true
+    this.controller.abort()
   }
 
   private emit(type: string, event: Event): void {
@@ -46,8 +54,9 @@ export class AuthenticatedEventStream {
   private async connect(): Promise<void> {
     try {
       const response = await fetch(this.url, {
-        headers: { Authorization: `Bearer ${this.token}` },
-        credentials: 'same-origin'
+        headers: { Authorization: `Bearer ${this.token}`, ...this.extraHeaders },
+        credentials: 'same-origin',
+        signal: this.controller.signal
       })
       if (!response.ok) {
         let payload: unknown
@@ -745,6 +754,15 @@ export async function saveEventWhiteboard(
 export function streamEventWhiteboard(conferenceId: string, token: string): AuthenticatedEventStream {
   const url = `/api/users/api/v1/conferences/${conferenceId}/whiteboard/stream`
   return new AuthenticatedEventStream(url, token)
+}
+
+/** Stream autenticado del estado de preparación del sandbox. */
+export async function streamSandboxStatus(
+  conferenceId: string, token: string, variant: SandboxVariant
+): Promise<AuthenticatedEventStream> {
+  const fingerprint = await getFingerprint()
+  const url = `/api/users/api/v1/conferences/${conferenceId}/sandbox/stream?variant=${variant}`
+  return new AuthenticatedEventStream(url, token, { 'X-Device-Fingerprint': fingerprint })
 }
 
 /** Token JWT firmado para unirse a la sala de JaaS (8x8.vc) de este evento, si esta configurado. */

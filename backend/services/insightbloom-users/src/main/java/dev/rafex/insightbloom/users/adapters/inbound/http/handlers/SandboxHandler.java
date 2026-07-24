@@ -2,7 +2,9 @@ package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
+import dev.rafex.ether.http.core.HttpExchange.EventStream;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
+import dev.rafex.ether.json.JsonUtils;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.AssignSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.EnsureUnassignedSandboxUseCase;
@@ -22,11 +24,18 @@ import dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class SandboxHandler extends BaseResourceHandler {
     private static final Logger LOGGER = Logger.getLogger(SandboxHandler.class.getName());
+    private static final long SANDBOX_STREAM_INTERVAL_SECONDS = 2;
+    private static final long SANDBOX_STREAM_TIMEOUT_SECONDS = 5 * 60;
     private final AssignSandboxUseCase assignSandboxUseCase;
     private final GetSandboxAvailabilityUseCase getSandboxAvailabilityUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
@@ -40,6 +49,11 @@ public class SandboxHandler extends BaseResourceHandler {
     private final RevokeWorkspacePreviewUseCase revokeWorkspacePreviewUseCase;
     private final long previewTtlSeconds;
     private final String gatewayBaseUrl; // ej. "https://ide-insightbloom.v1.rafex.cloud"
+    private final ScheduledExecutorService sandboxStreamScheduler = Executors.newScheduledThreadPool(8, runnable -> {
+        final Thread thread = new Thread(runnable, "sandbox-status-sse");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     public SandboxHandler(final AssignSandboxUseCase assignSandboxUseCase,
                          final GetSandboxAvailabilityUseCase getSandboxAvailabilityUseCase,
@@ -100,6 +114,7 @@ public class SandboxHandler extends BaseResourceHandler {
     public List<Route> routes() {
         return List.of(
             Route.of("/{id}/sandbox", Set.of("GET")),
+            Route.of("/{id}/sandbox/stream", Set.of("GET")),
             Route.of("/{id}/sandbox/availability", Set.of("GET")),
             Route.of("/{id}/sandbox/download", Set.of("POST")),
             Route.of("/{id}/sandbox/preview", Set.of("POST")),
@@ -118,6 +133,9 @@ public class SandboxHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/sandbox/availability")) {
             return handleGetAvailability(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/sandbox/stream")) {
+            return handleSandboxStream(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/sandbox")) {
             return handleGetSandbox(jx, jx.pathParam("id"));
@@ -223,6 +241,118 @@ public class SandboxHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", "Internal server error");
             return true;
         }
+    }
+
+    /**
+     * Mantiene una conexión SSE mientras el Pod o el asiento CLI termina de provisionarse.
+     * La asignación inicial sigue pasando por el mismo caso de uso y el chequeo se ejecuta en
+     * el backend, no desde el navegador; así desaparece la tormenta de GET /sandbox del cliente.
+     * El frontend conserva el GET inicial y un polling con backoff como fallback de reconexión.
+     */
+    private boolean handleSandboxStream(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) {
+                return true;
+            }
+
+            final String requestedVariant = queryParam(jx, "variant");
+            final String deviceFingerprint = extractDeviceFingerprint(jx);
+            final Sandbox sandbox = assignSandboxUseCase.execute(
+                    conferenceId, validation.subjectUuid(), requestedVariant, deviceFingerprint);
+            final EventStream stream = jx.startEventStream();
+            final AtomicReference<ScheduledFuture<?>> watcher = new AtomicReference<>();
+            stream.onClose(() -> {
+                final ScheduledFuture<?> future = watcher.get();
+                if (future != null) future.cancel(true);
+            });
+
+            final boolean initialReady = isSandboxReady(sandbox, validation.subjectUuid());
+            stream.send("status", sandboxStatusPayload(sandbox, initialReady));
+            if (initialReady) {
+                stream.close();
+                return true;
+            }
+
+            final long streamDeadlineNanos = System.nanoTime()
+                    + TimeUnit.SECONDS.toNanos(SANDBOX_STREAM_TIMEOUT_SECONDS);
+            final ScheduledFuture<?> future = sandboxStreamScheduler.scheduleWithFixedDelay(() -> {
+                try {
+                    if (System.nanoTime() >= streamDeadlineNanos) {
+                        stream.send("failure", JsonUtils.toJson(Map.of(
+                                "code", "sandbox_timeout",
+                                "message", "El sandbox está tardando más de lo esperado")));
+                        stream.close();
+                        return;
+                    }
+                    // Reejecutar la asignación es idempotente y también recrea el Pod si fue
+                    // eliminado mientras el navegador seguía esperando.
+                    final Sandbox current = assignSandboxUseCase.execute(
+                            conferenceId, validation.subjectUuid(), requestedVariant, deviceFingerprint);
+                    final boolean ready = isSandboxReady(current, validation.subjectUuid());
+                    stream.send("status", sandboxStatusPayload(current, ready));
+                    if (ready) {
+                        stream.close();
+                    }
+                } catch (final DeviceBlockedException e) {
+                    stream.send("failure", JsonUtils.toJson(Map.of(
+                            "code", "device_blocked",
+                            "message", "Este dispositivo fue bloqueado por uso con múltiples cuentas")));
+                    stream.close();
+                } catch (final IllegalArgumentException e) {
+                    stream.send("failure", JsonUtils.toJson(Map.of(
+                            "code", e.getMessage() != null ? e.getMessage() : "invalid_request",
+                            "message", e.getMessage() != null ? e.getMessage() : "No se pudo preparar el sandbox")));
+                    stream.close();
+                } catch (final Exception e) {
+                    LOGGER.log(Level.WARNING, "Sandbox SSE: no se pudo consultar " + conferenceId, e);
+                    stream.send("failure", JsonUtils.toJson(Map.of(
+                            "code", "sandbox_status_unavailable",
+                            "message", "No se pudo consultar el estado del sandbox")));
+                    stream.close();
+                }
+            }, SANDBOX_STREAM_INTERVAL_SECONDS, SANDBOX_STREAM_INTERVAL_SECONDS, TimeUnit.SECONDS);
+            watcher.set(future);
+            return true;
+        } catch (final DeviceBlockedException e) {
+            sendError(jx, 403, "device_blocked", "Este dispositivo fue bloqueado por uso con múltiples cuentas");
+        } catch (final IllegalArgumentException e) {
+            if ("conference_not_found".equals(e.getMessage())) {
+                sendError(jx, 404, "conference_not_found", "Conference not found");
+            } else if ("sandbox_pool_full".equals(e.getMessage())) {
+                sendError(jx, 409, "sandbox_pool_full", "Sandbox pool is full");
+            } else {
+                sendError(jx, 400, "invalid_request", e.getMessage());
+            }
+        } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: error inesperado en SSE " + jx.path(), e);
+            sendError(jx, 500, "internal_error", "Internal server error");
+        }
+        return true;
+    }
+
+    private boolean isSandboxReady(final Sandbox sandbox, final String userUuid) {
+        return sandboxOrchestrator.isReady(sandbox.podName())
+                && assignSandboxUseCase.isSeatFullyProvisioned(sandbox, userUuid);
+    }
+
+    private String sandboxStatusPayload(final Sandbox sandbox, final boolean ready) {
+        return JsonUtils.toJson(Map.of(
+                "sandboxUuid", sandbox.getUuid(),
+                "sandboxSlot", sandbox.getSandboxSlot(),
+                "variant", sandbox.getVariant(),
+                "status", ready ? "READY" : "PENDING",
+                "gatewayUrl", gatewayBaseUrl,
+                "sandboxPath", "/"));
     }
 
     private boolean handleGetAvailability(final JettyHttpExchange jx, final String conferenceId) {

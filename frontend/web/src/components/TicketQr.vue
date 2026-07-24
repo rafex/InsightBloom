@@ -25,8 +25,10 @@ export default {
       try {
         const value = props.ticketUrl || props.ticketCode
         await QRCode.toCanvas(qrCanvas.value, value, {
-          width: 220,
-          margin: 2,
+          // Keep enough physical modules for camera scanners when the ticket is
+          // shown on another screen. The check-in page also accepts the UUID.
+          width: 320,
+          margin: 4,
           errorCorrectionLevel: 'M'
         })
       } catch (e: any) { /* sin QR si falla */ }
