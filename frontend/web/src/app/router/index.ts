@@ -11,7 +11,9 @@ declare module 'vue-router' {
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    component: () => import('@/pages/landing/LandingPage.vue')
+    // La cartelera es la entrada pública principal de InsightBloom. La landing
+    // queda disponible como componente histórico, pero ya no intercepta la raíz.
+    component: () => import('@/pages/public/PublicEventsPage.vue')
   },
   { path: '/events', component: () => import('@/pages/public/PublicEventsPage.vue') },
   { path: '/events/:friendlyId', component: () => import('@/pages/public/PublicEventDetailPage.vue') },
@@ -156,7 +158,7 @@ const router = createRouter({
   routes
 })
 
-const GUEST_ROUTES = ['/', '/login', '/register']
+const AUTH_ENTRY_ROUTES = ['/login', '/register']
 
 router.beforeEach(async (to) => {
   // A dashboard tab opened from the public presentation receives its token
@@ -170,8 +172,9 @@ router.beforeEach(async (to) => {
     if (to.path !== '/login') return loginRedirect || '/login'
   }
 
-  // Already authenticated → skip landing/login/register
-  if (token && GUEST_ROUTES.includes(to.path)) return '/dashboard'
+  // La cartelera es pública también para usuarios autenticados. Solo evitamos
+  // que una sesión activa vuelva a las pantallas de login/registro.
+  if (token && AUTH_ENTRY_ROUTES.includes(to.path)) return '/dashboard'
 
   if (to.meta.requiresAuth && !token) return '/login'
 

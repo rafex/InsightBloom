@@ -25,6 +25,17 @@ COPY infra/docker/etherpad/ep_insightbloom_hide_delete/ \
 # rechace el install entero con ERR_PNPM_UNEXPECTED_STORE.
 RUN HOME=/home/etherpad ETHERPAD_LOCAL_PLUGINS=ep_insightbloom_hide_delete \
         /opt/etherpad-lite/bin/installLocalPlugins.sh && \
-    chown -R 1000:1000 /opt/etherpad-lite/src /opt/etherpad-lite/local_plugins
+    chown -R 1000:1000 /opt/etherpad-lite/src /opt/etherpad-lite/local_plugins && \
+    test -f /opt/etherpad-lite/local_plugins/ep_insightbloom_hide_delete/ep.json && \
+    test -f /opt/etherpad-lite/node_modules/ep_insightbloom_hide_delete/ep.json && \
+    node -e "require('/opt/etherpad-lite/node_modules/ep_insightbloom_hide_delete')"
+
+# Do not inherit a startup path that invokes Etherpad's dependency installer.
+# The plugin is verified above and remains part of this immutable image.
+COPY --chown=1000:1000 --chmod=0755 infra/docker/etherpad/entrypoint.sh \
+    /usr/local/bin/insightbloom-etherpad-entrypoint
+
+ENTRYPOINT ["/usr/local/bin/insightbloom-etherpad-entrypoint"]
+CMD ["pnpm", "run", "prod"]
 
 USER 1000:1000

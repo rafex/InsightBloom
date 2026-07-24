@@ -7,6 +7,7 @@
     aside.sidebar(:class="{ open: sidebarOpen }")
       nav
         router-link(to="/dashboard" active-class="" exact-active-class="router-link-active" @click="sidebarOpen = false") Inicio
+        router-link(to="/events" @click="sidebarOpen = false") Cartelera
         router-link(v-if="isOrganizer" to="/dashboard/conferences" @click="sidebarOpen = false") Eventos
         router-link(v-if="!isOrganizer" to="/dashboard/join" @click="sidebarOpen = false") Unirse a un evento
         router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="sidebarOpen = false") Usuarios
