@@ -45,7 +45,7 @@ public class CreateConferenceUseCase {
                                 String canvasTool, String canvasAudienceMode,
                                 List<CanvasConfig> canvasConfigs, String certificateEngine,
                                 String description, String visibility, String scheduleMarkdown,
-                                String scheduleLayout) {}
+                                String scheduleLayout, String publicTheme) {}
     public record CreateResult(String conferenceId, String friendlyId, String name, String status,
                                String expiresAt, Double latitude, Double longitude,
                                String eventDate, String venue, String startTime, String endTime,
@@ -53,7 +53,7 @@ public class CreateConferenceUseCase {
                                String canvasTool, String canvasAudienceMode,
                                List<CanvasConfig> canvasConfigs, String certificateEngine,
                                String description, String visibility, String scheduleMarkdown,
-                               String scheduleLayout) {}
+                               String scheduleLayout, String publicTheme) {}
 
     public CreateResult execute(CreateRequest request) {
         final List<CanvasConfig> configs = request.canvasConfigs() != null
@@ -75,6 +75,7 @@ public class CreateConferenceUseCase {
         conference.setVisibility(request.visibility());
         conference.setScheduleMarkdown(boundedText(request.scheduleMarkdown(), 12000, "schedule_too_long"));
         conference.setScheduleLayout(request.scheduleLayout());
+        conference.setPublicTheme(request.publicTheme());
         conference.setTimezoneId(request.timezoneId() != null ? request.timezoneId()
                 : timezoneRepository.findDefault().id());
         if (blankToNull(request.eventTypeKey()) != null) {
@@ -104,7 +105,7 @@ public class CreateConferenceUseCase {
             conference.getTimezoneId(), conference.getEventTypeKey(), conference.getCapacity(),
             conference.getCanvasTool(), conference.getCanvasAudienceMode(), conference.getCanvasConfigs(),
             conference.getCertificateEngine(), conference.getDescription(), conference.getVisibility(),
-            conference.getScheduleMarkdown(), conference.getScheduleLayout()
+            conference.getScheduleMarkdown(), conference.getScheduleLayout(), conference.getPublicTheme()
         );
     }
 

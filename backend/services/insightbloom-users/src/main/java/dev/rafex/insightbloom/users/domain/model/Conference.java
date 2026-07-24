@@ -28,6 +28,9 @@ public class Conference {
     private String visibility = "PRIVATE"; // PRIVATE | PUBLIC | HYBRID
     private String scheduleMarkdown; // cronograma opcional, authored as Markdown
     private String scheduleLayout = "RIGHT"; // LEFT | RIGHT
+    // Preset visual de la cartelera pública. Solo controla presentación; el contenido sigue
+    // viviendo en los campos del evento (description, flyer y scheduleMarkdown).
+    private String publicTheme = "CLASSIC"; // CLASSIC | EDITORIAL | MINIMAL
     private Integer timezoneId; // FK a timezones, nullable (se resuelve al default si no se envía)
     private Instant reminderSentAt; // marca cuándo se envió el recordatorio de 1h antes, nullable
     private String seatingMode = "NONE"; // NONE | GENERAL | SEATED
@@ -160,6 +163,7 @@ public class Conference {
     public String getVisibility() { return visibility; }
     public String getScheduleMarkdown() { return scheduleMarkdown; }
     public String getScheduleLayout() { return scheduleLayout; }
+    public String getPublicTheme() { return publicTheme; }
     public Integer getTimezoneId() { return timezoneId; }
     public Instant getReminderSentAt() { return reminderSentAt; }
     public String getSeatingMode() { return seatingMode; }
@@ -234,6 +238,12 @@ public class Conference {
     public void setScheduleMarkdown(String scheduleMarkdown) { this.scheduleMarkdown = scheduleMarkdown; }
     public void setScheduleLayout(String scheduleLayout) {
         this.scheduleLayout = "LEFT".equals(scheduleLayout) ? "LEFT" : "RIGHT";
+    }
+    public void setPublicTheme(String publicTheme) {
+        this.publicTheme = switch (publicTheme == null ? "" : publicTheme.toUpperCase()) {
+            case "EDITORIAL", "MINIMAL" -> publicTheme.toUpperCase();
+            default -> "CLASSIC";
+        };
     }
     public void setTimezoneId(Integer timezoneId) { this.timezoneId = timezoneId; }
     public void setReminderSentAt(Instant reminderSentAt) { this.reminderSentAt = reminderSentAt; }

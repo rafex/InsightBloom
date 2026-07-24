@@ -61,6 +61,22 @@ class SqliteConferenceRepositoryTest {
     }
 
     @Test
+    void persistsPublicBoardThemeAndDefaultsUnknownValuesToClassic(@TempDir final Path tempDir) {
+        final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
+        database.initialize();
+        final SqliteConferenceRepository repository = new SqliteConferenceRepository(database);
+        final Conference conference = new Conference("public-theme-test", "Public theme test", "owner");
+        conference.setPublicTheme("EDITORIAL");
+        repository.save(conference);
+
+        final Conference restored = repository.findByUuid(conference.getUuid()).orElseThrow();
+        assertEquals("EDITORIAL", restored.getPublicTheme());
+
+        restored.setPublicTheme("not-a-theme");
+        assertEquals("CLASSIC", restored.getPublicTheme());
+    }
+
+    @Test
     void repairsLegacyEditorEngineMismatchOnce(@TempDir final Path tempDir) throws Exception {
         final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
         database.initialize();

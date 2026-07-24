@@ -16,7 +16,7 @@ public class UpdateConferenceUseCase {
                                  String endTime, Double latitude, Double longitude,
                                  String presentationSourceUrl, String flyerBase64, Integer timezoneId,
                                  String description, String visibility, String scheduleMarkdown,
-                                 String scheduleLayout) {}
+                                 String scheduleLayout, String publicTheme) {}
 
     /** Actualiza todo excepto friendlyId y uuid. Solo el creador puede editar. */
     public Optional<Conference> execute(final String uuid, final String requestingUserUuid,
@@ -50,6 +50,7 @@ public class UpdateConferenceUseCase {
                         c.setScheduleMarkdown(boundedText(request.scheduleMarkdown(), 12000, "schedule_too_long"));
                     }
                     if (request.scheduleLayout() != null) c.setScheduleLayout(request.scheduleLayout());
+                    if (request.publicTheme() != null) c.setPublicTheme(request.publicTheme());
                     c.setLatitude(request.latitude());
                     c.setLongitude(request.longitude());
                     if (request.presentationSourceUrl() != null) {

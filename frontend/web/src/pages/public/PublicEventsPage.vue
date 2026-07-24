@@ -10,7 +10,7 @@
     .state.error(v-else-if="error") {{ error }}
     .empty(v-else-if="events.length === 0") No hay eventos públicos publicados por ahora.
     .event-grid(v-else)
-      router-link.event-card(v-for="event in events" :key="event.friendlyId" :to="`/events/${event.friendlyId}`")
+      router-link.event-card(v-for="event in events" :key="event.friendlyId" :class="`theme-${(event.publicTheme || 'CLASSIC').toLowerCase()}`" :to="`/events/${event.friendlyId}`")
         img.event-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" alt="Flyer del evento")
         .event-flyer.placeholder(v-else aria-hidden="true") 🎟️
         .event-card-body
@@ -87,5 +87,8 @@ h2 { color: #1e1b4b; margin: 0 0 8px; font-size: 1.3rem; }
 .event-card-footer strong { color: #4f46e5; white-space: nowrap; }
 .state, .empty { background: #fff; padding: 30px; border-radius: 16px; color: #6b7280; }
 .error { color: #b91c1c; }
+.event-card.theme-editorial { border-radius: 4px; background: #17152d; color: #fef3c7; box-shadow: 0 12px 30px rgba(23,21,45,.2); }
+.event-card.theme-editorial .event-card-body { padding: 24px; }.event-card.theme-editorial h2 { color: #fff7ed; font-family: Georgia, serif; font-size: 1.5rem; }.event-card.theme-editorial .description, .event-card.theme-editorial .event-facts dd, .event-card.theme-editorial .event-card-footer { color: #d6d3d1; }.event-card.theme-editorial .event-facts dt { color: #fbbf24; }.event-card.theme-editorial .event-card-footer { border-color: #3f3a5d; }.event-card.theme-editorial .event-card-footer strong { color: #fbbf24; }
+.event-card.theme-minimal { border-radius: 4px; box-shadow: none; border: 1px solid #d1d5db; }.event-card.theme-minimal .event-card-body { padding: 18px; }.event-card.theme-minimal .event-flyer { height: 130px; filter: saturate(.6); }
 @media (max-width: 560px) { .public-main { padding: 38px 16px; } }
 </style>

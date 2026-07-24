@@ -139,7 +139,8 @@ export async function createConference(
   description?: string | null,
   visibility?: 'PRIVATE' | 'PUBLIC' | 'HYBRID',
   scheduleMarkdown?: string | null,
-  scheduleLayout?: 'LEFT' | 'RIGHT'
+  scheduleLayout?: 'LEFT' | 'RIGHT',
+  publicTheme?: 'CLASSIC' | 'EDITORIAL' | 'MINIMAL'
 ): Promise<Conference> {
   const body: Record<string, unknown> = { name }
   if (displayName) body.displayName = displayName
@@ -158,6 +159,7 @@ export async function createConference(
   if (visibility) body.visibility = visibility
   if (scheduleMarkdown != null) body.scheduleMarkdown = scheduleMarkdown
   if (scheduleLayout) body.scheduleLayout = scheduleLayout
+  if (publicTheme) body.publicTheme = publicTheme
   if (canvasConfigs != null) body.canvasConfigs = canvasConfigs
   else {
     if (canvasTool) body.canvasTool = canvasTool
@@ -171,13 +173,13 @@ export async function updateConference(
   uuid: string,
   {
     displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
-    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout
+    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme
   }: UpdateConferenceRequest,
   token: string
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${uuid}`, {
     displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
-    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout
+    flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme
   }, authHeader(token))
   return res.data.data
 }

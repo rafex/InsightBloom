@@ -1,5 +1,5 @@
 <template lang="pug">
-.public-event-page
+  .public-event-page(:class="`theme-${(event?.publicTheme || 'CLASSIC').toLowerCase()}`")
   AppHeader
   main.public-detail(v-if="event")
     router-link.back(to="/events") ← Volver a la cartelera
@@ -108,5 +108,7 @@ h1 { color: #1e1b4b; font-size: clamp(2rem, 5vw, 3.4rem); margin: 12px 0 8px; }.
 .actions { display: flex; gap: 10px; flex-wrap: wrap; }.btn-primary, .btn-outline { border-radius: 9px; padding: 11px 16px; font-weight: 700; text-decoration: none; cursor: pointer; }.btn-primary { border: 0; background: #4f46e5; color: white; }.btn-outline { border: 1px solid #4f46e5; color: #4f46e5; background: white; }.action-message { color: #166534; }.action-error, .error { color: #b91c1c; }
 .schedule, .map-section { margin-top: 28px; background: #fff; padding: 28px; border-radius: 18px; }.schedule h2, .map-section h2 { color: #1e1b4b; }.markdown-body :deep(h2) { color: #a16207; border-bottom: 2px dotted #d1d5db; padding-bottom: 8px; }.markdown-body :deep(p) { color: #4b5563; line-height: 1.6; }.markdown-body :deep(a) { color: #4f46e5; }
 .map-section :deep(.conference-map) { min-height: 360px; }.map-link { display: inline-block; margin-top: 10px; color: #4f46e5; font-weight: 700; }.state { max-width: 1050px; margin: 50px auto; padding: 30px; color: #6b7280; }.state.error { color: #b91c1c; }
+.public-event-page.theme-editorial { background: #17152d; color: #f5f5f4; }.theme-editorial .back { color: #fbbf24; }.theme-editorial .detail-copy, .theme-editorial .schedule, .theme-editorial .map-section { background: #24213f; box-shadow: none; }.theme-editorial h1, .theme-editorial .schedule h2, .theme-editorial .map-section h2 { color: #fff7ed; font-family: Georgia, serif; }.theme-editorial .description, .theme-editorial .event-facts dd, .theme-editorial .organizer { color: #d6d3d1; }.theme-editorial .event-facts dt, .theme-editorial .organizer-label { color: #fbbf24; }.theme-editorial .detail-flyer { border-radius: 4px; }.theme-editorial .btn-outline { border-color: #fbbf24; color: #fbbf24; background: transparent; }
+.public-event-page.theme-minimal { background: #fafafa; }.theme-minimal .detail-copy, .theme-minimal .schedule, .theme-minimal .map-section { border-radius: 4px; box-shadow: none; border: 1px solid #e5e7eb; }.theme-minimal .detail-flyer { border-radius: 4px; }
 @media (max-width: 720px) { .public-detail { padding: 28px 16px 50px; }.detail-hero { grid-template-columns: 1fr; }.detail-hero.reverse { direction: ltr; } }
 </style>

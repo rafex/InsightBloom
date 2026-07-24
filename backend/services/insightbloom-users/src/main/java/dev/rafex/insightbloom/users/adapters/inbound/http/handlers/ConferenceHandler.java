@@ -601,7 +601,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     (String) body.get("canvasTool"), (String) body.get("canvasAudienceMode"), canvasConfigs,
                     (String) body.get("certificateEngine"), (String) body.get("description"),
                     (String) body.get("visibility"), (String) body.get("scheduleMarkdown"),
-                    (String) body.get("scheduleLayout")));
+                    (String) body.get("scheduleLayout"), (String) body.get("publicTheme")));
             sendOk(jx, 201, result);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
@@ -640,7 +640,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                                         Integer capacity, Integer remainingSeats, boolean ticketRequired,
                                         boolean ticketPurchaseEnabled, String visibility, String flyerBase64,
                                         String scheduleMarkdown, String scheduleLayout,
-                                        String organizerPhotoBase64) {}
+                                        String publicTheme, String organizerPhotoBase64) {}
 
     private PublicConferenceView publicView(final Conference conference) {
         final boolean ticketRequired = ticketUseCase != null && ticketUseCase.isTicketed(conference);
@@ -657,6 +657,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 ticketRequired, ticketRequired && ("PUBLIC".equals(conference.getVisibility())
                         || "HYBRID".equals(conference.getVisibility())), conference.getVisibility(),
                 conference.getFlyerBase64(), conference.getScheduleMarkdown(), conference.getScheduleLayout(),
+                conference.getPublicTheme(),
                 userRepository.findByUuid(conference.getCreatedByUserUuid())
                         .map(user -> user.getPublicProfilePhotoBase64()).orElse(null));
     }
@@ -883,7 +884,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                             (String) body.get("startTime"), (String) body.get("endTime"), latitude, longitude,
                             (String) body.get("presentationSourceUrl"), (String) body.get("flyerBase64"), timezoneId,
                             (String) body.get("description"), (String) body.get("visibility"),
-                            (String) body.get("scheduleMarkdown"), (String) body.get("scheduleLayout")));
+                            (String) body.get("scheduleMarkdown"), (String) body.get("scheduleLayout"),
+                            (String) body.get("publicTheme")));
             if (updated.isPresent()) {
                 sendOk(jx, 200, updated.get());
             } else {

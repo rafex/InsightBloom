@@ -30,12 +30,12 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         // codigo (AssignSandboxUseCase), no algo que un organizador hubiera configurado.
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, description, visibility, schedule_markdown, schedule_layout, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_extra_packages, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode, certificate_engine)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, description, visibility, schedule_markdown, schedule_layout, public_theme, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_extra_packages, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode, certificate_engine)
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -62,45 +62,46 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(19, conference.getVisibility());
             ps.setString(20, conference.getScheduleMarkdown());
             ps.setString(21, conference.getScheduleLayout());
-            if (conference.getTimezoneId() != null) ps.setInt(22, conference.getTimezoneId());
-            else ps.setNull(22, Types.INTEGER);
-            ps.setString(23, conference.getReminderSentAt() != null ? conference.getReminderSentAt().toString() : null);
-            ps.setString(24, conference.getSeatingMode());
-            if (conference.getCapacity() != null) ps.setInt(25, conference.getCapacity());
-            else ps.setNull(25, Types.INTEGER);
-            ps.setInt(26, conference.getReservedCount());
-            ps.setString(27, conference.getVenueMapBase64());
-            ps.setString(28, conference.getEventTypeKey());
-            ps.setString(29, conference.getNotesPurgedAt() != null ? conference.getNotesPurgedAt().toString() : null);
-            ps.setString(30, conference.getDiagramXml());
-            ps.setString(31, conference.getDiagramPublishedSvg());
-            ps.setString(32, conference.getDiagramUpdatedAt() != null ? conference.getDiagramUpdatedAt().toString() : null);
-            ps.setLong(33, conference.getDiagramVersion());
-            ps.setString(34, conference.getDiagramPurgedAt() != null ? conference.getDiagramPurgedAt().toString() : null);
-            ps.setString(35, conference.getWhiteboardSceneJson());
-            ps.setString(36, conference.getWhiteboardPublishedSvg());
-            ps.setString(37, conference.getWhiteboardUpdatedAt() != null ? conference.getWhiteboardUpdatedAt().toString() : null);
-            ps.setLong(38, conference.getWhiteboardVersion());
-            ps.setString(39, conference.getSandboxVariant());
-            if (conference.getSandboxPoolSize() != null) ps.setInt(40, conference.getSandboxPoolSize());
-            else ps.setNull(40, Types.INTEGER);
+            ps.setString(22, conference.getPublicTheme());
+            if (conference.getTimezoneId() != null) ps.setInt(23, conference.getTimezoneId());
+            else ps.setNull(23, Types.INTEGER);
+            ps.setString(24, conference.getReminderSentAt() != null ? conference.getReminderSentAt().toString() : null);
+            ps.setString(25, conference.getSeatingMode());
+            if (conference.getCapacity() != null) ps.setInt(26, conference.getCapacity());
+            else ps.setNull(26, Types.INTEGER);
+            ps.setInt(27, conference.getReservedCount());
+            ps.setString(28, conference.getVenueMapBase64());
+            ps.setString(29, conference.getEventTypeKey());
+            ps.setString(30, conference.getNotesPurgedAt() != null ? conference.getNotesPurgedAt().toString() : null);
+            ps.setString(31, conference.getDiagramXml());
+            ps.setString(32, conference.getDiagramPublishedSvg());
+            ps.setString(33, conference.getDiagramUpdatedAt() != null ? conference.getDiagramUpdatedAt().toString() : null);
+            ps.setLong(34, conference.getDiagramVersion());
+            ps.setString(35, conference.getDiagramPurgedAt() != null ? conference.getDiagramPurgedAt().toString() : null);
+            ps.setString(36, conference.getWhiteboardSceneJson());
+            ps.setString(37, conference.getWhiteboardPublishedSvg());
+            ps.setString(38, conference.getWhiteboardUpdatedAt() != null ? conference.getWhiteboardUpdatedAt().toString() : null);
+            ps.setLong(39, conference.getWhiteboardVersion());
+            ps.setString(40, conference.getSandboxVariant());
+            if (conference.getSandboxPoolSize() != null) ps.setInt(41, conference.getSandboxPoolSize());
+            else ps.setNull(41, Types.INTEGER);
             final Integer internetEnabled = conference.getSandboxInternetEnabled();
-            ps.setInt(41, internetEnabled != null ? internetEnabled : 0);
-            ps.setString(42, conference.getSandboxExtraPackages());
-            ps.setString(43, conference.getSandboxRemoteGitUrl());
-            if (conference.getSandboxJvmHeapMb() != null) ps.setInt(44, conference.getSandboxJvmHeapMb());
-            else ps.setNull(44, Types.INTEGER);
-            if (conference.getSandboxSeatsPerPod() != null) ps.setInt(45, conference.getSandboxSeatsPerPod());
+            ps.setInt(42, internetEnabled != null ? internetEnabled : 0);
+            ps.setString(43, conference.getSandboxExtraPackages());
+            ps.setString(44, conference.getSandboxRemoteGitUrl());
+            if (conference.getSandboxJvmHeapMb() != null) ps.setInt(45, conference.getSandboxJvmHeapMb());
             else ps.setNull(45, Types.INTEGER);
-            if (conference.getSandboxCliPoolSize() != null) ps.setInt(46, conference.getSandboxCliPoolSize());
+            if (conference.getSandboxSeatsPerPod() != null) ps.setInt(46, conference.getSandboxSeatsPerPod());
             else ps.setNull(46, Types.INTEGER);
-            if (conference.getMaxDevicesPerUser() != null) ps.setInt(47, conference.getMaxDevicesPerUser());
+            if (conference.getSandboxCliPoolSize() != null) ps.setInt(47, conference.getSandboxCliPoolSize());
             else ps.setNull(47, Types.INTEGER);
-            if (conference.getMaxAccountsPerDevice() != null) ps.setInt(48, conference.getMaxAccountsPerDevice());
+            if (conference.getMaxDevicesPerUser() != null) ps.setInt(48, conference.getMaxDevicesPerUser());
             else ps.setNull(48, Types.INTEGER);
-            ps.setString(49, conference.getCanvasTool());
-            ps.setString(50, conference.getCanvasAudienceMode());
-            ps.setString(51, conference.getCertificateEngine());
+            if (conference.getMaxAccountsPerDevice() != null) ps.setInt(49, conference.getMaxAccountsPerDevice());
+            else ps.setNull(49, Types.INTEGER);
+            ps.setString(50, conference.getCanvasTool());
+            ps.setString(51, conference.getCanvasAudienceMode());
+            ps.setString(52, conference.getCertificateEngine());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -244,6 +245,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.setVisibility(rs.getString("visibility"));
         conference.setScheduleMarkdown(rs.getString("schedule_markdown"));
         conference.setScheduleLayout(rs.getString("schedule_layout"));
+        conference.setPublicTheme(rs.getString("public_theme"));
         conference.setCertificateEngine(rs.getString("certificate_engine"));
         final int timezoneId = rs.getInt("timezone_id");
         conference.setTimezoneId(rs.wasNull() ? null : timezoneId);

@@ -12,6 +12,7 @@ export type CanvasTool = 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD'
 export type CanvasAudienceMode = 'INDEPENDENT' | 'MODERATOR_ONLY' | 'COLLABORATIVE'
 export type CertificateEngine = 'INHOUSE' | 'HTML_CHROME'
 export type EventVisibility = 'PRIVATE' | 'PUBLIC' | 'HYBRID'
+export type PublicTheme = 'CLASSIC' | 'EDITORIAL' | 'MINIMAL'
 export interface CanvasToolConfig {
   tool: CanvasTool
   audienceMode: CanvasAudienceMode
@@ -99,6 +100,7 @@ export interface Conference {
   visibility?: EventVisibility
   scheduleMarkdown?: string | null
   scheduleLayout?: 'LEFT' | 'RIGHT'
+  publicTheme?: PublicTheme
   timezoneId?: number | null
   expiresAt?: string | null
   seatingMode?: SeatingMode
@@ -142,6 +144,7 @@ export interface PublicConference {
   flyerBase64?: string | null
   scheduleMarkdown?: string | null
   scheduleLayout?: 'LEFT' | 'RIGHT'
+  publicTheme?: PublicTheme
   organizerPhotoBase64?: string | null
 }
 
@@ -298,6 +301,7 @@ export interface UpdateConferenceRequest {
   visibility?: EventVisibility
   scheduleMarkdown?: string | null
   scheduleLayout?: 'LEFT' | 'RIGHT'
+  publicTheme?: PublicTheme
 }
 
 export interface DownloadCounts {

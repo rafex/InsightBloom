@@ -46,6 +46,17 @@
             option(value="RIGHT") A la derecha del flyer
             option(value="LEFT") A la izquierda del flyer
 
+    .form-group.public-theme-group
+      label Diseño de la cartelera pública
+      p.field-hint Elige una presentación base. Solo cambia la apariencia; el contenido siempre usa los datos de este evento.
+      .theme-options
+        label.theme-option(v-for="theme in publicThemeOptions" :key="theme.value" :class="{ selected: publicTheme === theme.value }")
+          input(type="radio" name="publicTheme" :value="theme.value" v-model="publicTheme")
+          span.theme-preview(:class="`theme-preview-${theme.value.toLowerCase()}`")
+          span.theme-copy
+            strong {{ theme.label }}
+            small {{ theme.description }}
+
     .form-group
       label Fecha del evento (opcional)
       input(v-model="eventDate" type="date")
@@ -124,6 +135,7 @@ export default {
     const visibility = ref<'PRIVATE' | 'PUBLIC' | 'HYBRID'>('PRIVATE')
     const scheduleMarkdown = ref('')
     const scheduleLayout = ref<'LEFT' | 'RIGHT'>('RIGHT')
+    const publicTheme = ref<'CLASSIC' | 'EDITORIAL' | 'MINIMAL'>('CLASSIC')
     const eventDate    = ref('')
     const venue        = ref('')
     const startTime    = ref('')
@@ -147,6 +159,7 @@ export default {
         visibility.value = conference.value.visibility || 'PRIVATE'
         scheduleMarkdown.value = conference.value.scheduleMarkdown || ''
         scheduleLayout.value = conference.value.scheduleLayout || 'RIGHT'
+        publicTheme.value = conference.value.publicTheme || 'CLASSIC'
         eventDate.value = (conference.value.eventDate as string) || ''
         venue.value = (conference.value.venue as string) || ''
         startTime.value = (conference.value.startTime as string) || ''
@@ -188,7 +201,8 @@ export default {
           description: description.value.trim() || null,
           visibility: visibility.value,
           scheduleMarkdown: scheduleMarkdown.value.trim() || null,
-          scheduleLayout: scheduleLayout.value
+          scheduleLayout: scheduleLayout.value,
+          publicTheme: publicTheme.value
         }, auth.state.token as string)
         saved.value = true
       } catch (e: any) {
@@ -207,12 +221,29 @@ export default {
 
     return { conference, loading, error, saving, saveError, saved, displayName, description, visibility,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
-             scheduleMarkdown, scheduleLayout, timezones, timezoneId, breadcrumbItems, onFlyerSelected, save }
+             scheduleMarkdown, scheduleLayout, publicTheme, timezones, timezoneId, breadcrumbItems, onFlyerSelected, save,
+             publicThemeOptions: [
+               { value: 'CLASSIC', label: 'Clásico', description: 'Información clara y equilibrada' },
+               { value: 'EDITORIAL', label: 'Editorial', description: 'Flyer protagonista y estilo de revista' },
+               { value: 'MINIMAL', label: 'Minimalista', description: 'Diseño ligero y directo' }
+             ] }
   }
 }
 </script>
 
 <style scoped>
+.public-theme-group { border-top: 1px solid #e5e7eb; padding-top: 18px; }
+.theme-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.theme-option { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1.5px solid #e5e7eb; border-radius: 12px; background: #fff; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.theme-option.selected { border-color: #4f46e5; box-shadow: 0 0 0 2px #e0e7ff; }
+.theme-option input { position: absolute; opacity: 0; pointer-events: none; }
+.theme-preview { height: 48px; border-radius: 8px; display: block; background: #e0e7ff; position: relative; overflow: hidden; }
+.theme-preview::after { content: ''; position: absolute; left: 15%; right: 15%; top: 12px; height: 5px; border-radius: 4px; background: currentColor; box-shadow: 0 12px 0 currentColor, 0 24px 0 currentColor; opacity: .65; }
+.theme-preview-classic { color: #4f46e5; background: linear-gradient(135deg, #eef2ff, #fff); border: 1px solid #a5b4fc; }
+.theme-preview-editorial { color: #fff; background: linear-gradient(135deg, #312e81 0 42%, #f59e0b 42%); }
+.theme-preview-minimal { color: #374151; background: #f9fafb; border: 1px solid #d1d5db; }
+.theme-copy { display: flex; flex-direction: column; gap: 2px; color: #1e1b4b; }.theme-copy small { color: #6b7280; line-height: 1.3; }
+@media (max-width: 580px) { .theme-options { grid-template-columns: 1fr; } .theme-option { display: grid; grid-template-columns: 72px 1fr; align-items: center; }.theme-preview { grid-row: span 2; } }
 .edit-conf-page { max-width: 680px; }
 h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
 .sub-links { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; }

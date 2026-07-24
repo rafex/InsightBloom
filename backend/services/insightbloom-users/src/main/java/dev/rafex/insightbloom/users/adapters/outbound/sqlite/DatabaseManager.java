@@ -119,6 +119,7 @@ public class DatabaseManager {
                     visibility TEXT NOT NULL DEFAULT 'PRIVATE',
                     schedule_markdown TEXT,
                     schedule_layout TEXT NOT NULL DEFAULT 'RIGHT',
+                    public_theme TEXT NOT NULL DEFAULT 'CLASSIC',
                     certificate_engine TEXT NOT NULL DEFAULT 'INHOUSE'
                 )
             """);
@@ -143,6 +144,7 @@ public class DatabaseManager {
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN visibility TEXT NOT NULL DEFAULT 'PRIVATE'"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN schedule_markdown TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN schedule_layout TEXT NOT NULL DEFAULT 'RIGHT'"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN public_theme TEXT NOT NULL DEFAULT 'CLASSIC'"); } catch (SQLException ignored) {}
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN certificate_engine TEXT NOT NULL DEFAULT 'INHOUSE'");
             } catch (SQLException ignored) {}
