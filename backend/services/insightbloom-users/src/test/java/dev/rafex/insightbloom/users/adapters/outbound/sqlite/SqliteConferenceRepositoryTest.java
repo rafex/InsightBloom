@@ -61,6 +61,18 @@ class SqliteConferenceRepositoryTest {
     }
 
     @Test
+    void usesFriendlyIdWhenLegacyConferenceHasNoName(@TempDir final Path tempDir) {
+        final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
+        database.initialize();
+        final SqliteConferenceRepository repository = new SqliteConferenceRepository(database);
+        final Conference conference = new Conference("legacy-event", null, "owner");
+
+        repository.save(conference);
+
+        assertEquals("legacy-event", repository.findByUuid(conference.getUuid()).orElseThrow().getName());
+    }
+
+    @Test
     void persistsPublicBoardThemeAndDefaultsUnknownValuesToClassic(@TempDir final Path tempDir) {
         final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
         database.initialize();
