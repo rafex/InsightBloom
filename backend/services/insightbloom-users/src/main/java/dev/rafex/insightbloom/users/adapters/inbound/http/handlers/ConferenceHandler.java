@@ -466,7 +466,11 @@ public class ConferenceHandler extends BaseResourceHandler {
     @Override
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
-        if (jx.path().endsWith("/public/tickets")) {
+        // The route includes the friendly id between /public and /tickets.
+        // Checking for the exact suffix "/public/tickets" skipped this handler and
+        // let the generic /{id}/tickets branch receive a null id, resulting in
+        // conference_not_found when confirming a public free ticket.
+        if (jx.path().contains("/public/") && jx.path().endsWith("/tickets")) {
             return handlePublicTicket(jx, jx.pathParam("friendlyId"));
         }
         if (jx.path().endsWith("/join")) {

@@ -174,25 +174,30 @@ codigo arbitrario alcanzable por cualquier otro sandbox del namespace.
 - SQLite funciona localmente sin red (seguro por diseño).
 - Git remote requiere credenciales explícitas del alumno o token del profesor.
 
-### Excepción de red únicamente para GitHub
+### Egress controlado por lista blanca
 
-Sí es posible permitir que un sandbox descargue repositorios de GitHub manteniendo Internet
-bloqueado para todo lo demás, pero no como una sola regla de `NetworkPolicy` por hostname. El
-diseño recomendado es:
+Es posible habilitar el acceso de red de un sandbox manteniendo bloqueado todo destino que no
+esté declarado en la lista blanca de la plataforma. No es una sola regla de `NetworkPolicy` por
+hostname: la política de Kubernetes envía el tráfico al proxy interno y este aplica la lista
+blanca y la lista negra.
+
+El diseño es:
 
 1. El organizador activa la salida controlada para el evento.
 2. El sandbox recibe `HTTP_PROXY`/`HTTPS_PROXY` y solo puede conectar al proxy interno.
-3. El proxy permite únicamente los hosts declarados en `EGRESS_PROXY_ALLOWED_HOSTS` (`github.com`,
-   `api.github.com`, `codeload.github.com`, `raw.githubusercontent.com`,
-   `objects.githubusercontent.com` y los hosts de assets que el flujo requiera).
+3. El proxy permite únicamente los hosts declarados en `EGRESS_PROXY_ALLOWED_HOSTS`.
 4. El proxy rechaza otros dominios, registra evento/usuario/repositorio y limita tamaño,
    método y redirecciones.
 5. La `NetworkPolicy` mantiene bloqueado el acceso directo desde el sandbox a Internet y a los
   servicios internos.
 
-La configuración vive en GitOps: `infrastructure/config/app-config.yaml` es la fuente
-declarativa; `app-config-cm.yaml` es la salida operativa autogenerada. `blocked_hosts` se
-evalúa antes de `allowed_hosts` y los destinos privados/reservados se rechazan aunque se
+La lista blanca y la lista negra son configuración de plataforma administrada en GitOps. El
+frontend solo expone el permiso genérico de acceso a internet; no decide ni muestra qué dominios
+concretos están autorizados.
+
+La configuración vive en GitOps: `infrastructure/config/app-config.yaml` es la única fuente
+declarativa. No se debe editar ni mantener un `app-config-cm.yaml` duplicado. La lista negra se
+evalúa antes que la lista blanca y los destinos privados/reservados se rechazan aunque se
 introduzcan accidentalmente en la lista blanca.
 
 Permitir los rangos publicados por GitHub directamente sería solo una mitigación temporal: no
