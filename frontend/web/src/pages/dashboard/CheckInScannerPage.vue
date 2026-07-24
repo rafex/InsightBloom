@@ -56,6 +56,16 @@ export default {
       }
     }
 
+    function handleScanResult(result: unknown) {
+      // qr-scanner returns a string by default; with detailed results enabled it
+      // returns { data, ... }. Supporting both keeps the scanner compatible with
+      // the installed library and with older cached bundles.
+      const rawValue = typeof result === 'string'
+        ? result
+        : (result as { data?: unknown } | null)?.data
+      if (typeof rawValue === 'string' && rawValue.trim()) void onDecoded(rawValue)
+    }
+
     function errorMessage(error: any): string {
       const code = error.response?.data?.error?.code
       switch (code) {
@@ -104,9 +114,10 @@ export default {
 
     onMounted(() => {
       if (!videoEl.value) return
-      scanner = new QrScanner(videoEl.value, (result) => onDecoded(result.data), {
+      scanner = new QrScanner(videoEl.value, handleScanResult, {
         highlightScanRegion: true,
-        highlightCodeOutline: true
+        highlightCodeOutline: true,
+        returnDetailedScanResult: true
       })
       scanner.start().then(() => {
         scannerReady.value = true

@@ -190,11 +190,19 @@ export default {
       setTimeout(() => {
         if (!videoEl.value) return
         scanner = new QrScanner(videoEl.value, (result) => {
-          ticketInput.value = result.data
+          const rawValue = typeof result === 'string'
+            ? result
+            : (result as { data?: unknown } | null)?.data
+          if (typeof rawValue !== 'string' || !rawValue.trim()) return
+          ticketInput.value = rawValue
           stopScanner()
           if (auth.state.token && auth.state.role !== 'guest') claim()
           else claimAsGuest()
-        }, { highlightScanRegion: true, highlightCodeOutline: true })
+        }, {
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+          returnDetailedScanResult: true
+        })
         scanner.start().catch(() => { error.value = 'No se pudo acceder a la cámara.'; stopScanner() })
       }, 0)
     }
