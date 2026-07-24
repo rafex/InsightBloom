@@ -127,6 +127,8 @@ import type { Conference, Timezone } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { parseMapCoordinates } from '@/utils/mapCoordinates'
 
+const MAX_FLYER_BYTES = 8 * 1024 * 1024
+
 export default {
   name: 'EditConferencePage',
   components: { ConferenceMap, DashboardBreadcrumb },
@@ -221,6 +223,10 @@ Conclusiones, encuesta y entrega de certificados.`
       if (!file) return
       if (!['image/png', 'image/jpeg'].includes(file.type)) {
         saveError.value = 'El flyer debe estar en formato PNG o JPEG.'
+        return
+      }
+      if (file.size > MAX_FLYER_BYTES) {
+        saveError.value = 'El flyer no puede superar los 8 MiB.'
         return
       }
       flyerFile.value = file
