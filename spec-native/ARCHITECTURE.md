@@ -486,9 +486,12 @@ Los servicios pueden comunicarse con endpoints internos protegidos por
 
 ## Integraciones externas
 
-- **DeepSeek / LLM provider**: usado por `chat` (bot Roberto) y `survey`
-  (generacion de preguntas). Configurado via `LLM_PROVIDER_BASE_URL`,
-  `LLM_PROVIDER_MODEL` y `LLM_PROVIDER_API_KEY`.
+- **Proveedor LLM compatible con OpenAI**: usado por `chat` (bot Roberto),
+  `survey` (generación de preguntas/tutor) y las funciones asistidas de `users`.
+  La configuración se administra en `Dashboard → IA` y se persiste en SQLite de
+  `users`; la API key se cifra en reposo. Los servicios consumidores la consultan
+  por `/api/v1/settings/ai/internal`, protegido por `X-Internal-Auth`. No se
+  despliegan URL, modelo, prompt ni API key desde GitOps.
 - **Twilio**: OTP via SMS para verificacion de usuarios. Configurado via
   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`.
 - **Zoho SMTP**: envio de correos (certificados, notificaciones).

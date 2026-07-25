@@ -188,9 +188,8 @@ cd chat && python -m pytest -v
 # El servicio survey se levanta con el resto de servicios Java
 just dev-services
 
-# Sin LLM (preguntas manuales) — no requiere variables extra
-# Con LLM (generacion de preguntas) — requiere variables:
-#   LLM_PROVIDER_BASE_URL, LLM_PROVIDER_MODEL, LLM_PROVIDER_API_KEY
+# La configuración del proveedor LLM se administra en Dashboard → IA.
+# No se pasan URL, modelo, prompt ni API key como variables de despliegue.
 ```
 
 ## Presentations

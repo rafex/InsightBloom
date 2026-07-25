@@ -1432,3 +1432,28 @@ Registrar una decision cuando cambie:
     endpoint valida el token antes de abrir el stream.
   - La publicación completa en artefactos versionados, más formatos y ZIP permanece pendiente.
 - Reemplaza: `none`.
+
+### DEC-0032 - Configuración centralizada del proveedor de IA desde el dashboard
+
+- Fecha: 2026-07-24
+- Estado: accepted
+- Contexto:
+  `chat`, `survey` y las funciones asistidas de `users` reutilizaban una API key,
+  URL, modelo y prompt entregados por variables de despliegue. Eso obligaba a
+  modificar GitOps para cambiar de proveedor y dejaba un secreto operativo fuera
+  del flujo administrativo.
+- Decision:
+  - La configuración global se administra en `Dashboard → IA`, con interruptor,
+    URL base compatible con OpenAI, modelo, API key, prompt y temperatura.
+  - `insightbloom-users` persiste la configuración en `platform_settings`; la
+    API key se cifra con AES-GCM usando una clave derivada de `INTERNAL_API_KEY`.
+  - El frontend solo recibe estado de configuración y una pista de los últimos
+    cuatro caracteres. `chat` y `survey` consultan el contrato interno
+    `/api/v1/settings/ai/internal` con `X-Internal-Auth`.
+  - GitOps ya no contiene ni inyecta `LLM_PROVIDER_*` ni `ROBERTO_*`; el servicio
+    usa defaults seguros sin clave y permanece sin llamadas hasta configurarse.
+- Consecuencias:
+  cambiar de proveedor no requiere redeploy; rotar la clave requiere acceso de
+  administrador y la estabilidad de `INTERNAL_API_KEY`; si `users` no responde,
+  las funciones de IA se deshabilitan temporalmente (fail-closed).
+- Reemplaza: `DEC-0014` en lo relativo a la configuración del proveedor.

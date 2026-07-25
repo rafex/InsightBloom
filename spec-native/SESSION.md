@@ -6,12 +6,11 @@ Estado activo de trabajo para continuidad multi-agente.
 
 ## Estado actual
 
-- **Iniciativa activa**: `code-ide-sandbox-prewarm`
+- **Iniciativa activa**: `ai-provider-dashboard-config`
 - **Branch**: `main`
 - **Último agente**: Codex
-- **Última acción**: completado el contrato LSP de Web IDE y CLI para Java,
-  Python, JS/TS, HTML y CSS; se añadieron servidores npm precargados, la
-  configuración Neovim y la siembra offline de tipos Node también en code-server.
+- **Última acción**: se centralizó la configuración del proveedor IA en Dashboard → IA,
+  con clave cifrada en `users` y contrato interno para chat/survey.
 
 ---
 
