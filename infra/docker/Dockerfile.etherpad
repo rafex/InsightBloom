@@ -30,6 +30,17 @@ RUN HOME=/home/etherpad ETHERPAD_LOCAL_PLUGINS=ep_insightbloom_hide_delete \
     test -f /opt/etherpad-lite/node_modules/ep_insightbloom_hide_delete/ep.json && \
     node -e "require('/opt/etherpad-lite/node_modules/ep_insightbloom_hide_delete')"
 
+# Etherpad solo trae src/locales/es.json (espanol generico), no variantes regionales. Cuando
+# el navegador del usuario reporta un idioma como "es-MX"/"es-AR"/etc, el bootstrap del cliente
+# pide ese locale exacto, recibe 404 con cuerpo vacio, y el JSON.parse revienta sin capturarlo
+# (visto en consola: "Uncaught SyntaxError: JSON.parse: unexpected end of data" en
+# padbootstrap*.min.js). Se agregan alias de los codigos regionales de espanol mas comunes como
+# copia de es.json para que ese lookup encuentre un archivo valido.
+RUN for variant in es-mx es-ar es-es es-co es-cl es-pe es-ve es-419; do \
+        cp /opt/etherpad-lite/src/locales/es.json "/opt/etherpad-lite/src/locales/${variant}.json"; \
+    done && \
+    chown 1000:1000 /opt/etherpad-lite/src/locales/es-*.json
+
 # Do not inherit a startup path that invokes Etherpad's dependency installer.
 # The plugin is verified above and remains part of this immutable image.
 COPY --chown=1000:1000 --chmod=0755 infra/docker/etherpad/entrypoint.sh \
