@@ -5,6 +5,7 @@ import dev.rafex.insightbloom.survey.domain.ports.AiSurveyConfigRepository;
 import dev.rafex.insightbloom.survey.domain.ports.LlmPort;
 import dev.rafex.insightbloom.survey.domain.ports.PresentationsPort;
 import dev.rafex.insightbloom.survey.domain.ports.SurveyQuestionRepository;
+import dev.rafex.insightbloom.survey.domain.ports.UsersPort;
 
 import java.util.List;
 import java.util.Map;
@@ -45,15 +46,18 @@ public class SuggestQuestionsUseCase {
     private final PresentationsPort presentations;
     private final SurveyQuestionRepository questionRepo;
     private final AiSurveyConfigRepository surveyConfigRepo;
+    private final UsersPort users;
     private final JsonCodec jsonCodec;
 
     public SuggestQuestionsUseCase(final LlmPort llm, final PresentationsPort presentations,
                                     final SurveyQuestionRepository questionRepo,
-                                    final AiSurveyConfigRepository surveyConfigRepo, final JsonCodec jsonCodec) {
+                                    final AiSurveyConfigRepository surveyConfigRepo, final UsersPort users,
+                                    final JsonCodec jsonCodec) {
         this.llm = llm;
         this.presentations = presentations;
         this.questionRepo = questionRepo;
         this.surveyConfigRepo = surveyConfigRepo;
+        this.users = users;
         this.jsonCodec = jsonCodec;
     }
 
@@ -72,8 +76,11 @@ public class SuggestQuestionsUseCase {
         final String extraContext = surveyConfigRepo.findByConference(conferenceId)
                 .map(config -> config.extraContext()).filter(value -> value != null && !value.isBlank())
                 .orElse(null);
+        final var event = users.getConferenceSummary(conferenceId).orElse(null);
+        final String eventHeader = event == null || event.name() == null || event.name().isBlank() ? ""
+                : "EVENTO: " + event.name() + "\n\n";
 
-        final String userPrompt = "Genera " + count
+        final String userPrompt = eventHeader + "Genera " + count
                 + " preguntas a partir del contenido visible de estas diapositivas:\n\n" + visibleContent
                 + (extraContext == null ? "" : "\n\nCONTEXTO ADICIONAL DEL ORGANIZADOR (puede no estar explicito "
                         + "en las diapositivas, pero es informacion valida a considerar):\n" + extraContext)

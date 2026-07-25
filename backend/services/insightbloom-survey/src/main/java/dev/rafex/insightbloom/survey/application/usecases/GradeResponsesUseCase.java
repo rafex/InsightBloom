@@ -15,9 +15,15 @@ public class GradeResponsesUseCase {
     private static final String GRADING_SYSTEM_PROMPT = """
             Eres un asistente que califica respuestas de un cuestionario de evaluacion de una
             charla o taller tecnico. Compara la respuesta del asistente contra la respuesta de
-            referencia / criterios proporcionados por el instructor. Responde UNICAMENTE con un
-            JSON valido de la forma {"score": <numero 0-100>, "feedback": "<comentario breve>"},
-            sin texto adicional.
+            referencia / criterios proporcionados por el instructor.
+            Da credito parcial: si la respuesta cubre parte de los criterios pero no todos, o
+            llega al resultado correcto con una justificacion incompleta, asigna un puntaje
+            intermedio en vez de todo-o-nada. Una respuesta con otras palabras pero equivalente
+            en significado a la referencia cuenta como correcta.
+            El feedback debe ser breve, constructivo y en español: si hubo error, señala
+            especificamente que le faltó o qué concepto confundió, no solo "incorrecto".
+            Responde UNICAMENTE con un JSON valido de la forma
+            {"score": <numero 0-100>, "feedback": "<comentario breve>"}, sin texto adicional.
             """;
 
     private final SurveyQuestionRepository questionRepo;

@@ -67,7 +67,7 @@ public class SurveyApplication {
         final var submitResponsesUseCase = new SubmitResponsesUseCase(questionRepo, responseRepo);
         final var getResultsUseCase = new GetResultsUseCase(questionRepo, responseRepo, usersPort);
         final var suggestQuestionsUseCase = new SuggestQuestionsUseCase(
-                surveyLlm, presentationsClient, questionRepo, aiSurveyConfigRepo, JsonUtils.codec());
+                surveyLlm, presentationsClient, questionRepo, aiSurveyConfigRepo, usersPort, JsonUtils.codec());
         final var updateQuestionUseCase = new UpdateQuestionUseCase(questionRepo);
         final var purgeResponsesUseCase = new PurgeResponsesUseCase(responseRepo);
         final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(
@@ -80,7 +80,7 @@ public class SurveyApplication {
                 definitionRepo, submissionRepo, JsonUtils.codec());
         final var surveyAccessUseCase = new SurveyAccessUseCase(surveyAccessRepo);
         final var aiMentorConfigUseCase = new AiMentorConfigUseCase(aiMentorConfigRepo);
-        final var mentorChatUseCase = new MentorChatUseCase(tutorLlm, presentationsClient, aiMentorConfigRepo);
+        final var mentorChatUseCase = new MentorChatUseCase(tutorLlm, presentationsClient, aiMentorConfigRepo, usersPort);
         final var aiSurveyConfigUseCase = new AiSurveyConfigUseCase(aiSurveyConfigRepo);
 
         final var surveyHandler = new SurveyHandler(

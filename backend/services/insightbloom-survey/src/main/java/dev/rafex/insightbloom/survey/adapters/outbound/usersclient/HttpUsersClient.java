@@ -96,6 +96,27 @@ public class HttpUsersClient implements UsersPort {
     }
 
     @Override
+    public Optional<ConferenceSummary> getConferenceSummary(final String conferenceUuid) {
+        try {
+            final var builder = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/v1/conferences/" + conferenceUuid))
+                    .timeout(Duration.ofSeconds(5));
+            if (internalApiKey != null && !internalApiKey.isEmpty()) {
+                builder.header("X-Internal-Auth", internalApiKey);
+            }
+            final HttpResponse<String> response = httpClient.send(builder.GET().build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) return Optional.empty();
+            final var node = dev.rafex.ether.json.JsonUtils.codec().readTree(response.body()).path("data");
+            return Optional.of(new ConferenceSummary(
+                    node.path("name").asText(null), node.path("eventTypeKey").asText(null),
+                    node.path("eventDate").asText(null), node.path("startTime").asText(null),
+                    node.path("endTime").asText(null), node.path("venue").asText(null)));
+        } catch (final Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
     public boolean hasSurveyManagementAccess(final String conferenceUuid, final String token) {
         try {
             final HttpRequest request = HttpRequest.newBuilder()

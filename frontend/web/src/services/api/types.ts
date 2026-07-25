@@ -493,4 +493,5 @@ export interface AiPromptVariable {
   key: string
   label: string
   example: string
+  autoIncludedIn: string
 }

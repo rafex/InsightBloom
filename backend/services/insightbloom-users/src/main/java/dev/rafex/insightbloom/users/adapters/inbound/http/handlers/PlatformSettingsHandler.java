@@ -192,7 +192,8 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 return true;
             }
             sendOk(jx, Map.of("variables", AiPromptCatalog.variables().stream()
-                    .map(item -> Map.of("key", item.key(), "label", item.label(), "example", item.example()))
+                    .map(item -> Map.of("key", item.key(), "label", item.label(), "example", item.example(),
+                            "autoIncludedIn", item.autoIncludedIn()))
                     .toList()));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());

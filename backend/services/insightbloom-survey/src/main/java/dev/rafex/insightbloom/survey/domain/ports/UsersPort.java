@@ -6,6 +6,9 @@ import java.util.Optional;
 public interface UsersPort {
     record ValidationResult(boolean valid, String subjectUuid, String kind, String role) {}
     record AttendeeSummary(String uuid, String displayName, String email, String joinedAt) {}
+    /** Metadatos no sensibles del evento, para dar contexto a los prompts de IA. */
+    record ConferenceSummary(String name, String eventTypeKey, String eventDate,
+                             String startTime, String endTime, String venue) {}
 
     ValidationResult validate(String token);
 
@@ -23,4 +26,7 @@ public interface UsersPort {
     boolean hasSurveyManagementAccess(String conferenceUuid, String token);
 
     List<AttendeeSummary> listConferenceAttendees(String conferenceUuid, String token);
+
+    /** Metadatos del evento para dar contexto a los prompts de IA (nombre, tipo, fecha, lugar). */
+    Optional<ConferenceSummary> getConferenceSummary(String conferenceUuid);
 }

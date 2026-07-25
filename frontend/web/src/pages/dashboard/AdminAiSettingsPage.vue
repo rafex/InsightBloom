@@ -53,11 +53,13 @@
         button.variables-toggle(type="button" @click="showVariables = !showVariables")
           | {{ showVariables ? 'Ocultar' : 'Ver' }} variables de contexto disponibles
         .variables-list(v-if="showVariables")
-          p.field-hint Estas variables no se sustituyen automáticamente en este texto; describen qué contexto real recibe el modelo (según el flujo) para que redactes el prompt con eso en mente. No se incluyen datos sensibles como el correo del asistente.
+          p.field-hint No se escriben como texto literal en el prompt: cuando dicen "ya incluida en...", ese dato ya viaja automáticamente al modelo en esa capacidad, sin que tengas que hacer nada. Sirven como referencia de qué contexto real está disponible. No se incluyen datos sensibles como el correo del asistente.
           ul
             li(v-for="v in promptVariables" :key="v.key")
               code {{ variableToken(v.key) }}
               span.var-label {{ v.label }}
+              span.var-scope(v-if="v.autoIncludedIn") ya incluida en: {{ v.autoIncludedIn }}
+              span.var-scope.var-scope-pending(v-else) aún no conectada a ningún prompt
 
       .form-group
         label(for="ai-temperature") Temperatura ({{ activeProvider.temperature.toFixed(2) }})
@@ -236,6 +238,9 @@ h2 { color: #1e1b4b; margin-bottom: 6px; }
 .variables-list li { display: flex; align-items: center; gap: 8px; font-size: .82rem; }
 .variables-list code { background: #eef2ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: .78rem; }
 .variables-list .var-label { color: #6b7280; }
+.variables-list li { flex-wrap: wrap; }
+.variables-list .var-scope { font-size: .72rem; color: #166534; background: #dcfce7; padding: 1px 8px; border-radius: 8px; }
+.variables-list .var-scope-pending { color: #92400e; background: #fef3c7; }
 .btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 .success { color: #166534; font-size: .85rem; margin-top: 10px; }
