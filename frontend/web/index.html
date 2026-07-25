@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- AUD-02: algunas paginas (stream SSE de diagramas, iframes de Etherpad/IDE) todavia
          llevan ib_token en la URL porque EventSource/iframe no permiten header Authorization.
-         no-referrer evita que ese token se filtre via el header Referer a un enlace saliente. -->
-    <meta name="referrer" content="no-referrer" />
+         strict-origin-when-cross-origin manda solo el origen (sin path/query, o sea sin el
+         token) a sitios externos, y la URL completa solo same-origin -- no-referrer puro
+         rompia integraciones de terceros que exigen Referer (ej. tiles de OpenStreetMap
+         devolvian 403 "Access blocked"). -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>InsightBloom</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>

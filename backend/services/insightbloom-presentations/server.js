@@ -1141,6 +1141,10 @@ app.get('/api/v1/conferences/:id/presentation/slides', async (req, res) => {
   const file = presentationIndexFile(req.params.id);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   setPresentationAccessCookie(req, res, req.params.id);
+  // index.html referencia assets con hash de contenido (md-XXXX.js); si el navegador la
+  // cachea y luego se sube una presentacion nueva, esos hashes ya no existen en disco y
+  // el import() dinamico de Slidev falla con TypeError. Debe revalidarse siempre.
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
   res.sendFile(file);
 });
 
@@ -1151,6 +1155,7 @@ app.get('/api/v1/conferences/:id/presentation/presenter', async (req, res) => {
   const file = presentationIndexFile(req.params.id, manifest);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   setPresentationAccessCookie(req, res, req.params.id);
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
   res.sendFile(file);
 });
 
