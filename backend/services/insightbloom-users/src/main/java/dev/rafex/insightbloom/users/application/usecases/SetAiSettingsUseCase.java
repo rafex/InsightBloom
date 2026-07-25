@@ -28,13 +28,15 @@ public class SetAiSettingsUseCase {
         else if (!hadExplicitConfiguration) target.setApiKey(null);
         target.setSystemPrompt(update.systemPrompt() == null || update.systemPrompt().isBlank()
                 ? null : update.systemPrompt().trim());
+        target.setGuardrails(update.guardrails() == null || update.guardrails().isBlank()
+                ? null : update.guardrails().trim());
         target.setTemperature(update.temperature());
         repository.save(settings);
         return settings;
     }
 
     public record ProviderUpdate(boolean enabled, String baseUrl, String model, String apiKey,
-                                 boolean clearApiKey, String systemPrompt, Double temperature) { }
+                                 boolean clearApiKey, String systemPrompt, String guardrails, Double temperature) { }
 
     private static void validate(final ProviderUpdate update) {
         if (update == null) throw new IllegalArgumentException("ai_provider_required");

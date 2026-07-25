@@ -48,6 +48,21 @@
         p.field-hint El prompt específico de la operación se añade encima de este prompt base cuando corresponde.
 
       .form-group
+        label(for="ai-guardrails") Guardarails
+        textarea#ai-guardrails.prompt-input(v-model="activeProvider.guardrails" rows="7" placeholder="Reglas de seguridad: qué nunca debe hacer, decir o revelar este flujo de IA.")
+        p.field-hint Reglas de seguridad que se añaden después del prompt base y antes del prompt de la operación (que ya trae sus propias reglas fijas). Útil para restricciones específicas de tu plataforma: temas prohibidos, tono obligatorio, qué nunca confirmar o negar.
+
+      .form-group.variables-group
+        button.variables-toggle(type="button" @click="showVariables = !showVariables")
+          | {{ showVariables ? 'Ocultar' : 'Ver' }} variables de contexto disponibles
+        .variables-list(v-if="showVariables")
+          p.field-hint Estas variables no se sustituyen automáticamente en este texto; describen qué contexto real recibe el modelo (según el flujo) para que redactes el prompt con eso en mente. No se incluyen datos sensibles como el correo del asistente.
+          ul
+            li(v-for="v in promptVariables" :key="v.key")
+              code {{ variableToken(v.key) }}
+              span.var-label {{ v.label }}
+
+      .form-group
         label(for="ai-temperature") Temperatura ({{ activeProvider.temperature.toFixed(2) }})
         input#ai-temperature.temperature-slider(type="range" v-model.number="activeProvider.temperature" min="0" max="2" step="0.01")
 
@@ -86,15 +101,16 @@
 <script lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getAiSettings, setAiProviderSettings } from '@/services/api/usersApi'
+import { getAiSettings, setAiProviderSettings, getAiPromptCatalog } from '@/services/api/usersApi'
 import { getAiMentorConfig, setAiMentorConfig } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
-import type { AiProviderSettings, AiSettings } from '@/services/api/types'
+import type { AiProviderSettings, AiSettings, AiPromptVariable } from '@/services/api/types'
 
 type Capability = 'chat' | 'tutor' | 'survey' | 'seat-layout'
 
-interface ProviderForm extends Omit<AiProviderSettings, 'systemPrompt'> {
+interface ProviderForm extends Omit<AiProviderSettings, 'systemPrompt' | 'guardrails'> {
   systemPrompt: string
+  guardrails: string
   apiKey: string
   clearApiKey: boolean
 }
@@ -113,7 +129,7 @@ const tabs: Array<{ id: Capability, icon: string, label: string, summary: string
 function emptyProvider(): ProviderForm {
   return {
     configured: false, enabled: false, baseUrl: DEFAULT_BASE_URL, model: DEFAULT_MODEL,
-    systemPrompt: '', temperature: DEFAULT_TEMPERATURE, apiKeyConfigured: false,
+    systemPrompt: '', guardrails: '', temperature: DEFAULT_TEMPERATURE, apiKeyConfigured: false,
     apiKeyHint: null, apiKey: '', clearApiKey: false
   }
 }
@@ -144,6 +160,11 @@ export default {
     const providers = reactive<Record<Capability, ProviderForm>>({
       chat: emptyProvider(), tutor: emptyProvider(), survey: emptyProvider(), 'seat-layout': emptyProvider()
     })
+    const showVariables = ref(false)
+    const promptVariables = ref<AiPromptVariable[]>([])
+    function variableToken(key: string): string {
+      return '{{' + key + '}}'
+    }
     const activeTab = computed(() => tabs.find(tab => tab.id === activeCapability.value) || tabs[0])
     const activeProvider = computed(() => providers[activeCapability.value])
 
@@ -183,14 +204,17 @@ export default {
 
     function mapProvider(value: AiProviderSettings | undefined): ProviderForm {
       const source = value || emptyProvider()
-  return { ...source, systemPrompt: source.systemPrompt || '', apiKey: '', clearApiKey: false, temperature: source.temperature ?? DEFAULT_TEMPERATURE }
+      return {
+        ...source, systemPrompt: source.systemPrompt || '', guardrails: source.guardrails || '',
+        apiKey: '', clearApiKey: false, temperature: source.temperature ?? DEFAULT_TEMPERATURE
+      }
     }
 
     function applySettings(settings: AiSettings) {
       const incoming = settings.providers || {} as AiSettings['providers']
       Object.assign(providers.chat, mapProvider(incoming.chat || {
         configured: true, enabled: settings.chatAiEnabled, baseUrl: settings.aiBaseUrl,
-        model: settings.aiModel, systemPrompt: settings.chatSystemPrompt,
+        model: settings.aiModel, systemPrompt: settings.chatSystemPrompt, guardrails: settings.chatGuardrails,
         temperature: settings.chatTemperature, apiKeyConfigured: settings.aiApiKeyConfigured,
         apiKeyHint: settings.aiApiKeyHint
       }))
@@ -208,6 +232,9 @@ export default {
         loading.value = false
       }
       await loadMentor()
+      try {
+        promptVariables.value = await getAiPromptCatalog(auth.state.token as string)
+      } catch { /* referencia opcional; no bloquea la pantalla si falla */ }
     })
 
     watch(eventConferenceId, () => { void loadMentor() })
@@ -219,7 +246,7 @@ export default {
         applySettings(await setAiProviderSettings(
           activeCapability.value, provider.enabled, provider.baseUrl, provider.model,
           provider.apiKey.trim() || null, provider.clearApiKey,
-          provider.systemPrompt.trim() || null, provider.temperature,
+          provider.systemPrompt.trim() || null, provider.guardrails.trim() || null, provider.temperature,
           auth.state.token as string
         ))
         saved.value = true
@@ -257,7 +284,7 @@ export default {
 
     return { tabs, activeCapability, activeTab, activeProvider, eventConferenceId, loading, saving, saved, error, save, selectCapability,
       mentorEnabled, mentorObjective, mentorPrompt, mentorIncludePresentation, mentorMaxRequests,
-      savingMentor, mentorSaved, mentorError, saveMentor }
+      savingMentor, mentorSaved, mentorError, saveMentor, showVariables, promptVariables, variableToken }
   }
 }
 </script>
@@ -288,6 +315,12 @@ h2 { color: #1e1b4b; margin-bottom: 6px; }
 .prompt-input:focus, .form-group input:focus { outline: none; border-color: #4f46e5; }
 .clear-key { display: flex; gap: 8px; align-items: center; font-size: .85rem; color: #991b1b; font-weight: 400 !important; margin-top: 4px; }
 .temperature-slider { width: 100%; margin-top: 4px; }
+.variables-toggle { align-self: flex-start; background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 6px 12px; font-size: .82rem; color: #4f46e5; cursor: pointer; }
+.variables-list { margin-top: 10px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; }
+.variables-list ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.variables-list li { display: flex; align-items: center; gap: 8px; font-size: .82rem; }
+.variables-list code { background: #eef2ff; color: #3730a3; padding: 2px 6px; border-radius: 4px; font-size: .78rem; }
+.variables-list .var-label { color: #6b7280; }
 .btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 .success { color: #166534; font-size: .85rem; margin-top: 10px; }

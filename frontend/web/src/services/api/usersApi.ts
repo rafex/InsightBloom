@@ -5,7 +5,7 @@ import type {
   SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
   CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
-  ChatSettings, AiSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
+  ChatSettings, AiSettings, AiPromptVariable, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
@@ -872,13 +872,19 @@ export async function setAiSettings(
 export async function setAiProviderSettings(
   capability: 'chat' | 'tutor' | 'survey' | 'seat-layout',
   enabled: boolean, baseUrl: string, model: string, apiKey: string | null,
-  clearApiKey: boolean, systemPrompt: string | null, temperature: number | null,
+  clearApiKey: boolean, systemPrompt: string | null, guardrails: string | null, temperature: number | null,
   token: string
 ): Promise<AiSettings> {
   const res = await axios.put(`/api/users/api/v1/settings/ai/${capability}`, {
-    enabled, baseUrl, model, apiKey, clearApiKey, systemPrompt, temperature
+    enabled, baseUrl, model, apiKey, clearApiKey, systemPrompt, guardrails, temperature
   }, authHeader(token))
   return res.data.data
+}
+
+/** Referencia de variables disponibles para redactar prompts (ver AiPromptCatalog en el backend). */
+export async function getAiPromptCatalog(token: string): Promise<AiPromptVariable[]> {
+  const res = await axios.get('/api/users/api/v1/settings/ai/catalog', authHeader(token))
+  return res.data.data.variables
 }
 
 export async function setChatAiSetting(chatAiEnabled: boolean, token: string): Promise<boolean> {

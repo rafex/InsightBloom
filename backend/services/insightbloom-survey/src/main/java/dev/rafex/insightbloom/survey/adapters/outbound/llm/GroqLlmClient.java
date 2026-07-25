@@ -43,7 +43,8 @@ public class GroqLlmClient implements LlmPort {
         final Map<String, Object> body = Map.of(
                 "model", settings.model,
                 "messages", List.of(
-                        Map.of("role", "system", "content", combinePrompts(settings.systemPrompt, systemPrompt)),
+                        Map.of("role", "system", "content",
+                                combinePrompts(settings.systemPrompt, settings.guardrails, systemPrompt)),
                         Map.of("role", "user", "content", userPrompt)),
                 "temperature", settings.temperature == null ? 0.3 : settings.temperature);
 
@@ -86,20 +87,34 @@ public class GroqLlmClient implements LlmPort {
                     provider.path("enabled").asBoolean(false),
                     provider.path("baseUrl").asText(""), provider.path("model").asText(""),
                     provider.path("apiKey").asText(null), provider.path("systemPrompt").asText(null),
+                    provider.path("guardrails").asText(null),
                     provider.path("temperature").isNumber() ? provider.path("temperature").asDouble() : null);
             cachedSettings = new CachedSettings(now, settings);
             return settings;
         } catch (final Exception e) {
-            return new ProviderSettings(false, "", "", null, null, null);
+            return new ProviderSettings(false, "", "", null, null, null, null);
         }
     }
 
-    private static String combinePrompts(final String basePrompt, final String operationPrompt) {
-        if (basePrompt == null || basePrompt.isBlank()) return operationPrompt;
-        return basePrompt + "\n\n" + operationPrompt;
+    /**
+     * Orden: prompt base (identidad/tono del admin) -> guardarails (reglas de seguridad del
+     * admin) -> prompt propio de la operacion (siempre al final, con las reglas anti-jailbreak
+     * ya hardcodeadas por caso de uso, ej. MentorChatUseCase.SYSTEM_PROMPT).
+     */
+    private static String combinePrompts(final String basePrompt, final String guardrails,
+                                         final String operationPrompt) {
+        final StringBuilder result = new StringBuilder();
+        if (basePrompt != null && !basePrompt.isBlank()) result.append(basePrompt);
+        if (guardrails != null && !guardrails.isBlank()) {
+            if (result.length() > 0) result.append("\n\n");
+            result.append(guardrails);
+        }
+        if (result.length() > 0) result.append("\n\n");
+        result.append(operationPrompt);
+        return result.toString();
     }
 
     private record CachedSettings(long loadedAt, ProviderSettings settings) { }
     private record ProviderSettings(boolean enabled, String baseUrl, String model, String apiKey,
-                                    String systemPrompt, Double temperature) { }
+                                    String systemPrompt, String guardrails, Double temperature) { }
 }

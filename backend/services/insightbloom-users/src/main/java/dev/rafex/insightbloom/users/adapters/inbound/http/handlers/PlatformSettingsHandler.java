@@ -18,6 +18,7 @@ import dev.rafex.insightbloom.users.domain.model.DeviceFingerprintFlag;
 import dev.rafex.insightbloom.users.domain.model.PlatformDeviceBlock;
 import dev.rafex.insightbloom.users.domain.model.PlatformSettings;
 import dev.rafex.insightbloom.users.domain.model.AiProviderSettings;
+import dev.rafex.insightbloom.users.domain.services.AiPromptCatalog;
 
 import java.util.List;
 import java.util.Map;
@@ -77,6 +78,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 Route.of("/chat-ai", Set.of("GET", "PUT")),
                 Route.of("/chat-ai/public", Set.of("GET")),
                 Route.of("/ai", Set.of("GET", "PUT")),
+                Route.of("/ai/catalog", Set.of("GET")),
                 Route.of("/ai/{capability}", Set.of("PUT")),
                 Route.of("/ai/internal", Set.of("GET")),
                 Route.of("/device-access", Set.of("GET", "PUT")),
@@ -103,6 +105,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             return true;
         }
         final String path = jx.path();
+        if (path.endsWith("/ai/catalog")) return handleAiCatalog(jx);
         if (path.endsWith("/chat-ai/public")) {
             try {
                 sendOk(jx, Map.of("chatAiEnabled", getChatAiSettingUseCase.execute().isChatAiEnabled()));
@@ -145,13 +148,15 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             if (jx.path().endsWith("/ai")) {
                 sendOk(jx, toView(setAiSettingsUseCase.execute("chat", providerUpdate(body, "chatAiEnabled",
-                        "aiBaseUrl", "aiModel", "aiApiKey", "clearApiKey", "chatSystemPrompt", "chatTemperature"))));
+                        "aiBaseUrl", "aiModel", "aiApiKey", "clearApiKey", "chatSystemPrompt", "chatGuardrails",
+                        "chatTemperature"))));
                 return true;
             }
             if (jx.path().contains("/ai/")) {
                 final String capability = jx.path().substring(jx.path().lastIndexOf("/ai/") + 4);
                 sendOk(jx, toView(setAiSettingsUseCase.execute(capability, providerUpdate(body,
-                        "enabled", "baseUrl", "model", "apiKey", "clearApiKey", "systemPrompt", "temperature"))));
+                        "enabled", "baseUrl", "model", "apiKey", "clearApiKey", "systemPrompt", "guardrails",
+                        "temperature"))));
                 return true;
             }
             final boolean chatAiEnabled = !Boolean.FALSE.equals(body.get("chatAiEnabled"));
@@ -174,6 +179,24 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/unblock")) return handleUnblockDevice(jx, jx.pathParam("blockId"));
         if (jx.path().endsWith("/review")) return handleReviewDeviceFingerprintFlag(jx, jx.pathParam("flagId"));
         sendError(jx, 404, "not_found", "Endpoint not found");
+        return true;
+    }
+
+    private boolean handleAiCatalog(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
+                sendError(jx, 403, "forbidden", "Only admins can view the AI prompt catalog");
+                return true;
+            }
+            sendOk(jx, Map.of("variables", AiPromptCatalog.variables().stream()
+                    .map(item -> Map.of("key", item.key(), "label", item.label(), "example", item.example()))
+                    .toList()));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
         return true;
     }
 
@@ -295,6 +318,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         // Campos legacy para clientes antiguos; el dashboard nuevo usa providers.
         view.put("chatAiEnabled", s.getChatAi().isEnabled());
         view.put("chatSystemPrompt", s.getChatAi().getSystemPrompt());
+        view.put("chatGuardrails", s.getChatAi().getGuardrails());
         view.put("chatTemperature", s.getChatAi().getTemperature());
         view.put("aiBaseUrl", s.getChatAi().getBaseUrl());
         view.put("aiModel", s.getChatAi().getModel());
@@ -320,15 +344,17 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                                                                         final String apiKeyKey,
                                                                         final String clearKey,
                                                                         final String promptKey,
+                                                                        final String guardrailsKey,
                                                                         final String temperatureKey) {
         final boolean enabled = !Boolean.FALSE.equals(body.get(enabledKey));
         final String baseUrl = body.get(baseUrlKey) instanceof String value ? value : null;
         final String model = body.get(modelKey) instanceof String value ? value : null;
         final String apiKey = body.get(apiKeyKey) instanceof String value ? value : null;
         final String prompt = body.get(promptKey) instanceof String value ? value : null;
+        final String guardrails = body.get(guardrailsKey) instanceof String value ? value : null;
         final Double temperature = body.get(temperatureKey) instanceof Number n ? n.doubleValue() : null;
         return new SetAiSettingsUseCase.ProviderUpdate(enabled, baseUrl, model, apiKey,
-                Boolean.TRUE.equals(body.get(clearKey)), prompt, temperature);
+                Boolean.TRUE.equals(body.get(clearKey)), prompt, guardrails, temperature);
     }
 
     private static Map<String, Object> providerView(final AiProviderSettings p) {
@@ -338,6 +364,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         view.put("baseUrl", p.getBaseUrl());
         view.put("model", p.getModel());
         view.put("systemPrompt", p.getSystemPrompt());
+        view.put("guardrails", p.getGuardrails());
         view.put("temperature", p.getTemperature());
         // An unconfigured profile may temporarily inherit the chat provider internally,
         // but that fallback must not look like an explicitly configured credential in

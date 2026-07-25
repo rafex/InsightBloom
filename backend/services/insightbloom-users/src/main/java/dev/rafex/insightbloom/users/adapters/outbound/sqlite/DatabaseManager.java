@@ -526,6 +526,10 @@ public class DatabaseManager {
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "ai_base_url", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "ai_model", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "ai_api_key_ciphertext", "TEXT");
+            // Guardarails: capa de reglas de seguridad editable por el admin (anti-jailbreak, no
+            // revelar el prompt/claves, no salirse del tema) que se concatena al prompt base y al
+            // prompt propio de cada operacion antes de mandarlo al LLM. Ver GroqLlmClient.
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "chat_guardrails", "TEXT");
             for (final String capability : new String[] {"tutor", "survey", "seat_layout"}) {
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_configured", "INTEGER NOT NULL DEFAULT 0");
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_enabled", "INTEGER NOT NULL DEFAULT 0");
@@ -533,6 +537,7 @@ public class DatabaseManager {
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_model", "TEXT");
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_api_key_ciphertext", "TEXT");
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_system_prompt", "TEXT");
+                ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_guardrails", "TEXT");
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_temperature", "REAL");
             }
             // Umbrales de PlatformDeviceGuard (2026-07): nullable, defaults efectivos en el guard

@@ -13,29 +13,31 @@ public class AiProviderSettings {
     private String model;
     private String apiKey;
     private String systemPrompt;
+    private String guardrails;
     private Double temperature;
 
     public AiProviderSettings() { }
 
     public AiProviderSettings(final boolean configured, final boolean enabled, final String baseUrl,
                               final String model, final String apiKey, final String systemPrompt,
-                              final Double temperature) {
+                              final String guardrails, final Double temperature) {
         this.configured = configured;
         this.enabled = enabled;
         this.baseUrl = baseUrl;
         this.model = model;
         this.apiKey = apiKey;
         this.systemPrompt = systemPrompt;
+        this.guardrails = guardrails;
         this.temperature = temperature;
     }
 
     public static AiProviderSettings defaults(final boolean configured) {
         return new AiProviderSettings(configured, false,
-                "https://api.groq.com/openai/v1", "openai/gpt-oss-120b", null, null, null);
+                "https://api.groq.com/openai/v1", "openai/gpt-oss-120b", null, null, null, null);
     }
 
     public AiProviderSettings copy() {
-        return new AiProviderSettings(configured, enabled, baseUrl, model, apiKey, systemPrompt, temperature);
+        return new AiProviderSettings(configured, enabled, baseUrl, model, apiKey, systemPrompt, guardrails, temperature);
     }
 
     public boolean isConfigured() { return configured; }
@@ -50,6 +52,8 @@ public class AiProviderSettings {
     public void setApiKey(final String apiKey) { this.apiKey = apiKey; }
     public String getSystemPrompt() { return systemPrompt; }
     public void setSystemPrompt(final String systemPrompt) { this.systemPrompt = systemPrompt; }
+    public String getGuardrails() { return guardrails; }
+    public void setGuardrails(final String guardrails) { this.guardrails = guardrails; }
     public Double getTemperature() { return temperature; }
     public void setTemperature(final Double temperature) { this.temperature = temperature; }
 }

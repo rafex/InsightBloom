@@ -41,7 +41,8 @@ public class GroqLlmClient implements LlmPort {
         final Map<String, Object> body = Map.of(
                 "model", provider.getModel(),
                 "messages", List.of(
-                        Map.of("role", "system", "content", combinePrompts(provider.getSystemPrompt(), systemPrompt)),
+                        Map.of("role", "system", "content",
+                                combinePrompts(provider.getSystemPrompt(), provider.getGuardrails(), systemPrompt)),
                         Map.of("role", "user", "content", userPrompt)),
                 "temperature", provider.getTemperature() == null ? 0.3 : provider.getTemperature());
 
@@ -65,8 +66,22 @@ public class GroqLlmClient implements LlmPort {
         }
     }
 
-    private static String combinePrompts(final String basePrompt, final String operationPrompt) {
-        if (basePrompt == null || basePrompt.isBlank()) return operationPrompt;
-        return basePrompt + "\n\n" + operationPrompt;
+    /**
+     * Orden: prompt base (identidad/tono del admin) -> guardarails (reglas de seguridad del
+     * admin, deben poder anular tono pero no romper las reglas fijas del operationPrompt) ->
+     * prompt propio de la operacion (siempre al final, mas cerca del mensaje del usuario, con
+     * las reglas anti-jailbreak ya hardcodeadas por caso de uso).
+     */
+    private static String combinePrompts(final String basePrompt, final String guardrails,
+                                         final String operationPrompt) {
+        final StringBuilder result = new StringBuilder();
+        if (basePrompt != null && !basePrompt.isBlank()) result.append(basePrompt);
+        if (guardrails != null && !guardrails.isBlank()) {
+            if (result.length() > 0) result.append("\n\n");
+            result.append(guardrails);
+        }
+        if (result.length() > 0) result.append("\n\n");
+        result.append(operationPrompt);
+        return result.toString();
     }
 }

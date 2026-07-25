@@ -464,6 +464,7 @@ export interface AiProviderSettings {
   baseUrl: string
   model: string
   systemPrompt: string | null
+  guardrails: string | null
   temperature: number | null
   apiKeyConfigured: boolean
   apiKeyHint: string | null
@@ -478,6 +479,7 @@ export interface AiSettings {
   }
   chatAiEnabled: boolean
   chatSystemPrompt: string | null
+  chatGuardrails: string | null
   chatTemperature: number | null
   aiBaseUrl: string
   aiModel: string
@@ -486,3 +488,9 @@ export interface AiSettings {
 }
 
 export type ChatSettings = AiSettings
+
+export interface AiPromptVariable {
+  key: string
+  label: string
+  example: string
+}

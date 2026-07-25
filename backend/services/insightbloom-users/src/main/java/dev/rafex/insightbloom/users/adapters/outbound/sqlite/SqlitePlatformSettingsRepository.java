@@ -34,7 +34,7 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
                     defaultIfBlank(rs.getString("ai_base_url"), "https://api.groq.com/openai/v1"),
                     defaultIfBlank(rs.getString("ai_model"), "openai/gpt-oss-120b"),
                     aiApiKeyCipher.decrypt(rs.getString("ai_api_key_ciphertext")),
-                    rs.getString("chat_system_prompt"), null);
+                    rs.getString("chat_system_prompt"), rs.getString("chat_guardrails"), null);
             final double temperature = rs.getDouble("chat_temperature");
             chat.setTemperature(rs.wasNull() ? null : temperature);
             s.setChatAi(chat);
@@ -61,13 +61,14 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
     public void save(final PlatformSettings s) {
         final String sql = """
             INSERT INTO platform_settings
-                (id, chat_ai_enabled, chat_system_prompt, chat_temperature, ai_base_url, ai_model,
+                (id, chat_ai_enabled, chat_system_prompt, chat_guardrails, chat_temperature, ai_base_url, ai_model,
                  ai_api_key_ciphertext, updated_at, max_accounts_per_device, max_sessions_per_user,
                  max_registrations_per_device_per_day)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 chat_ai_enabled = excluded.chat_ai_enabled,
                 chat_system_prompt = excluded.chat_system_prompt,
+                chat_guardrails = excluded.chat_guardrails,
                 chat_temperature = excluded.chat_temperature,
                 ai_base_url = excluded.ai_base_url,
                 ai_model = excluded.ai_model,
@@ -80,18 +81,19 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, s.isChatAiEnabled() ? 1 : 0);
             ps.setString(2, s.getChatSystemPrompt());
-            if (s.getChatTemperature() != null) ps.setDouble(3, s.getChatTemperature());
-            else ps.setNull(3, Types.REAL);
-            ps.setString(4, s.getAiBaseUrl());
-            ps.setString(5, s.getAiModel());
-            ps.setString(6, aiApiKeyCipher.encrypt(s.getAiApiKey()));
-            ps.setString(7, Instant.now().toString());
-            if (s.getMaxAccountsPerDevice() != null) ps.setInt(8, s.getMaxAccountsPerDevice());
-            else ps.setNull(8, Types.INTEGER);
-            if (s.getMaxSessionsPerUser() != null) ps.setInt(9, s.getMaxSessionsPerUser());
+            ps.setString(3, s.getChatAi().getGuardrails());
+            if (s.getChatTemperature() != null) ps.setDouble(4, s.getChatTemperature());
+            else ps.setNull(4, Types.REAL);
+            ps.setString(5, s.getAiBaseUrl());
+            ps.setString(6, s.getAiModel());
+            ps.setString(7, aiApiKeyCipher.encrypt(s.getAiApiKey()));
+            ps.setString(8, Instant.now().toString());
+            if (s.getMaxAccountsPerDevice() != null) ps.setInt(9, s.getMaxAccountsPerDevice());
             else ps.setNull(9, Types.INTEGER);
-            if (s.getMaxRegistrationsPerDevicePerDay() != null) ps.setInt(10, s.getMaxRegistrationsPerDevicePerDay());
+            if (s.getMaxSessionsPerUser() != null) ps.setInt(10, s.getMaxSessionsPerUser());
             else ps.setNull(10, Types.INTEGER);
+            if (s.getMaxRegistrationsPerDevicePerDay() != null) ps.setInt(11, s.getMaxRegistrationsPerDevicePerDay());
+            else ps.setNull(11, Types.INTEGER);
             ps.executeUpdate();
             saveProvider(c, "tutor", s.getTutorAi());
             saveProvider(c, "survey", s.getSurveyAi());
@@ -116,6 +118,7 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
                 defaultIfBlank(rs.getString(capability + "_ai_model"), "openai/gpt-oss-120b"),
                 aiApiKeyCipher.decrypt(rs.getString(capability + "_ai_api_key_ciphertext")),
                 rs.getString(capability + "_ai_system_prompt"),
+                rs.getString(capability + "_ai_guardrails"),
                 rs.wasNull() ? null : temperature);
     }
 
@@ -128,6 +131,7 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
                 + capability + "_ai_model = ?, "
                 + capability + "_ai_api_key_ciphertext = ?, "
                 + capability + "_ai_system_prompt = ?, "
+                + capability + "_ai_guardrails = ?, "
                 + capability + "_ai_temperature = ? WHERE id = 1";
         try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, settings.isConfigured() ? 1 : 0);
@@ -136,8 +140,9 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             ps.setString(4, settings.getModel());
             ps.setString(5, aiApiKeyCipher.encrypt(settings.getApiKey()));
             ps.setString(6, settings.getSystemPrompt());
-            if (settings.getTemperature() != null) ps.setDouble(7, settings.getTemperature());
-            else ps.setNull(7, Types.REAL);
+            ps.setString(7, settings.getGuardrails());
+            if (settings.getTemperature() != null) ps.setDouble(8, settings.getTemperature());
+            else ps.setNull(8, Types.REAL);
             ps.executeUpdate();
         }
     }
