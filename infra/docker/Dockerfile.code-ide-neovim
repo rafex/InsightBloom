@@ -159,6 +159,7 @@ RUN mkdir -p /opt/insightbloom/node-global && chown -R coder:coder /opt/insightb
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
+    uv \
     virtualenv \
     jupyter \
     numpy \
@@ -172,6 +173,18 @@ RUN pip install --no-cache-dir --upgrade pip && \
     black \
     pylint \
     debugpy
+
+# Posting (https://posting.sh/) es el cliente REST de terminal para el IDE CLI. Se instala
+# mediante uv en un entorno aislado fuera de /home: el home/workspace se monta como emptyDir
+# por asiento y no debe ocultar herramientas precargadas de la imagen. El binario queda global
+# para coder, studentN y el agente, y las peticiones siguen sujetas a la NetworkPolicy/proxy
+# de egress del sandbox.
+ENV UV_TOOL_DIR=/opt/insightbloom/uv-tools
+ENV UV_TOOL_BIN_DIR=/usr/local/bin
+RUN mkdir -p "$UV_TOOL_DIR" && \
+    UV_CACHE_DIR=/tmp/insightbloom-uv-cache uv tool install --python /usr/local/bin/python3 'posting==2.10.0' && \
+    rm -rf /tmp/insightbloom-uv-cache && \
+    test -x /usr/local/bin/posting
 
 USER coder
 WORKDIR /home/coder
@@ -222,6 +235,7 @@ COPY infra/docker/insightbloom-mentor.py /usr/local/bin/insightbloom-mentor.py
 COPY infra/docker/insightbloom /usr/local/bin/insightbloom
 COPY infra/docker/IDE-WEB-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-WEB-PUBLICATION.md
 COPY infra/docker/IDE-AI-MENTOR.md /usr/local/share/doc/insightbloom/IDE-AI-MENTOR.md
+COPY infra/docker/IDE-REST-CLIENT.md /usr/local/share/doc/insightbloom/IDE-REST-CLIENT.md
 COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
 RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \

@@ -1066,6 +1066,11 @@ Registrar una decision cuando cambie:
   lectura necesaria para moderación, pero cada proceso `studentN` pierde sus grupos suplementarios
   antes de arrancar `ttyd` y no puede acceder a los homes vecinos. El agente deja `/home` en `0755`
   para resolver la ruta del asiento, nunca en modo escribible para alumnos.
+  **Egress uniforme (2026-07-24)**: `HTTP_PROXY`/`HTTPS_PROXY` se inyectan siempre al crear un
+  sandbox Web o CLI. El checkbox no controla la presencia de esas variables, sino la
+  `NetworkPolicy` por evento que permite o bloquea el acceso al proxy interno. Así, activar o
+  desactivar la salida no requiere recrear Pods existentes y ambos modos reciben exactamente la
+  misma allowlist/blacklist de GitOps.
   `KubernetesPodClient.provisionSeat` llama al agente via HTTP interno con reintentos
   (~10s, cubre la carrera de que el Pod recien se esta agendando). Puerto de control
   (`basePort - 1`) alcanzable solo desde `insightbloom-users` (segunda regla de Ingress

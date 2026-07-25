@@ -178,7 +178,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             ensureIncidentReportEgressPolicy();
         }
         final String podJson = jsonCodec.toJson(
-                buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl, internetEnabled,
+                buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl,
                         jvmHeapMb, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
         final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
@@ -527,7 +527,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
 
     private Map<String, Object> buildPodBody(final String podName, final String conferenceUuid, final String variant,
                                               final String extraPackages, final String remoteGitUrl,
-                                              final boolean internetEnabled, final Integer jvmHeapMb,
+                                              final Integer jvmHeapMb,
                                               final int effectiveSeats) {
         final Map<String, Object> labels = Map.of(
                 "app.kubernetes.io/part-of", "insightbloom",
@@ -560,18 +560,20 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         if (remoteGitUrl != null && !remoteGitUrl.isBlank()) {
             runtimeEnv.add(Map.of("name", "REMOTE_GIT_URL", "value", remoteGitUrl));
         }
-        if (internetEnabled) {
-            final String proxyUrl = "http://" + egressProxyHost + ":" + egressProxyPort;
-            final String noProxy = "localhost,127.0.0.1,.svc,.svc.cluster.local," + gatewayNamespace;
-            // Uppercase y lowercase: git/curl usan uppercase; algunas herramientas de
-            // Node/Python solo consultan la variante lowercase.
-            runtimeEnv.add(Map.of("name", "HTTP_PROXY", "value", proxyUrl));
-            runtimeEnv.add(Map.of("name", "HTTPS_PROXY", "value", proxyUrl));
-            runtimeEnv.add(Map.of("name", "http_proxy", "value", proxyUrl));
-            runtimeEnv.add(Map.of("name", "https_proxy", "value", proxyUrl));
-            runtimeEnv.add(Map.of("name", "NO_PROXY", "value", noProxy));
-            runtimeEnv.add(Map.of("name", "no_proxy", "value", noProxy));
-        }
+        // El proxy se declara siempre en ambos modos. La NetworkPolicy es la compuerta real:
+        // con internetEnabled=false el Pod no puede alcanzar este Service; al habilitarlo,
+        // los Pods existentes empiezan a usar la allowlist sin recrearse ni perder el workspace.
+        // Esto evita que Web y CLI dependan de cuándo fueron creados.
+        final String proxyUrl = "http://" + egressProxyHost + ":" + egressProxyPort;
+        final String noProxy = "localhost,127.0.0.1,.svc,.svc.cluster.local," + gatewayNamespace;
+        // Uppercase y lowercase: git/curl usan uppercase; algunas herramientas de
+        // Node/Python solo consultan la variante lowercase.
+        runtimeEnv.add(Map.of("name", "HTTP_PROXY", "value", proxyUrl));
+        runtimeEnv.add(Map.of("name", "HTTPS_PROXY", "value", proxyUrl));
+        runtimeEnv.add(Map.of("name", "http_proxy", "value", proxyUrl));
+        runtimeEnv.add(Map.of("name", "https_proxy", "value", proxyUrl));
+        runtimeEnv.add(Map.of("name", "NO_PROXY", "value", noProxy));
+        runtimeEnv.add(Map.of("name", "no_proxy", "value", noProxy));
         // JDK_JAVA_OPTIONS (JEP 328, JDK 9+): lo lee CUALQUIER invocacion del launcher java/javac
         // dentro del contenedor -- jdt.ls (Language Server de Java), un "java MiClase" que corra
         // el alumno desde la terminal, o la JVM que forkea Maven -- sin tocar 3 configuraciones

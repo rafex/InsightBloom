@@ -204,7 +204,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Extensiones de code-server: Java (redhat.java + debug/test/dependency/maven, separadas
 # porque "vscjava.extension-pack-for-java" no esta en open-vsx.org), Python (ms-python.python +
 # ms-pyright.pyright en vez de Pylance, tampoco en open-vsx), Web (prettier/eslint/volar/
-# react/tailwind/html-css), idioma espanol (ms-ceintl.vscode-language-pack-es), y opencode.
+# react/tailwind/html-css), cliente REST ligero (humao.rest-client,
+# https://marketplace.visualstudio.com/items?itemName=humao.rest-client), idioma espanol
+# (ms-ceintl.vscode-language-pack-es), y opencode.
 #
 # Versiones fijadas explicitamente (excepto el language pack, ver nota abajo) -- auditoria de
 # seguridad 2026-07-17: un publisher comprometido no puede inyectar codigo en el proximo build
@@ -230,6 +232,7 @@ RUN for ext in \
       dsznajder.es7-react-js-snippets@4.4.3 \
       bradlc.vscode-tailwindcss@0.14.28 \
       ecmel.vscode-html-css@2.0.14 \
+      humao.rest-client@0.25.0 \
       ms-ceintl.vscode-language-pack-es \
       sst-dev.opencode@0.0.13; do \
         code-server --install-extension "$ext" || echo "WARN: extension $ext skipped"; \
@@ -262,6 +265,7 @@ COPY infra/docker/insightbloom-mentor.py /usr/local/bin/insightbloom-mentor.py
 COPY infra/docker/insightbloom /usr/local/bin/insightbloom
 COPY infra/docker/IDE-WEB-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-WEB-PUBLICATION.md
 COPY infra/docker/IDE-AI-MENTOR.md /usr/local/share/doc/insightbloom/IDE-AI-MENTOR.md
+COPY infra/docker/IDE-REST-CLIENT.md /usr/local/share/doc/insightbloom/IDE-REST-CLIENT.md
 COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
 RUN chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py \
     /usr/local/bin/insightbloom /usr/local/bin/seed-ide-docs.sh

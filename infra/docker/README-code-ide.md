@@ -41,7 +41,8 @@ Todas las descargas se verifican con `sha256sum -c` contra un hash fijado en el 
 Ademas del toolchain de lenguajes, ambas imagenes incluyen: `git`, `fzf`, `bash-completion`,
 `bat`/`eza`/`fd`/`ripgrep`/`ncdu` (mejoras de cat/ls/find/grep/du), `jq`, `tmux`, `tree`,
 `httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `nano`, `less`+`man`, y
-`opencode` (CLI de agente de codigo IA). Paquetes globales de Python (`jupyter`, `numpy`,
+`opencode` (CLI de agente de codigo IA). El CLI tambien incluye `posting` 2.10.0 para probar REST
+desde terminal. Paquetes globales de Python (`jupyter`, `numpy`,
 `pandas`, `matplotlib`, `flask`, `django`, `fastapi`, `pytest`, `black`, `pylint`, `debugpy`) y
 de Node (`typescript`, `typescript-language-server`, `eslint`, `prettier`, `@types/node`, `vite`, `webpack`, `@vue/cli`, `create-react-app`)
 tambien pre-instalados — nada requiere setup manual del instructor/alumno.
@@ -141,8 +142,31 @@ docker build -f infra/docker/Dockerfile.code-ide-neovim -t insightbloom-code-ide
 Java+Maven (`redhat.java` + `vscjava.*`, separadas porque el pack `vscjava.extension-pack-for-
 java` no esta en open-vsx.org), Python (`ms-python.python` + `ms-pyright.pyright` en vez de
 Pylance, tampoco en open-vsx), el pack web (Prettier/ESLint/Volar/React/Tailwind/HTML-CSS),
-paquete de idioma español (`ms-ceintl.vscode-language-pack-es`) y `sst-dev.opencode`. Todas
+[`humao.rest-client`](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) para
+ejecutar archivos `.http`/`.rest`, el paquete de idioma español
+(`ms-ceintl.vscode-language-pack-es`) y `sst-dev.opencode`. Todas
 fijadas a una version explicita salvo el language pack (ver comentario en el Dockerfile).
+
+## Probar APIs REST
+
+El Web IDE incluye **REST Client** (`humao.rest-client`), una extensión ligera que ejecuta
+solicitudes HTTP directamente desde el editor, sin instalar Postman. Crea un archivo
+`requests.http` o `requests.rest`, escribe una solicitud y pulsa **Send Request** sobre ella:
+
+```http
+GET https://example.com/health
+
+###
+
+POST https://example.com/api/items
+Content-Type: application/json
+
+{"name":"demo"}
+```
+
+En el IDE CLI usa `posting` para el mismo propósito desde la terminal. Ambos clientes siguen
+las reglas de red del sandbox: sin salida directa por defecto y únicamente hacia los hosts de
+la lista blanca cuando el evento tiene habilitado el acceso controlado.
 
 ## Debug remoto (Java/Python)
 
@@ -184,7 +208,8 @@ blanca y la lista negra.
 El diseño es:
 
 1. El organizador activa la salida controlada para el evento.
-2. El sandbox recibe `HTTP_PROXY`/`HTTPS_PROXY` y solo puede conectar al proxy interno.
+2. Todos los sandboxes reciben `HTTP_PROXY`/`HTTPS_PROXY`, pero solo pueden conectar al proxy
+   interno cuando la `NetworkPolicy` del evento está habilitada.
 3. El proxy permite únicamente los hosts declarados en `EGRESS_PROXY_ALLOWED_HOSTS`.
 4. El proxy rechaza otros dominios, registra evento/usuario/repositorio y limita tamaño,
    método y redirecciones.
