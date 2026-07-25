@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.outbound.sqlite;
 
 import dev.rafex.insightbloom.users.domain.model.PlatformSettings;
+import dev.rafex.insightbloom.users.domain.model.AiProviderSettings;
 import dev.rafex.insightbloom.users.domain.ports.PlatformSettingsRepository;
 import dev.rafex.insightbloom.users.adapters.outbound.crypto.AiApiKeyCipher;
 
@@ -28,13 +29,18 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
              ResultSet rs = stmt.executeQuery(sql)) {
             if (!rs.next()) return PlatformSettings.defaults();
             final PlatformSettings s = new PlatformSettings();
-            s.setChatAiEnabled(rs.getInt("chat_ai_enabled") == 1);
-            s.setChatSystemPrompt(rs.getString("chat_system_prompt"));
+            final AiProviderSettings chat = new AiProviderSettings(
+                    true, rs.getInt("chat_ai_enabled") == 1,
+                    defaultIfBlank(rs.getString("ai_base_url"), "https://api.groq.com/openai/v1"),
+                    defaultIfBlank(rs.getString("ai_model"), "openai/gpt-oss-120b"),
+                    aiApiKeyCipher.decrypt(rs.getString("ai_api_key_ciphertext")),
+                    rs.getString("chat_system_prompt"), null);
             final double temperature = rs.getDouble("chat_temperature");
-            s.setChatTemperature(rs.wasNull() ? null : temperature);
-            s.setAiBaseUrl(defaultIfBlank(rs.getString("ai_base_url"), "https://api.groq.com/openai/v1"));
-            s.setAiModel(defaultIfBlank(rs.getString("ai_model"), "openai/gpt-oss-120b"));
-            s.setAiApiKey(aiApiKeyCipher.decrypt(rs.getString("ai_api_key_ciphertext")));
+            chat.setTemperature(rs.wasNull() ? null : temperature);
+            s.setChatAi(chat);
+            s.setTutorAi(readProvider(rs, "tutor", chat));
+            s.setSurveyAi(readProvider(rs, "survey", chat));
+            s.setSeatLayoutAi(readProvider(rs, "seat_layout", chat));
             final int maxAccountsPerDevice = rs.getInt("max_accounts_per_device");
             s.setMaxAccountsPerDevice(rs.wasNull() ? null : maxAccountsPerDevice);
             final int maxSessionsPerUser = rs.getInt("max_sessions_per_user");
@@ -87,8 +93,52 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             if (s.getMaxRegistrationsPerDevicePerDay() != null) ps.setInt(10, s.getMaxRegistrationsPerDevicePerDay());
             else ps.setNull(10, Types.INTEGER);
             ps.executeUpdate();
+            saveProvider(c, "tutor", s.getTutorAi());
+            saveProvider(c, "survey", s.getSurveyAi());
+            saveProvider(c, "seat_layout", s.getSeatLayoutAi());
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to save platform settings", e);
+        }
+    }
+
+    private AiProviderSettings readProvider(final ResultSet rs, final String capability,
+                                             final AiProviderSettings legacyFallback) throws SQLException {
+        if (rs.getInt(capability + "_ai_configured") != 1) {
+            final AiProviderSettings inherited = legacyFallback.copy();
+            inherited.setConfigured(false);
+            return inherited;
+        }
+        final double temperature = rs.getDouble(capability + "_ai_temperature");
+        return new AiProviderSettings(
+                true,
+                rs.getInt(capability + "_ai_enabled") == 1,
+                defaultIfBlank(rs.getString(capability + "_ai_base_url"), "https://api.groq.com/openai/v1"),
+                defaultIfBlank(rs.getString(capability + "_ai_model"), "openai/gpt-oss-120b"),
+                aiApiKeyCipher.decrypt(rs.getString(capability + "_ai_api_key_ciphertext")),
+                rs.getString(capability + "_ai_system_prompt"),
+                rs.wasNull() ? null : temperature);
+    }
+
+    private void saveProvider(final Connection c, final String capability,
+                              final AiProviderSettings settings) throws SQLException {
+        final String sql = "UPDATE platform_settings SET "
+                + capability + "_ai_configured = ?, "
+                + capability + "_ai_enabled = ?, "
+                + capability + "_ai_base_url = ?, "
+                + capability + "_ai_model = ?, "
+                + capability + "_ai_api_key_ciphertext = ?, "
+                + capability + "_ai_system_prompt = ?, "
+                + capability + "_ai_temperature = ? WHERE id = 1";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, settings.isConfigured() ? 1 : 0);
+            ps.setInt(2, settings.isEnabled() ? 1 : 0);
+            ps.setString(3, settings.getBaseUrl());
+            ps.setString(4, settings.getModel());
+            ps.setString(5, aiApiKeyCipher.encrypt(settings.getApiKey()));
+            ps.setString(6, settings.getSystemPrompt());
+            if (settings.getTemperature() != null) ps.setDouble(7, settings.getTemperature());
+            else ps.setNull(7, Types.REAL);
+            ps.executeUpdate();
         }
     }
 }

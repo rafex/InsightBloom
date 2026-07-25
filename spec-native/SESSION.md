@@ -9,8 +9,9 @@ Estado activo de trabajo para continuidad multi-agente.
 - **Iniciativa activa**: `ai-provider-dashboard-config`
 - **Branch**: `main`
 - **Último agente**: Codex
-- **Última acción**: se centralizó la configuración del proveedor IA en Dashboard → IA,
-  con clave cifrada en `users` y contrato interno para chat/survey.
+- **Última acción**: se separó la configuración IA en pestañas por capacidad
+  (chat, tutor, encuestas y mapas de asientos), con claves cifradas en `users`,
+  prompts/modelos independientes y contrato interno para los consumidores.
 
 ---
 

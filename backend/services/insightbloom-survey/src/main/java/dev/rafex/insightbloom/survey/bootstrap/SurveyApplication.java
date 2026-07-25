@@ -53,7 +53,8 @@ public class SurveyApplication {
         final var submissionRepo = new SqliteSurveyJsSubmissionRepository(db);
         final var surveyAccessRepo = new SqliteSurveyAccessRepository(db);
         final var aiMentorConfigRepo = new SqliteAiMentorConfigRepository(db);
-        final var llm = new GroqLlmClient(usersBaseUrl, internalApiKey, JsonUtils.codec());
+        final var surveyLlm = new GroqLlmClient(usersBaseUrl, internalApiKey, JsonUtils.codec(), "survey");
+        final var tutorLlm = new GroqLlmClient(usersBaseUrl, internalApiKey, JsonUtils.codec(), "tutor");
         final var presentationsClient = new HttpPresentationsClient(presentationsBaseUrl);
         final var usersPort = new HttpUsersClient(usersBaseUrl);
 
@@ -62,19 +63,19 @@ public class SurveyApplication {
         final var deactivateQuestionUseCase = new DeactivateQuestionUseCase(questionRepo);
         final var submitResponsesUseCase = new SubmitResponsesUseCase(questionRepo, responseRepo);
         final var getResultsUseCase = new GetResultsUseCase(questionRepo, responseRepo, usersPort);
-        final var suggestQuestionsUseCase = new SuggestQuestionsUseCase(llm, presentationsClient, questionRepo, JsonUtils.codec());
+        final var suggestQuestionsUseCase = new SuggestQuestionsUseCase(surveyLlm, presentationsClient, questionRepo, JsonUtils.codec());
         final var updateQuestionUseCase = new UpdateQuestionUseCase(questionRepo);
         final var purgeResponsesUseCase = new PurgeResponsesUseCase(responseRepo);
         final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(
                 questionRepo, responseRepo, definitionRepo, submissionRepo, surveyAccessRepo, aiMentorConfigRepo);
-        final var improveQuestionUseCase = new ImproveQuestionUseCase(llm, presentationsClient, JsonUtils.codec());
-        final var gradeResponsesUseCase = new GradeResponsesUseCase(questionRepo, responseRepo, llm);
+        final var improveQuestionUseCase = new ImproveQuestionUseCase(surveyLlm, presentationsClient, JsonUtils.codec());
+        final var gradeResponsesUseCase = new GradeResponsesUseCase(questionRepo, responseRepo, surveyLlm);
         final var surveyDefinitionUseCase = new SurveyDefinitionUseCase(definitionRepo, questionRepo, JsonUtils.codec());
         final var submitSurveyJsSubmissionUseCase = new SubmitSurveyJsSubmissionUseCase(
                 definitionRepo, submissionRepo, JsonUtils.codec());
         final var surveyAccessUseCase = new SurveyAccessUseCase(surveyAccessRepo);
         final var aiMentorConfigUseCase = new AiMentorConfigUseCase(aiMentorConfigRepo);
-        final var mentorChatUseCase = new MentorChatUseCase(llm, presentationsClient, aiMentorConfigRepo);
+        final var mentorChatUseCase = new MentorChatUseCase(tutorLlm, presentationsClient, aiMentorConfigRepo);
 
         final var surveyHandler = new SurveyHandler(
                 createQuestionUseCase, listQuestionsUseCase, deactivateQuestionUseCase,

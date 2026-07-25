@@ -14,14 +14,17 @@ import java.util.Map;
 public class GroqLlmClient implements LlmPort {
     private final String usersBaseUrl;
     private final String internalApiKey;
+    private final String capability;
     private final JsonCodec jsonCodec;
     private final HttpClient httpClient;
     private volatile CachedSettings cachedSettings;
 
-    public GroqLlmClient(final String usersBaseUrl, final String internalApiKey, final JsonCodec jsonCodec) {
+    public GroqLlmClient(final String usersBaseUrl, final String internalApiKey, final JsonCodec jsonCodec,
+                         final String capability) {
         this.usersBaseUrl = usersBaseUrl;
         this.internalApiKey = internalApiKey;
         this.jsonCodec = jsonCodec;
+        this.capability = capability;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     }
 
@@ -40,9 +43,9 @@ public class GroqLlmClient implements LlmPort {
         final Map<String, Object> body = Map.of(
                 "model", settings.model,
                 "messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "system", "content", combinePrompts(settings.systemPrompt, systemPrompt)),
                         Map.of("role", "user", "content", userPrompt)),
-                "temperature", 0.3);
+                "temperature", settings.temperature == null ? 0.3 : settings.temperature);
 
         final HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(settings.baseUrl + "/chat/completions"))
@@ -78,17 +81,25 @@ public class GroqLlmClient implements LlmPort {
             final HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) throw new IllegalStateException("ai_settings_unavailable");
             final var data = jsonCodec.readTree(response.body()).path("data");
+            final var provider = data.path("providers").path(capability);
             final ProviderSettings settings = new ProviderSettings(
-                    data.path("chatAiEnabled").asBoolean(false),
-                    data.path("aiBaseUrl").asText(""), data.path("aiModel").asText(""),
-                    data.path("aiApiKey").asText(null));
+                    provider.path("enabled").asBoolean(false),
+                    provider.path("baseUrl").asText(""), provider.path("model").asText(""),
+                    provider.path("apiKey").asText(null), provider.path("systemPrompt").asText(null),
+                    provider.path("temperature").isNumber() ? provider.path("temperature").asDouble() : null);
             cachedSettings = new CachedSettings(now, settings);
             return settings;
         } catch (final Exception e) {
-            return new ProviderSettings(false, "", "", null);
+            return new ProviderSettings(false, "", "", null, null, null);
         }
     }
 
+    private static String combinePrompts(final String basePrompt, final String operationPrompt) {
+        if (basePrompt == null || basePrompt.isBlank()) return operationPrompt;
+        return basePrompt + "\n\n" + operationPrompt;
+    }
+
     private record CachedSettings(long loadedAt, ProviderSettings settings) { }
-    private record ProviderSettings(boolean enabled, String baseUrl, String model, String apiKey) { }
+    private record ProviderSettings(boolean enabled, String baseUrl, String model, String apiKey,
+                                    String systemPrompt, Double temperature) { }
 }

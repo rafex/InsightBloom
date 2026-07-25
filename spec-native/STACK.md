@@ -67,11 +67,12 @@ Fuente de verdad de la base tecnologica del proyecto.
 
 ## Integraciones
 
-- **LLM Provider** (DeepSeek via API compatible con OpenAI):
-  usado por `chat` (bot Roberto) y `survey` (generacion de preguntas).
-  URL base, modelo, prompt, temperatura y clave se configuran en `Dashboard → IA`.
-  La clave se cifra en SQLite de `insightbloom-users` y solo se entrega por el
-  endpoint interno autenticado; no se usan variables de despliegue para el proveedor.
+- **LLM Provider** (cualquier API compatible con OpenAI): se configura por
+  capacidad en las pestañas `Chat`, `Tutor IA`, `Encuestas` y `Mapas de asientos`
+  de `Dashboard → IA`. Cada perfil tiene URL base, modelo, prompt, temperatura,
+  kill switch y API key independientes. La clave se cifra en SQLite de
+  `insightbloom-users` y solo se entrega por el endpoint interno autenticado;
+  no se usan variables de despliegue para el proveedor.
   Libreria: `openai` 1.55 (Python).
 - **Twilio**: envio de OTP via SMS para verificacion de usuarios.
   Configuracion: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`.

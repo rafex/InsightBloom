@@ -17,6 +17,7 @@ import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.domain.model.DeviceFingerprintFlag;
 import dev.rafex.insightbloom.users.domain.model.PlatformDeviceBlock;
 import dev.rafex.insightbloom.users.domain.model.PlatformSettings;
+import dev.rafex.insightbloom.users.domain.model.AiProviderSettings;
 
 import java.util.List;
 import java.util.Map;
@@ -76,6 +77,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 Route.of("/chat-ai", Set.of("GET", "PUT")),
                 Route.of("/chat-ai/public", Set.of("GET")),
                 Route.of("/ai", Set.of("GET", "PUT")),
+                Route.of("/ai/{capability}", Set.of("PUT")),
                 Route.of("/ai/internal", Set.of("GET")),
                 Route.of("/device-access", Set.of("GET", "PUT")),
                 Route.of("/device-blocks", Set.of("GET")),
@@ -142,15 +144,14 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             }
             final var body = parseBody(jx);
             if (jx.path().endsWith("/ai")) {
-                final boolean enabled = !Boolean.FALSE.equals(body.get("chatAiEnabled"));
-                final String baseUrl = body.get("aiBaseUrl") instanceof String value ? value : null;
-                final String model = body.get("aiModel") instanceof String value ? value : null;
-                final String apiKey = body.get("aiApiKey") instanceof String value ? value : null;
-                final boolean clearApiKey = Boolean.TRUE.equals(body.get("clearApiKey"));
-                final String prompt = body.get("chatSystemPrompt") instanceof String value ? value : null;
-                final Double temperature = body.get("chatTemperature") instanceof Number n ? n.doubleValue() : null;
-                sendOk(jx, toView(setAiSettingsUseCase.execute(
-                        enabled, baseUrl, model, apiKey, clearApiKey, prompt, temperature)));
+                sendOk(jx, toView(setAiSettingsUseCase.execute("chat", providerUpdate(body, "chatAiEnabled",
+                        "aiBaseUrl", "aiModel", "aiApiKey", "clearApiKey", "chatSystemPrompt", "chatTemperature"))));
+                return true;
+            }
+            if (jx.path().contains("/ai/")) {
+                final String capability = jx.path().substring(jx.path().lastIndexOf("/ai/") + 4);
+                sendOk(jx, toView(setAiSettingsUseCase.execute(capability, providerUpdate(body,
+                        "enabled", "baseUrl", "model", "apiKey", "clearApiKey", "systemPrompt", "temperature"))));
                 return true;
             }
             final boolean chatAiEnabled = !Boolean.FALSE.equals(body.get("chatAiEnabled"));
@@ -286,26 +287,78 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
 
     private static Map<String, Object> toView(final PlatformSettings s) {
         final Map<String, Object> view = new java.util.HashMap<>();
-        view.put("chatAiEnabled", s.isChatAiEnabled());
-        view.put("chatSystemPrompt", s.getChatSystemPrompt());
-        view.put("chatTemperature", s.getChatTemperature());
-        view.put("aiBaseUrl", s.getAiBaseUrl());
-        view.put("aiModel", s.getAiModel());
-        final String key = s.getAiApiKey();
-        view.put("aiApiKeyConfigured", key != null && !key.isBlank());
-        view.put("aiApiKeyHint", key == null || key.isBlank() ? null : "••••" + key.substring(Math.max(0, key.length() - 4)));
+        view.put("providers", Map.of(
+                "chat", providerView(s.getChatAi()),
+                "tutor", providerView(s.getTutorAi()),
+                "survey", providerView(s.getSurveyAi()),
+                "seatLayout", providerView(s.getSeatLayoutAi())));
+        // Campos legacy para clientes antiguos; el dashboard nuevo usa providers.
+        view.put("chatAiEnabled", s.getChatAi().isEnabled());
+        view.put("chatSystemPrompt", s.getChatAi().getSystemPrompt());
+        view.put("chatTemperature", s.getChatAi().getTemperature());
+        view.put("aiBaseUrl", s.getChatAi().getBaseUrl());
+        view.put("aiModel", s.getChatAi().getModel());
+        view.put("aiApiKeyConfigured", hasKey(s.getChatAi()));
+        view.put("aiApiKeyHint", keyHint(s.getChatAi().getApiKey()));
         return view;
     }
 
     private static Map<String, Object> toInternalView(final PlatformSettings s) {
         final Map<String, Object> view = new java.util.HashMap<>();
-        view.put("chatAiEnabled", s.isChatAiEnabled());
-        view.put("chatSystemPrompt", s.getChatSystemPrompt());
-        view.put("chatTemperature", s.getChatTemperature());
-        view.put("aiBaseUrl", s.getAiBaseUrl());
-        view.put("aiModel", s.getAiModel());
-        view.put("aiApiKey", s.getAiApiKey());
+        view.put("providers", Map.of(
+                "chat", internalProviderView(s.getChatAi()),
+                "tutor", internalProviderView(s.getTutorAi()),
+                "survey", internalProviderView(s.getSurveyAi()),
+                "seatLayout", internalProviderView(s.getSeatLayoutAi())));
         return view;
+    }
+
+    private static SetAiSettingsUseCase.ProviderUpdate providerUpdate(final Map<String, Object> body,
+                                                                        final String enabledKey,
+                                                                        final String baseUrlKey,
+                                                                        final String modelKey,
+                                                                        final String apiKeyKey,
+                                                                        final String clearKey,
+                                                                        final String promptKey,
+                                                                        final String temperatureKey) {
+        final boolean enabled = !Boolean.FALSE.equals(body.get(enabledKey));
+        final String baseUrl = body.get(baseUrlKey) instanceof String value ? value : null;
+        final String model = body.get(modelKey) instanceof String value ? value : null;
+        final String apiKey = body.get(apiKeyKey) instanceof String value ? value : null;
+        final String prompt = body.get(promptKey) instanceof String value ? value : null;
+        final Double temperature = body.get(temperatureKey) instanceof Number n ? n.doubleValue() : null;
+        return new SetAiSettingsUseCase.ProviderUpdate(enabled, baseUrl, model, apiKey,
+                Boolean.TRUE.equals(body.get(clearKey)), prompt, temperature);
+    }
+
+    private static Map<String, Object> providerView(final AiProviderSettings p) {
+        final Map<String, Object> view = new java.util.HashMap<>();
+        view.put("configured", p.isConfigured());
+        view.put("enabled", p.isEnabled());
+        view.put("baseUrl", p.getBaseUrl());
+        view.put("model", p.getModel());
+        view.put("systemPrompt", p.getSystemPrompt());
+        view.put("temperature", p.getTemperature());
+        // An unconfigured profile may temporarily inherit the chat provider internally,
+        // but that fallback must not look like an explicitly configured credential in
+        // the administrative UI.
+        view.put("apiKeyConfigured", p.isConfigured() && hasKey(p));
+        view.put("apiKeyHint", p.isConfigured() ? keyHint(p.getApiKey()) : null);
+        return view;
+    }
+
+    private static Map<String, Object> internalProviderView(final AiProviderSettings p) {
+        final Map<String, Object> view = new java.util.HashMap<>(providerView(p));
+        view.put("apiKey", p.getApiKey());
+        return view;
+    }
+
+    private static boolean hasKey(final AiProviderSettings p) {
+        return p.getApiKey() != null && !p.getApiKey().isBlank();
+    }
+
+    private static String keyHint(final String key) {
+        return key == null || key.isBlank() ? null : "••••" + key.substring(Math.max(0, key.length() - 4));
     }
 
     private static boolean pathEndsWith(final JettyHttpExchange jx, final String suffix) {

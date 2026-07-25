@@ -458,7 +458,24 @@ export interface WorkspacePreviewInfo {
   files: number
 }
 
-export interface ChatSettings {
+export interface AiProviderSettings {
+  configured: boolean
+  enabled: boolean
+  baseUrl: string
+  model: string
+  systemPrompt: string | null
+  temperature: number | null
+  apiKeyConfigured: boolean
+  apiKeyHint: string | null
+}
+
+export interface AiSettings {
+  providers: {
+    chat: AiProviderSettings
+    tutor: AiProviderSettings
+    survey: AiProviderSettings
+    seatLayout: AiProviderSettings
+  }
   chatAiEnabled: boolean
   chatSystemPrompt: string | null
   chatTemperature: number | null
@@ -467,3 +484,5 @@ export interface ChatSettings {
   aiApiKeyConfigured: boolean
   aiApiKeyHint: string | null
 }
+
+export type ChatSettings = AiSettings

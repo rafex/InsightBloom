@@ -1,13 +1,10 @@
 package dev.rafex.insightbloom.users.domain.model;
 
 public class PlatformSettings {
-    private boolean chatAiEnabled;
-    private String chatSystemPrompt; // null = usa el default embebido en chat/bot.py
-    private Double chatTemperature;  // null = usa el default embebido en chat/bot.py
-    private String aiBaseUrl;
-    private String aiModel;
-    /** Plaintext only in memory; never serialize this field in a public/admin view. */
-    private String aiApiKey;
+    private AiProviderSettings chatAi = AiProviderSettings.defaults(true);
+    private AiProviderSettings tutorAi = AiProviderSettings.defaults(false);
+    private AiProviderSettings surveyAi = AiProviderSettings.defaults(false);
+    private AiProviderSettings seatLayoutAi = AiProviderSettings.defaults(false);
     // Umbrales de PlatformDeviceGuard -- nullable, defaults efectivos en el guard si el admin de
     // plataforma no los configuro todavia (ver DEFAULT_* en PlatformDeviceGuard).
     private Integer maxAccountsPerDevice;
@@ -16,29 +13,36 @@ public class PlatformSettings {
 
     public static PlatformSettings defaults() {
         final PlatformSettings s = new PlatformSettings();
-        s.chatAiEnabled = false;
-        s.aiBaseUrl = "https://api.groq.com/openai/v1";
-        s.aiModel = "openai/gpt-oss-120b";
         return s;
     }
 
-    public boolean isChatAiEnabled() { return chatAiEnabled; }
-    public void setChatAiEnabled(final boolean chatAiEnabled) { this.chatAiEnabled = chatAiEnabled; }
+    public AiProviderSettings getChatAi() { return chatAi; }
+    public void setChatAi(final AiProviderSettings value) { this.chatAi = value; }
+    public AiProviderSettings getTutorAi() { return tutorAi; }
+    public void setTutorAi(final AiProviderSettings value) { this.tutorAi = value; }
+    public AiProviderSettings getSurveyAi() { return surveyAi; }
+    public void setSurveyAi(final AiProviderSettings value) { this.surveyAi = value; }
+    public AiProviderSettings getSeatLayoutAi() { return seatLayoutAi; }
+    public void setSeatLayoutAi(final AiProviderSettings value) { this.seatLayoutAi = value; }
 
-    public String getChatSystemPrompt() { return chatSystemPrompt; }
-    public void setChatSystemPrompt(final String chatSystemPrompt) { this.chatSystemPrompt = chatSystemPrompt; }
+    // Compatibilidad con los casos de uso y endpoints de Chat existentes.
+    public boolean isChatAiEnabled() { return chatAi.isEnabled(); }
+    public void setChatAiEnabled(final boolean enabled) { chatAi.setEnabled(enabled); }
 
-    public Double getChatTemperature() { return chatTemperature; }
-    public void setChatTemperature(final Double chatTemperature) { this.chatTemperature = chatTemperature; }
+    public String getChatSystemPrompt() { return chatAi.getSystemPrompt(); }
+    public void setChatSystemPrompt(final String prompt) { chatAi.setSystemPrompt(prompt); }
 
-    public String getAiBaseUrl() { return aiBaseUrl; }
-    public void setAiBaseUrl(final String aiBaseUrl) { this.aiBaseUrl = aiBaseUrl; }
+    public Double getChatTemperature() { return chatAi.getTemperature(); }
+    public void setChatTemperature(final Double temperature) { chatAi.setTemperature(temperature); }
 
-    public String getAiModel() { return aiModel; }
-    public void setAiModel(final String aiModel) { this.aiModel = aiModel; }
+    public String getAiBaseUrl() { return chatAi.getBaseUrl(); }
+    public void setAiBaseUrl(final String baseUrl) { chatAi.setBaseUrl(baseUrl); }
 
-    public String getAiApiKey() { return aiApiKey; }
-    public void setAiApiKey(final String aiApiKey) { this.aiApiKey = aiApiKey; }
+    public String getAiModel() { return chatAi.getModel(); }
+    public void setAiModel(final String model) { chatAi.setModel(model); }
+
+    public String getAiApiKey() { return chatAi.getApiKey(); }
+    public void setAiApiKey(final String apiKey) { chatAi.setApiKey(apiKey); }
 
     public Integer getMaxAccountsPerDevice() { return maxAccountsPerDevice; }
     public void setMaxAccountsPerDevice(final Integer maxAccountsPerDevice) { this.maxAccountsPerDevice = maxAccountsPerDevice; }

@@ -5,7 +5,7 @@ import type {
   SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
   CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
-  ChatSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
+  ChatSettings, AiSettings, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
@@ -853,7 +853,7 @@ export async function getChatSettings(token: string): Promise<ChatSettings> {
 }
 
 /** Configuración global de IA; la API nunca devuelve la clave, solo su estado y últimos dígitos. */
-export async function getAiSettings(token: string): Promise<ChatSettings> {
+export async function getAiSettings(token: string): Promise<AiSettings> {
   const res = await axios.get('/api/users/api/v1/settings/ai', authHeader(token))
   return res.data.data
 }
@@ -865,6 +865,18 @@ export async function setAiSettings(
 ): Promise<ChatSettings> {
   const res = await axios.put('/api/users/api/v1/settings/ai', {
     chatAiEnabled, aiBaseUrl, aiModel, aiApiKey, clearApiKey, chatSystemPrompt, chatTemperature
+  }, authHeader(token))
+  return res.data.data
+}
+
+export async function setAiProviderSettings(
+  capability: 'chat' | 'tutor' | 'survey' | 'seat-layout',
+  enabled: boolean, baseUrl: string, model: string, apiKey: string | null,
+  clearApiKey: boolean, systemPrompt: string | null, temperature: number | null,
+  token: string
+): Promise<AiSettings> {
+  const res = await axios.put(`/api/users/api/v1/settings/ai/${capability}`, {
+    enabled, baseUrl, model, apiKey, clearApiKey, systemPrompt, temperature
   }, authHeader(token))
   return res.data.data
 }

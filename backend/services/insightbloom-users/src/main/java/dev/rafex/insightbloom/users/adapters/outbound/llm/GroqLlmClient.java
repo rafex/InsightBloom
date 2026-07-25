@@ -27,26 +27,28 @@ public class GroqLlmClient implements LlmPort {
     @Override
     public boolean isEnabled() {
         final PlatformSettings settings = settingsRepository.get();
-        return settings.isChatAiEnabled() && settings.getAiApiKey() != null && !settings.getAiApiKey().isBlank();
+        final var provider = settings.getSeatLayoutAi();
+        return provider.isEnabled() && provider.getApiKey() != null && !provider.getApiKey().isBlank();
     }
 
     @Override
     public String complete(final String systemPrompt, final String userPrompt) {
         final PlatformSettings settings = settingsRepository.get();
+        final var provider = settings.getSeatLayoutAi();
         if (!isEnabled()) {
             throw new IllegalStateException("llm_not_configured");
         }
         final Map<String, Object> body = Map.of(
-                "model", settings.getAiModel(),
+                "model", provider.getModel(),
                 "messages", List.of(
-                        Map.of("role", "system", "content", systemPrompt),
+                        Map.of("role", "system", "content", combinePrompts(provider.getSystemPrompt(), systemPrompt)),
                         Map.of("role", "user", "content", userPrompt)),
-                "temperature", 0.3);
+                "temperature", provider.getTemperature() == null ? 0.3 : provider.getTemperature());
 
         final HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(settings.getAiBaseUrl() + "/chat/completions"))
+                .uri(URI.create(provider.getBaseUrl() + "/chat/completions"))
                 .timeout(Duration.ofSeconds(60))
-                .header("Authorization", "Bearer " + settings.getAiApiKey())
+                .header("Authorization", "Bearer " + provider.getApiKey())
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonCodec.toJson(body)))
                 .build();
@@ -61,5 +63,10 @@ public class GroqLlmClient implements LlmPort {
         } catch (final java.io.IOException | InterruptedException e) {
             throw new RuntimeException("llm_request_failed", e);
         }
+    }
+
+    private static String combinePrompts(final String basePrompt, final String operationPrompt) {
+        if (basePrompt == null || basePrompt.isBlank()) return operationPrompt;
+        return basePrompt + "\n\n" + operationPrompt;
     }
 }

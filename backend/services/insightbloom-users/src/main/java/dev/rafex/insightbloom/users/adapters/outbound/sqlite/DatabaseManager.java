@@ -526,6 +526,15 @@ public class DatabaseManager {
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "ai_base_url", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "ai_model", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "ai_api_key_ciphertext", "TEXT");
+            for (final String capability : new String[] {"tutor", "survey", "seat_layout"}) {
+                ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_configured", "INTEGER NOT NULL DEFAULT 0");
+                ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_enabled", "INTEGER NOT NULL DEFAULT 0");
+                ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_base_url", "TEXT");
+                ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_model", "TEXT");
+                ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_api_key_ciphertext", "TEXT");
+                ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_system_prompt", "TEXT");
+                ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_temperature", "REAL");
+            }
             // Umbrales de PlatformDeviceGuard (2026-07): nullable, defaults efectivos en el guard
             // (5/3/3) si el admin de plataforma no los configuro todavia.
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "max_accounts_per_device", "INTEGER");

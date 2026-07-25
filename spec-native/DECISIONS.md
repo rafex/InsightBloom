@@ -1438,18 +1438,23 @@ Registrar una decision cuando cambie:
 - Fecha: 2026-07-24
 - Estado: accepted
 - Contexto:
-  `chat`, `survey` y las funciones asistidas de `users` reutilizaban una API key,
-  URL, modelo y prompt entregados por variables de despliegue. Eso obligaba a
-  modificar GitOps para cambiar de proveedor y dejaba un secreto operativo fuera
-  del flujo administrativo.
+  `chat`, `tutor`, `survey` y la generación asistida de mapas de asientos
+  reutilizaban una API key, URL, modelo y prompt entregados por variables de
+  despliegue. Eso obligaba a modificar GitOps para cambiar de proveedor y no
+  permitía aislar modelos o prompts por capacidad.
 - Decision:
-  - La configuración global se administra en `Dashboard → IA`, con interruptor,
-    URL base compatible con OpenAI, modelo, API key, prompt y temperatura.
-  - `insightbloom-users` persiste la configuración en `platform_settings`; la
-    API key se cifra con AES-GCM usando una clave derivada de `INTERNAL_API_KEY`.
+  - `Dashboard → IA` contiene una pestaña por capacidad: `chat`, `tutor`,
+    `survey` y `seat-layout`. Cada una tiene interruptor, URL base compatible
+    con OpenAI, modelo, API key, prompt y temperatura propios.
+  - `insightbloom-users` persiste los perfiles en `platform_settings`; cada API
+    key se cifra con AES-GCM usando una clave derivada de `INTERNAL_API_KEY`.
   - El frontend solo recibe estado de configuración y una pista de los últimos
-    cuatro caracteres. `chat` y `survey` consultan el contrato interno
+    cuatro caracteres de una clave explícitamente configurada. Los servicios
+    consumidores consultan el contrato interno
     `/api/v1/settings/ai/internal` con `X-Internal-Auth`.
+  - Un perfil no configurado puede heredar internamente el proveedor de chat
+    como fallback, pero al guardarlo por primera vez debe recibir una clave
+    propia; así no se obliga a compartir credenciales entre capacidades.
   - GitOps ya no contiene ni inyecta `LLM_PROVIDER_*` ni `ROBERTO_*`; el servicio
     usa defaults seguros sin clave y permanece sin llamadas hasta configurarse.
 - Consecuencias:

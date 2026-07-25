@@ -1,14 +1,14 @@
 """
 Roberto — participante "humano" del chat.
-Usa un modelo vía cliente OpenAI-compatible (Groq).
+Usa el proveedor compatible con OpenAI configurado en Dashboard → IA.
 Nunca revela que es IA. Nunca propone /dudas ni #temas.
 
 Tiene contexto de la presentación de la conferencia (cuando existe) para
 poder comentarla, responder dudas sobre lo expuesto y animar a los
 asistentes a participar — sin usar él mismo los comandos /dudas o #temas.
 
-Guardrail: cada respuesta generada se revisa con un segundo modelo
-(openai/gpt-oss-safeguard-20b) antes de transmitirse, para detectar si
+Guardrail: cada respuesta generada se revisa con el mismo proveedor configurado
+antes de transmitirse, para detectar si
 rompe personaje, revela que es una IA, o se desvía de su propósito.
 """
 from __future__ import annotations
@@ -53,10 +53,8 @@ otros participantes a compartir sus dudas o temas con el comando correspondiente
 SIEMPRE de palabra, nunca tú mismo escribiendo "/dudas" o "#temas".
 """
 
-# Fallback si el panel admin no tiene un prompt propio configurado (chatSystemPrompt=null) y
-# tampoco hay override por variable de entorno (compatibilidad con despliegues previos a que el
-# panel admin controlara esto — ver AdminChatSettingsPage.vue en el dashboard de InsightBloom,
-# que es ahora la forma recomendada de ajustar prompt/temperatura, sin necesidad de redeploy).
+# Fallback si el panel admin no tiene un prompt propio configurado
+# (chatSystemPrompt=null). La configuración se administra en IA y no requiere redeploy.
 _DEFAULT_TEMPERATURE = 0.88
 
 GUARDRAIL_SYSTEM_PROMPT = """\
@@ -149,13 +147,14 @@ class Roberto:
                 r = await client.get(f"{USERS_URL}/api/v1/settings/ai/internal")
                 if r.status_code == 200:
                     data = r.json().get("data", {})
+                    provider = data.get("providers", {}).get("chat", {})
                     settings.update({
-                        "enabled": bool(data.get("chatAiEnabled", False)),
-                        "system_prompt": data.get("chatSystemPrompt") or _DEFAULT_SYSTEM_PROMPT,
-                        "temperature": data.get("chatTemperature") if data.get("chatTemperature") is not None else _DEFAULT_TEMPERATURE,
-                        "base_url": data.get("aiBaseUrl") or "",
-                        "model": data.get("aiModel") or "",
-                        "api_key": data.get("aiApiKey") or "",
+                        "enabled": bool(provider.get("enabled", False)),
+                        "system_prompt": provider.get("systemPrompt") or _DEFAULT_SYSTEM_PROMPT,
+                        "temperature": provider.get("temperature") if provider.get("temperature") is not None else _DEFAULT_TEMPERATURE,
+                        "base_url": provider.get("baseUrl") or "",
+                        "model": provider.get("model") or "",
+                        "api_key": provider.get("apiKey") or "",
                     })
             if settings["enabled"] and settings["api_key"] and settings["base_url"] and settings["model"]:
                 signature = (settings["base_url"], settings["model"], settings["api_key"])

@@ -188,7 +188,9 @@ cd chat && python -m pytest -v
 # El servicio survey se levanta con el resto de servicios Java
 just dev-services
 
-# La configuración del proveedor LLM se administra en Dashboard → IA.
+# La configuración de IA se administra en Dashboard → IA, por capacidad:
+# Chat, Tutor IA, Encuestas y Mapas de asientos.
+# Cada pestaña tiene URL, modelo, prompt, temperatura, kill switch y API key.
 # No se pasan URL, modelo, prompt ni API key como variables de despliegue.
 ```
 

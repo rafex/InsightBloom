@@ -486,12 +486,16 @@ Los servicios pueden comunicarse con endpoints internos protegidos por
 
 ## Integraciones externas
 
-- **Proveedor LLM compatible con OpenAI**: usado por `chat` (bot Roberto),
-  `survey` (generación de preguntas/tutor) y las funciones asistidas de `users`.
-  La configuración se administra en `Dashboard → IA` y se persiste en SQLite de
-  `users`; la API key se cifra en reposo. Los servicios consumidores la consultan
-  por `/api/v1/settings/ai/internal`, protegido por `X-Internal-Auth`. No se
-  despliegan URL, modelo, prompt ni API key desde GitOps.
+- **Proveedores LLM compatibles con OpenAI**: `chat` (bot Roberto), `tutor`
+  (tutor pedagógico), `survey` (sugerencias, mejora y evaluación de encuestas) y
+  `seatLayout` (generación asistida de mapas de asientos) tienen perfiles
+  independientes. Cada perfil administra URL base, modelo, API key, prompt,
+  temperatura y kill switch desde su pestaña en `Dashboard → IA`. Se persisten
+  en SQLite de `users`; la API key se cifra en reposo. Los consumidores consultan
+  el contrato interno `/api/v1/settings/ai/internal`, protegido por
+  `X-Internal-Auth`, y nunca reciben la clave desde el frontend. No se despliegan
+  URL, modelo, prompt ni API key desde GitOps. Los perfiles no configurados pueden
+  usar el perfil de chat como fallback interno hasta que se personalicen.
 - **Twilio**: OTP via SMS para verificacion de usuarios. Configurado via
   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`.
 - **Zoho SMTP**: envio de correos (certificados, notificaciones).
