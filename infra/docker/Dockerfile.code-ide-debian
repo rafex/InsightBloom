@@ -31,6 +31,7 @@ ARG CODE_SERVER_VERSION=4.117.0
 # no solo en la UI de code-server).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    iputils-ping \
     ca-certificates \
     dumb-init \
     git \

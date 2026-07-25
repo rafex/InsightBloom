@@ -183,8 +183,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
         final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
+        // La política es parte del estado del evento, no del estado del Pod. Siempre
+        // reconciliamos ambos caminos para que un Pod reutilizado no conserve una
+        // NetworkPolicy permisiva de una configuración anterior.
+        final String conferenceLabel = Sandbox.conferenceLabel(conferenceUuid);
         if (internetEnabled) {
-            allowInternetEgress(Sandbox.conferenceLabel(conferenceUuid));
+            allowInternetEgress(conferenceLabel);
+        } else {
+            denyInternetEgress(conferenceLabel);
         }
     }
 
@@ -220,8 +226,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                                         "podSelector", Map.of(
                                                 "matchLabels", Map.of("app.kubernetes.io/component", usersPodComponentLabel)))),
                                 "ports", List.of(Map.of("protocol", "TCP", "port", USERS_INTERNAL_PORT))))));
-        postIgnoringConflict("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
-                jsonCodec.toJson(policy), "networkpolicy " + INCIDENT_EGRESS_POLICY_NAME);
+        upsertNetworkPolicy("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
+                jsonCodec.toJson(policy), "networkpolicy " + INCIDENT_EGRESS_POLICY_NAME, INCIDENT_EGRESS_POLICY_NAME);
     }
 
     /**
@@ -275,16 +281,16 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                                                 "podSelector", Map.of(
                                                         "matchLabels", Map.of("app.kubernetes.io/component", usersPodComponentLabel)))),
                                         "ports", List.of(Map.of("protocol", "TCP", "port", controlPort()))))));
-        postIgnoringConflict("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
-                jsonCodec.toJson(policy), "networkpolicy " + INGRESS_POLICY_NAME);
+        upsertNetworkPolicy("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
+                jsonCodec.toJson(policy), "networkpolicy " + INGRESS_POLICY_NAME, INGRESS_POLICY_NAME);
     }
 
     @Override
     public void allowInternetEgress(final String conferenceLabel) {
         requireEnabled();
         final String policyJson = jsonCodec.toJson(buildEgressAllowBody(conferenceLabel));
-        postIgnoringConflict("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
-                policyJson, "networkpolicy " + egressPolicyName(conferenceLabel));
+        upsertNetworkPolicy("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
+                policyJson, "networkpolicy " + egressPolicyName(conferenceLabel), egressPolicyName(conferenceLabel));
     }
 
     /** Reintentos de {@link #provisionSeat}: el Pod puede tardar unos segundos en agendarse y
@@ -791,6 +797,43 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         if (response.statusCode() >= 300) {
             throw new IllegalStateException("kubernetes_create_failed: " + description + " -> "
                     + response.statusCode() + " " + response.body());
+        }
+    }
+
+    /**
+     * Crea o reconcilia una NetworkPolicy dinámica.
+     *
+     * Un POST que ignora 409 deja intacta la especificación vieja. Eso es peligroso
+     * para la política de salida: si el organizador desactiva Internet, un sandbox
+     * podía seguir usando una regla anterior. Kubernetes acepta un merge-patch del
+     * recurso existente; al reemplazar {@code spec} hacemos la operación idempotente
+     * y mantenemos el selector/alcance definido por el evento.
+     */
+    private void upsertNetworkPolicy(final String path, final String body, final String description,
+                                     final String resourceName) {
+        final HttpRequest create = authedRequest(path)
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        final HttpResponse<String> created = send(create);
+        if (created.statusCode() < 300) {
+            return;
+        }
+        if (created.statusCode() != 409) {
+            throw new IllegalStateException("kubernetes_create_failed: " + description + " -> "
+                    + created.statusCode() + " " + created.body());
+        }
+
+        final HttpRequest patch = HttpRequest.newBuilder(URI.create(apiBaseUrl + path + "/" + resourceName))
+                .timeout(Duration.ofSeconds(15))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/merge-patch+json")
+                .header("Accept", "application/json")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        final HttpResponse<String> updated = send(patch);
+        if (updated.statusCode() >= 300) {
+            throw new IllegalStateException("kubernetes_update_failed: " + description + " -> "
+                    + updated.statusCode() + " " + updated.body());
         }
     }
 
