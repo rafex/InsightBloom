@@ -73,7 +73,10 @@ function safeLocalFormUrl(value) {
 
 function auditHtml(file, source, issues) {
   const $ = cheerio.load(source, { decodeEntities: false });
-  $('base, iframe, object, embed, portal, meta[http-equiv]').each((_, element) => {
+  // Los metadatos http-equiv no ejecutan código por sí mismos. Se mantiene el
+  // bloqueo específico de meta refresh más abajo, pero no debemos rechazar
+  // metadatos legítimos como Content-Security-Policy o X-UA-Compatible.
+  $('base, iframe, object, embed, portal').each((_, element) => {
     const tag = element.name;
     const httpEquiv = $(element).attr('http-equiv');
     issues.push(issue('HTML-ACTIVE-001', file, 'contenido HTML activo no permitido', `<${tag}${httpEquiv ? ` http-equiv="${httpEquiv}"` : ''}>`));

@@ -19,6 +19,17 @@ test('accepts a static HTML workspace with local assets', () => {
   assert.equal(report.artifactHash.length, 64);
 });
 
+test('accepts harmless http-equiv metadata but rejects redirects', () => {
+  const report = auditZipBuffer(zip({
+    'index.html': '<meta http-equiv="Content-Security-Policy" content="default-src \'self\'"><meta http-equiv="X-UA-Compatible" content="IE=edge"><h1>ok</h1><script>localStorage.setItem("ready", "1"); setTimeout(() => {}, 0);</script>',
+  }));
+  assert.equal(report.files.length, 1);
+  assert.throws(() => auditZipBuffer(zip({
+    'index.html': '<meta http-equiv="refresh" content="0;url=https://example.test">',
+  })), (error) => error.message === 'preview_artifact_rejected'
+    && error.issues.some((item) => item.rule === 'HTML-REDIRECT-001'));
+});
+
 test('rejects forms that can exfiltrate data outside the publication', () => {
   for (const action of ['https://example.test/collect', '//example.test/collect', '../collect']) {
     assert.throws(() => auditZipBuffer(zip({

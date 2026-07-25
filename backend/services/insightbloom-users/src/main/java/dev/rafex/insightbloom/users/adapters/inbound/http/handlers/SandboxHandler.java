@@ -516,10 +516,14 @@ public class SandboxHandler extends BaseResourceHandler {
             };
             sendError(jx, status, e.getMessage(), e.getMessage());
         } catch (final IllegalStateException e) {
-            final boolean artifactRejected = "preview_artifact_rejected".equals(e.getMessage());
-            sendError(jx, artifactRejected ? 422 : 503, e.getMessage(),
-                    artifactRejected ? "El sitio contiene contenido no permitido para una publicación estática"
-                            : "El publicador de páginas no está disponible");
+            final String errorMessage = e.getMessage() == null ? "" : e.getMessage();
+            final boolean artifactRejected = errorMessage.startsWith("preview_artifact_rejected");
+            final String rejectionDetails = artifactRejected && errorMessage.length() > "preview_artifact_rejected:".length()
+                    ? errorMessage.substring("preview_artifact_rejected:".length())
+                    : "El sitio contiene contenido no permitido para una publicación estática";
+            sendError(jx, artifactRejected ? 422 : 503,
+                    artifactRejected ? "preview_artifact_rejected" : errorMessage,
+                    artifactRejected ? rejectionDetails : "El publicador de páginas no está disponible");
         } catch (final Exception e) {
             LOGGER.log(Level.SEVERE, "SandboxHandler: no se pudo publicar el workspace", e);
             sendError(jx, 500, "preview_publication_failed", "No se pudo publicar el workspace");

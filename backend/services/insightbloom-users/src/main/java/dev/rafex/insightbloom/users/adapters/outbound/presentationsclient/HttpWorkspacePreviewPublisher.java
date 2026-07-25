@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.adapters.outbound.presentationsclient;
 
 import dev.rafex.ether.json.JacksonJsonCodec;
 import dev.rafex.insightbloom.users.domain.ports.WorkspacePreviewPublisher;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -41,7 +42,9 @@ public final class HttpWorkspacePreviewPublisher implements WorkspacePreviewPubl
                 .build();
         try {
             final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 201) throw new IllegalStateException(mapFailure(response.statusCode()));
+            if (response.statusCode() != 201) {
+                throw new IllegalStateException(mapFailure(response.statusCode(), response.body()));
+            }
             final var root = json.readTree(response.body());
             return new PreviewPublication(
                     root.path("publicationId").asText(),
@@ -71,7 +74,7 @@ public final class HttpWorkspacePreviewPublisher implements WorkspacePreviewPubl
         try {
             final HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
             if (response.statusCode() != 200 && response.statusCode() != 404) {
-                throw new IllegalStateException(mapFailure(response.statusCode()));
+                throw new IllegalStateException(mapFailure(response.statusCode(), ""));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -91,10 +94,34 @@ public final class HttpWorkspacePreviewPublisher implements WorkspacePreviewPubl
         }
     }
 
-    private static String mapFailure(final int status) {
+    private String mapFailure(final int status, final String body) {
         if (status == 403) return "preview_publisher_forbidden";
-        if (status == 422) return "preview_artifact_rejected";
+        if (status == 422) return artifactRejection(body);
         if (status >= 500) return "preview_publisher_unavailable";
         return "preview_publisher_failed_" + status;
+    }
+
+    /** Conserva el diagnóstico útil, pero omite evidence porque podría contener secretos. */
+    private String artifactRejection(final String body) {
+        final StringBuilder details = new StringBuilder();
+        try {
+            final JsonNode issues = json.readTree(body).path("issues");
+            if (issues.isArray()) {
+                for (final JsonNode item : issues) {
+                    if (details.length() > 0) details.append(" | ");
+                    details.append(item.path("rule").asText("UNKNOWN"))
+                            .append(" en ")
+                            .append(item.path("file").asText("archivo"))
+                            .append(": ")
+                            .append(item.path("message").asText("contenido no permitido"));
+                    if (details.length() >= 900) break;
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Mantener el código estable si el publicador devuelve un cuerpo no JSON.
+        }
+        return details.length() == 0
+                ? "preview_artifact_rejected"
+                : "preview_artifact_rejected:" + details;
     }
 }

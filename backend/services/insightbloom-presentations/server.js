@@ -269,14 +269,37 @@ function previewExpired(manifest) {
   return manifest.status !== 'active' || Date.parse(manifest.expiresAt) <= Date.now();
 }
 
-function previewCsp(res) {
+function previewCsp(res, nonce = '') {
+  const scriptSource = nonce ? `'self' 'nonce-${nonce}'` : "'self'";
   res.setHeader('Content-Security-Policy',
     "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; " +
-    "frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self'; " +
+    `frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src ${scriptSource}; ` +
     "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; " +
     "media-src 'self' blob:; connect-src 'self'; frame-src 'none'");
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+}
+
+function sendPreviewFile(target, res, next) {
+  if (!['.html', '.htm'].includes(path.extname(target).toLowerCase())) {
+    previewCsp(res);
+    res.type(contentTypeFor(target));
+    return res.sendFile(target, { dotfiles: 'deny' }, (error) => error && next(error));
+  }
+
+  try {
+    const nonce = crypto.randomBytes(18).toString('base64');
+    const source = fs.readFileSync(target, 'utf8');
+    // La auditoría ya rechazó atributos inline de eventos. Este nonce permite
+    // el JavaScript inline normal de una página estática sin usar unsafe-inline.
+    const html = source.replace(/<script\b(?![^>]*\bnonce=)([^>]*)>/gi,
+      (_match, attributes) => `<script nonce="${nonce}"${attributes}>`);
+    previewCsp(res, nonce);
+    res.type(contentTypeFor(target));
+    return res.send(html);
+  } catch (error) {
+    return next(error);
+  }
 }
 
 function findPreviewIndex(rootDir) {
@@ -363,9 +386,7 @@ app.use('/p/:publicationId', (req, res, next) => {
     }
     if (!fs.existsSync(target) || !fs.statSync(target).isFile()) return res.status(404).json({ error: 'preview_file_not_found' });
   }
-  previewCsp(res);
-  res.type(contentTypeFor(target));
-  return res.sendFile(target, { dotfiles: 'deny' }, (error) => error && next(error));
+  return sendPreviewFile(target, res, next);
 });
 
 app.post('/internal/v1/previews', express.raw({ type: 'application/zip', limit: '100mb' }), (req, res) => {
