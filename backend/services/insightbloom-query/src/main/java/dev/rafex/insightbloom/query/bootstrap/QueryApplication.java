@@ -18,6 +18,9 @@ public class QueryApplication {
         final String dbPath = System.getenv().getOrDefault("DB_PATH", "query.db");
         final String natsUrl = System.getenv().getOrDefault("NATS_URL", "nats://localhost:4222");
         final String natsToken = System.getenv("NATS_AUTH_TOKEN");
+        final String usersUrl = System.getenv().getOrDefault("USERS_URL", "http://insightbloom-users:8081");
+        final var conferenceLifecyclePort =
+                new dev.rafex.insightbloom.query.adapters.outbound.usersclient.HttpConferenceLifecycleClient(usersUrl);
 
         final var db = new DatabaseManager(dbPath);
         db.initialize();
@@ -45,7 +48,8 @@ public class QueryApplication {
         final var deleteConferenceDataUseCase = new DeleteConferenceDataUseCase(cloudRepo, timelineRepo);
 
         final var conferenceQueryHandler = new ConferenceQueryHandler(
-                getCloudUseCase, getTimelineUseCase, deleteConferenceDataUseCase, cloudEventBus, heartbeatScheduler);
+                getCloudUseCase, getTimelineUseCase, deleteConferenceDataUseCase, cloudEventBus, heartbeatScheduler,
+                conferenceLifecyclePort);
         final var updateHandler = new UpdateHandler(updateUseCase);
         final var visibilityHandler = new VisibilityHandler(setVisibilityUseCase);
         final var messageVisibilityHandler = new MessageVisibilityHandler(setMessageVisibilityUseCase);

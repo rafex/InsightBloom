@@ -14,11 +14,14 @@ import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
 public class GenerateWorkspaceDownloadUrlUseCase {
     private final SandboxRepository sandboxRepository;
     private final String downloadBaseUrl;
+    private final WorkspaceDownloadToken tokenCodec;
 
     public GenerateWorkspaceDownloadUrlUseCase(final SandboxRepository sandboxRepository,
-                                              final String downloadBaseUrl) {
+                                              final String downloadBaseUrl,
+                                              final WorkspaceDownloadToken tokenCodec) {
         this.sandboxRepository = sandboxRepository;
         this.downloadBaseUrl = downloadBaseUrl;
+        this.tokenCodec = tokenCodec;
     }
 
     public WorkspaceDownloadInfo execute(final String conferenceUuid, final String userUuid) {
@@ -27,7 +30,7 @@ public class GenerateWorkspaceDownloadUrlUseCase {
             .findByConferenceAndUser(conferenceUuid, userUuid)
             .orElseThrow(() -> new IllegalArgumentException("sandbox_not_assigned"));
 
-        final String downloadToken = WorkspaceDownloadToken.encode(sandbox.getUuid(), userUuid);
+        final String downloadToken = tokenCodec.encode(sandbox.getUuid(), userUuid);
 
         final String downloadUrl = String.format(
             "%s/workspaces/%s/download?token=%s",

@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- AUD-02: algunas paginas (stream SSE de diagramas, iframes de Etherpad/IDE) todavia
+         llevan ib_token en la URL porque EventSource/iframe no permiten header Authorization.
+         no-referrer evita que ese token se filtre via el header Referer a un enlace saliente. -->
+    <meta name="referrer" content="no-referrer" />
     <title>InsightBloom</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>

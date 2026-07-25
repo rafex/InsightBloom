@@ -19,7 +19,8 @@ class GenerateWorkspaceDownloadUrlUseCaseTest {
     @BeforeEach
     void setup() {
         sandboxRepoMock = Mockito.mock(SandboxRepository.class);
-        useCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepoMock, "https://ide.example.com");
+        useCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepoMock, "https://ide.example.com",
+                new WorkspaceDownloadToken("test-secret"));
 
         testSandbox = new Sandbox("conf-1", 0, "user-1", Instant.now().plusSeconds(3600));
     }
@@ -38,7 +39,7 @@ class GenerateWorkspaceDownloadUrlUseCaseTest {
         assertEquals(testSandbox.getUuid(), result.sandboxUuid);
         assertTrue(result.downloadUrl.startsWith("https://ide.example.com/workspaces/"));
         assertTrue(result.downloadUrl.contains("?token="));
-        assertEquals(3600, result.expiresInSeconds);
+        assertEquals(120, result.expiresInSeconds);
     }
 
     @Test
@@ -67,7 +68,7 @@ class GenerateWorkspaceDownloadUrlUseCaseTest {
         final int tokenIndex = downloadUrl.indexOf("token=");
         assertTrue(tokenIndex > 0);
         final String token = downloadUrl.substring(tokenIndex + 6);
-        assertTrue(token.matches("[A-Za-z0-9_-]+"));
+        assertTrue(token.matches("[A-Za-z0-9_.-]+"));
     }
 
     @Test

@@ -212,6 +212,10 @@ public class SurveyHandler extends BaseResourceHandler {
                 if (onlyActive) {
                     sendOk(jx, listQuestionsUseCase.executePublic(conferenceId));
                 } else {
+                    // AUD-05: onlyActive=false devuelve el modelo completo (incluye
+                    // referenceAnswer, estado y metadatos internos de preguntas inactivas) --
+                    // debe quedar restringido a quien gestiona la encuesta, no publico.
+                    if (requireSurveyManager(jx, conferenceId) == null) return true;
                     sendOk(jx, listQuestionsUseCase.execute(conferenceId, false));
                 }
                 return true;

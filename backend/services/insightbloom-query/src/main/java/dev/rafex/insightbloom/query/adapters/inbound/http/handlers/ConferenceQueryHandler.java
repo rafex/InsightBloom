@@ -10,6 +10,7 @@ import dev.rafex.insightbloom.query.application.usecases.GetCloudUseCase;
 import dev.rafex.insightbloom.query.application.usecases.GetTimelineUseCase;
 import dev.rafex.insightbloom.query.domain.model.MessageType;
 import dev.rafex.insightbloom.query.domain.ports.CloudEventBus;
+import dev.rafex.insightbloom.query.domain.ports.ConferenceLifecyclePort;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -28,15 +29,18 @@ public class ConferenceQueryHandler extends BaseResourceHandler {
     private final DeleteConferenceDataUseCase deleteConferenceDataUseCase;
     private final CloudEventBus cloudEventBus;
     private final ScheduledExecutorService scheduler;
+    private final ConferenceLifecyclePort conferenceLifecyclePort;
 
     public ConferenceQueryHandler(final GetCloudUseCase getCloudUseCase, final GetTimelineUseCase getTimelineUseCase,
                                    final DeleteConferenceDataUseCase deleteConferenceDataUseCase,
-                                   final CloudEventBus cloudEventBus, final ScheduledExecutorService scheduler) {
+                                   final CloudEventBus cloudEventBus, final ScheduledExecutorService scheduler,
+                                   final ConferenceLifecyclePort conferenceLifecyclePort) {
         this.getCloudUseCase = getCloudUseCase;
         this.getTimelineUseCase = getTimelineUseCase;
         this.deleteConferenceDataUseCase = deleteConferenceDataUseCase;
         this.cloudEventBus = cloudEventBus;
         this.scheduler = scheduler;
+        this.conferenceLifecyclePort = conferenceLifecyclePort;
     }
 
     @Override
@@ -81,6 +85,15 @@ public class ConferenceQueryHandler extends BaseResourceHandler {
 
         if (conferenceId == null) {
             sendError(jx, 400, "bad_request", "Invalid path");
+            return true;
+        }
+        // AUD-06: sin esto, cualquiera con el UUID podia leer la nube/timeline de una
+        // conferencia desactivada, vencida o inexistente sin ninguna credencial. La
+        // visibilidad PRIVATE/PUBLIC no se filtra aca a proposito -- este endpoint lo usan
+        // asistentes de eventos privados sin login (identidad por fingerprint de invitado),
+        // solo el ciclo de vida (activo, no vencido) es lo que faltaba validar.
+        if (!conferenceLifecyclePort.isActive(conferenceId)) {
+            sendError(jx, 404, "conference_not_found", "Conference not found or not active");
             return true;
         }
         try {

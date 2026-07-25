@@ -19,13 +19,15 @@ describe('surveyApi', () => {
   it('getQuestions defaults onlyActive to true and is unauthenticated', async () => {
     axios.get.mockResolvedValue({ data: { data: [] } })
     await getQuestions('c1')
-    expect(axios.get).toHaveBeenCalledWith(`${BASE}/conferences/c1/survey/questions`, { params: { onlyActive: true } })
+    expect(axios.get).toHaveBeenCalledWith(`${BASE}/conferences/c1/survey/questions`,
+      { params: { onlyActive: true }, headers: {} })
   })
 
-  it('getQuestions can request inactive questions too', async () => {
+  it('getQuestions can request inactive questions with a token (AUD-05: management-only)', async () => {
     axios.get.mockResolvedValue({ data: { data: [] } })
-    await getQuestions('c1', false)
-    expect(axios.get).toHaveBeenCalledWith(`${BASE}/conferences/c1/survey/questions`, { params: { onlyActive: false } })
+    await getQuestions('c1', false, 'tok')
+    expect(axios.get).toHaveBeenCalledWith(`${BASE}/conferences/c1/survey/questions`,
+      { params: { onlyActive: false }, headers: { Authorization: 'Bearer tok' } })
   })
 
   it('createQuestion forwards the "required" flag (regression risk: default must survive round-trip)', async () => {

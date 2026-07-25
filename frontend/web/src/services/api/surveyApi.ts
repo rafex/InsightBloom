@@ -65,9 +65,10 @@ export interface AiMentorChatMessage {
   content: string
 }
 
-export async function getQuestions(conferenceId: string, onlyActive = true): Promise<{ data: any[] }> {
+export async function getQuestions(conferenceId: string, onlyActive = true, token?: string | null): Promise<{ data: any[] }> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/questions`, {
-    params: { onlyActive }
+    params: { onlyActive },
+    headers: authHeader(token)
   })
   return res.data
 }

@@ -230,7 +230,9 @@ public class UsersApplication {
         // DEC-0025) compartido entre el Pod (KubernetesPodClient lo inyecta como env var) y
         // este proceso (InternalSandboxIncidentHandler lo valida) para que el watchdog del
         // seat-agent pueda reportar incidentes.
-        final String sandboxIncidentReportKey = System.getenv().getOrDefault("SANDBOX_INCIDENT_REPORT_KEY", "dev-only-change-me");
+        // AUD-04: sin fallback -- si la env var no esta seteada, el handler (que ya rechaza
+        // header==null) queda cerrado por defecto en vez de aceptar un valor predecible.
+        final String sandboxIncidentReportKey = System.getenv("SANDBOX_INCIDENT_REPORT_KEY");
         final var sandboxOrchestrator = new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient(
                 JacksonJsonCodec.defaultCodec(),
                 System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"),
@@ -284,8 +286,23 @@ public class UsersApplication {
                 conferenceRepo, ensureUnassignedSandboxUseCase);
         final var resetSandboxUseCase = new ResetSandboxUseCase(
                 sandboxRepo, conferenceRepo, sandboxOrchestrator, ensureUnassignedSandboxUseCase);
-        final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(sandboxRepo, workspaceDownloadBaseUrl);
-        final var downloadWorkspaceZipUseCase = new DownloadWorkspaceZipUseCase(sandboxRepo, sandboxOrchestrator);
+        // AUD-07: WORKSPACE_DOWNLOAD_SECRET no tiene un default predecible (ver AUD-04) -- si no
+        // esta seteada, se genera una al azar en cada arranque. Como los tokens duran 2 minutos
+        // (WorkspaceDownloadToken.EXPIRY_SECONDS) y este servicio corre con una sola replica, un
+        // secreto efimero por proceso es tan seguro como uno persistido, sin el riesgo de un
+        // valor por defecto adivinable.
+        final String workspaceDownloadSecret = java.util.Optional.ofNullable(System.getenv("WORKSPACE_DOWNLOAD_SECRET"))
+                .filter(s -> !s.isBlank())
+                .orElseGet(() -> {
+                    final byte[] random = new byte[32];
+                    new java.security.SecureRandom().nextBytes(random);
+                    return java.util.Base64.getEncoder().encodeToString(random);
+                });
+        final var workspaceDownloadTokenCodec = new WorkspaceDownloadToken(workspaceDownloadSecret);
+        final var generateWorkspaceDownloadUrlUseCase = new GenerateWorkspaceDownloadUrlUseCase(
+                sandboxRepo, workspaceDownloadBaseUrl, workspaceDownloadTokenCodec);
+        final var downloadWorkspaceZipUseCase = new DownloadWorkspaceZipUseCase(
+                sandboxRepo, sandboxOrchestrator, workspaceDownloadTokenCodec);
         final var workspacePreviewPublisher =
                 new dev.rafex.insightbloom.users.adapters.outbound.presentationsclient.HttpWorkspacePreviewPublisher(
                         presentationsUrl, internalApiKey);

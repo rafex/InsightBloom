@@ -9,10 +9,12 @@ public class HttpUsersClient implements UsersPort {
     private final String baseUrl;
     private final HttpClient client;
     private final ObjectMapper mapper;
+    private final String internalApiKey;
     public HttpUsersClient(String baseUrl) {
         this.baseUrl = baseUrl;
         this.client = HttpClient.newHttpClient();
         this.mapper = new ObjectMapper();
+        this.internalApiKey = System.getenv("INTERNAL_API_KEY");
     }
     @Override
     public ValidationResult validate(String token) {
@@ -36,9 +38,13 @@ public class HttpUsersClient implements UsersPort {
     @Override
     public boolean isConferenceOwner(String conferenceUuid, String userUuid) {
         try {
-            HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/api/v1/conferences/" + conferenceUuid))
-                .GET().build();
+            // AUD-01: GET /conferences/{uuid} ahora exige credenciales (sesion o servicio-a-servicio).
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/api/v1/conferences/" + conferenceUuid));
+            if (internalApiKey != null && !internalApiKey.isEmpty()) {
+                builder.header("X-Internal-Auth", internalApiKey);
+            }
+            HttpRequest req = builder.GET().build();
             HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() != 200) return false;
             var node = mapper.readTree(resp.body()).get("data");

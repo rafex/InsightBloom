@@ -13,15 +13,18 @@ import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
 public class DownloadWorkspaceZipUseCase {
     private final SandboxRepository sandboxRepository;
     private final SandboxOrchestrator sandboxOrchestrator;
+    private final WorkspaceDownloadToken tokenCodec;
 
     public DownloadWorkspaceZipUseCase(final SandboxRepository sandboxRepository,
-                                        final SandboxOrchestrator sandboxOrchestrator) {
+                                        final SandboxOrchestrator sandboxOrchestrator,
+                                        final WorkspaceDownloadToken tokenCodec) {
         this.sandboxRepository = sandboxRepository;
         this.sandboxOrchestrator = sandboxOrchestrator;
+        this.tokenCodec = tokenCodec;
     }
 
     public byte[] execute(final String sandboxUuid, final String token) {
-        final var parsed = WorkspaceDownloadToken.decode(token)
+        final var parsed = tokenCodec.decode(token)
                 .orElseThrow(() -> new IllegalArgumentException("token_invalid"));
         if (!parsed.sandboxUuid().equals(sandboxUuid)) {
             throw new IllegalArgumentException("token_invalid");

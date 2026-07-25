@@ -218,14 +218,40 @@ navegación directa, pero debe limitarse a tokens de un solo uso y TTL corto.
 
 ## Plan de remediación
 
-- [ ] Corregir `AUD-01` y añadir pruebas de DTO público.
-- [ ] Corregir `AUD-02` con tickets temporales para SSE/iframes.
-- [ ] Recrear Pods CLI y cerrar `AUD-03` con pruebas entre dos alumnos.
-- [ ] Eliminar el fallback `dev-only-change-me` de `AUD-04`.
-- [ ] Proteger `onlyActive=false` y cerrar `AUD-05`.
-- [ ] Aplicar política de visibilidad, estado y expiración a `AUD-06`.
-- [ ] Convertir la descarga de workspace en token de un solo uso para cerrar
-  `AUD-07`.
+- [x] Corregir `AUD-01`: `handleGetById` ahora exige sesión o
+  `X-Internal-Auth`; `handleGetByFriendly`/`handleGetByShortCode` (rutas
+  públicas sin token) sanitizan el agregado (`sanitizeForPublicAggregate`,
+  quita config de sandboxes, control de dispositivos, motor de certificados,
+  XML de drawio, escena de Excalidraw) en vez de devolver el modelo completo.
+  Pendiente: prueba de contrato dedicada (hoy solo se verificó manualmente).
+- [x] Corregir `AUD-02`: `extractToken` ya no acepta `ib_token` por query
+  string salvo en `GET`; se agregó `Referrer-Policy: no-referrer` en
+  `index.html` para las páginas que aún llevan token en la URL (SSE de
+  diagramas, iframes).
+- [x] Corregir `AUD-03`: `sandbox-agent.py` ya tenía el `chmod 0750`
+  correcto (commit `35e4c8f`), pero el pipeline `publish-code-ide.yml`
+  llevaba 2 runs fallando ("uv: not found" en la variante neovim, causa:
+  python-build-standalone solo symlinkea `python3`/`pip`, no otros scripts
+  instalados por pip) y nunca publicó una imagen con el fix. Corregido
+  agregando `/usr/local/lib/python-3.12/bin` al `PATH`. Pendiente: verificar
+  en vivo con dos asientos activos del mismo Pod una vez que la imagen nueva
+  esté desplegada (la auditoría original no pudo completar esa prueba con un
+  solo alumno activo).
+- [x] Eliminar el fallback `dev-only-change-me` de `AUD-04` (sin default,
+  `InternalSandboxIncidentHandler` ya rechazaba header nulo/vacío).
+- [x] Proteger `onlyActive=false` y cerrar `AUD-05` (requiere
+  `requireSurveyManager`).
+- [x] Aplicar política de estado y expiración a `AUD-06` (nueva
+  `ConferenceLifecyclePort`/`HttpConferenceLifecycleClient` en
+  insightbloom-query, consulta a insightbloom-users antes de servir
+  nube/timeline). La visibilidad PRIVATE/PUBLIC deliberadamente no se filtra
+  ahí -- asistentes de eventos privados sin login siguen necesitando acceso.
+- [x] Convertir la descarga de workspace en token de un solo uso para cerrar
+  `AUD-07`: `WorkspaceDownloadToken` ahora firma con HMAC-SHA256
+  (`WORKSPACE_DOWNLOAD_SECRET`), TTL de 3600s → 120s, y nonce de un solo uso
+  (se marca consumido en el primer `decode()` exitoso). Antes el token no
+  estaba firmado -- cualquiera que conociera sandboxUuid+userUuid podía
+  forjar uno válido.
 - [ ] Incorporar pruebas automatizadas de endpoint sin token, usuario normal y
   cada rol autorizado.
 

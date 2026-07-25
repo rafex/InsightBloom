@@ -658,7 +658,7 @@ export default {
         return
       }
       try {
-        const qRes = await getQuestions(props.conferenceId, false)
+        const qRes = await getQuestions(props.conferenceId, false, auth.state.token as string)
         questions.value = (qRes.data || []).filter((q: SurveyQuestionRow) => q.active)
       } catch (e: any) { questions.value = [] }
       try {

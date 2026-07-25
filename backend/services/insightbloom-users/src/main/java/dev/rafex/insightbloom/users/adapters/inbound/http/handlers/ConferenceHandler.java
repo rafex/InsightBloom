@@ -662,7 +662,26 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
+    // AUD-01: el agregado completo (config de sandboxes, XML de drawio, escena de Excalidraw,
+    // motor de certificados, etc.) respondia sin credenciales por estas dos rutas. by-id lo usan
+    // exclusivamente pantallas autenticadas del dashboard/moderacion (todas mandan token hoy);
+    // by-friendly la usa la pagina publica del evento (ConferencePage.vue) SIN token para
+    // cualquier visitante -- por eso ahi el agregado se sanitiza siempre, y by-id exige sesion.
+
     private boolean handleGetById(final JettyHttpExchange jx, final String id) {
+        // Ademas del token de usuario, se acepta X-Internal-Auth: otros servicios (survey,
+        // moderation) llaman esta ruta sin sesion de usuario para resolver isConferenceOwner.
+        if (!validInternalAuth(jx)) {
+            final String token = extractToken(jx);
+            if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+            try {
+                final var v = validateTokenUseCase.execute(token);
+                if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            } catch (final Exception e) {
+                sendError(jx, 500, "internal_error", e.getMessage());
+                return true;
+            }
+        }
         try {
             getConferenceUseCase.byId(id).ifPresentOrElse(
                     c -> sendOk(jx, 200, c),
@@ -676,12 +695,35 @@ public class ConferenceHandler extends BaseResourceHandler {
     private boolean handleGetByFriendly(final JettyHttpExchange jx, final String friendlyId) {
         try {
             getConferenceUseCase.byFriendlyId(friendlyId).ifPresentOrElse(
-                    c -> sendOk(jx, 200, c),
+                    c -> sendOk(jx, 200, sanitizeForPublicAggregate(c)),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    /**
+     * Quita del agregado los campos operativos/internos (config de sandboxes, control de
+     * dispositivos, motor de certificados, XML editable de drawio, escena nativa de Excalidraw)
+     * antes de servirlo por una ruta sin autenticación -- ver AUD-01. Las versiones "publicadas"
+     * (SVG) de drawio/whiteboard SÍ son para el público, se conservan.
+     */
+    private Conference sanitizeForPublicAggregate(final Conference c) {
+        c.setSandboxVariant(null);
+        c.setSandboxPoolSize(null);
+        c.setSandboxCliPoolSize(null);
+        c.setSandboxInternetEnabled(null);
+        c.setSandboxExtraPackages(null);
+        c.setSandboxRemoteGitUrl(null);
+        c.setSandboxJvmHeapMb(null);
+        c.setSandboxSeatsPerPod(null);
+        c.setMaxDevicesPerUser(null);
+        c.setMaxAccountsPerDevice(null);
+        c.setCertificateEngine(null);
+        c.setDiagramXml(null);
+        c.setWhiteboardSceneAndPublishedSvg(null, c.getWhiteboardPublishedSvg());
+        return c;
     }
 
     /** DTO público reducido: no expone sandboxes, tokens ni configuración interna. */
@@ -860,8 +902,10 @@ public class ConferenceHandler extends BaseResourceHandler {
 
     private boolean handleGetByShortCode(final JettyHttpExchange jx, final String shortCode) {
         try {
+            // AUD-01: mismo tratamiento que by-friendly -- ruta publica sin token, agregado
+            // sanitizado (ver sanitizeForPublicAggregate).
             getConferenceUseCase.byShortCode(shortCode).ifPresentOrElse(
-                    c -> sendOk(jx, 200, c),
+                    c -> sendOk(jx, 200, sanitizeForPublicAggregate(c)),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
@@ -2562,8 +2606,13 @@ public class ConferenceHandler extends BaseResourceHandler {
     private String extractToken(final JettyHttpExchange jx) {
         final String auth = jx.request().getHeaders().get("Authorization");
         if (auth != null && auth.startsWith("Bearer ")) return auth.substring(7);
-        // EventSource no permite headers Authorization; el stream de diagramas usa ib_token
-        // como query param, igual que los iframes de las herramientas integradas.
+        // AUD-02: el fallback a query string existe SOLO para GET (EventSource no permite
+        // headers Authorization; el stream de diagramas y los iframes de herramientas integradas
+        // dependen de esto). Toda operacion que muta estado (POST/PUT/PATCH/DELETE) siempre pasa
+        // por axios en el frontend, que SI puede mandar el header -- aceptar el token por query
+        // ahi solo agrega superficie de filtracion (historial del navegador, logs de proxy,
+        // Referer) sin ningun beneficio real.
+        if (!"GET".equals(jx.method())) return null;
         return queryParam(jx, "ib_token");
     }
 

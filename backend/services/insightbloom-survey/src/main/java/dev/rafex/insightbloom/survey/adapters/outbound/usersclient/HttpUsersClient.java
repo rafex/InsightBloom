@@ -78,10 +78,14 @@ public class HttpUsersClient implements UsersPort {
     @Override
     public boolean isConferenceOwner(final String conferenceUuid, final String userUuid) {
         try {
-            final HttpRequest request = HttpRequest.newBuilder()
+            // AUD-01: GET /conferences/{uuid} ahora exige credenciales (sesion o servicio-a-servicio).
+            final var builder = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/api/v1/conferences/" + conferenceUuid))
-                    .timeout(Duration.ofSeconds(5))
-                    .GET().build();
+                    .timeout(Duration.ofSeconds(5));
+            if (internalApiKey != null && !internalApiKey.isEmpty()) {
+                builder.header("X-Internal-Auth", internalApiKey);
+            }
+            final HttpRequest request = builder.GET().build();
             final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) return false;
             final var node = dev.rafex.ether.json.JsonUtils.codec().readTree(response.body()).path("data");
