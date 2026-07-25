@@ -7,13 +7,13 @@
   nav.sub-links(v-if="conferenceId")
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/edit`") Editor
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/config`") Configuración
-    router-link.sub-link(:to="`/dashboard/admin/ai/tutor?conference=${conferenceId}`") 🤖 Tutor IA
 
   nav.config-tabs(v-if="!loading && !error" aria-label="Secciones de configuración")
     button.config-tab(type="button" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'") General
     button.config-tab(type="button" :class="{ active: activeTab === 'tools' }" @click="activeTab = 'tools'") Herramientas
     button.config-tab(type="button" :class="{ active: activeTab === 'sandbox' }" @click="activeTab = 'sandbox'") IDE y sandboxes
     button.config-tab(type="button" :class="{ active: activeTab === 'access' }" @click="activeTab = 'access'") Acceso y roles
+    button.config-tab(type="button" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'") 🤖 Tutor IA
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
@@ -225,6 +225,31 @@
         button.btn-outline(type="button" @click="assignRole" :disabled="assigning") Asignar
       p.success(v-if="roleAssigned") Rol asignado.
       p.error(v-if="roleError") {{ roleError }}
+
+    .form-group.mentor-group(v-show="activeTab === 'ai'")
+      label Tutor IA del evento
+      p.field-hint Configuración pedagógica exclusiva de este evento. El proveedor, la URL base y la clave del Tutor IA (compartidos por toda la plataforma) se configuran aparte, en #[router-link(to="/dashboard/admin/ai/tutor") IA → Tutor IA] (solo administradores).
+      label.toggle-row
+        input(type="checkbox" v-model="mentorEnabled" :disabled="savingMentor")
+        span {{ mentorEnabled ? 'Tutor habilitado para los asistentes' : 'Tutor deshabilitado para los asistentes' }}
+      .coord-field
+        span.coord-label Objetivo pedagógico del taller
+        textarea(v-model="mentorObjective" rows="4" maxlength="2000" placeholder="Qué deben aprender o construir los asistentes")
+      .coord-field
+        span.coord-label Instrucciones adicionales y límites
+        textarea(v-model="mentorPrompt" rows="5" maxlength="8000" placeholder="Por ejemplo: pedir primero qué intentaron y dar una pista a la vez")
+      label.toggle-row
+        input(type="checkbox" v-model="mentorIncludePresentation" :disabled="savingMentor")
+        span Leer la presentación como contexto de consulta
+      p.field-hint 🧭 Modo socrático activo: el tutor hará preguntas y dará pistas graduales; no entregará la solución completa.
+      .coord-field
+        span.coord-label Máximo de consultas por usuario/minuto
+        input(v-model.number="mentorMaxRequests" type="number" min="1" max="30" :disabled="savingMentor")
+      button.btn-outline(type="button" @click="saveMentor" :disabled="savingMentor")
+        span(v-if="savingMentor") Guardando...
+        span(v-else) Guardar configuración pedagógica del evento
+      p.success(v-if="mentorSaved") Configuración del tutor IA guardada.
+      p.error(v-if="mentorError") {{ mentorError }}
 </template>
 
 <script lang="ts">
@@ -236,6 +261,7 @@ import {
   recreateSandbox as recreateSandboxApi, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
   getCertificateEngine
 } from '@/services/api/usersApi'
+import { getAiMentorConfig, setAiMentorConfig } from '@/services/api/surveyApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, SandboxPrewarmResult, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
@@ -251,7 +277,7 @@ export default {
     const loading      = ref(true)
     const error        = ref('')
 
-    const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access'>('general')
+    const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access' | 'ai'>('general')
     const seatingMode  = ref<SeatingMode>('NONE')
     const capacity     = ref<number | null>(null)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
@@ -329,6 +355,53 @@ export default {
     const assigning       = ref(false)
     const roleAssigned    = ref(false)
     const roleError       = ref('')
+    const mentorEnabled = ref(false)
+    const mentorObjective = ref('')
+    const mentorPrompt = ref('')
+    const mentorIncludePresentation = ref(true)
+    const mentorMaxRequests = ref(8)
+    const savingMentor = ref(false)
+    const mentorSaved = ref(false)
+    const mentorError = ref('')
+
+    async function loadMentor() {
+      try {
+        const result = await getAiMentorConfig(props.conferenceId as string, auth.state.token as string)
+        const mentor = result.data
+        mentorEnabled.value = mentor.enabled
+        mentorObjective.value = mentor.objective || ''
+        mentorPrompt.value = mentor.prompt || ''
+        mentorIncludePresentation.value = mentor.includePresentation !== false
+        mentorMaxRequests.value = mentor.maxRequestsPerMinute || 8
+      } catch (e: any) {
+        mentorError.value = e.response?.data?.error?.message || 'No se pudo cargar la configuración pedagógica del evento'
+      }
+    }
+
+    async function saveMentor() {
+      savingMentor.value = true; mentorSaved.value = false; mentorError.value = ''
+      try {
+        const result = await setAiMentorConfig(props.conferenceId as string, {
+          enabled: mentorEnabled.value,
+          objective: mentorObjective.value,
+          prompt: mentorPrompt.value,
+          includePresentation: mentorIncludePresentation.value,
+          maxRequestsPerMinute: mentorMaxRequests.value
+        }, auth.state.token as string)
+        const mentor = result.data
+        mentorEnabled.value = mentor.enabled
+        mentorObjective.value = mentor.objective || ''
+        mentorPrompt.value = mentor.prompt || ''
+        mentorIncludePresentation.value = mentor.includePresentation
+        mentorMaxRequests.value = mentor.maxRequestsPerMinute
+        mentorSaved.value = true
+      } catch (e: any) {
+        mentorError.value = e.response?.data?.error?.message || 'No se pudo guardar la configuración pedagógica del evento'
+      } finally {
+        savingMentor.value = false
+      }
+    }
+
     onMounted(async () => {
       try {
         const [conf, types] = await Promise.all([
@@ -384,6 +457,8 @@ export default {
       } catch (e: any) {
         canManageRoles.value = false
       }
+
+      await loadMentor()
     })
 
     function roleName(key: string): string {
@@ -680,7 +755,9 @@ export default {
              ] as Array<{ value: CanvasTool; label: string }>,
              savingCanvasConfig, canvasConfigSaved, canvasConfigError, saveCanvasConfig,
              eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
-             roleAssigned, roleError, roleName, assignRole, removeRole, breadcrumbItems }
+             roleAssigned, roleError, roleName, assignRole, removeRole, breadcrumbItems,
+             mentorEnabled, mentorObjective, mentorPrompt, mentorIncludePresentation, mentorMaxRequests,
+             savingMentor, mentorSaved, mentorError, saveMentor }
   }
 }
 </script>

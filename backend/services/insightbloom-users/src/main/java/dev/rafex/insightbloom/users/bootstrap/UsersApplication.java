@@ -74,6 +74,12 @@ public class UsersApplication {
         final var certificateTemplateRepo = new SqliteCertificateTemplateRepository(db);
         final var platformSettingsRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqlitePlatformSettingsRepository(
                 db, new dev.rafex.insightbloom.users.adapters.outbound.crypto.AiApiKeyCipher(internalApiKey));
+        // AI_SEED_DEFAULTS=false salta el seeding y deja las capacidades sin configurar tal cual
+        // esten en la BD (heredando en silencio la config de chat); en true (default) rellena una
+        // sola vez, por capacidad, un Prompt base y Guardarails reales -- nunca pisa lo que el
+        // admin ya haya guardado explicitamente. Ver AiDefaultsSeeder.
+        final boolean aiSeedDefaults = !"false".equalsIgnoreCase(System.getenv("AI_SEED_DEFAULTS"));
+        dev.rafex.insightbloom.users.domain.services.AiDefaultsSeeder.seedIfNeeded(platformSettingsRepo, aiSeedDefaults);
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
         final var timezoneRepo = new SqliteTimezoneRepository(db);
         final var reservationRepo = new SqliteReservationRepository(db);

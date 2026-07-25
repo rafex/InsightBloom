@@ -21,9 +21,6 @@
           input(type="checkbox" v-model="activeProvider.enabled" :disabled="saving")
           span {{ activeProvider.enabled ? 'IA habilitada para este flujo' : 'IA deshabilitada para este flujo' }}
 
-      .inheritance-note(v-if="!activeProvider.configured")
-        | Este flujo aún usa temporalmente la configuración anterior como respaldo. Al guardar aquí quedará separado con su propia configuración.
-
       .form-group
         label(for="ai-base-url") URL base compatible con OpenAI
         input#ai-base-url(v-model.trim="activeProvider.baseUrl" type="url" placeholder="https://api.openai.com/v1")
@@ -72,37 +69,13 @@
       p.success(v-if="saved") Configuración guardada.
       p.error(v-if="error") {{ error }}
 
-      .event-mentor-settings(v-if="activeCapability === 'tutor' && eventConferenceId")
-        h4 Tutor IA del evento
-        p.field-hint Configuración pedagógica exclusiva de este evento. El proveedor, la URL y la clave permanecen en esta sección IA y nunca se envían al navegador.
-        label.toggle-row
-          input(type="checkbox" v-model="mentorEnabled" :disabled="savingMentor")
-          span {{ mentorEnabled ? 'Tutor habilitado para los asistentes' : 'Tutor deshabilitado para los asistentes' }}
-        .form-group
-          label(for="mentor-objective") Objetivo pedagógico del taller
-          textarea#mentor-objective.prompt-input(v-model="mentorObjective" rows="4" maxlength="2000" placeholder="Qué deben aprender o construir los asistentes")
-        .form-group
-          label(for="mentor-prompt") Instrucciones adicionales y límites
-          textarea#mentor-prompt.prompt-input(v-model="mentorPrompt" rows="5" maxlength="8000" placeholder="Por ejemplo: pedir primero qué intentaron y dar una pista a la vez")
-        label.toggle-row
-          input(type="checkbox" v-model="mentorIncludePresentation" :disabled="savingMentor")
-          span Leer la presentación como contexto de consulta
-        p.socratic-note 🧭 Modo socrático activo: el tutor hará preguntas y dará pistas graduales; no entregará la solución completa.
-        .form-group
-          label(for="mentor-rate") Máximo de consultas por usuario/minuto
-          input#mentor-rate(v-model.number="mentorMaxRequests" type="number" min="1" max="30" :disabled="savingMentor")
-        button.btn-primary(@click="saveMentor" :disabled="savingMentor" type="button")
-          span(v-if="savingMentor") Guardando...
-          span(v-else) Guardar configuración pedagógica del evento
-        p.success(v-if="mentorSaved") Configuración del tutor IA guardada.
-        p.error(v-if="mentorError") {{ mentorError }}
+      p.field-hint(v-if="activeCapability === 'tutor'") El objetivo pedagógico, las instrucciones y el límite de consultas de cada evento se configuran en la sección "Tutor IA" de la configuración de ese evento (Eventos → [evento] → Configuración → Tutor IA), no aquí — esta pantalla solo define el proveedor (URL, clave, prompts) que comparten todos los eventos.
 </template>
 
 <script lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getAiSettings, setAiProviderSettings, getAiPromptCatalog } from '@/services/api/usersApi'
-import { getAiMentorConfig, setAiMentorConfig } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import type { AiProviderSettings, AiSettings, AiPromptVariable } from '@/services/api/types'
 
@@ -145,18 +118,6 @@ export default {
     const saved = ref(false)
     const error = ref('')
     const activeCapability = ref<Capability>('chat')
-    const eventConferenceId = computed(() => {
-      const value = route.query.conference
-      return Array.isArray(value) ? value[0] : value || ''
-    })
-    const mentorEnabled = ref(false)
-    const mentorObjective = ref('')
-    const mentorPrompt = ref('')
-    const mentorIncludePresentation = ref(true)
-    const mentorMaxRequests = ref(8)
-    const savingMentor = ref(false)
-    const mentorSaved = ref(false)
-    const mentorError = ref('')
     const providers = reactive<Record<Capability, ProviderForm>>({
       chat: emptyProvider(), tutor: emptyProvider(), survey: emptyProvider(), 'seat-layout': emptyProvider()
     })
@@ -185,22 +146,6 @@ export default {
         router.replace({ path: `/dashboard/admin/ai/${capability}`, query: route.query })
       }
     }, { immediate: true })
-
-    async function loadMentor() {
-      if (!eventConferenceId.value) return
-      mentorError.value = ''
-      try {
-        const result = await getAiMentorConfig(eventConferenceId.value, auth.state.token as string)
-        const mentor = result.data
-        mentorEnabled.value = mentor.enabled
-        mentorObjective.value = mentor.objective || ''
-        mentorPrompt.value = mentor.prompt || ''
-        mentorIncludePresentation.value = mentor.includePresentation !== false
-        mentorMaxRequests.value = mentor.maxRequestsPerMinute || 8
-      } catch (err: any) {
-        mentorError.value = err.response?.data?.error?.message || 'No se pudo cargar la configuración pedagógica del evento'
-      }
-    }
 
     function mapProvider(value: AiProviderSettings | undefined): ProviderForm {
       const source = value || emptyProvider()
@@ -231,13 +176,10 @@ export default {
       } finally {
         loading.value = false
       }
-      await loadMentor()
       try {
         promptVariables.value = await getAiPromptCatalog(auth.state.token as string)
       } catch { /* referencia opcional; no bloquea la pantalla si falla */ }
     })
-
-    watch(eventConferenceId, () => { void loadMentor() })
 
     async function save() {
       saving.value = true; saved.value = false; error.value = ''
@@ -257,34 +199,8 @@ export default {
       }
     }
 
-    async function saveMentor() {
-      if (!eventConferenceId.value) return
-      savingMentor.value = true; mentorSaved.value = false; mentorError.value = ''
-      try {
-        const result = await setAiMentorConfig(eventConferenceId.value, {
-          enabled: mentorEnabled.value,
-          objective: mentorObjective.value,
-          prompt: mentorPrompt.value,
-          includePresentation: mentorIncludePresentation.value,
-          maxRequestsPerMinute: mentorMaxRequests.value
-        }, auth.state.token as string)
-        const mentor = result.data
-        mentorEnabled.value = mentor.enabled
-        mentorObjective.value = mentor.objective || ''
-        mentorPrompt.value = mentor.prompt || ''
-        mentorIncludePresentation.value = mentor.includePresentation
-        mentorMaxRequests.value = mentor.maxRequestsPerMinute
-        mentorSaved.value = true
-      } catch (err: any) {
-        mentorError.value = err.response?.data?.error?.message || 'No se pudo guardar la configuración pedagógica del evento'
-      } finally {
-        savingMentor.value = false
-      }
-    }
-
-    return { tabs, activeCapability, activeTab, activeProvider, eventConferenceId, loading, saving, saved, error, save, selectCapability,
-      mentorEnabled, mentorObjective, mentorPrompt, mentorIncludePresentation, mentorMaxRequests,
-      savingMentor, mentorSaved, mentorError, saveMentor, showVariables, promptVariables, variableToken }
+    return { tabs, activeCapability, activeTab, activeProvider, loading, saving, saved, error, save, selectCapability,
+      showVariables, promptVariables, variableToken }
   }
 }
 </script>
@@ -307,7 +223,6 @@ h2 { color: #1e1b4b; margin-bottom: 6px; }
 .field-hint { margin: 0 0 16px; font-size: .85rem; color: #6b7280; }
 .toggle-row { display: flex; align-items: center; gap: 10px; font-size: .9rem; cursor: pointer; white-space: nowrap; }
 .toggle-row input, .clear-key input { width: auto; }
-.inheritance-note { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; color: #9a3412; padding: 10px 12px; margin-bottom: 18px; font-size: .85rem; }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: .9rem; color: #374151; }
 .form-group input[type="url"], .form-group input[type="text"], .form-group input[type="password"] { padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: .9rem; }
@@ -325,8 +240,5 @@ h2 { color: #1e1b4b; margin-bottom: 6px; }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 .success { color: #166534; font-size: .85rem; margin-top: 10px; }
 .error { color: #dc2626; font-size: .85rem; margin-top: 10px; }
-.event-mentor-settings { margin-top: 28px; padding-top: 22px; border-top: 1px solid #e5e7eb; }
-.event-mentor-settings h4 { margin: 0 0 8px; color: #1e1b4b; font-size: 1rem; }
-.socratic-note { margin: 10px 0 18px; padding: 10px 12px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px; color: #3730a3; font-size: .85rem; line-height: 1.45; }
 @media (max-width: 760px) { .settings-shell { grid-template-columns: 1fr; } .ai-tabs { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .capability-heading { flex-direction: column; } .toggle-row { white-space: normal; } }
 </style>
