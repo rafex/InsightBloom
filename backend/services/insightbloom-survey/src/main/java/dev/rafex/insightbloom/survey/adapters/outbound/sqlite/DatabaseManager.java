@@ -91,6 +91,16 @@ public class DatabaseManager {
                     max_requests_per_minute INTEGER NOT NULL DEFAULT 8,
                     updated_at TEXT NOT NULL
                 )""");
+            // Contexto adicional por evento para SuggestQuestionsUseCase: el contenido de la
+            // presentacion ya se usa siempre (comportamiento global, no configurable), esto es
+            // solo texto extra que puede no estar explicito en las diapositivas (objetivos del
+            // examen, temas a enfatizar, etc).
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS ai_survey_configs (
+                    conference_uuid TEXT PRIMARY KEY,
+                    extra_context TEXT,
+                    updated_at TEXT NOT NULL
+                )""");
 
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "reference_answer", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(c, "survey_questions", "rating_style", "TEXT");

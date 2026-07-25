@@ -65,6 +65,12 @@ export interface AiMentorChatMessage {
   content: string
 }
 
+export interface AiSurveyConfig {
+  conferenceUuid?: string
+  extraContext: string
+  updatedAt?: string
+}
+
 export async function getQuestions(conferenceId: string, onlyActive = true, token?: string | null): Promise<{ data: any[] }> {
   const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/questions`, {
     params: { onlyActive },
@@ -86,6 +92,22 @@ export async function setAiMentorConfig(
   token: string
 ): Promise<{ data: AiMentorConfig }> {
   const res = await axios.put(`${BASE}/conferences/${conferenceId}/mentor/config`, config, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function getAiSurveyConfig(conferenceId: string, token: string): Promise<{ data: AiSurveyConfig }> {
+  const res = await axios.get(`${BASE}/conferences/${conferenceId}/survey/ai-config`, {
+    headers: authHeader(token)
+  })
+  return res.data
+}
+
+export async function setAiSurveyConfig(
+  conferenceId: string, extraContext: string, token: string
+): Promise<{ data: AiSurveyConfig }> {
+  const res = await axios.put(`${BASE}/conferences/${conferenceId}/survey/ai-config`, { extraContext }, {
     headers: authHeader(token)
   })
   return res.data

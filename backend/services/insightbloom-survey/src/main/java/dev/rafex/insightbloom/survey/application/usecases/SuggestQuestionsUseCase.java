@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.survey.application.usecases;
 
 import dev.rafex.ether.json.JsonCodec;
+import dev.rafex.insightbloom.survey.domain.ports.AiSurveyConfigRepository;
 import dev.rafex.insightbloom.survey.domain.ports.LlmPort;
 import dev.rafex.insightbloom.survey.domain.ports.PresentationsPort;
 import dev.rafex.insightbloom.survey.domain.ports.SurveyQuestionRepository;
@@ -16,10 +17,12 @@ public class SuggestQuestionsUseCase {
 
     private static final String SYSTEM_PROMPT = """
             Eres un asistente que ayuda a un instructor a crear un cuestionario de evaluacion
-            para verificar si su audiencia entendio una charla o taller. Recibiras UNICAMENTE el
-            contenido visible de las diapositivas (lo que el publico vio en pantalla, sin notas del
-            orador ni metadata). Basa las preguntas EXCLUSIVAMENTE en ese contenido visible: no
-            inventes datos que no aparezcan en las diapositivas y no asumas informacion adicional.
+            para verificar si su audiencia entendio una charla o taller. Recibiras el contenido
+            visible de las diapositivas (lo que el publico vio en pantalla, sin notas del orador
+            ni metadata) y, opcionalmente, contexto adicional que el organizador escribio a mano
+            (objetivos del examen, temas a enfatizar, terminologia esperada). Basa las preguntas
+            en el contenido visible y, cuando exista, en ese contexto adicional del organizador
+            -- nunca inventes datos que no aparezcan en ninguno de los dos.
             Propone preguntas variadas y relevantes sobre lo que se mostro.
             Recibiras tambien la lista de preguntas que YA EXISTEN en el cuestionario. No repitas
             ninguna de ellas ni generes preguntas semanticamente equivalentes (mismo hecho o
@@ -41,13 +44,16 @@ public class SuggestQuestionsUseCase {
     private final LlmPort llm;
     private final PresentationsPort presentations;
     private final SurveyQuestionRepository questionRepo;
+    private final AiSurveyConfigRepository surveyConfigRepo;
     private final JsonCodec jsonCodec;
 
     public SuggestQuestionsUseCase(final LlmPort llm, final PresentationsPort presentations,
-                                    final SurveyQuestionRepository questionRepo, final JsonCodec jsonCodec) {
+                                    final SurveyQuestionRepository questionRepo,
+                                    final AiSurveyConfigRepository surveyConfigRepo, final JsonCodec jsonCodec) {
         this.llm = llm;
         this.presentations = presentations;
         this.questionRepo = questionRepo;
+        this.surveyConfigRepo = surveyConfigRepo;
         this.jsonCodec = jsonCodec;
     }
 
@@ -63,9 +69,14 @@ public class SuggestQuestionsUseCase {
         final String existingQuestions = questionRepo.findByConference(conferenceId, false).stream()
                 .map(q -> "- " + q.getText())
                 .collect(Collectors.joining("\n"));
+        final String extraContext = surveyConfigRepo.findByConference(conferenceId)
+                .map(config -> config.extraContext()).filter(value -> value != null && !value.isBlank())
+                .orElse(null);
 
         final String userPrompt = "Genera " + count
                 + " preguntas a partir del contenido visible de estas diapositivas:\n\n" + visibleContent
+                + (extraContext == null ? "" : "\n\nCONTEXTO ADICIONAL DEL ORGANIZADOR (puede no estar explicito "
+                        + "en las diapositivas, pero es informacion valida a considerar):\n" + extraContext)
                 + "\n\nPreguntas que YA EXISTEN en el cuestionario (no las repitas ni generes equivalentes):\n"
                 + (existingQuestions.isBlank() ? "(ninguna)" : existingQuestions);
         final String raw = llm.complete(SYSTEM_PROMPT, userPrompt);

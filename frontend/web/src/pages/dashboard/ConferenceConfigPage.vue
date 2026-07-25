@@ -13,7 +13,7 @@
     button.config-tab(type="button" :class="{ active: activeTab === 'tools' }" @click="activeTab = 'tools'") Herramientas
     button.config-tab(type="button" :class="{ active: activeTab === 'sandbox' }" @click="activeTab = 'sandbox'") IDE y sandboxes
     button.config-tab(type="button" :class="{ active: activeTab === 'access' }" @click="activeTab = 'access'") Acceso y roles
-    button.config-tab(type="button" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'") 🤖 Tutor IA
+    button.config-tab(type="button" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'") 🤖 IA
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
@@ -250,6 +250,18 @@
         span(v-else) Guardar configuración pedagógica del evento
       p.success(v-if="mentorSaved") Configuración del tutor IA guardada.
       p.error(v-if="mentorError") {{ mentorError }}
+
+    .form-group.survey-ai-group(v-show="activeTab === 'ai'")
+      label Encuesta IA del evento
+      p.field-hint Al sugerir preguntas, la IA siempre usa el contenido de la presentación del evento (comportamiento global, no configurable aquí). Este campo es solo texto adicional que quieras que también considere y que puede no estar explícito en las diapositivas: objetivos del examen, temas a enfatizar, terminología esperada.
+      .coord-field
+        span.coord-label Contexto adicional para sugerir preguntas
+        textarea(v-model="surveyExtraContext" rows="5" maxlength="4000" placeholder="Por ejemplo: enfatizar seguridad y buenas prácticas, o los temas del capítulo 3 del material del curso")
+      button.btn-outline(type="button" @click="saveSurveyAiConfig" :disabled="savingSurveyAiConfig")
+        span(v-if="savingSurveyAiConfig") Guardando...
+        span(v-else) Guardar contexto de Encuesta IA
+      p.success(v-if="surveyAiConfigSaved") Contexto de Encuesta IA guardado.
+      p.error(v-if="surveyAiConfigError") {{ surveyAiConfigError }}
 </template>
 
 <script lang="ts">
@@ -261,7 +273,7 @@ import {
   recreateSandbox as recreateSandboxApi, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
   getCertificateEngine
 } from '@/services/api/usersApi'
-import { getAiMentorConfig, setAiMentorConfig } from '@/services/api/surveyApi'
+import { getAiMentorConfig, setAiMentorConfig, getAiSurveyConfig, setAiSurveyConfig } from '@/services/api/surveyApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, SandboxPrewarmResult, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
@@ -363,6 +375,32 @@ export default {
     const savingMentor = ref(false)
     const mentorSaved = ref(false)
     const mentorError = ref('')
+    const surveyExtraContext = ref('')
+    const savingSurveyAiConfig = ref(false)
+    const surveyAiConfigSaved = ref(false)
+    const surveyAiConfigError = ref('')
+
+    async function loadSurveyAiConfig() {
+      try {
+        const result = await getAiSurveyConfig(props.conferenceId as string, auth.state.token as string)
+        surveyExtraContext.value = result.data.extraContext || ''
+      } catch (e: any) {
+        surveyAiConfigError.value = e.response?.data?.error?.message || 'No se pudo cargar el contexto de Encuesta IA'
+      }
+    }
+
+    async function saveSurveyAiConfig() {
+      savingSurveyAiConfig.value = true; surveyAiConfigSaved.value = false; surveyAiConfigError.value = ''
+      try {
+        const result = await setAiSurveyConfig(props.conferenceId as string, surveyExtraContext.value, auth.state.token as string)
+        surveyExtraContext.value = result.data.extraContext || ''
+        surveyAiConfigSaved.value = true
+      } catch (e: any) {
+        surveyAiConfigError.value = e.response?.data?.error?.message || 'No se pudo guardar el contexto de Encuesta IA'
+      } finally {
+        savingSurveyAiConfig.value = false
+      }
+    }
 
     async function loadMentor() {
       try {
@@ -459,6 +497,7 @@ export default {
       }
 
       await loadMentor()
+      await loadSurveyAiConfig()
     })
 
     function roleName(key: string): string {
@@ -757,7 +796,8 @@ export default {
              eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
              roleAssigned, roleError, roleName, assignRole, removeRole, breadcrumbItems,
              mentorEnabled, mentorObjective, mentorPrompt, mentorIncludePresentation, mentorMaxRequests,
-             savingMentor, mentorSaved, mentorError, saveMentor }
+             savingMentor, mentorSaved, mentorError, saveMentor,
+             surveyExtraContext, savingSurveyAiConfig, surveyAiConfigSaved, surveyAiConfigError, saveSurveyAiConfig }
   }
 }
 </script>
