@@ -1058,6 +1058,14 @@ Registrar una decision cuando cambie:
   `CAP_DAC_OVERRIDE` NO puede escribir dentro de un directorio de otro dueño aunque sea
   root -- hubo que crear los directorios (home/workspace/.config/nvim) ANTES de
   `adduser` (mientras root todavia es dueño de lo que crea), no despues.
+
+  **Aislamiento de filesystem (2026-07-24)**: la primera versión dejaba los homes creados por
+  Alpine en `0755`, por lo que un alumno podía atravesar y leer el workspace de otro aunque no
+  pudiera escribirlo. `_ensure_seat_account` repara cuentas nuevas y existentes aplicando `0750`
+  a `/home/{userUuid}`, `.config/nvim` y `workspace`: el grupo de control `coder` conserva la
+  lectura necesaria para moderación, pero cada proceso `studentN` pierde sus grupos suplementarios
+  antes de arrancar `ttyd` y no puede acceder a los homes vecinos. El agente deja `/home` en `0755`
+  para resolver la ruta del asiento, nunca en modo escribible para alumnos.
   `KubernetesPodClient.provisionSeat` llama al agente via HTTP interno con reintentos
   (~10s, cubre la carrera de que el Pod recien se esta agendando). Puerto de control
   (`basePort - 1`) alcanzable solo desde `insightbloom-users` (segunda regla de Ingress

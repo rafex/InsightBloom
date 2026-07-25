@@ -7,6 +7,7 @@ import dev.rafex.insightbloom.users.domain.model.Permission;
 import dev.rafex.insightbloom.users.domain.model.ToolKind;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
+import dev.rafex.insightbloom.users.domain.ports.JaasUsageRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.domain.services.DeviceAccessGuard;
 import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
@@ -17,7 +18,10 @@ import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -44,6 +48,7 @@ public class GenerateJaasTokenUseCase {
     private final ConferenceRepository conferenceRepository;
     private final DeviceAccessGuard deviceAccessGuard;
     private final TicketUseCase ticketUseCase;
+    private final JaasUsageRepository jaasUsageRepository;
 
     public GenerateJaasTokenUseCase(final String appId, final String apiKeyId,
                                      final String privateKeyBase64,
@@ -62,6 +67,18 @@ public class GenerateJaasTokenUseCase {
                                      final ConferenceRepository conferenceRepository,
                                      final DeviceAccessGuard deviceAccessGuard,
                                      final TicketUseCase ticketUseCase) {
+        this(appId, apiKeyId, privateKeyBase64, eventPermissionGuard, userRepository,
+                conferenceRepository, deviceAccessGuard, ticketUseCase, null);
+    }
+
+    public GenerateJaasTokenUseCase(final String appId, final String apiKeyId,
+                                     final String privateKeyBase64,
+                                     final EventPermissionGuard eventPermissionGuard,
+                                     final UserRepository userRepository,
+                                     final ConferenceRepository conferenceRepository,
+                                     final DeviceAccessGuard deviceAccessGuard,
+                                     final TicketUseCase ticketUseCase,
+                                     final JaasUsageRepository jaasUsageRepository) {
         this.appId = appId;
         this.apiKeyId = apiKeyId;
         this.eventPermissionGuard = eventPermissionGuard;
@@ -69,10 +86,16 @@ public class GenerateJaasTokenUseCase {
         this.conferenceRepository = conferenceRepository;
         this.deviceAccessGuard = deviceAccessGuard;
         this.ticketUseCase = ticketUseCase;
+        this.jaasUsageRepository = jaasUsageRepository;
         this.privateKey = parsePrivateKey(privateKeyBase64);
     }
 
-    public record JaasToken(String token, String appId, String roomName) {}
+    public record JaasToken(String token, String appId, String roomName, String sessionUuid,
+                            List<String> revokedDeviceFingerprints) {
+        public JaasToken(final String token, final String appId, final String roomName) {
+            this(token, appId, roomName, null, List.of());
+        }
+    }
 
     /** Distingue "JaaS no configurado en este despliegue" de "dispositivo bloqueado" -- antes de
      *  este control de acceso ambos casos colapsaban en {@code Optional.empty()}. */
@@ -108,17 +131,23 @@ public class GenerateJaasTokenUseCase {
 
         // deviceFingerprint puede llegar null durante un rollout escalonado (frontend viejo sin
         // el header todavia) -- en ese caso se omite el control de acceso por dispositivo.
+        DeviceAccessGuard.Registration registration = null;
         if (deviceFingerprint != null && !deviceFingerprint.isBlank()) {
             final Conference deviceConference = conference != null
                     ? conference
                     : conferenceRepository.findByUuid(conferenceUuid).orElse(null);
             if (deviceConference != null) {
-                final var access = deviceAccessGuard.checkAndRegister(
+                registration = deviceAccessGuard.registerAndCollectRevocations(
                         conferenceUuid, userUuid, ToolKind.VIDEO, deviceFingerprint, deviceConference);
-                if (access instanceof DeviceAccessGuard.DeviceAccessResult.Blocked) {
+                if (registration.access() instanceof DeviceAccessGuard.DeviceAccessResult.Blocked) {
                     return new JaasResult.Blocked();
                 }
             }
+        }
+
+        if (jaasUsageRepository != null) {
+            jaasUsageRepository.recordUniqueParticipant(
+                    YearMonth.now(ZoneOffset.UTC).toString(), userUuid);
         }
 
         final boolean moderator = eventPermissionGuard.hasPermission(
@@ -161,7 +190,10 @@ public class GenerateJaasTokenUseCase {
         payload.set("context", contextNode);
 
         final String signed = sign(header, payload);
-        return new JaasResult.Issued(new JaasToken(signed, appId, roomName));
+        return new JaasResult.Issued(new JaasToken(
+                signed, appId, roomName,
+                registration != null ? registration.sessionUuid() : null,
+                registration != null ? registration.revokedDeviceFingerprints() : List.of()));
     }
 
     private String sign(final ObjectNode header, final ObjectNode payload) {

@@ -9,6 +9,7 @@ import dev.rafex.insightbloom.users.domain.ports.ToolDeviceSessionRepository;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Collections;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +36,10 @@ public class DeviceAccessGuard {
         record Blocked(int accountCount) implements DeviceAccessResult {}
     }
 
+    /** Registration plus the sessions that were evicted to make room for this device. */
+    public record Registration(DeviceAccessResult access, String sessionUuid,
+                               List<String> revokedDeviceFingerprints) {}
+
     private final ToolDeviceSessionRepository sessionRepository;
     private final DeviceBlockRepository blockRepository;
 
@@ -47,42 +52,59 @@ public class DeviceAccessGuard {
     public DeviceAccessResult checkAndRegister(final String conferenceUuid, final String userUuid,
                                                 final ToolKind tool, final String deviceFingerprint,
                                                 final Conference conference) {
+        return registerAndCollectRevocations(conferenceUuid, userUuid, tool, deviceFingerprint, conference).access();
+    }
+
+    public Registration registerAndCollectRevocations(final String conferenceUuid, final String userUuid,
+                                                       final ToolKind tool, final String deviceFingerprint,
+                                                       final Conference conference) {
         if (blockRepository.findActive(conferenceUuid, deviceFingerprint).isPresent()) {
-            return new DeviceAccessResult.Blocked(0);
+            return new Registration(new DeviceAccessResult.Blocked(0), null, List.of());
         }
 
         final var existing = sessionRepository.findActive(conferenceUuid, userUuid, tool, deviceFingerprint);
         if (existing.isPresent()) {
             sessionRepository.touch(existing.get().getUuid());
+            return new Registration(new DeviceAccessResult.Allowed(), existing.get().getUuid(), List.of());
         } else {
-            enforceDeviceLimit(conferenceUuid, userUuid, tool, conference);
-            sessionRepository.save(new ToolDeviceSession(conferenceUuid, userUuid, tool, deviceFingerprint));
-        }
+            final List<String> revoked = enforceDeviceLimit(conferenceUuid, userUuid, tool, conference);
+            final ToolDeviceSession created = new ToolDeviceSession(conferenceUuid, userUuid, tool, deviceFingerprint);
+            sessionRepository.save(created);
 
-        final int maxAccountsPerDevice = conference.getMaxAccountsPerDevice() != null
-                ? conference.getMaxAccountsPerDevice() : DEFAULT_MAX_ACCOUNTS_PER_DEVICE;
-        final List<ToolDeviceSession> deviceSessions = sessionRepository.findActiveByDevice(conferenceUuid, deviceFingerprint);
-        final Set<String> distinctUsers = deviceSessions.stream()
-                .map(ToolDeviceSession::getUserUuid)
-                .collect(Collectors.toSet());
-        if (distinctUsers.size() > maxAccountsPerDevice) {
-            blockRepository.save(new DeviceBlock(conferenceUuid, deviceFingerprint, distinctUsers.size()));
-            sessionRepository.revokeAllForDevice(conferenceUuid, deviceFingerprint);
-            return new DeviceAccessResult.Blocked(distinctUsers.size());
+            final int maxAccountsPerDevice = conference.getMaxAccountsPerDevice() != null
+                    ? conference.getMaxAccountsPerDevice() : DEFAULT_MAX_ACCOUNTS_PER_DEVICE;
+            final List<ToolDeviceSession> deviceSessions = sessionRepository.findActiveByDevice(conferenceUuid, deviceFingerprint);
+            final Set<String> distinctUsers = deviceSessions.stream()
+                    .map(ToolDeviceSession::getUserUuid)
+                    .collect(Collectors.toSet());
+            if (distinctUsers.size() > maxAccountsPerDevice) {
+                blockRepository.save(new DeviceBlock(conferenceUuid, deviceFingerprint, distinctUsers.size()));
+                sessionRepository.revokeAllForDevice(conferenceUuid, deviceFingerprint);
+                return new Registration(new DeviceAccessResult.Blocked(distinctUsers.size()), created.getUuid(), revoked);
+            }
+            return new Registration(new DeviceAccessResult.Allowed(), created.getUuid(), revoked);
         }
-
-        return new DeviceAccessResult.Allowed();
     }
 
-    private void enforceDeviceLimit(final String conferenceUuid, final String userUuid, final ToolKind tool,
-                                     final Conference conference) {
+    private List<String> enforceDeviceLimit(final String conferenceUuid, final String userUuid, final ToolKind tool,
+                                             final Conference conference) {
         final int maxDevicesPerUser = conference.getMaxDevicesPerUser() != null
                 ? conference.getMaxDevicesPerUser() : DEFAULT_MAX_DEVICES_PER_USER;
         final List<ToolDeviceSession> active = sessionRepository.findActiveByUserAndTool(conferenceUuid, userUuid, tool);
         if (active.size() >= maxDevicesPerUser) {
             // Ordenado ASC por first_seen_at (ver SqliteToolDeviceSessionRepository) -- el primero
             // de la lista es el dispositivo más viejo, se revoca para dejar espacio al nuevo.
-            sessionRepository.revoke(active.get(0).getUuid());
+            final ToolDeviceSession oldest = active.get(0);
+            sessionRepository.revoke(oldest.getUuid());
+            return List.of(oldest.getDeviceFingerprint());
         }
+        return Collections.emptyList();
+    }
+
+    /** Explicitly transfers the video lease to the current browser/device. */
+    public List<String> takeOver(final String conferenceUuid, final String userUuid, final ToolKind tool) {
+        final List<ToolDeviceSession> active = sessionRepository.findActiveByUserAndTool(conferenceUuid, userUuid, tool);
+        active.forEach(session -> sessionRepository.revoke(session.getUuid()));
+        return active.stream().map(ToolDeviceSession::getDeviceFingerprint).distinct().toList();
     }
 }

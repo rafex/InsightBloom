@@ -29,6 +29,7 @@ import dev.rafex.insightbloom.users.application.usecases.GetConferenceSeatMapUse
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetDownloadCountsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateJaasTokenUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GetJaasUsageUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetEventDiagramUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetEventWhiteboardUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetMyTicketUseCase;
@@ -66,6 +67,8 @@ import dev.rafex.insightbloom.users.domain.model.Reservation;
 import dev.rafex.insightbloom.users.domain.model.Permission;
 import dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard;
 import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
+import dev.rafex.insightbloom.users.domain.services.DeviceAccessGuard;
+import dev.rafex.insightbloom.users.domain.model.ToolKind;
 
 import org.eclipse.jetty.server.Request;
 
@@ -153,8 +156,12 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SandboxHandler sandboxHandler;
     private final SandboxFilesHandler sandboxFilesHandler;
     private final UserRepository userRepository;
+    private final DeviceAccessGuard deviceAccessGuard;
+    private final GetJaasUsageUseCase getJaasUsageUseCase;
     private final Map<String, CopyOnWriteArrayList<EventStream>> diagramSubscribers = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArrayList<EventStream>> whiteboardSubscribers = new ConcurrentHashMap<>();
+    private record VideoSubscriber(EventStream stream, String deviceFingerprint) {}
+    private final Map<String, CopyOnWriteArrayList<VideoSubscriber>> videoSubscribers = new ConcurrentHashMap<>();
     private final ScheduledExecutorService diagramStreamScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
         final Thread thread = new Thread(r, "diagram-sse-heartbeat");
         thread.setDaemon(true);
@@ -216,7 +223,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final UnblockDeviceUseCase unblockDeviceUseCase,
                              final SandboxHandler sandboxHandler,
                              final SandboxFilesHandler sandboxFilesHandler,
-                             final UserRepository userRepository) {
+                             final UserRepository userRepository,
+                             final DeviceAccessGuard deviceAccessGuard,
+                             final GetJaasUsageUseCase getJaasUsageUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -273,6 +282,8 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.sandboxHandler = sandboxHandler;
         this.sandboxFilesHandler = sandboxFilesHandler;
         this.userRepository = userRepository;
+        this.deviceAccessGuard = deviceAccessGuard;
+        this.getJaasUsageUseCase = getJaasUsageUseCase;
     }
 
     @Override
@@ -295,6 +306,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/tickets/claim", Set.of("POST")),
                 Route.of("/attendees/registered-summary", Set.of("GET")),
                 Route.of("/attendees/active-summary", Set.of("GET")),
+                Route.of("/jaas-usage", Set.of("GET")),
                 Route.of("/{id}/certificate", Set.of("GET")),
                 Route.of("/{id}/attendees/count", Set.of("GET")),
                 Route.of("/{id}/derive-name", Set.of("POST")),
@@ -347,6 +359,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/whiteboard/stream", Set.of("GET")),
                 Route.of("/{id}/whiteboard", Set.of("GET", "PUT")),
                 Route.of("/{id}/jaas-token", Set.of("GET")),
+                Route.of("/{id}/video-session/stream", Set.of("GET")),
+                Route.of("/{id}/video-session/takeover", Set.of("POST")),
                 Route.of("/{id}/roles", Set.of("GET", "POST")),
                 Route.of("/{id}/roles/{userUuid}", Set.of("DELETE")),
                 Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
@@ -385,6 +399,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/attendees/active-summary")) {
             return handleActiveAttendeesSummary(jx);
         }
+        if (path.endsWith("/jaas-usage")) return handleJaasUsage(jx);
         if (path.endsWith("/certificate")) {
             return handleCertificate(jx, jx.pathParam("id"));
         }
@@ -436,6 +451,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/jaas-token")) {
             return handleGetJaasToken(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/video-session/stream")) {
+            return handleVideoSessionStream(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/roles")) {
             return handleListEventRoles(jx, jx.pathParam("id"));
@@ -517,6 +535,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/sandbox/prewarm")) {
             return handlePrewarmSandboxPool(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/video-session/takeover")) {
+            return handleVideoSessionTakeover(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/sandbox/delete")) {
             return handleResetSandbox(jx, jx.pathParam("id"), jx.pathParam("sandboxUuid"), false);
@@ -919,6 +940,22 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             sendOk(jx, Map.of("activeRegisteredAttendees", countActiveRegisteredAttendeesUseCase.execute(v.subjectUuid())));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleJaasUsage(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid() || !isOrganizerOrAdmin(validation.role())) {
+                sendError(jx, 403, "forbidden", "Solo organizadores y administradores pueden ver este contador");
+                return true;
+            }
+            sendOk(jx, 200, getJaasUsageUseCase.execute());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
@@ -1514,6 +1551,8 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var result = generateJaasTokenUseCase.execute(
                     id, v.subjectUuid(), v.role(), extractDeviceFingerprint(jx));
             if (result instanceof GenerateJaasTokenUseCase.JaasResult.Issued issued) {
+                notifyVideoRevocations(id, v.subjectUuid(),
+                        issued.token().revokedDeviceFingerprints(), extractDeviceFingerprint(jx));
                 sendOk(jx, 200, issued.token());
             } else if (result instanceof GenerateJaasTokenUseCase.JaasResult.Blocked) {
                 sendError(jx, 403, "device_blocked", "Este dispositivo fue bloqueado por uso con múltiples cuentas");
@@ -1528,6 +1567,85 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private boolean handleVideoSessionStream(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
+            if (!hasCapability(id, EventCapability.VIDEO_CONFERENCE)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita videollamada");
+                return true;
+            }
+            final String fingerprint = extractDeviceFingerprint(jx);
+            if (fingerprint == null || fingerprint.isBlank()) {
+                sendError(jx, 400, "device_fingerprint_missing", "No se pudo identificar este dispositivo");
+                return true;
+            }
+            final EventStream stream = jx.startEventStream();
+            final String key = videoSubscriberKey(id, validation.subjectUuid());
+            final var subscribers = videoSubscribers.computeIfAbsent(key, ignored -> new CopyOnWriteArrayList<>());
+            final VideoSubscriber subscriber = new VideoSubscriber(stream, fingerprint);
+            subscribers.add(subscriber);
+            stream.send("connected", JsonUtils.toJson(Map.of("connected", true)));
+            final ScheduledFuture<?> heartbeat = diagramStreamScheduler.scheduleAtFixedRate(
+                    () -> stream.comment("ping"), DIAGRAM_STREAM_HEARTBEAT_SECONDS,
+                    DIAGRAM_STREAM_HEARTBEAT_SECONDS, TimeUnit.SECONDS);
+            stream.onClose(() -> {
+                heartbeat.cancel(true);
+                subscribers.remove(subscriber);
+                if (subscribers.isEmpty()) videoSubscribers.remove(key, subscribers);
+            });
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleVideoSessionTakeover(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
+            if (!hasCapability(id, EventCapability.VIDEO_CONFERENCE)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita videollamada");
+                return true;
+            }
+            final String fingerprint = extractDeviceFingerprint(jx);
+            if (fingerprint == null || fingerprint.isBlank()) {
+                sendError(jx, 400, "device_fingerprint_missing", "No se pudo identificar este dispositivo");
+                return true;
+            }
+            final List<String> revoked = deviceAccessGuard.takeOver(id, validation.subjectUuid(), ToolKind.VIDEO);
+            notifyVideoRevocations(id, validation.subjectUuid(), revoked, fingerprint);
+            sendOk(jx, 200, Map.of("takenOver", true, "revokedSessions", revoked.size()));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private void notifyVideoRevocations(final String conferenceId, final String userUuid,
+                                        final List<String> revokedFingerprints,
+                                        final String currentFingerprint) {
+        if (revokedFingerprints == null || revokedFingerprints.isEmpty()) return;
+        final var subscribers = videoSubscribers.get(videoSubscriberKey(conferenceId, userUuid));
+        if (subscribers == null) return;
+        final String payload = JsonUtils.toJson(Map.of("reason", "takeover"));
+        subscribers.stream()
+                .filter(subscriber -> currentFingerprint == null
+                        || !currentFingerprint.equals(subscriber.deviceFingerprint()))
+                .filter(subscriber -> revokedFingerprints.contains(subscriber.deviceFingerprint()))
+                .forEach(subscriber -> subscriber.stream().send("revoked", payload));
+    }
+
+    private static String videoSubscriberKey(final String conferenceId, final String userUuid) {
+        return conferenceId + ":" + userUuid;
     }
 
     private boolean handleListEventRoles(final JettyHttpExchange jx, final String id) {

@@ -31,6 +31,22 @@
         span.summary-value {{ summaryLoading ? '…' : summary.activeAttendees }}
         span.summary-label Activos
 
+  .summary-group(v-if="!loading && jaasUsage" id="onboarding-jaas-summary")
+    h2 Consumo estimado de videollamadas JaaS
+    .jaas-usage-card(:class="{ 'jaas-warning': jaasUsage.percentage >= 80, 'jaas-limit': jaasUsage.remaining === 0 }")
+      .jaas-usage-header
+        span.summary-icon 🎥
+        .jaas-usage-title
+          strong Participantes únicos del mes
+          span {{ jaasUsage.month }} · límite operativo configurado
+      .jaas-usage-value {{ jaasUsage.uniqueParticipants }} / {{ jaasUsage.monthlyLimit }}
+      .jaas-progress(aria-hidden="true")
+        span(:style="{ width: `${Math.min(100, jaasUsage.percentage)}%` }")
+      p.jaas-usage-note(v-if="jaasUsage.remaining > 0") Quedan {{ jaasUsage.remaining }} participantes únicos estimados.
+      p.jaas-usage-note(v-else) Se alcanzó el límite operativo configurado. Revisa el consumo en la consola de 8x8 antes de abrir más llamadas.
+      p.jaas-usage-disclaimer El contador es una estimación local de autorizaciones de InsightBloom; el consumo facturable final lo determina 8x8 JaaS.
+      p.jaas-bandwidth-note 📡 Límite de referencia: {{ jaasUsage.bandwidthLimitGb }} GB de ancho de banda al mes. El consumo exacto de bytes debe confirmarse en la actividad de 8x8 porque JaaS no lo expone en este endpoint.
+
   .section(v-if="loading")
     .loading-text Cargando conferencias...
 
@@ -70,8 +86,8 @@
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { getConferences, getConferenceHistory, getUniqueRegisteredAttendeesCount, getActiveRegisteredAttendeesCount } from '@/services/api/usersApi'
-import type { Conference, ConferenceHistoryEntry } from '@/services/api/types'
+import { getConferences, getConferenceHistory, getUniqueRegisteredAttendeesCount, getActiveRegisteredAttendeesCount, getJaasUsage } from '@/services/api/usersApi'
+import type { Conference, ConferenceHistoryEntry, JaasUsage } from '@/services/api/types'
 import { isExpired } from '@/utils/dates'
 import { useAuthStore } from '@/features/auth/authStore'
 import OnboardingTour from '@/components/OnboardingTour.vue'
@@ -93,6 +109,7 @@ export default {
     const isOrganizer = auth.isOrganizer()
     const summary = ref({ registeredAttendees: 0, activeAttendees: 0 })
     const summaryLoading = ref(true)
+    const jaasUsage = ref<JaasUsage | null>(null)
     const organizerTourSteps = ORGANIZER_TOUR_STEPS
 
     const eventStats = computed(() => ({
@@ -104,11 +121,13 @@ export default {
     async function loadSummary(token: string) {
       summaryLoading.value = true
       try {
-        const [registeredAttendees, activeAttendees] = await Promise.all([
+        const [registeredAttendees, activeAttendees, usage] = await Promise.all([
           getUniqueRegisteredAttendeesCount(token).catch(() => 0),
-          getActiveRegisteredAttendeesCount(token).catch(() => 0)
+          getActiveRegisteredAttendeesCount(token).catch(() => 0),
+          getJaasUsage(token).catch(() => null)
         ])
         summary.value = { registeredAttendees, activeAttendees }
+        jaasUsage.value = usage
       } finally {
         summaryLoading.value = false
       }
@@ -120,8 +139,7 @@ export default {
         try {
           if (token) {
             conferences.value = await getConferences(token)
-            if (conferences.value.length) loadSummary(token)
-            else summaryLoading.value = false
+            void loadSummary(token)
           }
         } catch (e: any) {
           console.error('Error cargando conferencias', e)
@@ -146,7 +164,7 @@ export default {
 
     return {
       conferences, loading, isOrganizer, history, loadingHistory,
-      summary, summaryLoading, eventStats, formatDate, organizerTourSteps
+      summary, summaryLoading, eventStats, formatDate, organizerTourSteps, jaasUsage
     }
   }
 }
@@ -169,6 +187,21 @@ h2 { color: #374151; font-size: 1.1rem; font-weight: 600; margin: 0 0 16px; }
 .summary-icon { font-size: 1.4rem; }
 .summary-value { font-size: 1.6rem; font-weight: 700; color: #1e1b4b; }
 .summary-label { font-size: 0.78rem; color: #6b7280; }
+
+.jaas-usage-card { background: #fff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 18px 20px; margin-bottom: 32px; }
+.jaas-usage-card.jaas-warning { border-color: #fbbf24; background: #fffbeb; }
+.jaas-usage-card.jaas-limit { border-color: #fca5a5; background: #fef2f2; }
+.jaas-usage-header { display: flex; align-items: center; gap: 10px; }
+.jaas-usage-title { display: flex; flex-direction: column; gap: 2px; color: #1e1b4b; }
+.jaas-usage-title span { color: #6b7280; font-size: .78rem; }
+.jaas-usage-value { color: #1e1b4b; font-size: 1.6rem; font-weight: 700; margin: 14px 0 8px; }
+.jaas-progress { height: 10px; border-radius: 99px; background: #e5e7eb; overflow: hidden; }
+.jaas-progress span { display: block; height: 100%; border-radius: inherit; background: #4f46e5; transition: width .25s ease; }
+.jaas-warning .jaas-progress span { background: #d97706; }
+.jaas-limit .jaas-progress span { background: #dc2626; }
+.jaas-usage-note { margin: 10px 0 0; color: #374151; font-size: .85rem; }
+.jaas-usage-disclaimer { margin: 8px 0 0; color: #6b7280; font-size: .72rem; }
+.jaas-bandwidth-note { margin: 8px 0 0; color: #4b5563; font-size: .78rem; }
 
 .section { margin-bottom: 32px; }
 .loading-text { color: #6b7280; }

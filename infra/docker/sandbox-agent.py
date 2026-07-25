@@ -157,6 +157,21 @@ def _ensure_seat_account(index: int, user_uuid: str):
         preexec_fn=_drop_privileges(uid, uid),
         check=True,
     )
+    # El volumen /home se comparte entre los asientos del Pod. El chown evita que
+    # otro usuario pueda escribir, pero por sí solo no evita que pueda atravesar y
+    # leer el home de un compañero: adduser crea homes 0755 por defecto y los
+    # archivos nuevos suelen quedar legibles por "other". Forzar 0750 en cada
+    # frontera de confianza hace que el kernel bloquee tanto `ls` como la lectura
+    # directa de /home/{otroUuid}/workspace desde el terminal del alumno. El
+    # grupo `coder` conserva lectura para el agente de archivos/moderación; los
+    # usuarios studentN no pertenecen a ese grupo.
+    #
+    # Se ejecuta también cuando la cuenta ya existe para reparar homes creados por
+    # una versión anterior de la imagen sin tener que borrar el Pod completo.
+    os.chmod(home, 0o750)
+    os.chmod(f"{home}/.config", 0o750)
+    os.chmod(nvim_config_dir, 0o750)
+    os.chmod(workspace, 0o750)
     return uid, home
 
 
@@ -524,6 +539,14 @@ def main():
     Handler.base_port = args.base_port
     Handler.max_seats = args.max_seats
     control_port = args.base_port - 1
+
+    # /home es un emptyDir compartido por todos los asientos. Debe poder recorrerse
+    # para que el agente encuentre el UUID solicitado, pero nunca ser escribible por
+    # los grupos heredados del fsGroup del Pod. Cada home individual se cierra a 0750
+    # en _ensure_seat_account. El grupo `coder` es el único grupo de control que
+    # puede atravesar esos directorios; los procesos de alumnos pierden todos sus
+    # grupos suplementarios antes de ejecutar ttyd.
+    os.chmod(WORKSPACE_ROOT, 0o755)
 
     def _reap_zombies(*_):
         while True:

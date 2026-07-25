@@ -9,7 +9,7 @@ import type {
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
-  TicketManagementSummary, WorkspacePreviewInfo, PublicConference
+  TicketManagementSummary, WorkspacePreviewInfo, PublicConference, JaasUsage
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 import { handleSessionResponse } from '@/features/auth/sessionGuard'
@@ -780,6 +780,28 @@ export async function streamSandboxStatus(
 export async function getJaasToken(conferenceId: string, token: string): Promise<JaasToken> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/jaas-token`,
     await authHeaderWithDevice(token))
+  return res.data.data
+}
+
+/** Revoca las sesiones de vídeo anteriores del usuario y deja este navegador listo para tomar el control. */
+export async function takeOverVideoCall(conferenceId: string, token: string): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${conferenceId}/video-session/takeover`, {},
+    await authHeaderWithDevice(token))
+}
+
+/** Notifica por SSE cuando otro navegador toma el control de la llamada. */
+export async function streamVideoSession(conferenceId: string, token: string): Promise<AuthenticatedEventStream> {
+  const fingerprint = await getFingerprint()
+  return new AuthenticatedEventStream(
+    `/api/users/api/v1/conferences/${conferenceId}/video-session/stream`,
+    token,
+    { 'X-Device-Fingerprint': fingerprint }
+  )
+}
+
+/** Contador local de participantes únicos autorizados para JaaS durante el mes UTC actual. */
+export async function getJaasUsage(token: string): Promise<JaasUsage> {
+  const res = await axios.get('/api/users/api/v1/conferences/jaas-usage', authHeader(token))
   return res.data.data
 }
 

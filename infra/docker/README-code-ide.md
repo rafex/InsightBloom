@@ -40,7 +40,7 @@ Todas las descargas se verifican con `sha256sum -c` contra un hash fijado en el 
 
 Ademas del toolchain de lenguajes, ambas imagenes incluyen: `git`, `fzf`, `bash-completion`,
 `bat`/`eza`/`fd`/`ripgrep`/`ncdu` (mejoras de cat/ls/find/grep/du), `jq`, `tmux`, `tree`,
-`httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `less`+`man`, y
+`httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `nano`, `less`+`man`, y
 `opencode` (CLI de agente de codigo IA). Paquetes globales de Python (`jupyter`, `numpy`,
 `pandas`, `matplotlib`, `flask`, `django`, `fastapi`, `pytest`, `black`, `pylint`, `debugpy`) y
 de Node (`typescript`, `typescript-language-server`, `eslint`, `prettier`, `@types/node`, `vite`, `webpack`, `@vue/cli`, `create-react-app`)
@@ -194,6 +194,16 @@ El diseño es:
 La lista blanca y la lista negra son configuración de plataforma administrada en GitOps. El
 frontend solo expone el permiso genérico de acceso a internet; no decide ni muestra qué dominios
 concretos están autorizados.
+
+En el CLI multiusuario cada asiento tiene una cuenta Linux y un workspace independiente. El
+agente aplica permisos `0750` a `/home/{uuid}` y `/home/{uuid}/workspace`; el grupo de control
+`coder` conserva acceso para moderación, pero los alumnos no pertenecen a ese grupo. Por eso un alumno no
+puede listar, leer ni escribir el workspace de otro aunque compartan el mismo Pod. La salida
+directa permanece bloqueada por la `NetworkPolicy`; el binario `ping` continúa disponible como
+herramienta de diagnóstico, pero no concede acceso a Internet. Cuando se habilita la salida controlada,
+el único destino de red permitido es la proxy interna, que aplica la allowlist y la lista negra. La
+allowlist controla HTTP/HTTPS y otros flujos TCP/UDP proxificados; ICMP no se puede expresar con la
+API estándar de `NetworkPolicy`.
 
 La configuración vive en GitOps: `infrastructure/config/app-config.yaml` es la única fuente
 declarativa. No se debe editar ni mantener un `app-config-cm.yaml` duplicado. La lista negra se

@@ -33,6 +33,18 @@ export interface JaasToken {
   token: string
   appId: string
   roomName: string
+  sessionUuid?: string | null
+  revokedDeviceFingerprints?: string[]
+}
+
+export interface JaasUsage {
+  month: string
+  uniqueParticipants: number
+  monthlyLimit: number
+  remaining: number
+  percentage: number
+  bandwidthLimitGb: number
+  bandwidthUsedGb?: number | null
 }
 
 export interface JitsiInviteAccess {

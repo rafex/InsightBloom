@@ -87,6 +87,7 @@ public class UsersApplication {
         final var sandboxRepo = new SqliteSandboxRepository(db);
         final var sandboxIncidentRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteSandboxIncidentRepository(db);
         final var toolDeviceSessionRepo = new SqliteToolDeviceSessionRepository(db);
+        final var jaasUsageRepo = new SqliteJaasUsageRepository(db);
         final var deviceBlockRepo = new SqliteDeviceBlockRepository(db);
         final var platformDeviceBlockRepo = new SqlitePlatformDeviceBlockRepository(db);
         final var deviceFingerprintFlagRepo = new SqliteDeviceFingerprintFlagRepository(db);
@@ -194,12 +195,18 @@ public class UsersApplication {
         final var saveEventDiagramUseCase = new SaveEventDiagramUseCase(conferenceRepo);
         final var getEventWhiteboardUseCase = new GetEventWhiteboardUseCase(conferenceRepo);
         final var saveEventWhiteboardUseCase = new SaveEventWhiteboardUseCase(conferenceRepo);
+        final int jaasMonthlyParticipantLimit = Integer.parseInt(
+                System.getenv().getOrDefault("JAAS_MONTHLY_PARTICIPANT_LIMIT", "25"));
+        final int jaasMonthlyBandwidthLimitGb = Integer.parseInt(
+                System.getenv().getOrDefault("JAAS_MONTHLY_BANDWIDTH_LIMIT_GB", "200"));
+        final var getJaasUsageUseCase = new GetJaasUsageUseCase(
+                jaasUsageRepo, jaasMonthlyParticipantLimit, jaasMonthlyBandwidthLimitGb);
         final var eventMaterialsDownloadUseCase = new EventMaterialsDownloadUseCase(
                 conferenceRepo, eventCapabilityGuard, getEventDiagramUseCase, getEventWhiteboardUseCase, etherpadPort);
         final var purgeExpiredEventDiagramsUseCase = new PurgeExpiredEventDiagramsUseCase(conferenceRepo, timezoneRepo);
         final var generateJaasTokenUseCase = new GenerateJaasTokenUseCase(
                 jaasAppId, jaasApiKeyId, jaasPrivateKeyBase64, eventPermissionGuard, userRepo,
-                conferenceRepo, deviceAccessGuard, ticketUseCase);
+                conferenceRepo, deviceAccessGuard, ticketUseCase, jaasUsageRepo);
         final var llmClient = new dev.rafex.insightbloom.users.adapters.outbound.llm.GroqLlmClient(
                 llmBaseUrl, llmApiKey, llmModel, JacksonJsonCodec.defaultCodec());
         final var generateSeatLayoutUseCase = new GenerateSeatLayoutUseCase(llmClient, JacksonJsonCodec.defaultCodec());
@@ -351,7 +358,7 @@ public class UsersApplication {
                 resetSandboxUseCase,
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
                 setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,
-                sandboxHandler, sandboxFilesHandler, userRepo);
+                sandboxHandler, sandboxFilesHandler, userRepo, deviceAccessGuard, getJaasUsageUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

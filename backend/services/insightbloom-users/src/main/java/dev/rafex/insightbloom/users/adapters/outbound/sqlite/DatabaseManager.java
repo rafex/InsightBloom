@@ -630,6 +630,21 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tool_device_sessions_device "
                     + "ON tool_device_sessions(conference_uuid, device_fingerprint)");
 
+            // Local usage guard for the JaaS Free Developer tier. This is deliberately keyed by
+            // InsightBloom user, not by browser/device: it is an operational estimate of unique
+            // participants and avoids treating one attendee on two devices as two people.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS jaas_monthly_participants (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    month TEXT NOT NULL,
+                    user_uuid TEXT NOT NULL,
+                    first_seen_at TEXT NOT NULL,
+                    UNIQUE(month, user_uuid)
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_jaas_monthly_participants_month "
+                    + "ON jaas_monthly_participants(month)");
+
             // Dispositivos bloqueados por exceder max_accounts_per_device -- el moderador decide
             // desde el dashboard ("Bloqueos") si desbloquea (ver DEC de acceso por dispositivo).
             stmt.executeUpdate("""
