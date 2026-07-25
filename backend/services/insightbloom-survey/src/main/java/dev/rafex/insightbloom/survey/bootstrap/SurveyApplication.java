@@ -39,12 +39,10 @@ import java.util.List;
 public class SurveyApplication {
     public static void main(final String[] args) throws Exception {
         final String dbPath = System.getenv().getOrDefault("DB_PATH", "survey.db");
-        final String llmBaseUrl = System.getenv().getOrDefault("LLM_PROVIDER_BASE_URL", "https://api.groq.com/openai/v1");
-        final String llmApiKey = System.getenv().getOrDefault("LLM_PROVIDER_API_KEY", "");
-        final String llmModel = System.getenv().getOrDefault("LLM_PROVIDER_MODEL", "openai/gpt-oss-120b");
         final String presentationsBaseUrl = System.getenv().getOrDefault(
                 "PRESENTATIONS_BASE_URL", "http://insightbloom-presentations:8091");
         final String usersBaseUrl = System.getenv().getOrDefault("USERS_URL", "http://insightbloom-users:8081");
+        final String internalApiKey = System.getenv().getOrDefault("INTERNAL_API_KEY", "");
 
         final var db = new DatabaseManager(dbPath);
         db.initialize();
@@ -55,7 +53,7 @@ public class SurveyApplication {
         final var submissionRepo = new SqliteSurveyJsSubmissionRepository(db);
         final var surveyAccessRepo = new SqliteSurveyAccessRepository(db);
         final var aiMentorConfigRepo = new SqliteAiMentorConfigRepository(db);
-        final var llm = new GroqLlmClient(llmBaseUrl, llmApiKey, llmModel, JsonUtils.codec());
+        final var llm = new GroqLlmClient(usersBaseUrl, internalApiKey, JsonUtils.codec());
         final var presentationsClient = new HttpPresentationsClient(presentationsBaseUrl);
         final var usersPort = new HttpUsersClient(usersBaseUrl);
 

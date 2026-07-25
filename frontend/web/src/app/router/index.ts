@@ -78,7 +78,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/users/:uuid', component: () => import('@/pages/dashboard/UserDetailPage.vue') },
       { path: 'admin/event-types', component: () => import('@/pages/dashboard/EventTypesAdminPage.vue') },
       { path: 'admin/roles', component: () => import('@/pages/dashboard/RolesAdminPage.vue') },
-      { path: 'admin/chat', component: () => import('@/pages/dashboard/AdminChatSettingsPage.vue') },
+      { path: 'admin/ai', component: () => import('@/pages/dashboard/AdminAiSettingsPage.vue') },
+      { path: 'admin/chat', redirect: '/dashboard/admin/ai' },
       { path: 'admin/device-access', component: () => import('@/pages/dashboard/AdminDeviceAccessPage.vue') },
       {
         path: 'conferences/:conferenceId/edit',
@@ -186,7 +187,7 @@ router.beforeEach(async (to) => {
   if (to.path === '/dashboard/admin/users' && !roles.includes('admin')) return '/dashboard'
   if (to.path === '/dashboard/admin/event-types' && !roles.includes('admin')) return '/dashboard'
   if (to.path === '/dashboard/admin/roles' && !roles.includes('admin')) return '/dashboard'
-  if (to.path === '/dashboard/admin/chat' && !roles.includes('admin')) return '/dashboard'
+  if ((to.path === '/dashboard/admin/chat' || to.path === '/dashboard/admin/ai') && !roles.includes('admin')) return '/dashboard'
   if (to.path === '/dashboard/admin/device-access' && !roles.includes('admin')) return '/dashboard'
 })
 

@@ -852,6 +852,23 @@ export async function getChatSettings(token: string): Promise<ChatSettings> {
   return res.data.data
 }
 
+/** Configuración global de IA; la API nunca devuelve la clave, solo su estado y últimos dígitos. */
+export async function getAiSettings(token: string): Promise<ChatSettings> {
+  const res = await axios.get('/api/users/api/v1/settings/ai', authHeader(token))
+  return res.data.data
+}
+
+export async function setAiSettings(
+  chatAiEnabled: boolean, aiBaseUrl: string, aiModel: string, aiApiKey: string | null,
+  clearApiKey: boolean, chatSystemPrompt: string | null, chatTemperature: number | null,
+  token: string
+): Promise<ChatSettings> {
+  const res = await axios.put('/api/users/api/v1/settings/ai', {
+    chatAiEnabled, aiBaseUrl, aiModel, aiApiKey, clearApiKey, chatSystemPrompt, chatTemperature
+  }, authHeader(token))
+  return res.data.data
+}
+
 export async function setChatAiSetting(chatAiEnabled: boolean, token: string): Promise<boolean> {
   const res = await axios.put('/api/users/api/v1/settings/chat-ai', { chatAiEnabled }, authHeader(token))
   return res.data.data.chatAiEnabled

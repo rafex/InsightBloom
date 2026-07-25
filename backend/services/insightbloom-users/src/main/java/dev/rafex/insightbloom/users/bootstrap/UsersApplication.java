@@ -40,9 +40,6 @@ public class UsersApplication {
         final String jaasAppId = System.getenv().getOrDefault("JAAS_APP_ID", "");
         final String jaasApiKeyId = System.getenv().getOrDefault("JAAS_API_KEY_ID", "");
         final String jaasPrivateKeyBase64 = System.getenv().getOrDefault("JAAS_PRIVATE_KEY", "");
-        final String llmBaseUrl = System.getenv().getOrDefault("LLM_PROVIDER_BASE_URL", "https://api.groq.com/openai/v1");
-        final String llmApiKey = System.getenv().getOrDefault("LLM_PROVIDER_API_KEY", "");
-        final String llmModel = System.getenv().getOrDefault("LLM_PROVIDER_MODEL", "openai/gpt-oss-120b");
 
         final String twilioAccountSid = System.getenv().getOrDefault("TWILIO_ACCOUNT_SID", "");
         final String twilioAuthToken = System.getenv().getOrDefault("TWILIO_AUTH_TOKEN", "");
@@ -75,7 +72,8 @@ public class UsersApplication {
         final var membershipRepo = new SqliteConferenceMembershipRepository(db);
         final var certificateSettingsRepo = new SqliteCertificateSettingsRepository(db);
         final var certificateTemplateRepo = new SqliteCertificateTemplateRepository(db);
-        final var platformSettingsRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqlitePlatformSettingsRepository(db);
+        final var platformSettingsRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqlitePlatformSettingsRepository(
+                db, new dev.rafex.insightbloom.users.adapters.outbound.crypto.AiApiKeyCipher(internalApiKey));
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
         final var timezoneRepo = new SqliteTimezoneRepository(db);
         final var reservationRepo = new SqliteReservationRepository(db);
@@ -208,11 +206,12 @@ public class UsersApplication {
                 jaasAppId, jaasApiKeyId, jaasPrivateKeyBase64, eventPermissionGuard, userRepo,
                 conferenceRepo, deviceAccessGuard, ticketUseCase, jaasUsageRepo);
         final var llmClient = new dev.rafex.insightbloom.users.adapters.outbound.llm.GroqLlmClient(
-                llmBaseUrl, llmApiKey, llmModel, JacksonJsonCodec.defaultCodec());
+                platformSettingsRepo, JacksonJsonCodec.defaultCodec());
         final var generateSeatLayoutUseCase = new GenerateSeatLayoutUseCase(llmClient, JacksonJsonCodec.defaultCodec());
         final var getChatAiSettingUseCase = new GetChatAiSettingUseCase(platformSettingsRepo);
         final var setChatAiSettingUseCase = new SetChatAiSettingUseCase(platformSettingsRepo);
         final var setChatSettingsUseCase = new SetChatSettingsUseCase(platformSettingsRepo);
+        final var setAiSettingsUseCase = new SetAiSettingsUseCase(platformSettingsRepo);
         final var setDeviceAccessSettingsUseCase = new SetDeviceAccessSettingsUseCase(platformSettingsRepo);
         final var listPlatformDeviceBlocksUseCase = new ListPlatformDeviceBlocksUseCase(platformDeviceBlockRepo);
         final var unblockPlatformDeviceUseCase = new UnblockPlatformDeviceUseCase(platformDeviceBlockRepo);
@@ -382,7 +381,7 @@ public class UsersApplication {
                 setRoleActiveUseCase, validateTokenUseCase);
         final var permissionHandler = new PermissionHandler();
         final var platformSettingsHandler = new PlatformSettingsHandler(
-                getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase,
+                getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase, setAiSettingsUseCase,
                 setDeviceAccessSettingsUseCase, listPlatformDeviceBlocksUseCase, unblockPlatformDeviceUseCase,
                 listDeviceFingerprintFlagsUseCase, reviewDeviceFingerprintFlagUseCase,
                 validateTokenUseCase);

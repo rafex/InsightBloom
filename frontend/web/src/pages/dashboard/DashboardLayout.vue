@@ -12,7 +12,7 @@
         router-link(v-if="!isOrganizer" to="/dashboard/join" @click="sidebarOpen = false") Unirse a un evento
         router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="sidebarOpen = false") Usuarios
         router-link(v-if="isAdmin" to="/dashboard/admin/roles" @click="sidebarOpen = false") Roles
-        router-link(v-if="isAdmin" to="/dashboard/admin/chat" @click="sidebarOpen = false") Chat
+        router-link(v-if="isAdmin" to="/dashboard/admin/ai" @click="sidebarOpen = false") IA
         router-link(v-if="isAdmin" to="/dashboard/admin/device-access" @click="sidebarOpen = false") Acceso por dispositivo
         router-link(to="/profile" @click="sidebarOpen = false") Mi perfil
     main.dashboard-main

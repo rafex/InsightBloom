@@ -28,15 +28,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("roberto")
 
-LLM_PROVIDER_API_KEY  = os.getenv("LLM_PROVIDER_API_KEY", "")
-LLM_PROVIDER_BASE_URL = os.getenv("LLM_PROVIDER_BASE_URL", "https://api.groq.com/openai/v1")
-LLM_PROVIDER_MODEL    = os.getenv("LLM_PROVIDER_MODEL", "openai/gpt-oss-120b")
-
-# Modelo de Groq dedicado a revisar (no generar) las respuestas de Roberto.
-GUARDRAIL_MODEL = os.getenv("ROBERTO_GUARDRAIL_MODEL", "openai/gpt-oss-safeguard-20b")
-
 PRESENTATIONS_URL = os.getenv("PRESENTATIONS_URL", "http://localhost:8091")
 USERS_URL = os.getenv("USERS_URL", "http://localhost:8081")
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
 
 # Cuánto tiempo (segundos) se reutilizan los ajustes del panel admin (kill switch, prompt,
 # temperatura), para no pegarle a insightbloom-users en cada mensaje del chat.
@@ -63,7 +57,6 @@ SIEMPRE de palabra, nunca tú mismo escribiendo "/dudas" o "#temas".
 # tampoco hay override por variable de entorno (compatibilidad con despliegues previos a que el
 # panel admin controlara esto — ver AdminChatSettingsPage.vue en el dashboard de InsightBloom,
 # que es ahora la forma recomendada de ajustar prompt/temperatura, sin necesidad de redeploy).
-_ENV_SYSTEM_PROMPT = os.getenv("ROBERTO_SYSTEM_PROMPT") or _DEFAULT_SYSTEM_PROMPT
 _DEFAULT_TEMPERATURE = 0.88
 
 GUARDRAIL_SYSTEM_PROMPT = """\
@@ -99,22 +92,16 @@ class Roberto:
         self._history: list[dict] = []
         self._presentation_cache: dict[str, tuple[float, str]] = {}
         self._chat_settings_cache: tuple[float, dict] | None = None
-        self._client: AsyncOpenAI | None = (
-            AsyncOpenAI(api_key=LLM_PROVIDER_API_KEY, base_url=LLM_PROVIDER_BASE_URL)
-            if LLM_PROVIDER_API_KEY
-            else None
-        )
-        if not self._client:
-            log.warning("LLM_PROVIDER_API_KEY no configurada — Roberto está en silencio.")
+        self._client: AsyncOpenAI | None = None
+        self._client_signature: tuple[str, str, str] | None = None
 
     # ── Interfaz pública ────────────────────────────────────────────────────
 
     async def maybe_respond(self, text: str, sender: str, manager: "ConnectionManager",
                              conference_id: str | None = None) -> None:
         """Evalúa si Roberto debe responder al mensaje y lo hace de forma asíncrona."""
-        if not self._client:
-            return
-        if not (await self._get_chat_settings())["enabled"]:
+        settings = await self._get_chat_settings()
+        if not self._client or not settings["enabled"]:
             return
         if sender == "Roberto":
             return
@@ -133,9 +120,8 @@ class Roberto:
     async def on_insightbloom_event(self, word: str, kind: str, manager: "ConnectionManager",
                                      conference_id: str | None = None) -> None:
         """Roberto puede comentar (40 % de probabilidad) cuando llega un evento de InsightBloom."""
-        if not self._client or random.random() > 0.40:
-            return
-        if not (await self._get_chat_settings())["enabled"]:
+        settings = await self._get_chat_settings()
+        if not self._client or not settings["enabled"] or random.random() > 0.40:
             return
         kind_es = "duda" if kind in ("doubt", "DOUBT") else "tema"
         prompt = (
@@ -148,25 +134,41 @@ class Roberto:
     # ── Internos ────────────────────────────────────────────────────────────
 
     async def _get_chat_settings(self) -> dict:
-        """Consulta (con cache corta) el kill switch de IA, el prompt de sistema y la
-        temperatura, todos controlables desde AdminChatSettingsPage.vue en el panel
-        administrativo — permite ajustarlos o cortar el uso de IA en el chat sin redeploy. El
-        endpoint es público (no expone datos sensibles). Fail-open: si la consulta falla, se
-        asume habilitado con los defaults embebidos, para no dejar a Roberto en silencio total
-        por un problema ajeno (ej. insightbloom-users no disponible momentáneamente)."""
+        """Carga la configuración administrada en IA. La clave solo viaja por la red interna."""
         now = asyncio.get_event_loop().time()
         cached = self._chat_settings_cache
         if cached and (now - cached[0]) < _CHAT_SETTINGS_CACHE_TTL:
             return cached[1]
-        settings = {"enabled": True, "system_prompt": _ENV_SYSTEM_PROMPT, "temperature": _DEFAULT_TEMPERATURE}
+        settings = {
+            "enabled": False, "system_prompt": _DEFAULT_SYSTEM_PROMPT,
+            "temperature": _DEFAULT_TEMPERATURE, "base_url": "", "model": "", "api_key": "",
+        }
         try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                r = await client.get(f"{USERS_URL}/api/v1/settings/chat-ai/public")
+            headers = {"X-Internal-Auth": INTERNAL_API_KEY} if INTERNAL_API_KEY else {}
+            async with httpx.AsyncClient(timeout=3.0, headers=headers) as client:
+                r = await client.get(f"{USERS_URL}/api/v1/settings/ai/internal")
                 if r.status_code == 200:
                     data = r.json().get("data", {})
-                    settings["enabled"] = bool(data.get("chatAiEnabled", True))
+                    settings.update({
+                        "enabled": bool(data.get("chatAiEnabled", False)),
+                        "system_prompt": data.get("chatSystemPrompt") or _DEFAULT_SYSTEM_PROMPT,
+                        "temperature": data.get("chatTemperature") if data.get("chatTemperature") is not None else _DEFAULT_TEMPERATURE,
+                        "base_url": data.get("aiBaseUrl") or "",
+                        "model": data.get("aiModel") or "",
+                        "api_key": data.get("aiApiKey") or "",
+                    })
+            if settings["enabled"] and settings["api_key"] and settings["base_url"] and settings["model"]:
+                signature = (settings["base_url"], settings["model"], settings["api_key"])
+                if signature != self._client_signature:
+                    self._client = AsyncOpenAI(api_key=settings["api_key"], base_url=settings["base_url"])
+                    self._client_signature = signature
+            else:
+                self._client = None
+                self._client_signature = None
         except Exception as exc:
-            log.info("No se pudo consultar la configuracion del chat, se asumen los defaults: %s", exc)
+            self._client = None
+            self._client_signature = None
+            log.info("No se pudo consultar la configuración IA; se deshabilita temporalmente: %s", exc)
         self._chat_settings_cache = (now, settings)
         return settings
 
@@ -215,6 +217,9 @@ class Roberto:
                          conference_id: str | None = None) -> None:
         try:
             settings = await self._get_chat_settings()
+            client = self._client
+            if not client or not settings["enabled"]:
+                return
             system_content = settings["system_prompt"]
             presentation = await self._get_presentation_context(conference_id)
             if presentation:
@@ -224,15 +229,15 @@ class Roberto:
                     + presentation
                 )
 
-            resp = await self._client.chat.completions.create(
-                model=LLM_PROVIDER_MODEL,
+            resp = await client.chat.completions.create(
+                model=settings["model"],
                 messages=[{"role": "system", "content": system_content}, *messages],
                 max_tokens=150,
                 temperature=settings["temperature"],
             )
             reply = resp.choices[0].message.content.strip()
 
-            if not await self._passes_guardrail(reply):
+            if not await self._passes_guardrail(reply, client, settings["model"]):
                 log.warning("Respuesta de Roberto bloqueada por el guardrail: %s", reply[:120])
                 return
 
@@ -245,16 +250,14 @@ class Roberto:
         except Exception as exc:
             log.error("Roberto API error: %s", exc)
 
-    async def _passes_guardrail(self, candidate_reply: str) -> bool:
+    async def _passes_guardrail(self, candidate_reply: str, client: AsyncOpenAI, model: str) -> bool:
         """Revisa la respuesta candidata con un segundo modelo antes de enviarla.
         Si el guardrail falla por cualquier motivo (red, modelo no disponible),
         se permite el envío (fail-open) para no dejar a Roberto en silencio total
         por un problema ajeno a la respuesta misma."""
-        if not self._client:
-            return False
         try:
-            resp = await self._client.chat.completions.create(
-                model=GUARDRAIL_MODEL,
+            resp = await client.chat.completions.create(
+                model=model,
                 messages=[
                     {"role": "system", "content": GUARDRAIL_SYSTEM_PROMPT},
                     {"role": "user", "content": candidate_reply},

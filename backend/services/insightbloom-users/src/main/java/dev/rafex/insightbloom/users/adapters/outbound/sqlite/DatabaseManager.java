@@ -523,6 +523,9 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE platform_settings ADD COLUMN chat_temperature REAL");
             } catch (final SQLException ignored) { /* columna ya existe */ }
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "ai_base_url", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "ai_model", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "ai_api_key_ciphertext", "TEXT");
             // Umbrales de PlatformDeviceGuard (2026-07): nullable, defaults efectivos en el guard
             // (5/3/3) si el admin de plataforma no los configuro todavia.
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "max_accounts_per_device", "INTEGER");

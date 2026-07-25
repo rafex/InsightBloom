@@ -462,4 +462,8 @@ export interface ChatSettings {
   chatAiEnabled: boolean
   chatSystemPrompt: string | null
   chatTemperature: number | null
+  aiBaseUrl: string
+  aiModel: string
+  aiApiKeyConfigured: boolean
+  aiApiKeyHint: string | null
 }

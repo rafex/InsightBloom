@@ -6,7 +6,7 @@ import dev.rafex.insightbloom.users.domain.ports.PlatformSettingsRepository;
 /**
  * Permite al panel administrativo controlar el prompt de sistema y la temperatura del bot de
  * chat (Roberto) sin depender de un redeploy ni de variables de entorno de GitHub Actions
- * (ROBERTO_SYSTEM_PROMPT queda como fallback si estos campos son null — ver chat/bot.py).
+ * (el servicio usa un prompt pedagógico incorporado si estos campos son null).
  */
 public class SetChatSettingsUseCase {
     private static final double MIN_TEMPERATURE = 0.0;

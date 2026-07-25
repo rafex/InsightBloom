@@ -10,6 +10,7 @@ import dev.rafex.insightbloom.users.application.usecases.ListPlatformDeviceBlock
 import dev.rafex.insightbloom.users.application.usecases.ReviewDeviceFingerprintFlagUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetChatAiSettingUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetChatSettingsUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetAiSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetDeviceAccessSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UnblockPlatformDeviceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
@@ -34,6 +35,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     private final GetChatAiSettingUseCase getChatAiSettingUseCase;
     private final SetChatAiSettingUseCase setChatAiSettingUseCase;
     private final SetChatSettingsUseCase setChatSettingsUseCase;
+    private final SetAiSettingsUseCase setAiSettingsUseCase;
     private final SetDeviceAccessSettingsUseCase setDeviceAccessSettingsUseCase;
     private final ListPlatformDeviceBlocksUseCase listPlatformDeviceBlocksUseCase;
     private final UnblockPlatformDeviceUseCase unblockPlatformDeviceUseCase;
@@ -44,6 +46,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     public PlatformSettingsHandler(final GetChatAiSettingUseCase getChatAiSettingUseCase,
                                     final SetChatAiSettingUseCase setChatAiSettingUseCase,
                                     final SetChatSettingsUseCase setChatSettingsUseCase,
+                                    final SetAiSettingsUseCase setAiSettingsUseCase,
                                     final SetDeviceAccessSettingsUseCase setDeviceAccessSettingsUseCase,
                                     final ListPlatformDeviceBlocksUseCase listPlatformDeviceBlocksUseCase,
                                     final UnblockPlatformDeviceUseCase unblockPlatformDeviceUseCase,
@@ -53,6 +56,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         this.getChatAiSettingUseCase = getChatAiSettingUseCase;
         this.setChatAiSettingUseCase = setChatAiSettingUseCase;
         this.setChatSettingsUseCase = setChatSettingsUseCase;
+        this.setAiSettingsUseCase = setAiSettingsUseCase;
         this.setDeviceAccessSettingsUseCase = setDeviceAccessSettingsUseCase;
         this.listPlatformDeviceBlocksUseCase = listPlatformDeviceBlocksUseCase;
         this.unblockPlatformDeviceUseCase = unblockPlatformDeviceUseCase;
@@ -71,6 +75,8 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         return List.of(
                 Route.of("/chat-ai", Set.of("GET", "PUT")),
                 Route.of("/chat-ai/public", Set.of("GET")),
+                Route.of("/ai", Set.of("GET", "PUT")),
+                Route.of("/ai/internal", Set.of("GET")),
                 Route.of("/device-access", Set.of("GET", "PUT")),
                 Route.of("/device-blocks", Set.of("GET")),
                 Route.of("/device-blocks/{blockId}/unblock", Set.of("POST")),
@@ -86,6 +92,14 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     @Override
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (pathEndsWith(jx, "/ai/internal")) {
+            if (!validInternalAuth(jx)) {
+                sendError(jx, 401, "internal_auth_required", "Internal authentication required");
+            } else {
+                sendOk(jx, toInternalView(getChatAiSettingUseCase.execute()));
+            }
+            return true;
+        }
         final String path = jx.path();
         if (path.endsWith("/chat-ai/public")) {
             try {
@@ -127,6 +141,18 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 return true;
             }
             final var body = parseBody(jx);
+            if (jx.path().endsWith("/ai")) {
+                final boolean enabled = !Boolean.FALSE.equals(body.get("chatAiEnabled"));
+                final String baseUrl = body.get("aiBaseUrl") instanceof String value ? value : null;
+                final String model = body.get("aiModel") instanceof String value ? value : null;
+                final String apiKey = body.get("aiApiKey") instanceof String value ? value : null;
+                final boolean clearApiKey = Boolean.TRUE.equals(body.get("clearApiKey"));
+                final String prompt = body.get("chatSystemPrompt") instanceof String value ? value : null;
+                final Double temperature = body.get("chatTemperature") instanceof Number n ? n.doubleValue() : null;
+                sendOk(jx, toView(setAiSettingsUseCase.execute(
+                        enabled, baseUrl, model, apiKey, clearApiKey, prompt, temperature)));
+                return true;
+            }
             final boolean chatAiEnabled = !Boolean.FALSE.equals(body.get("chatAiEnabled"));
             setChatAiSettingUseCase.execute(chatAiEnabled);
             final String chatSystemPrompt = (String) body.get("chatSystemPrompt");
@@ -263,7 +289,27 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         view.put("chatAiEnabled", s.isChatAiEnabled());
         view.put("chatSystemPrompt", s.getChatSystemPrompt());
         view.put("chatTemperature", s.getChatTemperature());
+        view.put("aiBaseUrl", s.getAiBaseUrl());
+        view.put("aiModel", s.getAiModel());
+        final String key = s.getAiApiKey();
+        view.put("aiApiKeyConfigured", key != null && !key.isBlank());
+        view.put("aiApiKeyHint", key == null || key.isBlank() ? null : "••••" + key.substring(Math.max(0, key.length() - 4)));
         return view;
+    }
+
+    private static Map<String, Object> toInternalView(final PlatformSettings s) {
+        final Map<String, Object> view = new java.util.HashMap<>();
+        view.put("chatAiEnabled", s.isChatAiEnabled());
+        view.put("chatSystemPrompt", s.getChatSystemPrompt());
+        view.put("chatTemperature", s.getChatTemperature());
+        view.put("aiBaseUrl", s.getAiBaseUrl());
+        view.put("aiModel", s.getAiModel());
+        view.put("aiApiKey", s.getAiApiKey());
+        return view;
+    }
+
+    private static boolean pathEndsWith(final JettyHttpExchange jx, final String suffix) {
+        return jx.path().endsWith(suffix);
     }
 
     private static Map<String, Object> toDeviceAccessView(final PlatformSettings s) {
