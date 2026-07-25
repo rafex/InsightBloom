@@ -7,13 +7,13 @@
   nav.sub-links(v-if="conferenceId")
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/edit`") Editor
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/config`") Configuración
+    router-link.sub-link(:to="`/dashboard/admin/ai/tutor?conference=${conferenceId}`") 🤖 Tutor IA
 
   nav.config-tabs(v-if="!loading && !error" aria-label="Secciones de configuración")
     button.config-tab(type="button" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'") General
     button.config-tab(type="button" :class="{ active: activeTab === 'tools' }" @click="activeTab = 'tools'") Herramientas
     button.config-tab(type="button" :class="{ active: activeTab === 'sandbox' }" @click="activeTab = 'sandbox'") IDE y sandboxes
     button.config-tab(type="button" :class="{ active: activeTab === 'access' }" @click="activeTab = 'access'") Acceso y roles
-    button.config-tab(type="button" :class="{ active: activeTab === 'mentor' }" @click="activeTab = 'mentor'") 🤖 Tutor IA
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
@@ -195,31 +195,6 @@
               td {{ incidentTypeLabel(incident.type) }}
               td {{ incident.detail }}
 
-    .form-group.mentor-group(v-show="activeTab === 'mentor'")
-      label Tutor IA para programación
-      p.field-hint Ayuda a los asistentes con pistas socráticas basadas en el objetivo del taller y, opcionalmente, en el contenido de la presentación. La clave del proveedor nunca llega al navegador.
-      label.toggle-row
-        input(type="checkbox" v-model="mentorEnabled")
-        span Activar tutor IA para este evento
-      .coord-field
-        span.coord-label Objetivo pedagógico del taller
-        textarea(v-model="mentorObjective" rows="4" maxlength="2000" placeholder="Qué deben aprender o construir los asistentes")
-      .coord-field
-        span.coord-label Instrucciones adicionales y límites
-        textarea(v-model="mentorPrompt" rows="5" maxlength="8000" placeholder="Por ejemplo: no dar la solución completa; pedir primero qué intentaron")
-      label.toggle-row
-        input(type="checkbox" v-model="mentorIncludePresentation")
-        span Usar la presentación como contexto de consulta
-      .coord-field
-        span.coord-label Máximo de consultas por usuario/minuto
-        input(v-model.number="mentorMaxRequests" type="number" min="1" max="30")
-      p.field-hint El sistema aplica guardrails fijos: no revela secretos ni instrucciones internas y evita resolver de forma directa los ejercicios.
-      button.btn-outline(type="button" @click="saveAiMentor" :disabled="savingMentor")
-        span(v-if="savingMentor") Guardando...
-        span(v-else) Guardar configuración del tutor IA
-      p.success(v-if="mentorSaved") Configuración del tutor IA guardada.
-      p.error(v-if="mentorError") {{ mentorError }}
-
     .form-group.device-access-group(v-show="activeTab === 'access'")
       label Acceso por dispositivo
       p.field-hint Controla cuántos dispositivos puede usar a la vez un mismo asistente en Videollamada e IDE, y bloquea automáticamente un dispositivo que se loguea con demasiadas cuentas distintas (podés revisar y desbloquear desde "Bloqueos", en Moderación).
@@ -263,7 +238,6 @@ import {
 } from '@/services/api/usersApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, SandboxPrewarmResult, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
-import { getAiMentorConfig, setAiMentorConfig } from '@/services/api/surveyApi'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 
@@ -277,7 +251,7 @@ export default {
     const loading      = ref(true)
     const error        = ref('')
 
-    const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access' | 'mentor'>('general')
+    const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access'>('general')
     const seatingMode  = ref<SeatingMode>('NONE')
     const capacity     = ref<number | null>(null)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
@@ -355,15 +329,6 @@ export default {
     const assigning       = ref(false)
     const roleAssigned    = ref(false)
     const roleError       = ref('')
-    const mentorEnabled = ref(false)
-    const mentorObjective = ref('')
-    const mentorPrompt = ref('')
-    const mentorIncludePresentation = ref(true)
-    const mentorMaxRequests = ref(8)
-    const savingMentor = ref(false)
-    const mentorSaved = ref(false)
-    const mentorError = ref('')
-
     onMounted(async () => {
       try {
         const [conf, types] = await Promise.all([
@@ -403,18 +368,6 @@ export default {
         error.value = 'No se pudo cargar la conferencia.'
       } finally {
         loading.value = false
-      }
-
-      try {
-        const result = await getAiMentorConfig(props.conferenceId as string, auth.state.token as string)
-        const mentor = result.data
-        mentorEnabled.value = mentor.enabled
-        mentorObjective.value = mentor.objective || ''
-        mentorPrompt.value = mentor.prompt || ''
-        mentorIncludePresentation.value = mentor.includePresentation !== false
-        mentorMaxRequests.value = mentor.maxRequestsPerMinute || 8
-      } catch (e: any) {
-        mentorError.value = e.response?.data?.error?.message || ''
       }
 
       // La seccion de roles solo aparece si el backend confirma que el usuario actual
@@ -506,30 +459,6 @@ export default {
         sandboxConfigError.value = e.response?.data?.error?.message || 'No se pudo guardar la configuración del IDE'
       } finally {
         savingSandboxConfig.value = false
-      }
-    }
-
-    async function saveAiMentor() {
-      savingMentor.value = true; mentorError.value = ''; mentorSaved.value = false
-      try {
-        const result = await setAiMentorConfig(props.conferenceId as string, {
-          enabled: mentorEnabled.value,
-          objective: mentorObjective.value,
-          prompt: mentorPrompt.value,
-          includePresentation: mentorIncludePresentation.value,
-          maxRequestsPerMinute: mentorMaxRequests.value
-        }, auth.state.token as string)
-        const mentor = result.data
-        mentorEnabled.value = mentor.enabled
-        mentorObjective.value = mentor.objective || ''
-        mentorPrompt.value = mentor.prompt || ''
-        mentorIncludePresentation.value = mentor.includePresentation
-        mentorMaxRequests.value = mentor.maxRequestsPerMinute
-        mentorSaved.value = true
-      } catch (e: any) {
-        mentorError.value = e.response?.data?.error?.message || 'No se pudo guardar la configuración del tutor IA'
-      } finally {
-        savingMentor.value = false
       }
     }
 
@@ -750,8 +679,6 @@ export default {
                { value: 'ETHERPAD', label: 'Etherpad (notas)' }
              ] as Array<{ value: CanvasTool; label: string }>,
              savingCanvasConfig, canvasConfigSaved, canvasConfigError, saveCanvasConfig,
-             mentorEnabled, mentorObjective, mentorPrompt, mentorIncludePresentation, mentorMaxRequests,
-             savingMentor, mentorSaved, mentorError, saveAiMentor,
              eventRoles, assignableRoles, canManageRoles, assignIdentifier, assignRoleKey, assigning,
              roleAssigned, roleError, roleName, assignRole, removeRole, breadcrumbItems }
   }
@@ -787,7 +714,6 @@ textarea:focus { outline: none; border-color: #4f46e5; }
 .toggle-row input { width: auto; }
 
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
-.mentor-group { background: #f8faff; border: 1px solid #e0e7ff; border-radius: 10px; padding: 16px; }
 .canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; }
 .canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
 .canvas-tool-option input { width: auto; }
