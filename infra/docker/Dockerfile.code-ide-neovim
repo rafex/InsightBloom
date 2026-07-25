@@ -99,6 +99,12 @@ RUN curl -fsSL "$PYTHON_URL" -o /tmp/python.tar.gz && \
     ln -s /usr/local/lib/python-3.12/bin/python3 /usr/local/bin/python && \
     ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip3 && \
     ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip
+# Solo python3/pip quedan symlinkeados arriba -- cualquier OTRO script que "pip install" agregue
+# despues (uv, virtualenv, jupyter, black, pylint, etc.) queda instalado en
+# /usr/local/lib/python-3.12/bin/ sin quedar expuesto como comando bare. Se agrega ese directorio
+# al PATH para que todos esos scripts (no solo python3/pip) se puedan invocar directo. Bug real
+# encontrado en CI: "uv tool install" (mas abajo) fallaba con "uv: not found" por esto mismo.
+ENV PATH="/usr/local/lib/python-3.12/bin:${PATH}"
 
 # Node.js LTS 24.18.0 -- nodejs.org NO publica builds musl oficiales (solo glibc); se usa el
 # build de unofficial-builds.nodejs.org (proyecto de la comunidad Node, referenciado desde la
