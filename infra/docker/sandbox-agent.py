@@ -168,10 +168,16 @@ def _ensure_seat_account(index: int, user_uuid: str):
     #
     # Se ejecuta también cuando la cuenta ya existe para reparar homes creados por
     # una versión anterior de la imagen sin tener que borrar el Pod completo.
-    os.chmod(home, 0o750)
-    os.chmod(f"{home}/.config", 0o750)
+    # Orden inverso a proposito: root pierde CAP_DAC_OVERRIDE (ver comentario de arriba), asi
+    # que en cuanto "home" queda en 0750 root ya no puede ATRAVESARLO para llegar a los hijos
+    # (CAP_FOWNER permite el chmod en si, pero no bypassea el permiso de traversal x). Cerrar
+    # primero los hijos y "home" al final evita que el propio chmod se bloquee a si mismo a
+    # mitad de camino -- confirmado en vivo: con el orden padre-primero, TODO seat_spawn_failed
+    # con Permission denied en ".config" (2026-07-26).
     os.chmod(nvim_config_dir, 0o750)
+    os.chmod(f"{home}/.config", 0o750)
     os.chmod(workspace, 0o750)
+    os.chmod(home, 0o750)
     return uid, home
 
 
