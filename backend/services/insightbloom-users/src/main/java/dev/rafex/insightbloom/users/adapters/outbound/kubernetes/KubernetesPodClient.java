@@ -744,7 +744,16 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         } else {
             ctx.put("runAsNonRoot", true);
             ctx.put("runAsUser", uid);
-            ctx.put("capabilities", Map.of("drop", List.of("ALL")));
+            // NET_RAW: la imagen debian/code-server trae iputils-ping (ver
+            // Dockerfile.code-ide-debian) para que el alumno pueda diagnosticar red desde el
+            // IDE. El binario no es setuid-root -- sin esta capability, ping falla con
+            // "Operation not permitted" aunque el ejecutable exista. No amplia el egress
+            // real: la NetworkPolicy del evento (ver allowInternetEgress/buildEgressAllowBody)
+            // sigue siendo
+            // deny-all-excepto-egress-proxy en TCP, así que ICMP saliente a internet igual
+            // queda bloqueado por el CNI -- ping solo deja de fallar con un error de permisos
+            // confuso, no habilita tráfico nuevo.
+            ctx.put("capabilities", Map.of("drop", List.of("ALL"), "add", List.of("NET_RAW")));
         }
         return ctx;
     }
