@@ -546,6 +546,16 @@ export async function issueTicket(
   return res.data.data
 }
 
+/** Emite varios boletos anónimos de una sola vez (sin destinatario ni asiento) -- solo eventos
+ *  GENERAL. Falla completa si `quantity` excede el aforo restante: no emite ninguno. */
+export async function issueTicketBatch(
+  conferenceId: string, quantity: number, token: string
+): Promise<Ticket[]> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets`,
+    { quantity }, authHeader(token))
+  return res.data.data
+}
+
 export async function listTickets(conferenceId: string, token: string): Promise<TicketManagementSummary> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/tickets`, authHeader(token))
   return res.data.data

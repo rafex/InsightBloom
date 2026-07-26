@@ -20,7 +20,8 @@
         span.summary-label Expirados
 
   .summary-group(v-if="!loading && conferences.length" id="onboarding-users-summary")
-    h2 Usuarios
+    h2 Usuarios en tus eventos
+    p.summary-hint Asistentes de los eventos que organizás — no el total de cuentas de la plataforma (ver "Usuarios" en el menú).
     .summary-grid
       .summary-card
         span.summary-icon 👥
@@ -187,6 +188,7 @@ h2 { color: #374151; font-size: 1.1rem; font-weight: 600; margin: 0 0 16px; }
 .summary-icon { font-size: 1.4rem; }
 .summary-value { font-size: 1.6rem; font-weight: 700; color: #1e1b4b; }
 .summary-label { font-size: 0.78rem; color: #6b7280; }
+.summary-hint { margin: -6px 0 10px; font-size: 0.8rem; color: #9ca3af; }
 
 .jaas-usage-card { background: #fff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 18px 20px; margin-bottom: 32px; }
 .jaas-usage-card.jaas-warning { border-color: #fbbf24; background: #fffbeb; }

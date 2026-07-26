@@ -12,6 +12,8 @@ public interface TicketRepository {
     Optional<Ticket> findByConferenceAndUser(String conferenceUuid, String userUuid);
     Optional<Ticket> findOperationalByConferenceAndUser(String conferenceUuid, String userUuid);
     List<Ticket> findByConference(String conferenceUuid);
+    /** Boletos reclamados por un usuario, sin importar el evento -- para armar "mis eventos". */
+    List<Ticket> findByClaimedUser(String userUuid);
     boolean claim(String uuid, String userUuid, String claimedAt);
     boolean checkIn(String uuid, String checkedInAt);
     boolean revoke(String uuid, String revokedByUserUuid, String revokedAt);

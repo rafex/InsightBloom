@@ -10,6 +10,13 @@
       input(v-model="seatUuid" type="text" placeholder="UUID de asiento (opcional)")
       button.btn-primary(type="button" @click="issue" :disabled="issuing") {{ issuing ? 'Emitiendo...' : 'Emitir boleto' }}
     p.feedback(v-if="feedback" :class="{ error: feedbackError }") {{ feedback }}
+    template(v-if="canIssueBatch")
+      .issue-divider o
+      .issue-row
+        input(v-model.number="batchQuantity" type="number" min="2" max="200" placeholder="Cantidad")
+        button.btn-outline(type="button" @click="issueBatch" :disabled="issuingBatch || !batchQuantity || batchQuantity < 2")
+          | {{ issuingBatch ? 'Emitiendo...' : `Emitir ${batchQuantity || ''} boletos anónimos` }}
+      p.field-hint Genera varios boletos sin destinatario de una sola vez, para que la gente los reclame con el QR. No exceden el aforo restante: si pedís más de lo que queda, no se emite ninguno.
   .metrics-grid(v-if="summary")
     .metric-card.metric-capacity
       strong {{ summary.remainingToIssue == null ? '∞' : summary.remainingToIssue }}
@@ -46,7 +53,7 @@
 import { ref, computed, onMounted } from 'vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import TicketQr from '@/components/TicketQr.vue'
-import { issueTicket, listTickets, getConference, revokeTicket } from '@/services/api/usersApi'
+import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket } from '@/services/api/usersApi'
 import type { Ticket, TicketManagementSummary, TicketStatus } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -63,10 +70,14 @@ export default {
     const seatUuid = ref('')
     const conferenceName = ref('')
     const conferenceFriendlyId = ref('')
+    const seatingMode = ref('')
     const loading = ref(true)
     const issuing = ref(false)
     const feedback = ref('')
     const feedbackError = ref(false)
+    const batchQuantity = ref<number | null>(10)
+    const issuingBatch = ref(false)
+    const canIssueBatch = computed(() => seatingMode.value !== 'SEATED')
 
     async function load() {
       if (!props.conferenceId || !auth.state.token) return
@@ -77,6 +88,7 @@ export default {
         ])
         conferenceName.value = conf.name
         conferenceFriendlyId.value = conf.friendlyId
+        seatingMode.value = conf.seatingMode || ''
         summary.value = list
         tickets.value = list.tickets
       } finally { loading.value = false }
@@ -103,6 +115,27 @@ export default {
         }
         feedback.value = messages[apiError.code] || apiError.detail || 'No se pudo emitir el boleto.'
       } finally { issuing.value = false }
+    }
+
+    async function issueBatch() {
+      if (!props.conferenceId || !auth.state.token || !batchQuantity.value) return
+      issuingBatch.value = true; feedback.value = ''; feedbackError.value = false
+      try {
+        const issued = await issueTicketBatch(props.conferenceId, batchQuantity.value, auth.state.token)
+        await load()
+        feedback.value = `${issued.length} boletos emitidos.`
+      } catch (e: any) {
+        feedbackError.value = true
+        const apiError = e.response?.data?.error || {}
+        const messages: Record<string, string> = {
+          capacity_exceeded: 'Esa cantidad excede el aforo restante del evento. No se emitió ningún boleto.',
+          capability_not_available: 'Este evento no tiene habilitada la emisión de boletos.',
+          seat_required: 'Este evento usa asientos; emite los boletos de a uno con su UUID de asiento.',
+          conference_expired: 'El evento ya terminó y no admite nuevos boletos.',
+          quantity_invalid: 'La cantidad debe ser un número entre 2 y 200.'
+        }
+        feedback.value = messages[apiError.code] || apiError.detail || 'No se pudieron emitir los boletos.'
+      } finally { issuingBatch.value = false }
     }
 
     async function copy(code: string) {
@@ -182,7 +215,8 @@ export default {
     ])
 
     onMounted(load)
-    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, statusLabel, claimantLabel, breadcrumbItems }
+    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, statusLabel, claimantLabel, breadcrumbItems,
+      batchQuantity, issuingBatch, canIssueBatch, issueBatch }
   }
 }
 </script>
@@ -201,6 +235,10 @@ h2 { color: #1e1b4b; }
 input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
 .btn-primary, .btn-copy { padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
 .btn-primary { border: 0; background: #4f46e5; color: white; }
+.btn-outline { padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; border: 1.5px solid #4f46e5; background: none; color: #4f46e5; }
+.btn-outline:disabled { opacity: .5; cursor: not-allowed; }
+.issue-divider { text-align: center; color: #9ca3af; font-size: .78rem; margin: 12px 0; text-transform: uppercase; letter-spacing: .04em; }
+.field-hint { margin: 8px 0 0; font-size: .8rem; color: #9ca3af; }
 .btn-copy { border: 1px solid #c7d2fe; background: #eef2ff; color: #4338ca; }
 .btn-revoke { border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
 .row-actions { display: flex; gap: 8px; }

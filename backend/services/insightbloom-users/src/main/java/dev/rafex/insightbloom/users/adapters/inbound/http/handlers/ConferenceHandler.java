@@ -1940,6 +1940,21 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final String recipientEmail = (String) body.get("recipientEmail");
             final String seatUuid = (String) body.get("seatUuid");
+            final Integer quantity = body.get("quantity") instanceof Number n ? n.intValue() : null;
+            if (quantity != null && quantity > 1) {
+                if (recipientEmail != null && !recipientEmail.isBlank()) {
+                    sendError(jx, 400, "quantity_with_recipient_not_allowed",
+                            "No se puede emitir en lote con un destinatario específico; emite uno a la vez para mandarlo por correo.");
+                    return true;
+                }
+                if (seatUuid != null && !seatUuid.isBlank()) {
+                    sendError(jx, 400, "quantity_with_seat_not_allowed",
+                            "No se puede emitir en lote en un evento con asientos; cada boleto necesita su propio asiento.");
+                    return true;
+                }
+                sendOk(jx, 201, ticketUseCase.issueBatch(id, v.subjectUuid(), quantity));
+                return true;
+            }
             sendOk(jx, 201, ticketUseCase.issue(id, v.subjectUuid(), recipientEmail, seatUuid));
         } catch (final IllegalStateException e) {
             final String code = e.getMessage() == null ? "ticket_issue_failed" : e.getMessage();

@@ -390,7 +390,7 @@ public class UsersApplication {
                 certificateTemplateRepo, conferenceRepo, eventPermissionGuard, validateTokenUseCase,
                 certificateSettingsRepo);
         final var listUserReservationsUseCase =
-                new ListUserReservationsUseCase(reservationRepo, conferenceRepo, downloadEventRepo);
+                new ListUserReservationsUseCase(reservationRepo, ticketRepo, conferenceRepo, downloadEventRepo);
         final var adminUserHandler = new AdminUserHandler(
                 listUsersUseCase, adminUpdateUserUseCase, setUserStatusUseCase, validateTokenUseCase, userRepo,
                 listUserReservationsUseCase);

@@ -30,6 +30,9 @@ import java.util.regex.Pattern;
 /** Emisión, canje y check-in de boletos. Las transiciones sensibles son atómicas en SQLite. */
 public class TicketUseCase {
     private static final long TICKET_EXPIRATION_HOURS = 5;
+    /** Tope de sanidad por request -- no es una regla de negocio, evita que una request suelta
+     *  intente emitir una cantidad absurda de una sola vez. */
+    private static final int MAX_BATCH_ISSUE = 200;
     private static final Pattern UUID_V4 = Pattern.compile("(?i)([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})");
     private final ConferenceRepository conferenceRepository;
     private final EventTypeRepository eventTypeRepository;
@@ -92,6 +95,40 @@ public class TicketUseCase {
         }
         sendEmail(conference, ticket);
         return ticket;
+    }
+
+    /**
+     * Emite varios boletos anónimos (sin destinatario, sin asiento) de una sola vez -- para
+     * eventos GENERAL donde el organizador quiere pre-generar boletos que la gente reclama
+     * después con el QR, en vez de emitir uno por uno. No aplica a modo SEATED (cada boleto
+     * ahí requiere un asiento específico) ni cuando se quiere mandar el boleto por correo a
+     * un destinatario puntual (usar {@link #issue}).
+     * Valida la cantidad completa contra el aforo restante ANTES de emitir nada: o se emiten
+     * los {@code quantity} boletos pedidos, o ninguno -- así no se pisa parcialmente el aforo
+     * de otro emisor concurrente.
+     */
+    public List<Ticket> issueBatch(final String conferenceUuid, final String issuerUuid, final int quantity) {
+        if (quantity < 1 || quantity > MAX_BATCH_ISSUE) throw new IllegalArgumentException("quantity_invalid");
+        final Conference conference = conference(conferenceUuid);
+        ensureConferenceActive(conference);
+        if (!hasCapability(conference, EventCapability.TICKETING_GENERAL)) throw new IllegalStateException("capability_not_available");
+        if ("SEATED".equals(conference.getSeatingMode())) throw new IllegalStateException("seat_required");
+        if (conference.getCapacity() != null
+                && quantity > Math.max(0, conference.getCapacity() - conference.getReservedCount())) {
+            throw new IllegalStateException("capacity_exceeded");
+        }
+        final List<Ticket> issued = new java.util.ArrayList<>(quantity);
+        try {
+            for (int i = 0; i < quantity; i++) {
+                issued.add(issue(conferenceUuid, issuerUuid, null, null));
+            }
+        } catch (final RuntimeException e) {
+            for (final Ticket ticket : issued) {
+                try { revoke(conferenceUuid, ticket.getUuid(), issuerUuid); } catch (final RuntimeException ignored) { }
+            }
+            throw e;
+        }
+        return issued;
     }
 
     /**

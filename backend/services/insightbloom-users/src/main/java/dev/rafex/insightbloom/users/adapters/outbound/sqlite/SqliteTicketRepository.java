@@ -55,6 +55,16 @@ public class SqliteTicketRepository implements TicketRepository {
         return result;
     }
 
+    @Override public List<Ticket> findByClaimedUser(final String userUuid) {
+        final List<Ticket> result = new ArrayList<>();
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(
+                "SELECT * FROM tickets WHERE claimed_by_user_uuid = ? ORDER BY claimed_at DESC")) {
+            ps.setString(1, userUuid);
+            try (ResultSet rs = ps.executeQuery()) { while (rs.next()) result.add(map(rs)); }
+        } catch (SQLException e) { throw new RuntimeException(e); }
+        return result;
+    }
+
     @Override public boolean claim(final String uuid, final String userUuid, final String claimedAt) {
         final String sql = "UPDATE tickets SET claimed_by_user_uuid = ?, claimed_at = ?, status = 'CLAIMED' WHERE uuid = ? AND status = 'ISSUED' AND claimed_by_user_uuid IS NULL";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
