@@ -547,6 +547,12 @@ public class DatabaseManager {
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings",
                     "max_registrations_per_device_per_day", "INTEGER");
 
+            // Control de egress por dominio (2026-07): lista blanca/negra GLOBAL que ve el
+            // egress-proxy para IDE Web/CLI de TODOS los eventos -- ver ResolveEgressPolicyUseCase
+            // y egress_policies (tabla de abajo) para la capa por evento que se suma encima.
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "egress_allowed_hosts", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "egress_blocked_hosts", "TEXT");
+
             // Dispositivos bloqueados a nivel PLATAFORMA (no un evento puntual) por multicuenta o
             // spam de registro -- ver PlatformDeviceGuard. Un system_admin decide desbloquear
             // desde /dashboard/admin/device-access.
@@ -678,6 +684,17 @@ public class DatabaseManager {
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_device_blocks_conference "
                     + "ON device_blocks(conference_uuid, device_fingerprint)");
+
+            // Control de egress por dominio (2026-07): capa POR EVENTO que se suma a la global de
+            // platform_settings -- ver EgressPolicy y ResolveEgressPolicyUseCase.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS egress_policies (
+                    conference_uuid TEXT PRIMARY KEY,
+                    allowed_hosts TEXT,
+                    blocked_hosts TEXT,
+                    updated_at TEXT NOT NULL
+                )
+            """);
 
             backfillMissingTicketsForSimpleJoins(conn);
             backfillMissingCapacity(conn);

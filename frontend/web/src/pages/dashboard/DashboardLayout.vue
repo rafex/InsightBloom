@@ -14,6 +14,7 @@
         router-link(v-if="isAdmin" to="/dashboard/admin/roles" @click="sidebarOpen = false") Roles
         router-link(v-if="isAdmin" to="/dashboard/admin/ai" @click="sidebarOpen = false") IA
         router-link(v-if="isAdmin" to="/dashboard/admin/device-access" @click="sidebarOpen = false") Acceso por dispositivo
+        router-link(v-if="isAdmin" to="/dashboard/admin/egress-policy" @click="sidebarOpen = false") Control de red
         router-link(to="/profile" @click="sidebarOpen = false") Mi perfil
     main.dashboard-main
       router-view

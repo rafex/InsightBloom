@@ -458,6 +458,22 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         return "sandbox-egress-" + conferenceLabel;
     }
 
+    @Override
+    public java.util.Optional<String> findConferenceUuidByPodIp(final String podIp) {
+        if (!isEnabled() || podIp == null || podIp.isBlank()) return java.util.Optional.empty();
+        final String url = "/api/v1/namespaces/" + namespace + "/pods?fieldSelector="
+                + urlEncode("status.podIP=" + podIp);
+        final HttpRequest request = authedRequest(url).GET().build();
+        final HttpResponse<String> response = send(request);
+        if (response.statusCode() >= 300) return java.util.Optional.empty();
+        final var node = jsonCodec.readTree(response.body());
+        final var items = node.path("items");
+        if (!items.isArray() || items.isEmpty()) return java.util.Optional.empty();
+        final var uuid = items.get(0).path("metadata").path("annotations").path("insightbloom.io/conference-uuid");
+        return uuid.isMissingNode() || uuid.isNull() || uuid.asText().isBlank()
+                ? java.util.Optional.empty() : java.util.Optional.of(uuid.asText());
+    }
+
     private Map<String, Object> buildEgressAllowBody(final String conferenceLabel) {
         return Map.of(
                 "apiVersion", "networking.k8s.io/v1",
@@ -711,10 +727,17 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 Map.of("name", "workspace", "emptyDir", Map.of()),
                 Map.of("name", "database", "emptyDir", Map.of())));
 
+        // Annotation con el UUID COMPLETO (a diferencia de la label "sandbox-conference", que
+        // trunca a 8 caracteres para caber en el limite de labels de k8s) -- la usa
+        // findConferenceUuidByPodIp para resolver politica de egress por evento sin tener que
+        // escanear todas las conferencias buscando cual matchea el label truncado.
+        final Map<String, Object> annotations = Map.of("insightbloom.io/conference-uuid", conferenceUuid);
+
         return Map.of(
                 "apiVersion", "v1",
                 "kind", "Pod",
-                "metadata", Map.of("name", podName, "namespace", namespace, "labels", labels),
+                "metadata", Map.of("name", podName, "namespace", namespace, "labels", labels,
+                        "annotations", annotations),
                 "spec", spec);
     }
 

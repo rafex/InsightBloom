@@ -4,6 +4,7 @@ import dev.rafex.insightbloom.users.domain.model.WorkspaceFileContent;
 import dev.rafex.insightbloom.users.domain.model.WorkspaceFileEntry;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Provisión real del ambiente de un sandbox (Pod + Service de code-server). El nombre del
@@ -108,4 +109,15 @@ public interface SandboxOrchestrator {
     /** Fase 3c: borra esa NetworkPolicy (vuelve al default-deny egress del namespace) — no falla
      *  si ya no existe. */
     void denyInternetEgress(String conferenceLabel);
+
+    /**
+     * Control de egress por dominio (2026-07): el egress-proxy no conoce Kubernetes ni SQLite --
+     * le pregunta a insightbloom-users "¿de qué evento es esta IP de origen?" para poder resolver
+     * la política aplicable (ver ResolveEgressPolicyUseCase). Busca, en el namespace de
+     * sandboxes, el Pod cuyo {@code status.podIP} coincide y lee su annotation
+     * {@code insightbloom.io/conference-uuid} (el UUID completo -- la label
+     * {@code sandbox-conference} está truncada a 8 caracteres y no sirve para esto).
+     * @return vacío si ninguna Pod tiene esa IP ahora mismo (recién borrado, IP reciclada, etc).
+     */
+    Optional<String> findConferenceUuidByPodIp(String podIp);
 }

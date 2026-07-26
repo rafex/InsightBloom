@@ -6,6 +6,8 @@ import dev.rafex.insightbloom.users.application.usecases.ResetSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListSandboxIncidentsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ListSandboxStatusUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
+import dev.rafex.insightbloom.users.application.usecases.EgressPolicyUseCase;
+import dev.rafex.insightbloom.users.domain.model.EgressPolicy;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxInternetUseCase;
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
@@ -144,6 +146,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GenerateJaasTokenUseCase generateJaasTokenUseCase;
     private final GenerateSeatLayoutUseCase generateSeatLayoutUseCase;
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
+    private final EgressPolicyUseCase egressPolicyUseCase;
     private final SetSandboxInternetUseCase setSandboxInternetUseCase;
     private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
     private final PrewarmSandboxPoolUseCase prewarmSandboxPoolUseCase;
@@ -212,6 +215,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final GenerateJaasTokenUseCase generateJaasTokenUseCase,
                              final GenerateSeatLayoutUseCase generateSeatLayoutUseCase,
                              final SetSandboxConfigUseCase setSandboxConfigUseCase,
+                             final EgressPolicyUseCase egressPolicyUseCase,
                              final SetSandboxInternetUseCase setSandboxInternetUseCase,
                              final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
                              final PrewarmSandboxPoolUseCase prewarmSandboxPoolUseCase,
@@ -270,6 +274,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.generateJaasTokenUseCase = generateJaasTokenUseCase;
         this.generateSeatLayoutUseCase = generateSeatLayoutUseCase;
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
+        this.egressPolicyUseCase = egressPolicyUseCase;
         this.setSandboxInternetUseCase = setSandboxInternetUseCase;
         this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
         this.prewarmSandboxPoolUseCase = prewarmSandboxPoolUseCase;
@@ -321,6 +326,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/venue-map", Set.of("PUT")),
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/sandbox-config", Set.of("PUT")),
+                Route.of("/{id}/egress-policy", Set.of("GET", "PUT")),
                 Route.of("/{id}/device-access-config", Set.of("PUT")),
                 Route.of("/{id}/device-blocks", Set.of("GET")),
                 Route.of("/{id}/device-blocks/{blockId}/unblock", Set.of("POST")),
@@ -427,6 +433,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/seats")) {
             return handleGetSeatMap(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/egress-policy")) {
+            return handleGetEgressPolicy(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/notes")) {
             return handleGetNotes(jx, jx.pathParam("id"));
@@ -592,6 +601,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/sandbox-config")) {
             return handleSetSandboxConfig(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/egress-policy")) {
+            return handleSetEgressPolicy(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/device-access-config")) {
             return handleSetDeviceAccessConfig(jx, jx.pathParam("id"));
@@ -2392,6 +2404,41 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private boolean handleGetEgressPolicy(final JettyHttpExchange jx, final String id) {
+        try {
+            if (requireConferenceOwner(jx, id) == null) return true;
+            final EgressPolicy policy = egressPolicyUseCase.get(id);
+            sendOk(jx, 200, toEgressPolicyView(policy));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSetEgressPolicy(final JettyHttpExchange jx, final String id) {
+        try {
+            if (requireConferenceOwner(jx, id) == null) return true;
+            final var body = parseBody(jx);
+            final String allowedHosts = (String) body.get("allowedHosts");
+            final String blockedHosts = (String) body.get("blockedHosts");
+            final EgressPolicy policy = egressPolicyUseCase.save(id, allowedHosts, blockedHosts);
+            sendOk(jx, 200, toEgressPolicyView(policy));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private static Map<String, Object> toEgressPolicyView(final EgressPolicy policy) {
+        final Map<String, Object> view = new java.util.HashMap<>();
+        view.put("conferenceUuid", policy.conferenceUuid());
+        view.put("allowedHosts", policy.allowedHosts());
+        view.put("blockedHosts", policy.blockedHosts());
+        return view;
     }
 
     private boolean handleSetSandboxConfig(final JettyHttpExchange jx, final String id) {

@@ -12,6 +12,7 @@ import dev.rafex.insightbloom.users.application.usecases.SetChatAiSettingUseCase
 import dev.rafex.insightbloom.users.application.usecases.SetChatSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetAiSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetDeviceAccessSettingsUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetGlobalEgressPolicyUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UnblockPlatformDeviceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.domain.model.DeviceFingerprintFlag;
@@ -39,6 +40,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     private final SetChatSettingsUseCase setChatSettingsUseCase;
     private final SetAiSettingsUseCase setAiSettingsUseCase;
     private final SetDeviceAccessSettingsUseCase setDeviceAccessSettingsUseCase;
+    private final SetGlobalEgressPolicyUseCase setGlobalEgressPolicyUseCase;
     private final ListPlatformDeviceBlocksUseCase listPlatformDeviceBlocksUseCase;
     private final UnblockPlatformDeviceUseCase unblockPlatformDeviceUseCase;
     private final ListDeviceFingerprintFlagsUseCase listDeviceFingerprintFlagsUseCase;
@@ -50,6 +52,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                                     final SetChatSettingsUseCase setChatSettingsUseCase,
                                     final SetAiSettingsUseCase setAiSettingsUseCase,
                                     final SetDeviceAccessSettingsUseCase setDeviceAccessSettingsUseCase,
+                                    final SetGlobalEgressPolicyUseCase setGlobalEgressPolicyUseCase,
                                     final ListPlatformDeviceBlocksUseCase listPlatformDeviceBlocksUseCase,
                                     final UnblockPlatformDeviceUseCase unblockPlatformDeviceUseCase,
                                     final ListDeviceFingerprintFlagsUseCase listDeviceFingerprintFlagsUseCase,
@@ -60,6 +63,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         this.setChatSettingsUseCase = setChatSettingsUseCase;
         this.setAiSettingsUseCase = setAiSettingsUseCase;
         this.setDeviceAccessSettingsUseCase = setDeviceAccessSettingsUseCase;
+        this.setGlobalEgressPolicyUseCase = setGlobalEgressPolicyUseCase;
         this.listPlatformDeviceBlocksUseCase = listPlatformDeviceBlocksUseCase;
         this.unblockPlatformDeviceUseCase = unblockPlatformDeviceUseCase;
         this.listDeviceFingerprintFlagsUseCase = listDeviceFingerprintFlagsUseCase;
@@ -82,6 +86,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 Route.of("/ai/{capability}", Set.of("PUT")),
                 Route.of("/ai/internal", Set.of("GET")),
                 Route.of("/device-access", Set.of("GET", "PUT")),
+                Route.of("/egress-policy", Set.of("GET", "PUT")),
                 Route.of("/device-blocks", Set.of("GET")),
                 Route.of("/device-blocks/{blockId}/unblock", Set.of("POST")),
                 Route.of("/device-fingerprint-flags", Set.of("GET")),
@@ -115,6 +120,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             return true;
         }
         if (path.endsWith("/device-access")) return handleGetDeviceAccess(jx);
+        if (path.endsWith("/egress-policy")) return handleGetEgressPolicy(jx);
         if (path.endsWith("/device-blocks")) return handleListDeviceBlocks(jx);
         if (path.endsWith("/device-fingerprint-flags")) return handleListDeviceFingerprintFlags(jx);
         final String token = extractToken(jx);
@@ -137,6 +143,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     public boolean put(final HttpExchange x) {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/device-access")) return handleSetDeviceAccess(jx);
+        if (jx.path().endsWith("/egress-policy")) return handleSetEgressPolicy(jx);
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
@@ -239,6 +246,51 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private boolean handleGetEgressPolicy(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
+                sendError(jx, 403, "forbidden", "Only admins can view the global egress policy");
+                return true;
+            }
+            sendOk(jx, toEgressPolicyView(getChatAiSettingUseCase.execute()));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSetEgressPolicy(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
+                sendError(jx, 403, "forbidden", "Only admins can change the global egress policy");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String allowedHosts = (String) body.get("allowedHosts");
+            final String blockedHosts = (String) body.get("blockedHosts");
+            final var settings = setGlobalEgressPolicyUseCase.execute(allowedHosts, blockedHosts);
+            sendOk(jx, toEgressPolicyView(settings));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private static Map<String, Object> toEgressPolicyView(final PlatformSettings s) {
+        final Map<String, Object> view = new java.util.HashMap<>();
+        view.put("allowedHosts", s.getEgressAllowedHosts());
+        view.put("blockedHosts", s.getEgressBlockedHosts());
+        return view;
     }
 
     private boolean handleListDeviceBlocks(final JettyHttpExchange jx) {

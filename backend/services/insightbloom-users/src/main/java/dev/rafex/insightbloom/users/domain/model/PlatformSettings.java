@@ -10,6 +10,11 @@ public class PlatformSettings {
     private Integer maxAccountsPerDevice;
     private Integer maxSessionsPerUser;
     private Integer maxRegistrationsPerDevicePerDay;
+    // Control de egress por dominio (2026-07): capa GLOBAL, formato CSV igual al que ya usaba
+    // EGRESS_PROXY_ALLOWED_HOSTS/BLOCKED_HOSTS ("dominio" o "*.dominio" por entrada) -- ver
+    // ResolveEgressPolicyUseCase para como se combina con la capa por evento (EgressPolicy).
+    private String egressAllowedHosts;
+    private String egressBlockedHosts;
 
     public static PlatformSettings defaults() {
         final PlatformSettings s = new PlatformSettings();
@@ -54,4 +59,9 @@ public class PlatformSettings {
     public void setMaxRegistrationsPerDevicePerDay(final Integer maxRegistrationsPerDevicePerDay) {
         this.maxRegistrationsPerDevicePerDay = maxRegistrationsPerDevicePerDay;
     }
+
+    public String getEgressAllowedHosts() { return egressAllowedHosts; }
+    public void setEgressAllowedHosts(final String egressAllowedHosts) { this.egressAllowedHosts = egressAllowedHosts; }
+    public String getEgressBlockedHosts() { return egressBlockedHosts; }
+    public void setEgressBlockedHosts(final String egressBlockedHosts) { this.egressBlockedHosts = egressBlockedHosts; }
 }

@@ -14,6 +14,7 @@
     button.config-tab(type="button" :class="{ active: activeTab === 'sandbox' }" @click="activeTab = 'sandbox'") IDE y sandboxes
     button.config-tab(type="button" :class="{ active: activeTab === 'access' }" @click="activeTab = 'access'") Acceso y roles
     button.config-tab(type="button" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'") 🤖 IA
+    button.config-tab(type="button" :class="{ active: activeTab === 'network' }" @click="activeTab = 'network'") 🌐 Red
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
@@ -262,6 +263,23 @@
         span(v-else) Guardar contexto de Encuesta IA
       p.success(v-if="surveyAiConfigSaved") Contexto de Encuesta IA guardado.
       p.error(v-if="surveyAiConfigError") {{ surveyAiConfigError }}
+
+    .form-group.egress-policy-group(v-show="activeTab === 'network'")
+      label Control de red del evento (egress)
+      p.field-hint Dominios adicionales que el IDE de ESTE evento puede alcanzar, más allá de la
+        |  lista global de la plataforma (se suman, nunca la reemplazan). La lista negra, tanto la
+        |  global como la de aquí, siempre gana sobre cualquier lista blanca.
+      .coord-field
+        span.coord-label Lista blanca adicional (permitidos)
+        textarea(v-model="egressAllowedHosts" rows="5" placeholder="un-dominio-extra.com&#10;*.otro-dominio.org")
+      .coord-field
+        span.coord-label Lista negra adicional (bloqueados)
+        textarea(v-model="egressBlockedHosts" rows="3" placeholder="dominio-a-bloquear.com")
+      button.btn-outline(type="button" @click="saveEgressPolicy" :disabled="savingEgressPolicy")
+        span(v-if="savingEgressPolicy") Guardando...
+        span(v-else) Guardar control de red
+      p.success(v-if="egressPolicySaved") Control de red del evento guardado.
+      p.error(v-if="egressPolicyError") {{ egressPolicyError }}
 </template>
 
 <script lang="ts">
@@ -271,7 +289,7 @@ import {
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
   listSandboxIncidents, listSandboxStatus, prewarmSandboxPool as prewarmSandboxPoolApi, deleteSandbox as deleteSandboxApi,
   recreateSandbox as recreateSandboxApi, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
-  getCertificateEngine
+  getCertificateEngine, getConferenceEgressPolicy, setConferenceEgressPolicy
 } from '@/services/api/usersApi'
 import { getAiMentorConfig, setAiMentorConfig, getAiSurveyConfig, setAiSurveyConfig } from '@/services/api/surveyApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, SandboxPrewarmResult, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
@@ -289,7 +307,7 @@ export default {
     const loading      = ref(true)
     const error        = ref('')
 
-    const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access' | 'ai'>('general')
+    const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access' | 'ai' | 'network'>('general')
     const seatingMode  = ref<SeatingMode>('NONE')
     const capacity     = ref<number | null>(null)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
@@ -379,6 +397,47 @@ export default {
     const savingSurveyAiConfig = ref(false)
     const surveyAiConfigSaved = ref(false)
     const surveyAiConfigError = ref('')
+    const egressAllowedHosts = ref('')
+    const egressBlockedHosts = ref('')
+    const savingEgressPolicy = ref(false)
+    const egressPolicySaved = ref(false)
+    const egressPolicyError = ref('')
+
+    function csvToLines(csv: string | null): string {
+      if (!csv) return ''
+      return csv.split(',').map((h) => h.trim()).filter(Boolean).join('\n')
+    }
+
+    function linesToCsv(lines: string): string {
+      return lines.split(/[\n,]/).map((h) => h.trim()).filter(Boolean).join(',')
+    }
+
+    async function loadEgressPolicy() {
+      try {
+        const policy = await getConferenceEgressPolicy(props.conferenceId as string, auth.state.token as string)
+        egressAllowedHosts.value = csvToLines(policy.allowedHosts)
+        egressBlockedHosts.value = csvToLines(policy.blockedHosts)
+      } catch (e: any) {
+        egressPolicyError.value = e.response?.data?.error?.message || 'No se pudo cargar el control de red del evento'
+      }
+    }
+
+    async function saveEgressPolicy() {
+      savingEgressPolicy.value = true; egressPolicySaved.value = false; egressPolicyError.value = ''
+      try {
+        const policy = await setConferenceEgressPolicy(
+          props.conferenceId as string, linesToCsv(egressAllowedHosts.value), linesToCsv(egressBlockedHosts.value),
+          auth.state.token as string
+        )
+        egressAllowedHosts.value = csvToLines(policy.allowedHosts)
+        egressBlockedHosts.value = csvToLines(policy.blockedHosts)
+        egressPolicySaved.value = true
+      } catch (e: any) {
+        egressPolicyError.value = e.response?.data?.error?.message || 'No se pudo guardar el control de red del evento'
+      } finally {
+        savingEgressPolicy.value = false
+      }
+    }
 
     async function loadSurveyAiConfig() {
       try {
@@ -498,6 +557,7 @@ export default {
 
       await loadMentor()
       await loadSurveyAiConfig()
+      await loadEgressPolicy()
     })
 
     function roleName(key: string): string {
@@ -797,7 +857,9 @@ export default {
              roleAssigned, roleError, roleName, assignRole, removeRole, breadcrumbItems,
              mentorEnabled, mentorObjective, mentorPrompt, mentorIncludePresentation, mentorMaxRequests,
              savingMentor, mentorSaved, mentorError, saveMentor,
-             surveyExtraContext, savingSurveyAiConfig, surveyAiConfigSaved, surveyAiConfigError, saveSurveyAiConfig }
+             surveyExtraContext, savingSurveyAiConfig, surveyAiConfigSaved, surveyAiConfigError, saveSurveyAiConfig,
+             egressAllowedHosts, egressBlockedHosts, savingEgressPolicy, egressPolicySaved, egressPolicyError,
+             saveEgressPolicy }
   }
 }
 </script>

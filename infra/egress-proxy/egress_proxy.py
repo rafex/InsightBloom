@@ -2,21 +2,39 @@
 """Small, dependency-free HTTP CONNECT proxy for sandbox egress.
 
 The proxy is deliberately host based: Kubernetes NetworkPolicy cannot safely
-express an FQDN allowlist.  A request is accepted only when its hostname is in
-the allowlist and is not in the denylist.  Private/reserved destinations are
+express an FQDN allowlist. A request is accepted only when its hostname is in
+the allowlist and is not in the denylist. Private/reserved destinations are
 rejected even if somebody accidentally adds them to the allowlist.
+
+Policy source (2026-07): this proxy has no database and no Kubernetes access
+of its own -- for every new connection it asks insightbloom-users "what is
+the effective allow/block list for the sandbox at THIS source IP" (global
+list unioned with that event's own list, block always wins -- see
+ResolveEgressPolicyUseCase on the Java side). The answer is cached in memory
+per source IP with a short TTL so a change to the global blocklist reaches
+every running sandbox almost immediately without touching this pod.
+
+Resilience: if insightbloom-users is briefly unreachable (a routine deploy,
+for example) this proxy keeps serving the LAST KNOWN policy for an IP it has
+already resolved, for a bounded window -- a rolling restart of one service
+must not cut internet access for every sandbox in the cluster. An IP that
+was never resolved successfully has no fallback and is denied (fail-closed
+for the genuinely unknown case).
 """
 
 from __future__ import annotations
 
 import http.client
 import ipaddress
+import json
 import logging
 import os
 import selectors
 import socket
 import socketserver
-from pathlib import Path
+import threading
+import time
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 from http.server import BaseHTTPRequestHandler
 
@@ -34,44 +52,112 @@ def _host_matches(host: str, rule: str) -> bool:
     return host == rule
 
 
+@dataclass
+class PolicyEntry:
+    fetched_at: float
+    known: bool  # False = insightbloom-users respondio "no existe sandbox con esa IP" (404)
+    internet_enabled: bool = False
+    allowed: frozenset[str] = field(default_factory=frozenset)
+    blocked: frozenset[str] = field(default_factory=frozenset)
+
+
 class Policy:
-    def __init__(self, config_dir: str | os.PathLike[str] | None = None) -> None:
-        # Kubernetes proyecta ConfigMaps como archivos y actualiza el volumen
-        # cuando Flux aplica una nueva versión. Leer estos archivos al evaluar
-        # cada destino evita depender de un restart para cambiar la política.
-        self.config_dir = Path(config_dir or os.getenv(
-            "EGRESS_PROXY_CONFIG_DIR", "/etc/insightbloom-config"))
-        self.allowed: set[str] = set()
-        self.blocked: set[str] = set()
-        self.reload()
+    """Resuelve la politica de egress consultando a insightbloom-users por IP de origen.
 
-    def _value(self, name: str, default: str = "") -> str:
+    ``fetch_fn`` es inyectable (recibe sourceIp, retorna un dict o None si no se pudo
+    contactar al servicio) -- separa la logica de cache/fail-open de la llamada HTTP real
+    para poder testear ambas por separado sin un servidor de verdad.
+    """
+
+    def __init__(self, fetch_fn=None, cache_ttl_seconds: float | None = None,
+                 stale_max_seconds: float | None = None) -> None:
+        self.fetch_fn = fetch_fn or self._http_fetch
+        self.cache_ttl_seconds = cache_ttl_seconds if cache_ttl_seconds is not None else float(
+            os.getenv("EGRESS_POLICY_CACHE_TTL_SECONDS", "10"))
+        self.stale_max_seconds = stale_max_seconds if stale_max_seconds is not None else float(
+            os.getenv("EGRESS_POLICY_STALE_MAX_SECONDS", "300"))
+        self.users_base_url = os.getenv(
+            "USERS_INTERNAL_URL", "http://insightbloom-users.insightbloom.svc.cluster.local:8081")
+        self.internal_auth_key = os.getenv("INTERNAL_API_KEY", "")
+        self._cache: dict[str, PolicyEntry] = {}
+        self._lock = threading.Lock()
+
+    def _http_fetch(self, source_ip: str) -> dict | None:
+        parsed = urlsplit(self.users_base_url)
         try:
-            return (self.config_dir / name).read_text(encoding="utf-8").strip()
-        except OSError:
-            return os.getenv(name, default)
+            connection = http.client.HTTPConnection(parsed.hostname, parsed.port or 80, timeout=3)
+            try:
+                connection.request(
+                    "GET", f"/internal/egress-policy?sourceIp={source_ip}",
+                    headers={"X-Internal-Auth": self.internal_auth_key})
+                response = connection.getresponse()
+                body = response.read()
+            finally:
+                connection.close()
+        except OSError as e:
+            LOG.warning("egress-policy: no se pudo contactar insightbloom-users: %s", e)
+            return None
+        if response.status == 404:
+            return {"known": False}
+        if response.status != 200:
+            LOG.warning("egress-policy: insightbloom-users respondio %s para %s", response.status, source_ip)
+            return None
+        try:
+            payload = json.loads(body)
+        except ValueError:
+            return None
+        # Contrato: ApiResponse envuelve el payload real en "data" (ver BaseResourceHandler).
+        data = payload.get("data", payload)
+        return {
+            "known": True,
+            "internetEnabled": bool(data.get("internetEnabled", False)),
+            "allowed": data.get("allowed") or [],
+            "blocked": data.get("blocked") or [],
+        }
 
-    def reload(self) -> None:
-        self.allowed = {item.strip().lower().rstrip(".") for item in
-                        self._value("EGRESS_PROXY_ALLOWED_HOSTS").split(",") if item.strip()}
-        self.blocked = {item.strip().lower().rstrip(".") for item in
-                        self._value("EGRESS_PROXY_BLOCKED_HOSTS").split(",") if item.strip()}
+    def _resolve(self, source_ip: str) -> PolicyEntry | None:
+        now = time.time()
+        with self._lock:
+            cached = self._cache.get(source_ip)
+        if cached is not None and now - cached.fetched_at < self.cache_ttl_seconds:
+            return cached
 
-    def permits(self, host: str, port: int) -> bool:
-        self.reload()
+        raw = self.fetch_fn(source_ip)
+        if raw is None:
+            # insightbloom-users no respondio -- fail-open con la ultima politica conocida,
+            # pero solo dentro de una ventana acotada (ver docstring del modulo).
+            if cached is not None and now - cached.fetched_at < self.stale_max_seconds:
+                return cached
+            return None
+
+        entry = PolicyEntry(
+            fetched_at=now,
+            known=raw.get("known", True),
+            internet_enabled=bool(raw.get("internetEnabled", False)),
+            allowed=frozenset(h.lower().rstrip(".") for h in raw.get("allowed", [])),
+            blocked=frozenset(h.lower().rstrip(".") for h in raw.get("blocked", [])))
+        with self._lock:
+            self._cache[source_ip] = entry
+        return entry
+
+    def permits(self, source_ip: str, host: str, port: int) -> bool:
         host = host.lower().rstrip(".")
         if port not in ALLOWED_PORTS or not host or ":" in host:
             return False
         try:
-            address = ipaddress.ip_address(host)
-            # Host rules are intentionally DNS-only.  This prevents bypassing
+            ipaddress.ip_address(host)
+            # Host rules are intentionally DNS-only. This prevents bypassing
             # a domain policy with a raw public/private IP address.
             return False
         except ValueError:
             pass
-        if any(_host_matches(host, rule) for rule in self.blocked):
+
+        entry = self._resolve(source_ip)
+        if entry is None or not entry.known or not entry.internet_enabled:
             return False
-        return any(_host_matches(host, rule) for rule in self.allowed)
+        if any(_host_matches(host, rule) for rule in entry.blocked):
+            return False
+        return any(_host_matches(host, rule) for rule in entry.allowed)
 
     def safe_addresses(self, host: str, port: int) -> list[tuple[int, int, int, str, tuple]]:
         addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
@@ -118,7 +204,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _upstream(self, host: str, port: int) -> socket.socket | None:
-        if not POLICY.permits(host, port):
+        if not POLICY.permits(self.client_address[0], host, port):
             self._reject(403, "egress destination is not allowed")
             return None
         try:
@@ -251,8 +337,7 @@ def main() -> None:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(message)s")
     listen_port = int(os.getenv("EGRESS_PROXY_LISTEN_PORT", "3128"))
     with ThreadedProxy(("0.0.0.0", listen_port), ProxyHandler) as server:
-        LOG.info("egress proxy listening on %s; allowed=%s blocked=%s", listen_port,
-                 sorted(POLICY.allowed), sorted(POLICY.blocked))
+        LOG.info("egress proxy listening on %s; policy source=%s", listen_port, POLICY.users_base_url)
         server.serve_forever()
 
 

@@ -80,6 +80,15 @@ public class UsersApplication {
         // admin ya haya guardado explicitamente. Ver AiDefaultsSeeder.
         final boolean aiSeedDefaults = !"false".equalsIgnoreCase(System.getenv("AI_SEED_DEFAULTS"));
         dev.rafex.insightbloom.users.domain.services.AiDefaultsSeeder.seedIfNeeded(platformSettingsRepo, aiSeedDefaults);
+        // Control de egress por dominio (2026-07): mismo mecanismo de seed-once que AI_SEED_DEFAULTS,
+        // pero sembrando desde los valores que HOY vive en el ConfigMap (EGRESS_PROXY_ALLOWED_HOSTS/
+        // BLOCKED_HOSTS) para no perder el punto de partida al mover la fuente de verdad a la BD.
+        // Ver EgressPolicyDefaultsSeeder.
+        final boolean egressPolicySeedDefaults = !"false".equalsIgnoreCase(System.getenv("EGRESS_POLICY_SEED_DEFAULTS"));
+        dev.rafex.insightbloom.users.domain.services.EgressPolicyDefaultsSeeder.seedIfNeeded(platformSettingsRepo,
+                egressPolicySeedDefaults, System.getenv("EGRESS_PROXY_ALLOWED_HOSTS"),
+                System.getenv("EGRESS_PROXY_BLOCKED_HOSTS"));
+        final var egressPolicyRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteEgressPolicyRepository(db);
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
         final var timezoneRepo = new SqliteTimezoneRepository(db);
         final var reservationRepo = new SqliteReservationRepository(db);
@@ -344,6 +353,8 @@ public class UsersApplication {
         final int maxJvmHeapMbNeovim = Math.max(64, parseK8sMemoryToMb(sandboxNeovimMemoryLimit) - 150);
         final var setSandboxConfigUseCase = new SetSandboxConfigUseCase(
                 conferenceRepo, maxPoolSizePerEvent, maxJvmHeapMbDebian, maxJvmHeapMbNeovim);
+        final var egressPolicyUseCase =
+                new dev.rafex.insightbloom.users.application.usecases.EgressPolicyUseCase(egressPolicyRepo);
         final var setCanvasConfigUseCase = new dev.rafex.insightbloom.users.application.usecases.SetCanvasConfigUseCase(conferenceRepo);
         final var setDeviceAccessConfigUseCase = new SetDeviceAccessConfigUseCase(conferenceRepo);
         final var listDeviceBlocksUseCase = new ListDeviceBlocksUseCase(deviceBlockRepo);
@@ -375,7 +386,7 @@ public class UsersApplication {
                 getEventDiagramUseCase, saveEventDiagramUseCase,
                 getEventWhiteboardUseCase, saveEventWhiteboardUseCase,
                 generateJaasTokenUseCase, generateSeatLayoutUseCase,
-                setSandboxConfigUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
+                setSandboxConfigUseCase, egressPolicyUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
                 prewarmSandboxPoolUseCase,
                 resetSandboxUseCase,
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
@@ -403,15 +414,23 @@ public class UsersApplication {
         final var roleHandler = new RoleHandler(listRolesUseCase, createRoleUseCase, updateRoleUseCase,
                 setRoleActiveUseCase, validateTokenUseCase);
         final var permissionHandler = new PermissionHandler();
+        final var setGlobalEgressPolicyUseCase =
+                new dev.rafex.insightbloom.users.application.usecases.SetGlobalEgressPolicyUseCase(platformSettingsRepo);
+        final var resolveEgressPolicyUseCase =
+                new dev.rafex.insightbloom.users.application.usecases.ResolveEgressPolicyUseCase(
+                        sandboxOrchestrator, conferenceRepo, platformSettingsRepo, egressPolicyRepo);
         final var platformSettingsHandler = new PlatformSettingsHandler(
                 getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase, setAiSettingsUseCase,
-                setDeviceAccessSettingsUseCase, listPlatformDeviceBlocksUseCase, unblockPlatformDeviceUseCase,
-                listDeviceFingerprintFlagsUseCase, reviewDeviceFingerprintFlagUseCase,
+                setDeviceAccessSettingsUseCase, setGlobalEgressPolicyUseCase, listPlatformDeviceBlocksUseCase,
+                unblockPlatformDeviceUseCase, listDeviceFingerprintFlagsUseCase, reviewDeviceFingerprintFlagUseCase,
                 validateTokenUseCase);
         final var internalSandboxTargetHandler = new InternalSandboxTargetHandler(resolveSandboxTargetUseCase);
         final var internalSandboxIncidentHandler =
                 new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalSandboxIncidentHandler(
                         recordSandboxIncidentUseCase, sandboxIncidentReportKey);
+        final var internalEgressPolicyHandler =
+                new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalEgressPolicyHandler(
+                        resolveEgressPolicyUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -419,6 +438,7 @@ public class UsersApplication {
         routes.add("/workspaces/*", workspaceDownloadHandler);
         routes.add("/internal/sandbox-target/*", internalSandboxTargetHandler);
         routes.add("/internal/sandbox-incidents/*", internalSandboxIncidentHandler);
+        routes.add("/internal/egress-policy/*", internalEgressPolicyHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);

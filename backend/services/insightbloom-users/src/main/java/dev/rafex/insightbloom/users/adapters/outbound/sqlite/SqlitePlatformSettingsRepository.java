@@ -47,6 +47,8 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             s.setMaxSessionsPerUser(rs.wasNull() ? null : maxSessionsPerUser);
             final int maxRegistrationsPerDevicePerDay = rs.getInt("max_registrations_per_device_per_day");
             s.setMaxRegistrationsPerDevicePerDay(rs.wasNull() ? null : maxRegistrationsPerDevicePerDay);
+            s.setEgressAllowedHosts(rs.getString("egress_allowed_hosts"));
+            s.setEgressBlockedHosts(rs.getString("egress_blocked_hosts"));
             return s;
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to load platform settings", e);
@@ -63,8 +65,8 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             INSERT INTO platform_settings
                 (id, chat_ai_enabled, chat_system_prompt, chat_guardrails, chat_temperature, ai_base_url, ai_model,
                  ai_api_key_ciphertext, updated_at, max_accounts_per_device, max_sessions_per_user,
-                 max_registrations_per_device_per_day)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 max_registrations_per_device_per_day, egress_allowed_hosts, egress_blocked_hosts)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 chat_ai_enabled = excluded.chat_ai_enabled,
                 chat_system_prompt = excluded.chat_system_prompt,
@@ -76,7 +78,9 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
                 updated_at = excluded.updated_at,
                 max_accounts_per_device = excluded.max_accounts_per_device,
                 max_sessions_per_user = excluded.max_sessions_per_user,
-                max_registrations_per_device_per_day = excluded.max_registrations_per_device_per_day
+                max_registrations_per_device_per_day = excluded.max_registrations_per_device_per_day,
+                egress_allowed_hosts = excluded.egress_allowed_hosts,
+                egress_blocked_hosts = excluded.egress_blocked_hosts
             """;
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, s.isChatAiEnabled() ? 1 : 0);

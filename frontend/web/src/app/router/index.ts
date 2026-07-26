@@ -81,6 +81,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/ai/:capability?', component: () => import('@/pages/dashboard/AdminAiSettingsPage.vue') },
       { path: 'admin/chat', redirect: '/dashboard/admin/ai' },
       { path: 'admin/device-access', component: () => import('@/pages/dashboard/AdminDeviceAccessPage.vue') },
+      { path: 'admin/egress-policy', component: () => import('@/pages/dashboard/AdminEgressPolicyPage.vue') },
       {
         path: 'conferences/:conferenceId/edit',
         component: () => import('@/pages/dashboard/EditConferencePage.vue'),
@@ -189,6 +190,7 @@ router.beforeEach(async (to) => {
   if (to.path === '/dashboard/admin/roles' && !roles.includes('admin')) return '/dashboard'
   if ((to.path === '/dashboard/admin/chat' || to.path.startsWith('/dashboard/admin/ai')) && !roles.includes('admin')) return '/dashboard'
   if (to.path === '/dashboard/admin/device-access' && !roles.includes('admin')) return '/dashboard'
+  if (to.path === '/dashboard/admin/egress-policy' && !roles.includes('admin')) return '/dashboard'
 })
 
 export default router

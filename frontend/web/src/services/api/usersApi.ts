@@ -925,6 +925,37 @@ export async function setDeviceAccessSettings(
   return res.data.data
 }
 
+export interface EgressPolicyView {
+  allowedHosts: string | null
+  blockedHosts: string | null
+}
+
+export async function getGlobalEgressPolicy(token: string): Promise<EgressPolicyView> {
+  const res = await axios.get('/api/users/api/v1/settings/egress-policy', authHeader(token))
+  return res.data.data
+}
+
+export async function setGlobalEgressPolicy(
+  allowedHosts: string | null, blockedHosts: string | null, token: string
+): Promise<EgressPolicyView> {
+  const res = await axios.put('/api/users/api/v1/settings/egress-policy',
+    { allowedHosts, blockedHosts }, authHeader(token))
+  return res.data.data
+}
+
+export async function getConferenceEgressPolicy(conferenceId: string, token: string): Promise<EgressPolicyView> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/egress-policy`, authHeader(token))
+  return res.data.data
+}
+
+export async function setConferenceEgressPolicy(
+  conferenceId: string, allowedHosts: string | null, blockedHosts: string | null, token: string
+): Promise<EgressPolicyView> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/egress-policy`,
+    { allowedHosts, blockedHosts }, authHeader(token))
+  return res.data.data
+}
+
 export async function listPlatformDeviceBlocks(token: string): Promise<PlatformDeviceBlock[]> {
   const res = await axios.get('/api/users/api/v1/settings/device-blocks', authHeader(token))
   return res.data.data
