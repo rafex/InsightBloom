@@ -98,6 +98,8 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             else ps.setNull(10, Types.INTEGER);
             if (s.getMaxRegistrationsPerDevicePerDay() != null) ps.setInt(11, s.getMaxRegistrationsPerDevicePerDay());
             else ps.setNull(11, Types.INTEGER);
+            ps.setString(12, s.getEgressAllowedHosts());
+            ps.setString(13, s.getEgressBlockedHosts());
             ps.executeUpdate();
             saveProvider(c, "tutor", s.getTutorAi());
             saveProvider(c, "survey", s.getSurveyAi());
