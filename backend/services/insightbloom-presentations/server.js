@@ -1001,6 +1001,17 @@ async function buildPresentation(provider, conferenceId, stagingDir, srcDir) {
     };
   }
 
+  // Slidev auto-importa un "style.css" ubicado junto al entry file (slides.md) -- si el
+  // deck trae su hoja de estilos en otra ruta (p.ej. "assets/css/theme.css", convencion
+  // usada por decks exportados desde otras herramientas), Slidev nunca la ve y el build cae
+  // al tema "default" sin estilos custom. Si ya existe un style.css junto al entry, se
+  // respeta tal cual (es el propio mecanismo del deck); si no, se copia el theme.css hallado.
+  const slidevStyleTarget = path.join(path.dirname(mdFile), 'style.css');
+  if (!fs.existsSync(slidevStyleTarget)) {
+    const themeFile = findFile(srcDir, (name, full) => name === 'theme.css' && full.includes(`${path.sep}css${path.sep}`));
+    if (themeFile) fs.copyFileSync(themeFile, slidevStyleTarget);
+  }
+
   const distDir = path.join(stagingDir, 'dist');
   fs.mkdirSync(distDir, { recursive: true });
   const startedAt = Date.now();
