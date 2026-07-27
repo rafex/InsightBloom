@@ -174,7 +174,7 @@ input[type="file"] { display: block; margin-bottom: 12px; }
   font-size: 0.95rem; box-sizing: border-box; background: #fff;
 }
 .source-input:focus { outline: none; border-color: #4f46e5; }
-.field-hint { margin: 6px 0 0; font-size: 0.8rem; color: #9ca3af; }
+.field-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
 .btn-primary {
   padding: 10px 20px; border: none; border-radius: 8px; background: #4f46e5; color: #fff;
   font-weight: 600; cursor: pointer;

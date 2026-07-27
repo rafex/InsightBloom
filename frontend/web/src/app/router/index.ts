@@ -153,6 +153,12 @@ const routes: RouteRecordRaw[] = [
         props: true
       }
     ]
+  },
+  {
+    // Catch-all al final: sin esto, una URL erronea renderizaba una pagina en blanco
+    // (auditoria UX 2026-07-26).
+    path: '/:pathMatch(.*)*',
+    component: () => import('@/pages/public/NotFoundPage.vue')
   }
 ]
 

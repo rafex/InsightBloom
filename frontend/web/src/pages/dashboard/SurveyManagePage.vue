@@ -675,7 +675,19 @@ export default {
         suggestions.value = res.data || []
         selectedSuggestions.value = []
       } catch (e: any) {
-        suggestError.value = 'No se pudieron generar sugerencias (¿hay una presentación subida?)'
+        // Reportar la causa real en vez de adivinarla: el backend distingue 503 (IA no
+        // configurada) de 400 (sin presentacion) -- colapsarlos en una sola adivinanza ya
+        // desperdicio tiempo real de debugging (un 503 por bug de rutas se leyo como "falta
+        // la presentacion").
+        const status = e?.response?.status
+        const code = e?.response?.data?.error?.code
+        if (status === 503) {
+          suggestError.value = 'El asistente de IA no está configurado en esta plataforma. Pedile al administrador que lo active en Configuración → IA.'
+        } else if (code === 'presentation_not_found' || status === 400) {
+          suggestError.value = 'Para sugerir preguntas hace falta una presentación subida: el asistente la usa como contexto. Subila primero en la sección Presentación.'
+        } else {
+          suggestError.value = `No se pudieron generar sugerencias (${e?.response?.data?.error?.message || status || 'error de conexión'}). Reintentá en unos segundos.`
+        }
       } finally {
         suggesting.value = false
       }
@@ -886,7 +898,7 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 }
 .attendee-header {
   padding: 8px 0;
-  color: #9ca3af;
+  color: var(--color-text-muted);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -990,7 +1002,7 @@ input, select, textarea {
 .options-label { font-size: 0.82rem; color: #6b7280; margin-bottom: 6px; display: block; }
 .option-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .option-row input { margin-bottom: 0; flex: 1; }
-.option-bullet { color: #9ca3af; flex-shrink: 0; }
+.option-bullet { color: var(--color-text-muted); flex-shrink: 0; }
 .option-correct { flex-shrink: 0; display: flex; align-items: center; }
 .option-correct input { width: auto; margin: 0; }
 .options-hint { color: #92400e; font-size: 0.78rem; margin: 4px 0 0; }
@@ -1066,7 +1078,7 @@ input, select, textarea {
 .summary-line { color: #374151; margin: 4px 0; }
 .summary-counts { margin: 4px 0 0 16px; padding: 0; color: #374151; }
 .chart-wrap { margin-top: 10px; max-width: 360px; }
-.no-responses { color: #9ca3af; font-size: 0.85rem; font-style: italic; margin: 4px 0 0; }
+.no-responses { color: var(--color-text-muted); font-size: 0.85rem; font-style: italic; margin: 4px 0 0; }
 .result-actions { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
 .btn-toggle {
   padding: 4px 0; border: none; background: none; color: #4f46e5;
@@ -1083,7 +1095,7 @@ input, select, textarea {
 .answer-author { font-size: 0.78rem; color: #4f46e5; font-weight: 600; margin-bottom: 4px; }
 .answer-rating { font-size: 1.1rem; }
 .answer-text { white-space: pre-wrap; font-family: 'SF Mono', Consolas, monospace; font-size: 0.82rem; margin: 0 0 6px; color: #374151; }
-.answer-empty { color: #9ca3af; font-size: 0.82rem; font-style: italic; }
+.answer-empty { color: var(--color-text-muted); font-size: 0.82rem; font-style: italic; }
 .answer-grade { font-size: 0.85rem; color: #059669; margin-top: 4px; }
 .answer-image img { max-width: 100%; border-radius: 6px; border: 1px solid #e5e7eb; }
 

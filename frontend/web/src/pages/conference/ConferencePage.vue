@@ -38,43 +38,44 @@
             .calendar-menu(v-if="showCalendarMenu")
               a(:href="googleCalendarUrl" target="_blank" rel="noopener" @click="showCalendarMenu = false") Google Calendar
               button(type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
-      nav.conf-toolbar
-        router-link#onboarding-tab-doubts.tool-btn(v-if="privateAllowed('WORD_CLOUD')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab" title="Dudas")
-          span.tool-icon ❓
-          span.tool-label Dudas
-        router-link#onboarding-tab-topics.tool-btn(v-if="privateAllowed('WORD_CLOUD')" :to="`/c/${friendlyId}/topics`" active-class="active-tab" title="Temas")
-          span.tool-icon 💡
-          span.tool-label Temas
-        router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
-          span.tool-icon 📽️
-          span.tool-label Presentación
-        a#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
-          span.tool-icon 💬
-          span.tool-label Chat
-        a#onboarding-tab-chat.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo")
-          span.tool-icon 💬
-          span.tool-label Chat
-        router-link#onboarding-tab-survey.tool-btn(v-if="privateAllowed('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
-          span.tool-icon 📝
-          span.tool-label Encuesta
-        router-link#onboarding-tab-video.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
-          span.tool-icon 🎥
-          span.tool-label Videollamada
-        router-link#onboarding-tab-diagrams.tool-btn(v-if="canvasAllowed('DRAWIO', 'DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
-          span.tool-icon 🧩
-          span.tool-label Diagramas
-        router-link#onboarding-tab-whiteboard.tool-btn(v-if="canvasAllowed('EXCALIDRAW', 'WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
-          span.tool-icon 🖍️
-          span.tool-label Pizarra
-        router-link#onboarding-tab-notes.tool-btn(v-if="canvasAllowed('ETHERPAD', 'COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
-          span.tool-icon 🗒️
-          span.tool-label Notas
-        router-link#onboarding-tab-ticket.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
-          span.tool-icon 🎟️
-          span.tool-label Mi boleto
-        router-link#onboarding-tab-ide.tool-btn(v-if="privateAllowed('CODE_IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
-          span.tool-icon 💻
-          span.tool-label IDE
+      .conf-toolbar-wrap(:class="{ 'fade-left': toolbarFadeLeft, 'fade-right': toolbarFadeRight }")
+        nav.conf-toolbar(ref="toolbarRef" aria-label="Herramientas del evento" @scroll.passive="updateToolbarFades")
+          router-link#onboarding-tab-doubts.tool-btn(v-if="privateAllowed('WORD_CLOUD')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab" title="Dudas")
+            span.tool-icon ❓
+            span.tool-label Dudas
+          router-link#onboarding-tab-topics.tool-btn(v-if="privateAllowed('WORD_CLOUD')" :to="`/c/${friendlyId}/topics`" active-class="active-tab" title="Temas")
+            span.tool-icon 💡
+            span.tool-label Temas
+          router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
+            span.tool-icon 📽️
+            span.tool-label Presentación
+          a#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
+            span.tool-icon 💬
+            span.tool-label Chat
+          a#onboarding-tab-chat.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo")
+            span.tool-icon 💬
+            span.tool-label Chat
+          router-link#onboarding-tab-survey.tool-btn(v-if="privateAllowed('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
+            span.tool-icon 📝
+            span.tool-label Encuesta
+          router-link#onboarding-tab-video.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
+            span.tool-icon 🎥
+            span.tool-label Videollamada
+          router-link#onboarding-tab-diagrams.tool-btn(v-if="canvasAllowed('DRAWIO', 'DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
+            span.tool-icon 🧩
+            span.tool-label Diagramas
+          router-link#onboarding-tab-whiteboard.tool-btn(v-if="canvasAllowed('EXCALIDRAW', 'WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
+            span.tool-icon 🖍️
+            span.tool-label Pizarra
+          router-link#onboarding-tab-notes.tool-btn(v-if="canvasAllowed('ETHERPAD', 'COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
+            span.tool-icon 🗒️
+            span.tool-label Notas
+          router-link#onboarding-tab-ticket.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
+            span.tool-icon 🎟️
+            span.tool-label Mi boleto
+          router-link#onboarding-tab-ide.tool-btn(v-if="privateAllowed('CODE_IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
+            span.tool-icon 💻
+            span.tool-label IDE
     .conf-body
       .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
         span ⚠️ Estás en modo anónimo con opciones limitadas. #[router-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Regístrate] o #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") inicia sesión] para acceder por completo a la conferencia.
@@ -94,7 +95,7 @@ import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess, getPresentationManagementAccess } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
@@ -161,9 +162,37 @@ export default {
       }
     }
 
+    // Affordance de scroll del tab bar (auditoría UX): con 11 tabs y overflow-x, en móvil los
+    // últimos quedaban invisibles sin ninguna señal. Los gradientes laterales indican "hay más",
+    // y al cambiar de ruta el tab activo se trae a la vista.
+    const toolbarRef = ref<HTMLElement | null>(null)
+    const toolbarFadeLeft = ref(false)
+    const toolbarFadeRight = ref(false)
+
+    function updateToolbarFades() {
+      const el = toolbarRef.value
+      if (!el) return
+      toolbarFadeLeft.value = el.scrollLeft > 4
+      toolbarFadeRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+    }
+
+    function scrollActiveTabIntoView() {
+      const el = toolbarRef.value
+      const active = el?.querySelector<HTMLElement>('.active-tab')
+      active?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' })
+      updateToolbarFades()
+    }
+
+    onMounted(() => {
+      void nextTick(scrollActiveTabIntoView)
+      window.addEventListener('resize', updateToolbarFades, { passive: true })
+    })
+    onBeforeUnmount(() => window.removeEventListener('resize', updateToolbarFades))
+
     watch(() => route.path, (newPath) => {
       headerCollapsed.value = TOOL_ROUTE_SUFFIXES.some((s) => newPath.endsWith(s))
       void refreshEventAccess()
+      void nextTick(scrollActiveTabIntoView)
     })
 
     function hasCapability(capability: EventCapability): boolean {
@@ -314,7 +343,8 @@ export default {
       friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
-      privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed
+      privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed,
+      toolbarRef, toolbarFadeLeft, toolbarFadeRight, updateToolbarFades
     }
   }
 }
@@ -369,7 +399,25 @@ h1 { margin: 0; color: #1e1b4b; }
 .conf-header.collapsed { padding: 8px 24px; }
 .conf-header.collapsed .btn-collapse-toggle { margin-bottom: 4px; font-size: 0.9rem; color: #1e1b4b; }
 
+.conf-toolbar-wrap { position: relative; }
 .conf-toolbar { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+/* Gradientes laterales: señal de "hay más tabs" cuando el scroll no está en el borde. */
+.conf-toolbar-wrap::before,
+.conf-toolbar-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 2px;
+  width: 28px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 1;
+}
+.conf-toolbar-wrap::before { left: 0; background: linear-gradient(to right, #ffffff, transparent); }
+.conf-toolbar-wrap::after { right: 0; background: linear-gradient(to left, #ffffff, transparent); }
+.conf-toolbar-wrap.fade-left::before { opacity: 1; }
+.conf-toolbar-wrap.fade-right::after { opacity: 1; }
 .tool-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 2px; min-width: 56px; padding: 6px 8px;
@@ -392,10 +440,10 @@ h1 { margin: 0; color: #1e1b4b; }
 }
 .tool-btn.tab-disabled {
   cursor: not-allowed;
-  color: #9ca3af;
+  color: var(--color-text-muted);
 }
 .tool-btn.tab-secondary {
-  color: #9ca3af;
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 .tool-btn.tab-secondary:hover {

@@ -48,5 +48,5 @@ export default {
 
 <style scoped>
 .ticket-qr { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.ticket-code { font-family: monospace; font-size: 0.75rem; color: #9ca3af; word-break: break-all; text-align: center; }
+.ticket-code { font-family: monospace; font-size: 0.75rem; color: var(--color-text-muted); word-break: break-all; text-align: center; }
 </style>

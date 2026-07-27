@@ -387,8 +387,8 @@ input:focus { outline: none; border-color: #4f46e5; }
 .price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .coord-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
-.coord-hint { margin: 6px 0 0; font-size: 0.8rem; color: #9ca3af; }
-.field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
+.coord-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.field-hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
 .map-url-row { display: flex; gap: 8px; align-items: center; }
 .map-url-input { flex: 1; min-width: 0; }
 .canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; }

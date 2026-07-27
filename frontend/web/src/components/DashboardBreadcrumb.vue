@@ -35,5 +35,5 @@ export default {
 .breadcrumbs a { color: #4f46e5; text-decoration: none; }
 .breadcrumbs a:hover { text-decoration: underline; }
 .crumb-current { color: #374151; font-weight: 500; }
-.crumb-loading { color: #9ca3af; }
+.crumb-loading { color: var(--color-text-muted); }
 </style>

@@ -1,6 +1,6 @@
 <template lang="pug">
 .qr-overlay(@click.self="$emit('close')")
-  .qr-dialog
+  .qr-dialog(role="dialog" aria-modal="true" aria-label="Código QR para entrar al evento")
     h3 Escanea para entrar
     canvas(ref="qrCanvas")
     p.qr-url {{ publicUrl }}
@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import QRCode from 'qrcode'
 
 export default {
@@ -18,15 +18,19 @@ export default {
     url: { type: String, default: '' }
   },
   emits: ['close'],
-  setup(props) {
+  setup(props, { emit }) {
     const qrCanvas = ref(null)
     const publicUrl = ref(props.url || `${window.location.origin}/c/${props.friendlyId}/doubts`)
 
+    const onKeydown = (e: KeyboardEvent) => { if (e.key === 'Escape') emit('close') }
+
     onMounted(async () => {
+      document.addEventListener('keydown', onKeydown)
       try {
         await QRCode.toCanvas(qrCanvas.value, publicUrl.value, { width: 220 })
       } catch (e: any) { /* sin QR si falla */ }
     })
+    onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
     return { qrCanvas, publicUrl }
   }

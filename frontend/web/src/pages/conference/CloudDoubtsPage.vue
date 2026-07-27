@@ -114,7 +114,7 @@ export default {
 .cloud-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
 h2 { margin: 0; color: #1e1b4b; }
 .count { color: #6b7280; font-size: 0.9rem; }
-.cloud-empty { text-align: center; color: #9ca3af; padding: 60px; font-size: 1.1rem; }
+.cloud-empty { text-align: center; color: var(--color-text-muted); padding: 60px; font-size: 1.1rem; }
 .cloud-loading { text-align: center; color: #6b7280; padding: 40px; }
 
 .submit-box { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }

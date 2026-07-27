@@ -237,8 +237,8 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid #d1d5db; bor
 .btn-primary { border: 0; background: #4f46e5; color: white; }
 .btn-outline { padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; border: 1.5px solid #4f46e5; background: none; color: #4f46e5; }
 .btn-outline:disabled { opacity: .5; cursor: not-allowed; }
-.issue-divider { text-align: center; color: #9ca3af; font-size: .78rem; margin: 12px 0; text-transform: uppercase; letter-spacing: .04em; }
-.field-hint { margin: 8px 0 0; font-size: .8rem; color: #9ca3af; }
+.issue-divider { text-align: center; color: var(--color-text-muted); font-size: .78rem; margin: 12px 0; text-transform: uppercase; letter-spacing: .04em; }
+.field-hint { margin: 8px 0 0; font-size: .8rem; color: var(--color-text-muted); }
 .btn-copy { border: 1px solid #c7d2fe; background: #eef2ff; color: #4338ca; }
 .btn-revoke { border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
 .row-actions { display: flex; gap: 8px; }

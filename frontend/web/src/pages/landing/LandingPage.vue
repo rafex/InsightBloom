@@ -47,7 +47,8 @@ h1 { font-size: 3rem; font-weight: 800; color: #1e1b4b; margin: 0 0 12px; }
 .landing-form { background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 440px; width: 100%; }
 h2 { margin: 0 0 24px; color: #1e1b4b; }
 .form-group { display: flex; gap: 10px; }
-input { flex: 1; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; outline: none; }
+input { flex: 1; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; }
+input:focus-visible { border-color: var(--color-primary); }
 input:focus { border-color: #4f46e5; }
 .btn-primary { padding: 10px 20px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }

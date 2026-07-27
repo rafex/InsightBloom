@@ -281,7 +281,7 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 .btn-trash {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px;
-  background: transparent; color: #9ca3af;
+  background: transparent; color: var(--color-text-muted);
   border: 1px solid #e5e7eb; border-radius: 8px;
   cursor: pointer;
   transition: all 0.15s;
@@ -328,7 +328,7 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
   }
   .conferences-table td::before {
     content: attr(data-label); display: block; font-size: 0.68rem; font-weight: 700;
-    letter-spacing: 0.03em; text-transform: uppercase; color: #9ca3af;
+    letter-spacing: 0.03em; text-transform: uppercase; color: var(--color-text-muted);
   }
   .conferences-table td.qr-col {
     position: absolute; top: 12px; right: 14px; width: auto; padding: 0; display: block;

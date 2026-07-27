@@ -188,7 +188,7 @@ h2 { color: #374151; font-size: 1.1rem; font-weight: 600; margin: 0 0 16px; }
 .summary-icon { font-size: 1.4rem; }
 .summary-value { font-size: 1.6rem; font-weight: 700; color: #1e1b4b; }
 .summary-label { font-size: 0.78rem; color: #6b7280; }
-.summary-hint { margin: -6px 0 10px; font-size: 0.8rem; color: #9ca3af; }
+.summary-hint { margin: -6px 0 10px; font-size: 0.8rem; color: var(--color-text-muted); }
 
 .jaas-usage-card { background: #fff; border: 1px solid #c7d2fe; border-radius: 12px; padding: 18px 20px; margin-bottom: 32px; }
 .jaas-usage-card.jaas-warning { border-color: #fbbf24; background: #fffbeb; }
@@ -224,7 +224,7 @@ h2 { color: #374151; font-size: 1.1rem; font-weight: 600; margin: 0 0 16px; }
 
 .conf-name { font-size: 1rem; font-weight: 600; color: #1e1b4b; margin: 0 0 8px; }
 .joined-at { font-size: 0.8rem; color: #6b7280; margin: 0 0 12px; }
-.unavailable-note { font-size: 0.82rem; color: #9ca3af; font-style: italic; margin: 0; }
+.unavailable-note { font-size: 0.82rem; color: var(--color-text-muted); font-style: italic; margin: 0; }
 
 .conf-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 

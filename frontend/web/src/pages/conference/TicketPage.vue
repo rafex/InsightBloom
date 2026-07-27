@@ -151,7 +151,20 @@ export default {
           if (!ticket.value) ticket.value = await getMyTicket(props.conferenceId, auth.state.token)
           if (routeTicket) { ticketInput.value = routeTicket; if (!ticket.value) await claim() }
         }
-      } catch (e: any) { error.value = 'No se pudo cargar el boleto.' }
+      } catch (e: any) {
+        // Distinguir causas (mismo criterio que CheckInScannerPage): red caida, sesion vencida
+        // y "todavia no tenes boleto" requieren acciones distintas del usuario.
+        const status = e?.response?.status
+        if (!e?.response) {
+          error.value = 'No se pudo conectar con el servidor. Verificá tu conexión y reintentá.'
+        } else if (status === 401) {
+          error.value = 'Tu sesión expiró. Volvé a iniciar sesión para ver tu boleto.'
+        } else if (status === 404) {
+          error.value = 'Todavía no tenés un boleto para este evento.'
+        } else {
+          error.value = `No se pudo cargar el boleto (${e?.response?.data?.error?.message || status}). Reintentá en unos segundos.`
+        }
+      }
       finally { loading.value = false }
     }
 

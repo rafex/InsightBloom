@@ -8,13 +8,13 @@
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/edit`") Editor
     router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/config`") Configuración
 
-  nav.config-tabs(v-if="!loading && !error" aria-label="Secciones de configuración")
-    button.config-tab(type="button" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'") General
-    button.config-tab(type="button" :class="{ active: activeTab === 'tools' }" @click="activeTab = 'tools'") Herramientas
-    button.config-tab(type="button" :class="{ active: activeTab === 'sandbox' }" @click="activeTab = 'sandbox'") IDE y sandboxes
-    button.config-tab(type="button" :class="{ active: activeTab === 'access' }" @click="activeTab = 'access'") Acceso y roles
-    button.config-tab(type="button" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'") 🤖 IA
-    button.config-tab(type="button" :class="{ active: activeTab === 'network' }" @click="activeTab = 'network'") 🌐 Red
+  nav.config-tabs(v-if="!loading && !error" role="tablist" aria-label="Secciones de configuración")
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'general'" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'") General
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'tools'" :class="{ active: activeTab === 'tools' }" @click="activeTab = 'tools'") Herramientas
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'sandbox'" :class="{ active: activeTab === 'sandbox' }" @click="activeTab = 'sandbox'") IDE y sandboxes
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'access'" :class="{ active: activeTab === 'access' }" @click="activeTab = 'access'") Acceso y roles
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'ai'" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'") 🤖 IA
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="activeTab = 'network'") 🌐 Red
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
@@ -140,36 +140,37 @@
         p.error(v-if="sandboxPrewarmError") {{ sandboxPrewarmError }}
         p.field-hint Pods activos de este evento -- quién los ocupa, en qué modo (Web/CLI) y si ya están listos para usarse. Para revisar y editar los archivos de un alumno, usá el "Editor de código" en Moderación.
         p.error(v-if="sandboxStatusError") {{ sandboxStatusError }}
-        table.incidents-table(v-if="sandboxStatusLoaded")
-          thead
-            tr
-              th Pod
-              th Modo
-              th Fase
-              th Listo
-              th Asientos
-              th Acciones
-          tbody
-            tr(v-if="!sandboxStatus.length")
-              td(colspan="6") No hay sandboxes activos.
-            tr(v-for="pod in sandboxStatus" :key="pod.podName")
-              td {{ pod.podName }}
-              td {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
-              td {{ pod.phase }}
-              td {{ pod.ready ? '✓' : '—' }}
-              td.seats-cell
-                span.seat-badge(v-for="seat in pod.seats" :key="seat.seatIndex")
-                  span.seat-user(v-if="seat.userUuid") {{ seat.userUuid }}
-                  span.seat-empty(v-else) (libre)
-              td.sandbox-actions
-                button.btn-small(type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
-                  span(v-if="sandboxActionBusy === pod.podName") Procesando...
-                  span(v-else) Eliminar
-                template(v-if="sandboxIsFree(pod)")
-                  button.btn-small.btn-recreate(type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
+        .table-scroll(v-if="sandboxStatusLoaded")
+          table.incidents-table
+            thead
+              tr
+                th Pod
+                th Modo
+                th Fase
+                th Listo
+                th Asientos
+                th Acciones
+            tbody
+              tr(v-if="!sandboxStatus.length")
+                td(colspan="6") No hay sandboxes activos.
+              tr(v-for="pod in sandboxStatus" :key="pod.podName")
+                td {{ pod.podName }}
+                td {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
+                td {{ pod.phase }}
+                td {{ pod.ready ? '✓' : '—' }}
+                td.seats-cell
+                  span.seat-badge(v-for="seat in pod.seats" :key="seat.seatIndex")
+                    span.seat-user(v-if="seat.userUuid") {{ seat.userUuid }}
+                    span.seat-empty(v-else) (libre)
+                td.sandbox-actions
+                  button.btn-small(type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
                     span(v-if="sandboxActionBusy === pod.podName") Procesando...
-                    span(v-else) Recrear
-                span.action-note(v-else) Ocupado: eliminación forzada
+                    span(v-else) Eliminar
+                  template(v-if="sandboxIsFree(pod)")
+                    button.btn-small.btn-recreate(type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
+                      span(v-if="sandboxActionBusy === pod.podName") Procesando...
+                      span(v-else) Recrear
+                  span.action-note(v-else) Ocupado: eliminación forzada
         p.error(v-if="sandboxActionError") {{ sandboxActionError }}
 
       .sandbox-incidents(v-if="cliEnabled")
@@ -180,21 +181,22 @@
             span(v-else) Ver incidentes
         p.field-hint Cuando un sandbox compartido detecta que un alumno acapara CPU/memoria (por error o a propósito), lo reinicia automáticamente y lo registra acá — para que sepas quién está causando problemas.
         p.error(v-if="sandboxIncidentsError") {{ sandboxIncidentsError }}
-        table.incidents-table(v-if="sandboxIncidentsLoaded")
-          thead
-            tr
-              th Cuándo
-              th Alumno
-              th Tipo
-              th Detalle
-          tbody
-            tr(v-if="!sandboxIncidents.length")
-              td(colspan="4") Sin incidentes registrados.
-            tr(v-for="incident in sandboxIncidents" :key="incident.uuid")
-              td {{ new Date(incident.occurredAt).toLocaleString() }}
-              td {{ incident.userUuid || '(desconocido)' }}
-              td {{ incidentTypeLabel(incident.type) }}
-              td {{ incident.detail }}
+        .table-scroll(v-if="sandboxIncidentsLoaded")
+          table.incidents-table
+            thead
+              tr
+                th Cuándo
+                th Alumno
+                th Tipo
+                th Detalle
+            tbody
+              tr(v-if="!sandboxIncidents.length")
+                td(colspan="4") Sin incidentes registrados.
+              tr(v-for="incident in sandboxIncidents" :key="incident.uuid")
+                td {{ new Date(incident.occurredAt).toLocaleString() }}
+                td {{ incident.userUuid || '(desconocido)' }}
+                td {{ incidentTypeLabel(incident.type) }}
+                td {{ incident.detail }}
 
     .form-group.device-access-group(v-show="activeTab === 'access'")
       label Acceso por dispositivo
@@ -280,6 +282,27 @@
         span(v-else) Guardar control de red
       p.success(v-if="egressPolicySaved") Control de red del evento guardado.
       p.error(v-if="egressPolicyError") {{ egressPolicyError }}
+
+  //- Confirmación de acciones destructivas sobre sandboxes (reemplaza window.confirm: la accion
+  //- mas destructiva de la pagina merece un dialogo con consecuencias explicitas y accesible).
+  BaseModal(
+    v-if="sandboxConfirm"
+    :title="sandboxConfirm.action === 'delete' ? '¿Eliminar sandbox?' : '¿Recrear sandbox?'"
+    :confirmLabel="sandboxConfirm.action === 'delete' ? 'Eliminar' : 'Recrear'"
+    :confirmVariant="sandboxConfirm.action === 'delete' ? 'danger' : 'primary'"
+    :loading="sandboxActionBusy === sandboxConfirm.pod.podName"
+    @confirm="performSandboxAction"
+    @close="sandboxConfirm = null"
+  )
+    template(v-if="sandboxConfirm.action === 'delete' && sandboxConfirm.occupied")
+      p.
+        El sandbox #[strong {{ sandboxConfirm.pod.podName }}] tiene
+        #[strong {{ sandboxConfirm.occupiedSeats }} {{ sandboxConfirm.occupiedSeats === 1 ? 'persona asignada' : 'personas asignadas' }}].
+        Se cerrarán sus sesiones y #[strong se perderá el trabajo no guardado].
+    template(v-else-if="sandboxConfirm.action === 'delete'")
+      p El sandbox #[strong {{ sandboxConfirm.pod.podName }}] está libre. Se podrá crear nuevamente después.
+    template(v-else)
+      p Se recreará #[strong {{ sandboxConfirm.pod.podName }}] aplicando la imagen y configuración actuales.
 </template>
 
 <script lang="ts">
@@ -296,10 +319,11 @@ import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, San
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb },
+  components: { DashboardBreadcrumb, BaseModal },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -708,34 +732,45 @@ export default {
       return pod.seats.length === 0 || pod.seats.every((seat) => !seat.userUuid)
     }
 
-    async function deleteSandbox(pod: SandboxStatusEntry) {
-      const occupied = !sandboxIsFree(pod)
-      const warning = occupied
-        ? `El sandbox ${pod.podName} tiene usuarios asignados. Se cerrarán sus sesiones y se perderá cualquier trabajo no guardado. ¿Eliminarlo de todos modos?`
-        : `¿Eliminar el sandbox ${pod.podName}? Se podrá crear nuevamente después.`
-      if (!window.confirm(warning)) return
-      sandboxActionBusy.value = pod.podName
-      sandboxActionError.value = ''
-      try {
-        await deleteSandboxApi(props.conferenceId as string, pod.sandboxUuid, auth.state.token as string)
-        await loadSandboxStatus()
-      } catch (e: any) {
-        sandboxActionError.value = e.response?.data?.error?.message || 'No se pudo eliminar el sandbox'
-      } finally {
-        sandboxActionBusy.value = null
+    const sandboxConfirm = ref<{
+      action: 'delete' | 'recreate'
+      pod: SandboxStatusEntry
+      occupied: boolean
+      occupiedSeats: number
+    } | null>(null)
+
+    function deleteSandbox(pod: SandboxStatusEntry) {
+      sandboxConfirm.value = {
+        action: 'delete',
+        pod,
+        occupied: !sandboxIsFree(pod),
+        occupiedSeats: pod.seats.filter((seat) => seat.userUuid).length
       }
     }
 
-    async function recreateSandbox(pod: SandboxStatusEntry) {
+    function recreateSandbox(pod: SandboxStatusEntry) {
       if (!sandboxIsFree(pod)) return
-      if (!window.confirm(`¿Recrear el sandbox ${pod.podName}? Esto aplica la imagen y configuración actuales.`)) return
+      sandboxConfirm.value = { action: 'recreate', pod, occupied: false, occupiedSeats: 0 }
+    }
+
+    async function performSandboxAction() {
+      const confirm = sandboxConfirm.value
+      if (!confirm) return
+      const { action, pod } = confirm
       sandboxActionBusy.value = pod.podName
       sandboxActionError.value = ''
       try {
-        await recreateSandboxApi(props.conferenceId as string, pod.sandboxUuid, auth.state.token as string)
+        if (action === 'delete') {
+          await deleteSandboxApi(props.conferenceId as string, pod.sandboxUuid, auth.state.token as string)
+        } else {
+          await recreateSandboxApi(props.conferenceId as string, pod.sandboxUuid, auth.state.token as string)
+        }
         await loadSandboxStatus()
+        sandboxConfirm.value = null
       } catch (e: any) {
-        sandboxActionError.value = e.response?.data?.error?.message || 'No se pudo recrear el sandbox'
+        sandboxActionError.value = e.response?.data?.error?.message ||
+          (action === 'delete' ? 'No se pudo eliminar el sandbox' : 'No se pudo recrear el sandbox')
+        sandboxConfirm.value = null
       } finally {
         sandboxActionBusy.value = null
       }
@@ -842,6 +877,7 @@ export default {
              sandboxStatus, sandboxStatusLoaded, loadingSandboxStatus, sandboxStatusError, loadSandboxStatus,
              prewarmingSandboxPool, sandboxPrewarmResult, sandboxPrewarmError, prewarmSandboxPool,
              sandboxActionBusy, sandboxActionError, sandboxIsFree, deleteSandbox, recreateSandbox,
+             sandboxConfirm, performSandboxAction,
              maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
              deviceAccessConfigSaved, deviceAccessConfigError, saveDeviceAccessConfig,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,
@@ -892,7 +928,7 @@ textarea:focus { outline: none; border-color: #4f46e5; }
 .toggle-row { display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: pointer; margin-top: 4px; }
 .toggle-row input { width: auto; }
 
-.field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
+.field-hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
 .canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; }
 .canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
 .canvas-tool-option input { width: auto; }
@@ -912,6 +948,7 @@ textarea:focus { outline: none; border-color: #4f46e5; }
 .sandbox-status { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
 .prewarm-control { margin-top: 10px; padding: 10px 12px; border: 1px solid #e0e7ff; border-radius: 8px; background: #f8faff; }
 .sandbox-incidents { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
+.table-scroll { overflow-x: auto; }
 .incidents-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
 .incidents-table th { text-align: left; padding: 6px 10px; background: #f9fafb; color: #6b7280; font-weight: 600; }
 .incidents-table td { padding: 6px 10px; border-top: 1px solid #f3f4f6; color: #374151; }
@@ -919,12 +956,12 @@ textarea:focus { outline: none; border-color: #4f46e5; }
 .btn-small { padding: 4px 8px; border: 1px solid #fecaca; border-radius: 6px; background: #fff; color: #b91c1c; cursor: pointer; font-size: 0.75rem; margin-right: 4px; }
 .btn-small:disabled { opacity: 0.55; cursor: wait; }
 .btn-small.btn-recreate { border-color: #c7d2fe; color: #4338ca; }
-.action-note { color: #9ca3af; font-size: 0.75rem; }
+.action-note { color: var(--color-text-muted); font-size: 0.75rem; }
 
 .seats-cell { display: flex; flex-wrap: wrap; gap: 6px; }
 .seat-badge { display: inline-flex; }
 .seat-user { background: #eef2ff; color: #4f46e5; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-family: monospace; }
-.seat-empty { font-size: 0.78rem; color: #9ca3af; }
+.seat-empty { font-size: 0.78rem; color: var(--color-text-muted); }
 
 .roles-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .role-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: #f9fafb; border-radius: 8px; }

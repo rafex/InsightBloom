@@ -180,7 +180,7 @@ h2 { color: #1e1b4b; margin-bottom: 16px; }
 .tab-btn:hover { color: #4f46e5; }
 .tab-btn.active { color: #4f46e5; border-bottom-color: #4f46e5; }
 .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-.field-hint { margin: 0; font-size: 0.8rem; color: #9ca3af; }
+.field-hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted); }
 .ai-description { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; }
 .seat-list { margin: 16px 0; display: flex; flex-direction: column; gap: 6px; }
 .seat-row { display: flex; gap: 8px; align-items: center; }

@@ -361,7 +361,7 @@ input:focus { outline: none; border-color: #4f46e5; }
   padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 8px;
   background: #f9fafb; color: #6b7280; font-family: monospace; font-size: 0.9rem;
 }
-.field-hint { margin: 4px 0 0; font-size: 0.8rem; color: #9ca3af; }
+.field-hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
 
 .schedule-help { margin-top: 4px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px 12px; background: #fafafa; }
 .schedule-help summary { cursor: pointer; color: #4f46e5; font-size: 0.85rem; font-weight: 600; }

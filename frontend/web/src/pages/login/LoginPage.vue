@@ -44,9 +44,18 @@ export default {
         await auth.login(username.value.trim(), password.value)
         router.push(String(route.query.redirect || '/dashboard'))
       } catch (e: any) {
-        error.value = e?.response?.status === 403
-          ? 'Este dispositivo fue bloqueado por uso indebido de la plataforma. Contactá a un administrador.'
-          : 'Credenciales inválidas o error de conexión'
+        // Distinguir "te equivocaste" de "no hay conexion": la accion correctiva es opuesta
+        // (corregir credenciales vs reintentar) y el mensaje mezclado no dejaba saber cual.
+        const status = e?.response?.status
+        if (status === 403) {
+          error.value = 'Este dispositivo fue bloqueado por uso indebido de la plataforma. Contactá a un administrador.'
+        } else if (status === 401 || status === 400) {
+          error.value = 'Correo o contraseña incorrectos.'
+        } else if (!e?.response) {
+          error.value = 'No se pudo conectar con el servidor. Verificá tu conexión y reintentá.'
+        } else {
+          error.value = 'El servidor respondió con un error inesperado. Reintentá en unos segundos.'
+        }
       } finally {
         loading.value = false
       }

@@ -95,7 +95,7 @@ h1 { color: #1e1b4b; margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3.2rem); }
 h2 { color: #1e1b4b; margin: 0 0 8px; font-size: 1.3rem; }
 .description { color: #6b7280; line-height: 1.5; margin: 0 0 16px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .event-facts { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; margin: 0; font-size: .88rem; }
-.event-facts dt { color: #9ca3af; font-weight: 700; }
+.event-facts dt { color: var(--color-text-muted); font-weight: 700; }
 .event-facts dd { color: #374151; margin: 0; }
 .event-card-footer { border-top: 1px solid #eef0f5; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 20px; padding: 14px 0; color: #6b7280; font-size: .8rem; }
 .organizer-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }.organizer-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }

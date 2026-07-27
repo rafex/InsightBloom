@@ -3,6 +3,7 @@ div
   router-view
   CookieConsentBanner
   SessionExpiryModal(:show="showWarning" :seconds="secondsRemaining" @keep-connected="keepConnected")
+  AppToast
   .version-tag {{ ver }} ({{ sha.slice(0, 7) }})
 </template>
 
@@ -10,11 +11,12 @@ div
 import { onMounted, onBeforeUnmount } from 'vue'
 import CookieConsentBanner from '@/components/CookieConsentBanner.vue'
 import SessionExpiryModal from '@/components/SessionExpiryModal.vue'
+import AppToast from '@/components/ui/AppToast.vue'
 import { useSessionManager } from '@/features/auth/useSessionManager'
 
 export default {
   name: 'App',
-  components: { CookieConsentBanner, SessionExpiryModal },
+  components: { CookieConsentBanner, SessionExpiryModal, AppToast },
   setup() {
     const { showWarning, secondsRemaining, keepConnected, start, stop } = useSessionManager()
     const ver = import.meta.env.VITE_APP_VERSION || 'dev'

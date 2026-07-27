@@ -126,20 +126,20 @@ h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
 .btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 0.9rem; }
 .success { color: #166534; font-size: 0.9rem; }
-.empty-text { color: #9ca3af; font-size: 0.9rem; }
+.empty-text { color: var(--color-text-muted); font-size: 0.9rem; }
 
 .pods-list { display: flex; flex-direction: column; gap: 14px; }
 .pod-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
 .pod-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .pod-name { font-family: monospace; font-size: 0.85rem; color: #1e1b4b; font-weight: 600; }
 .pod-variant { font-size: 0.75rem; background: #e0e7ff; color: #4338ca; padding: 2px 10px; border-radius: 10px; font-weight: 600; }
-.pod-ready { font-size: 0.75rem; color: #9ca3af; }
+.pod-ready { font-size: 0.75rem; color: var(--color-text-muted); }
 .pod-ready.ready { color: #166534; font-weight: 600; }
 
 .seats-list { display: flex; flex-direction: column; gap: 6px; }
 .seat-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; background: #f9fafb; border-radius: 8px; }
 .seat-user { font-family: monospace; font-size: 0.8rem; color: #374151; }
-.seat-empty { font-size: 0.8rem; color: #9ca3af; font-style: italic; }
+.seat-empty { font-size: 0.8rem; color: var(--color-text-muted); font-style: italic; }
 .btn-sm { padding: 4px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
 .btn-primary-sm { background: #4f46e5; color: #fff; }
 .btn-primary-sm:hover { background: #4338ca; }

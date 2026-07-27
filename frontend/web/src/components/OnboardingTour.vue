@@ -143,7 +143,7 @@ export default {
 }
 .tour-text { margin: 0 0 14px; color: #1e1b4b; font-size: 0.92rem; line-height: 1.4; }
 .tour-actions { display: flex; align-items: center; gap: 10px; }
-.tour-progress { font-size: 0.75rem; color: #9ca3af; margin-right: auto; }
+.tour-progress { font-size: 0.75rem; color: var(--color-text-muted); margin-right: auto; }
 .tour-skip {
   background: none; border: none; color: #6b7280; font-size: 0.85rem; cursor: pointer;
 }

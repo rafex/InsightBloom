@@ -217,7 +217,7 @@ export default {
 
 .wfe-file-entry:hover { background: #f3f4f6; }
 .wfe-file-entry.active { background: #eef2ff; color: #4f46e5; font-weight: 600; }
-.wfe-file-entry.dir { cursor: default; color: #9ca3af; }
+.wfe-file-entry.dir { cursor: default; color: var(--color-text-muted); }
 
 .wfe-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
@@ -226,7 +226,7 @@ export default {
 }
 
 .wfe-filename { font-family: monospace; font-size: 0.85rem; color: #374151; flex: 1; }
-.wfe-loading { font-size: 0.8rem; color: #9ca3af; }
+.wfe-loading { font-size: 0.8rem; color: var(--color-text-muted); }
 
 .wfe-editor { flex: 1; min-height: 0; }
 

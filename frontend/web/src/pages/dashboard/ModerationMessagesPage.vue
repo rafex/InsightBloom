@@ -294,7 +294,7 @@ h2 { color: #1e1b4b; margin-bottom: 20px; margin-top: 0; }
 .filters { margin-bottom: 16px; }
 select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
 
-.empty-state { text-align: center; color: #9ca3af; padding: 60px; }
+.empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
 
 .message-list { display: flex; flex-direction: column; gap: 12px; }
 

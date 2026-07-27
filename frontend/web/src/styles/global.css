@@ -1,11 +1,73 @@
+/* Tokens del sistema de diseño (auditoría UX 2026-07-26). Los valores canónicos salen de los
+ * colores MÁS usados que ya existían en el código (#4f46e5 aparecía 192 veces como primario,
+ * #166534 39 veces como éxito, #dc2626 18 como error) — no se inventó una paleta nueva, se
+ * consolidó la existente. Las páginas migran gradualmente de hex hardcodeado a var(--...);
+ * ambas formas conviven durante la transición. */
+:root {
+  /* Marca / primario (índigo) */
+  --color-primary: #4f46e5;
+  --color-primary-dark: #4338ca;
+  --color-primary-soft: #eef2ff;   /* fondos lavanda: consolida eef2ff/f5f3ff/ede9fe/e0e7ff */
+  --color-primary-border: #c7d2fe;
+
+  /* Estados semánticos */
+  --color-success: #166534;
+  --color-success-soft: #dcfce7;
+  --color-danger: #dc2626;
+  --color-danger-dark: #b91c1c;
+  --color-danger-soft: #fef2f2;
+  --color-warning: #b45309;
+  --color-warning-soft: #fef3c7;
+
+  /* Texto */
+  --color-text: #111827;
+  --color-text-secondary: #374151;
+  /* Muted: #6b7280 y no #9ca3af — #9ca3af sobre blanco da ~2.5:1 de contraste (WCAG pide
+   * 4.5:1 para texto); estaba usado en texto real (código del boleto, breadcrumbs). */
+  --color-text-muted: #6b7280;
+
+  /* Superficies y bordes */
+  --color-bg: #f5f3ff;
+  --color-surface: #ffffff;
+  --border-subtle: 1px solid #e5e7eb;
+  --border-input: 1.5px solid #d1d5db;
+
+  /* Espaciado (escala de 4) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radios */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Sombra estándar de tarjetas/modales */
+  --shadow-card: 0 1px 3px rgba(17, 24, 39, 0.08);
+  --shadow-modal: 0 10px 30px rgba(17, 24, 39, 0.18);
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
-  background: #f5f3ff;
-  color: #111827;
+  background: var(--color-bg);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; }
 button { font-family: inherit; }
 h1, h2, h3, h4 { line-height: 1.2; }
+
+/* Foco visible global (auditoría a11y: solo había 17 reglas :focus en 70 componentes y varias
+ * eran outline:none sin reemplazo — navegación por teclado rota). :focus-visible evita el anillo
+ * en clics de mouse pero lo garantiza al tabular. */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}

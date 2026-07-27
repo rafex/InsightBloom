@@ -165,13 +165,13 @@ export default {
 <style scoped>
 .event-types-page { padding: 24px; max-width: 1100px; }
 h2 { color: #1e1b4b; margin-bottom: 20px; }
-.empty-state { text-align: center; color: #9ca3af; padding: 60px; }
+.empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
 
 .table-scroll { overflow-x: auto; margin-bottom: 32px; }
 .types-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
 .types-table th { text-align: left; padding: 10px 12px; background: #f9fafb; color: #6b7280; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
 .types-table td { padding: 10px 12px; border-top: 1px solid #f3f4f6; vertical-align: top; font-size: 0.88rem; }
-.sub { font-size: 0.78rem; color: #9ca3af; }
+.sub { font-size: 0.78rem; color: var(--color-text-muted); }
 
 .capabilities-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .capability-chip { font-size: 0.72rem; background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 10px; }
@@ -210,7 +210,7 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
   .types-table td { border-top: none; padding: 8px 12px; }
   .types-table td::before {
     content: attr(data-label); display: block; font-size: 0.7rem; font-weight: 600;
-    text-transform: uppercase; color: #9ca3af; margin-bottom: 4px;
+    text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 4px;
   }
   .actions { min-width: 0; }
   .form-row { flex-direction: column; }

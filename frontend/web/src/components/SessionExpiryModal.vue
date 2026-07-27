@@ -1,6 +1,6 @@
 <template lang="pug">
 .session-modal-overlay(v-if="show")
-  .session-modal
+  .session-modal(role="alertdialog" aria-modal="true" aria-label="Aviso de expiración de sesión")
     h3 Tu sesión está por expirar
     p Se cerrará automáticamente en #[strong {{ seconds }}s] por inactividad.
     button.btn-primary(type="button" @click="$emit('keep-connected')") Seguir conectado

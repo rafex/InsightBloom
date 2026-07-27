@@ -525,7 +525,7 @@ textarea {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fff;
   border: 1.5px solid #e5e7eb; border-radius: 8px; cursor: grab; font-weight: 500;
 }
-.drag-handle { color: #9ca3af; }
+.drag-handle { color: var(--color-text-muted); }
 .drag-arrows { margin-left: auto; display: flex; gap: 4px; }
 .btn-arrow {
   width: 26px; height: 26px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb;

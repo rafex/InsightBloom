@@ -32,21 +32,22 @@
         h3 Eventos en los que está inscrito
         .loading-text(v-if="loadingReservations") Cargando...
         p.empty-text(v-else-if="reservations.length === 0") No está inscrito en ningún evento.
-        table.reservations-table(v-else)
-          thead
-            tr
-              th Evento
-              th Estado
-              th Encuesta
-              th Certificado
-          tbody
-            tr(v-for="r in reservations" :key="r.conferenceUuid")
-              td {{ r.conferenceName || r.friendlyId || r.conferenceUuid }}
-              td {{ r.status }}
-              td
-                span(v-if="surveyStatus[r.conferenceUuid] === undefined") …
-                span(v-else) {{ surveyStatus[r.conferenceUuid] ? 'Respondida ✓' : 'Sin responder' }}
-              td {{ r.certificateDownloaded ? 'Descargado ✓' : 'No descargado' }}
+        .table-scroll(v-else)
+          table.reservations-table
+            thead
+              tr
+                th Evento
+                th Estado
+                th Encuesta
+                th Certificado
+            tbody
+              tr(v-for="r in reservations" :key="r.conferenceUuid")
+                td {{ r.conferenceName || r.friendlyId || r.conferenceUuid }}
+                td {{ r.status }}
+                td
+                  span(v-if="surveyStatus[r.conferenceUuid] === undefined") …
+                  span(v-else) {{ surveyStatus[r.conferenceUuid] ? 'Respondida ✓' : 'Sin responder' }}
+                td {{ r.certificateDownloaded ? 'Descargado ✓' : 'No descargado' }}
 
   .empty-state(v-else)
     p Usuario no encontrado.
@@ -125,8 +126,8 @@ export default {
 <style scoped>
 .user-detail-page { padding: 24px; max-width: 900px; }
 .loading-text { color: #6b7280; }
-.empty-state { text-align: center; color: #9ca3af; padding: 60px; }
-.empty-text { color: #9ca3af; font-size: 0.88rem; }
+.empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
+.empty-text { color: var(--color-text-muted); font-size: 0.88rem; }
 
 .header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .header h2 { color: #1e1b4b; margin: 0; }
@@ -142,10 +143,11 @@ export default {
 .detail-card h3 { margin: 0 0 14px; color: #374151; font-size: 1rem; }
 
 dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; }
-dt { color: #9ca3af; font-size: 0.78rem; text-transform: uppercase; font-weight: 600; }
+dt { color: var(--color-text-muted); font-size: 0.78rem; text-transform: uppercase; font-weight: 600; }
 dd { margin: 0; font-size: 0.9rem; color: #1e1b4b; }
 .uuid-text { font-family: monospace; font-size: 0.8rem; }
 
+.table-scroll { overflow-x: auto; }
 .reservations-table { width: 100%; border-collapse: collapse; }
 .reservations-table th { text-align: left; padding: 6px 8px; color: #6b7280; font-size: 0.72rem; text-transform: uppercase; font-weight: 600; }
 .reservations-table td { padding: 8px; border-top: 1px solid #f3f4f6; font-size: 0.85rem; }
