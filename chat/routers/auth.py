@@ -61,18 +61,24 @@ async def login(body: LoginRequest):
 @router.post("/api/sso")
 async def sso(body: SsoRequest):
     """
-    Inicio de sesión unificado: recibe el token de insightbloom-users (sitio
-    principal), lo valida contra ese servicio, y si corresponde a una cuenta
-    registrada (no invitado) auto-provisiona/reutiliza un usuario de chat
-    ligado a ese mismo uuid, evitando el registro/login propio del chat.
+    Inicio de sesión unificado: recibe un código de intercambio SSO de un solo uso
+    emitido por insightbloom-users (sitio principal, ver POST /api/v1/auth/exchange),
+    lo canjea server-to-server contra ese servicio, y si corresponde a una cuenta
+    registrada (no invitado) auto-provisiona/reutiliza un usuario de chat ligado a
+    ese mismo uuid, evitando el registro/login propio del chat.
+
+    El código (no el JWT de sesión) es lo único que viaja en la URL que abre el
+    sitio principal -- expira a los 60s y solo puede canjearse una vez, así que
+    aunque quede en logs de acceso o en el historial del navegador ya no sirve
+    para nada tras el primer canje.
     """
-    ib_token = body.ib_token.strip()
+    code = body.code.strip()
 
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
-            resp = await client.get(
-                f"{USERS_URL}/api/v1/auth/validate",
-                headers={"Authorization": f"Bearer {ib_token}"},
+            resp = await client.post(
+                f"{USERS_URL}/api/v1/auth/exchange/consume",
+                json={"code": code},
             )
         except Exception:
             raise HTTPException(503, "No se pudo validar la sesión")

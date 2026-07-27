@@ -271,6 +271,13 @@ export async function getJitsiInviteAccess(friendlyId: string, token: string): P
   return res.data.data
 }
 
+/** Código de intercambio SSO de un solo uso (TTL 60s) para abrir el chat sin poner el
+ *  JWT de sesión en la URL del subdominio -- ver ConsumeSsoExchangeUseCase en insightbloom-users. */
+export async function createChatSsoExchange(token: string): Promise<{ code: string, expiresInSeconds: number }> {
+  const res = await axios.post('/api/users/api/v1/auth/exchange', {}, authHeader(token))
+  return res.data.data
+}
+
 export async function getConferenceAccess(conferenceId: string, token?: string | null): Promise<ConferenceAccess> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/access`, token ? authHeader(token) : undefined)
   return res.data.data

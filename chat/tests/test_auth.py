@@ -41,12 +41,12 @@ class TestLoginRequest:
 
 class TestSsoRequest:
     def test_valid(self):
-        r = SsoRequest(ib_token="abc123")
-        assert r.ib_token == "abc123"
+        r = SsoRequest(code="abc123")
+        assert r.code == "abc123"
 
     def test_empty_token(self):
         with pytest.raises(ValidationError):
-            SsoRequest(ib_token="")
+            SsoRequest(code="")
 
 
 class TestJoinRequest:

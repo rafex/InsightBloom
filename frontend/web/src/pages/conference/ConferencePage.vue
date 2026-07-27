@@ -52,7 +52,7 @@
           a#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
             span.tool-icon 💬
             span.tool-label Chat
-          a#onboarding-tab-chat.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo")
+          a#onboarding-tab-chat.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo" @click="openChat")
             span.tool-icon 💬
             span.tool-label Chat
           router-link#onboarding-tab-survey.tool-btn(v-if="privateAllowed('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
@@ -97,7 +97,7 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess, getPresentationManagementAccess } from '@/services/api/usersApi'
+import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess, getPresentationManagementAccess, createChatSsoExchange } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
 import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -239,11 +239,26 @@ export default {
     const isAnonymous = !auth.isAuthenticated() || auth.state.role === 'guest'
     const attendeeTourSteps = ATTENDEE_TOUR_STEPS
     const chatHost = location.hostname.startsWith('chat-') ? location.hostname : `chat-${location.hostname}`
-    const chatParams = new URLSearchParams({ conference: friendlyId })
-    if (auth.isAuthenticated() && auth.state.role !== 'guest') {
-      chatParams.set('ib_token', auth.state.token as string)
+    // Sin token en el link: el JWT de sesión nunca debe viajar en la URL (queda en historial del
+    // navegador y en logs de acceso de cualquier proxy delante del subdominio chat-*). El click
+    // handler de abajo pide un código de intercambio de un solo uso (TTL 60s) justo antes de
+    // navegar; este href "pelado" solo sirve de fallback para clic-derecho/abrir-en-pestaña-nueva.
+    const chatUrl = `${location.protocol}//${chatHost}/?${new URLSearchParams({ conference: friendlyId }).toString()}`
+
+    async function openChat(event: MouseEvent) {
+      if (!auth.isAuthenticated() || auth.state.role === 'guest') return
+      // Deja pasar clic central/ctrl/cmd para que el navegador maneje "abrir en pestaña nueva" con
+      // el fallback sin sesión (mejor eso que bloquear el gesto nativo del usuario).
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return
+      event.preventDefault()
+      try {
+        const { code } = await createChatSsoExchange(auth.state.token as string)
+        const params = new URLSearchParams({ conference: friendlyId, sso_code: code })
+        window.open(`${location.protocol}//${chatHost}/?${params.toString()}`, '_blank', 'noopener')
+      } catch {
+        window.open(chatUrl, '_blank', 'noopener')
+      }
     }
-    const chatUrl = `${location.protocol}//${chatHost}/?${chatParams.toString()}`
 
     function dismissIntro() {
       showIntro.value = false
@@ -340,7 +355,7 @@ export default {
     })
 
     return {
-      friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, showQr,
+      friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, openChat, showQr,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
       privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed,

@@ -4,7 +4,9 @@ import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
+import dev.rafex.insightbloom.users.application.usecases.ConsumeSsoExchangeUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
+import dev.rafex.insightbloom.users.application.usecases.CreateSsoExchangeUseCase;
 import dev.rafex.insightbloom.users.application.usecases.LoginUseCase;
 import dev.rafex.insightbloom.users.application.usecases.LogoutUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RefreshTokenUseCase;
@@ -29,11 +31,15 @@ public class AuthHandler extends BaseResourceHandler {
     private final VerifyOtpUseCase verifyOtpUseCase;
     private final LogoutUseCase logoutUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
+    private final CreateSsoExchangeUseCase createSsoExchangeUseCase;
+    private final ConsumeSsoExchangeUseCase consumeSsoExchangeUseCase;
 
     public AuthHandler(final LoginUseCase loginUseCase, final CreateGuestUseCase createGuestUseCase,
                        final ValidateTokenUseCase validateTokenUseCase, final RegisterUseCase registerUseCase,
                        final SendOtpUseCase sendOtpUseCase, final VerifyOtpUseCase verifyOtpUseCase,
-                       final LogoutUseCase logoutUseCase, final RefreshTokenUseCase refreshTokenUseCase) {
+                       final LogoutUseCase logoutUseCase, final RefreshTokenUseCase refreshTokenUseCase,
+                       final CreateSsoExchangeUseCase createSsoExchangeUseCase,
+                       final ConsumeSsoExchangeUseCase consumeSsoExchangeUseCase) {
         this.loginUseCase = loginUseCase;
         this.createGuestUseCase = createGuestUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -42,6 +48,8 @@ public class AuthHandler extends BaseResourceHandler {
         this.verifyOtpUseCase = verifyOtpUseCase;
         this.logoutUseCase = logoutUseCase;
         this.refreshTokenUseCase = refreshTokenUseCase;
+        this.createSsoExchangeUseCase = createSsoExchangeUseCase;
+        this.consumeSsoExchangeUseCase = consumeSsoExchangeUseCase;
     }
 
     @Override
@@ -59,7 +67,9 @@ public class AuthHandler extends BaseResourceHandler {
                 Route.of("/validate", Set.of("GET")),
                 Route.of("/register", Set.of("POST")),
                 Route.of("/otp/send", Set.of("POST")),
-                Route.of("/otp/verify", Set.of("POST")));
+                Route.of("/otp/verify", Set.of("POST")),
+                Route.of("/exchange", Set.of("POST")),
+                Route.of("/exchange/consume", Set.of("POST")));
     }
 
     @Override
@@ -78,6 +88,8 @@ public class AuthHandler extends BaseResourceHandler {
         if (path.endsWith("/register")) return handleRegister(jx);
         if (path.endsWith("/otp/send")) return handleSendOtp(jx);
         if (path.endsWith("/otp/verify")) return handleVerifyOtp(jx);
+        if (path.endsWith("/exchange/consume")) return handleConsumeExchange(jx);
+        if (path.endsWith("/exchange")) return handleCreateExchange(jx);
         sendError(jx, 404, "not_found", "Endpoint not found");
         return true;
     }
@@ -221,6 +233,41 @@ public class AuthHandler extends BaseResourceHandler {
                 sendOk(jx, 200, result.get());
             } else {
                 sendError(jx, 401, "token_invalid", "Token is invalid or expired");
+            }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleCreateExchange(final JettyHttpExchange jx) {
+        final String auth = jx.request().getHeaders().get("Authorization");
+        if (auth == null || !auth.startsWith("Bearer ")) {
+            sendError(jx, 401, "token_missing", "Authorization header missing");
+            return true;
+        }
+        try {
+            final var result = createSsoExchangeUseCase.execute(auth.substring(7));
+            if (result.isPresent()) {
+                sendOk(jx, 200, result.get());
+            } else {
+                sendError(jx, 401, "token_invalid", "Token is invalid, expired, or belongs to a guest");
+            }
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleConsumeExchange(final JettyHttpExchange jx) {
+        try {
+            final var body = parseBody(jx);
+            final String code = (String) body.get("code");
+            final var result = consumeSsoExchangeUseCase.execute(code);
+            if (result.valid()) {
+                sendOk(jx, 200, result);
+            } else {
+                sendError(jx, 401, "code_invalid", "Exchange code is invalid, expired, or already used");
             }
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());

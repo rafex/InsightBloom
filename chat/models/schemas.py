@@ -13,7 +13,7 @@ class LoginRequest(BaseModel):
 
 
 class SsoRequest(BaseModel):
-    ib_token: str = Field(min_length=1)
+    code: str = Field(min_length=1)
 
 
 class JoinRequest(BaseModel):
