@@ -1534,6 +1534,53 @@ app.get('/api/v1/share/:friendlyId', async (req, res) => {
 </html>`);
 });
 
+// Página de previsualización para redes sociales del EVENTO público (distinto del share de
+// presentación de arriba: usa la descripción y el flyer propios del evento, no del deck de
+// slides). nginx redirige acá los crawlers que piden /events/:friendlyId.
+app.get('/api/v1/share-event/:friendlyId', async (req, res) => {
+  const { friendlyId } = req.params;
+  if (!FRIENDLY_ID_RE.test(friendlyId)) return res.status(400).send('invalid_friendly_id');
+
+  const canonicalUrl = `${FRONTEND_BASE_URL}/events/${friendlyId}`;
+  let conference;
+  try {
+    const r = await fetch(`${USERS_URL}/api/v1/conferences/public/${friendlyId}`);
+    if (!r.ok) return res.redirect(302, canonicalUrl);
+    conference = (await r.json()).data;
+  } catch (err) {
+    console.error('share_event_lookup_failed', friendlyId, err.message);
+    return res.redirect(302, canonicalUrl);
+  }
+
+  const title = conference.name || friendlyId;
+  const description = conference.description || 'Evento en InsightBloom';
+  const imageUrl = conference.flyerBase64
+    ? `${FRONTEND_BASE_URL}/api/users/api/v1/conferences/public/${friendlyId}/flyer`
+    : `${FRONTEND_BASE_URL}/pwa-512x512.png`;
+
+  res.type('html').send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(description)}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:image" content="${escapeHtml(imageUrl)}">
+<meta property="og:url" content="${escapeHtml(canonicalUrl)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeHtml(title)}">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${escapeHtml(imageUrl)}">
+<meta http-equiv="refresh" content="0;url=${escapeHtml(canonicalUrl)}">
+</head>
+<body>
+<p>Redirigiendo a <a href="${escapeHtml(canonicalUrl)}">${escapeHtml(canonicalUrl)}</a>&hellip;</p>
+</body>
+</html>`);
+});
+
 app.get('/api/v1/conferences/:id/presentation/status', (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   const confDir = conferenceDir(req.params.id);

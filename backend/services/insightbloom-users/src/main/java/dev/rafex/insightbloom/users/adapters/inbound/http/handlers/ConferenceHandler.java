@@ -303,6 +303,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/public", Set.of("GET")),
                 Route.of("/public/{friendlyId}", Set.of("GET")),
                 Route.of("/public/{friendlyId}/tickets", Set.of("POST")),
+                Route.of("/public/{friendlyId}/flyer", Set.of("GET")),
                 Route.of("/by-friendly/{friendlyId}", Set.of("GET")),
                 Route.of("/by-friendly/{friendlyId}/jitsi-access", Set.of("GET")),
                 Route.of("/by-short/{shortCode}", Set.of("GET")),
@@ -382,6 +383,13 @@ public class ConferenceHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         final String path = jx.path();
         if (path.endsWith("/public")) return handlePublicList(jx);
+        // Debe preceder al catch-all de /public/{friendlyId}: sirve la imagen binaria del flyer
+        // (no el JSON del evento) para que exista una URL http(s) real que WhatsApp/Telegram
+        // puedan usar como og:image -- el JSON solo trae flyerBase64 inline, que esas apps no
+        // aceptan como imagen de preview.
+        if (path.contains("/public/") && path.endsWith("/flyer")) {
+            return handlePublicFlyer(jx, jx.pathParam("friendlyId"));
+        }
         if (path.contains("/public/") && !path.endsWith("/tickets")) {
             return handlePublicDetail(jx, jx.pathParam("friendlyId"));
         }
@@ -807,6 +815,37 @@ public class ConferenceHandler extends BaseResourceHandler {
                     .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
                     .ifPresentOrElse(c -> sendOk(jx, 200, publicView(c, userUuid)),
                             () -> sendError(jx, 404, "public_event_not_found", "Evento público no encontrado"));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private static final Pattern FLYER_DATA_URL = Pattern.compile(
+            "^data:(image/jpeg|image/png);base64,(.+)$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
+    /**
+     * Imagen binaria del flyer, sin auth, para eventos públicos -- pensada como {@code og:image}
+     * de la página de previsualización que arma insightbloom-presentations al compartir el link
+     * del evento (WhatsApp/Telegram no aceptan data: URIs, necesitan una URL http(s) real).
+     */
+    private boolean handlePublicFlyer(final JettyHttpExchange jx, final String friendlyId) {
+        try {
+            final Conference conference = getConferenceUseCase.resolveAny(publicIdentifier(jx, friendlyId))
+                    .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
+                    .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
+                    .orElse(null);
+            final String dataUrl = conference == null ? null : conference.getFlyerBase64();
+            final Matcher matcher = dataUrl == null ? null : FLYER_DATA_URL.matcher(dataUrl);
+            if (matcher == null || !matcher.matches()) {
+                sendError(jx, 404, "flyer_not_found", "Este evento no tiene flyer");
+                return true;
+            }
+            final byte[] bytes = java.util.Base64.getDecoder().decode(matcher.group(2));
+            jx.response().setStatus(200);
+            jx.response().getHeaders().put("Content-Type", matcher.group(1).toLowerCase(java.util.Locale.ROOT));
+            jx.response().getHeaders().put("Cache-Control", "public, max-age=3600");
+            jx.response().write(true, ByteBuffer.wrap(bytes), jx.callback());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
