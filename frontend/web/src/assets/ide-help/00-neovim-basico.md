@@ -64,19 +64,110 @@ Esta imagen ya trae **nvim-tree** instalado y configurado.
 | Tecla | Qué hace |
 |---|---|
 | `Ctrl-n` | abre/cierra el árbol de archivos |
-| `Enter` (sobre un archivo) | lo abre |
-| `a` | crea un archivo/carpeta nuevo |
-| `d` | borra el archivo bajo el cursor |
-| `r` | renombra |
+| `j` / `k` | moverse abajo / arriba en el árbol |
+| `Enter` o `<CR>` (sobre un directorio) | lo abre/expande |
+| `Enter` o `<CR>` (sobre un archivo) | lo abre |
+| `o` | igual que Enter: abre archivo o expande directorio |
+| `l` | igual que Enter/o: abre el directorio |
+| `h` | cierra el directorio (vuelve al padre) |
+| `-` | sube al directorio padre |
+| `r` | refresca la vista |
+| `a` | crea un archivo/carpeta nuevo (te pregunta el nombre) |
+| `d` | borra el archivo/carpeta bajo el cursor |
+| `R` | renombra |
+
+Para crear un directorio en vez de un archivo, en el prompt de `a` terminá el nombre con `/`
+(por ejemplo `carpeta/`).
+
+Comandos equivalentes desde modo Comando (`:`), por si preferís no usar el atajo:
+
+| Comando | Qué hace |
+|---|---|
+| `:NvimTreeToggle` | abre/cierra el explorador |
+| `:NvimTreeFocus` | pone el foco en el explorador |
+| `:NvimTreeRefresh` | refresca la vista |
+
+También podés abrir cualquier archivo por su ruta sin pasar por el árbol: `:e ruta/al/archivo`.
 
 ## Ventanas divididas (splits)
 
 | Comando | Qué hace |
 |---|---|
-| `:vsplit` | divide la ventana verticalmente |
-| `:split` | divide la ventana horizontalmente |
+| `:vsplit` o `Ctrl-w` `v` | divide la ventana verticalmente (lado a lado) |
+| `:split` o `Ctrl-w` `s` | divide la ventana horizontalmente (una encima de otra) |
 | `Ctrl-w` + flecha | mueve el foco entre ventanas |
 | `Ctrl-w` `q` | cierra la ventana actual |
+
+Moverte entre ventanas con `hjkl` (sin flechas):
+
+| Tecla | Qué hace |
+|---|---|
+| `Ctrl-w` `h` | mover el foco a la ventana de la izquierda |
+| `Ctrl-w` `j` | mover el foco a la ventana de abajo |
+| `Ctrl-w` `k` | mover el foco a la ventana de arriba |
+| `Ctrl-w` `l` | mover el foco a la ventana de la derecha |
+
+Ejemplo visual de cada tipo de split:
+
+```
+Vertical (Ctrl-w v):          Horizontal (Ctrl-w s):
+┌──────────┬──────────┐       ┌────────────────────┐
+│ Ventana1 │ Ventana2 │       │      Ventana 1      │
+│          │          │       ├────────────────────┤
+└──────────┴──────────┘       │      Ventana 2      │
+                               └────────────────────┘
+```
+
+### Abrir una terminal dentro de un split
+
+```
+Ctrl-w s        " abre un split horizontal
+:terminal       " y adentro, una terminal
+
+" o en un solo paso:
+:split term://bash    " terminal en split horizontal
+:vsplit term://bash   " terminal en split vertical
+```
+
+### Cerrar ventanas
+
+| Comando | Qué hace |
+|---|---|
+| `:q` o `Ctrl-w` `q` | cierra la ventana actual |
+| `Ctrl-w` `c` | cierra la ventana actual (sin confirmar) |
+| `Ctrl-w` `o` o `:only` | cierra todas las ventanas menos la actual |
+
+### Mover una ventana de lugar (mayúsculas)
+
+Con el foco en la ventana que querés mover:
+
+| Comando | Qué hace |
+|---|---|
+| `Ctrl-w` `J` | mueve la ventana actual hacia abajo |
+| `Ctrl-w` `K` | mueve la ventana actual hacia arriba |
+| `Ctrl-w` `H` | mueve la ventana actual a la izquierda |
+| `Ctrl-w` `L` | mueve la ventana actual a la derecha |
+| `Ctrl-w` `r` | rota (intercambia) las ventanas |
+| `Ctrl-w` `T` | mueve la ventana actual a una pestaña nueva |
+
+Ejemplo: tenés un archivo arriba y una terminal abajo (`Ctrl-w s` + `:terminal`), y querés que la
+terminal quede arriba:
+
+```
+Ctrl-w k    " mové el cursor a la ventana de arriba... no, mejor:
+Ctrl-w j    " mové el cursor A la terminal (que está abajo)
+Ctrl-w K    " y ahora sí, mové ESA ventana (mayúscula K) hacia arriba
+```
+
+### Cambiar el tamaño de las ventanas
+
+| Comando | Qué hace |
+|---|---|
+| `Ctrl-w` `+` | aumenta el tamaño de la ventana actual |
+| `Ctrl-w` `-` | disminuye el tamaño de la ventana actual |
+| `Ctrl-w` `=` | iguala el tamaño de todas las ventanas |
+| `Ctrl-w` `>` | aumenta el ancho (en un split vertical) |
+| `Ctrl-w` `<` | disminuye el ancho (en un split vertical) |
 
 ## Autocompletado y LSP (nvim-cmp)
 
