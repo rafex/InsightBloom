@@ -118,8 +118,9 @@ puerto fijo vos mismo). Revisá el valor con:
 echo $APP_PORT
 ```
 
-En Java, leelo con `System.getenv("APP_PORT")`; en Python, con `os.environ.get("APP_PORT")`. Ver
-ejemplos completos en las pestañas "Hello World: Java" y "Hello World: Python" de este panel.
+En Java, leelo con `System.getenv("APP_PORT")`; en Python, con `os.environ.get("APP_PORT")`; en
+Node.js/JavaScript, con `process.env.APP_PORT`. Ver ejemplos completos en las pestañas
+"Hello World: Java", "Hello World: Python" y "Hello World: JS/TS" de este panel.
 
 ### Publicar
 
