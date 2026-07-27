@@ -90,6 +90,6 @@ ni se publica.
 insightbloom revoke PUBLICATION_ID --token-prompt
 ```
 
-La publicación no es un servidor de desarrollo: no soporta APIs, WebSockets, procesos persistentes
-ni puertos arbitrarios. Para probar una API se debe usar el IDE internamente o solicitar después
-un flujo separado con allowlist y exposición controlada.
+Esta publicación es una copia estática: no soporta APIs, WebSockets ni procesos persistentes. Para
+publicar un backend/API vivo, escuchando en `$APP_PORT`, usa `insightbloom app-publish` — ver
+`IDE-APP-PUBLICATION.md`.

@@ -256,6 +256,7 @@ COPY infra/docker/insightbloom /usr/local/bin/insightbloom
 COPY infra/docker/IDE-WEB-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-WEB-PUBLICATION.md
 COPY infra/docker/IDE-AI-MENTOR.md /usr/local/share/doc/insightbloom/IDE-AI-MENTOR.md
 COPY infra/docker/IDE-REST-CLIENT.md /usr/local/share/doc/insightbloom/IDE-REST-CLIENT.md
+COPY infra/docker/IDE-APP-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-APP-PUBLICATION.md
 COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
 RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \
