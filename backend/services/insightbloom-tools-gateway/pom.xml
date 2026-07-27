@@ -76,6 +76,25 @@
 
   <build>
     <plugins>
+      <!-- AuthGateHandlerTest necesita mandar el header "Host" (restringido por defecto en
+           HttpClient del JDK) para simular distintos hosts virtuales contra el gateway en
+           localhost. Antes se seteaba con un bloque static en el propio test, algo fragil: el
+           JDK cachea el set de headers restringidos la PRIMERA vez que se evalua, a nivel de
+           JVM, asi que si otra clase de test (ej. AppPreviewGateHandlerTest, agregado 2026-07)
+           construye un HttpRequest primero, la propiedad seteada despues no tiene efecto y el
+           test falla con "restricted header name: Host", confirmado en vivo. Seteandolo aca
+           (system property de la JVM de surefire, antes de que cargue cualquier clase de test)
+           es independiente del orden de ejecucion.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <jdk.httpclient.allowRestrictedHeaders>host</jdk.httpclient.allowRestrictedHeaders>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
       <!-- Se reemplazo maven-shade-plugin por maven-assembly-plugin (2026-07-17): agregar
            ServicesResourceTransformer no resolvio el WebSocket "1006" del IDE (verificado en
            vivo, cero cambio). El jar-with-dependencies de assembly-plugin evita por completo

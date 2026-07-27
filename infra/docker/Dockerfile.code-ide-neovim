@@ -120,6 +120,18 @@ RUN curl -fsSL "$NODE_URL" -o /tmp/node.tar.gz && \
     rm /tmp/node.tar.gz
 ENV PATH="/usr/local/lib/node-24/bin:${PATH}"
 
+# gobang -- TUI para navegar tablas/schema de SQLite (persistencia de la plataforma es siempre
+# SQLite), mismo espiritu que lazygit. No esta en los repos de Alpine, se instala igual que
+# Java/Python/Node arriba: binario fijado por version + SHA256 verificado, en vez de un tarball
+# "latest" sin checksum.
+ARG GOBANG_URL=https://github.com/TaKO8Ki/gobang/releases/download/v0.1.0-alpha.5/gobang-0.1.0-alpha.5-x86_64-unknown-linux-musl.tar.gz
+ARG GOBANG_SHA256=29b8f517937cf19691c6e594a0789fe80a528fff05c346883af0e2950b9b90ef
+RUN curl -fsSL "$GOBANG_URL" -o /tmp/gobang.tar.gz && \
+    echo "${GOBANG_SHA256}  /tmp/gobang.tar.gz" | sha256sum -c - && \
+    tar -xzf /tmp/gobang.tar.gz -C /usr/local/bin gobang && \
+    chmod +x /usr/local/bin/gobang && \
+    rm /tmp/gobang.tar.gz
+
 # bash-completion no se auto-carga en shells de login en Alpine (a diferencia de Debian); el
 # paquete solo instala el script, sin engancharlo a /etc/profile.d.
 RUN echo '. /usr/share/bash-completion/bash_completion' > /etc/profile.d/bash_completion.sh

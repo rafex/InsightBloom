@@ -696,6 +696,25 @@ public class DatabaseManager {
                 )
             """);
 
+            // Publicacion publica de un backend/API REST vivo del sandbox (2026-07) -- a
+            // diferencia del preview de workspace (ZIP estatico via insightbloom-presentations),
+            // esto proxea un proceso vivo. UNIQUE(conference_uuid, user_uuid): un solo preview
+            // activo por sandbox, publicar de nuevo reemplaza el anterior. Ver SandboxAppPreview.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS sandbox_app_previews (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    conference_uuid TEXT NOT NULL,
+                    user_uuid TEXT NOT NULL,
+                    pod_name TEXT NOT NULL,
+                    target_port INTEGER NOT NULL,
+                    access_token TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    UNIQUE(conference_uuid, user_uuid)
+                )
+            """);
+
             backfillMissingTicketsForSimpleJoins(conn);
             backfillMissingCapacity(conn);
         } catch (SQLException e) {

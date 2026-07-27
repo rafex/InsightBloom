@@ -458,6 +458,15 @@ export interface WorkspacePreviewInfo {
   files: number
 }
 
+/** Backend/API REST vivo publicado desde el sandbox -- a diferencia de WorkspacePreviewInfo
+ *  (snapshot estático), acá el proceso sigue corriendo y requiere accessToken para consumirlo. */
+export interface AppPreviewInfo {
+  publicationId: string
+  url: string
+  accessToken: string
+  expiresAt: string
+}
+
 export interface AiProviderSettings {
   configured: boolean
   enabled: boolean

@@ -185,7 +185,12 @@ def _spawn_seat(index: int, base_port: int, user_uuid: str):
     uid, home = _ensure_seat_account(index, user_uuid)
     port = base_port + index
     workspace = f"{home}/workspace"
-    seat_env = {**os.environ, "HOME": home, "USER": _seat_login_name(index), "SEAT_INDEX": str(index)}
+    # APP_PORT: puerto donde este asiento debe correr su backend/API REST si lo publica (ver
+    # PublishAppPreviewUseCase, KubernetesPodClient.buildPodBody) -- mismo patron que SEAT_INDEX
+    # ya usa runtime-debug-helpers.sh para los puertos de debug Java/Python por asiento.
+    app_base_port = int(os.environ.get("APP_BASE_PORT", "9000"))
+    seat_env = {**os.environ, "HOME": home, "USER": _seat_login_name(index), "SEAT_INDEX": str(index),
+                "APP_PORT": str(app_base_port + index)}
     # Precreamos la sesion tmux DESTACADA (-d) en un proceso propio, separado del pty que ttyd va
     # a controlar -- si dejamos que ttyd arranque tmux directamente (ej. "ttyd ... tmux new-session
     # -A"), el server de tmux nace todavia compartiendo el process group del pty de ttyd durante su

@@ -126,6 +126,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final String incidentReportKey;
     private final String egressProxyHost;
     private final int egressProxyPort;
+    private final int appBasePort;
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
                                 final String debianImage, final String neovimImage,
@@ -133,7 +134,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                                 final int port, final int uid, final int gid, final int fsGroup,
                                 final String gatewayNamespace, final String gatewayPodComponentLabel,
                                 final String usersPodComponentLabel, final String incidentReportKey,
-                                final String egressProxyHost, final int egressProxyPort) {
+                                final String egressProxyHost, final int egressProxyPort, final int appBasePort) {
         this.jsonCodec = jsonCodec;
         this.namespace = namespace;
         this.debianImage = debianImage;
@@ -147,6 +148,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         this.incidentReportKey = incidentReportKey;
         this.egressProxyHost = egressProxyHost;
         this.egressProxyPort = egressProxyPort;
+        this.appBasePort = appBasePort;
         this.uid = uid;
         this.gid = gid;
         this.fsGroup = fsGroup;
@@ -258,6 +260,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final List<Map<String, Object>> seatPorts = new ArrayList<>();
         for (int i = 0; i < MAX_SEATS_PER_POD; i++) {
             seatPorts.add(Map.of("protocol", "TCP", "port", port + i));
+        }
+        // Publicacion de backends/API REST vivos del alumno (2026-07): banda de puertos paralela
+        // a la de ttyd/code-server, mismo criterio (rango fijo MAX_SEATS_PER_POD, nunca el
+        // seatsPerPod real de CADA Pod -- ver comentario de MAX_SEATS_PER_POD). Solo el gateway
+        // puede alcanzarla (mismo "from" que seatPorts, es el mismo servicio quien resuelve tanto
+        // IDE Web/CLI como app-preview, ver AppPreviewGateHandler).
+        for (int i = 0; i < MAX_SEATS_PER_POD; i++) {
+            seatPorts.add(Map.of("protocol", "TCP", "port", appBasePort + i));
         }
         final Map<String, Object> policy = Map.of(
                 "apiVersion", "networking.k8s.io/v1",
@@ -566,6 +576,17 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         // enrutamiento, no una credencial; por eso está disponible en todos
         // los sandboxes, incluidos Web y CLI de un solo asiento.
         runtimeEnv.add(Map.of("name", "CONFERENCE_UUID", "value", conferenceUuid));
+        // Publicacion de backends/API REST vivos (2026-07): el alumno corre su server en este
+        // puerto para que insightbloom-tools-gateway pueda proxearlo publicamente (ver
+        // PublishAppPreviewUseCase). Pods de un solo asiento reciben APP_PORT directo, listo para
+        // usar; Pods compartidos (terminal-nvim multi-asiento) solo reciben la base -- cada
+        // asiento calcula el suyo (APP_BASE_PORT + SEAT_INDEX) en su propio entorno de shell, ver
+        // sandbox-agent.py:_spawn_seat (mismo patron que ya usa SEAT_INDEX para los puertos de
+        // debug Java/Python).
+        runtimeEnv.add(Map.of("name", "APP_BASE_PORT", "value", String.valueOf(appBasePort)));
+        if (effectiveSeats <= 1) {
+            runtimeEnv.add(Map.of("name", "APP_PORT", "value", String.valueOf(appBasePort)));
+        }
         // Publicación estática y tutor IA: el CLI debe alcanzar únicamente el API interno de
         // usuarios sin activar salida a internet ni obligar al alumno a copiar la URL pública.
         // La NetworkPolicy del chart permite este destino explícito; no contiene credenciales.
@@ -652,6 +673,9 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final List<Map<String, Object>> containerPorts = new ArrayList<>();
         for (int i = 0; i < effectiveSeats; i++) {
             containerPorts.add(Map.of("name", "seat-" + i, "containerPort", port + i, "protocol", "TCP"));
+        }
+        for (int i = 0; i < effectiveSeats; i++) {
+            containerPorts.add(Map.of("name", "app-" + i, "containerPort", appBasePort + i, "protocol", "TCP"));
         }
 
         final Map<String, Object> sandboxContainer = new LinkedHashMap<>();
@@ -800,6 +824,13 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final List<Map<String, Object>> servicePorts = new ArrayList<>();
         for (int i = 0; i < effectiveSeats; i++) {
             servicePorts.add(Map.of("name", "seat-" + i, "port", port + i, "targetPort", port + i, "protocol", "TCP"));
+        }
+        // Puerto del backend/API REST que el alumno publica (2026-07) -- un puerto por asiento,
+        // mismo criterio que "seat-N" (ver ResolveAppPreviewTargetUseCase, que arma el target
+        // hacia este Service igual que ResolveSandboxTargetUseCase).
+        for (int i = 0; i < effectiveSeats; i++) {
+            servicePorts.add(Map.of("name", "app-" + i, "port", appBasePort + i, "targetPort", appBasePort + i,
+                    "protocol", "TCP"));
         }
         // Puerto de control (agente en el Pod, ver code-ide-entrypoint.sh): tanto el seat-agent
         // (terminal-nvim, asignación de asientos) como el sandbox-file-agent (AMBAS variantes,

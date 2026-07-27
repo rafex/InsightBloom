@@ -206,8 +206,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # porque "vscjava.extension-pack-for-java" no esta en open-vsx.org), Python (ms-python.python +
 # ms-pyright.pyright en vez de Pylance, tampoco en open-vsx), Web (prettier/eslint/volar/
 # react/tailwind/html-css), cliente REST ligero (humao.rest-client,
-# https://marketplace.visualstudio.com/items?itemName=humao.rest-client), idioma espanol
-# (ms-ceintl.vscode-language-pack-es), y opencode.
+# https://marketplace.visualstudio.com/items?itemName=humao.rest-client), SQLite (mtxr.sqltools +
+# mtxr.sqltools-driver-sqlite -- persistencia de la plataforma es siempre SQLite, ver el archivo
+# .db del workspace del alumno), idioma espanol (ms-ceintl.vscode-language-pack-es), y opencode.
 #
 # Versiones fijadas explicitamente (excepto el language pack, ver nota abajo) -- auditoria de
 # seguridad 2026-07-17: un publisher comprometido no puede inyectar codigo en el proximo build
@@ -234,6 +235,8 @@ RUN for ext in \
       bradlc.vscode-tailwindcss@0.14.28 \
       ecmel.vscode-html-css@2.0.14 \
       humao.rest-client@0.25.0 \
+      mtxr.sqltools@0.28.6 \
+      mtxr.sqltools-driver-sqlite@0.5.4 \
       ms-ceintl.vscode-language-pack-es \
       sst-dev.opencode@0.0.13; do \
         code-server --install-extension "$ext" || echo "WARN: extension $ext skipped"; \

@@ -9,7 +9,7 @@ import type {
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
-  TicketManagementSummary, WorkspacePreviewInfo, PublicConference, JaasUsage
+  TicketManagementSummary, WorkspacePreviewInfo, AppPreviewInfo, PublicConference, JaasUsage
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 import { handleSessionResponse } from '@/features/auth/sessionGuard'
@@ -1021,4 +1021,14 @@ export async function publishWorkspacePreview(conferenceId: string, token: strin
 
 export async function revokeWorkspacePreview(conferenceId: string, publicationId: string, token: string): Promise<void> {
   await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/sandbox/preview/${publicationId}`, authHeader(token))
+}
+
+/** Publica el backend/API REST vivo que el alumno corre en su sandbox (ver AppPreviewGateHandler). */
+export async function publishAppPreview(conferenceId: string, token: string): Promise<AppPreviewInfo> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/app-preview`, {}, authHeader(token))
+  return res.data.data
+}
+
+export async function revokeAppPreview(conferenceId: string, publicationId: string, token: string): Promise<void> {
+  await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/sandbox/app-preview/${publicationId}`, authHeader(token))
 }

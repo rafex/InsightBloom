@@ -14,6 +14,8 @@ import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.PublishWorkspacePreviewUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RevokeWorkspacePreviewUseCase;
+import dev.rafex.insightbloom.users.application.usecases.PublishAppPreviewUseCase;
+import dev.rafex.insightbloom.users.application.usecases.RevokeAppPreviewUseCase;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
@@ -49,6 +51,10 @@ public class SandboxHandler extends BaseResourceHandler {
     private final RevokeWorkspacePreviewUseCase revokeWorkspacePreviewUseCase;
     private final long previewTtlSeconds;
     private final String gatewayBaseUrl; // ej. "https://ide-insightbloom.v1.rafex.cloud"
+    private final PublishAppPreviewUseCase publishAppPreviewUseCase;
+    private final RevokeAppPreviewUseCase revokeAppPreviewUseCase;
+    private final long appPreviewTtlSeconds;
+    private final String appPreviewBaseUrl; // ej. "https://app-insightbloom.v1.rafex.cloud"
     private final ScheduledExecutorService sandboxStreamScheduler = Executors.newScheduledThreadPool(8, runnable -> {
         final Thread thread = new Thread(runnable, "sandbox-status-sse");
         thread.setDaemon(true);
@@ -67,7 +73,11 @@ public class SandboxHandler extends BaseResourceHandler {
                          final String gatewayBaseUrl,
                          final PublishWorkspacePreviewUseCase publishWorkspacePreviewUseCase,
                          final RevokeWorkspacePreviewUseCase revokeWorkspacePreviewUseCase,
-                         final long previewTtlSeconds) {
+                         final long previewTtlSeconds,
+                         final PublishAppPreviewUseCase publishAppPreviewUseCase,
+                         final RevokeAppPreviewUseCase revokeAppPreviewUseCase,
+                         final long appPreviewTtlSeconds,
+                         final String appPreviewBaseUrl) {
         this.assignSandboxUseCase = assignSandboxUseCase;
         this.getSandboxAvailabilityUseCase = getSandboxAvailabilityUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -81,6 +91,10 @@ public class SandboxHandler extends BaseResourceHandler {
         this.publishWorkspacePreviewUseCase = publishWorkspacePreviewUseCase;
         this.revokeWorkspacePreviewUseCase = revokeWorkspacePreviewUseCase;
         this.previewTtlSeconds = previewTtlSeconds;
+        this.publishAppPreviewUseCase = publishAppPreviewUseCase;
+        this.revokeAppPreviewUseCase = revokeAppPreviewUseCase;
+        this.appPreviewTtlSeconds = appPreviewTtlSeconds;
+        this.appPreviewBaseUrl = appPreviewBaseUrl;
     }
 
     /**
@@ -119,6 +133,8 @@ public class SandboxHandler extends BaseResourceHandler {
             Route.of("/{id}/sandbox/download", Set.of("POST")),
             Route.of("/{id}/sandbox/preview", Set.of("POST")),
             Route.of("/{id}/sandbox/preview/{publicationId}", Set.of("DELETE")),
+            Route.of("/{id}/sandbox/app-preview", Set.of("POST")),
+            Route.of("/{id}/sandbox/app-preview/{publicationId}", Set.of("DELETE")),
             Route.of("/{id}/sandbox/config", Set.of("PUT"))
         );
     }
@@ -152,6 +168,9 @@ public class SandboxHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/sandbox/preview")) {
             return handlePublishPreview(jx, jx.pathParam("id"));
         }
+        if (jx.path().endsWith("/sandbox/app-preview")) {
+            return handlePublishAppPreview(jx, jx.pathParam("id"));
+        }
         return false;
     }
 
@@ -167,6 +186,9 @@ public class SandboxHandler extends BaseResourceHandler {
     @Override
     public boolean delete(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().contains("/sandbox/app-preview/")) {
+            return handleRevokeAppPreview(jx, jx.pathParam("id"), jx.pathParam("publicationId"));
+        }
         if (jx.path().contains("/sandbox/preview/")) {
             return handleRevokePreview(jx, jx.pathParam("id"), jx.pathParam("publicationId"));
         }
@@ -550,6 +572,61 @@ public class SandboxHandler extends BaseResourceHandler {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final IllegalStateException e) {
             sendError(jx, 503, e.getMessage(), "El publicador de páginas no está disponible");
+        }
+        return true;
+    }
+
+    private boolean handlePublishAppPreview(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return true;
+            final var preview = publishAppPreviewUseCase.execute(
+                    conferenceId, validation.subjectUuid(), appPreviewTtlSeconds);
+            sendOk(jx, 201, Map.of(
+                    "publicationId", preview.uuid(),
+                    "url", appPreviewBaseUrl + "/p/" + preview.uuid(),
+                    "accessToken", preview.accessToken(),
+                    "expiresAt", preview.expiresAt().toString()));
+        } catch (final IllegalArgumentException e) {
+            final int status = switch (e.getMessage()) {
+                case "sandbox_not_assigned" -> 404;
+                case "sandbox_expired" -> 410;
+                default -> 422;
+            };
+            sendError(jx, status, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: no se pudo publicar el app-preview", e);
+            sendError(jx, 500, "app_preview_publication_failed", "No se pudo publicar la aplicación");
+        }
+        return true;
+    }
+
+    private boolean handleRevokeAppPreview(final JettyHttpExchange jx, final String conferenceId,
+                                            final String publicationId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            revokeAppPreviewUseCase.execute(conferenceId, validation.subjectUuid(), publicationId);
+            sendOk(jx, 200, Map.of("revoked", true));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
         }
         return true;
     }

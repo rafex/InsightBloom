@@ -289,7 +289,11 @@ public class UsersApplication {
                 sandboxIncidentReportKey,
                 System.getenv().getOrDefault("SANDBOX_EGRESS_PROXY_HOST",
                         "insightbloom-egress-proxy.insightbloom.svc.cluster.local"),
-                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_EGRESS_PROXY_PORT", "3128")));
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_EGRESS_PROXY_PORT", "3128")),
+                // Publicacion de backends/API REST vivos (2026-07): banda de puertos paralela a
+                // SANDBOX_PORT (8080..8089), separada a proposito para no colisionar con los
+                // puertos de ttyd/code-server ni con el control port (SANDBOX_PORT - 1).
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_APP_BASE_PORT", "9000")));
         final long sandboxTtlSecondsAfterEventExpiry =
                 Long.parseLong(System.getenv().getOrDefault("SANDBOX_TTL_SECONDS_AFTER_EVENT_EXPIRY", "3600"));
         final var assignSandboxUseCase = new AssignSandboxUseCase(
@@ -326,6 +330,20 @@ public class UsersApplication {
         final var revokeWorkspacePreviewUseCase = new RevokeWorkspacePreviewUseCase(workspacePreviewPublisher);
         final long workspacePreviewTtlSeconds = Long.parseLong(
                 System.getenv().getOrDefault("WORKSPACE_PREVIEW_TTL_SECONDS", "3600"));
+        final var appPreviewRepo =
+                new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteSandboxAppPreviewRepository(db);
+        final var publishAppPreviewUseCase = new dev.rafex.insightbloom.users.application.usecases.PublishAppPreviewUseCase(
+                sandboxRepo, appPreviewRepo,
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_APP_BASE_PORT", "9000")));
+        final var revokeAppPreviewUseCase = new dev.rafex.insightbloom.users.application.usecases.RevokeAppPreviewUseCase(
+                appPreviewRepo);
+        final long appPreviewTtlSeconds = Long.parseLong(
+                System.getenv().getOrDefault("APP_PREVIEW_TTL_SECONDS", "3600"));
+        final String appPreviewBaseUrl = System.getenv().getOrDefault(
+                "APP_PREVIEW_BASE_URL", "https://app-insightbloom.v1.rafex.cloud");
+        final var resolveAppPreviewTargetUseCase =
+                new dev.rafex.insightbloom.users.application.usecases.ResolveAppPreviewTargetUseCase(
+                        appPreviewRepo, System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"));
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo, sandboxOrchestrator);
         final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
         final var resolveSandboxTargetUseCase = new ResolveSandboxTargetUseCase(
@@ -363,7 +381,8 @@ public class UsersApplication {
                 assignSandboxUseCase, getSandboxAvailabilityUseCase, validateTokenUseCase,
                 generateWorkspaceDownloadUrlUseCase, setSandboxConfigUseCase, sandboxOrchestrator,
                 conferenceRepo, eventCapabilityGuard, ensureUnassignedSandboxUseCase, gatewayBaseUrl,
-                publishWorkspacePreviewUseCase, revokeWorkspacePreviewUseCase, workspacePreviewTtlSeconds);
+                publishWorkspacePreviewUseCase, revokeWorkspacePreviewUseCase, workspacePreviewTtlSeconds,
+                publishAppPreviewUseCase, revokeAppPreviewUseCase, appPreviewTtlSeconds, appPreviewBaseUrl);
         final var sandboxFilesHandler = new SandboxFilesHandler(
                 validateTokenUseCase, listWorkspaceFilesUseCase, readWorkspaceFileUseCase, writeWorkspaceFileUseCase,
                 getConferenceUseCase);
@@ -431,6 +450,9 @@ public class UsersApplication {
         final var internalEgressPolicyHandler =
                 new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalEgressPolicyHandler(
                         resolveEgressPolicyUseCase);
+        final var internalAppPreviewTargetHandler =
+                new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalAppPreviewTargetHandler(
+                        resolveAppPreviewTargetUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -439,6 +461,7 @@ public class UsersApplication {
         routes.add("/internal/sandbox-target/*", internalSandboxTargetHandler);
         routes.add("/internal/sandbox-incidents/*", internalSandboxIncidentHandler);
         routes.add("/internal/egress-policy/*", internalEgressPolicyHandler);
+        routes.add("/internal/app-preview-target/*", internalAppPreviewTargetHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);

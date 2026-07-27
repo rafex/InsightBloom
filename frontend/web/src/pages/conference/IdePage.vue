@@ -58,6 +58,9 @@
           button.btn-secondary(@click="publishPreview" :disabled="publishingPreview")
             span(v-if="!publishingPreview") 🌐 Publicar página temporal
             span(v-else) Validando y publicando...
+          button.btn-secondary(@click="publishApp" :disabled="publishingApp")
+            span(v-if="!publishingApp") 🔌 Publicar backend/API
+            span(v-else) Publicando...
           button.btn-tertiary(@click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
             span {{ urlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
           button.btn-tertiary(@click="switchVariant")
@@ -69,6 +72,16 @@
             a.btn-tertiary(:href="preview.url" target="_blank" rel="noopener noreferrer") Abrir página
             button.btn-tertiary(@click="copyPreviewUrl") {{ previewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
             button.btn-danger(@click="revokePreview") Revocar
+        .preview-result(v-if="appPreview")
+          strong Backend/API publicada
+          p Esta URL proxea tu proceso vivo (no una copia estática) y vence el {{ formatAppPreviewExpiry }}.
+            |  Requiere el header "X-Preview-Token" con el token de abajo — cualquiera que lo
+            |  tenga puede usar la API mientras esté vigente.
+          .preview-actions
+            a.btn-tertiary(:href="appPreview.url" target="_blank" rel="noopener noreferrer") Abrir URL
+            button.btn-tertiary(@click="copyAppPreviewUrl") {{ appPreviewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
+            button.btn-tertiary(@click="copyAppPreviewToken") {{ appPreviewTokenCopied ? '✓ Copiado' : '🔑 Copiar token' }}
+            button.btn-danger(@click="revokeApp") Revocar
 
       div(v-else class="no-sandbox")
         p ❌ No tienes un sandbox asignado en este evento.
@@ -83,10 +96,12 @@ import {
   generateWorkspaceDownloadUrl,
   publishWorkspacePreview,
   revokeWorkspacePreview,
+  publishAppPreview,
+  revokeAppPreview,
   streamSandboxStatus,
   AuthenticatedEventStream
 } from '@/services/api/usersApi'
-import type { SandboxInfo, SandboxAvailability, SandboxVariant, WorkspacePreviewInfo } from '@/services/api/types'
+import type { SandboxInfo, SandboxAvailability, SandboxVariant, WorkspacePreviewInfo, AppPreviewInfo } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import SandboxLoadingAnimation from '@/components/SandboxLoadingAnimation.vue'
 
@@ -115,6 +130,10 @@ export default {
     const publishingPreview = ref(false)
     const preview = ref<WorkspacePreviewInfo | null>(null)
     const previewUrlCopied = ref(false)
+    const publishingApp = ref(false)
+    const appPreview = ref<AppPreviewInfo | null>(null)
+    const appPreviewUrlCopied = ref(false)
+    const appPreviewTokenCopied = ref(false)
     const urlCopied = ref(false)
     const auth = useAuthStore()
     const availability = ref<SandboxAvailability | null>(null)
@@ -153,6 +172,7 @@ export default {
     })
 
     const formatPreviewExpiry = computed(() => preview.value ? new Date(preview.value.expiresAt).toLocaleString() : '')
+    const formatAppPreviewExpiry = computed(() => appPreview.value ? new Date(appPreview.value.expiresAt).toLocaleString() : '')
 
     // Fase 3b: el gateway (ide-insightbloom...) no tiene un target fijo — resuelve por-sesion
     // contra el sandbox del usuario a partir de ib_token + conferenceId en la query string
@@ -343,6 +363,42 @@ export default {
       setTimeout(() => { previewUrlCopied.value = false }, 2000)
     }
 
+    async function publishApp() {
+      if (!auth.state.token || !sandbox.value) return
+      try {
+        publishingApp.value = true
+        appPreview.value = await publishAppPreview(props.conferenceId, auth.state.token)
+      } catch (e: any) {
+        error.value = e.response?.data?.error?.message || 'No se pudo publicar el backend. Verifica que tu proceso esté escuchando en el puerto $APP_PORT.'
+      } finally {
+        publishingApp.value = false
+      }
+    }
+
+    async function revokeApp() {
+      if (!auth.state.token || !appPreview.value) return
+      try {
+        await revokeAppPreview(props.conferenceId, appPreview.value.publicationId, auth.state.token)
+        appPreview.value = null
+      } catch (e: any) {
+        error.value = e.response?.data?.error?.message || 'No se pudo revocar la publicación'
+      }
+    }
+
+    function copyAppPreviewUrl() {
+      if (!appPreview.value) return
+      navigator.clipboard.writeText(appPreview.value.url)
+      appPreviewUrlCopied.value = true
+      setTimeout(() => { appPreviewUrlCopied.value = false }, 2000)
+    }
+
+    function copyAppPreviewToken() {
+      if (!appPreview.value) return
+      navigator.clipboard.writeText(appPreview.value.accessToken)
+      appPreviewTokenCopied.value = true
+      setTimeout(() => { appPreviewTokenCopied.value = false }, 2000)
+    }
+
     function copyGatewayUrl() {
       if (!fullGatewayUrl.value) return
       navigator.clipboard.writeText(fullGatewayUrl.value)
@@ -364,7 +420,9 @@ export default {
       availability, loadingAvailability, chosenVariant, chooseVariant, switchVariant,
       formattedExpiry, fullGatewayUrl, ideSessionUrl, downloadWorkspace, copyGatewayUrl,
       pendingMessage, publishingPreview, preview, formatPreviewExpiry, publishPreview,
-      revokePreview, copyPreviewUrl, previewUrlCopied
+      revokePreview, copyPreviewUrl, previewUrlCopied,
+      publishingApp, appPreview, formatAppPreviewExpiry, publishApp, revokeApp,
+      copyAppPreviewUrl, copyAppPreviewToken, appPreviewUrlCopied, appPreviewTokenCopied
     }
   }
 }
