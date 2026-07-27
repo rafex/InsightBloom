@@ -43,18 +43,31 @@ Ejemplos:
   4) Revocar una publicación:
      insightbloom revoke PUBLICATION_ID
 
+  5) Publicar tu backend/API vivo (el proceso que ya tengas corriendo en $APP_PORT):
+     insightbloom app-publish
+
+  6) Revocar esa publicación de backend/API:
+     insightbloom app-revoke PUBLICATION_ID
+
 Notas:
-  - La carpeta publicada debe contener index.html.
+  - La carpeta publicada con `publish` debe contener index.html.
   - package.json es opcional y nunca se ejecuta.
-  - La publicación es temporal, estática y se vuelve a auditar en el servidor.
+  - `publish` genera una copia ESTÁTICA (snapshot), temporal, que se vuelve a auditar en el
+    servidor -- no expone tu sandbox vivo.
+  - `app-publish` es distinto: expone tu proceso vivo (debe estar escuchando en el puerto
+    $APP_PORT, ver `env | grep APP_PORT`) a través de una URL pública con su propio token de
+    consumo -- cualquiera que tenga ese token puede llamar tu API mientras la publicación no
+    expire ni la revoques.
   - Dentro de un sandbox el evento se detecta automáticamente desde CONFERENCE_UUID.
   - En el primer uso puedes ejecutar `insightbloom login`; solo se guarda un token en
     ~/.config/insightbloom/session.json, nunca la contraseña ni dentro del workspace.
-  - Si la sesión expira durante publish o revoke, el CLI solicita login una sola vez y reintenta.
+  - Si la sesión expira durante cualquier comando, el CLI solicita login una sola vez y reintenta.
   - También se conserva --token-prompt para introducir un token manual oculto.
   - También puedes consultar la ayuda específica con:
      insightbloom publish --help
      insightbloom revoke --help
+     insightbloom app-publish --help
+     insightbloom app-revoke --help
 """
 
 
@@ -337,6 +350,47 @@ def revoke(args: argparse.Namespace) -> None:
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
+def app_publish(args: argparse.Namespace) -> None:
+    api = api_base()
+    conference = conference_id(args)
+    result = authenticated_request(
+        args,
+        lambda token: request_json(
+            "POST",
+            f"{api}/conferences/{conference}/sandbox/app-preview",
+            token,
+            body=b"{}",
+        ),
+        api,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    data = result.get("data", result) if isinstance(result, dict) else {}
+    if isinstance(data, dict) and data.get("url"):
+        print(
+            f"\nURL: {data['url']}\n"
+            f"Requiere el header 'X-Preview-Token: {data.get('accessToken', '')}' en cada request.\n"
+            f"Ejemplo: curl -H \"X-Preview-Token: {data.get('accessToken', '')}\" {data['url']}",
+            file=sys.stderr,
+        )
+
+
+def app_revoke(args: argparse.Namespace) -> None:
+    api = api_base()
+    conference = conference_id(args)
+    if not args.publication_id:
+        fail("app-revoke requiere el publicationId devuelto por app-publish")
+    result = authenticated_request(
+        args,
+        lambda token: request_json(
+            "DELETE",
+            f"{api}/conferences/{conference}/sandbox/app-preview/{args.publication_id}",
+            token,
+        ),
+        api,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
 def login(args: argparse.Namespace) -> None:
     login_session(api_base(), args.username)
 
@@ -405,10 +459,51 @@ def main() -> None:
         help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
     )
     revoke_parser.set_defaults(func=revoke)
+    app_publish_parser = sub.add_parser(
+        "app-publish",
+        help="publica tu backend/API vivo (no un snapshot estático)",
+        description=(
+            "Expone tu proceso vivo (debe estar escuchando en $APP_PORT) a través de una URL "
+            "pública con su propio token de consumo. A diferencia de 'publish', esto NO es una "
+            "copia estática: es tu sandbox respondiendo en tiempo real mientras la publicación "
+            "esté activa."
+        ),
+        epilog=(
+            "Ejemplo: insightbloom app-publish\n"
+            "Tu proceso debe estar escuchando en el puerto de la variable $APP_PORT."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    app_publish_parser.add_argument("--token", help="token puntual de sesión; normalmente usa insightbloom login")
+    app_publish_token_group = app_publish_parser.add_mutually_exclusive_group()
+    app_publish_token_group.add_argument("--token-prompt", action="store_true", help="solicita el token oculto, sin variable ni historial")
+    app_publish_token_group.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin para automatizaciones")
+    app_publish_parser.add_argument(
+        "--conference-id",
+        help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
+    )
+    app_publish_parser.set_defaults(func=app_publish)
+    app_revoke_parser = sub.add_parser(
+        "app-revoke",
+        help="revoca una publicación de backend/API propia",
+        description="Revoca una publicación de app-publish usando el publicationId devuelto.",
+        epilog="Ejemplo: insightbloom app-revoke PUBLICATION_ID",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    app_revoke_parser.add_argument("publication_id")
+    app_revoke_parser.add_argument("--token", help="token puntual de sesión; normalmente usa insightbloom login")
+    app_revoke_token_group = app_revoke_parser.add_mutually_exclusive_group()
+    app_revoke_token_group.add_argument("--token-prompt", action="store_true", help="solicita el token oculto, sin variable ni historial")
+    app_revoke_token_group.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin para automatizaciones")
+    app_revoke_parser.add_argument(
+        "--conference-id",
+        help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
+    )
+    app_revoke_parser.set_defaults(func=app_revoke)
     args = parser.parse_args()
     if not args.command:
         parser.print_help(sys.stderr)
-        fail("falta el subcomando; usa 'insightbloom login', 'insightbloom publish' o 'insightbloom revoke PUBLICATION_ID'")
+        fail("falta el subcomando; usa 'insightbloom login', 'insightbloom publish', 'insightbloom app-publish', o 'insightbloom revoke/app-revoke PUBLICATION_ID'")
     args.func(args)
 
 

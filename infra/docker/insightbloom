@@ -4,13 +4,15 @@ case "${1:-}" in
   -h|--help)
     cat <<'EOF'
 Uso:
-  insightbloom publish [opciones]   Publica una copia temporal del sitio estático.
-  insightbloom revoke ID            Revoca una publicación.
-  insightbloom login                Inicia sesión y guarda el token fuera del workspace.
-  insightbloom logout               Elimina la sesión local del CLI.
-  insightbloom mentor [pregunta]    Consulta el tutor IA pedagógico del evento.
+  insightbloom publish [opciones]     Publica una copia temporal ESTÁTICA del sitio.
+  insightbloom revoke ID              Revoca una publicación de 'publish'.
+  insightbloom app-publish            Publica tu backend/API VIVO (escuchando en $APP_PORT).
+  insightbloom app-revoke ID          Revoca una publicación de 'app-publish'.
+  insightbloom login                  Inicia sesión y guarda el token fuera del workspace.
+  insightbloom logout                 Elimina la sesión local del CLI.
+  insightbloom mentor [pregunta]      Consulta el tutor IA pedagógico del evento.
 
-Usa `insightbloom mentor --help` para ver las opciones del tutor.
+Usa `insightbloom <comando> --help` para ver las opciones de cada uno.
 EOF
     exit 0
     ;;

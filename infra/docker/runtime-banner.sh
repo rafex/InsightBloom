@@ -38,6 +38,7 @@ if command -v nvim >/dev/null 2>&1; then
     # puede usar un grep/cut simple sin que matchee las dos, hay que anclar al campo exacto.
     printf 'lazygit: %s\n' "$(lazygit --version 2>&1 | sed -n 's/.*, version=\([^,]*\),.*/\1/p')"
 fi
+printf 'Corre "insightbloom --help" para publicar tu sitio o tu backend/API con una URL pública.\n'
 printf '\e[0;36m'
 printf -- '-------------------------------------\n'
 printf '\e[0m'
