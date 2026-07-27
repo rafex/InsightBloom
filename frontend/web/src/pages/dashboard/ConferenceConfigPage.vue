@@ -77,9 +77,7 @@
         span(v-else) Guardar configuración de boletos
       p.success(v-if="seatingSaved") Configuración de boletos guardada.
       p.error(v-if="seatingError") {{ seatingError }}
-      label.toggle-row
-        input(type="checkbox" v-model="ticketSalesEnabled")
-        span Permitir adquisición de boletos desde la cartelera pública
+      ToggleSwitch(v-model="ticketSalesEnabled") Permitir adquisición de boletos desde la cartelera pública
       p.field-hint El evento puede seguir activo aunque cierres la emisión de boletos. Los boletos ya emitidos conservan su acceso.
       button.btn-outline(type="button" @click="saveTicketSales" :disabled="savingTicketSales")
         span(v-if="savingTicketSales") Guardando...
@@ -119,9 +117,7 @@
         span(v-else) Guardar configuración del IDE
       p.success(v-if="sandboxConfigSaved") Configuración del IDE guardada.
       p.error(v-if="sandboxConfigError") {{ sandboxConfigError }}
-      label.toggle-row
-        input(type="checkbox" v-model="sandboxInternetEnabled" @change="saveSandboxInternet" :disabled="savingSandboxInternet")
-        span Permitir acceso a internet desde los sandboxes
+      ToggleSwitch(v-model="sandboxInternetEnabled" :disabled="savingSandboxInternet" @update:modelValue="saveSandboxInternet") Permitir acceso a internet desde los sandboxes
       p.field-hint Por defecto los sandboxes no tienen salida de red. Al activarlo, solo pueden salir mediante la proxy interna hacia los hosts de la lista blanca definida por la plataforma; la lista negra siempre tiene prioridad.
 
       .sandbox-status
@@ -234,18 +230,15 @@
     .form-group.mentor-group(v-show="activeTab === 'ai'")
       label Tutor IA del evento
       p.field-hint Configuración pedagógica exclusiva de este evento. El proveedor, la URL base y la clave del Tutor IA (compartidos por toda la plataforma) se configuran aparte, en #[router-link(to="/dashboard/admin/ai/tutor") IA → Tutor IA] (solo administradores).
-      label.toggle-row
-        input(type="checkbox" v-model="mentorEnabled" :disabled="savingMentor")
-        span {{ mentorEnabled ? 'Tutor habilitado para los asistentes' : 'Tutor deshabilitado para los asistentes' }}
+      ToggleSwitch(v-model="mentorEnabled" :disabled="savingMentor")
+        | {{ mentorEnabled ? 'Tutor habilitado para los asistentes' : 'Tutor deshabilitado para los asistentes' }}
       .coord-field
         span.coord-label Objetivo pedagógico del taller
         textarea(v-model="mentorObjective" rows="4" maxlength="2000" placeholder="Qué deben aprender o construir los asistentes")
       .coord-field
         span.coord-label Instrucciones adicionales y límites
         textarea(v-model="mentorPrompt" rows="5" maxlength="8000" placeholder="Por ejemplo: pedir primero qué intentaron y dar una pista a la vez")
-      label.toggle-row
-        input(type="checkbox" v-model="mentorIncludePresentation" :disabled="savingMentor")
-        span Leer la presentación como contexto de consulta
+      ToggleSwitch(v-model="mentorIncludePresentation" :disabled="savingMentor") Leer la presentación como contexto de consulta
       p.field-hint 🧭 Modo socrático activo: el tutor hará preguntas y dará pistas graduales; no entregará la solución completa.
       .coord-field
         span.coord-label Máximo de consultas por usuario/minuto
@@ -323,10 +316,11 @@ import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, BaseModal },
+  components: { DashboardBreadcrumb, BaseModal, ToggleSwitch },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -952,8 +946,6 @@ textarea {
 }
 input:focus { outline: none; border-color: #4f46e5; }
 textarea:focus { outline: none; border-color: #4f46e5; }
-.toggle-row { display: flex; align-items: center; gap: 10px; font-weight: 500; cursor: pointer; margin-top: 4px; }
-.toggle-row input { width: auto; }
 
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
 .canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; }

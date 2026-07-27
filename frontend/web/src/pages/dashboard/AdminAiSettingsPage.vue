@@ -17,9 +17,8 @@
         div
           h3 {{ activeTab.label }}
           p.field-hint {{ activeTab.description }}
-        label.toggle-row
-          input(type="checkbox" v-model="activeProvider.enabled" :disabled="saving")
-          span {{ activeProvider.enabled ? 'IA habilitada para este flujo' : 'IA deshabilitada para este flujo' }}
+        ToggleSwitch(v-model="activeProvider.enabled" :disabled="saving")
+          | {{ activeProvider.enabled ? 'IA habilitada para este flujo' : 'IA deshabilitada para este flujo' }}
 
       .form-group
         label(for="ai-base-url") URL base compatible con OpenAI
@@ -80,6 +79,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getAiSettings, setAiProviderSettings, getAiPromptCatalog } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import type { AiProviderSettings, AiSettings, AiPromptVariable } from '@/services/api/types'
+import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 
 type Capability = 'chat' | 'tutor' | 'survey' | 'seat-layout'
 
@@ -111,6 +111,7 @@ function emptyProvider(): ProviderForm {
 
 export default {
   name: 'AdminAiSettingsPage',
+  components: { ToggleSwitch },
   setup() {
     const auth = useAuthStore()
     const route = useRoute()
@@ -223,8 +224,7 @@ h2 { color: #1e1b4b; margin-bottom: 6px; }
 .capability-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .settings-card h3 { margin: 0 0 8px; color: #1e1b4b; font-size: 1.05rem; }
 .field-hint { margin: 0 0 16px; font-size: .85rem; color: #6b7280; }
-.toggle-row { display: flex; align-items: center; gap: 10px; font-size: .9rem; cursor: pointer; white-space: nowrap; }
-.toggle-row input, .clear-key input { width: auto; }
+.clear-key input { width: auto; }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: .9rem; color: #374151; }
 .form-group input[type="url"], .form-group input[type="text"], .form-group input[type="password"] { padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: .9rem; }
@@ -245,5 +245,5 @@ h2 { color: #1e1b4b; margin-bottom: 6px; }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 .success { color: #166534; font-size: .85rem; margin-top: 10px; }
 .error { color: #dc2626; font-size: .85rem; margin-top: 10px; }
-@media (max-width: 760px) { .settings-shell { grid-template-columns: 1fr; } .ai-tabs { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .capability-heading { flex-direction: column; } .toggle-row { white-space: normal; } }
+@media (max-width: 760px) { .settings-shell { grid-template-columns: 1fr; } .ai-tabs { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .capability-heading { flex-direction: column; } }
 </style>
