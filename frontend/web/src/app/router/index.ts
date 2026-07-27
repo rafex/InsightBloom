@@ -49,7 +49,11 @@ const routes: RouteRecordRaw[] = [
     path: '/c/:friendlyId',
     component: () => import('@/pages/conference/ConferencePage.vue'),
     children: [
-      { path: '', redirect: to => `/c/${to.params.friendlyId}/presentation` },
+      // Antes redirigia a /presentation -- desde el candado por herramienta (2026-07-27),
+      // Presentacion puede estar bloqueada al llegar. Flyer es la unica pestana (junto a Mi
+      // boleto) que nunca se bloquea, asi que es el destino seguro por defecto.
+      { path: '', redirect: to => `/c/${to.params.friendlyId}/flyer` },
+      { path: 'flyer', component: () => import('@/pages/conference/FlyerPage.vue') },
       { path: 'doubts', component: () => import('@/pages/conference/CloudDoubtsPage.vue') },
       { path: 'topics', component: () => import('@/pages/conference/CloudTopicsPage.vue') },
       { path: 'words/:word', component: () => import('@/pages/conference/WordTimelinePage.vue') },
@@ -105,6 +109,11 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'conferences/:conferenceId/moderation/ide',
         component: () => import('@/pages/dashboard/ModerationIdePage.vue'),
+        props: true
+      },
+      {
+        path: 'conferences/:conferenceId/moderation/tools',
+        component: () => import('@/pages/dashboard/ModerationToolsPage.vue'),
         props: true
       },
       {

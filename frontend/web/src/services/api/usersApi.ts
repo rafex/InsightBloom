@@ -1039,3 +1039,53 @@ export async function publishAppPreview(conferenceId: string, token: string): Pr
 export async function revokeAppPreview(conferenceId: string, publicationId: string, token: string): Promise<void> {
   await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/sandbox/app-preview/${publicationId}`, authHeader(token))
 }
+
+// ── Candado por herramienta (2026-07-27) ──────────────────────────────────────────────────
+// Mismo concepto que el candado de Encuesta (surveyApi.ts) pero para Dudas/Temas/Presentación/
+// Chat/Video/Diagramas/Pizarra/Notas/IDE -- ver TicketKey en el backend.
+export type ToolKeyName = 'DOUBTS' | 'TOPICS' | 'PRESENTATION' | 'CHAT' | 'VIDEO'
+  | 'DIAGRAMS' | 'WHITEBOARD' | 'NOTES' | 'IDE'
+
+export interface ToolAccessAttendee {
+  uuid: string
+  displayName: string
+  email: string
+  released: boolean
+}
+
+export interface ToolManagementEntry {
+  releasedForAll: boolean
+  attendees: ToolAccessAttendee[]
+}
+
+/** Mapa resuelto para el usuario autenticado actual (o anónimo: todo bloqueado). */
+export async function getToolAccess(conferenceId: string, token?: string | null): Promise<Record<ToolKeyName, boolean>> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/tool-access`,
+    token ? authHeader(token) : undefined)
+  return res.data.data
+}
+
+/** Matriz herramienta×asistente para el panel de moderación. */
+export async function getToolAccessManagement(conferenceId: string, token: string): Promise<Record<ToolKeyName, ToolManagementEntry>> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/tool-access/management`, authHeader(token))
+  return res.data.data
+}
+
+export async function releaseTool(
+  conferenceId: string, toolKey: ToolKeyName, token: string, all = false, userUuids: string[] = []
+): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tool-access/${toolKey}/release`,
+    { all, userUuids }, authHeader(token))
+}
+
+export async function lockTool(
+  conferenceId: string, toolKey: ToolKeyName, token: string, all = false, userUuids: string[] = []
+): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tool-access/${toolKey}/lock`,
+    { all, userUuids }, authHeader(token))
+}
+
+/** Botón de recuperación de un clic: libera las 9 herramientas para todos. */
+export async function releaseAllTools(conferenceId: string, token: string): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tool-access/release-all`, {}, authHeader(token))
+}

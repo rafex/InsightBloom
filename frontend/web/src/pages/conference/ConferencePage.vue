@@ -40,40 +40,43 @@
               button(type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
       .conf-toolbar-wrap(:class="{ 'fade-left': toolbarFadeLeft, 'fade-right': toolbarFadeRight }")
         nav.conf-toolbar(ref="toolbarRef" aria-label="Herramientas del evento" @scroll.passive="updateToolbarFades")
-          router-link#onboarding-tab-doubts.tool-btn(v-if="privateAllowed('WORD_CLOUD')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab" title="Dudas")
+          router-link#onboarding-tab-flyer.tool-btn(:to="`/c/${friendlyId}/flyer`" active-class="active-tab" title="Flyer")
+            span.tool-icon 🖼️
+            span.tool-label Flyer
+          router-link#onboarding-tab-doubts.tool-btn(v-if="privateAllowed('WORD_CLOUD') && toolReleased('DOUBTS')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab" title="Dudas")
             span.tool-icon ❓
             span.tool-label Dudas
-          router-link#onboarding-tab-topics.tool-btn(v-if="privateAllowed('WORD_CLOUD')" :to="`/c/${friendlyId}/topics`" active-class="active-tab" title="Temas")
+          router-link#onboarding-tab-topics.tool-btn(v-if="privateAllowed('WORD_CLOUD') && toolReleased('TOPICS')" :to="`/c/${friendlyId}/topics`" active-class="active-tab" title="Temas")
             span.tool-icon 💡
             span.tool-label Temas
-          router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
+          router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION') && toolReleased('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
             span.tool-icon 📽️
             span.tool-label Presentación
-          a#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
+          a#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && toolReleased('CHAT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
             span.tool-icon 💬
             span.tool-label Chat
-          a#onboarding-tab-chat.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo" @click="openChat")
+          a#onboarding-tab-chat.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT') && toolReleased('CHAT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo" @click="openChat")
             span.tool-icon 💬
             span.tool-label Chat
           router-link#onboarding-tab-survey.tool-btn(v-if="privateAllowed('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
             span.tool-icon 📝
             span.tool-label Encuesta
-          router-link#onboarding-tab-video.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
+          router-link#onboarding-tab-video.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE') && toolReleased('VIDEO')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
             span.tool-icon 🎥
             span.tool-label Videollamada
-          router-link#onboarding-tab-diagrams.tool-btn(v-if="canvasAllowed('DRAWIO', 'DIAGRAMMING')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
+          router-link#onboarding-tab-diagrams.tool-btn(v-if="canvasAllowed('DRAWIO', 'DIAGRAMMING') && toolReleased('DIAGRAMS')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
             span.tool-icon 🧩
             span.tool-label Diagramas
-          router-link#onboarding-tab-whiteboard.tool-btn(v-if="canvasAllowed('EXCALIDRAW', 'WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
+          router-link#onboarding-tab-whiteboard.tool-btn(v-if="canvasAllowed('EXCALIDRAW', 'WHITEBOARD') && toolReleased('WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
             span.tool-icon 🖍️
             span.tool-label Pizarra
-          router-link#onboarding-tab-notes.tool-btn(v-if="canvasAllowed('ETHERPAD', 'COLLAB_NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
+          router-link#onboarding-tab-notes.tool-btn(v-if="canvasAllowed('ETHERPAD', 'COLLAB_NOTES') && toolReleased('NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
             span.tool-icon 🗒️
             span.tool-label Notas
           router-link#onboarding-tab-ticket.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
             span.tool-icon 🎟️
             span.tool-label Mi boleto
-          router-link#onboarding-tab-ide.tool-btn(v-if="privateAllowed('CODE_IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
+          router-link#onboarding-tab-ide.tool-btn(v-if="privateAllowed('CODE_IDE') && toolReleased('IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
             span.tool-icon 💻
             span.tool-label IDE
     .conf-body
@@ -83,7 +86,7 @@
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
         router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
-      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator")
+      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator" :event-name="conference.name" :event-description="conference.description" :flyer-base64="conference.flyerBase64")
 
     OnboardingTour(storage-key="ib_onboarding_conference_v2" :steps="attendeeTourSteps")
 
@@ -97,7 +100,8 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess, getPresentationManagementAccess, createChatSsoExchange } from '@/services/api/usersApi'
+import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess, getPresentationManagementAccess, createChatSsoExchange, getToolAccess } from '@/services/api/usersApi'
+import type { ToolKeyName } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
 import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -142,6 +146,20 @@ export default {
     const headerCollapsed = ref(TOOL_ROUTE_SUFFIXES.some((s) => route.path.endsWith(s)))
     const auth = useAuthStore()
     let accessWatchTimer: number | null = null
+
+    // Candado por herramienta (2026-07-27): a diferencia de hasCapability/privateAllowed (fijos
+    // por el TIPO de evento), esto lo prende/apaga el moderador en vivo por evento -- arranca
+    // todo bloqueado (mapa vacio = { } = false para toda clave) hasta que se resuelva el fetch.
+    const toolAccess = ref<Partial<Record<ToolKeyName, boolean>>>({})
+    function toolReleased(key: ToolKeyName): boolean {
+      return toolAccess.value[key] === true
+    }
+    async function loadToolAccess() {
+      if (!conference.value) return
+      try {
+        toolAccess.value = await getToolAccess(conference.value.uuid, auth.state.token)
+      } catch { /* best-effort: si falla, todo queda bloqueado (fail-closed) */ }
+    }
 
     async function refreshEventAccess() {
       if (!conference.value || eventClosed.value) return false
@@ -328,6 +346,7 @@ export default {
         if (eventType) capabilities.value = new Set(eventType.capabilities)
         // Show intro only when conference has a location
         showIntro.value = conference.value?.latitude != null
+        void loadToolAccess()
       } catch (e: any) {
         error.value = 'Conferencia no encontrada. Verifica el ID.'
       } finally {
@@ -359,7 +378,7 @@ export default {
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
       privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed,
-      toolbarRef, toolbarFadeLeft, toolbarFadeRight, updateToolbarFades
+      toolbarRef, toolbarFadeLeft, toolbarFadeRight, updateToolbarFades, toolReleased
     }
   }
 }

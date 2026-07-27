@@ -60,6 +60,8 @@ import dev.rafex.insightbloom.users.application.usecases.UpdateConferenceUseCase
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.TicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
+import dev.rafex.insightbloom.users.application.usecases.ToolAccessUseCase;
+import dev.rafex.insightbloom.users.domain.model.ToolKey;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
@@ -161,6 +163,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final UserRepository userRepository;
     private final DeviceAccessGuard deviceAccessGuard;
     private final GetJaasUsageUseCase getJaasUsageUseCase;
+    private final ToolAccessUseCase toolAccessUseCase;
     private final Map<String, CopyOnWriteArrayList<EventStream>> diagramSubscribers = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArrayList<EventStream>> whiteboardSubscribers = new ConcurrentHashMap<>();
     private record VideoSubscriber(EventStream stream, String deviceFingerprint) {}
@@ -229,7 +232,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final SandboxFilesHandler sandboxFilesHandler,
                              final UserRepository userRepository,
                              final DeviceAccessGuard deviceAccessGuard,
-                             final GetJaasUsageUseCase getJaasUsageUseCase) {
+                             final GetJaasUsageUseCase getJaasUsageUseCase,
+                             final ToolAccessUseCase toolAccessUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -289,6 +293,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.userRepository = userRepository;
         this.deviceAccessGuard = deviceAccessGuard;
         this.getJaasUsageUseCase = getJaasUsageUseCase;
+        this.toolAccessUseCase = toolAccessUseCase;
     }
 
     @Override
@@ -370,6 +375,11 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/video-session/takeover", Set.of("POST")),
                 Route.of("/{id}/roles", Set.of("GET", "POST")),
                 Route.of("/{id}/roles/{userUuid}", Set.of("DELETE")),
+                Route.of("/{id}/tool-access", Set.of("GET")),
+                Route.of("/{id}/tool-access/management", Set.of("GET")),
+                Route.of("/{id}/tool-access/release-all", Set.of("POST")),
+                Route.of("/{id}/tool-access/{toolKey}/release", Set.of("POST")),
+                Route.of("/{id}/tool-access/{toolKey}/lock", Set.of("POST")),
                 Route.of("/{id}", Set.of("GET", "PUT", "DELETE")));
     }
 
@@ -475,6 +485,12 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/roles")) {
             return handleListEventRoles(jx, jx.pathParam("id"));
         }
+        if (path.endsWith("/tool-access/management")) {
+            return handleToolAccessManagement(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/tool-access")) {
+            return handleToolAccess(jx, jx.pathParam("id"));
+        }
         if (path.endsWith("/sandbox-incidents")) {
             return handleListSandboxIncidents(jx, jx.pathParam("id"));
         }
@@ -543,6 +559,15 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/tickets")) return handleIssueTicket(jx, jx.pathParam("id"));
         if (jx.path().endsWith("/roles")) {
             return handleAssignEventRole(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/tool-access/release-all")) {
+            return handleReleaseAllTools(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/release") && jx.path().contains("/tool-access/")) {
+            return handleReleaseTool(jx, jx.pathParam("id"), jx.pathParam("toolKey"));
+        }
+        if (jx.path().endsWith("/lock") && jx.path().contains("/tool-access/")) {
+            return handleLockTool(jx, jx.pathParam("id"), jx.pathParam("toolKey"));
         }
         if (jx.path().endsWith("/sandbox/download")) {
             return sandboxHandler.post(x);
@@ -1974,6 +1999,138 @@ public class ConferenceHandler extends BaseResourceHandler {
         return eventPermissionGuard.hasPermission(conferenceId, v.subjectUuid(), v.role(), Permission.MANAGE_SURVEY)
                 || (isOrganizerOrAdmin(v.role()) && getConferenceUseCase.byId(conferenceId)
                 .map(c -> c.getCreatedByUserUuid().equals(v.subjectUuid())).orElse(false));
+    }
+
+    /** Mismo criterio que la moderación de contenido existente (Dudas/Temas/Editor Monaco). */
+    private boolean canManageToolAccess(final String conferenceId, final ValidateTokenUseCase.ValidationResult v) {
+        return eventPermissionGuard.hasPermission(conferenceId, v.subjectUuid(), v.role(), Permission.MODERATE_CONTENT)
+                || (isOrganizerOrAdmin(v.role()) && getConferenceUseCase.byId(conferenceId)
+                .map(c -> c.getCreatedByUserUuid().equals(v.subjectUuid())).orElse(false));
+    }
+
+    /** Candado por herramienta resuelto para el usuario autenticado actual (o vacío si es anónimo). */
+    private boolean handleToolAccess(final JettyHttpExchange jx, final String id) {
+        try {
+            final String userUuid = optionalAuthenticatedUserUuid(jx);
+            final var released = userUuid == null ? java.util.Set.<ToolKey>of()
+                    : toolAccessUseCase.resolveForUser(id, userUuid);
+            final Map<String, Boolean> view = new java.util.LinkedHashMap<>();
+            for (final ToolKey key : ToolKey.values()) view.put(key.name(), released.contains(key));
+            sendOk(jx, view);
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleToolAccessManagement(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !canManageToolAccess(id, v)) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para moderar las herramientas de este evento");
+                return true;
+            }
+            final var matrix = toolAccessUseCase.managementView(id);
+            final Map<String, Object> view = new java.util.LinkedHashMap<>();
+            matrix.forEach((key, tool) -> view.put(key.name(), Map.of(
+                    "releasedForAll", tool.releasedForAll(),
+                    "attendees", tool.attendees().stream().map(a -> Map.of(
+                            "uuid", a.uuid(), "displayName", a.displayName() == null ? "" : a.displayName(),
+                            "email", a.email() == null ? "" : a.email(), "released", a.released())).toList())));
+            sendOk(jx, view);
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private ToolKey parseToolKey(final String raw) {
+        try {
+            return ToolKey.valueOf(String.valueOf(raw).toUpperCase(java.util.Locale.ROOT));
+        } catch (final IllegalArgumentException e) {
+            throw new IllegalArgumentException("invalid_tool_key");
+        }
+    }
+
+    private boolean handleReleaseTool(final JettyHttpExchange jx, final String id, final String rawToolKey) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !canManageToolAccess(id, v)) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para moderar las herramientas de este evento");
+                return true;
+            }
+            final ToolKey toolKey = parseToolKey(rawToolKey);
+            final var body = parseBody(jx);
+            if (Boolean.TRUE.equals(body.get("all"))) {
+                toolAccessUseCase.release(id, toolKey, true, java.util.List.of());
+                sendOk(jx, Map.of("releasedForAll", true));
+                return true;
+            }
+            final Object rawUsers = body.get("userUuids");
+            if (!(rawUsers instanceof java.util.List<?>)) throw new IllegalArgumentException("user_uuids_required");
+            final java.util.List<String> userUuids = ((java.util.List<?>) rawUsers).stream()
+                    .filter(String.class::isInstance).map(String.class::cast).distinct().toList();
+            toolAccessUseCase.release(id, toolKey, false, userUuids);
+            sendOk(jx, Map.of("releasedForAll", toolAccessUseCase.managementView(id).get(toolKey).releasedForAll(),
+                    "releasedCount", userUuids.size()));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleLockTool(final JettyHttpExchange jx, final String id, final String rawToolKey) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !canManageToolAccess(id, v)) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para moderar las herramientas de este evento");
+                return true;
+            }
+            final ToolKey toolKey = parseToolKey(rawToolKey);
+            final var body = parseBody(jx);
+            if (Boolean.TRUE.equals(body.get("all"))) {
+                toolAccessUseCase.lock(id, toolKey, true, java.util.List.of());
+                sendOk(jx, Map.of("releasedForAll", false));
+                return true;
+            }
+            final Object rawUsers = body.get("userUuids");
+            if (!(rawUsers instanceof java.util.List<?>)) throw new IllegalArgumentException("user_uuids_required");
+            final java.util.List<String> userUuids = ((java.util.List<?>) rawUsers).stream()
+                    .filter(String.class::isInstance).map(String.class::cast).distinct().toList();
+            toolAccessUseCase.lock(id, toolKey, false, userUuids);
+            sendOk(jx, Map.of("lockedCount", userUuids.size()));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    /** Botón de recuperación de un clic: libera las 9 herramientas para todos de una vez. */
+    private boolean handleReleaseAllTools(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !canManageToolAccess(id, v)) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para moderar las herramientas de este evento");
+                return true;
+            }
+            toolAccessUseCase.releaseAll(id);
+            sendOk(jx, Map.of("released", true));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
     }
 
     /** Operational staff do not need an attendee ticket for the conference. */

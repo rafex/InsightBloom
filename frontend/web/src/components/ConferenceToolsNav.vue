@@ -8,6 +8,7 @@ nav.tools-nav(v-if="conferenceId")
     router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Mensajes
     router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/words`") Palabras/Nube
     router-link(v-if="hasCapability('CODE_IDE')" :to="`/dashboard/conferences/${conferenceId}/moderation/ide`") Editor Monaco
+  router-link.btn-ghost(:to="`/dashboard/conferences/${conferenceId}/moderation/tools`") 🔒 Herramientas
   router-link.btn-ghost(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/presentation`") Presentación
 </template>
 

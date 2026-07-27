@@ -142,6 +142,9 @@ public class UsersApplication {
         final var listConferenceAttendeesUseCase = new dev.rafex.insightbloom.users.application.usecases.ListConferenceAttendeesUseCase(
                 membershipRepo, userRepo);
         final var checkInTicketUseCase = new CheckInTicketUseCase(reservationRepo);
+        final var toolAccessRepo = new SqliteToolAccessRepository(db);
+        final var toolAccessUseCase = new dev.rafex.insightbloom.users.application.usecases.ToolAccessUseCase(
+                toolAccessRepo, listConferenceAttendeesUseCase);
         final var ticketUseCase = new TicketUseCase(
                 conferenceRepo, eventTypeRepo, ticketRepo, membershipRepo, emailPort, frontendBaseUrl,
                 reservationRepo, timezoneRepo, userRepo);
@@ -428,7 +431,8 @@ public class UsersApplication {
                 resetSandboxUseCase,
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
                 setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,
-                sandboxHandler, sandboxFilesHandler, userRepo, deviceAccessGuard, getJaasUsageUseCase);
+                sandboxHandler, sandboxFilesHandler, userRepo, deviceAccessGuard, getJaasUsageUseCase,
+                toolAccessUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
