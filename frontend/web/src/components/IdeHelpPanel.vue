@@ -43,6 +43,8 @@ import helloPython from '@/assets/ide-help/11-hello-world-python.md?raw'
 import helloJs from '@/assets/ide-help/12-hello-world-javascript-typescript.md?raw'
 import helloBash from '@/assets/ide-help/13-hello-world-bash.md?raw'
 import publishWebPage from '@/assets/ide-help/14-publicar-pagina-web.md?raw'
+import deployPortal from '@/assets/ide-help/15-desplegar-portal-web.md?raw'
+import deployApi from '@/assets/ide-help/16-desplegar-api-rest.md?raw'
 import { getAiMentorConfig, chatAiMentor } from '@/services/api/surveyApi'
 import type { AiMentorChatMessage } from '@/services/api/surveyApi'
 
@@ -56,7 +58,9 @@ const TOPICS = [
   { id: 'python', title: '🐍 Hello World: Python', markdown: helloPython },
   { id: 'js', title: '📜 Hello World: JS/TS', markdown: helloJs },
   { id: 'bash', title: '💲 Hello World: Bash', markdown: helloBash },
-  { id: 'publish-web', title: '🌐 Publicar página web', markdown: publishWebPage }
+  { id: 'publish-web', title: '🌐 Publicar página web', markdown: publishWebPage },
+  { id: 'deploy-portal', title: '🖥️ Desplegar portal web', markdown: deployPortal },
+  { id: 'deploy-api', title: '🚀 Desplegar API REST', markdown: deployApi }
 ]
 
 export default {
