@@ -128,9 +128,10 @@ ARG GOBANG_URL=https://github.com/TaKO8Ki/gobang/releases/download/v0.1.0-alpha.
 ARG GOBANG_SHA256=29b8f517937cf19691c6e594a0789fe80a528fff05c346883af0e2950b9b90ef
 RUN curl -fsSL "$GOBANG_URL" -o /tmp/gobang.tar.gz && \
     echo "${GOBANG_SHA256}  /tmp/gobang.tar.gz" | sha256sum -c - && \
-    tar -xzf /tmp/gobang.tar.gz -C /usr/local/bin gobang && \
-    chmod +x /usr/local/bin/gobang && \
-    rm /tmp/gobang.tar.gz
+    mkdir -p /tmp/gobang-extract && \
+    tar -xzf /tmp/gobang.tar.gz -C /tmp/gobang-extract --strip-components=1 && \
+    install -m 0755 /tmp/gobang-extract/gobang /usr/local/bin/gobang && \
+    rm -rf /tmp/gobang.tar.gz /tmp/gobang-extract
 
 # bash-completion no se auto-carga en shells de login en Alpine (a diferencia de Debian); el
 # paquete solo instala el script, sin engancharlo a /etc/profile.d.
