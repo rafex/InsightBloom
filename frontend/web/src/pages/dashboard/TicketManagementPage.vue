@@ -16,7 +16,7 @@
         input(v-model.number="batchQuantity" type="number" min="2" max="200" placeholder="Cantidad")
         button.btn-outline(type="button" @click="issueBatch" :disabled="issuingBatch || !batchQuantity || batchQuantity < 2")
           | {{ issuingBatch ? 'Emitiendo...' : `Emitir ${batchQuantity || ''} boletos anónimos` }}
-      p.field-hint Genera varios boletos sin destinatario de una sola vez, para que la gente los reclame con el QR. No exceden el aforo restante: si pedís más de lo que queda, no se emite ninguno.
+      p.field-hint Genera varios boletos sin destinatario de una sola vez. Podés compartir el QR/UUID de cada uno a mano con invitados puntuales; los que no repartas quedan disponibles igual para que cualquiera los reclame solo desde la cartelera pública (botón "Adquirir boleto"), hasta agotarse. No exceden el aforo restante: si pedís más de lo que queda, no se emite ninguno.
   .metrics-grid(v-if="summary")
     .metric-card.metric-capacity
       strong {{ summary.remainingToIssue == null ? '∞' : summary.remainingToIssue }}

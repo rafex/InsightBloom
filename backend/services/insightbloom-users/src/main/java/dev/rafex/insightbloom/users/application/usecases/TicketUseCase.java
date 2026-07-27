@@ -183,6 +183,37 @@ public class TicketUseCase {
         return ticketRepository.findByUuid(ticket.getUuid()).orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
     }
 
+    /**
+     * Autoservicio: reclama el primer boleto anónimo (emitido en lote, sin destinatario) que
+     * siga sin reclamar, en vez de emitir uno nuevo. Así los boletos pre-emitidos que el
+     * organizador NO reparte a mano (ver {@link #issueBatch}) también se pueden reclamar solos
+     * desde la cartelera pública (decisión 2026-07-27: "reparto manual + autoservicio para lo
+     * que sobra" -- el organizador puede seguir compartiendo el UUID/QR de algunos a mano, y
+     * dejar el resto disponible acá). Reintenta contra el update atómico de la DB en
+     * {@code ticketRepository.claim} por si dos personas reclaman a la vez el último boleto
+     * libre: quien pierde la carrera simplemente prueba con el siguiente candidato, no falla.
+     * Devuelve vacío si no queda ninguno libre (el llamador decide si emite uno nuevo).
+     */
+    public Optional<Ticket> claimAnyAvailable(final String conferenceUuid, final String userUuid) {
+        final Conference conference = conference(conferenceUuid);
+        if (conference.getStatus() != ConferenceStatus.ACTIVE) throw new IllegalStateException("conference_closed");
+        expireIfNeeded(conference);
+        for (final Ticket candidate : ticketRepository.findByConference(conferenceUuid)) {
+            if (candidate.isOperational() || candidate.getStatus() != TicketStatus.ISSUED
+                    || candidate.getClaimedByUserUuid() != null || candidate.getRecipientEmail() != null) {
+                continue;
+            }
+            if (ticketRepository.claim(candidate.getUuid(), userUuid, Instant.now().toString())) {
+                if (!membershipRepository.exists(userUuid, conferenceUuid)) {
+                    membershipRepository.recordJoin(new ConferenceMembership(userUuid, conferenceUuid,
+                            conference.getName(), conference.getFriendlyId()));
+                }
+                return ticketRepository.findByUuid(candidate.getUuid());
+            }
+        }
+        return Optional.empty();
+    }
+
     /** Canjea un boleto cuando el usuario sólo dispone del contenido del QR/UUID. */
     public Ticket claimByCode(final String qrOrUuid, final String userUuid) {
         final String code = normalizeCode(qrOrUuid);

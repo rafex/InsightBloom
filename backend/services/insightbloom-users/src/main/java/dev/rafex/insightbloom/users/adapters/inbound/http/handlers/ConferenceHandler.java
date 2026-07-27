@@ -893,10 +893,15 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             final var existing = ticketUseCase.myTicket(conference.getUuid(), validation.subjectUuid());
-            final var ticket = existing.orElseGet(() -> {
-                final var issued = ticketUseCase.issue(conference.getUuid(), validation.subjectUuid(), null, null);
-                return ticketUseCase.claim(conference.getUuid(), issued.getTicketCode(), validation.subjectUuid());
-            });
+            // Antes de emitir un boleto nuevo, se intenta reclamar uno anonimo pre-emitido por
+            // el organizador (issueBatch) que nadie haya reclamado todavia -- ver
+            // TicketUseCase.claimAnyAvailable. Solo si no queda ninguno libre se emite uno.
+            final var ticket = existing.orElseGet(() -> ticketUseCase
+                    .claimAnyAvailable(conference.getUuid(), validation.subjectUuid())
+                    .orElseGet(() -> {
+                        final var issued = ticketUseCase.issue(conference.getUuid(), validation.subjectUuid(), null, null);
+                        return ticketUseCase.claim(conference.getUuid(), issued.getTicketCode(), validation.subjectUuid());
+                    }));
             sendOk(jx, 201, ticket);
         } catch (final IllegalStateException e) {
             final int status = "capacity_exceeded".equals(e.getMessage()) ? 409 : 400;
