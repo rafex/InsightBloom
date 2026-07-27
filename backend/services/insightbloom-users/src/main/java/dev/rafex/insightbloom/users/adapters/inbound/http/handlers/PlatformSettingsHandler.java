@@ -83,8 +83,14 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 Route.of("/chat-ai/public", Set.of("GET")),
                 Route.of("/ai", Set.of("GET", "PUT")),
                 Route.of("/ai/catalog", Set.of("GET")),
-                Route.of("/ai/{capability}", Set.of("PUT")),
+                // "/ai/internal" DEBE ir antes que la plantilla "/ai/{capability}": RouteMatcher
+                // devuelve la primera ruta cuyo PATH matchea (sin mirar el metodo todavia), y
+                // "{capability}" matchea cualquier segmento literal incluido "internal" -- con el
+                // orden invertido, todo GET /ai/internal caia en la ruta PUT-only de {capability}
+                // y devolvia 405 antes de llegar aca (confirmado en vivo: GroqLlmClient trataba
+                // ese 405 como "ai_settings_unavailable" y el survey terminaba en 503).
                 Route.of("/ai/internal", Set.of("GET")),
+                Route.of("/ai/{capability}", Set.of("PUT")),
                 Route.of("/device-access", Set.of("GET", "PUT")),
                 Route.of("/egress-policy", Set.of("GET", "PUT")),
                 Route.of("/device-blocks", Set.of("GET")),
