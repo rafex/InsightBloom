@@ -1,0 +1,320 @@
+# Imagen "neovim-lazyvim" del IDE: bifurcacion de Dockerfile.code-ide-neovim (que permanece
+# INTACTA y es la variante estable) para probar LazyVim como alternativa de configuracion. Mismo
+# runtime base (Java/Python/Node/gobang/etc), mismo modelo de Pod/seat-agent -- la UNICA
+# diferencia real es el editor: en vez del init.lua hand-rolled + plugins nativos "pack/*/start"
+# de la imagen original, esta usa LazyVim (v16.0.0) con un subconjunto "liviano/esencial" de
+# plugins, vendorizados a un commit fijo en build time (nunca via Lazy/red en runtime).
+#
+# Decisiones de scope (aprobadas explicitamente, 2026-07-26):
+#   - "Liviano/esencial": nucleo de LazyVim (lazy.nvim + LazyVim + snacks.nvim, LSP/treesitter/
+#     which-key/flash/gitsigns), SIN bufferline/noice/trouble/dashboard.
+#   - Reemplaza TODO el init.lua actual (no coexisten los dos enfoques).
+#   - Picker/explorador: el default real de LazyVim v16 (fzf-lua + neo-tree), no telescope.
+#
+# Investigado y VALIDADO en vivo antes de escribir este Dockerfile (Neovim 0.12.4 local + LazyVim
+# starter real, ver notas de la sesion): LazyVim v16 requiere Neovim >=0.11.2 (alpine:3.21 solo
+# trae 0.10.4 -> se sube a alpine:3.23, que trae neovim 0.11.7); blink.cmp intenta bajar un
+# binario nativo la primera vez que se usa si no se fuerza implementation="lua"; neo-tree.nvim SI
+# depende de nui.nvim en runtime pese a no declararlo como dependencia estatica (confirmado con
+# un fallo real -- "no file nui/line.lua" -- al abrir el explorador sin nui.nvim vendorizado).
+FROM alpine:3.23
+
+ARG RUNTIME_GIT_SHA=unknown
+ARG RUNTIME_BUILD_DATE=unknown
+RUN printf 'git sha: %s\nbuild:   %s\n' "$RUNTIME_GIT_SHA" "$RUNTIME_BUILD_DATE" \
+    > /etc/insightbloom-runtime-version
+RUN echo "alpine / vim-neovim-lazyvim" > /etc/insightbloom-image-name
+
+# Mismos paquetes que Dockerfile.code-ide-neovim (ver alla para el detalle de cada uno) --
+# alpine:3.23 en vez de 3.21 solo para llegar a neovim >=0.11.2 (requisito de LazyVim v16).
+RUN apk add --no-cache \
+    bash \
+    bash-completion \
+    dumb-init \
+    git \
+    sqlite \
+    curl \
+    iputils \
+    ca-certificates \
+    unzip \
+    less \
+    nano \
+    mandoc \
+    musl-locales \
+    fzf \
+    jq \
+    tmux \
+    tree \
+    bat \
+    eza \
+    fd \
+    ripgrep \
+    httpie \
+    shellcheck \
+    ncdu \
+    build-base \
+    maven \
+    neovim \
+    vim \
+    jdtls \
+    lazygit \
+    ttyd \
+    tree-sitter-cli \
+    tree-sitter-java \
+    tree-sitter-python \
+    tree-sitter-javascript \
+    tree-sitter-typescript \
+    tree-sitter-json \
+    tree-sitter-html \
+    tree-sitter-css \
+    tree-sitter-bash
+
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# Java 25 LTS Temurin -- identico a Dockerfile.code-ide-neovim.
+ARG TEMURIN_JDK_URL=https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.3%2B9/OpenJDK25U-jdk_x64_alpine-linux_hotspot_25.0.3_9.tar.gz
+ARG TEMURIN_JDK_SHA256=51c2415b370aac7c3796b0c4663c8fcf91bc22d76f03df95b25fa5667cb5fdd8
+RUN curl -fsSL "$TEMURIN_JDK_URL" -o /tmp/temurin.tar.gz && \
+    echo "${TEMURIN_JDK_SHA256}  /tmp/temurin.tar.gz" | sha256sum -c - && \
+    mkdir -p /usr/local/lib/jvm/temurin-25 && \
+    tar -xzf /tmp/temurin.tar.gz -C /usr/local/lib/jvm/temurin-25 --strip-components=1 && \
+    rm /tmp/temurin.tar.gz
+ENV JAVA_HOME=/usr/local/lib/jvm/temurin-25
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+# Python 3.12.13 -- identico a Dockerfile.code-ide-neovim.
+ARG PYTHON_URL=https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.12.13%2B20260623-x86_64-unknown-linux-musl-install_only.tar.gz
+ARG PYTHON_SHA256=1bd4bba28b410dc617dd4a386ce08bc988b87c4320d1532682f488cc5e16edc7
+RUN curl -fsSL "$PYTHON_URL" -o /tmp/python.tar.gz && \
+    echo "${PYTHON_SHA256}  /tmp/python.tar.gz" | sha256sum -c - && \
+    mkdir -p /usr/local/lib/python-3.12 && \
+    tar -xzf /tmp/python.tar.gz -C /usr/local/lib/python-3.12 --strip-components=1 && \
+    rm /tmp/python.tar.gz && \
+    ln -s /usr/local/lib/python-3.12/bin/python3 /usr/local/bin/python3 && \
+    ln -s /usr/local/lib/python-3.12/bin/python3 /usr/local/bin/python && \
+    ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip3 && \
+    ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip
+ENV PATH="/usr/local/lib/python-3.12/bin:${PATH}"
+
+# Node.js LTS 24.18.0 -- identico a Dockerfile.code-ide-neovim.
+ARG NODE_URL=https://unofficial-builds.nodejs.org/download/release/v24.18.0/node-v24.18.0-linux-x64-musl.tar.gz
+ARG NODE_SHA256=ea58409911e141ec6b19d9178efa2d9185a13295005b1cbf5521b3157eed1d95
+RUN curl -fsSL "$NODE_URL" -o /tmp/node.tar.gz && \
+    echo "${NODE_SHA256}  /tmp/node.tar.gz" | sha256sum -c - && \
+    mkdir -p /usr/local/lib/node-24 && \
+    tar -xzf /tmp/node.tar.gz -C /usr/local/lib/node-24 --strip-components=1 && \
+    rm /tmp/node.tar.gz
+ENV PATH="/usr/local/lib/node-24/bin:${PATH}"
+
+# gobang -- identico a Dockerfile.code-ide-neovim.
+ARG GOBANG_URL=https://github.com/TaKO8Ki/gobang/releases/download/v0.1.0-alpha.5/gobang-0.1.0-alpha.5-x86_64-unknown-linux-musl.tar.gz
+ARG GOBANG_SHA256=29b8f517937cf19691c6e594a0789fe80a528fff05c346883af0e2950b9b90ef
+RUN curl -fsSL "$GOBANG_URL" -o /tmp/gobang.tar.gz && \
+    echo "${GOBANG_SHA256}  /tmp/gobang.tar.gz" | sha256sum -c - && \
+    mkdir -p /tmp/gobang-extract && \
+    tar -xzf /tmp/gobang.tar.gz -C /tmp/gobang-extract --strip-components=1 && \
+    install -m 0755 /tmp/gobang-extract/gobang /usr/local/bin/gobang && \
+    rm -rf /tmp/gobang.tar.gz /tmp/gobang-extract
+
+RUN echo '. /usr/share/bash-completion/bash_completion' > /etc/profile.d/bash_completion.sh
+
+COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
+COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
+COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
+COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
+COPY infra/docker/runtime-fzf.sh /etc/profile.d/insightbloom-fzf.sh
+
+# --- LazyVim: plugins vendorizados a un commit fijo (reemplaza el bloque nativo "pack/*/start"
+# de la imagen original) ---
+#
+# SOLO XDG_DATA_HOME es global, mismo patron que NPM_CONFIG_PREFIX=/opt/insightbloom/
+# node-global: todos los asientos de un Pod multi-alumno comparten LOS MISMOS plugins ya
+# instalados (lazy.nvim los busca en stdpath("data").."/lazy/<nombre>", que con estas variables
+# resuelve a un directorio GLOBAL fuera de /home), quedando de solo lectura para cada asiento
+# (mas abajo: chown root:root + chmod a+rX). XDG_STATE_HOME/XDG_CACHE_HOME NO se comparten --
+# ahi Neovim escribe swap files, shada y cache de bytecode POR ASIENTO en cada arranque, asi que
+# tienen que quedar en su default (dentro de $HOME, por-usuario). Confirmado con un build real:
+# fijarlos tambien al directorio global de solo lectura rompia con "E303 ... permission denied"
+# al abrir cualquier archivo como el usuario coder/studentN (no-root). XDG_CONFIG_HOME tampoco se
+# toca: cada asiento sigue usando su propio "~/.config/nvim/init.lua" (ver sandbox-agent.py, sin
+# cambios), que solo hace rtp:prepend hacia la config real (mas abajo, /etc/insightbloom/
+# nvim-lazyvim-config).
+#
+# nvim-treesitter: LazyVim fija un commit MAS VIEJO de la rama "main" cuando Neovim es menor a
+# 0.12 (ver lazyvim/plugins/treesitter.lua: "commit = has('nvim-0.12')==0 and '7caec274...' or
+# nil") -- alpine:3.23 trae neovim 0.11.7-r0 (cumple el >=0.11.2 que pide LazyVim, pero no llega
+# a 0.12). El tip de main usa "vim.list.unique", una API que no existe en 0.11.7 (confirmado con
+# un build real que fallo con "attempt to index field 'list' (a nil value)"); por eso se
+# vendoriza el commit de compatibilidad exacto que LazyVim mismo habria elegido, no el tip.
+ENV XDG_DATA_HOME=/opt/insightbloom/nvim-lazy/data
+RUN mkdir -p /opt/insightbloom/nvim-lazy/data/nvim/lazy && \
+    cd /opt/insightbloom/nvim-lazy/data/nvim/lazy && \
+    clone_pin() { \
+      git clone --quiet --branch "$2" "$1" "$3" && \
+      git -C "$3" checkout --quiet "$4" && \
+      rm -rf "$3/.git"; \
+    } && \
+    clone_pin https://github.com/folke/lazy.nvim.git                             main   lazy.nvim                     85c7ff3711b730b4030d03144f6db6375044ae82 && \
+    clone_pin https://github.com/LazyVim/LazyVim.git                             main   LazyVim                       c10948c50b18fae7f256433afdef09e432410480 && \
+    clone_pin https://github.com/saghen/blink.cmp.git                           main   blink.cmp                     78336bc89ee5365633bcf754d93df01678b5c08f && \
+    clone_pin https://github.com/catppuccin/nvim.git                            main   catppuccin                    79e2049a0fdf7ec840f8463fe1d962c94493196b && \
+    clone_pin https://github.com/stevearc/conform.nvim.git                      master conform.nvim                  619363c30309d29ffa631e67c8183f2a72caa373 && \
+    clone_pin https://github.com/folke/flash.nvim.git                           main   flash.nvim                    b6346946d10d07998efee029fb0f7a593806d0cd && \
+    clone_pin https://github.com/rafamadriz/friendly-snippets.git               main   friendly-snippets             6cd7280adead7f586db6fccbd15d2cac7e2188b9 && \
+    clone_pin https://github.com/ibhagwan/fzf-lua.git                           main   fzf-lua                       28440c741e927592877514fba3db21eb188caec8 && \
+    clone_pin https://github.com/lewis6991/gitsigns.nvim.git                    main   gitsigns.nvim                 31d6fb2d618bca1482b9f274751ead5f03461408 && \
+    clone_pin https://github.com/MagicDuck/grug-far.nvim.git                    main   grug-far.nvim                 0f6a5d0d7a70659b11bbcd6b3673ee0fe61b6024 && \
+    clone_pin https://github.com/folke/lazydev.nvim.git                         main   lazydev.nvim                  ff2cbcba459b637ec3fd165a2be59b7bbaeedf0d && \
+    clone_pin https://github.com/nvim-lualine/lualine.nvim.git                  master lualine.nvim                  221ce6b2d999187044529f49da6554a92f740a96 && \
+    clone_pin https://github.com/mason-org/mason-lspconfig.nvim.git             main   mason-lspconfig.nvim          7adc933dabcc7c86ae6b07aff7ee68eac398491f && \
+    clone_pin https://github.com/mason-org/mason.nvim.git                       main   mason.nvim                    2a6940af80375532e5e9e7c1f2fc6319a1b7a69d && \
+    clone_pin https://github.com/nvim-mini/mini.ai.git                          main   mini.ai                       25248c6aa002391936a6200f12d1466015987133 && \
+    clone_pin https://github.com/nvim-mini/mini.icons.git                       main   mini.icons                    98faae31e9be1cc054ae63485e58ceb185efcad0 && \
+    clone_pin https://github.com/nvim-mini/mini.pairs.git                       main   mini.pairs                    b1c5a726921b7a8c9321e9a7a208aa0571de5810 && \
+    clone_pin https://github.com/nvim-neo-tree/neo-tree.nvim.git                main   neo-tree.nvim                 a4deaea4811b677067f515fb535b47ed3002c849 && \
+    clone_pin https://github.com/MunifTanjim/nui.nvim.git                       main   nui.nvim                      de740991c12411b663994b2860f1a4fd0937c130 && \
+    clone_pin https://github.com/mfussenegger/nvim-jdtls.git                    master nvim-jdtls                    6e9d953f0b82bccdb834cfde0e893f3119c22592 && \
+    clone_pin https://github.com/mfussenegger/nvim-lint.git                     master nvim-lint                     a219b2c9e5b4765e5c845aba119dad55806fcaf1 && \
+    clone_pin https://github.com/neovim/nvim-lspconfig.git                      master nvim-lspconfig                7ab79bb1b57160a537f427ac8a6026102f12b701 && \
+    clone_pin https://github.com/nvim-treesitter/nvim-treesitter.git            main   nvim-treesitter               7caec274fd19c12b55902a5b795100d21531391f && \
+    clone_pin https://github.com/nvim-treesitter/nvim-treesitter-textobjects.git main  nvim-treesitter-textobjects  898ee307df58f854d11cd7edd06472574d48014e && \
+    clone_pin https://github.com/windwp/nvim-ts-autotag.git                     main   nvim-ts-autotag               88c1453db4ba7dd24131086fe51fdf74e587d275 && \
+    clone_pin https://github.com/folke/persistence.nvim.git                     main   persistence.nvim              b20b2a7887bd39c1a356980b45e03250f3dce49c && \
+    clone_pin https://github.com/nvim-lua/plenary.nvim.git                      master plenary.nvim                  74b06c6c75e4eeb3108ec01852001636d85a932b && \
+    clone_pin https://github.com/folke/snacks.nvim.git                         main   snacks.nvim                   882c996cf28183f4d63640de0b4c02ec886d01f2 && \
+    clone_pin https://github.com/folke/todo-comments.nvim.git                   main   todo-comments.nvim            31e3c38ce9b29781e4422fc0322eb0a21f4e8668 && \
+    clone_pin https://github.com/folke/tokyonight.nvim.git                      main   tokyonight.nvim               cdc07ac78467a233fd62c493de29a17e0cf2b2b6 && \
+    clone_pin https://github.com/folke/ts-comments.nvim.git                     main   ts-comments.nvim              a59d6092213447450191122c9346f309161504cb && \
+    clone_pin https://github.com/folke/which-key.nvim.git                       main   which-key.nvim                3aab2147e74890957785941f0c1ad87d0a44c15a
+
+# Config global de LazyVim (lua/config, lua/plugins, lazyvim.json) -- ver
+# infra/docker/lazyvim-config/. El init.lua por-asiento (nvim-init-lazyvim.lua, copiado por
+# sandbox-agent.py igual que en la imagen original) solo referencia este directorio via
+# runtimepath, nunca lo duplica.
+RUN mkdir -p /etc/insightbloom/nvim-lazyvim-config
+COPY infra/docker/lazyvim-config/lua /etc/insightbloom/nvim-lazyvim-config/lua
+COPY infra/docker/lazyvim-config/lazyvim.json /etc/insightbloom/nvim-lazyvim-config/lazyvim.json
+
+# Precompilar los parsers de tree-sitter que LazyVim instalaria en el primer arranque (ver
+# lua/plugins/insightbloom-lsp.lua: defaults de LazyVim + java/css) -- con red disponible en CI,
+# para que ningun asiento necesite red/compilador en runtime (el pod puede tener
+# internet_enabled=false). Esta version de nvim-treesitter (rewrite 2024+) NO instala los .so
+# dentro del propio directorio del plugin -- los deja en stdpath("data").."/site/parser/" (aca,
+# /opt/insightbloom/nvim-lazy/data/nvim/site/parser/), que Neovim agrega a runtimepath
+# automaticamente al arrancar (confirmado con un build real: el primer intento de "test -f
+# .../nvim-treesitter/parser/java.so" fallaba con "No such file or directory" pese a que el log
+# mostraba "Language installed" para todos -- el directorio real es otro). Compila via "tree-sitter
+# build" (el CLI real, no cc directo) -- de ahi el paquete tree-sitter-cli arriba, confirmado
+# necesario con un build real que fallo con "ENOENT ... 'tree-sitter'" sin el.
+RUN nvim --headless -u NONE \
+    -c "set rtp+=/opt/insightbloom/nvim-lazy/data/nvim/lazy/nvim-treesitter" \
+    -c "lua require('nvim-treesitter').setup()" \
+    -c "lua require('nvim-treesitter').install({ 'bash','c','diff','html','javascript','jsdoc','json','lua','luadoc','luap','markdown','markdown_inline','printf','python','query','regex','toml','tsx','typescript','vim','vimdoc','xml','yaml','java','css' }):wait(600000)" \
+    -c "qa" && \
+    test -f /opt/insightbloom/nvim-lazy/data/nvim/site/parser/java.so && \
+    test -f /opt/insightbloom/nvim-lazy/data/nvim/site/parser/python.so
+
+RUN addgroup -g 1000 coder && \
+    adduser -D -u 1000 -G coder -h /home/coder coder && \
+    chown -R coder:coder /home/coder
+
+ENV NPM_CONFIG_PREFIX=/opt/insightbloom/node-global
+ENV PATH=/opt/insightbloom/node-global/bin:/home/coder/.opencode/bin:$PATH
+RUN mkdir -p /opt/insightbloom/node-global && chown -R coder:coder /opt/insightbloom
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    uv \
+    virtualenv \
+    jupyter \
+    numpy \
+    pandas \
+    matplotlib \
+    requests \
+    flask \
+    django \
+    fastapi \
+    pytest \
+    black \
+    pylint \
+    debugpy
+
+ENV UV_TOOL_DIR=/opt/insightbloom/uv-tools
+ENV UV_TOOL_BIN_DIR=/usr/local/bin
+RUN mkdir -p "$UV_TOOL_DIR" && \
+    UV_CACHE_DIR=/tmp/insightbloom-uv-cache uv tool install --python /usr/local/bin/python3 'posting==2.10.0' && \
+    rm -rf /tmp/insightbloom-uv-cache && \
+    test -x /usr/local/bin/posting
+
+USER coder
+WORKDIR /home/coder
+
+RUN npm install -g npm@latest && \
+    npm install -g \
+    typescript \
+    ts-node \
+    @vue/cli \
+    create-react-app \
+    create-vite \
+    esbuild \
+    webpack \
+    webpack-cli \
+    prettier \
+    eslint \
+    typescript-language-server@5.3.0 \
+    pyright@1.1.411 \
+    vscode-langservers-extracted@4.10.0 \
+    @typescript-eslint/parser \
+    @typescript-eslint/eslint-plugin
+
+# opencode -- identico a Dockerfile.code-ide-neovim.
+RUN curl -fsSL https://opencode.ai/install | bash
+
+ENV TERM=xterm-256color
+
+RUN mkdir -p /home/coder/workspace /home/coder/db /home/coder/.m2 /home/coder/.config/nvim
+COPY --chown=coder:coder infra/docker/nvim-init-lazyvim.lua /home/coder/.config/nvim/init.lua
+
+# Copia compartida para el seat-agent (Fase B, DEC-0025): cada asiento de un Pod multi-alumno
+# copia esto a su propio "/home/{userUuid}/.config/nvim/init.lua" la primera vez que se
+# aprovisiona ese alumno (sandbox-agent.py:_ensure_seat_account, SIN CAMBIOS respecto a la
+# imagen original -- solo cambia el CONTENIDO de /etc/insightbloom/nvim-init.lua entre las dos
+# imagenes, nunca el mecanismo de copia).
+USER root
+RUN mkdir -p /etc/insightbloom /usr/local/share/doc/insightbloom
+COPY infra/docker/nvim-init-lazyvim.lua /etc/insightbloom/nvim-init.lua
+COPY infra/docker/seed-node-types.sh /usr/local/bin/seed-node-types.sh
+COPY infra/docker/sandbox-agent.py /usr/local/bin/sandbox-agent.py
+COPY infra/docker/sandbox_file_api.py /usr/local/bin/sandbox_file_api.py
+COPY infra/docker/insightbloom-publish.py /usr/local/bin/insightbloom-publish.py
+COPY infra/docker/insightbloom-mentor.py /usr/local/bin/insightbloom-mentor.py
+COPY infra/docker/insightbloom /usr/local/bin/insightbloom
+COPY infra/docker/IDE-WEB-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-WEB-PUBLICATION.md
+COPY infra/docker/IDE-AI-MENTOR.md /usr/local/share/doc/insightbloom/IDE-AI-MENTOR.md
+COPY infra/docker/IDE-REST-CLIENT.md /usr/local/share/doc/insightbloom/IDE-REST-CLIENT.md
+COPY infra/docker/IDE-APP-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-APP-PUBLICATION.md
+COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
+RUN mkdir -p /usr/local/share/insightbloom-node-types && \
+    npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \
+    chmod -R a+rX /usr/local/share/insightbloom-node-types && \
+    test -x /opt/insightbloom/node-global/bin/typescript-language-server && \
+    test -x /opt/insightbloom/node-global/bin/pyright-langserver && \
+    test -x /opt/insightbloom/node-global/bin/vscode-html-language-server && \
+    test -x /opt/insightbloom/node-global/bin/vscode-css-language-server && \
+    chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py \
+    /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py /usr/local/bin/insightbloom \
+    /usr/local/bin/seed-ide-docs.sh
+
+# Todos los directorios globales de LazyVim/plugins/config quedan legibles por cualquier
+# asiento (los procesos de nvim corren como studentN/coder, nunca como root) -- solo root
+# (build time) puede escribirlos, igual que /opt/insightbloom/node-global.
+RUN chown -R root:root /opt/insightbloom/nvim-lazy /etc/insightbloom/nvim-lazyvim-config && \
+    chmod -R a+rX /opt/insightbloom/nvim-lazy /etc/insightbloom/nvim-lazyvim-config
+
+USER coder
+
+EXPOSE 8079-8089
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["sh", "-c", "/usr/local/bin/seed-node-types.sh /home/coder/workspace; /usr/local/bin/seed-ide-docs.sh /home/coder/workspace; tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]

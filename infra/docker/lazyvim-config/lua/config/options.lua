@@ -1,0 +1,2 @@
+-- Las opciones por defecto de LazyVim ya son razonables para esta imagen; no se agrega nada
+-- extra a proposito, para mantener el comportamiento lo mas cercano posible al LazyVim stock.

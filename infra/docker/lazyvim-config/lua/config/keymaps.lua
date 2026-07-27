@@ -1,0 +1,1 @@
+-- Sin keymaps adicionales a proposito -- se mantienen los defaults de LazyVim.
