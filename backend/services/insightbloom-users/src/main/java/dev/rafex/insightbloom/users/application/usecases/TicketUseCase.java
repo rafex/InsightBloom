@@ -4,6 +4,7 @@ import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.ConferenceMembership;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Ticket;
+import dev.rafex.insightbloom.users.domain.model.TicketStatus;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceMembershipRepository;
@@ -289,6 +290,27 @@ public class TicketUseCase {
 
     public boolean isTicketed(final Conference conference) {
         return hasCapability(conference, EventCapability.TICKETING_GENERAL) || hasCapability(conference, EventCapability.TICKETING_SEATED);
+    }
+
+    /**
+     * Asientos realmente ocupados para la vista pública de aforo -- NO es lo mismo que
+     * {@code Conference.reservedCount}: ese contador sube apenas se EMITE un boleto (incluidos
+     * los lotes de {@link #issueBatch} que nadie reclamó todavía) porque sirve para bloquear
+     * atómicamente el sobre-cupo al emitir/reservar. Acá contamos boletos CLAIMED/CHECKED_IN u
+     * operativos (personal del evento, que siempre cuenta) -- boletos ISSUED sin reclamar no
+     * ocupan un lugar real todavía. Reportado 2026-07-27: un organizador pre-emitía 15 boletos
+     * sin reclamar y la página pública mostraba "0 disponibles de 15" sin que nadie hubiese
+     * confirmado asistencia.
+     */
+    public int countOccupiedSeats(final String conferenceUuid) {
+        int occupied = 0;
+        for (final Ticket ticket : ticketRepository.findByConference(conferenceUuid)) {
+            if (ticket.isOperational() || ticket.getStatus() == TicketStatus.CLAIMED
+                    || ticket.getStatus() == TicketStatus.CHECKED_IN) {
+                occupied++;
+            }
+        }
+        return occupied;
     }
 
     /** Marca automáticamente como EXPIRED los boletos vencidos de eventos ticketed. */

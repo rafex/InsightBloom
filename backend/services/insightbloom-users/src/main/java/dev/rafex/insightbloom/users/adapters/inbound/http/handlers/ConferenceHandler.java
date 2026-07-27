@@ -760,8 +760,15 @@ public class ConferenceHandler extends BaseResourceHandler {
      */
     private PublicConferenceView publicView(final Conference conference, final String userUuid) {
         final boolean ticketRequired = ticketUseCase != null && ticketUseCase.isTicketed(conference);
+        // Para eventos con boletos, el aforo publico se basa en boletos realmente reclamados
+        // (CLAIMED/CHECKED_IN/operativos), no en reservedCount -- ese contador sube apenas se
+        // EMITE un boleto (incluidos lotes sin reclamar) porque gatea el sobre-cupo al emitir.
+        // Ver TicketUseCase.countOccupiedSeats(). Eventos sin ticketing (reserva directa GENERAL/
+        // SEATED) no tienen boletos "sin reclamar" -- ahi reservedCount ya refleja ocupacion real.
+        final int occupied = ticketRequired ? ticketUseCase.countOccupiedSeats(conference.getUuid())
+                : conference.getReservedCount();
         final Integer remaining = conference.getCapacity() == null ? null
-                : Math.max(0, conference.getCapacity() - conference.getReservedCount());
+                : Math.max(0, conference.getCapacity() - occupied);
         final boolean hasTicket = userUuid != null && ticketUseCase != null
                 && ticketUseCase.myTicket(conference.getUuid(), userUuid).isPresent();
         final String organizer = userRepository.findByUuid(conference.getCreatedByUserUuid())
