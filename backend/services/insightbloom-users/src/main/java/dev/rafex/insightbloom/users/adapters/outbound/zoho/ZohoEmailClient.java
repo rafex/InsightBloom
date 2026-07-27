@@ -35,6 +35,19 @@ public class ZohoEmailClient implements EmailPort {
 
     @Override
     public void send(final String toEmail, final String subject, final String body) {
+        sendInternal(toEmail, subject, mimeMessage -> mimeMessage.setText(body));
+    }
+
+    @Override
+    public void sendHtml(final String toEmail, final String subject, final String htmlBody) {
+        sendInternal(toEmail, subject, mimeMessage -> mimeMessage.setContent(htmlBody, "text/html; charset=UTF-8"));
+    }
+
+    private interface BodySetter {
+        void apply(Message mimeMessage) throws MessagingException;
+    }
+
+    private void sendInternal(final String toEmail, final String subject, final BodySetter bodySetter) {
         if (!isEnabled()) {
             throw new IllegalStateException("email_provider_not_configured");
         }
@@ -64,7 +77,7 @@ public class ZohoEmailClient implements EmailPort {
             mimeMessage.setFrom(new InternetAddress(fromAddress != null ? fromAddress : username));
             mimeMessage.setRecipients(Message.RecipientType.TO, InternetAddress.parse(toEmail));
             mimeMessage.setSubject(subject);
-            mimeMessage.setText(body);
+            bodySetter.apply(mimeMessage);
             Transport.send(mimeMessage);
         } catch (final MessagingException e) {
             throw new RuntimeException("zoho_send_failed", e);

@@ -5,6 +5,8 @@ import dev.rafex.insightbloom.users.domain.model.ConferenceMembership;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Ticket;
 import dev.rafex.insightbloom.users.domain.model.TicketStatus;
+import dev.rafex.insightbloom.users.domain.services.TicketEmailTemplate;
+import dev.rafex.insightbloom.users.domain.services.TicketQrGenerator;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceMembershipRepository;
@@ -411,10 +413,11 @@ public class TicketUseCase {
     private void sendEmail(final Conference conference, final Ticket ticket) {
         if (!emailPort.isEnabled() || ticket.getRecipientEmail() == null) return;
         try {
-            emailPort.send(ticket.getRecipientEmail(), "Tu boleto para " + conference.getName(),
-                    "Tu boleto está listo. Canjéalo o preséntalo en la entrada:\n\n" +
-                    frontendBaseUrl + "/c/" + conference.getFriendlyId() + "/ticket?ticket=" + ticket.getTicketCode() +
-                    "\n\nCódigo: " + ticket.getTicketCode());
+            final String ticketUrl = frontendBaseUrl + "/c/" + conference.getFriendlyId()
+                    + "/ticket?ticket=" + ticket.getTicketCode();
+            final String qrDataUri = TicketQrGenerator.toPngDataUri(ticketUrl);
+            final String html = TicketEmailTemplate.render(conference.getName(), ticketUrl, qrDataUri, ticket.getTicketCode());
+            emailPort.sendHtml(ticket.getRecipientEmail(), "Tu boleto para " + conference.getName(), html);
         } catch (Exception ignored) { }
     }
 
