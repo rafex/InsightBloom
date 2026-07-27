@@ -264,7 +264,6 @@ export default {
     const breadcrumbItems = computed(() => {
       const wordsPath = `/dashboard/conferences/${props.conferenceId}/moderation/words`
       const items: BreadcrumbItem[] = [
-        { label: 'Dashboard', to: '/dashboard' },
         { label: conferenceName.value || props.conferenceId || '', to: wordsPath, loading: !conferenceName.value }
       ]
       if (wordCanonical) {

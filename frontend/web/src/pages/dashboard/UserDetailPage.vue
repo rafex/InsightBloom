@@ -113,7 +113,6 @@ export default {
     })
 
     const breadcrumbItems = computed(() => [
-      { label: 'Dashboard', to: '/dashboard' },
       { label: 'Usuarios', to: '/dashboard/admin/users' },
       { label: user.value?.displayName || user.value?.username || '', loading: loading.value }
     ])

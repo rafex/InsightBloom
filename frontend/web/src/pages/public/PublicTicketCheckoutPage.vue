@@ -19,11 +19,8 @@
               .quantity(aria-label="Cantidad")
                 span 1
               .product-price {{ formattedPrice }}
-        section.card.coupons
-          label.title Código promocional
-          .coupon-form
-            input.input-field(type="text" placeholder="Disponible próximamente" disabled)
-            button(type="button" disabled) Aplicar
+        //- Sin seccion de cupones hasta que exista la funcionalidad: un input deshabilitado
+        //- "Disponible proximamente" solo genera dudas (auditoria UX 2026-07-26).
         section.card.checkout
           label.title Resumen de compra
           .details
@@ -46,32 +43,13 @@
               button.checkout-btn.disabled(v-else type="button" disabled) Pago próximamente
             router-link.checkout-btn.success-btn(v-else :to="`/c/${event.friendlyId}`") Entrar al evento
           p.error(v-if="actionError") {{ actionError }}
-      aside.payment-panel(v-if="!isFree")
-        .payment-modal
-          .payment-heading
-            span Pago del boleto
-            small Próximamente
-          .payment-options
-            button(type="button" disabled) PayPal
-            button(type="button" disabled) Apple Pay
-            button(type="button" disabled) Google Pay
-          .separator
-            span
-            p Métodos de pago
-            span
-          .payment-fields
-            label Nombre completo
-            input.input-field(type="text" placeholder="Se habilitará con el proveedor" disabled)
-            label Tarjeta
-            input.input-field(type="text" placeholder="0000 0000 0000 0000" disabled)
-            .split-fields
-              div
-                label Vencimiento
-                input.input-field(type="text" placeholder="MM/AA" disabled)
-              div
-                label CVV
-                input.input-field(type="text" placeholder="CVV" disabled)
-          p.payment-note La integración de pagos todavía no está habilitada. No se solicitarán ni almacenarán datos bancarios.
+      //- Sin formulario de tarjeta falso: campos de pago deshabilitados hacen dudar ("¿tengo
+      //- que pagar? ¿esta roto?"). Hasta que exista proveedor de pagos, un aviso claro basta.
+      aside.free-panel(v-if="!isFree")
+        .free-panel-icon 💳
+        h2 Pago en línea próximamente
+        p Este evento tiene costo, pero el pago en línea todavía no está habilitado en la plataforma. Contactá a los organizadores del evento para adquirir tu boleto.
+        .security-note 🔒 Nunca se te pedirán datos bancarios por esta página mientras el pago no esté habilitado.
       aside.free-panel(v-else)
         .free-panel-icon 🎟️
         h2 Acceso gratuito

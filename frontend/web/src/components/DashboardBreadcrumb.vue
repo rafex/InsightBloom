@@ -1,13 +1,18 @@
 <template lang="pug">
 nav.breadcrumbs(aria-label="breadcrumb")
-  template(v-for="(item, i) in items" :key="i")
+  template(v-for="(item, i) in allItems" :key="i")
     router-link(v-if="item.to" :to="item.to") {{ item.label }}
     span.crumb-loading(v-else-if="item.loading") …
     span.crumb-current(v-else) {{ item.label }}
-    span.sep(v-if="i < items.length - 1") /
+    span.sep(v-if="i < allItems.length - 1") /
 </template>
 
 <script lang="ts">
+// El crumb raíz ("Panel" → /dashboard) lo agrega este componente — estaba duplicado literal
+// como { label: 'Dashboard' } en 14 páginas (auditoría UX 2026-07-26; de paso se traduce el
+// anglicismo). Las páginas solo declaran sus crumbs propios.
+import { computed } from 'vue'
+
 export interface BreadcrumbItem {
   label: string
   to?: string
@@ -18,6 +23,13 @@ export default {
   name: 'DashboardBreadcrumb',
   props: {
     items: { type: Array as () => BreadcrumbItem[], required: true }
+  },
+  setup(props: { items: BreadcrumbItem[] }) {
+    const allItems = computed<BreadcrumbItem[]>(() => [
+      { label: 'Panel', to: '/dashboard' },
+      ...props.items
+    ])
+    return { allItems }
   }
 }
 </script>

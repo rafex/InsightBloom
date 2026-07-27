@@ -1,7 +1,7 @@
 <template lang="pug">
 .dashboard-home(v-if="isOrganizer" id="onboarding-dashboard-home")
   .dashboard-header
-    h1 Dashboard
+    h1 Panel
 
   .summary-group(v-if="!loading && conferences.length" id="onboarding-events-summary")
     h2 Eventos

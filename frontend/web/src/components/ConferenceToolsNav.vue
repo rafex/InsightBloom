@@ -17,6 +17,7 @@ import DropdownMenu from '@/components/DropdownMenu.vue'
 import { getConference, getActiveEventTypes } from '@/services/api/usersApi'
 import type { EventCapability, EventType } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import { eventTypeHasCapability } from '@/features/conferences/capabilities'
 
 /**
  * Mismo agrupamiento Presentador/Público/Moderación/Presentación que la columna "Modos" +
@@ -37,9 +38,7 @@ export default {
     const eventTypes = ref<EventType[]>([])
 
     function hasCapability(capability: EventCapability): boolean {
-      if (eventTypes.value.length === 0) return true
-      const type = eventTypes.value.find((t) => t.key === eventTypeKey.value)
-      return type ? type.capabilities.includes(capability) : true
+      return eventTypeHasCapability(eventTypes.value, eventTypeKey.value, capability)
     }
 
     function openPublic() {

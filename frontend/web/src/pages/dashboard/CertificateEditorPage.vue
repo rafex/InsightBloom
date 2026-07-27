@@ -1,6 +1,6 @@
 <template lang="pug">
 .certificate-editor-page
-  DashboardBreadcrumb(:items="[{ label: 'Dashboard', to: '/dashboard' }, { label: 'Eventos', to: '/dashboard/conferences' }, { label: 'Certificado' }]")
+  DashboardBreadcrumb(:items="[{ label: 'Eventos', to: '/dashboard/conferences' }, { label: 'Certificado' }]")
   .page-heading
     div
       h1 Certificado del evento

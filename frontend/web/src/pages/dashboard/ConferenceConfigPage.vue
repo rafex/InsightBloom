@@ -18,7 +18,7 @@
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
-  .form(v-else)
+  .form(v-else @input.capture="markFormDirty" @change.capture="markFormDirty")
     .form-group.general-group(v-if="eventTypes.length" v-show="activeTab === 'general'")
       label Tipo de evento
       select(v-model="eventTypeKey")
@@ -33,9 +33,9 @@
     .form-group.certificate-engine-group(v-show="activeTab === 'tools'")
       label Motor de certificado
       select(v-model="certificateEngine")
-        option(value="INHOUSE") Inhouse (PDFBox)
-        option(value="HTML_CHROME") HTML + Playwright/Chromium
-      p.field-hint INHOUSE usa el editor legacy y la configuración global como respaldo. HTML + Playwright/Chromium usa el editor visual del evento y su catálogo de diseños.
+        option(value="INHOUSE") Clásico (editor simple)
+        option(value="HTML_CHROME") Visual (editor de diseños)
+      p.field-hint El motor Clásico usa el editor simple y la configuración global como respaldo. El Visual usa el editor de diseños del evento y su catálogo de plantillas.
       button.btn-outline(type="button" @click="saveCertificateEngine" :disabled="savingCertificateEngine")
         span(v-if="savingCertificateEngine") Guardando...
         span(v-else) Guardar motor de certificado
@@ -93,9 +93,9 @@
 
     .form-group.sandbox-group(v-show="activeTab === 'sandbox'")
       label IDE de código
-      p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE". El ambiente incluye Java, Node.js y Python en el mismo sandbox — no hace falta elegir un lenguaje. Los alumnos eligen ellos mismos entre Web (code-server, un sandbox por alumno) y CLI (terminal con Neovim, se reutiliza entre alumnos) — abajo se configura el tamaño de cada pool por separado.
+      p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE". El ambiente incluye Java, Node.js y Python en el mismo sandbox — no hace falta elegir un lenguaje. Los alumnos eligen ellos mismos entre Web (editor en el navegador, un sandbox por alumno) y CLI (terminal con Neovim, se comparte entre alumnos) — abajo se configura cuántos de cada tipo puede haber a la vez.
       .coord-field
-        span.coord-label Sandboxes Web concurrentes (code-server)
+        span.coord-label Sandboxes Web concurrentes (editor en el navegador)
         input(v-model.number="sandboxPoolSize" type="number" min="1" placeholder="1")
       .coord-field
         span.coord-label Sandboxes CLI concurrentes (Neovim)
@@ -103,7 +103,7 @@
       .coord-field(v-if="cliEnabled")
         span.coord-label Alumnos por sandbox CLI
         input(v-model.number="sandboxSeatsPerPod" type="number" min="1" max="10" placeholder="4 (por defecto)")
-      p.field-hint(v-if="cliEnabled") En modo CLI, varios alumnos pueden compartir el mismo sandbox — cada uno con su propio usuario y espacio de trabajo aislado dentro del mismo contenedor. El modo Web (code-server) no admite esto: siempre es un sandbox por alumno.
+      p.field-hint(v-if="cliEnabled") En modo CLI, varios alumnos pueden compartir el mismo sandbox — cada uno con su propio usuario y espacio de trabajo aislado. El modo Web no admite esto: siempre es un sandbox por alumno.
       .coord-field
         span.coord-label Paquetes adicionales (opcional)
         input(v-model="sandboxExtraPackages" type="text" placeholder="numpy pandas")
@@ -113,7 +113,7 @@
       .coord-field
         span.coord-label Memoria máxima de Java por sandbox (MB, opcional)
         input(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="70 (por defecto)")
-      p.field-hint Límite de memoria (-Xmx) de las JVMs dentro del sandbox — el Language Server de Java y cualquier programa que corran los asistentes. Por defecto son chicas (70 MB), pensadas para cursos: no toman toda la memoria disponible del sandbox aunque puedan. No puede exceder el límite de memoria del contenedor configurado en la infraestructura; si lo excedés, el servidor rechaza el guardado.
+      p.field-hint Cuánta memoria puede usar cada programa de Java que corran los asistentes (incluido el autocompletado del editor). El valor por defecto (70 MB) está pensado para cursos: alcanza para ejercicios y no acapara el sandbox. Si ponés un valor mayor al que soporta la infraestructura, el servidor rechaza el guardado y te lo indica.
       button.btn-outline(type="button" @click="saveSandboxConfig" :disabled="savingSandboxConfig")
         span(v-if="savingSandboxConfig") Guardando...
         span(v-else) Guardar configuración del IDE
@@ -134,11 +134,11 @@
           button.btn-outline(type="button" @click="prewarmSandboxPool" :disabled="prewarmingSandboxPool")
             span(v-if="prewarmingSandboxPool") Preparando...
             span(v-else) Preparar sandboxes antes del evento
-          p.field-hint Crea por adelantado los Pods Web y CLI configurados, pero no los asigna a ningún alumno. Quedan listos para reclamarse cuando entren los asistentes.
+          p.field-hint Crea por adelantado los sandboxes Web y CLI configurados, pero no los asigna a ningún alumno. Quedan listos para reclamarse cuando entren los asistentes.
         p.success(v-if="sandboxPrewarmResult")
           | Pool solicitado: Web {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.desiredPods || 0 }}; CLI {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.desiredPods || 0 }}.
         p.error(v-if="sandboxPrewarmError") {{ sandboxPrewarmError }}
-        p.field-hint Pods activos de este evento -- quién los ocupa, en qué modo (Web/CLI) y si ya están listos para usarse. Para revisar y editar los archivos de un alumno, usá el "Editor de código" en Moderación.
+        p.field-hint Sandboxes activos de este evento -- quién los ocupa, en qué modo (Web/CLI) y si ya están listos para usarse. Para revisar y editar los archivos de un alumno, usá el "Editor de código" en Moderación.
         p.error(v-if="sandboxStatusError") {{ sandboxStatusError }}
         .table-scroll(v-if="sandboxStatusLoaded")
           table.incidents-table
@@ -159,9 +159,11 @@
                 td {{ pod.phase }}
                 td {{ pod.ready ? '✓' : '—' }}
                 td.seats-cell
+                  //- El backend solo expone el UUID del ocupante; se muestra "Asiento N" + UUID
+                  //- corto (el completo queda en el tooltip) en vez del UUID crudo de 36 chars.
                   span.seat-badge(v-for="seat in pod.seats" :key="seat.seatIndex")
-                    span.seat-user(v-if="seat.userUuid") {{ seat.userUuid }}
-                    span.seat-empty(v-else) (libre)
+                    span.seat-user(v-if="seat.userUuid" :title="seat.userUuid") Asiento {{ seat.seatIndex + 1 }}: {{ seat.userUuid.slice(0, 8) }}…
+                    span.seat-empty(v-else) Asiento {{ seat.seatIndex + 1 }}: libre
                 td.sandbox-actions
                   button.btn-small(type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
                     span(v-if="sandboxActionBusy === pod.podName") Procesando...
@@ -267,7 +269,7 @@
       p.error(v-if="surveyAiConfigError") {{ surveyAiConfigError }}
 
     .form-group.egress-policy-group(v-show="activeTab === 'network'")
-      label Control de red del evento (egress)
+      label Control de red del evento
       p.field-hint Dominios adicionales que el IDE de ESTE evento puede alcanzar, más allá de la
         |  lista global de la plataforma (se suman, nunca la reemplazan). La lista negra, tanto la
         |  global como la de aquí, siempre gana sobre cualquier lista blanca.
@@ -306,7 +308,8 @@
 </template>
 
 <script lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, reactive, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import {
   getConference, setSeatingMode, setTicketSalesEnabled, getActiveEventTypes, setEventType,
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
@@ -522,6 +525,31 @@ export default {
         savingMentor.value = false
       }
     }
+
+    // Aviso de cambios sin guardar (auditoría UX): la página tiene ~10 botones "Guardar X"
+    // independientes y era muy fácil editar varias secciones, guardar una y salir perdiendo el
+    // resto en silencio. formDirty se activa con cualquier input dentro del formulario y se
+    // limpia cuando CUALQUIER guardado tiene éxito (heurística optimista: cubre el flujo comun
+    // editar->guardar->salir sin molestar; editar dos secciones y guardar solo una puede no
+    // avisar — preferible a avisar siempre en falso). Para route-leave y beforeunload se usa el
+    // dialogo nativo: es el unico mecanismo que el navegador permite en beforeunload, y usar el
+    // mismo en ambos mantiene el comportamiento identico.
+    const formDirty = ref(false)
+    const markFormDirty = () => { formDirty.value = true }
+    const savedFlags = [eventTypeSaved, certificateEngineSaved, canvasConfigSaved, seatingSaved,
+      ticketSalesSaved, sandboxConfigSaved, deviceAccessConfigSaved, egressPolicySaved,
+      mentorSaved, surveyAiConfigSaved]
+    savedFlags.forEach((flag) => watch(flag, (saved) => { if (saved) formDirty.value = false }))
+
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (formDirty.value) { e.preventDefault(); e.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
+    onBeforeRouteLeave(() => {
+      if (!formDirty.value) return true
+      return window.confirm('Hay cambios sin guardar en esta página. ¿Salir de todos modos?')
+    })
 
     onMounted(async () => {
       try {
@@ -836,7 +864,6 @@ export default {
     }
 
     const breadcrumbItems = computed(() => [
-      { label: 'Dashboard', to: '/dashboard' },
       { label: 'Eventos', to: '/dashboard/conferences' },
       { label: conference.value?.name || props.conferenceId || '', loading: loading.value && !conference.value },
       { label: 'Configuración' }
@@ -877,7 +904,7 @@ export default {
              sandboxStatus, sandboxStatusLoaded, loadingSandboxStatus, sandboxStatusError, loadSandboxStatus,
              prewarmingSandboxPool, sandboxPrewarmResult, sandboxPrewarmError, prewarmSandboxPool,
              sandboxActionBusy, sandboxActionError, sandboxIsFree, deleteSandbox, recreateSandbox,
-             sandboxConfirm, performSandboxAction,
+             sandboxConfirm, performSandboxAction, markFormDirty,
              maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
              deviceAccessConfigSaved, deviceAccessConfigError, saveDeviceAccessConfig,
              eventTypes, eventTypeKey, savingEventType, eventTypeSaved, eventTypeError, saveEventType,

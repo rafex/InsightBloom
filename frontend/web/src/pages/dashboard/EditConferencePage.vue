@@ -308,7 +308,6 @@ Conclusiones, encuesta y entrega de certificados.`
     }
 
     const breadcrumbItems = computed(() => [
-      { label: 'Dashboard', to: '/dashboard' },
       { label: 'Eventos', to: '/dashboard/conferences' },
       { label: conference.value?.name || props.conferenceId || '', loading: loading.value && !conference.value },
       { label: 'Editor' }

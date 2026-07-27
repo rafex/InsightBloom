@@ -156,7 +156,6 @@ export default {
     }
 
     const breadcrumbItems = computed(() => [
-      { label: 'Dashboard', to: '/dashboard' },
       { label: 'Eventos', to: '/dashboard/conferences' },
       { label: conferenceName.value || props.conferenceId || '', loading: loading.value && !conferenceName.value },
       { label: 'Mapa de asientos' }

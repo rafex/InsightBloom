@@ -1,6 +1,6 @@
 <template lang="pug">
 .admin-users-page
-  DashboardBreadcrumb(:items="[{ label: 'Dashboard', to: '/dashboard' }, { label: 'Usuarios' }]")
+  DashboardBreadcrumb(:items="[{ label: 'Usuarios' }]")
 
   h2 Usuarios
 

@@ -1,6 +1,6 @@
 <template lang="pug">
 .conferences-list-page
-  DashboardBreadcrumb(:items="[{ label: 'Dashboard', to: '/dashboard' }, { label: 'Eventos' }]")
+  DashboardBreadcrumb(:items="[{ label: 'Eventos' }]")
 
   .list-header
     h1 Eventos
@@ -108,6 +108,7 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import { isExpired } from '@/utils/dates'
+import { eventTypeHasCapability } from '@/features/conferences/capabilities'
 import type { Conference, DownloadCounts, EventType, EventCapability } from '@/services/api/types'
 
 interface ConferenceRow extends Conference {
@@ -150,11 +151,7 @@ export default {
     }
 
     function hasCapability(c: ConferenceRow, capability: EventCapability): boolean {
-      // Catálogo aún no cargado (o falló): no ocultar acciones — el backend sigue siendo el
-      // gate autoritativo (409 capability_not_available), esto solo evita parpadeo/falsos negativos.
-      if (eventTypes.value.length === 0) return true
-      const type = eventTypes.value.find((t) => t.key === c.eventTypeKey)
-      return type ? type.capabilities.includes(capability) : true
+      return eventTypeHasCapability(eventTypes.value, c.eventTypeKey, capability)
     }
 
     async function loadDownloadCounts() {

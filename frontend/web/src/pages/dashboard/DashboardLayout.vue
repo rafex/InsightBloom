@@ -10,6 +10,9 @@
         router-link(to="/events" @click="sidebarOpen = false") Cartelera
         router-link(v-if="isOrganizer" to="/dashboard/conferences" @click="sidebarOpen = false") Eventos
         router-link(v-if="!isOrganizer" to="/dashboard/join" @click="sidebarOpen = false") Unirse a un evento
+        //- Rutas que existian pero eran huerfanas (auditoria UX): sin entrada en ninguna nav.
+        router-link(v-if="isOrganizer" to="/dashboard/certificate-settings" @click="sidebarOpen = false") Certificados
+        router-link(v-if="isAdmin" to="/dashboard/admin/event-types" @click="sidebarOpen = false") Tipos de evento
         router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="sidebarOpen = false") Usuarios
         router-link(v-if="isAdmin" to="/dashboard/admin/roles" @click="sidebarOpen = false") Roles
         router-link(v-if="isAdmin" to="/dashboard/admin/ai" @click="sidebarOpen = false") IA
