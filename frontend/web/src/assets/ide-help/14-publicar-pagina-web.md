@@ -101,6 +101,44 @@ Usa el `publicationId` que devolvió el comando:
 insightbloom revoke PUBLICATION_ID --token-prompt
 ```
 
-La publicación no es un servidor de desarrollo: no admite APIs, WebSockets,
-procesos persistentes ni puertos arbitrarios. Para probar esos servicios usa
-el sandbox del IDE; la publicación web está pensada para HTML estático.
+Esta publicación es una copia estática: no admite APIs, WebSockets ni procesos persistentes. Para
+publicar un backend/API vivo, seguí leyendo.
+
+## Publicar backend/API (proceso vivo)
+
+A diferencia de lo anterior, esto expone tu proceso corriendo de verdad dentro del sandbox — sirve
+para que alguien de afuera pruebe una API que estás desarrollando mientras la tenés levantada.
+
+### El puerto: `$APP_PORT`
+
+Tu servidor tiene que escuchar en el puerto de la variable de entorno `APP_PORT` (no elijas un
+puerto fijo vos mismo). Revisá el valor con:
+
+```bash
+echo $APP_PORT
+```
+
+En Java, leelo con `System.getenv("APP_PORT")`; en Python, con `os.environ.get("APP_PORT")`. Ver
+ejemplos completos en las pestañas "Hello World: Java" y "Hello World: Python" de este panel.
+
+### Publicar
+
+```bash
+insightbloom login   # si todavía no iniciaste sesión
+insightbloom app-publish
+```
+
+La salida incluye la URL pública, un `accessToken` y un ejemplo de `curl` listo para copiar. Quien
+consuma la URL necesita mandar el token en cada request:
+
+```bash
+curl -H "X-Preview-Token: TU_TOKEN" "https://app-insightbloom.v1.rafex.cloud/p/TU_PUBLICATION_ID/tu-ruta"
+```
+
+Solo hay una publicación de backend/API activa por sandbox: publicar de nuevo reemplaza la
+anterior (la URL y el token viejos dejan de funcionar). La publicación expira automáticamente; si
+querés cortarla antes:
+
+```bash
+insightbloom app-revoke PUBLICATION_ID
+```
