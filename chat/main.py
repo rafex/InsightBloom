@@ -4,7 +4,7 @@ InsightBloom Chat — backend principal.
 Flujo de usuario:
   1. POST /api/register   { phone, nickname, password }
   2. POST /api/login      { phone, password }         → token
-  3. POST /api/sso        { ib_token }                → token (cuenta del sitio principal)
+  3. POST /api/sso        { code }                     → token (código de intercambio de un solo uso)
   4. POST /api/join       { token, conference_id }    → valida e inicia sesión de conferencia
   5. WS   /ws/{token}     chat en tiempo real
 

@@ -357,9 +357,27 @@ public class UsersApplication {
         final var readWorkspaceFileUseCase = new ReadWorkspaceFileUseCase(sandboxRepo, sandboxOrchestrator);
         final var writeWorkspaceFileUseCase = new WriteWorkspaceFileUseCase(sandboxRepo, sandboxOrchestrator);
 
+        // AUD-08: mismo criterio que WORKSPACE_DOWNLOAD_SECRET (linea ~313) -- el codigo de
+        // intercambio SSO del chat dura 60s (SsoExchangeToken.EXPIRY_SECONDS) y este servicio
+        // corre con una sola replica, asi que un secreto efimero por proceso es tan seguro como
+        // uno persistido, sin el riesgo de un valor por defecto adivinable.
+        final String ssoExchangeSecret = java.util.Optional.ofNullable(System.getenv("SSO_EXCHANGE_SECRET"))
+                .filter(s -> !s.isBlank())
+                .orElseGet(() -> {
+                    final byte[] random = new byte[32];
+                    new java.security.SecureRandom().nextBytes(random);
+                    return java.util.Base64.getEncoder().encodeToString(random);
+                });
+        final var ssoExchangeTokenCodec = new dev.rafex.insightbloom.users.application.usecases.SsoExchangeToken(ssoExchangeSecret);
+        final var createSsoExchangeUseCase = new dev.rafex.insightbloom.users.application.usecases.CreateSsoExchangeUseCase(
+                validateTokenUseCase, ssoExchangeTokenCodec);
+        final var consumeSsoExchangeUseCase = new dev.rafex.insightbloom.users.application.usecases.ConsumeSsoExchangeUseCase(
+                ssoExchangeTokenCodec);
+
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
-                registerUseCase, sendOtpUseCase, verifyOtpUseCase, logoutUseCase, refreshTokenUseCase);
+                registerUseCase, sendOtpUseCase, verifyOtpUseCase, logoutUseCase, refreshTokenUseCase,
+                createSsoExchangeUseCase, consumeSsoExchangeUseCase);
         final int maxPoolSizePerEvent = Integer.parseInt(System.getenv().getOrDefault("SANDBOX_POOL_MAX_PER_EVENT", "50"));
         // Techo de -Xmx configurable desde el Dashboard (SetSandboxConfigUseCase): limite de
         // memoria del contenedor menos margen para el resto del proceso -- 400Mi para Debian

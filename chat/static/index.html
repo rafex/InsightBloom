@@ -686,20 +686,21 @@ async function api(path, body) {
 }
 
 /* ══════════════════════════════════════════════════
-   SSO: si llegamos con ?ib_token=... (sesión ya iniciada
-   en el sitio principal), saltamos login/registro de chat.
+   SSO: si llegamos con ?sso_code=... (código de intercambio de un
+   solo uso emitido por el sitio principal), lo canjeamos y saltamos
+   login/registro de chat. A diferencia del JWT de sesión, este código
+   expira a los 60s y solo sirve una vez, así que no hace falta blindar
+   la ventana entre la navegación y este replaceState.
 ══════════════════════════════════════════════════ */
 (async function trySso() {
   const params = new URLSearchParams(location.search);
-  const ibToken = params.get('ib_token');
-  if (!ibToken) return;
-  // The main-session token is only needed for this one SSO exchange. Remove it
-  // from the address bar/history before doing any other navigation.
-  params.delete('ib_token');
+  const code = params.get('sso_code');
+  if (!code) return;
+  params.delete('sso_code');
   const cleanQuery = params.toString();
   history.replaceState(null, '', `${location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${location.hash}`);
   try {
-    const r = await api('/api/sso', { ib_token: ibToken });
+    const r = await api('/api/sso', { code });
     myToken = r.token;
     myNick  = r.nickname;
     showConferenceScreen();
