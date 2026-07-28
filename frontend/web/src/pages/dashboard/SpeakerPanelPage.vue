@@ -390,7 +390,13 @@ export default {
 .speaker-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto; }
 .utility-controls { display: flex; gap: 8px; flex-wrap: wrap; }
 h2 { margin: 0; color: #1e1b4b; }
-.speaker-status { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #374151; font-weight: 600; flex-wrap: wrap; }
+/* flex-basis 100% + min-height: el conteo de audiencia y el total de registrados llegan
+ * async (WS y fetch aparte) y su texto entra y sale/cambia de largo. Sin esto, la fila
+ * de speaker-status a veces cabía junto al título y a veces no, y ese cambio de wrap
+ * corría hacia arriba/abajo la fila de botones debajo (reportado 2026-07-28: "genera un
+ * brinco en la pantalla" entre "Presentar" y los botones). Forzarla a su propio renglón
+ * de ancho completo, con una altura mínima fija, hace que los botones nunca se muevan. */
+.speaker-status { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #374151; font-weight: 600; flex-wrap: wrap; flex: 1 1 100%; min-height: 22px; }
 .registered-count { color: #6b7280; font-weight: 500; }
 .live-dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; }
 .live-dot.connected { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
