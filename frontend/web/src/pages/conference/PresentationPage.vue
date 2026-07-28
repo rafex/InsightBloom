@@ -21,8 +21,8 @@
     // the access guard, and the deck stays blank with a CORS/MIME error.
     iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" :sandbox="iframeSandbox")
     .presentation-actions
-      a.btn-secondary(v-if="canParticipate && presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
-      router-link.btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
+      a.link-btn.link-btn-secondary(v-if="canParticipate && presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
+      router-link.link-btn.link-btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
 </template>
 
 <script lang="ts">
@@ -199,17 +199,6 @@ h2 { margin: 0; color: #1e1b4b; }
   margin-top: 16px;
   flex-wrap: wrap;
 }
-.btn-primary, .btn-secondary {
-  padding: 10px 20px;
-  border-radius: 8px;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-.btn-primary { background: #4f46e5; color: #fff; }
-.btn-primary:hover { background: #4338ca; }
-.btn-secondary { background: #eef2ff; color: #4f46e5; border: 2px solid #c7d2fe; }
-.btn-secondary:hover { background: #e0e7ff; }
 
 .preview-banner {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;

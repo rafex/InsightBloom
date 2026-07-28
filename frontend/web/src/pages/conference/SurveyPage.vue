@@ -11,7 +11,7 @@
         .cert-loading(v-if="certLoading") Generando certificado...
         template(v-else-if="certUrl")
           iframe.cert-preview(:src="certUrl")
-          a.btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
+          a.link-btn.link-btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
         template(v-else-if="certError")
           p.cert-error {{ certError }}
           router-link.btn-outline-link(v-if="certNeedsLogin" :to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
@@ -39,9 +39,8 @@
           li
             a(:href="contact.telegramGroup" target="_blank" rel="noopener") 👥 Grupo de Telegram
       .download-actions
-        a.btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
-        button.btn-primary(type="button" v-if="isGroupNotes" @click="downloadMaterials" :disabled="materialsDownloading")
-          | {{ materialsDownloading ? 'Preparando materiales...' : 'Descargar materiales ZIP' }}
+        a.link-btn.link-btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
+        BaseButton(type="button" v-if="isGroupNotes" :disabled="materialsDownloading" @click="downloadMaterials") {{ materialsDownloading ? 'Preparando materiales...' : 'Descargar materiales ZIP' }}
       p.cert-error(v-if="materialsError") {{ materialsError }}
 
   .login-required(v-else-if="!canParticipate")
@@ -108,7 +107,7 @@
               @touchmove.prevent="moveDraw(q.uuid, $event)"
               @touchend.prevent="endDraw(q.uuid)"
             )
-            button.btn-clear(type="button" @click="clearCanvas(q.uuid)") Borrar dibujo
+            BaseButton.btn-clear(variant="secondary" type="button" @click="clearCanvas(q.uuid)") Borrar dibujo
 
           .drag-drop(v-else-if="q.type === 'DRAG_DROP'")
             ul.drag-list
@@ -122,10 +121,10 @@
                 span.drag-handle ⠿
                 span {{ item }}
                 .drag-arrows
-                  button.btn-arrow(type="button" @click="moveItem(q.uuid, idx, -1)" :disabled="idx === 0") ↑
-                  button.btn-arrow(type="button" @click="moveItem(q.uuid, idx, 1)" :disabled="idx === dragOrder[q.uuid].length - 1") ↓
+                  BaseButton.btn-arrow(variant="secondary" type="button" @click="moveItem(q.uuid, idx, -1)" :disabled="idx === 0") ↑
+                  BaseButton.btn-arrow(variant="secondary" type="button" @click="moveItem(q.uuid, idx, 1)" :disabled="idx === dragOrder[q.uuid].length - 1") ↓
 
-        button.btn-primary(type="submit" :disabled="submitting") {{ submitting ? 'Enviando...' : 'Enviar respuestas' }}
+        BaseButton(type="submit" :disabled="submitting") {{ submitting ? 'Enviando...' : 'Enviar respuestas' }}
         p.survey-error(v-if="error") {{ error }}
 </template>
 
@@ -135,6 +134,7 @@ import { useRoute } from 'vue-router'
 import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { getQuestions, submitResponses, getSurveyAccess, getSurveyDefinition, submitSurveyJs } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl, primePresentationAccess } from '@/services/api/presentationsApi'
 import { getCertificateBlobUrl, downloadEventMaterials } from '@/services/api/usersApi'
@@ -157,7 +157,7 @@ type PointerLikeEvent = MouseEvent | TouchEvent
 
 export default {
   name: 'SurveyPage',
-  components: { SurveyComponent },
+  components: { SurveyComponent, BaseButton },
   props: {
     conferenceId: { type: String as PropType<string | undefined>, default: undefined },
     canvasAudienceMode: { type: String, default: '' }
@@ -505,12 +505,6 @@ textarea {
 .choices { display: flex; flex-direction: column; gap: 8px; }
 .choice { display: flex; align-items: center; gap: 8px; font-weight: 400; cursor: pointer; }
 .survey-error { color: #dc2626; margin-top: 12px; }
-.btn-primary {
-  padding: 12px 24px; border: none; border-radius: 8px; background: #4f46e5; color: #fff;
-  font-weight: 600; font-size: 0.95rem; cursor: pointer; text-decoration: none; display: inline-block;
-}
-.btn-primary:hover { background: #4338ca; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .download-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 
 .canvas-wrap { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }

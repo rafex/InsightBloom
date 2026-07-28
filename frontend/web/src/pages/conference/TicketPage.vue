@@ -53,18 +53,16 @@
     p Aún no tienes un boleto canjeado para esta conferencia.
     template(v-if="auth.state.token && auth.state.role !== 'guest'")
       input.ticket-input(v-model="ticketInput" placeholder="Pega el QR o escribe el UUID v4")
-      button.btn-primary(type="button" @click="claim" :disabled="claiming || !ticketInput.trim()")
-        span(v-if="claiming") Canjeando...
-        span(v-else) Canjear boleto
+      BaseButton(type="button" @click="claim" :disabled="!ticketInput.trim()" :loading="claiming") Canjear boleto
     template(v-else)
       p Puedes canjearlo como invitado o asociarlo a una cuenta.
       input.ticket-input(v-model="guestName" placeholder="Tu nombre para entrar como invitado")
       input.ticket-input(v-model="ticketInput" placeholder="Pega el QR o escribe el UUID v4")
-      button.btn-secondary(type="button" @click="toggleScanner") {{ scanning ? 'Cerrar cámara' : 'Escanear QR' }}
+      BaseButton(variant="secondary" type="button" @click="toggleScanner") {{ scanning ? 'Cerrar cámara' : 'Escanear QR' }}
       .claim-scanner(v-if="scanning")
         video(ref="videoEl")
         p Apunta la cámara al QR del boleto.
-      button.btn-primary(type="button" @click="claimAsGuest" :disabled="claiming || !ticketInput.trim()") Canjear como invitado
+      BaseButton(type="button" @click="claimAsGuest" :disabled="!ticketInput.trim()" :loading="claiming") Canjear como invitado
       .auth-links
         router-link(:to="{ path: '/login', query: { redirect: $route.fullPath, ticket: ticketInput } }") Iniciar sesión
         router-link(:to="{ path: '/register', query: { redirect: $route.fullPath, ticket: ticketInput } }") Registrarme
@@ -81,10 +79,11 @@ import QrScanner from 'qr-scanner'
 import { getConferenceByFriendlyId, getMyIssuedTicket, getMyTicket, claimTicket, claimTicketAsGuest } from '@/services/api/usersApi'
 import type { Ticket, Reservation, SeatingMode } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 export default {
   name: 'TicketPage',
-  components: { TicketQr },
+  components: { TicketQr, BaseButton },
   props: {
     conferenceId: { type: String, default: '' },
     seatingMode: { type: String as () => SeatingMode | undefined, default: undefined },
@@ -301,26 +300,12 @@ export default {
 .ticket-manual span { color: #4c1d95; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .ticket-manual code { color: #312e81; font: 700 .84rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 .ticket-manual small { color: #6b7280; font-size: .78rem; }
-.btn-cancel {
-  padding: 8px 18px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #dc2626;
-  cursor: pointer; font-size: 0.85rem;
-}
-.btn-cancel:hover { background: #fee2e2; }
-.btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
-
 .ticket-general-cta { text-align: center; padding: 40px 24px; }
-.btn-primary {
-  padding: 12px 24px; background: #4f46e5; color: #fff; border: none; border-radius: 8px;
-  font-weight: 600; cursor: pointer; font-size: 1rem;
-}
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-secondary { padding: 10px 16px; border: 1px solid #c7d2fe; border-radius: 8px; background: #eef2ff; color: #4338ca; cursor: pointer; }
 .claim-scanner { margin: 14px auto; max-width: 320px; }
 .claim-scanner video { width: 100%; border-radius: 10px; background: #111827; }
 .claim-scanner p { color: #6b7280; font-size: 0.85rem; }
 .ticket-error { color: #dc2626; margin-top: 12px; font-size: 0.9rem; }
 .ticket-seated-picker { padding: 20px 0; text-align: center; }
-.ticket-seated-picker .btn-primary { margin-top: 16px; }
 @media (max-width: 560px) {
   .ticket-page { padding: 20px 12px 36px; }
   .ticket-canvas { padding: 0; }

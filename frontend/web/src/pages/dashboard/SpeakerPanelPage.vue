@@ -13,11 +13,11 @@
     .speaker-header-actions
       .utility-controls
         a.btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
-        button.btn-secondary(@click="showQr = true") Mostrar QR
-        button.btn-secondary(@click="shareRemoteControl") Compartir control remoto
-        button.btn-secondary(v-if="ready && !offlineMode && !offlinePreparing" @click="prepareOffline") Preparar offline
-        button.btn-secondary(v-if="offlinePackage && !offlineMode" @click="openOfflineCached") Abrir offline
-        button.btn-secondary(v-if="offlineMode" @click="openOnlinePresentation") Volver online
+        BaseButton(variant="secondary" @click="showQr = true") Mostrar QR
+        BaseButton(variant="secondary" @click="shareRemoteControl") Compartir control remoto
+        BaseButton(variant="secondary" v-if="ready && !offlineMode && !offlinePreparing" @click="prepareOffline") Preparar offline
+        BaseButton(variant="secondary" v-if="offlinePackage && !offlineMode" @click="openOfflineCached") Abrir offline
+        BaseButton(variant="secondary" v-if="offlineMode" @click="openOnlinePresentation") Volver online
         span.offline-preparing(v-if="offlinePreparing") Cifrando paquete…
         span.offline-error(v-if="offlineError") {{ offlineError }}
       .nav-controls(v-if="ready")
@@ -48,6 +48,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 type NavDirection = 'next' | 'prev'
 
@@ -58,7 +59,7 @@ const NAV_KEYS: Record<NavDirection, { key: string, keyCode: number }> = {
 
 export default {
   name: 'SpeakerPanelPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -408,12 +409,6 @@ h2 { margin: 0; color: #1e1b4b; }
   color: #4f46e5; font-weight: 700; font-size: 0.95rem; cursor: pointer; white-space: nowrap;
 }
 .btn-nav:hover { background: #e0e7ff; }
-.btn-primary, .btn-secondary {
-  padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.88rem;
-  border: none; cursor: pointer;
-}
-.btn-primary { background: #4f46e5; color: #fff; }
-.btn-secondary { background: #eef2ff; color: #4f46e5; border: 2px solid #c7d2fe; }
 .offline-preparing { color: #4f46e5; font-weight: 600; font-size: 0.85rem; }
 .offline-error { color: #b91c1c; font-size: 0.85rem; font-weight: 600; }
 

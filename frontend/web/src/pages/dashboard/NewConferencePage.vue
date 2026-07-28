@@ -2,28 +2,24 @@
 .new-conf-page
   h2 Nuevo evento
   .form(v-if="!created")
-    .form-group
-      label Nombre para compartir el evento
-      input(v-model="name" type="text" placeholder="Evento IA 2026" @keyup.enter="create")
-      p.field-hint Se usa para generar el enlace público (ID amigable). No se podrá cambiar después.
+    FormField(label="Nombre para compartir el evento" hint="Se usa para generar el enlace público (ID amigable). No se podrá cambiar después.")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model="name" type="text" placeholder="Evento IA 2026" @keyup.enter="create")
 
-    .form-group
-      label Nombre a mostrar en el certificado (opcional)
-      input(v-model="displayName" type="text" placeholder="Evento de Inteligencia Artificial 2026")
-      p.field-hint Si lo dejas vacío, se usará el nombre para compartir. Se puede editar después.
+    FormField(label="Nombre a mostrar en el certificado (opcional)" hint="Si lo dejas vacío, se usará el nombre para compartir. Se puede editar después.")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model="displayName" type="text" placeholder="Evento de Inteligencia Artificial 2026")
 
-    .form-group
-      label Detalle del evento (opcional)
-      textarea(v-model="description" rows="4" maxlength="4000" placeholder="Describe el objetivo, público y contenido del evento...")
-      p.field-hint Se mostrará en la cartelera y en la ficha pública del evento.
+    FormField(label="Detalle del evento (opcional)" hint="Se mostrará en la cartelera y en la ficha pública del evento.")
+      template(#default="{ id, describedBy }")
+        textarea(:id="id" :aria-describedby="describedBy" v-model="description" rows="4" maxlength="4000" placeholder="Describe el objetivo, público y contenido del evento...")
 
-    .form-group
-      label Visibilidad y boletos públicos
-      select(v-model="visibility")
-        option(value="PRIVATE") Privado: el organizador distribuye los boletos
-        option(value="PUBLIC") Público: aparece en la cartelera y permite solicitar boleto
-        option(value="HYBRID") Híbrido: cartelera pública y boletos adicionales distribuidos por el organizador
-      p.field-hint Los eventos privados nunca aparecen en la cartelera pública.
+    FormField(label="Visibilidad y boletos públicos" hint="Los eventos privados nunca aparecen en la cartelera pública.")
+      template(#default="{ id, describedBy }")
+        select(:id="id" :aria-describedby="describedBy" v-model="visibility")
+          option(value="PRIVATE") Privado: el organizador distribuye los boletos
+          option(value="PUBLIC") Público: aparece en la cartelera y permite solicitar boleto
+          option(value="HYBRID") Híbrido: cartelera pública y boletos adicionales distribuidos por el organizador
 
     .form-group
       label Precio y moneda del boleto
@@ -68,9 +64,9 @@
       .custom-date(v-if="expiryMode === 'custom'")
         input(v-model="customDate" type="datetime-local" :min="minDate")
 
-    .form-group
-      label Fecha del evento (opcional)
-      input(v-model="eventDate" type="date")
+    FormField(label="Fecha del evento (opcional)")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model="eventDate" type="date")
 
     .form-group
       label Horario (opcional)
@@ -86,18 +82,16 @@
         select(v-model.number="timezoneId")
           option(v-for="tz in timezones" :key="tz.id" :value="tz.id") {{ tz.label }}
 
-    .form-group(v-if="eventTypes.length")
-      label Tipo de evento
-      select(v-model="eventTypeKey")
-        option(v-for="t in eventTypes" :key="t.key" :value="t.key") {{ t.name }}
-      p.field-hint Determina qué herramientas están disponibles (boletos, encuestas, videollamada...). Se puede cambiar después.
+    FormField(label="Tipo de evento" hint="Determina qué herramientas están disponibles (boletos, encuestas, videollamada...). Se puede cambiar después." v-if="eventTypes.length")
+      template(#default="{ id, describedBy }")
+        select(:id="id" :aria-describedby="describedBy" v-model="eventTypeKey")
+          option(v-for="t in eventTypes" :key="t.key" :value="t.key") {{ t.name }}
 
-    .form-group
-      label Motor de certificado
-      select(v-model="certificateEngine")
-        option(value="INHOUSE") Inhouse (PDFBox)
-        option(value="HTML_CHROME") HTML + Playwright/Chromium
-      p.field-hint Elige cómo se generarán los certificados de este evento. Puedes cambiarlo después en Configuración; el diseño global queda como respaldo del motor Inhouse.
+    FormField(label="Motor de certificado" hint="Elige cómo se generarán los certificados de este evento. Puedes cambiarlo después en Configuración; el diseño global queda como respaldo del motor Inhouse.")
+      template(#default="{ id, describedBy }")
+        select(:id="id" :aria-describedby="describedBy" v-model="certificateEngine")
+          option(value="INHOUSE") Inhouse (PDFBox)
+          option(value="HTML_CHROME") HTML + Playwright/Chromium
 
     .form-group
       label Lienzo del evento (opcional)
@@ -113,21 +107,20 @@
       p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
       p.field-hint Cada herramienta puede tener una modalidad distinta.
 
-    .form-group
-      label Aforo máximo
-      input(v-model.number="capacity" type="number" min="2" placeholder="10")
-      p.field-hint Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), incluso si es virtual — la infraestructura tiene recursos limitados. El mínimo es 2 porque el creador ocupa un boleto operativo contado. Cada moderador adicional ocupa otra plaza. Recomendado hasta {{ recommendedMaxCapacity }}. Se puede cambiar después.
-      p.capacity-alert(v-if="capacityAlert" :class="capacityAlert.level") {{ capacityAlert.text }}
+    FormField(label="Aforo máximo" :hint="`Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), incluso si es virtual — la infraestructura tiene recursos limitados. El mínimo es 2 porque el creador ocupa un boleto operativo contado. Cada moderador adicional ocupa otra plaza. Recomendado hasta ${recommendedMaxCapacity}. Se puede cambiar después.`")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model.number="capacity" type="number" min="2" placeholder="10")
+    p.capacity-alert(v-if="capacityAlert" :class="capacityAlert.level") {{ capacityAlert.text }}
 
-    .form-group
-      label Sede (opcional)
-      input(v-model="venue" type="text" placeholder="Auditorio, ciudad...")
+    FormField(label="Sede (opcional)")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model="venue" type="text" placeholder="Auditorio, ciudad...")
 
     .form-group
       label Ubicación (opcional)
       .map-url-row
         input.map-url-input(v-model.trim="mapUrl" type="url" placeholder="Pega una URL de Google Maps u OpenStreetMap")
-        button.btn-outline(type="button" @click="extractMapCoordinates") Extraer coordenadas
+        BaseButton(variant="secondary" type="button" @click="extractMapCoordinates") Extraer coordenadas
       p.field-hint Ejemplos: Google Maps con /@latitud,longitud o OpenStreetMap con #map=nivel/latitud/longitud.
       p.error(v-if="locationError") {{ locationError }}
       .coords-row
@@ -143,9 +136,7 @@
       ConferenceMap(:latitude="latitude" :longitude="longitude" :label="name || 'Evento'")
 
     .error(v-if="error") {{ error }}
-    button.btn-primary(@click="create" :disabled="loading || !name.trim()")
-      span(v-if="loading") Creando...
-      span(v-else) Crear evento
+    BaseButton(:loading="loading" :disabled="loading || !name.trim()" @click="create") Crear evento
 
   .created-info.animate__animated.animate__fadeIn(v-else)
     h3 ¡Evento creado!
@@ -176,14 +167,16 @@
     .map-created(v-if="created.latitude != null")
       ConferenceMap(:latitude="created.latitude" :longitude="created.longitude" :label="created.name")
     .actions
-      router-link.btn-outline(:to="`/dashboard/conferences/${created.conferenceId}/moderation/messages`") Ver moderación mensajes
-      router-link.btn-outline(:to="`/dashboard/conferences/${created.conferenceId}/moderation/words`") Ver moderación palabras
-      button.btn-primary(@click="reset") Crear otra
+      router-link.link-btn.link-btn-secondary(:to="`/dashboard/conferences/${created.conferenceId}/moderation/messages`") Ver moderación mensajes
+      router-link.link-btn.link-btn-secondary(:to="`/dashboard/conferences/${created.conferenceId}/moderation/words`") Ver moderación palabras
+      BaseButton(@click="reset") Crear otra
 </template>
 
 <script lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import FormField from '@/components/ui/FormField.vue'
 import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -203,7 +196,7 @@ const EXPIRY_OPTIONS = [
 
 export default {
   name: 'NewConferencePage',
-  components: { ConferenceMap },
+  components: { ConferenceMap, BaseButton, FormField },
   setup() {
     const name       = ref('')
     const displayName = ref('')
@@ -364,15 +357,6 @@ export default {
 @media (max-width: 580px) { .theme-options { grid-template-columns: 1fr; } .theme-option { display: grid; grid-template-columns: 72px 1fr; align-items: center; }.theme-preview { grid-row: span 2; } }
 .new-conf-page { max-width: 680px; }
 h2 { color: #1e1b4b; margin-bottom: 24px; margin-top: 0; }
-.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
-label { font-weight: 600; font-size: 0.9rem; color: #374151; }
-input[type="text"], input[type="datetime-local"], input[type="number"] {
-  padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem;
-}
-textarea { width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font: inherit; resize: vertical; }
-select { padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; background: #fff; }
-input:focus { outline: none; border-color: #4f46e5; }
-
 .expiry-options { display: flex; gap: 6px; flex-wrap: wrap; }
 .expiry-btn {
   padding: 6px 14px; border: 1.5px solid #d1d5db; border-radius: 20px;
@@ -403,8 +387,6 @@ input:focus { outline: none; border-color: #4f46e5; }
 .capacity-alert.risk { background: #ffedd5; color: #9a3412; }
 .capacity-alert.critical { background: #fee2e2; color: #991b1b; }
 
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
 .created-info { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 24px; }
 h3 { color: #166534; margin: 0 0 16px; }
@@ -414,7 +396,6 @@ h3 { color: #166534; margin: 0 0 16px; }
 .coords-display { font-family: monospace; font-size: 0.9rem; color: #374151; }
 .map-created { margin: 16px 0; border-radius: 10px; overflow: hidden; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
-.btn-outline { padding: 8px 16px; border: 1.5px solid #4f46e5; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 0.9rem; }
 
 @media (max-width: 480px) {
   .coords-row { flex-direction: column; gap: 14px; }

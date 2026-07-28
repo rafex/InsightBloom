@@ -11,7 +11,7 @@
       select(v-model="selectedEngine")
         option(value="NATIVE") Motor nativo de InsightBloom
         option(value="SURVEYJS") SurveyJS Form Library
-      button.btn-primary(type="button" :disabled="engineSaving" @click="chooseEngine") {{ engineSaving ? 'Guardando...' : 'Elegir motor' }}
+      BaseButton(variant="primary" type="button" :loading="engineSaving" :disabled="engineSaving" @click="chooseEngine") {{ engineSaving ? 'Guardando...' : 'Elegir motor' }}
     p.engine-current(v-else) Motor activo: <strong>{{ engine === 'SURVEYJS' ? 'SurveyJS Form Library' : 'Nativo de InsightBloom' }}</strong>
     p.ai-shared La sugerencia de preguntas con IA sigue disponible para ambos motores.
 
@@ -39,9 +39,9 @@
       label.required-check
         input(type="checkbox" v-model="surveyJsRequired")
         span Obligatoria
-      button.btn-primary-sm(type="button" @click="addSurveyElement()") Agregar
+      BaseButton(variant="primary" size="sm" type="button" @click="addSurveyElement()") Agregar
     .ai-suggest-row
-      button.btn-outline(type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
+      BaseButton(variant="secondary" type="button" :loading="suggesting" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
       span.ai-error(v-if="suggestError") {{ suggestError }}
     .suggestions(v-if="suggestions.length")
       h4 Sugerencias compatibles
@@ -52,7 +52,7 @@
           strong {{ s.text }}
           span.suggestion-type {{ typeLabel(s.type) }}
       .suggestions-actions
-        button.btn-sm.btn-primary-sm(type="button" :disabled="!selectedSuggestions.length || addingSuggestions" @click="addSelectedSuggestions") Agregar seleccionadas
+        BaseButton(variant="primary" size="sm" type="button" :disabled="!selectedSuggestions.length || addingSuggestions" :loading="addingSuggestions" @click="addSelectedSuggestions") Agregar seleccionadas
     .surveyjs-elements(v-if="surveyElements.length")
       p.editor-help Reordená con las flechas y marcá cuáles son obligatorias antes de guardar o publicar.
       .surveyjs-element(v-for="(element, index) in surveyElements" :key="element.name")
@@ -70,8 +70,8 @@
             button.btn-icon(type="button" @click="moveSurveyElement(index, 1)" :disabled="index === surveyElements.length - 1" title="Bajar") ↓
           button.btn-icon(type="button" @click="removeSurveyElement(index)" title="Quitar") ✕
     .surveyjs-actions
-      button.btn-outline(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(false)") {{ surveyJsSaving ? 'Guardando...' : 'Guardar borrador' }}
-      button.btn-primary(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(true)") Publicar encuesta
+      BaseButton(variant="secondary" type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(false)") {{ surveyJsSaving ? 'Guardando...' : 'Guardar borrador' }}
+      BaseButton(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(true)") Publicar encuesta
     p.ai-error(v-if="surveyJsError") {{ surveyJsError }}
     .surveyjs-preview(v-if="surveyPreviewModel")
       h3 Vista previa
@@ -89,8 +89,8 @@
     p.access-help La encuesta permanece bloqueada hasta que el moderador la libere. Puedes abrirla para todos los asistentes registrados o solo para los seleccionados.
     .access-state(:class="{ released: releasedForAll }") {{ releasedForAll ? 'Liberada para todos los asistentes, incluidos los que se registren después.' : 'Bloqueada para los asistentes.' }}
     .access-actions
-      button.btn-primary(type="button" :disabled="releaseSaving || releasedForAll" @click="releaseAll") 🔓 Liberar para todos
-      button.btn-outline(type="button" :disabled="releaseSaving || !selectedAttendees.length" @click="releaseSelected") 🔓 Liberar seleccionados ({{ selectedAttendees.length }})
+      BaseButton(type="button" :disabled="releaseSaving || releasedForAll" @click="releaseAll") 🔓 Liberar para todos
+      BaseButton(variant="secondary" type="button" :disabled="releaseSaving || !selectedAttendees.length" @click="releaseSelected") 🔓 Liberar seleccionados ({{ selectedAttendees.length }})
     .attendee-list(v-if="attendees.length")
       .attendee-header(aria-hidden="true")
         span
@@ -109,7 +109,7 @@
   .add-card(v-if="engine === 'NATIVE'" v-show="activeTab === 'create'")
     h3 {{ editingId ? 'Editar pregunta' : 'Agregar pregunta' }}
     .ai-suggest-row(v-if="!editingId")
-      button.btn-outline(type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
+      BaseButton(variant="secondary" type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
       span.ai-error(v-if="suggestError") {{ suggestError }}
 
     .suggestions(v-if="suggestions.length && !editingId")
@@ -123,9 +123,8 @@
           div(v-if="s.options && s.options.length") Opciones: {{ s.options.join(', ') }}
           div(v-if="s.referenceAnswer") Referencia: {{ s.referenceAnswer }}
       .suggestions-actions
-        button.btn-sm.btn-primary-sm(type="button" :disabled="!selectedSuggestions.length || addingSuggestions" @click="addSelectedSuggestions")
-          | {{ addingSuggestions ? 'Agregando...' : `Agregar seleccionadas (${selectedSuggestions.length})` }}
-        button.btn-sm.btn-ghost-sm(type="button" @click="selectedSuggestions = suggestions.map((_, i) => i)") Seleccionar todas
+        BaseButton(size="sm" type="button" :disabled="!selectedSuggestions.length || addingSuggestions" @click="addSelectedSuggestions") {{ addingSuggestions ? 'Agregando...' : `Agregar seleccionadas (${selectedSuggestions.length})` }}
+        BaseButton(variant="ghost" size="sm" type="button" @click="selectedSuggestions = suggestions.map((_, i) => i)") Seleccionar todas
 
     .text-row
       input(v-model="form.text" placeholder="¿Qué tan útil fue la charla?")
@@ -140,7 +139,7 @@
           span.suggestion-type {{ typeLabel(s.type) }}
           div(v-if="s.options && s.options.length") Opciones: {{ s.options.join(', ') }}
           div(v-if="s.referenceAnswer") Referencia: {{ s.referenceAnswer }}
-        button.btn-sm.btn-primary-sm(type="button" @click="applyImprovement(s)") Usar esta
+        BaseButton(size="sm" type="button" @click="applyImprovement(s)") Usar esta
 
     select(v-model="form.type" @change="onTypeChange")
       option(value="RATING") ★ Calificación (estrellas o emojis)
@@ -196,8 +195,8 @@
       input(type="checkbox" v-model="form.required")
       span Obligatoria (el asistente debe responderla para poder enviar la encuesta)
     .form-actions
-      button.btn-primary(:disabled="!form.text || saving" @click="save") {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Agregar') }}
-      button.btn-ghost-sm(v-if="editingId" type="button" @click="cancelEdit") Cancelar
+      BaseButton(:disabled="!form.text || saving" @click="save") {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Agregar') }}
+      BaseButton(variant="ghost" size="sm" v-if="editingId" type="button" @click="cancelEdit") Cancelar
 
   .questions-card(v-if="engine === 'NATIVE' && questions.length" v-show="activeTab === 'create'")
     h3 Preguntas activas
@@ -296,6 +295,7 @@ import { ref, computed, onMounted, shallowRef } from 'vue'
 import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, getSurveyAccessManagement, releaseSurveyAccess, type SurveyEngine, type SurveyAttendee } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -372,7 +372,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -978,20 +978,6 @@ input, select, textarea {
 .required-check input { width: auto; margin: 0; }
 .q-required { color: #dc2626; font-weight: 700; }
 .form-actions { display: flex; gap: 10px; align-items: center; }
-.btn-primary {
-  padding: 8px 18px; border: none; border-radius: 8px; background: #4f46e5; color: #fff;
-  font-weight: 600; cursor: pointer;
-}
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-ghost-sm {
-  padding: 8px 14px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #6b7280;
-  cursor: pointer; font-size: 0.85rem;
-}
-.btn-outline {
-  padding: 8px 16px; border: 1px solid #4f46e5; border-radius: 8px; background: #fff; color: #4f46e5;
-  font-weight: 600; cursor: pointer; font-size: 0.85rem;
-}
-.btn-outline:disabled { opacity: 0.6; cursor: not-allowed; }
 .ai-suggest-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .ai-error { color: #dc2626; font-size: 0.82rem; }
 .text-row { display: flex; gap: 8px; align-items: flex-start; }
@@ -1014,7 +1000,6 @@ input, select, textarea {
 .suggestion-text { flex: 1; min-width: 0; font-size: 0.85rem; color: #374151; }
 .suggestion-type { margin-left: 8px; color: #6b7280; font-size: 0.75rem; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-primary-sm { background: #4f46e5; color: #fff; flex-shrink: 0; }
 
 .style-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .style-option {

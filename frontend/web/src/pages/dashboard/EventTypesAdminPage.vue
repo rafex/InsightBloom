@@ -36,8 +36,8 @@
             template(v-if="editing === t.uuid")
               textarea(v-model="editForm.description" placeholder="Descripción")
               .actions-row
-                button.btn-sm.btn-primary-sm(:disabled="saving" @click="saveEdit(t)") Guardar
-                button.btn-sm.btn-ghost-sm(@click="editing = null") Cancelar
+                BaseButton(size="sm" :disabled="saving" @click="saveEdit(t)") Guardar
+                BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
               button.btn-sm.btn-edit(@click="startEdit(t)") Editar
               button.btn-sm.btn-warning(v-if="t.active" @click="toggleActive(t, false)") Desactivar
@@ -53,7 +53,7 @@
       label(v-for="c in allCapabilities" :key="c")
         input(type="checkbox" :value="c" v-model="newType.capabilities")
         span {{ capabilityLabel(c) }}
-    button.btn-primary(type="button" :disabled="creating" @click="createNew") Crear tipo de evento
+    BaseButton(type="button" :disabled="creating" @click="createNew") Crear tipo de evento
     p.error(v-if="createError") {{ createError }}
 </template>
 
@@ -64,6 +64,7 @@ import {
 } from '@/services/api/usersApi'
 import type { EventType, EventCapability } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const CAPABILITY_LABELS: Record<string, string> = {
   TICKETING_GENERAL: 'Boletos (aforo)',
@@ -81,6 +82,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 export default {
   name: 'EventTypesAdminPage',
+  components: { BaseButton },
   setup() {
     const auth = useAuthStore()
     const eventTypes = ref<EventType[]>([])
@@ -190,16 +192,12 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 .btn-edit { background: #e0e7ff; color: #4338ca; }
 .btn-warning { background: #fef3c7; color: #92400e; }
 .btn-success { background: #dcfce7; color: #166534; }
-.btn-primary-sm { background: #4f46e5; color: #fff; }
-.btn-ghost-sm { background: #fff; color: #6b7280; border: 1px solid #e5e7eb; }
 
 .new-type-form { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; }
 .new-type-form h3 { margin: 0 0 14px; color: #1e1b4b; font-size: 1rem; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .form-row input { flex: 1; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
 .new-type-form textarea { width: 100%; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; margin-top: 10px; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 0.85rem; margin-top: 8px; }
 
 @media (max-width: 900px) {

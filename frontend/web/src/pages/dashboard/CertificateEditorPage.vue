@@ -18,7 +18,7 @@
         button.variable(v-for="variable in catalog.variables" :key="variable.key" type="button" @click="insertVariable(variable.key)")
           code {{ '{' + '{' + variable.key + '}' + '}' }}
           span {{ variable.label }}
-      button.btn-primary.full(type="button" :disabled="saving" @click="save") {{ saving ? 'Guardando…' : 'Guardar certificado' }}
+      BaseButton(:loading="saving" type="button" @click="save") Guardar certificado
       p.error(v-if="error") {{ error }}
     .panel.workspace
       .workspace-toolbar
@@ -71,6 +71,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { getCertificateTemplateCatalog, getEventCertificateTemplate, saveEventCertificateTemplate, setCertificateEngine } from '@/services/api/usersApi'
 import type { CertificateEngine, CertificateTemplateCatalog, CertificateTemplateCatalogItem } from '@/services/api/types'
 
@@ -91,7 +92,7 @@ const sampleData: Record<string, string> = {
 
 export default {
   name: 'CertificateEditorPage',
-  components: { DashboardBreadcrumb },
+  components: { DashboardBreadcrumb, BaseButton },
   props: { conferenceId: { type: String, required: true } },
   setup(props: { conferenceId: string }) {
     const auth = useAuthStore()
@@ -236,6 +237,6 @@ h2 { font-size:1rem; color:#1e1b4b; margin:0 0 12px; } .catalog-card { padding:1
 .asset-field { color:#6b7280; font-size:.78rem; } .asset-field input { font-size:.75rem; padding:6px; } .asset-hint { grid-column:1 / -1; color:#6b7280; font-size:.75rem; }
 .btn-subtle { border:1px solid #d1d5db; border-radius:7px; background:white; color:#4b5563; padding:7px 9px; cursor:pointer; font-size:.75rem; }
 .certificate-preview { background:#e5e7eb; padding:22px; overflow:auto; border-radius:10px; } .certificate-page-wrap { position:relative; margin:0 auto; } .certificate-page { position:absolute; left:0; top:0; width:1056px; height:816px; background:#fff; transform-origin:top left; } .preview-block { position:absolute; box-sizing:border-box; overflow:hidden; white-space:pre-wrap; cursor:pointer; } .preview-block.active { outline:2px solid #4f46e5; outline-offset:2px; } .preview-block img { width:100%; height:100%; object-fit:contain; }
-.block-editor { border-top:1px solid #e5e7eb; margin-top:18px; padding-top:18px; } .block-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; } .block-fields label { color:#6b7280; font-size:.78rem; } .btn-primary,.btn-outline,.btn-danger { border-radius:8px; padding:9px 13px; cursor:pointer; font-weight:600; } .btn-primary { color:white; border:0; background:#4f46e5; } .btn-outline { color:#4338ca; border:1px solid #818cf8; background:white; } .btn-danger { color:#b91c1c; border:1px solid #fecaca; background:#fff; margin-top:14px; } .full { width:100%; margin-top:10px; } .error { color:#b91c1c; font-size:.85rem; } .loading { padding:40px; color:#6b7280; }
+.block-editor { border-top:1px solid #e5e7eb; margin-top:18px; padding-top:18px; } .block-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; } .block-fields label { color:#6b7280; font-size:.78rem; } .btn-subtle { border:1px solid #d1d5db; border-radius:7px; background:white; color:#4b5563; padding:7px 9px; cursor:pointer; font-size:.75rem; } .error { color:#b91c1c; font-size:.85rem; } .loading { padding:40px; color:#6b7280; }
 @media (max-width: 850px) { .editor-grid { grid-template-columns:1fr; } .catalog-panel { order:2; } .workspace { order:1; } .block-fields { grid-template-columns:repeat(2,1fr); } .asset-toolbar { grid-template-columns:1fr auto; } .asset-hint { grid-column:1 / -1; } }
 </style>

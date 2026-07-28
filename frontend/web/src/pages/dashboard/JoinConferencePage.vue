@@ -10,8 +10,8 @@
     label(for="event-access-input") {{ mode === 'friendly' ? 'Nombre amigable del evento' : mode === 'qr' ? 'Contenido del QR del boleto' : 'UUID v4 del boleto' }}
     .form-row
       input#event-access-input(v-model="code" :placeholder="placeholder" autocomplete="off" @keyup.enter="doJoin")
-      button.btn-secondary(v-if="mode === 'qr'" type="button" @click="toggleScanner") {{ scanning ? 'Cerrar cámara' : 'Escanear QR' }}
-      button.btn-primary(type="button" :disabled="!code.trim() || loading" @click="doJoin") {{ loading ? (mode === 'friendly' ? 'Uniendo...' : 'Canjeando...') : (mode === 'friendly' ? 'Unirme' : 'Canjear boleto') }}
+      BaseButton(variant="secondary" v-if="mode === 'qr'" type="button" @click="toggleScanner") {{ scanning ? 'Cerrar cámara' : 'Escanear QR' }}
+      BaseButton(type="button" :disabled="!code.trim() || loading" @click="doJoin") {{ loading ? (mode === 'friendly' ? 'Uniendo...' : 'Canjeando...') : (mode === 'friendly' ? 'Unirme' : 'Canjear boleto') }}
     .claim-scanner(v-if="scanning")
       video(ref="videoEl")
       p Apunta la cámara al QR del boleto.
@@ -24,11 +24,13 @@ import { useRouter } from 'vue-router'
 import QrScanner from 'qr-scanner'
 import { claimTicketByCode, getConference, joinConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 type AccessMode = 'friendly' | 'qr' | 'uuid'
 
 export default {
   name: 'JoinConferencePage',
+  components: { BaseButton },
   setup() {
     const router = useRouter()
     const auth = useAuthStore()
@@ -140,12 +142,6 @@ input {
   flex: 1; min-width: 0; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem;
 }
 input:focus { outline: none; border-color: #4f46e5; }
-.btn-primary, .btn-secondary {
-  padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap;
-}
-.btn-primary { background: #4f46e5; color: #fff; border: none; }
-.btn-secondary { border: 1px solid #c7d2fe; background: #eef2ff; color: #4338ca; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .claim-scanner { margin: 14px auto 0; max-width: 320px; text-align: center; }
 .claim-scanner video { width: 100%; border-radius: 10px; background: #111827; }
 .claim-scanner p { color: #6b7280; font-size: 0.85rem; }

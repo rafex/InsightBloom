@@ -20,21 +20,20 @@
       .readonly-value {{ conference.friendlyId }}
       p.field-hint Este valor no se puede editar porque ya se usó para generar el enlace público.
 
-    .form-group
-      label Nombre a mostrar en el certificado
-      input(v-model="displayName" type="text" placeholder="Conferencia de Inteligencia Artificial 2026")
+    FormField(label="Nombre a mostrar en el certificado")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model="displayName" type="text" placeholder="Conferencia de Inteligencia Artificial 2026")
 
-    .form-group
-      label Detalle del evento
-      textarea(v-model="description" rows="4" maxlength="4000" placeholder="Describe el objetivo, público y contenido del evento...")
-      p.field-hint Se muestra en la cartelera y la ficha pública cuando el evento es público o híbrido.
+    FormField(label="Detalle del evento" hint="Se muestra en la cartelera y la ficha pública cuando el evento es público o híbrido.")
+      template(#default="{ id, describedBy }")
+        textarea(:id="id" :aria-describedby="describedBy" v-model="description" rows="4" maxlength="4000" placeholder="Describe el objetivo, público y contenido del evento...")
 
-    .form-group
-      label Visibilidad y boletos públicos
-      select(v-model="visibility")
-        option(value="PRIVATE") Privado: el organizador distribuye los boletos
-        option(value="PUBLIC") Público: aparece en la cartelera y permite solicitar boleto
-        option(value="HYBRID") Híbrido: cartelera pública y boletos privados adicionales
+    FormField(label="Visibilidad y boletos públicos")
+      template(#default="{ id, describedBy }")
+        select(:id="id" :aria-describedby="describedBy" v-model="visibility")
+          option(value="PRIVATE") Privado: el organizador distribuye los boletos
+          option(value="PUBLIC") Público: aparece en la cartelera y permite solicitar boleto
+          option(value="HYBRID") Híbrido: cartelera pública y boletos privados adicionales
 
     .form-group
       label Precio y moneda del boleto
@@ -72,9 +71,9 @@
             strong {{ theme.label }}
             small {{ theme.description }}
 
-    .form-group
-      label Fecha del evento (opcional)
-      input(v-model="eventDate" type="date")
+    FormField(label="Fecha del evento (opcional)")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model="eventDate" type="date")
 
     .form-group
       label Horario (opcional)
@@ -90,15 +89,15 @@
         select(v-model.number="timezoneId")
           option(v-for="tz in timezones" :key="tz.id" :value="tz.id") {{ tz.label }}
 
-    .form-group
-      label Sede (opcional)
-      input(v-model="venue" type="text" placeholder="Auditorio, ciudad...")
+    FormField(label="Sede (opcional)")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model="venue" type="text" placeholder="Auditorio, ciudad...")
 
     .form-group
       label Ubicación (opcional)
       .map-url-row
         input.map-url-input(v-model.trim="mapUrl" type="url" placeholder="Pega una URL de Google Maps u OpenStreetMap")
-        button.btn-outline(type="button" @click="extractMapCoordinates") Extraer coordenadas
+        BaseButton(variant="secondary" type="button" @click="extractMapCoordinates") Extraer coordenadas
       p.field-hint Ejemplos: Google Maps con /@latitud,longitud o OpenStreetMap con #map=nivel/latitud/longitud.
       p.error(v-if="locationError") {{ locationError }}
       .coords-row
@@ -118,21 +117,21 @@
       input(type="file" accept="image/png,image/jpeg" @change="onFlyerSelected")
       .flyer-preview(v-if="flyerBase64")
         img(:src="flyerBase64" alt="Flyer del evento")
-        button.btn-remove-flyer(type="button" @click="removeFlyer") Quitar flyer
+        BaseButton(variant="danger" type="button" @click="removeFlyer") Quitar flyer
 
     .error(v-if="saveError") {{ saveError }}
     .success(v-if="saved") Cambios guardados correctamente.
     .actions
-      button.btn-primary(@click="save" :disabled="saving")
-        span(v-if="saving") Guardando...
-        span(v-else) Guardar cambios
-      router-link.btn-outline(:to="`/dashboard`") Volver al dashboard
+      BaseButton(:loading="saving" :disabled="saving" @click="save") Guardar cambios
+      router-link.link-btn.link-btn-secondary(:to="`/dashboard`") Volver al dashboard
 </template>
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import FormField from '@/components/ui/FormField.vue'
 import { getConference, updateConference, uploadConferenceFlyer, getTimezones } from '@/services/api/usersApi'
 import type { Conference, Timezone } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -142,7 +141,7 @@ const MAX_FLYER_BYTES = 8 * 1024 * 1024
 
 export default {
   name: 'EditConferencePage',
-  components: { ConferenceMap, DashboardBreadcrumb },
+  components: { ConferenceMap, DashboardBreadcrumb, BaseButton, FormField },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -348,14 +347,6 @@ h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
 }
 .sub-link:hover { border-color: #a5b4fc; color: #4f46e5; }
 .sub-link.router-link-active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
-.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
-label { font-weight: 600; font-size: 0.9rem; color: #374151; }
-input[type="text"], input[type="date"], input[type="time"], input[type="number"] {
-  padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem;
-}
-textarea, select { width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font: inherit; background: #fff; }
-input:focus { outline: none; border-color: #4f46e5; }
-
 .readonly-group .readonly-value {
   padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 8px;
   background: #f9fafb; color: #6b7280; font-family: monospace; font-size: 0.9rem;
@@ -376,13 +367,8 @@ input:focus { outline: none; border-color: #4f46e5; }
 
 .flyer-preview { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
 .flyer-preview img { max-width: 160px; max-height: 160px; border-radius: 8px; border: 1px solid #e5e7eb; object-fit: cover; }
-.btn-remove-flyer { padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #dc2626; cursor: pointer; font-size: 0.85rem; }
-.btn-remove-flyer:hover { background: #fee2e2; }
 
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-outline { padding: 10px 22px; border: 1.5px solid #4f46e5; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 1rem; }
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
 .success { color: #166534; font-size: 0.9rem; margin-bottom: 12px; }
 .loading-text { color: #6b7280; }

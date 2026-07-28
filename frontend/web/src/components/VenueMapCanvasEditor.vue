@@ -54,14 +54,15 @@
           circle.seat-circle(:cx="seat.x" :cy="seat.y" r="4" :data-seat="seat.id")
 
   .action-buttons
-    button.btn-primary(@click="saveLayout" :disabled="!validLayout")
+    BaseButton(@click="saveLayout" :disabled="!validLayout")
       span ✓ Guardar Geometría
-    button.btn-secondary(@click="$emit('cancel')")
+    BaseButton(variant="secondary" @click="$emit('cancel')")
       span ✗ Cancelar
 </template>
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 type ShapeType = 'rectangular' | 'semicircular' | 'horseshoe' | 'custom'
 
@@ -74,6 +75,7 @@ interface Seat {
 
 export default {
   name: 'VenueMapCanvasEditor',
+  components: { BaseButton },
   emits: ['save', 'cancel'],
   setup(_, { emit }) {
     const selectedShape = ref<ShapeType>('rectangular')
@@ -397,43 +399,5 @@ export default {
   display: flex;
   gap: 12px;
   justify-content: center;
-}
-
-.btn-primary,
-.btn-secondary {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-primary {
-  background: #4f46e5;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #4338ca;
-}
-
-.btn-primary:disabled {
-  background: #d1d5db;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: #e5e7eb;
-  color: #1f2937;
-  border: 1px solid #d1d5db;
-}
-
-.btn-secondary:hover {
-  background: #d1d5db;
 }
 </style>

@@ -6,18 +6,18 @@
       template(v-if="step === 'form'")
         h2 Crear cuenta
         p.hint Necesitas correo o teléfono (al menos uno) para verificar tu identidad
-        .form-group
-          label Nombre de usuario
-          input(v-model="form.displayName" placeholder="Tu nombre de usuario")
-        .form-group
-          label Correo electrónico
-          input(v-model="form.email" type="email" placeholder="tu@correo.com")
-        .form-group
-          label Teléfono
-          input(v-model="form.phone" type="tel" placeholder="+52 55 1234 5678")
-        .form-group
-          label Contraseña
-          input(v-model="form.password" type="password" placeholder="••••••••")
+        FormField(label="Nombre de usuario")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="form.displayName" placeholder="Tu nombre de usuario")
+        FormField(label="Correo electrónico")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="form.email" type="email" placeholder="tu@correo.com")
+        FormField(label="Teléfono")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="form.phone" type="tel" placeholder="+52 55 1234 5678")
+        FormField(label="Contraseña")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="form.password" type="password" placeholder="••••••••")
 
         .social-editor
           label.options-label Redes sociales (opcional)
@@ -35,31 +35,29 @@
           button.btn-add(type="button" @click="addLink") + Agregar red social
 
         .error(v-if="error") {{ error }}
-        button.btn-primary(@click="submitRegister" :disabled="loading")
-          span(v-if="loading") Creando...
-          span(v-else) Crear cuenta
+        BaseButton(size="lg" @click="submitRegister" :disabled="loading" :loading="loading") Crear cuenta
         p.register-hint ¿Ya tienes cuenta? #[router-link(to="/login") Inicia sesión]
 
       template(v-else-if="step === 'verify'")
         h2 Verifica tu cuenta
         p.hint Enviamos un código a {{ verifyChannel === 'EMAIL' ? form.email : form.phone }}
-        .form-group
-          label Código de verificación
-          input(v-model="code" placeholder="123456" maxlength="6" @keyup.enter="submitVerify")
+        FormField(label="Código de verificación")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="code" placeholder="123456" maxlength="6" @keyup.enter="submitVerify")
         .error(v-if="error") {{ error }}
-        button.btn-primary(@click="submitVerify" :disabled="loading")
-          span(v-if="loading") Verificando...
-          span(v-else) Verificar
-        button.btn-ghost(type="button" @click="resendOtp" :disabled="loading") Reenviar código
+        BaseButton(size="lg" @click="submitVerify" :disabled="loading" :loading="loading") Verificar
+        BaseButton(variant="ghost" type="button" @click="resendOtp" :disabled="loading") Reenviar código
 
       template(v-else-if="step === 'done'")
         h2 ¡Cuenta verificada! 🎉
         p.hint Ya puedes participar en las conferencias.
-        router-link.btn-primary-link(to="/") Ir al inicio
+        router-link.link-btn.link-btn-primary(to="/") Ir al inicio
 </template>
 
 <script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import FormField from '@/components/ui/FormField.vue'
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { register, sendOtp, verifyOtp, type SocialLink } from '@/services/api/authApi'
@@ -67,7 +65,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'RegisterPage',
-  components: { AppHeader },
+  components: { AppHeader, BaseButton, FormField },
   setup() {
     const router = useRouter()
     const route = useRoute()
@@ -171,23 +169,6 @@ export default {
 .register-card { background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 460px; width: 100%; }
 h2 { margin: 0 0 8px; color: #1e1b4b; }
 .hint { color: #6b7280; font-size: 0.85rem; margin-bottom: 24px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-label { font-weight: 600; font-size: 0.9rem; color: #374151; }
-input, select { padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; }
-input:focus, select:focus { outline: none; border-color: #4f46e5; }
-.btn-primary {
-  width: 100%; padding: 12px; background: #4f46e5; color: #fff; border: none; border-radius: 8px;
-  cursor: pointer; font-size: 1rem; margin-bottom: 10px;
-}
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-primary-link {
-  display: block; text-align: center; width: 100%; padding: 12px; background: #4f46e5; color: #fff;
-  border-radius: 8px; text-decoration: none; font-size: 1rem; box-sizing: border-box;
-}
-.btn-ghost {
-  width: 100%; padding: 10px; background: #fff; color: #6b7280; border: 1px solid #e5e7eb;
-  border-radius: 8px; cursor: pointer; font-size: 0.9rem;
-}
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
 .register-hint { text-align: center; margin: 8px 0 0; font-size: 0.85rem; color: #6b7280; }
 .register-hint a { color: #4f46e5; font-weight: 600; text-decoration: none; }

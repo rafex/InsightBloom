@@ -5,8 +5,8 @@
   .list-header
     h1 Eventos
     .header-actions
-      router-link.btn-outline(v-if="isAdmin" to="/dashboard/admin/event-types") Tipos de evento
-      router-link.btn-primary(to="/dashboard/conferences/new") + Nuevo evento
+      router-link.link-btn.link-btn-secondary(v-if="isAdmin" to="/dashboard/admin/event-types") Tipos de evento
+      router-link.link-btn.link-btn-primary(to="/dashboard/conferences/new") + Nuevo evento
 
   .section(v-if="loading")
     .loading-text Cargando eventos...
@@ -14,7 +14,7 @@
   .section(v-else-if="conferences.length === 0")
     .empty-state
       p Aún no tienes eventos.
-      router-link.btn-primary(to="/dashboard/conferences/new") Crear el primero
+      router-link.link-btn.link-btn-primary(to="/dashboard/conferences/new") Crear el primero
 
   .table-scroll(v-else)
     table.conferences-table
@@ -63,7 +63,7 @@
               DropdownMenu(v-if="hasCapability(c, 'PRESENTATION') || hasCapability(c, 'SURVEY')" label="Presentador")
                 router-link(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
                 router-link(v-if="hasCapability(c, 'SURVEY')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
-              a.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :href="`/c/${c.friendlyId}/presentation`" @click.prevent="openPublic(c)") 📺 Público
+              a.link-btn.link-btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :href="`/c/${c.friendlyId}/presentation`" @click.prevent="openPublic(c)") 📺 Público
               DropdownMenu(v-if="hasCapability(c, 'WORD_CLOUD') || hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE')" label="Moderación")
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/messages`") Mensajes
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Palabras/Nube
@@ -71,18 +71,18 @@
                 router-link(v-if="hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/device-blocks`") Bloqueos
           td.actions-cell(data-label="Acciones")
             .conf-actions
-              router-link.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/${c.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") 🏅 Certificado
-              router-link.btn-ghost(v-if="hasCapability(c, 'TICKETING_GENERAL') || hasCapability(c, 'TICKETING_SEATED')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/tickets`") 🎟️ Boletos
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/tools`") 🔒 Herramientas
-              button.btn-ghost(v-if="!c.expiresAt" @click="toggleActive(c)" :disabled="c._togglingActive")
+              router-link.link-btn.link-btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
+              router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/${c.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") 🏅 Certificado
+              router-link.link-btn.link-btn-ghost(v-if="hasCapability(c, 'TICKETING_GENERAL') || hasCapability(c, 'TICKETING_SEATED')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/tickets`") 🎟️ Boletos
+              router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/tools`") 🔒 Herramientas
+              BaseButton(variant="ghost" v-if="!c.expiresAt" @click="toggleActive(c)" :disabled="c._togglingActive")
                 | {{ c.status === 'ACTIVE' ? 'Desactivar' : 'Activar' }}
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editor
-              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Configuración
+              router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editor
+              router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Configuración
               template(v-if="c.seatingMode && c.seatingMode !== 'NONE'")
-                router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/check-in`") Check-in
-                router-link.btn-ghost(v-if="c.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/venue-map`") Mapa de asientos
-              button.btn-trash(@click="confirmDelete(c)" :disabled="c._deleting" title="Eliminar conferencia")
+                router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/check-in`") Check-in
+                router-link.link-btn.link-btn-ghost(v-if="c.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/venue-map`") Mapa de asientos
+              BaseButton(variant="danger" @click="confirmDelete(c)" :disabled="c._deleting" title="Eliminar conferencia")
                 svg(xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
                   polyline(points="3 6 5 6 21 6")
                   path(d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6")
@@ -94,9 +94,9 @@
     .confirm-dialog
       h4 ¿Eliminar conferencia?
       p Esto borrará permanentemente <strong>{{ deleteTarget.name }}</strong> y no se puede deshacer.
-      .confirm-actions
-        button.btn-cancel(@click="deleteTarget = null") Cancelar
-        button.btn-confirm(@click="doDelete") Eliminar
+       .confirm-actions
+         BaseButton(variant="secondary" @click="deleteTarget = null") Cancelar
+         BaseButton(variant="danger" @click="doDelete") Eliminar
 
   QrCodeModal(v-if="qrTarget" :friendlyId="qrTarget.friendlyId" @close="qrTarget = null")
 </template>
@@ -108,6 +108,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { isExpired } from '@/utils/dates'
 import { eventTypeHasCapability } from '@/features/conferences/capabilities'
 import type { Conference, DownloadCounts, EventType, EventCapability } from '@/services/api/types'
@@ -120,7 +121,7 @@ interface ConferenceRow extends Conference {
 
 export default {
   name: 'ConferencesListPage',
-  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb },
+  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton },
   setup() {
     const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)
@@ -266,16 +267,6 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 .conf-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .conf-modes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
-.btn-primary { display: inline-block; padding: 8px 18px; background: #4f46e5; color: #fff; border-radius: 8px; text-decoration: none; font-size: 0.875rem; font-weight: 500; border: none; cursor: pointer; }
-.btn-primary:hover { background: #4338ca; }
-
-.btn-outline { display: inline-block; padding: 6px 12px; border: 1px solid #4f46e5; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 0.78rem; background: none; cursor: pointer; }
-.btn-outline:hover { background: #eef2ff; }
-
-.btn-ghost { display: inline-block; padding: 6px 12px; color: #6b7280; border: 1px solid #e5e7eb; border-radius: 8px; text-decoration: none; font-size: 0.78rem; background: none; font-family: inherit; cursor: pointer; }
-.btn-ghost:hover { background: #f3f4f6; color: #374151; }
-.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
-
 .btn-trash {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px;
@@ -298,10 +289,6 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 .confirm-dialog h4 { margin: 0 0 12px; color: #1e1b4b; font-size: 1.1rem; }
 .confirm-dialog p { color: #6b7280; font-size: 0.95rem; margin: 0 0 24px; }
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
-.btn-cancel { padding: 8px 18px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #374151; cursor: pointer; }
-.btn-cancel:hover { background: #f3f4f6; }
-.btn-confirm { padding: 8px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-.btn-confirm:hover { background: #b91c1c; }
 
 @media (max-width: 768px) {
   .conferences-list-page { padding: 16px 14px; }
