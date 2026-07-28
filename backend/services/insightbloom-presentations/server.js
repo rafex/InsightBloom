@@ -1040,19 +1040,28 @@ async function buildPresentation(provider, conferenceId, stagingDir, srcDir) {
   // del orador en ese bundle sin importar que ruta (/ o /presenter) este mirando el navegador
   // -- no hay separacion de rutas a nivel de servidor dentro de un mismo build. Para que el
   // moderador vea sus notas sin filtrarlas a la audiencia, se genera un SEGUNDO build con
-  // notas, servido bajo su propio prefijo ("presenter/") y protegido con
-  // requirePresentationManagement (ver ruta /presentation/presenter/*) en vez del
+  // notas, servido bajo su propio prefijo ("moderator/") y protegido con
+  // requirePresentationManagement (ver ruta /presentation/moderator/*) en vez del
   // requireConferenceAccess que usa el build publico. Reportado 2026-07-28: las notas del
   // orador en slides.md no aparecian nunca en "Presentar" porque --without-notes las
   // eliminaba del unico build que existia.
   //
   // El --base tiene que ser EXACTAMENTE el prefijo donde se sirve el documento (no solo
-  // sus assets): Slidev usa ese mismo valor como base del router interno (Vue Router), asi
-  // que si el documento se sirve en ".../presentation/presenter" pero --base apunta a
-  // ".../presentation/presenter-assets/", el router de Slidev nunca reconoce la ruta y
-  // muestra su propio 404 (bug encontrado 2026-07-27 al probar el primer intento de esta
-  // separacion: la audiencia veia el deck bien, pero /presenter siempre daba 404 en el
-  // cliente aunque el servidor respondiera 200).
+  // sus assets): Slidev usa ese mismo valor como base del router interno (Vue Router). El
+  // prefijo se llama "moderator/" y NO "presenter/" a propósito: Slidev ya tiene su PROPIA
+  // ruta interna "/presenter/N" (la vista con notas + siguiente diapositiva) DENTRO de
+  // cualquier build, relativa a su --base. Si el prefijo externo también se llamara
+  // "presenter/", la URL para llegar a esa vista real terminaría siendo
+  // ".../presentation/presenter/presenter/N" -- y visitar solo ".../presentation/presenter"
+  // (un único segmento) aterriza en la RAÍZ del router de esa build, que es la vista NORMAL
+  // de diapositivas (sin el panel de notas), no la vista de presentador. La lógica de
+  // sincronización de SpeakerPanelPage.vue (pensada para el esquema viejo de un solo build)
+  // entonces recalculaba una URL objetivo que nunca coincidía con la real y forzaba
+  // location.replace() en bucle -- eso es lo que se veía como "la presentación se refresca
+  // varias veces" con errores de import() abortado (bug encontrado 2026-07-28, segundo
+  // intento de esta separación). Con el prefijo "moderator/" la ruta real de presentador
+  // queda como ".../presentation/moderator/presenter/N" -- sin ambigüedad, un solo
+  // "presenter" en toda la URL.
   const presenterDistDir = path.join(stagingDir, 'dist-presenter');
   fs.mkdirSync(presenterDistDir, { recursive: true });
   const presenterStartedAt = Date.now();
@@ -1060,7 +1069,7 @@ async function buildPresentation(provider, conferenceId, stagingDir, srcDir) {
   await runSlidevSerialized([
     'build', mdFile,
     '--out', presenterDistDir,
-    '--base', `${presentationBasePath(conferenceId)}presenter/`,
+    '--base', `${presentationBasePath(conferenceId)}moderator/`,
   ]);
   console.log('slidev_presenter_build_finished', conferenceId, `${Date.now() - presenterStartedAt}ms`);
 
@@ -1203,13 +1212,15 @@ app.get('/api/v1/conferences/:id/presentation/slides', async (req, res) => {
 });
 
 // Montado como prefijo (no como ruta exacta) para que el documento del presentador Y
-// sus assets vivan bajo el MISMO prefijo ".../presentation/presenter" -- tiene que
+// sus assets vivan bajo el MISMO prefijo ".../presentation/moderator" -- tiene que
 // coincidir con el --base usado al construir dist-presenter en buildPresentation, porque
 // Slidev usa ese valor tambien como base de su router interno. Sirve tanto el archivo
-// estatico exacto (JS/CSS/fuentes) como el fallback de SPA para las sub-rutas de slide
-// del presentador (".../presenter/1", ".../presenter/2", etc.), igual que el middleware
-// generico de mas abajo hace para el build publico.
-app.use('/api/v1/conferences/:id/presentation/presenter', async (req, res, next) => {
+// estatico exacto (JS/CSS/fuentes) como el fallback de SPA para las sub-rutas del build
+// (incluida la ruta interna de Slidev ".../moderator/presenter/N", la vista real de
+// presentador con notas), igual que el middleware generico de mas abajo hace para el
+// build publico. El prefijo se llama "moderator" y no "presenter" para no chocar con esa
+// ruta interna de Slidev -- ver el comentario largo en buildPresentation.
+app.use('/api/v1/conferences/:id/presentation/moderator', async (req, res, next) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   const manifest = readManifest(req.params.id);
   const presenterRoot = presentationPresenterRoot(req.params.id, manifest);
@@ -1235,11 +1246,9 @@ app.use('/api/v1/conferences/:id/presentation/presenter', async (req, res, next)
   setPresentationAccessCookie(req, res, req.params.id);
   // redirect:false es obligatorio -- express.static/serve-static redirige con 301
   // agregando "/" cuando la URL pedida resuelve a un directorio (req.url === "/" al
-  // llegar aca, porque el mount de este middleware es exactamente ".../presenter" sin
+  // llegar aca, porque el mount de este middleware es exactamente ".../moderator" sin
   // slash final), sin importar el valor de "index". El navegador sigue ese 301 dentro
-  // del iframe y termina navegando fuera del SPA fallback de abajo. Reportado 2026-07-28:
-  // network tab mostraba 301 en ".../presentation/presenter" y la app principal (fuera
-  // del iframe) terminaba renderizando su propio NotFoundPage.
+  // del iframe y termina navegando fuera del SPA fallback de abajo.
   express.static(presenterRoot, { index: false, redirect: false })(req, res, (err) => {
     if (err || path.extname(req.path)) return next(err);
     res.sendFile(presenterIndex);
@@ -1351,7 +1360,7 @@ app.get('/api/v1/conferences/:id/presentation/offline-manifest', requirePresenta
 });
 
 app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
-  const apiEndpointPaths = new Set(['/status', '/markdown', '/offline-manifest', '/slides', '/presenter', '/slides/preview', '/thumbnail', '/pdf', '/remote-token']);
+  const apiEndpointPaths = new Set(['/status', '/markdown', '/offline-manifest', '/slides', '/slides/preview', '/thumbnail', '/pdf', '/remote-token']);
   if (apiEndpointPaths.has(req.path)) return next();
   const manifest = readManifest(req.params.id);
   const root = presentationStaticRoot(req.params.id, manifest);

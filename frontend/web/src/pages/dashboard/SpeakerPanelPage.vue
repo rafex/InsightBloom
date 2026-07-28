@@ -121,8 +121,8 @@ export default {
         if (provider.value === 'MARP') return url.hash || ''
         const marker = `/api/presentations/api/v1/conferences/${props.conferenceId}/presentation/`
         let state = url.pathname.startsWith(marker) ? url.pathname.slice(marker.length) : ''
-        if (state === 'presenter') return ''
-        if (state.startsWith('presenter/')) state = state.slice('presenter/'.length)
+        if (state === 'moderator/presenter') return ''
+        if (state.startsWith('moderator/presenter/')) state = state.slice('moderator/presenter/'.length)
         return `${state}${url.search}${url.hash}`
       } catch (e: any) { return '' /* same-origin esperado; si falla, no hay sync */ }
     }
@@ -139,9 +139,9 @@ export default {
       let relativePath = stateUrl.pathname.startsWith(marker)
         ? stateUrl.pathname.slice(marker.length)
         : stateUrl.pathname.replace(/^\/+/, '')
-      if (relativePath === 'presenter') relativePath = ''
-      if (relativePath.startsWith('presenter/')) relativePath = relativePath.slice('presenter/'.length)
-      current.pathname = `${marker}presenter${relativePath ? `/${relativePath}` : ''}`
+      if (relativePath === 'moderator/presenter') relativePath = ''
+      if (relativePath.startsWith('moderator/presenter/')) relativePath = relativePath.slice('moderator/presenter/'.length)
+      current.pathname = `${marker}moderator/presenter${relativePath ? `/${relativePath}` : ''}`
       current.search = stateUrl.search
       current.hash = stateUrl.hash
       return current

@@ -80,8 +80,15 @@ export function getPresentationRootUrl(conferenceId: string, _token?: string | n
   return `${BASE}/conferences/${conferenceId}/presentation/`
 }
 
+/**
+ * La vista de presentador vive bajo su propia build con notas ("moderator/"), y DENTRO de
+ * esa build la ruta real con el panel de notas es la propia ruta interna de Slidev
+ * "/presenter/N" -- de ahí el "moderator/presenter" (no alcanza con "moderator" solo, eso
+ * aterriza en la vista normal de diapositivas sin notas). Ver el comentario en
+ * buildPresentation (insightbloom-presentations/server.js) para el porqué del prefijo.
+ */
 export function getPresenterSlidesUrl(conferenceId: string, _token?: string | null): string {
-  return `${BASE}/conferences/${conferenceId}/presentation/presenter`
+  return `${BASE}/conferences/${conferenceId}/presentation/moderator/presenter`
 }
 
 export function getSlidesPreviewUrl(conferenceId: string): string {
@@ -95,7 +102,7 @@ export function getPdfUrl(conferenceId: string, _token?: string | null): string 
 /** Prime the HttpOnly, path-scoped presentation cookie before loading an iframe,
  * WebSocket or download URL. Tokens must not be put in those URLs. */
 export async function primePresentationAccess(conferenceId: string, token: string, presenter = false): Promise<void> {
-  const path = presenter ? 'presenter' : 'slides'
+  const path = presenter ? 'moderator/presenter' : 'slides'
   await axios.get(`${BASE}/conferences/${conferenceId}/presentation/${path}`, {
     headers: authHeader(token),
     responseType: 'text'
