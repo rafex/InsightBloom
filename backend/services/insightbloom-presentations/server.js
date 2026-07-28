@@ -34,6 +34,7 @@ const PRESENTATION_MANIFEST = 'manifest.json';
 const SLIDEV_ARTIFACT_MANIFEST = 'slidev-artifact.json';
 const DEFAULT_PRESENTATION_PROVIDER = 'MARP';
 const PRESENTATION_PROVIDERS = new Set(['MARP', 'SLIDEV']);
+const SLIDEV_CSP = "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'self' https: wss:";
 const SLIDEV_FAT_ENABLED = process.env.SLIDEV_FAT_ENABLED === 'true';
 const SLIDEV_FAT_ALLOW_WARNINGS = process.env.SLIDEV_FAT_ALLOW_WARNINGS === 'true';
 const OFFLINE_PRESENTATION_TTL_MS = Math.min(
@@ -600,6 +601,16 @@ function presentationIndexFile(conferenceId, manifest = readManifest(conferenceI
   return path.join(presentationStaticRoot(conferenceId, manifest), manifest.indexFile || 'slides.html');
 }
 
+function presentationPresenterRoot(conferenceId, manifest = readManifest(conferenceId)) {
+  if (!manifest.presenterStaticRoot) return null;
+  return path.join(conferenceDir(conferenceId), manifest.presenterStaticRoot);
+}
+
+function presentationPresenterIndexFile(conferenceId, manifest = readManifest(conferenceId)) {
+  const root = presentationPresenterRoot(conferenceId, manifest);
+  return root ? path.join(root, manifest.presenterIndexFile || 'index.html') : null;
+}
+
 function contentTypeFor(file) {
   const extension = path.extname(file).toLowerCase();
   const types = {
@@ -1023,11 +1034,35 @@ async function buildPresentation(provider, conferenceId, stagingDir, srcDir) {
     '--without-notes',
   ]);
   console.log('slidev_build_finished', conferenceId, `${Date.now() - startedAt}ms`);
+
+  // Build público (arriba) siempre va con --without-notes: es el mismo bundle JS que
+  // descarga cualquier asistente con acceso a la presentacion, y Slidev empaqueta las notas
+  // del orador en ese bundle sin importar que ruta (/ o /presenter) este mirando el navegador
+  // -- no hay separacion de rutas a nivel de servidor dentro de un mismo build. Para que el
+  // moderador vea sus notas sin filtrarlas a la audiencia, se genera un SEGUNDO build con
+  // notas, servido bajo un prefijo de assets propio ("presenter-assets/") y protegido con
+  // requirePresentationManagement (ver rutas /presentation/presenter y
+  // /presentation/presenter-assets/*) en vez del requireConferenceAccess que usa el build
+  // publico. Reportado 2026-07-28: las notas del orador en slides.md no aparecian nunca en
+  // "Presentar" porque --without-notes las eliminaba del unico build que existia.
+  const presenterDistDir = path.join(stagingDir, 'dist-presenter');
+  fs.mkdirSync(presenterDistDir, { recursive: true });
+  const presenterStartedAt = Date.now();
+  console.log('slidev_presenter_build_started', conferenceId);
+  await runSlidevSerialized([
+    'build', mdFile,
+    '--out', presenterDistDir,
+    '--base', `${presentationBasePath(conferenceId)}presenter-assets/`,
+  ]);
+  console.log('slidev_presenter_build_finished', conferenceId, `${Date.now() - presenterStartedAt}ms`);
+
   return {
     provider,
     format: 'source',
     staticRoot: 'dist',
     indexFile: 'index.html',
+    presenterStaticRoot: 'dist-presenter',
+    presenterIndexFile: 'index.html',
     sourceFile: path.relative(stagingDir, mdFile),
     engineVersion: '@slidev/cli@52.18.0',
     title,
@@ -1161,13 +1196,41 @@ app.get('/api/v1/conferences/:id/presentation/slides', async (req, res) => {
 
 app.get('/api/v1/conferences/:id/presentation/presenter', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
-  if (!await requireConferenceAccess(req, res)) return;
   const manifest = readManifest(req.params.id);
+  const presenterFile = presentationPresenterIndexFile(req.params.id, manifest);
+  if (presenterFile && fs.existsSync(presenterFile)) {
+    // Build con notas: solo para quien puede administrar la presentacion, no cualquier
+    // asistente con boleto (ver comentario en buildPresentation sobre por que existe este
+    // segundo build).
+    if (!(await hasPresentationManagementAccess(req.params.id, requestToken(req)))) {
+      return res.status(403).json({ error: 'presentation_management_required' });
+    }
+    res.setHeader('Content-Security-Policy', SLIDEV_CSP);
+    setPresentationAccessCookie(req, res, req.params.id);
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    return res.sendFile(presenterFile);
+  }
+  // Presentaciones subidas antes de este cambio no tienen build con notas: se mantiene el
+  // comportamiento anterior (mismo bundle sin notas, acceso de asistente normal).
+  if (!await requireConferenceAccess(req, res)) return;
   const file = presentationIndexFile(req.params.id, manifest);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
   setPresentationAccessCookie(req, res, req.params.id);
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   res.sendFile(file);
+});
+
+app.use('/api/v1/conferences/:id/presentation/presenter-assets', async (req, res, next) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  const manifest = readManifest(req.params.id);
+  const presenterRoot = presentationPresenterRoot(req.params.id, manifest);
+  if (!presenterRoot) return res.status(404).json({ error: 'not_found' });
+  if (!(await hasPresentationManagementAccess(req.params.id, requestToken(req)))) {
+    return res.status(403).json({ error: 'presentation_management_required' });
+  }
+  res.setHeader('Content-Security-Policy', SLIDEV_CSP);
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  express.static(presenterRoot, { index: false })(req, res, next);
 });
 
 app.get('/api/v1/conferences/:id/presentation/slides/preview', async (req, res) => {
@@ -1292,7 +1355,7 @@ app.use('/api/v1/conferences/:id/presentation', (req, res, next) => {
         ? "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'none'"
         : manifest.provider === 'MARP'
           ? "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'none'; frame-src 'none'"
-          : "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'self' https: wss:";
+          : SLIDEV_CSP;
       res.setHeader('Content-Security-Policy', contentSecurityPolicy);
       setPresentationAccessCookie(req, res, req.params.id);
       serve();
