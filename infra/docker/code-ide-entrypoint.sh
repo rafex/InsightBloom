@@ -16,6 +16,18 @@ if [ ! -f /home/coder/workspace/.vscode/launch.json ]; then
     cp /etc/insightbloom/code-ide-launch.json /home/coder/workspace/.vscode/launch.json
 fi
 
+# tasks.json con "runOn": "folderOpen" -- fuerza que la Terminal se enfoque/muestre al abrir el
+# workspace. El layout de paneles/vistas (que panel queda visible al arrancar) es estado de
+# sesion de VS Code (workspaceStorage/state.vscdb), no una clave de settings.json, y ese estado
+# tambien se pierde entre sesiones (mismo emptyDir efimero) -- por eso no alcanza con settings.json
+# solo (ver code-ide-settings.json: "workbench.panel.defaultLocation") y hace falta esta tarea
+# para reclamar el foco del panel inferior de forma confiable en cada sesion (reportado
+# 2026-07-28: se abria un panel lateral que no era la terminal y tapaba espacio de la vista).
+if [ ! -f /home/coder/workspace/.vscode/tasks.json ]; then
+    mkdir -p /home/coder/workspace/.vscode
+    cp /etc/insightbloom/code-ide-tasks.json /home/coder/workspace/.vscode/tasks.json
+fi
+
 # Agente de archivos del workspace (Fase 4, dashboard de moderador) -- puerto de control 8079
 # (basePort 8080 - 1, misma convencion que el seat-agent de la imagen neovim, ver
 # KubernetesPodClient.controlPort()), en background: "exec code-server" de abajo REEMPLAZA este

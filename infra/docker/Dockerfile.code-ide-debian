@@ -102,6 +102,12 @@ RUN curl -fsSL "$PYTHON_URL" -o /tmp/python.tar.gz && \
     ln -s /usr/local/lib/python-3.12/bin/python3 /usr/local/bin/python && \
     ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip3 && \
     ln -s /usr/local/lib/python-3.12/bin/pip3 /usr/local/bin/pip
+# Solo python3/pip quedan symlinkeados arriba -- cualquier OTRO script que "pip install" agregue
+# despues (uv, virtualenv, jupyter, black, pylint, debugpy, etc.) queda instalado en
+# /usr/local/lib/python-3.12/bin/ sin quedar expuesto como comando bare. Se agrega ese directorio
+# al PATH (mismo fix ya aplicado en Dockerfile.code-ide-neovim, faltaba aca) para que la
+# extension de Python y esos scripts se resuelvan sin depender solo de los symlinks manuales.
+ENV PATH="/usr/local/lib/python-3.12/bin:${PATH}"
 
 # Node.js LTS 24.18.0 -- tarball oficial glibc de nodejs.org (Debian apt bookworm no llega a
 # LTS 24, y fijar la version exacta pedida evita el runtime "current" que da apk en la imagen
@@ -279,13 +285,15 @@ USER coder
 RUN mkdir -p /home/coder/.local/share/code-server/User /home/coder/workspace /home/coder/db /home/coder/.m2
 COPY --chown=coder:coder infra/docker/code-ide-settings.json /home/coder/.local/share/code-server/User/settings.json
 
-# Template de launch.json (debug remoto via JDWP/debugpy, ver runtime-debug-helpers.sh) --
-# sembrado en el volumen de workspace en runtime por code-ide-entrypoint.sh, no aca:
+# Template de launch.json (debug remoto via JDWP/debugpy, ver runtime-debug-helpers.sh) y
+# tasks.json (fuerza el foco en la Terminal al abrir el workspace, ver code-ide-entrypoint.sh) --
+# sembrados en el volumen de workspace en runtime por code-ide-entrypoint.sh, no aca:
 # /home/coder/workspace es un emptyDir montado por Kubernetes, lo copiado aca en build time
 # queda tapado/invisible al arrancar el Pod.
 USER root
 RUN mkdir -p /etc/insightbloom
 COPY infra/docker/code-ide-launch.json /etc/insightbloom/code-ide-launch.json
+COPY infra/docker/code-ide-tasks.json /etc/insightbloom/code-ide-tasks.json
 COPY infra/docker/code-ide-entrypoint.sh /usr/local/bin/code-ide-entrypoint.sh
 COPY infra/docker/sandbox-file-agent.py /usr/local/bin/sandbox-file-agent.py
 COPY infra/docker/sandbox_file_api.py /usr/local/bin/sandbox_file_api.py
