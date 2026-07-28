@@ -76,16 +76,11 @@ nunca es pixel-idéntica, porque no hay una fuente única de verdad para estos c
 
 **No se aborda en esta pasada** — migrar 50 páginas de inputs/selects/botones sueltos a
 `FormField`/`BaseButton` es un rediseño con superficie grande (cada página cambia su
-DOM y hay que revisar que ningún `v-model`/evento se rompa), no un fix puntual. Queda
-como el ítem de mayor prioridad para una iteración dedicada, en este orden sugerido:
-
-- [ ] Definir en `global.css` un baseline para `input`, `select`, `textarea` (borde,
-  radio, padding, focus-visible) como red de seguridad para las páginas que nunca se
-  migren a `FormField`.
-- [ ] Migrar las páginas de mayor tráfico primero: `NewConferencePage.vue`,
-  `ConferencesListPage.vue`, `ConferenceConfigPage.vue`, `TicketManagementPage.vue`,
-  `SurveyManagePage.vue` — a `BaseButton`/`FormField`.
-- [ ] Recién después, el resto de las 45 páginas restantes.
+DOM y hay que revisar que ningún `v-model`/evento se rompa), no un fix puntual. El plan
+de ejecución completo (inventario exacto de los 29 archivos, contrato de los
+componentes, orden de migración, checklist y criterios de aceptación) está en
+[`DESIGN_SYSTEM_MIGRATION.md`](./DESIGN_SYSTEM_MIGRATION.md) — pensado para que otra
+sesión (humana o de IA) lo ejecute sin tener que redescubrir el contexto.
 
 ### P1 — Confirmado, con arreglo concreto
 
