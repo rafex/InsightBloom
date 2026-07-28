@@ -418,5 +418,6 @@ h3 { color: #166534; margin: 0 0 16px; }
 
 @media (max-width: 480px) {
   .coords-row { flex-direction: column; gap: 14px; }
+  .price-row { grid-template-columns: 1fr; }
 }
 </style>

@@ -1,31 +1,38 @@
-# Auditoría de responsividad — InsightBloom Web
+# Auditoría de responsividad y UX/UI — InsightBloom Web
 
 > Documento vivo. Se actualiza cada vez que se revisa o corrige un ítem. No es un
-> reporte de una sola vez: es el backlog de responsividad del frontend.
+> reporte de una sola vez: es el backlog de responsividad + consistencia visual del
+> frontend.
 
 - **Última actualización:** 2026-07-28
 - **Alcance:** `frontend/web` (SPA Vue 3), breakpoints objetivo: móvil (~375px),
-  tablet (~768px) y escritorio (≥1280px).
+  tablet (~768px) y escritorio (≥1280px). Excluye a propósito las páginas que embeben
+  herramientas de terceros (Excalidraw, Jitsi, drawio/mermaid, Etherpad, Monaco/ttyd) —
+  ver sección P3.
 - **Metodología:**
   1. Navegación real en el sitio en producción (`insightbloom.v1.rafex.cloud`) con el
-     panel de navegador en 375×812 (móvil), 768×1024 (tablet) y 1440×900 (escritorio),
-     sobre las páginas públicas (login, cartelera, detalle de evento, checkout).
-  2. Auditoría estática del código: se revisaron las 74 páginas de `src/pages` buscando
-     `@media`, anchos fijos en `px`, `flex-wrap`, y el patrón `overflow-x:auto` para tablas.
-     Las páginas del dashboard/moderador no se pudieron probar en vivo en esta pasada
-     porque requieren sesión autenticada y no había credenciales disponibles — quedan
-     marcadas como "verificar visualmente" en vez de "confirmado en navegador".
+     panel de navegador en 375×812 (móvil), 768×1024 (tablet) y 1440×900 (escritorio).
+  2. Primera pasada (2026-07-27): solo páginas públicas (login, cartelera, detalle de
+     evento, checkout) porque no había sesión autenticada disponible; el dashboard se
+     auditó de forma estática (grep de `@media`, anchos fijos, `flex-wrap`).
+  3. Segunda pasada (2026-07-28), con sesión autenticada real: se recorrieron Panel,
+     Eventos, "Nuevo evento" y Configuración del evento (con sus 6 pestañas) en 375px,
+     click por click, revisando además los inputs/selects/textareas de cada formulario.
+     Las credenciales usadas para esta sesión fueron rotadas por el dueño de la cuenta
+     al terminar la auditoría — ver `feedback-per-service-config-independence` no aplica
+     acá, es solo una nota de higiene de acceso, no un hallazgo de producto.
 
 ## Resumen ejecutivo
 
 El sitio parte de una base sólida: hay tokens de diseño globales, un patrón consistente
 de `overflow-x: auto` para tablas, un sidebar de dashboard con hamburguesa colapsable a
-768px, y las páginas públicas más importantes (login, cartelera de eventos, detalle de
-evento, checkout) se probaron en vivo en los tres breakpoints y se ven y funcionan bien.
-Esto **no es un sitio roto en móvil** — el trabajo pendiente es incremental, no una
-reescritura.
+768px, y tanto las páginas públicas (login, cartelera, detalle de evento, checkout) como
+las principales del dashboard (Panel, Eventos, Nuevo evento, Configuración) se probaron
+en vivo en 375px y se ven y funcionan bien en su estructura general. Esto **no es un
+sitio roto en móvil** — el trabajo pendiente es incremental, no una reescritura.
 
-El backlog de abajo son las brechas reales encontradas, priorizadas por impacto.
+El hallazgo más importante de esta segunda pasada **no es de responsividad sino de
+consistencia visual**: ver P0 abajo. El backlog completo está priorizado por impacto.
 
 ## Fortalezas ya presentes (para no repetir trabajo)
 
@@ -48,8 +55,54 @@ El backlog de abajo son las brechas reales encontradas, priorizadas por impacto.
 Formato de cada ítem: página/componente, qué se rompe o qué falta verificar, y una
 propuesta de solución. Marcar `[x]` al resolver y agregar la fecha + commit.
 
+### P0 — Consistencia visual de formularios y botones (no es un bug de responsividad)
+
+Reportado directamente por el usuario tras recorrer varias pantallas: "selects, inputs
+de formulario son diferentes y algunos botones también son diferentes". Confirmado con
+un conteo real sobre el código (2026-07-28):
+
+- `global.css` **no tiene ningún estilo base** para `input`, `select` ni `textarea` —
+  cada página define el suyo (o hereda el look nativo del navegador tal cual).
+- **26 de 50 páginas** (`grep -rl '\.btn-primary\s*{' src/pages`) definen su **propia**
+  clase `.btn-primary` en `<style scoped>`, con paddings (`8px 18px` vs `10px 22px`) y
+  tamaños de fuente (`0.875rem` vs `0.95rem` vs `1rem`) ligeramente distintos entre sí.
+  El color de fondo (`#4f46e5`) coincide en casi todas, pero el tamaño/padding no.
+- El proyecto **ya tiene** los componentes compartidos para esto — `BaseButton.vue`,
+  `FormField.vue` (Fase UX F1.2) — pero la adopción es prácticamente nula: **solo 1
+  página usa `BaseButton`** y **ninguna usa `FormField`**.
+
+Esto explica exactamente lo que se ve: cada pantalla "casi" se parece a las demás pero
+nunca es pixel-idéntica, porque no hay una fuente única de verdad para estos controles.
+
+**No se aborda en esta pasada** — migrar 50 páginas de inputs/selects/botones sueltos a
+`FormField`/`BaseButton` es un rediseño con superficie grande (cada página cambia su
+DOM y hay que revisar que ningún `v-model`/evento se rompa), no un fix puntual. Queda
+como el ítem de mayor prioridad para una iteración dedicada, en este orden sugerido:
+
+- [ ] Definir en `global.css` un baseline para `input`, `select`, `textarea` (borde,
+  radio, padding, focus-visible) como red de seguridad para las páginas que nunca se
+  migren a `FormField`.
+- [ ] Migrar las páginas de mayor tráfico primero: `NewConferencePage.vue`,
+  `ConferencesListPage.vue`, `ConferenceConfigPage.vue`, `TicketManagementPage.vue`,
+  `SurveyManagePage.vue` — a `BaseButton`/`FormField`.
+- [ ] Recién después, el resto de las 45 páginas restantes.
+
 ### P1 — Confirmado, con arreglo concreto
 
+- [x] **`NewConferencePage.vue` — fila "Precio y moneda del boleto" desborda en 375px.**
+  `.price-row { grid-template-columns: 1fr 1fr }` sin `@media`; el `<select>` de moneda
+  ("MXN — Peso mexicano") es más ancho que su columna de 1fr y se corta contra el borde
+  derecho de la pantalla (confirmado visualmente, con scroll horizontal visible).
+  **Corregido en esta auditoría** (2026-07-28): `@media (max-width: 480px) { .price-row
+  { grid-template-columns: 1fr } }`, mismo patrón que ya usaba `.coords-row` en el
+  mismo archivo.
+- [x] **`ConferenceConfigPage.vue` — placeholder literal `&#10;` en vez de salto de
+  línea.** En la pestaña Red, el textarea de "Lista blanca adicional" tenía
+  `placeholder="un-dominio-extra.com&#10;*.otro-dominio.org")` escrito en Pug — Pug no
+  decodifica entidades HTML dentro de un atributo de string, así que el usuario veía el
+  texto literal `&#10;` en el placeholder en vez de un salto de línea. **Corregido en
+  esta auditoría** (2026-07-28): cambiado a `\n` (sintaxis de string JS, que sí funciona
+  en un atributo de Pug).
 - [x] **`TicketManagementPage.vue` — fila de boleto sin `flex-wrap`.** `.ticket-row` y
   `.row-actions` eran `display:flex` sin `flex-wrap`. Desde que se agregó el botón
   "Reenviar" (2026-07-27) cada fila tiene 4 botones (QR, Copiar UUID, Reenviar,
@@ -65,10 +118,12 @@ Páginas del dashboard sin ningún `@media` propio. La mayoría usa `flex-wrap` 
 `max-width` fluido, así que es probable que degraden razonablemente bien, pero no está
 confirmado con captura real en 375px. Revisar en el teléfono o con sesión de prueba:
 
-- [ ] `ConferenceConfigPage.vue` — la página más grande y compleja del dashboard (~1000
-  líneas, muchas subsecciones: sandbox, incidentes, asientos, acceso por dispositivo,
-  red). Tiene `.table-scroll` y `flex-wrap` en las filas, pero nunca se confirmó en
-  pantalla angosta real.
+- [x] `ConferenceConfigPage.vue` — **confirmado en vivo en 375px (2026-07-28)**: las 6
+  pestañas (General/Herramientas/IDE y sandboxes/Acceso y roles/IA/Red) envuelven bien,
+  los formularios se apilan correctamente. Los dos bugs reales que sí tenía (fila de
+  precio y placeholder roto) están en P1, ya corregidos. Quedan sin confirmar en vivo
+  las subsecciones de sandbox/incidentes/mapa de asientos dentro de esta misma página
+  (no se llegó a esas pestañas en esta pasada).
 - [ ] `ModerationToolsPage.vue` (candado por herramienta) — tarjetas por herramienta con
   toggle + lista expandible de asistentes; confirmar que la lista de asistentes no
   desborda en 375px.

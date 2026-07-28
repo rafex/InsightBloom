@@ -268,7 +268,7 @@
         |  global como la de aquí, siempre gana sobre cualquier lista blanca.
       .coord-field
         span.coord-label Lista blanca adicional (permitidos)
-        textarea(v-model="egressAllowedHosts" rows="5" placeholder="un-dominio-extra.com&#10;*.otro-dominio.org")
+        textarea(v-model="egressAllowedHosts" rows="5" placeholder="un-dominio-extra.com\n*.otro-dominio.org")
       .coord-field
         span.coord-label Lista negra adicional (bloqueados)
         textarea(v-model="egressBlockedHosts" rows="3" placeholder="dominio-a-bloquear.com")
