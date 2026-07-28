@@ -278,9 +278,9 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid #d1d5db; bor
 .field-hint { margin: 8px 0 0; font-size: .8rem; color: var(--color-text-muted); }
 .btn-copy { border: 1px solid #c7d2fe; background: #eef2ff; color: #4338ca; }
 .btn-revoke { border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
-.row-actions { display: flex; gap: 8px; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .qr-preview { margin: 18px 0; padding: 18px; border: 1px dashed #c7d2fe; border-radius: 10px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.ticket-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+.ticket-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
 .ticket-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ticket-main strong { font: 0.8rem monospace; overflow-wrap: anywhere; }
 .ticket-main span, .empty, .issue-card p { color: #6b7280; font-size: 0.9rem; }
