@@ -379,10 +379,15 @@ export default {
 </script>
 
 <style scoped>
-.speaker-panel-page { padding: 24px; max-width: 960px; }
+.speaker-panel-page { padding: 24px; max-width: 1400px; margin: 0 auto; }
 .speaker-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.speaker-header-actions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; margin-left: auto; }
-.utility-controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+/* Un solo renglón de herramienta: utilidades (QR/control remoto/offline) + navegación
+ * comparten fila y se acomodan una junto a otra -- antes iban en columna, cada cluster
+ * ocupando su propio renglón a lo ancho completo, lo que dejaba "Anterior"/"Siguiente"
+ * estirados y separados sin necesidad (reportado 2026-07-28 al ver el modo presentador
+ * ya funcionando: "los botones... están mal distribuidos"). */
+.speaker-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto; }
+.utility-controls { display: flex; gap: 8px; flex-wrap: wrap; }
 h2 { margin: 0; color: #1e1b4b; }
 .speaker-status { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #374151; font-weight: 600; flex-wrap: wrap; }
 .registered-count { color: #6b7280; font-weight: 500; }
@@ -390,11 +395,17 @@ h2 { margin: 0; color: #1e1b4b; }
 .live-dot.connected { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
 .hint { color: #6b7280; font-size: 0.85rem; margin-bottom: 10px; }
 .presentation-empty { text-align: center; color: #6b7280; padding: 60px; }
-.slides-frame { width: 100%; height: 70vh; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
-.nav-controls { display: flex; gap: 10px; }
+/* El presentador de Slidev muestra diapositiva actual + siguiente + notas en un layout
+ * de varias columnas propio -- necesita más alto Y más ancho que el visor público de
+ * una sola diapositiva para que las notas no queden cortadas con scroll horizontal
+ * (visto en vivo 2026-07-28: la columna de notas se recortaba contra el borde). Por
+ * eso esta página ya no limita el ancho a 960px (ver .speaker-panel-page) y el iframe
+ * sube de 70vh a 82vh. */
+.slides-frame { width: 100%; height: 82vh; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
+.nav-controls { display: flex; gap: 8px; }
 .btn-nav {
-  flex: 1; padding: 10px 16px; border-radius: 10px; border: 2px solid #c7d2fe; background: #eef2ff;
-  color: #4f46e5; font-weight: 700; font-size: 0.95rem; cursor: pointer;
+  flex: 0 0 auto; padding: 10px 18px; border-radius: 10px; border: 2px solid #c7d2fe; background: #eef2ff;
+  color: #4f46e5; font-weight: 700; font-size: 0.95rem; cursor: pointer; white-space: nowrap;
 }
 .btn-nav:hover { background: #e0e7ff; }
 .btn-primary, .btn-secondary {
@@ -409,9 +420,10 @@ h2 { margin: 0; color: #1e1b4b; }
 @media (max-width: 640px) {
   .speaker-panel-page { padding: 14px; }
   .speaker-header { flex-direction: column; align-items: stretch; }
-  .speaker-header-actions { margin-left: 0; }
+  .speaker-header-actions { flex-direction: column; align-items: stretch; margin-left: 0; }
   .utility-controls { justify-content: stretch; }
   .utility-controls .btn-secondary { flex: 1; }
+  .nav-controls .btn-nav { flex: 1; }
   .slides-frame { height: 45vh; }
   .nav-controls { gap: 8px; }
   .btn-nav { padding: 16px; font-size: 1.05rem; min-height: 48px; }
