@@ -379,6 +379,7 @@ export interface UserProfile {
   email?: string | null
   phone?: string | null
   publicProfilePhotoBase64?: string | null
+  authMethod?: 'PASSWORD' | 'OTP_EMAIL'
   [key: string]: unknown
 }
 

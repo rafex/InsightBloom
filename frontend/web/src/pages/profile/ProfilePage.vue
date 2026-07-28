@@ -52,12 +52,28 @@
         .error(v-if="passwordError") {{ passwordError }}
         .success(v-if="passwordSuccess") ¡Contraseña actualizada!
         BaseButton(size="lg" :disabled="changingPassword || !newPassword" @click="changePassword") Cambiar contraseña
+
+        h3.password-title Método de acceso
+        p.hint(v-if="profileData.authMethod === 'OTP_EMAIL'") Activo: código de acceso por correo. Entrás con un código de 6 dígitos que te mandamos a tu correo, ya no con tu contraseña.
+        p.hint(v-else) Activo: contraseña. Podés cambiar a un código de acceso por correo — cada inicio de sesión te va a pedir un código nuevo enviado a tu correo, en vez de tu contraseña.
+        .form-group
+          label Confirmá tu contraseña actual para cambiar el método
+          input(v-model="authMethodPassword" type="password" placeholder="••••••••")
+        .error(v-if="authMethodError") {{ authMethodError }}
+        .success(v-if="authMethodSuccess") ¡Método de acceso actualizado!
+        BaseButton(
+          size="lg"
+          variant="secondary"
+          :disabled="changingAuthMethod || !authMethodPassword"
+          @click="toggleAuthMethod"
+        ) {{ profileData.authMethod === 'OTP_EMAIL' ? 'Volver a usar contraseña' : 'Activar código por correo' }}
 </template>
 
 <script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref, onMounted } from 'vue'
-import { getUserProfile, updateUserProfile, changePassword } from '@/services/api/usersApi'
+import { getUserProfile, updateUserProfile, changePassword, setAuthMethod } from '@/services/api/usersApi'
+import type { AuthMethod } from '@/services/api/usersApi'
 import type { UserProfile } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -82,6 +98,11 @@ export default {
     const changingPassword = ref(false)
     const passwordError = ref('')
     const passwordSuccess = ref(false)
+
+    const authMethodPassword = ref('')
+    const changingAuthMethod = ref(false)
+    const authMethodError = ref('')
+    const authMethodSuccess = ref(false)
 
     onMounted(async () => {
       try {
@@ -162,10 +183,31 @@ export default {
       }
     }
 
+    async function toggleAuthMethod() {
+      authMethodError.value = ''
+      authMethodSuccess.value = false
+      changingAuthMethod.value = true
+      try {
+        const newMethod: AuthMethod = profileData.value.authMethod === 'OTP_EMAIL' ? 'PASSWORD' : 'OTP_EMAIL'
+        const result = await setAuthMethod(auth.state.userUuid as string,
+          { currentPassword: authMethodPassword.value, newMethod }, auth.state.token as string)
+        profileData.value = { ...profileData.value, authMethod: result.authMethod }
+        authMethodPassword.value = ''
+        authMethodSuccess.value = true
+      } catch (e: any) {
+        authMethodError.value = e.response?.status === 400
+          ? 'La contraseña actual es incorrecta.'
+          : 'No se pudo cambiar el método de acceso.'
+      } finally {
+        changingAuthMethod.value = false
+      }
+    }
+
     return {
       loading, saving, error, success, firstName, lastName, save, profileData, profilePhoto, onPhotoSelected, hasPassword,
       currentPassword, newPassword, changingPassword, passwordError, passwordSuccess,
-      changePassword: changePasswordHandler
+      changePassword: changePasswordHandler,
+      authMethodPassword, changingAuthMethod, authMethodError, authMethodSuccess, toggleAuthMethod
     }
   }
 }

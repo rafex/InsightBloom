@@ -6,8 +6,10 @@ import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.ChangePasswordUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetUserProfileUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetAuthMethodUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UpdateProfileUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
+import dev.rafex.insightbloom.users.domain.model.AuthMethod;
 
 import java.util.List;
 import java.util.Map;
@@ -19,15 +21,18 @@ public class UserProfileHandler extends BaseResourceHandler {
     private final UpdateProfileUseCase updateProfileUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
     private final ChangePasswordUseCase changePasswordUseCase;
+    private final SetAuthMethodUseCase setAuthMethodUseCase;
 
     public UserProfileHandler(final GetUserProfileUseCase getUserProfileUseCase,
                               final UpdateProfileUseCase updateProfileUseCase,
                               final ValidateTokenUseCase validateTokenUseCase,
-                              final ChangePasswordUseCase changePasswordUseCase) {
+                              final ChangePasswordUseCase changePasswordUseCase,
+                              final SetAuthMethodUseCase setAuthMethodUseCase) {
         this.getUserProfileUseCase = getUserProfileUseCase;
         this.updateProfileUseCase = updateProfileUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
         this.changePasswordUseCase = changePasswordUseCase;
+        this.setAuthMethodUseCase = setAuthMethodUseCase;
     }
 
     @Override
@@ -39,7 +44,8 @@ public class UserProfileHandler extends BaseResourceHandler {
     protected List<Route> routes() {
         return List.of(
                 Route.of("/{uuid}", Set.of("GET", "PUT")),
-                Route.of("/{uuid}/password", Set.of("POST")));
+                Route.of("/{uuid}/password", Set.of("POST")),
+                Route.of("/{uuid}/auth-method", Set.of("POST")));
     }
 
     @Override
@@ -108,6 +114,11 @@ public class UserProfileHandler extends BaseResourceHandler {
     @Override
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/auth-method")) return handleSetAuthMethod(jx);
+        return handleChangePassword(jx);
+    }
+
+    private boolean handleChangePassword(final JettyHttpExchange jx) {
         final String uuid = jx.pathParam("uuid");
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
@@ -122,6 +133,34 @@ public class UserProfileHandler extends BaseResourceHandler {
                     (String) body.get("currentPassword"), (String) body.get("newPassword")));
             if (changed) {
                 sendOk(jx, 200, Map.of("status", "changed"));
+            } else {
+                sendError(jx, 400, "invalid_current_password", "La contraseña actual es incorrecta");
+            }
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSetAuthMethod(final JettyHttpExchange jx) {
+        final String uuid = jx.pathParam("uuid");
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !v.subjectUuid().equals(uuid)) {
+                sendError(jx, 403, "forbidden", "You can only change your own access method");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String newMethodRaw = (String) body.get("newMethod");
+            final AuthMethod newMethod = AuthMethod.valueOf(newMethodRaw);
+            final boolean changed = setAuthMethodUseCase.execute(uuid, new SetAuthMethodUseCase.Request(
+                    (String) body.get("currentPassword"), newMethod));
+            if (changed) {
+                sendOk(jx, 200, Map.of("status", "changed", "authMethod", newMethod.name()));
             } else {
                 sendError(jx, 400, "invalid_current_password", "La contraseña actual es incorrecta");
             }

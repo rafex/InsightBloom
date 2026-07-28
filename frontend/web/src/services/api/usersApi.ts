@@ -330,6 +330,19 @@ export async function changePassword(
   return res.data.data
 }
 
+export type AuthMethod = 'PASSWORD' | 'OTP_EMAIL'
+
+/** Cambia el método de acceso de la cuenta. Exige la contraseña actual en ambas direcciones
+ *  (activar y desactivar OTP) -- ver SetAuthMethodUseCase en el backend. */
+export async function setAuthMethod(
+  uuid: string,
+  { currentPassword, newMethod }: { currentPassword: string, newMethod: AuthMethod },
+  token: string
+): Promise<{ status: string, authMethod: AuthMethod }> {
+  const res = await axios.post(`/api/users/api/v1/users/${uuid}/auth-method`, { currentPassword, newMethod }, authHeader(token))
+  return res.data.data
+}
+
 export async function getCertificateBlobUrl(conferenceId: string, token: string): Promise<string> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/certificate`, {
     headers: { Authorization: `Bearer ${token}` },

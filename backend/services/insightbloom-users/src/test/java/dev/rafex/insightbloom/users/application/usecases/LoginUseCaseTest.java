@@ -91,4 +91,19 @@ class LoginUseCaseTest {
         final UserRepository repo = Mockito.mock(UserRepository.class);
         assertTrue(useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "", null)).isEmpty());
     }
+
+    @Test
+    void login_otpEmailAccount_throwsOtpLoginRequired() {
+        final UserRepository repo = Mockito.mock(UserRepository.class);
+        final User user = new User("1", "uuid-1", "admin", "Admin", "admin@test.com", null, java.util.List.of(),
+                false, false, java.util.Set.of(UserRole.ORGANIZER), UserStatus.ACTIVE,
+                passwordService.hash("pass"),
+                java.time.Instant.now(), java.time.Instant.now());
+        user.setAuthMethod(AuthMethod.OTP_EMAIL);
+        Mockito.when(repo.findByUsername("admin")).thenReturn(Optional.of(user));
+        Mockito.when(repo.findByEmail("admin")).thenReturn(Optional.empty());
+
+        assertThrows(dev.rafex.insightbloom.users.domain.services.OtpLoginRequiredException.class,
+                () -> useCase(repo).execute(new LoginUseCase.LoginRequest("admin", "pass", null)));
+    }
 }

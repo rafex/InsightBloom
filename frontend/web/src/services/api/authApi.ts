@@ -34,3 +34,23 @@ export async function verifyOtp(identifier: string, code: string): Promise<{ tok
   const res = await axios.post(`${BASE}/otp/verify`, { identifier, code })
   return res.data.data
 }
+
+/** Pide un código de login por correo. Siempre "tiene éxito" desde el punto de vista del
+ *  llamador -- el backend nunca revela si el identificador existe o si la cuenta usa código
+ *  (ver RequestLoginOtpUseCase). Distinto de sendOtp: ese es del flujo de verificar registro. */
+export async function requestLoginOtp(identifier: string): Promise<void> {
+  await axios.post(`${BASE}/login/otp/request`, { identifier })
+}
+
+export interface LoginResult {
+  token: string
+  userUuid: string
+  role: string
+  expiresAt: string
+}
+
+export async function verifyLoginOtp(identifier: string, code: string): Promise<LoginResult> {
+  const deviceFingerprint = await getFingerprint()
+  const res = await axios.post(`${BASE}/login/otp/verify`, { identifier, code, deviceFingerprint })
+  return res.data.data
+}

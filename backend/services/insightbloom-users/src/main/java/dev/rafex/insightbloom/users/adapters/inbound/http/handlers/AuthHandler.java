@@ -11,10 +11,13 @@ import dev.rafex.insightbloom.users.application.usecases.LoginUseCase;
 import dev.rafex.insightbloom.users.application.usecases.LogoutUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RefreshTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RegisterUseCase;
+import dev.rafex.insightbloom.users.application.usecases.RequestLoginOtpUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SendOtpUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
+import dev.rafex.insightbloom.users.application.usecases.VerifyLoginOtpUseCase;
 import dev.rafex.insightbloom.users.application.usecases.VerifyOtpUseCase;
 import dev.rafex.insightbloom.users.domain.model.SocialLink;
+import dev.rafex.insightbloom.users.domain.services.OtpLoginRequiredException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,13 +36,17 @@ public class AuthHandler extends BaseResourceHandler {
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final CreateSsoExchangeUseCase createSsoExchangeUseCase;
     private final ConsumeSsoExchangeUseCase consumeSsoExchangeUseCase;
+    private final RequestLoginOtpUseCase requestLoginOtpUseCase;
+    private final VerifyLoginOtpUseCase verifyLoginOtpUseCase;
 
     public AuthHandler(final LoginUseCase loginUseCase, final CreateGuestUseCase createGuestUseCase,
                        final ValidateTokenUseCase validateTokenUseCase, final RegisterUseCase registerUseCase,
                        final SendOtpUseCase sendOtpUseCase, final VerifyOtpUseCase verifyOtpUseCase,
                        final LogoutUseCase logoutUseCase, final RefreshTokenUseCase refreshTokenUseCase,
                        final CreateSsoExchangeUseCase createSsoExchangeUseCase,
-                       final ConsumeSsoExchangeUseCase consumeSsoExchangeUseCase) {
+                       final ConsumeSsoExchangeUseCase consumeSsoExchangeUseCase,
+                       final RequestLoginOtpUseCase requestLoginOtpUseCase,
+                       final VerifyLoginOtpUseCase verifyLoginOtpUseCase) {
         this.loginUseCase = loginUseCase;
         this.createGuestUseCase = createGuestUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -50,6 +57,8 @@ public class AuthHandler extends BaseResourceHandler {
         this.refreshTokenUseCase = refreshTokenUseCase;
         this.createSsoExchangeUseCase = createSsoExchangeUseCase;
         this.consumeSsoExchangeUseCase = consumeSsoExchangeUseCase;
+        this.requestLoginOtpUseCase = requestLoginOtpUseCase;
+        this.verifyLoginOtpUseCase = verifyLoginOtpUseCase;
     }
 
     @Override
@@ -68,6 +77,8 @@ public class AuthHandler extends BaseResourceHandler {
                 Route.of("/register", Set.of("POST")),
                 Route.of("/otp/send", Set.of("POST")),
                 Route.of("/otp/verify", Set.of("POST")),
+                Route.of("/login/otp/request", Set.of("POST")),
+                Route.of("/login/otp/verify", Set.of("POST")),
                 Route.of("/exchange", Set.of("POST")),
                 Route.of("/exchange/consume", Set.of("POST")));
     }
@@ -86,6 +97,10 @@ public class AuthHandler extends BaseResourceHandler {
         if (path.endsWith("/refresh")) return handleRefresh(jx);
         if (path.endsWith("/guest")) return handleGuest(jx);
         if (path.endsWith("/register")) return handleRegister(jx);
+        // Chequear las rutas de login OTP ANTES que las de registro OTP: "/login/otp/verify"
+        // tambien termina en "/otp/verify", asi que el orden importa para no colisionar.
+        if (path.endsWith("/login/otp/request")) return handleRequestLoginOtp(jx);
+        if (path.endsWith("/login/otp/verify")) return handleVerifyLoginOtp(jx);
         if (path.endsWith("/otp/send")) return handleSendOtp(jx);
         if (path.endsWith("/otp/verify")) return handleVerifyOtp(jx);
         if (path.endsWith("/exchange/consume")) return handleConsumeExchange(jx);
@@ -114,6 +129,9 @@ public class AuthHandler extends BaseResourceHandler {
             } else {
                 sendError(jx, 401, "invalid_credentials", "Invalid username or password");
             }
+        } catch (final OtpLoginRequiredException e) {
+            sendError(jx, 409, "otp_login_required",
+                    "Esta cuenta usa código de acceso, no contraseña. Pedí un código para entrar.");
         } catch (final dev.rafex.insightbloom.users.domain.services.PlatformDeviceBlockedException e) {
             sendError(jx, 403, "platform_device_blocked",
                     "Este dispositivo fue bloqueado por uso indebido de la plataforma");
@@ -281,6 +299,34 @@ public class AuthHandler extends BaseResourceHandler {
             final var result = verifyOtpUseCase.execute(new VerifyOtpUseCase.Request(
                     (String) body.get("identifier"), (String) body.get("code")));
             sendOk(jx, 200, result);
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleRequestLoginOtp(final JettyHttpExchange jx) {
+        try {
+            final var body = parseBody(jx);
+            requestLoginOtpUseCase.execute(new RequestLoginOtpUseCase.Request((String) body.get("identifier")));
+            // Siempre 200, exista o no la cuenta / use o no OTP_EMAIL -- ver RequestLoginOtpUseCase.
+            sendOk(jx, 200, Map.of("status", "sent"));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleVerifyLoginOtp(final JettyHttpExchange jx) {
+        try {
+            final var body = parseBody(jx);
+            final var result = verifyLoginOtpUseCase.execute(new VerifyLoginOtpUseCase.Request(
+                    (String) body.get("identifier"), (String) body.get("code"), (String) body.get("deviceFingerprint")));
+            sendOk(jx, 201, result);
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {

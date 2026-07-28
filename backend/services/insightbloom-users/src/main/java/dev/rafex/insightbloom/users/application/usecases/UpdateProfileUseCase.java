@@ -25,7 +25,7 @@ public class UpdateProfileUseCase {
             userRepository.save(u);
             return new GetUserProfileUseCase.Profile(u.getUuid(), u.getDisplayName(), u.getEmail(), u.getPhone(),
                     u.getFirstName(), u.getLastName(), u.getSocialLinks(), u.isEmailVerified(),
-                    u.isPhoneVerified(), u.getPublicProfilePhotoBase64());
+                    u.isPhoneVerified(), u.getPublicProfilePhotoBase64(), u.getAuthMethod().name());
         });
     }
 
