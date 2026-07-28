@@ -7,6 +7,84 @@
 > [`RESPONSIVE_AUDIT.md`](./RESPONSIVE_AUDIT.md) sección P0, que es el origen de este
 > documento.
 
+## 0. Cómo trabajar este plan: worktree y rama (obligatorio, leer antes de tocar código)
+
+Este cambio toca hasta 29 archivos de página distintos y es puramente visual/estructural
+— el tipo de cambio de alto riesgo de conflictos si se mezcla con trabajo normal en
+`main`, y el tipo de cambio donde un revert parcial (una página migrada mal) no debe
+poder arrastrar nada más. Por eso **no se trabaja directamente en el checkout principal
+ni en `main`**: cada tramo de esta migración vive en su propio `git worktree` sobre su
+propia rama.
+
+### 0.1 Regla base (un solo agente/persona trabajando)
+
+```bash
+# Desde el checkout principal de InsightBloom:
+git fetch origin
+git worktree add ../InsightBloom-design-system -b design-system/migrate-buttons-forms origin/main
+cd ../InsightBloom-design-system/frontend/web
+npm install   # node_modules no se comparte entre worktrees, instalar de nuevo acá
+```
+
+- **Rama**: `design-system/migrate-buttons-forms`, creada desde `origin/main` actualizado.
+- **Worktree**: directorio **hermano** del checkout principal (`../InsightBloom-design-system`),
+  nunca anidado dentro de `InsightBloom/` — evita que un `npm install` o un build de un
+  worktree pise archivos del otro.
+- Todo el trabajo de las fases 4.1 a 4.4 pasa por esta rama. Al terminar (o al cerrar
+  cada fase), push de la rama y abrir PR contra `main` — **no hacer push directo a
+  `main`** para este cambio, a diferencia del flujo directo que se usó en el resto de
+  esta sesión: acá el volumen de archivos tocados amerita una revisión antes de
+  integrar.
+- Al mergear el PR: `git worktree remove ../InsightBloom-design-system` y borrar la
+  rama local/remota. No dejar worktrees viejos acumulándose.
+
+### 0.2 Si hace falta paralelizar en varios worktrees
+
+Si se decide repartir las fases entre varios agentes/sesiones en simultáneo, cada
+tramo paralelo obtiene **su propia rama y su propio worktree**, nunca dos agentes
+escribiendo sobre el mismo worktree o la misma rama al mismo tiempo. Convención de
+nombres:
+
+| Tramo | Rama | Worktree |
+|---|---|---|
+| Fase 4.1 (baseline CSS) | `design-system/baseline-css` | `../InsightBloom-ds-baseline` |
+| Fase 4.2 — alto tráfico | `design-system/buttons-high-traffic` | `../InsightBloom-ds-buttons-hi` |
+| Fase 4.2 — dashboard/config | `design-system/buttons-dashboard` | `../InsightBloom-ds-buttons-dash` |
+| Fase 4.2 — resto/asistente | `design-system/buttons-rest` | `../InsightBloom-ds-buttons-rest` |
+| Fase 4.3 (formularios) | `design-system/forms-migration` | `../InsightBloom-ds-forms` |
+| Fase 4.4 (botones-enlace) | `design-system/link-buttons` | `../InsightBloom-ds-link-btns` |
+
+Reglas para que el paralelismo no genere conflictos ni trabajo perdido:
+
+1. **La Fase 4.1 (baseline en `global.css`) va primero y sola.** Es el único cambio
+   que toca un archivo compartido por todas las demás fases. Se crea su rama, se
+   termina, se abre PR, se mergea a `main` **antes** de arrancar cualquier otra rama.
+   Ningún otro tramo empieza sin ese merge ya hecho.
+2. Una vez mergeada la 4.1, cada tramo de 4.2/4.3/4.4 crea su rama **desde el `main`
+   ya actualizado** (`git fetch origin && git worktree add <dir> -b <rama> origin/main`),
+   no desde una rama de otro tramo.
+3. Cada tramo tiene una lista de archivos ASIGNADA y **no toca archivos fuera de su
+   lista** (ver las listas de la sección 4.2 — "Alto tráfico" / "Dashboard" / "Resto").
+   Esto es lo que garantiza que dos ramas en paralelo no puedan pisarse: si cada una
+   se queda estrictamente en sus archivos, el merge de ambas a `main` es trivial sin
+   importar el orden.
+4. Cada tramo se mergea a `main` en cuanto está terminado y verificado (sección 6) —
+   no esperar a que TODOS los tramos paralelos terminen para mergear el primero. Ramas
+   largas viviendo muchos días acumulan más riesgo de conflicto por otros cambios que
+   sí toquen esas páginas por motivos ajenos a esta migración.
+5. Si un tramo necesita `npm run build` o `npm run test` mientras otro tramo hace lo
+   mismo en paralelo, no hay conflicto — cada worktree tiene su propio `node_modules`
+   y su propio `dist/`, son procesos completamente independientes.
+
+### 0.3 Qué NO hacer
+
+- No trabajar esta migración en el checkout principal de `InsightBloom/` (el que usa
+  el resto del equipo para todo lo demás) — siempre en un worktree dedicado.
+- No crear una rama nueva a partir de otra rama de esta misma migración todavía sin
+  mergear — siempre desde `main` actualizado, para no arrastrar cambios a medio
+  terminar de otro tramo.
+- No dejar un worktree abierto después de mergear su rama — `git worktree remove`.
+
 ## 1. Problema y causa raíz
 
 El usuario reportó, navegando el sitio real: *"selects, inputs de formularios son

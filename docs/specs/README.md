@@ -48,3 +48,5 @@ agents/specs/
   app Vue, rutas, vistas publicas y portal web.
 - [`moderation-dashboard`](./moderation-dashboard/README.md):
   reglas y UI de moderacion manual.
+- [`otp-login`](./otp-login/README.md):
+  login opcional por codigo al correo, activable por usuario, backlog de TOTP.
