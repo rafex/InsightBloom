@@ -40,8 +40,7 @@
             a(:href="contact.telegramGroup" target="_blank" rel="noopener") 👥 Grupo de Telegram
       .download-actions
         a.btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
-        button.btn-primary(type="button" v-if="isGroupNotes" @click="downloadMaterials" :disabled="materialsDownloading")
-          | {{ materialsDownloading ? 'Preparando materiales...' : 'Descargar materiales ZIP' }}
+        BaseButton(type="button" v-if="isGroupNotes" :disabled="materialsDownloading" @click="downloadMaterials") {{ materialsDownloading ? 'Preparando materiales...' : 'Descargar materiales ZIP' }}
       p.cert-error(v-if="materialsError") {{ materialsError }}
 
   .login-required(v-else-if="!canParticipate")
@@ -125,7 +124,7 @@
                   BaseButton.btn-arrow(variant="secondary" type="button" @click="moveItem(q.uuid, idx, -1)" :disabled="idx === 0") ↑
                   BaseButton.btn-arrow(variant="secondary" type="button" @click="moveItem(q.uuid, idx, 1)" :disabled="idx === dragOrder[q.uuid].length - 1") ↓
 
-        BaseButton.btn-primary(variant="primary" type="submit" :disabled="submitting") {{ submitting ? 'Enviando...' : 'Enviar respuestas' }}
+        BaseButton(type="submit" :disabled="submitting") {{ submitting ? 'Enviando...' : 'Enviar respuestas' }}
         p.survey-error(v-if="error") {{ error }}
 </template>
 
