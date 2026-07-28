@@ -1040,11 +1040,19 @@ async function buildPresentation(provider, conferenceId, stagingDir, srcDir) {
   // del orador en ese bundle sin importar que ruta (/ o /presenter) este mirando el navegador
   // -- no hay separacion de rutas a nivel de servidor dentro de un mismo build. Para que el
   // moderador vea sus notas sin filtrarlas a la audiencia, se genera un SEGUNDO build con
-  // notas, servido bajo un prefijo de assets propio ("presenter-assets/") y protegido con
-  // requirePresentationManagement (ver rutas /presentation/presenter y
-  // /presentation/presenter-assets/*) en vez del requireConferenceAccess que usa el build
-  // publico. Reportado 2026-07-28: las notas del orador en slides.md no aparecian nunca en
-  // "Presentar" porque --without-notes las eliminaba del unico build que existia.
+  // notas, servido bajo su propio prefijo ("presenter/") y protegido con
+  // requirePresentationManagement (ver ruta /presentation/presenter/*) en vez del
+  // requireConferenceAccess que usa el build publico. Reportado 2026-07-28: las notas del
+  // orador en slides.md no aparecian nunca en "Presentar" porque --without-notes las
+  // eliminaba del unico build que existia.
+  //
+  // El --base tiene que ser EXACTAMENTE el prefijo donde se sirve el documento (no solo
+  // sus assets): Slidev usa ese mismo valor como base del router interno (Vue Router), asi
+  // que si el documento se sirve en ".../presentation/presenter" pero --base apunta a
+  // ".../presentation/presenter-assets/", el router de Slidev nunca reconoce la ruta y
+  // muestra su propio 404 (bug encontrado 2026-07-27 al probar el primer intento de esta
+  // separacion: la audiencia veia el deck bien, pero /presenter siempre daba 404 en el
+  // cliente aunque el servidor respondiera 200).
   const presenterDistDir = path.join(stagingDir, 'dist-presenter');
   fs.mkdirSync(presenterDistDir, { recursive: true });
   const presenterStartedAt = Date.now();
@@ -1052,7 +1060,7 @@ async function buildPresentation(provider, conferenceId, stagingDir, srcDir) {
   await runSlidevSerialized([
     'build', mdFile,
     '--out', presenterDistDir,
-    '--base', `${presentationBasePath(conferenceId)}presenter-assets/`,
+    '--base', `${presentationBasePath(conferenceId)}presenter/`,
   ]);
   console.log('slidev_presenter_build_finished', conferenceId, `${Date.now() - presenterStartedAt}ms`);
 
@@ -1194,43 +1202,41 @@ app.get('/api/v1/conferences/:id/presentation/slides', async (req, res) => {
   res.sendFile(file);
 });
 
-app.get('/api/v1/conferences/:id/presentation/presenter', async (req, res) => {
-  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
-  const manifest = readManifest(req.params.id);
-  const presenterFile = presentationPresenterIndexFile(req.params.id, manifest);
-  if (presenterFile && fs.existsSync(presenterFile)) {
-    // Build con notas: solo para quien puede administrar la presentacion, no cualquier
-    // asistente con boleto (ver comentario en buildPresentation sobre por que existe este
-    // segundo build).
-    if (!(await hasPresentationManagementAccess(req.params.id, requestToken(req)))) {
-      return res.status(403).json({ error: 'presentation_management_required' });
-    }
-    res.setHeader('Content-Security-Policy', SLIDEV_CSP);
-    setPresentationAccessCookie(req, res, req.params.id);
-    res.setHeader('Cache-Control', 'no-store, max-age=0');
-    return res.sendFile(presenterFile);
-  }
-  // Presentaciones subidas antes de este cambio no tienen build con notas: se mantiene el
-  // comportamiento anterior (mismo bundle sin notas, acceso de asistente normal).
-  if (!await requireConferenceAccess(req, res)) return;
-  const file = presentationIndexFile(req.params.id, manifest);
-  if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
-  setPresentationAccessCookie(req, res, req.params.id);
-  res.setHeader('Cache-Control', 'no-store, max-age=0');
-  res.sendFile(file);
-});
-
-app.use('/api/v1/conferences/:id/presentation/presenter-assets', async (req, res, next) => {
+// Montado como prefijo (no como ruta exacta) para que el documento del presentador Y
+// sus assets vivan bajo el MISMO prefijo ".../presentation/presenter" -- tiene que
+// coincidir con el --base usado al construir dist-presenter en buildPresentation, porque
+// Slidev usa ese valor tambien como base de su router interno. Sirve tanto el archivo
+// estatico exacto (JS/CSS/fuentes) como el fallback de SPA para las sub-rutas de slide
+// del presentador (".../presenter/1", ".../presenter/2", etc.), igual que el middleware
+// generico de mas abajo hace para el build publico.
+app.use('/api/v1/conferences/:id/presentation/presenter', async (req, res, next) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   const manifest = readManifest(req.params.id);
   const presenterRoot = presentationPresenterRoot(req.params.id, manifest);
-  if (!presenterRoot) return res.status(404).json({ error: 'not_found' });
+  const presenterIndex = presentationPresenterIndexFile(req.params.id, manifest);
+  if (!presenterRoot || !presenterIndex || !fs.existsSync(presenterIndex)) {
+    // Presentaciones subidas antes de este cambio no tienen build con notas: se mantiene
+    // el comportamiento anterior (mismo bundle sin notas, acceso de asistente normal).
+    if (!await requireConferenceAccess(req, res)) return;
+    const file = presentationIndexFile(req.params.id, manifest);
+    if (!fs.existsSync(file)) return res.status(404).json({ error: 'not_found' });
+    setPresentationAccessCookie(req, res, req.params.id);
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    return res.sendFile(file);
+  }
+  // Build con notas: solo para quien puede administrar la presentacion, no cualquier
+  // asistente con boleto (ver comentario en buildPresentation sobre por que existe este
+  // segundo build).
   if (!(await hasPresentationManagementAccess(req.params.id, requestToken(req)))) {
     return res.status(403).json({ error: 'presentation_management_required' });
   }
   res.setHeader('Content-Security-Policy', SLIDEV_CSP);
   res.setHeader('Cache-Control', 'no-store, max-age=0');
-  express.static(presenterRoot, { index: false })(req, res, next);
+  setPresentationAccessCookie(req, res, req.params.id);
+  express.static(presenterRoot, { index: false })(req, res, (err) => {
+    if (err || path.extname(req.path)) return next(err);
+    res.sendFile(presenterIndex);
+  });
 });
 
 app.get('/api/v1/conferences/:id/presentation/slides/preview', async (req, res) => {
