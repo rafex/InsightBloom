@@ -356,6 +356,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/sandbox/download", Set.of("POST")),
                 Route.of("/{id}/sandbox/preview", Set.of("POST")),
                 Route.of("/{id}/sandbox/preview/{publicationId}", Set.of("DELETE")),
+                Route.of("/{id}/sandbox/app-preview", Set.of("POST")),
+                Route.of("/{id}/sandbox/app-preview/{publicationId}", Set.of("DELETE")),
                 Route.of("/{id}/sandbox/files", Set.of("GET")),
                 Route.of("/{id}/sandbox/file", Set.of("GET", "PUT")),
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
@@ -591,6 +593,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/sandbox/preview")) {
             return sandboxHandler.post(x);
         }
+        if (jx.path().endsWith("/sandbox/app-preview")) {
+            return sandboxHandler.post(x);
+        }
         if (jx.path().endsWith("/sandbox/prewarm")) {
             return handlePrewarmSandboxPool(jx, jx.pathParam("id"));
         }
@@ -613,6 +618,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     public boolean delete(final HttpExchange x) {
         final var jx = asJetty(x);
         if (jx.path().contains("/sandbox/preview/")) {
+            return sandboxHandler.delete(x);
+        }
+        if (jx.path().contains("/sandbox/app-preview/")) {
             return sandboxHandler.delete(x);
         }
         if (jx.path().endsWith("/reservations/me")) {
