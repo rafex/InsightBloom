@@ -363,6 +363,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/tickets/claim", Set.of("POST")),
                 Route.of("/{id}/tickets/check-in", Set.of("POST")),
                 Route.of("/{id}/tickets/{ticketUuid}/revoke", Set.of("POST")),
+                Route.of("/{id}/tickets/{ticketUuid}/resend", Set.of("POST")),
+                Route.of("/{id}/tickets/resend-all", Set.of("POST")),
                 Route.of("/{id}/notes", Set.of("GET")),
                 Route.of("/{id}/notes/export", Set.of("GET")),
                 Route.of("/{id}/materials.zip", Set.of("GET")),
@@ -550,6 +552,8 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/tickets/claim")) return handleClaimTicket(jx, jx.pathParam("id"));
         if (jx.path().endsWith("/tickets/check-in")) return handleTicketCheckIn(jx, jx.pathParam("id"));
         if (jx.path().endsWith("/revoke")) return handleRevokeTicket(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"));
+        if (jx.path().endsWith("/tickets/resend-all")) return handleResendAllTickets(jx, jx.pathParam("id"));
+        if (jx.path().endsWith("/resend")) return handleResendTicket(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"));
         if (jx.path().endsWith("/venue-map/generate-seats")) {
             return handleGenerateSeatLayout(jx, jx.pathParam("id"));
         }
@@ -2368,6 +2372,40 @@ public class ConferenceHandler extends BaseResourceHandler {
                     : "El boleto ya fue utilizado";
             sendError(jx, 409, e.getMessage(), detail);
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Boleto no encontrado");
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", e.getMessage()); }
+        return true;
+    }
+
+    private boolean handleResendTicket(final JettyHttpExchange jx, final String id, final String ticketUuid) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !canManageTickets(id, v)) { sendError(jx, 403, "forbidden", "No tienes permiso para reenviar boletos"); return true; }
+            sendOk(jx, 200, ticketUseCase.resend(id, ticketUuid));
+        } catch (final IllegalStateException e) {
+            final String detail = switch (e.getMessage() == null ? "" : e.getMessage()) {
+                case "ticket_revoked" -> "El boleto fue revocado y no se puede reenviar";
+                case "ticket_expired" -> "El boleto expiró y no se puede reenviar";
+                case "email_provider_not_configured" -> "El envío de correo no está configurado en la plataforma";
+                case "no_email_available" -> "Este boleto no tiene un correo asociado (ni de emisión ni de la cuenta que lo reclamó)";
+                default -> "No fue posible reenviar el boleto";
+            };
+            sendError(jx, 409, e.getMessage(), detail);
+        } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Boleto no encontrado");
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", e.getMessage()); }
+        return true;
+    }
+
+    private boolean handleResendAllTickets(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !canManageTickets(id, v)) { sendError(jx, 403, "forbidden", "No tienes permiso para reenviar boletos"); return true; }
+            final var summary = ticketUseCase.resendAll(id);
+            sendOk(jx, 200, Map.of("sent", summary.sent(), "skipped", summary.skipped()));
+        } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Evento no encontrado");
         } catch (final Exception e) { sendError(jx, 500, "internal_error", e.getMessage()); }
         return true;
     }

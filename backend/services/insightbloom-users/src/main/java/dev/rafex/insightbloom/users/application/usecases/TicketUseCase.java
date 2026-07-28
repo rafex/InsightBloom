@@ -411,13 +411,71 @@ public class TicketUseCase {
     }
 
     private void sendEmail(final Conference conference, final Ticket ticket) {
-        if (!emailPort.isEnabled() || ticket.getRecipientEmail() == null) return;
+        sendTicketEmail(conference, ticket, ticket.getRecipientEmail());
+    }
+
+    /**
+     * Reenvía manualmente un boleto ya emitido (operativa normal: el asistente perdió el
+     * correo, lo pide de nuevo, etc.). A diferencia de {@link #sendEmail}, que sólo dispara
+     * automáticamente cuando se emitió con un destinatario explícito, el reenvío también
+     * resuelve el correo de la cuenta que reclamó el boleto (autoservicio/cartelera), así el
+     * organizador puede reenviar cualquier boleto reclamado aunque no se haya emitido con
+     * `recipientEmail`.
+     */
+    public Ticket resend(final String conferenceUuid, final String ticketUuid) {
+        final Conference conference = conference(conferenceUuid);
+        final Ticket ticket = ticketRepository.findByUuid(ticketUuid)
+                .filter(t -> conferenceUuid.equals(t.getConferenceUuid()))
+                .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
+        if (ticket.getStatus() == TicketStatus.REVOKED) throw new IllegalStateException("ticket_revoked");
+        if (ticket.getStatus() == TicketStatus.EXPIRED) throw new IllegalStateException("ticket_expired");
+        if (!emailPort.isEnabled()) throw new IllegalStateException("email_provider_not_configured");
+        final String email = resolveEmail(ticket);
+        if (email == null) throw new IllegalStateException("no_email_available");
+        sendTicketEmail(conference, ticket, email);
+        return ticket;
+    }
+
+    /** Reenvía en lote todos los boletos con un correo resoluble; salta revocados/expirados/sin correo. */
+    public ResendSummary resendAll(final String conferenceUuid) {
+        final Conference conference = conference(conferenceUuid);
+        int sent = 0;
+        int skipped = 0;
+        for (final Ticket ticket : ticketRepository.findByConference(conferenceUuid)) {
+            if (ticket.getStatus() == TicketStatus.REVOKED || ticket.getStatus() == TicketStatus.EXPIRED) {
+                skipped++;
+                continue;
+            }
+            final String email = resolveEmail(ticket);
+            if (email == null || !emailPort.isEnabled()) {
+                skipped++;
+                continue;
+            }
+            sendTicketEmail(conference, ticket, email);
+            sent++;
+        }
+        return new ResendSummary(sent, skipped);
+    }
+
+    public record ResendSummary(int sent, int skipped) {}
+
+    /** Correo destino de un boleto: el explícito de emisión, o si no hay, el de la cuenta que lo reclamó. */
+    private String resolveEmail(final Ticket ticket) {
+        if (ticket.getRecipientEmail() != null) return ticket.getRecipientEmail();
+        if (ticket.getClaimedByUserUuid() != null && userRepository != null) {
+            return userRepository.findByUuid(ticket.getClaimedByUserUuid()).map(User::getEmail).orElse(null);
+        }
+        return null;
+    }
+
+    private void sendTicketEmail(final Conference conference, final Ticket ticket, final String email) {
+        if (!emailPort.isEnabled() || email == null) return;
         try {
             final String ticketUrl = frontendBaseUrl + "/c/" + conference.getFriendlyId()
                     + "/ticket?ticket=" + ticket.getTicketCode();
             final String qrDataUri = TicketQrGenerator.toPngDataUri(ticketUrl);
             final String html = TicketEmailTemplate.render(conference.getName(), ticketUrl, qrDataUri, ticket.getTicketCode());
-            emailPort.sendHtml(ticket.getRecipientEmail(), "Tu boleto para " + conference.getName(), html);
+            emailPort.sendHtml(email, "Tu boleto para " + conference.getName(), html);
         } catch (Exception ignored) { }
     }
 

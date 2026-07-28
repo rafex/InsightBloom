@@ -595,6 +595,16 @@ export async function revokeTicket(conferenceId: string, ticketUuid: string, tok
   return res.data.data
 }
 
+export async function resendTicket(conferenceId: string, ticketUuid: string, token: string): Promise<Ticket> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets/${ticketUuid}/resend`, {}, authHeader(token))
+  return res.data.data
+}
+
+export async function resendAllTickets(conferenceId: string, token: string): Promise<{ sent: number, skipped: number }> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets/resend-all`, {}, authHeader(token))
+  return res.data.data
+}
+
 export async function cancelReservation(conferenceId: string, token: string): Promise<void> {
   await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/reservations/me`, authHeader(token))
 }

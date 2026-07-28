@@ -28,8 +28,11 @@
       span {{ metric.label }}
       small {{ metric.description }}
   .tickets-list
-    h3 Boletos emitidos ({{ tickets.length }})
+    .list-header
+      h3 Boletos emitidos ({{ tickets.length }})
+      button.btn-outline(type="button" @click="resendAll" :disabled="resendingAll || !tickets.length") {{ resendingAll ? 'Reenviando...' : 'Reenviar todos por correo' }}
     p.helper Los boletos operativos pertenecen al creador y al personal asignado al evento. Consumen aforo y no se pueden revocar.
+    p.helper Reenviar por correo busca primero el destinatario con el que se emitió el boleto y, si no hay, el correo de la cuenta que lo reclamó. Boletos sin ningún correo asociado no se pueden reenviar.
     .ticket-group(v-for="group in ticketGroups" :key="group.key" v-show="group.tickets.length")
       h4 {{ group.label }} ({{ group.tickets.length }})
       .ticket-row(v-for="ticket in group.tickets" :key="ticket.uuid")
@@ -42,6 +45,7 @@
         .row-actions
           button.btn-copy(type="button" @click="showQr(ticket)") QR
           button.btn-copy(type="button" @click="copy(ticket.ticketCode)") Copiar UUID
+          button.btn-copy(v-if="ticket.status !== 'REVOKED' && ticket.status !== 'EXPIRED'" type="button" :disabled="resendingUuid === ticket.uuid" @click="resendOne(ticket)") {{ resendingUuid === ticket.uuid ? 'Enviando...' : 'Reenviar' }}
           button.btn-revoke(v-if="!ticket.operational && (ticket.status === 'ISSUED' || ticket.status === 'CLAIMED')" type="button" @click="revoke(ticket.uuid)") Revocar
     .qr-preview(v-if="selectedTicket")
       TicketQr(:ticket-code="selectedTicket.ticketCode" :ticket-url="ticketUrl(selectedTicket)" :show-code="false")
@@ -53,7 +57,7 @@
 import { ref, computed, onMounted } from 'vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import TicketQr from '@/components/TicketQr.vue'
-import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket } from '@/services/api/usersApi'
+import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets } from '@/services/api/usersApi'
 import type { Ticket, TicketManagementSummary, TicketStatus } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -77,6 +81,8 @@ export default {
     const feedbackError = ref(false)
     const batchQuantity = ref<number | null>(10)
     const issuingBatch = ref(false)
+    const resendingUuid = ref<string | null>(null)
+    const resendingAll = ref(false)
     const canIssueBatch = computed(() => seatingMode.value !== 'SEATED')
 
     async function load() {
@@ -169,6 +175,38 @@ export default {
       }
     }
 
+    async function resendOne(ticket: Ticket) {
+      if (!props.conferenceId || !auth.state.token) return
+      resendingUuid.value = ticket.uuid
+      try {
+        await resendTicket(props.conferenceId, ticket.uuid, auth.state.token)
+        feedback.value = `Boleto ${ticket.ticketCode} reenviado por correo.`; feedbackError.value = false
+      } catch (e: any) {
+        feedbackError.value = true
+        const apiError = e.response?.data?.error || {}
+        const messages: Record<string, string> = {
+          no_email_available: 'Este boleto no tiene un correo asociado (ni de emisión ni de la cuenta que lo reclamó).',
+          email_provider_not_configured: 'El envío de correo no está configurado en la plataforma.',
+          ticket_revoked: 'El boleto fue revocado y no se puede reenviar.',
+          ticket_expired: 'El boleto expiró y no se puede reenviar.'
+        }
+        feedback.value = messages[apiError.code] || apiError.detail || 'No se pudo reenviar el boleto.'
+      } finally { resendingUuid.value = null }
+    }
+
+    async function resendAll() {
+      if (!props.conferenceId || !auth.state.token) return
+      resendingAll.value = true
+      try {
+        const result = await resendAllTickets(props.conferenceId, auth.state.token)
+        feedback.value = `${result.sent} boletos reenviados por correo${result.skipped ? `, ${result.skipped} sin correo asociado o no reenviables` : ''}.`
+        feedbackError.value = false
+      } catch (e: any) {
+        feedbackError.value = true
+        feedback.value = e.response?.data?.error?.detail || 'No se pudieron reenviar los boletos.'
+      } finally { resendingAll.value = false }
+    }
+
     function formatAuditDate(value?: string | null) {
       if (!value) return 'fecha no disponible'
       return new Date(value).toLocaleString()
@@ -215,7 +253,7 @@ export default {
 
     onMounted(load)
     return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, statusLabel, claimantLabel, breadcrumbItems,
-      batchQuantity, issuingBatch, canIssueBatch, issueBatch }
+      batchQuantity, issuingBatch, canIssueBatch, issueBatch, resendingUuid, resendingAll, resendOne, resendAll }
   }
 }
 </script>
@@ -246,6 +284,8 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid #d1d5db; bor
 .ticket-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ticket-main strong { font: 0.8rem monospace; overflow-wrap: anywhere; }
 .ticket-main span, .empty, .issue-card p { color: #6b7280; font-size: 0.9rem; }
+.list-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.list-header h3 { margin: 0; }
 .ticket-group { margin-top: 18px; }
 .ticket-group h4 { margin: 0 0 8px; color: #3730a3; }
 .claimant { color: #166534 !important; overflow-wrap: anywhere; }
