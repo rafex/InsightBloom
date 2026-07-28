@@ -210,6 +210,10 @@ public class UsersApplication {
                 conferenceRepo, timezoneRepo, etherpadPort);
         final var eventCapabilityGuard = new dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard(eventTypeRepo);
         final var setEventTypeUseCase = new SetEventTypeUseCase(conferenceRepo, eventTypeRepo, reservationRepo);
+        final var sendAttendeeEmailUseCase = new dev.rafex.insightbloom.users.application.usecases.SendAttendeeEmailUseCase(
+                conferenceRepo, reservationRepo, userRepo, emailPort);
+        final var notifyConferenceUpdatedUseCase = new dev.rafex.insightbloom.users.application.usecases.NotifyConferenceUpdatedUseCase(
+                reservationRepo, userRepo, emailPort, eventTypeRepo);
         final var getOrCreateEventPadUseCase = new GetOrCreateEventPadUseCase(
                 conferenceRepo, etherpadPort, etherpadPrivatePadSecret);
         final var exportEventNotesUseCase = new ExportEventNotesUseCase(getOrCreateEventPadUseCase, etherpadPort);
@@ -438,7 +442,7 @@ public class UsersApplication {
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
                 setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,
                 sandboxHandler, sandboxFilesHandler, userRepo, deviceAccessGuard, getJaasUsageUseCase,
-                toolAccessUseCase);
+                toolAccessUseCase, sendAttendeeEmailUseCase, notifyConferenceUpdatedUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase, setAuthMethodUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

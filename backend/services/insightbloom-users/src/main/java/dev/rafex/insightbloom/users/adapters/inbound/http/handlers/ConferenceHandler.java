@@ -61,6 +61,8 @@ import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.TicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ToolAccessUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SendAttendeeEmailUseCase;
+import dev.rafex.insightbloom.users.application.usecases.NotifyConferenceUpdatedUseCase;
 import dev.rafex.insightbloom.users.domain.model.ToolKey;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
@@ -164,6 +166,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final DeviceAccessGuard deviceAccessGuard;
     private final GetJaasUsageUseCase getJaasUsageUseCase;
     private final ToolAccessUseCase toolAccessUseCase;
+    private final SendAttendeeEmailUseCase sendAttendeeEmailUseCase;
+    private final NotifyConferenceUpdatedUseCase notifyConferenceUpdatedUseCase;
     private final Map<String, CopyOnWriteArrayList<EventStream>> diagramSubscribers = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArrayList<EventStream>> whiteboardSubscribers = new ConcurrentHashMap<>();
     private record VideoSubscriber(EventStream stream, String deviceFingerprint) {}
@@ -233,7 +237,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final UserRepository userRepository,
                              final DeviceAccessGuard deviceAccessGuard,
                              final GetJaasUsageUseCase getJaasUsageUseCase,
-                             final ToolAccessUseCase toolAccessUseCase) {
+                             final ToolAccessUseCase toolAccessUseCase,
+                             final SendAttendeeEmailUseCase sendAttendeeEmailUseCase,
+                             final NotifyConferenceUpdatedUseCase notifyConferenceUpdatedUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -294,6 +300,8 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.deviceAccessGuard = deviceAccessGuard;
         this.getJaasUsageUseCase = getJaasUsageUseCase;
         this.toolAccessUseCase = toolAccessUseCase;
+        this.sendAttendeeEmailUseCase = sendAttendeeEmailUseCase;
+        this.notifyConferenceUpdatedUseCase = notifyConferenceUpdatedUseCase;
     }
 
     @Override
@@ -353,6 +361,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/seats", Set.of("GET", "PUT")),
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
                 Route.of("/{id}/attendees", Set.of("GET")),
+                Route.of("/{id}/attendees/email", Set.of("POST")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
                 Route.of("/{id}/access", Set.of("GET")),
                 Route.of("/{id}/survey-management-access", Set.of("GET")),
@@ -556,6 +565,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/resend")) return handleResendTicket(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"));
         if (jx.path().endsWith("/venue-map/generate-seats")) {
             return handleGenerateSeatLayout(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/attendees/email")) {
+            return handleSendAttendeeEmail(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/reservations")) {
             return handleReserve(jx, jx.pathParam("id"));
@@ -1251,6 +1263,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             final Double latitude = body.get("latitude") instanceof Number n ? n.doubleValue() : null;
             final Double longitude = body.get("longitude") instanceof Number n ? n.doubleValue() : null;
             final Integer timezoneId = body.get("timezoneId") instanceof Number n ? n.intValue() : null;
+            final Conference before = getConferenceUseCase.byId(id).orElse(null);
             final var updated = updateConferenceUseCase.execute(id, v.subjectUuid(),
                     new UpdateConferenceUseCase.UpdateRequest((String) body.get("displayName"),
                             (String) body.get("venue"), (String) body.get("eventDate"),
@@ -1262,6 +1275,13 @@ public class ConferenceHandler extends BaseResourceHandler {
                             (String) body.get("ticketCurrency")));
             if (updated.isPresent()) {
                 sendOk(jx, 200, updated.get());
+                if (before != null) {
+                    try {
+                        notifyConferenceUpdatedUseCase.execute(before, updated.get());
+                    } catch (final Exception notifyError) {
+                        LOGGER.warning("No se pudo notificar el cambio del evento " + id + ": " + notifyError.getMessage());
+                    }
+                }
             } else {
                 sendError(jx, 404, "not_found", "Conference not found or not owned by you");
             }
@@ -1849,9 +1869,17 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             final var body = parseBody(jx);
             final String eventTypeKey = (String) body.get("eventTypeKey");
+            final Conference before = getConferenceUseCase.byId(id).orElse(null);
             final var updated = setEventTypeUseCase.execute(id, v.subjectUuid(), eventTypeKey);
             if (updated.isPresent()) {
                 sendOk(jx, 200, updated.get());
+                if (before != null) {
+                    try {
+                        notifyConferenceUpdatedUseCase.execute(before, updated.get());
+                    } catch (final Exception notifyError) {
+                        LOGGER.warning("No se pudo notificar el cambio del evento " + id + ": " + notifyError.getMessage());
+                    }
+                }
             } else {
                 sendError(jx, 404, "not_found", "Conference not found or not owned by you");
             }
@@ -2407,6 +2435,43 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendOk(jx, 200, Map.of("sent", summary.sent(), "skipped", summary.skipped()));
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Evento no encontrado");
         } catch (final Exception e) { sendError(jx, 500, "internal_error", e.getMessage()); }
+        return true;
+    }
+
+    private boolean handleSendAttendeeEmail(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !canManageTickets(id, v)) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para comunicarte con los inscritos");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final Object rawRecipients = body.get("recipientUuids");
+            final List<String> recipientUuids = rawRecipients instanceof List<?> items
+                    ? items.stream().filter(String.class::isInstance).map(String.class::cast).toList()
+                    : null;
+            final var summary = sendAttendeeEmailUseCase.execute(id, new SendAttendeeEmailUseCase.SendRequest(
+                    (String) body.get("subject"), (String) body.get("message"), recipientUuids));
+            sendOk(jx, 200, Map.of("sent", summary.sent(), "skipped", summary.skipped()));
+        } catch (final IllegalStateException e) {
+            final String detail = "email_provider_not_configured".equals(e.getMessage())
+                    ? "El envío de correo no está configurado en la plataforma"
+                    : "No fue posible enviar el correo";
+            sendError(jx, 409, e.getMessage(), detail);
+        } catch (final IllegalArgumentException e) {
+            final String detail = switch (e.getMessage() == null ? "" : e.getMessage()) {
+                case "subject_invalid" -> "El asunto es obligatorio";
+                case "message_invalid" -> "El mensaje es obligatorio";
+                case "no_recipients" -> "No hay destinatarios válidos para este envío";
+                case "conference_not_found" -> "Evento no encontrado";
+                default -> "Datos inválidos";
+            };
+            sendError(jx, 400, e.getMessage(), detail);
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
         return true;
     }
 

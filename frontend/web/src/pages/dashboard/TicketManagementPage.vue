@@ -16,6 +16,14 @@
         input(v-model.number="batchQuantity" type="number" min="2" max="200" placeholder="Cantidad")
         BaseButton(variant="secondary" type="button" :disabled="issuingBatch || !batchQuantity || batchQuantity < 2" @click="issueBatch") {{ issuingBatch ? 'Emitiendo...' : `Emitir ${batchQuantity || ''} boletos anónimos` }}
       p.field-hint Genera varios boletos sin destinatario de una sola vez. Podés compartir el QR/UUID de cada uno a mano con invitados puntuales; los que no repartas quedan disponibles igual para que cualquiera los reclame solo desde la cartelera pública (botón "Adquirir boleto"), hasta agotarse. No exceden el aforo restante: si pedís más de lo que queda, no se emite ninguno.
+  .compose-card#compose-card
+    h3 Comunicarse con inscritos
+    p.helper(v-if="!composeTarget") Para: todos los inscritos
+    p.helper(v-else) Para: {{ composeTarget.label }} #[a.link-inline(href="#" @click.prevent="clearComposeTarget") (enviar a todos en su lugar)]
+    input(v-model="composeSubject" type="text" placeholder="Asunto")
+    textarea(v-model="composeMessage" rows="4" placeholder="Escribí el mensaje para los inscritos...")
+    BaseButton(variant="primary" type="button" :loading="sendingEmail" :disabled="!composeSubject.trim() || !composeMessage.trim()" @click="sendEmail") {{ sendingEmail ? 'Enviando...' : 'Enviar' }}
+    p.feedback(v-if="emailFeedback" :class="{ error: emailFeedbackError }") {{ emailFeedback }}
   .metrics-grid(v-if="summary")
     .metric-card.metric-capacity
       strong {{ summary.remainingToIssue == null ? '∞' : summary.remainingToIssue }}
@@ -45,6 +53,7 @@
           BaseButton(variant="ghost" size="sm" type="button" @click="showQr(ticket)") QR
           BaseButton(variant="ghost" size="sm" type="button" @click="copy(ticket.ticketCode)") Copiar UUID
           BaseButton(variant="ghost" size="sm" type="button" :loading="resendingUuid === ticket.uuid" :disabled="resendingUuid === ticket.uuid" @click="resendOne(ticket)") {{ resendingUuid === ticket.uuid ? 'Enviando...' : 'Reenviar' }}
+          BaseButton(variant="ghost" size="sm" type="button" v-if="ticket.claimedByUserUuid" @click="writeToAttendee(ticket)") Escribir
           BaseButton(variant="danger" size="sm" type="button" @click="revoke(ticket.uuid)") Revocar
     .qr-preview(v-if="selectedTicket")
       TicketQr(:ticket-code="selectedTicket.ticketCode" :ticket-url="ticketUrl(selectedTicket)" :show-code="false")
@@ -57,7 +66,7 @@ import { ref, computed, onMounted } from 'vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import TicketQr from '@/components/TicketQr.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets } from '@/services/api/usersApi'
+import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets, sendAttendeeEmail } from '@/services/api/usersApi'
 import type { Ticket, TicketManagementSummary, TicketStatus } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -83,6 +92,12 @@ export default {
     const issuingBatch = ref(false)
     const resendingUuid = ref<string | null>(null)
     const resendingAll = ref(false)
+    const composeSubject = ref('')
+    const composeMessage = ref('')
+    const composeTarget = ref<{ uuid: string, label: string } | null>(null)
+    const sendingEmail = ref(false)
+    const emailFeedback = ref('')
+    const emailFeedbackError = ref(false)
     const canIssueBatch = computed(() => seatingMode.value !== 'SEATED')
 
     async function load() {
@@ -207,6 +222,41 @@ export default {
       } finally { resendingAll.value = false }
     }
 
+    function writeToAttendee(ticket: Ticket) {
+      composeTarget.value = { uuid: ticket.claimedByUserUuid as string, label: claimantLabel(ticket) }
+      document.getElementById('compose-card')?.scrollIntoView({ behavior: 'smooth' })
+    }
+
+    function clearComposeTarget() {
+      composeTarget.value = null
+    }
+
+    async function sendEmail() {
+      if (!props.conferenceId || !auth.state.token) return
+      sendingEmail.value = true
+      try {
+        const result = await sendAttendeeEmail(props.conferenceId, {
+          subject: composeSubject.value.trim(),
+          message: composeMessage.value.trim(),
+          recipientUuids: composeTarget.value ? [composeTarget.value.uuid] : undefined
+        }, auth.state.token)
+        emailFeedback.value = `${result.sent} correo(s) enviado(s)${result.skipped ? `, ${result.skipped} sin entregar` : ''}.`
+        emailFeedbackError.value = false
+        composeSubject.value = ''
+        composeMessage.value = ''
+      } catch (e: any) {
+        emailFeedbackError.value = true
+        const apiError = e.response?.data?.error || {}
+        const messages: Record<string, string> = {
+          email_provider_not_configured: 'El envío de correo no está configurado en la plataforma.',
+          no_recipients: 'No hay destinatarios válidos para este envío.',
+          subject_invalid: 'El asunto es obligatorio.',
+          message_invalid: 'El mensaje es obligatorio.'
+        }
+        emailFeedback.value = messages[apiError.code] || apiError.detail || 'No se pudo enviar el correo.'
+      } finally { sendingEmail.value = false }
+    }
+
     function formatAuditDate(value?: string | null) {
       if (!value) return 'fecha no disponible'
       return new Date(value).toLocaleString()
@@ -253,7 +303,8 @@ export default {
 
     onMounted(load)
     return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, statusLabel, claimantLabel, breadcrumbItems,
-      batchQuantity, issuingBatch, canIssueBatch, issueBatch, resendingUuid, resendingAll, resendOne, resendAll }
+      batchQuantity, issuingBatch, canIssueBatch, issueBatch, resendingUuid, resendingAll, resendOne, resendAll,
+      composeSubject, composeMessage, composeTarget, sendingEmail, emailFeedback, emailFeedbackError, sendEmail, writeToAttendee, clearComposeTarget }
   }
 }
 </script>
@@ -261,7 +312,10 @@ export default {
 <style scoped>
 .tickets-page { padding: 24px; max-width: 900px; margin: 0 auto; }
 h2 { color: #1e1b4b; }
-.issue-card, .tickets-list { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-top: 16px; }
+.issue-card, .tickets-list, .compose-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-top: 16px; }
+.compose-card textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; resize: vertical; margin: 10px 0; }
+.compose-card input { width: 100%; box-sizing: border-box; margin-bottom: 0; }
+.link-inline { color: #4f46e5; font-size: 0.8rem; }
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
 .metric-card { display: flex; flex-direction: column; gap: 4px; background: #fff; border: 1px solid #e0e7ff; border-radius: 12px; padding: 16px; min-height: 92px; }
 .metric-card strong { color: #4338ca; font-size: 1.65rem; }

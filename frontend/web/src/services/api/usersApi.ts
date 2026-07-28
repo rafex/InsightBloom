@@ -618,6 +618,15 @@ export async function resendAllTickets(conferenceId: string, token: string): Pro
   return res.data.data
 }
 
+export async function sendAttendeeEmail(
+  conferenceId: string,
+  payload: { subject: string, message: string, recipientUuids?: string[] | null },
+  token: string
+): Promise<{ sent: number, skipped: number }> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/attendees/email`, payload, authHeader(token))
+  return res.data.data
+}
+
 export async function cancelReservation(conferenceId: string, token: string): Promise<void> {
   await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/reservations/me`, authHeader(token))
 }
