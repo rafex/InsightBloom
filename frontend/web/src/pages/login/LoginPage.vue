@@ -12,16 +12,14 @@
         label Contraseña
         input(v-model="password" type="password" autocomplete="current-password" placeholder="••••••••" @keyup.enter="doLogin")
       .error(v-if="error") {{ error }}
-      button.btn-primary(@click="doLogin" :disabled="loading")
-        span(v-if="loading") Entrando...
-        span(v-else) Iniciar sesión
+      BaseButton(size="lg" @click="doLogin" :disabled="loading" :loading="loading") Iniciar sesión
       p.register-hint ¿No tienes cuenta? #[router-link(to="/register") Regístrate]
       //- Entrada como invitado visible solo cuando se llegó desde un evento (auditoría UX: el
       //- modo anónimo existía pero solo se descubría por accidente dentro de la página del
       //- boleto — y es justo la opción de menor fricción para quien escaneó un QR).
       .guest-block(v-if="guestTarget")
         .divider o
-        button.btn-guest(type="button" @click="continueAsGuest") Continuar como invitado
+        BaseButton(variant="secondary" type="button" @click="continueAsGuest") Continuar como invitado
         p.guest-hint Entrás al evento sin cuenta: podés ver la presentación y participar de forma limitada, pero sin certificado ni historial.
 </template>
 
@@ -30,9 +28,10 @@ import AppHeader from '@/app/layout/AppHeader.vue'
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 export default {
   name: 'LoginPage',
-  components: { AppHeader },
+  components: { AppHeader, BaseButton },
   setup() {
     const username = ref('')
     const password = ref('')
@@ -88,15 +87,8 @@ h2 { margin: 0 0 8px; color: #1e1b4b; }
 label { font-weight: 600; font-size: 0.9rem; color: #374151; }
 input { padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem; }
 input:focus { outline: none; border-color: #4f46e5; }
-.btn-primary { width: 100%; padding: 12px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
 .guest-block { margin-top: 14px; text-align: center; }
 .divider { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 10px; }
-.btn-guest {
-  width: 100%; padding: 10px; background: var(--color-surface); color: var(--color-primary);
-  border: 1px solid var(--color-primary-border); border-radius: var(--radius-md);
-  cursor: pointer; font-size: 0.95rem; font-weight: 600;
-}
-.btn-guest:hover { background: var(--color-primary-soft); }
 .guest-hint { margin: 8px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
 .register-hint { text-align: center; margin: 16px 0 0; font-size: 0.85rem; color: #6b7280; }

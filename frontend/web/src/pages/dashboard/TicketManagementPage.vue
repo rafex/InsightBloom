@@ -8,14 +8,13 @@
     .issue-row
       input(v-model="recipientEmail" type="email" placeholder="Correo (opcional)")
       input(v-model="seatUuid" type="text" placeholder="UUID de asiento (opcional)")
-      button.btn-primary(type="button" @click="issue" :disabled="issuing") {{ issuing ? 'Emitiendo...' : 'Emitir boleto' }}
+      BaseButton(variant="primary" type="button" :loading="issuing" @click="issue") {{ issuing ? 'Emitiendo...' : 'Emitir boleto' }}
     p.feedback(v-if="feedback" :class="{ error: feedbackError }") {{ feedback }}
     template(v-if="canIssueBatch")
       .issue-divider o
       .issue-row
         input(v-model.number="batchQuantity" type="number" min="2" max="200" placeholder="Cantidad")
-        button.btn-outline(type="button" @click="issueBatch" :disabled="issuingBatch || !batchQuantity || batchQuantity < 2")
-          | {{ issuingBatch ? 'Emitiendo...' : `Emitir ${batchQuantity || ''} boletos anónimos` }}
+        BaseButton(variant="secondary" type="button" :disabled="issuingBatch || !batchQuantity || batchQuantity < 2" @click="issueBatch") {{ issuingBatch ? 'Emitiendo...' : `Emitir ${batchQuantity || ''} boletos anónimos` }}
       p.field-hint Genera varios boletos sin destinatario de una sola vez. Podés compartir el QR/UUID de cada uno a mano con invitados puntuales; los que no repartas quedan disponibles igual para que cualquiera los reclame solo desde la cartelera pública (botón "Adquirir boleto"), hasta agotarse. No exceden el aforo restante: si pedís más de lo que queda, no se emite ninguno.
   .metrics-grid(v-if="summary")
     .metric-card.metric-capacity
@@ -30,7 +29,7 @@
   .tickets-list
     .list-header
       h3 Boletos emitidos ({{ tickets.length }})
-      button.btn-outline(type="button" @click="resendAll" :disabled="resendingAll || !tickets.length") {{ resendingAll ? 'Reenviando...' : 'Reenviar todos por correo' }}
+      BaseButton(variant="secondary" type="button" :loading="resendingAll" :disabled="!tickets.length" @click="resendAll") {{ resendingAll ? 'Reenviando...' : 'Reenviar todos por correo' }}
     p.helper Los boletos operativos pertenecen al creador y al personal asignado al evento. Consumen aforo y no se pueden revocar.
     p.helper Reenviar por correo busca primero el destinatario con el que se emitió el boleto y, si no hay, el correo de la cuenta que lo reclamó. Boletos sin ningún correo asociado no se pueden reenviar.
     .ticket-group(v-for="group in ticketGroups" :key="group.key" v-show="group.tickets.length")
@@ -43,13 +42,13 @@
           span.status-line(v-else) Sin reclamar
           span.audit-line(v-if="ticket.status === 'REVOKED'") Revocado por: {{ ticket.revokedByUserUuid || 'desconocido' }} · {{ formatAuditDate(ticket.revokedAt) }}
         .row-actions
-          button.btn-copy(type="button" @click="showQr(ticket)") QR
-          button.btn-copy(type="button" @click="copy(ticket.ticketCode)") Copiar UUID
-          button.btn-copy(v-if="ticket.status !== 'REVOKED' && ticket.status !== 'EXPIRED'" type="button" :disabled="resendingUuid === ticket.uuid" @click="resendOne(ticket)") {{ resendingUuid === ticket.uuid ? 'Enviando...' : 'Reenviar' }}
-          button.btn-revoke(v-if="!ticket.operational && (ticket.status === 'ISSUED' || ticket.status === 'CLAIMED')" type="button" @click="revoke(ticket.uuid)") Revocar
+          BaseButton(variant="ghost" size="sm" type="button" @click="showQr(ticket)") QR
+          BaseButton(variant="ghost" size="sm" type="button" @click="copy(ticket.ticketCode)") Copiar UUID
+          BaseButton(variant="ghost" size="sm" type="button" :loading="resendingUuid === ticket.uuid" :disabled="resendingUuid === ticket.uuid" @click="resendOne(ticket)") {{ resendingUuid === ticket.uuid ? 'Enviando...' : 'Reenviar' }}
+          BaseButton(variant="danger" size="sm" type="button" @click="revoke(ticket.uuid)") Revocar
     .qr-preview(v-if="selectedTicket")
       TicketQr(:ticket-code="selectedTicket.ticketCode" :ticket-url="ticketUrl(selectedTicket)" :show-code="false")
-      button.btn-copy(type="button" @click="share(selectedTicket)") Compartir QR
+      BaseButton(variant="ghost" size="sm" type="button" @click="share(selectedTicket)") Compartir QR
   p.empty(v-if="!loading && !tickets.length") Aún no hay boletos emitidos.
 </template>
 
@@ -57,13 +56,14 @@
 import { ref, computed, onMounted } from 'vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import TicketQr from '@/components/TicketQr.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets } from '@/services/api/usersApi'
 import type { Ticket, TicketManagementSummary, TicketStatus } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'TicketManagementPage',
-  components: { DashboardBreadcrumb, TicketQr },
+  components: { DashboardBreadcrumb, TicketQr, BaseButton },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -270,18 +270,10 @@ h2 { color: #1e1b4b; }
 .metric-capacity { border-color: #a5b4fc; }
 .issue-row { display: flex; gap: 10px; flex-wrap: wrap; }
 input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
-.btn-primary, .btn-copy { padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; }
-.btn-primary { border: 0; background: #4f46e5; color: white; }
-.btn-outline { padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; border: 1.5px solid #4f46e5; background: none; color: #4f46e5; }
-.btn-outline:disabled { opacity: .5; cursor: not-allowed; }
 .issue-divider { text-align: center; color: var(--color-text-muted); font-size: .78rem; margin: 12px 0; text-transform: uppercase; letter-spacing: .04em; }
 .field-hint { margin: 8px 0 0; font-size: .8rem; color: var(--color-text-muted); }
-.btn-copy { border: 1px solid #c7d2fe; background: #eef2ff; color: #4338ca; }
-.btn-revoke { border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.qr-preview { margin: 18px 0; padding: 18px; border: 1px dashed #c7d2fe; border-radius: 10px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .ticket-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
-.ticket-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ticket-main strong { font: 0.8rem monospace; overflow-wrap: anywhere; }
 .ticket-main span, .empty, .issue-card p { color: #6b7280; font-size: 0.9rem; }
 .list-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }

@@ -71,3 +71,24 @@ h1, h2, h3, h4 { line-height: 1.2; }
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* Baseline de inputs/selects/textareas (design system migration 2026-07-28).
+   Red de seguridad para que cualquier página que NUNCA use FormField herede un look
+   consistente. Las reglas scoped más específicas de cada página sobrescriben estos
+   defaults si es necesario durante la transición. */
+input, select, textarea {
+  font: inherit;
+  padding: 10px 12px;
+  border: var(--border-input);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--color-primary);
+}
+input:disabled, select:disabled, textarea:disabled {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}

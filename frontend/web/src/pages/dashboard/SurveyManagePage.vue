@@ -11,7 +11,7 @@
       select(v-model="selectedEngine")
         option(value="NATIVE") Motor nativo de InsightBloom
         option(value="SURVEYJS") SurveyJS Form Library
-      button.btn-primary(type="button" :disabled="engineSaving" @click="chooseEngine") {{ engineSaving ? 'Guardando...' : 'Elegir motor' }}
+      BaseButton(variant="primary" type="button" :loading="engineSaving" :disabled="engineSaving" @click="chooseEngine") {{ engineSaving ? 'Guardando...' : 'Elegir motor' }}
     p.engine-current(v-else) Motor activo: <strong>{{ engine === 'SURVEYJS' ? 'SurveyJS Form Library' : 'Nativo de InsightBloom' }}</strong>
     p.ai-shared La sugerencia de preguntas con IA sigue disponible para ambos motores.
 
@@ -39,9 +39,9 @@
       label.required-check
         input(type="checkbox" v-model="surveyJsRequired")
         span Obligatoria
-      button.btn-primary-sm(type="button" @click="addSurveyElement()") Agregar
+      BaseButton(variant="primary" size="sm" type="button" @click="addSurveyElement()") Agregar
     .ai-suggest-row
-      button.btn-outline(type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
+      BaseButton(variant="secondary" type="button" :loading="suggesting" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
       span.ai-error(v-if="suggestError") {{ suggestError }}
     .suggestions(v-if="suggestions.length")
       h4 Sugerencias compatibles
@@ -52,7 +52,7 @@
           strong {{ s.text }}
           span.suggestion-type {{ typeLabel(s.type) }}
       .suggestions-actions
-        button.btn-sm.btn-primary-sm(type="button" :disabled="!selectedSuggestions.length || addingSuggestions" @click="addSelectedSuggestions") Agregar seleccionadas
+        BaseButton(variant="primary" size="sm" type="button" :disabled="!selectedSuggestions.length || addingSuggestions" :loading="addingSuggestions" @click="addSelectedSuggestions") Agregar seleccionadas
     .surveyjs-elements(v-if="surveyElements.length")
       p.editor-help Reordená con las flechas y marcá cuáles son obligatorias antes de guardar o publicar.
       .surveyjs-element(v-for="(element, index) in surveyElements" :key="element.name")
@@ -296,6 +296,7 @@ import { ref, computed, onMounted, shallowRef } from 'vue'
 import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, getSurveyAccessManagement, releaseSurveyAccess, type SurveyEngine, type SurveyAttendee } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -372,7 +373,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
