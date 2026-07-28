@@ -80,8 +80,8 @@
         h3.conf-name {{ h.name || '(sin nombre)' }}
         p.joined-at Te uniste {{ formatDate(h.joinedAt) }}
         .conf-actions(v-if="h.available")
-          router-link.btn-outline(:to="`/c/${h.friendlyId}/doubts`") Entrar
-          router-link.btn-outline(v-if="h.seatingMode && h.seatingMode !== 'NONE'" :to="`/c/${h.friendlyId}/ticket`") 🎟️ Mi boleto
+          router-link.link-btn.link-btn-secondary(:to="`/c/${h.friendlyId}/doubts`") Entrar
+          router-link.link-btn.link-btn-secondary(v-if="h.seatingMode && h.seatingMode !== 'NONE'" :to="`/c/${h.friendlyId}/ticket`") 🎟️ Mi boleto
         p.unavailable-note(v-else) Este evento ya no se encuentra disponible.
 </template>
 
@@ -227,15 +227,6 @@ h2 { color: #374151; font-size: 1.1rem; font-weight: 600; margin: 0 0 16px; }
 .unavailable-note { font-size: 0.82rem; color: var(--color-text-muted); font-style: italic; margin: 0; }
 
 .conf-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-
-.btn-primary { display: inline-block; padding: 8px 18px; background: #4f46e5; color: #fff; border-radius: 8px; text-decoration: none; font-size: 0.875rem; font-weight: 500; border: none; cursor: pointer; }
-.btn-primary:hover { background: #4338ca; }
-
-.btn-secondary { display: inline-block; padding: 8px 18px; background: #eef2ff; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 0.875rem; font-weight: 600; border: 2px solid #c7d2fe; }
-.btn-secondary:hover { background: #e0e7ff; }
-
-.btn-outline { display: inline-block; padding: 6px 14px; border: 1px solid #4f46e5; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 0.8rem; }
-.btn-outline:hover { background: #eef2ff; }
 
 @media (max-width: 640px) {
   .dashboard-home { padding: 16px 14px; }

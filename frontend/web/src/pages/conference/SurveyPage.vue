@@ -11,7 +11,7 @@
         .cert-loading(v-if="certLoading") Generando certificado...
         template(v-else-if="certUrl")
           iframe.cert-preview(:src="certUrl")
-          a.btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
+          a.link-btn.link-btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
         template(v-else-if="certError")
           p.cert-error {{ certError }}
           router-link.btn-outline-link(v-if="certNeedsLogin" :to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
@@ -39,7 +39,7 @@
           li
             a(:href="contact.telegramGroup" target="_blank" rel="noopener") 👥 Grupo de Telegram
       .download-actions
-        a.btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
+        a.link-btn.link-btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
         BaseButton(type="button" v-if="isGroupNotes" :disabled="materialsDownloading" @click="downloadMaterials") {{ materialsDownloading ? 'Preparando materiales...' : 'Descargar materiales ZIP' }}
       p.cert-error(v-if="materialsError") {{ materialsError }}
 
@@ -505,12 +505,6 @@ textarea {
 .choices { display: flex; flex-direction: column; gap: 8px; }
 .choice { display: flex; align-items: center; gap: 8px; font-weight: 400; cursor: pointer; }
 .survey-error { color: #dc2626; margin-top: 12px; }
-.btn-primary {
-  padding: 12px 24px; border: none; border-radius: 8px; background: #4f46e5; color: #fff;
-  font-weight: 600; font-size: 0.95rem; cursor: pointer; text-decoration: none; display: inline-block;
-}
-.btn-primary:hover { background: #4338ca; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .download-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 
 .canvas-wrap { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }

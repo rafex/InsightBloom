@@ -29,9 +29,9 @@
               dt Precio
               dd {{ Number(event.ticketPrice || 0) > 0 ? `${event.ticketPrice} ${event.ticketCurrency || 'MXN'}` : 'Gratis' }}
           .actions
-            router-link.btn-primary(v-if="event.hasTicket || !event.ticketRequired" :to="`/c/${event.friendlyId}`") Entrar
-            router-link.btn-primary(v-else-if="event.ticketPurchaseEnabled" :to="`/events/${event.friendlyId}/checkout`") Adquirir boleto
-            span.btn-outline(v-else) Boletos no disponibles
+            router-link.link-btn.link-btn-primary(v-if="event.hasTicket || !event.ticketRequired" :to="`/c/${event.friendlyId}`") Entrar
+            router-link.link-btn.link-btn-primary(v-else-if="event.ticketPurchaseEnabled" :to="`/events/${event.friendlyId}/checkout`") Adquirir boleto
+            span.link-btn.link-btn-secondary(v-else) Boletos no disponibles
         img.detail-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" alt="Flyer del evento")
         .detail-flyer.placeholder(v-else aria-hidden="true") 🎟️
       section.schedule(v-if="renderedSchedule")
@@ -92,7 +92,7 @@ h1 { color: #1e1b4b; font-size: clamp(2rem, 5vw, 3.4rem); margin: 12px 0 8px; }.
 .description { color: #4b5563; line-height: 1.65; white-space: pre-wrap; }.detail-flyer { width: 100%; max-height: 440px; object-fit: cover; border-radius: 18px; box-shadow: 0 8px 25px rgba(30,27,75,.12); }.placeholder { display: grid; place-items: center; min-height: 300px; background: #e0e7ff; font-size: 5rem; }
 .badges { display: flex; flex-wrap: wrap; gap: 7px; }.badge { border-radius: 999px; padding: 5px 10px; background: #e0e7ff; color: #3730a3; font-size: .8rem; font-weight: 700; }.badge-ticket { background: #fef3c7; color: #92400e; }
 .event-facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin: 22px 0; }.event-facts dt { color: var(--color-text-muted); font-weight: 700; }.event-facts dd { margin: 0; color: #374151; }
-.actions { display: flex; gap: 10px; flex-wrap: wrap; }.btn-primary, .btn-outline { border-radius: 9px; padding: 11px 16px; font-weight: 700; text-decoration: none; cursor: pointer; }.btn-primary { border: 0; background: #4f46e5; color: white; }.btn-outline { border: 1px solid #4f46e5; color: #4f46e5; background: white; }.action-message { color: #166534; }.action-error, .error { color: #b91c1c; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }.action-message { color: #166534; }.action-error, .error { color: #b91c1c; }
 .schedule, .map-section { margin-top: 28px; background: #fff; padding: 28px; border-radius: 18px; }.schedule h2, .map-section h2 { color: #1e1b4b; }.markdown-body :deep(h2) { color: #a16207; border-bottom: 2px dotted #d1d5db; padding-bottom: 8px; }.markdown-body :deep(p) { color: #4b5563; line-height: 1.6; }.markdown-body :deep(a) { color: #4f46e5; }
 .map-section :deep(.conference-map) { min-height: 360px; }.map-link { display: inline-block; margin-top: 10px; color: #4f46e5; font-weight: 700; }.state { max-width: 1050px; margin: 50px auto; padding: 30px; color: #6b7280; }.state.error { color: #b91c1c; }
 .public-event-page.theme-editorial { background: #17152d; color: #f5f5f4; }.theme-editorial .back { color: #fbbf24; }.theme-editorial .detail-copy, .theme-editorial .schedule, .theme-editorial .map-section { background: #24213f; box-shadow: none; }.theme-editorial h1, .theme-editorial .schedule h2, .theme-editorial .map-section h2 { color: #fff7ed; font-family: Georgia, serif; }.theme-editorial .description, .theme-editorial .event-facts dd, .theme-editorial .organizer { color: #d6d3d1; }.theme-editorial .event-facts dt, .theme-editorial .organizer-label { color: #fbbf24; }.theme-editorial .detail-flyer { border-radius: 4px; }.theme-editorial .btn-outline { border-color: #fbbf24; color: #fbbf24; background: transparent; }
