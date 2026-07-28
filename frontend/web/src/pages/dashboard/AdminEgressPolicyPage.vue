@@ -18,20 +18,20 @@
       p.field-hint Siempre gana sobre la lista blanca, aquí y en cada evento.
       textarea(v-model="blockedHosts" rows="4" placeholder="localhost&#10;169.254.169.254")
 
-    button.btn-primary(@click="save" :disabled="saving")
-      span(v-if="saving") Guardando...
-      span(v-else) Guardar cambios
+    BaseButton(:loading="saving" @click="save") Guardar cambios
     p.success(v-if="saved") Cambios guardados.
     p.error(v-if="error") {{ error }}
 </template>
 
 <script lang="ts">
 import { ref, onMounted } from 'vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { getGlobalEgressPolicy, setGlobalEgressPolicy } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'AdminEgressPolicyPage',
+  components: { BaseButton },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -93,8 +93,6 @@ h2 { color: #1e1b4b; margin-bottom: 8px; }
   padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem;
   font-family: monospace; resize: vertical;
 }
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .success { color: #166534; font-size: 0.85rem; margin-top: 10px; }
 .error { color: #dc2626; font-size: 0.85rem; margin-top: 10px; }
 </style>

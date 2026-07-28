@@ -64,9 +64,7 @@
         label(for="ai-temperature") Temperatura ({{ activeProvider.temperature.toFixed(2) }})
         input#ai-temperature.temperature-slider(type="range" v-model.number="activeProvider.temperature" min="0" max="2" step="0.01")
 
-      button.btn-primary(@click="save" :disabled="saving" type="button")
-        span(v-if="saving") Guardando...
-        span(v-else) Guardar configuración de {{ activeTab.label }}
+      BaseButton(:loading="saving" type="button" @click="save") Guardar configuración de {{ activeTab.label }}
       p.success(v-if="saved") Configuración guardada.
       p.error(v-if="error") {{ error }}
 
@@ -80,6 +78,7 @@ import { getAiSettings, setAiProviderSettings, getAiPromptCatalog } from '@/serv
 import { useAuthStore } from '@/features/auth/authStore'
 import type { AiProviderSettings, AiSettings, AiPromptVariable } from '@/services/api/types'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 type Capability = 'chat' | 'tutor' | 'survey' | 'seat-layout'
 
@@ -111,7 +110,7 @@ function emptyProvider(): ProviderForm {
 
 export default {
   name: 'AdminAiSettingsPage',
-  components: { ToggleSwitch },
+  components: { ToggleSwitch, BaseButton },
   setup() {
     const auth = useAuthStore()
     const route = useRoute()
@@ -241,8 +240,6 @@ h2 { color: #1e1b4b; margin-bottom: 6px; }
 .variables-list li { flex-wrap: wrap; }
 .variables-list .var-scope { font-size: .72rem; color: #166534; background: #dcfce7; padding: 1px 8px; border-radius: 8px; }
 .variables-list .var-scope-pending { color: #92400e; background: #fef3c7; }
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
-.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 .success { color: #166534; font-size: .85rem; margin-top: 10px; }
 .error { color: #dc2626; font-size: .85rem; margin-top: 10px; }
 @media (max-width: 760px) { .settings-shell { grid-template-columns: 1fr; } .ai-tabs { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .capability-heading { flex-direction: column; } }

@@ -70,8 +70,8 @@
           p Esta URL contiene solo una copia estática validada del workspace y vence el {{ formatPreviewExpiry }}.
           .preview-actions
             a.btn-tertiary(:href="preview.url" target="_blank" rel="noopener noreferrer") Abrir página
-            button.btn-tertiary(@click="copyPreviewUrl") {{ previewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
-            button.btn-danger(@click="revokePreview") Revocar
+            BaseButton(variant="secondary" @click="copyPreviewUrl") {{ previewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
+            BaseButton(variant="danger" @click="revokePreview") Revocar
         .preview-result(v-if="appPreview")
           strong Backend/API publicada
           p Esta URL proxea tu proceso vivo (no una copia estática) y vence el {{ formatAppPreviewExpiry }}.
@@ -79,9 +79,9 @@
             |  tenga puede usar la API mientras esté vigente.
           .preview-actions
             a.btn-tertiary(:href="appPreview.url" target="_blank" rel="noopener noreferrer") Abrir URL
-            button.btn-tertiary(@click="copyAppPreviewUrl") {{ appPreviewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
-            button.btn-tertiary(@click="copyAppPreviewToken") {{ appPreviewTokenCopied ? '✓ Copiado' : '🔑 Copiar token' }}
-            button.btn-danger(@click="revokeApp") Revocar
+            BaseButton(variant="secondary" @click="copyAppPreviewUrl") {{ appPreviewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
+            BaseButton(variant="secondary" @click="copyAppPreviewToken") {{ appPreviewTokenCopied ? '✓ Copiado' : '🔑 Copiar token' }}
+            BaseButton(variant="danger" @click="revokeApp") Revocar
 
       div(v-else class="no-sandbox")
         p ❌ No tienes un sandbox asignado en este evento.
@@ -581,57 +581,6 @@ export default {
   flex-wrap: wrap;
 }
 
-.btn-primary, .btn-secondary, .btn-tertiary {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-primary {
-  background: #4f46e5;
-  color: white;
-  text-decoration: none;
-}
-
-.btn-primary:hover {
-  background: #4338ca;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-}
-
-.btn-secondary {
-  background: #f3f4f6;
-  color: #1f2937;
-  border: 1px solid #e5e7eb;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #e5e7eb;
-  border-color: #d1d5db;
-}
-
-.btn-secondary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-tertiary {
-  background: white;
-  color: #4f46e5;
-  border: 1.5px solid #c7d2fe;
-}
-
-.btn-tertiary:hover {
-  background: #eef2ff;
-  border-color: #a5b4fc;
-}
-
 .preview-result {
   margin-top: 18px;
   padding: 16px;
@@ -652,18 +601,23 @@ export default {
   flex-wrap: wrap;
 }
 
-.btn-danger {
-  padding: 10px 16px;
-  border: 1px solid #fecaca;
+a.btn-tertiary {
+  padding: 10px 20px;
+  border: 1.5px solid #c7d2fe;
   border-radius: 8px;
-  background: #fff;
-  color: #b91c1c;
+  background: white;
+  color: #4f46e5;
+  font-size: 0.95rem;
   font-weight: 600;
-  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.btn-danger:hover {
-  background: #fef2f2;
+a.btn-tertiary:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
 }
 
 .no-sandbox {
@@ -693,11 +647,6 @@ export default {
 
   .ide-actions {
     flex-direction: column;
-  }
-
-  .btn-primary, .btn-secondary, .btn-tertiary {
-    width: 100%;
-    justify-content: center;
   }
 
   .sandbox-info {

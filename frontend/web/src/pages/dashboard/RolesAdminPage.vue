@@ -39,8 +39,8 @@
             template(v-if="editing === r.uuid")
               textarea(v-model="editForm.description" placeholder="Descripción")
               .actions-row
-                button.btn-sm.btn-primary-sm(:disabled="saving" @click="saveEdit(r)") Guardar
-                button.btn-sm.btn-ghost-sm(@click="editing = null") Cancelar
+                BaseButton(size="sm" :disabled="saving" @click="saveEdit(r)") Guardar
+                BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
               button.btn-sm.btn-edit(@click="startEdit(r)") Editar
               button.btn-sm.btn-warning(v-if="r.active" @click="toggleActive(r, false)") Desactivar
@@ -60,7 +60,7 @@
       label(v-for="p in allPermissions" :key="p")
         input(type="checkbox" :value="p" v-model="newRole.permissions")
         span {{ permissionLabel(p) }}
-    button.btn-primary(type="button" :disabled="creating" @click="createNew") Crear rol
+    BaseButton(type="button" :disabled="creating" @click="createNew") Crear rol
     p.error(v-if="createError") {{ createError }}
 </template>
 
@@ -71,6 +71,7 @@ import {
 } from '@/services/api/usersApi'
 import type { Role, PermissionValue, RoleScopeValue } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const PERMISSION_LABELS: Record<string, string> = {
   MANAGE_USERS: 'Gestionar usuarios',
@@ -89,6 +90,7 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export default {
   name: 'RolesAdminPage',
+  components: { BaseButton },
   setup() {
     const auth = useAuthStore()
     const roles = ref<Role[]>([])
@@ -202,16 +204,11 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 .btn-edit { background: #e0e7ff; color: #4338ca; }
 .btn-warning { background: #fef3c7; color: #92400e; }
 .btn-success { background: #dcfce7; color: #166534; }
-.btn-primary-sm { background: #4f46e5; color: #fff; }
-.btn-ghost-sm { background: #fff; color: #6b7280; border: 1px solid #e5e7eb; }
-
 .new-role-form { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; }
 .new-role-form h3 { margin: 0 0 14px; color: #1e1b4b; font-size: 1rem; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .form-row input, .form-row select { flex: 1; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
 .new-role-form textarea { width: 100%; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; margin-top: 10px; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 0.85rem; margin-top: 8px; }
 
 @media (max-width: 900px) {

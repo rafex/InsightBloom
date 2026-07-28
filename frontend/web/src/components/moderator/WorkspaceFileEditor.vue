@@ -24,12 +24,12 @@
           .wfe-toolbar
             span.wfe-filename {{ selectedPath }}
             span.wfe-loading(v-if="loadingFile") Cargando...
-            button.btn-primary(type="button" @click="save" :disabled="savingFile || loadingFile")
+            BaseButton(type="button" @click="save" :disabled="savingFile || loadingFile")
               span(v-if="savingFile") Guardando...
               span(v-else) Guardar
           p.wfe-conflict(v-if="conflict")
             | Este archivo cambió desde que se abrió (¿el alumno lo está editando?).
-            button.btn-outline(type="button" @click="forceSave") Guardar de todas formas
+            BaseButton(variant="secondary" type="button" @click="forceSave") Guardar de todas formas
           p.wfe-error(v-if="saveError") {{ saveError }}
           .wfe-editor(ref="editorContainer")
 </template>
@@ -39,6 +39,7 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { listWorkspaceFiles, readWorkspaceFile, writeWorkspaceFile } from '@/services/api/usersApi'
 import type { WorkspaceFileEntry } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 // Extension -> id de lenguaje de Monaco. Autocompletado basico (resaltado + sugerencias por
 // indentacion/llaves) viene incluido gratis en las "basic-languages" de monaco-editor para
@@ -57,6 +58,7 @@ function languageForPath(path: string): string {
 
 export default {
   name: 'WorkspaceFileEditor',
+  components: { BaseButton },
   props: {
     conferenceId: { type: String, required: true },
     userUuid: { type: String, required: true }
@@ -236,17 +238,5 @@ export default {
 .wfe-conflict {
   margin: 0; padding: 10px 16px; background: #fef3c7; color: #92400e; font-size: 0.85rem;
   display: flex; align-items: center; gap: 12px;
-}
-
-.btn-primary {
-  padding: 6px 14px; border-radius: 6px; background: #4f46e5; color: white; border: none;
-  font-weight: 600; font-size: 0.85rem; cursor: pointer;
-}
-
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.btn-outline {
-  padding: 4px 10px; border-radius: 6px; background: transparent; color: #92400e;
-  border: 1.5px solid #92400e; font-weight: 600; font-size: 0.8rem; cursor: pointer;
 }
 </style>

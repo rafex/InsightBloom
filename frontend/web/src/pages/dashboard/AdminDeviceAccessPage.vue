@@ -23,9 +23,7 @@
       p.field-hint Frena el spam de creación de cuentas nuevas desde el mismo dispositivo en 24h.
       input(v-model.number="maxRegistrationsPerDevicePerDay" type="number" min="1" max="50" placeholder="3 (por defecto)")
 
-    button.btn-primary(@click="save" :disabled="saving")
-      span(v-if="saving") Guardando...
-      span(v-else) Guardar cambios
+    BaseButton(:loading="saving" @click="save") Guardar cambios
     p.success(v-if="saved") Cambios guardados.
     p.error(v-if="error") {{ error }}
 
@@ -91,6 +89,7 @@
 
 <script lang="ts">
 import ModerationTable from '@/components/tables/ModerationTable.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { ref, onMounted } from 'vue'
 import {
   getDeviceAccessSettings, setDeviceAccessSettings, listPlatformDeviceBlocks, unblockPlatformDevice,
@@ -104,7 +103,7 @@ type DeviceFingerprintFlagRow = DeviceFingerprintFlag & { _loading: boolean }
 
 export default {
   name: 'AdminDeviceAccessPage',
-  components: { ModerationTable },
+  components: { ModerationTable, BaseButton },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -212,8 +211,6 @@ h2 { color: #1e1b4b; margin-bottom: 16px; }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: 0.9rem; color: #374151; }
 .form-group input { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .success { color: #166534; font-size: 0.85rem; margin-top: 10px; }
 .error { color: #dc2626; font-size: 0.85rem; margin-top: 10px; }
 .blocks-title { color: #1e1b4b; font-size: 1rem; margin-bottom: 8px; }
