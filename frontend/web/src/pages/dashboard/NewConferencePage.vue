@@ -110,7 +110,7 @@
     FormField(label="Aforo máximo" :hint="`Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), incluso si es virtual — la infraestructura tiene recursos limitados. El mínimo es 2 porque el creador ocupa un boleto operativo contado. Cada moderador adicional ocupa otra plaza. Recomendado hasta ${recommendedMaxCapacity}. Se puede cambiar después.`")
       template(#default="{ id, describedBy }")
         input(:id="id" :aria-describedby="describedBy" v-model.number="capacity" type="number" min="2" placeholder="10")
-      p.capacity-alert(v-if="capacityAlert" :class="capacityAlert.level") {{ capacityAlert.text }}
+    p.capacity-alert(v-if="capacityAlert" :class="capacityAlert.level") {{ capacityAlert.text }}
 
     FormField(label="Sede (opcional)")
       template(#default="{ id, describedBy }")

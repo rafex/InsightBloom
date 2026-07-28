@@ -115,9 +115,9 @@
       label Flyer del evento (opcional)
       p.field-hint Se muestra en la animación de mapa al entrar a la conferencia. No siempre se cuenta con uno.
       input(type="file" accept="image/png,image/jpeg" @change="onFlyerSelected")
-        .flyer-preview(v-if="flyerBase64")
-          img(:src="flyerBase64" alt="Flyer del evento")
-          BaseButton(variant="danger" type="button" @click="removeFlyer") Quitar flyer
+      .flyer-preview(v-if="flyerBase64")
+        img(:src="flyerBase64" alt="Flyer del evento")
+        BaseButton(variant="danger" type="button" @click="removeFlyer") Quitar flyer
 
     .error(v-if="saveError") {{ saveError }}
     .success(v-if="saved") Cambios guardados correctamente.
