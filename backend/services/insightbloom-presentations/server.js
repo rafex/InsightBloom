@@ -1233,7 +1233,14 @@ app.use('/api/v1/conferences/:id/presentation/presenter', async (req, res, next)
   res.setHeader('Content-Security-Policy', SLIDEV_CSP);
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   setPresentationAccessCookie(req, res, req.params.id);
-  express.static(presenterRoot, { index: false })(req, res, (err) => {
+  // redirect:false es obligatorio -- express.static/serve-static redirige con 301
+  // agregando "/" cuando la URL pedida resuelve a un directorio (req.url === "/" al
+  // llegar aca, porque el mount de este middleware es exactamente ".../presenter" sin
+  // slash final), sin importar el valor de "index". El navegador sigue ese 301 dentro
+  // del iframe y termina navegando fuera del SPA fallback de abajo. Reportado 2026-07-28:
+  // network tab mostraba 301 en ".../presentation/presenter" y la app principal (fuera
+  // del iframe) terminaba renderizando su propio NotFoundPage.
+  express.static(presenterRoot, { index: false, redirect: false })(req, res, (err) => {
     if (err || path.extname(req.path)) return next(err);
     res.sendFile(presenterIndex);
   });
