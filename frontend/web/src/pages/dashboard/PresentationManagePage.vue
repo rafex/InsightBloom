@@ -26,8 +26,7 @@
       label URL del repositorio o descarga (opcional)
       input.source-input(v-model="sourceUrl" type="url" placeholder="https://github.com/usuario/repo")
       p.field-hint Si la agregas, la audiencia verá un botón para ir al sitio de origen de la presentación.
-    button.btn-primary(:disabled="!file || uploading" @click="upload")
-      | {{ uploading ? 'Procesando (puede tardar)...' : 'Subir y generar' }}
+    BaseButton(:disabled="!file || uploading" @click="upload") {{ uploading ? 'Procesando (puede tardar)...' : 'Subir y generar' }}
     p.upload-error(v-if="error") {{ error }}
     p.upload-success(v-if="success") ¡Presentación generada correctamente!
 </template>
@@ -41,10 +40,11 @@ import type { Conference } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 export default {
   name: 'PresentationManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -174,11 +174,6 @@ input[type="file"] { display: block; margin-bottom: 12px; }
 }
 .source-input:focus { outline: none; border-color: #4f46e5; }
 .field-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
-.btn-primary {
-  padding: 10px 20px; border: none; border-radius: 8px; background: #4f46e5; color: #fff;
-  font-weight: 600; cursor: pointer;
-}
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-secondary {
   padding: 8px 16px; border-radius: 8px; background: #eef2ff; color: #4f46e5; border: 2px solid #c7d2fe;
   text-decoration: none; font-weight: 600; font-size: 0.88rem; margin-right: 8px;

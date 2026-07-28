@@ -11,7 +11,7 @@
         .form-group
           label Logotipo (opcional)
           input(type="file" accept="image/png,image/jpeg" @change="onLogoChange")
-          button.btn-ghost-sm(v-if="form.logoBase64" type="button" @click="form.logoBase64 = ''") Quitar logotipo
+          BaseButton(variant="ghost" size="sm" v-if="form.logoBase64" type="button" @click="form.logoBase64 = ''") Quitar logotipo
 
         .form-group
           label Tipo de letra
@@ -46,9 +46,7 @@
 
         .error(v-if="error") {{ error }}
         .success(v-if="success") ¡Configuración guardada!
-        button.btn-primary(@click="save" :disabled="saving")
-          span(v-if="saving") Guardando...
-          span(v-else) Guardar configuración
+        BaseButton(:loading="saving" @click="save") Guardar configuración
 
       .preview-col
         h3 Vista previa
@@ -68,11 +66,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { getCertificateSettings, saveCertificateSettings, getEventLegacyCertificateSettings, saveEventLegacyCertificateSettings } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const FONT_MAP: Record<string, string> = { HELVETICA: 'Helvetica, Arial, sans-serif', TIMES_ROMAN: '"Times New Roman", serif', COURIER: '"Courier New", monospace' }
 
 export default {
   name: 'CertificateSettingsPage',
+  components: { BaseButton },
   props: { conferenceId: { type: String, required: false } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -149,9 +149,6 @@ input[type="color"] { width: 60px; height: 36px; border: 1.5px solid #d1d5db; bo
 .options-label { margin-bottom: 2px; }
 .checkbox-row { display: flex; align-items: center; gap: 8px; font-weight: 400; font-size: 0.9rem; color: #374151; cursor: pointer; }
 .checkbox-row input { width: auto; }
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-ghost-sm { padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #6b7280; cursor: pointer; font-size: 0.8rem; align-self: flex-start; }
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
 .success { color: #059669; font-size: 0.9rem; margin-bottom: 12px; }
 

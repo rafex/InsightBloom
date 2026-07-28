@@ -14,7 +14,7 @@
       label Imagen del recinto
       p.field-hint Sube una foto o plano del lugar; luego haz clic sobre ella para colocar cada asiento.
       input(type="file" accept="image/*" @change="onImageSelected")
-      button.btn-outline(v-if="imageBase64" type="button" @click="saveMap" :disabled="savingMap") Guardar imagen
+      BaseButton(variant="secondary" v-if="imageBase64" type="button" :disabled="savingMap" @click="saveMap") Guardar imagen
 
     .form-group(v-show="activeTab === 'ai'")
       label Generar asientos con IA
@@ -36,9 +36,7 @@
       .seat-row(v-for="seat in seats" :key="seat.uuid || seat.label")
         input.seat-label(v-model="seat.label" type="text" placeholder="Etiqueta, ej. A1")
         button.btn-remove(type="button" @click="removeSeat(seat)") Quitar
-    button.btn-primary(v-if="seats.length" type="button" @click="saveSeats" :disabled="savingSeats")
-      span(v-if="savingSeats") Guardando...
-      span(v-else) Guardar asientos
+      BaseButton(:loading="savingSeats" @click="saveSeats") Guardar asientos
     p.success(v-if="seatsSaved") Asientos guardados.
     p.error(v-if="seatsError") {{ seatsError }}
 </template>
@@ -51,12 +49,13 @@ import VenueMapCanvasEditor from '@/components/VenueMapCanvasEditor.vue'
 import { getConference, setVenueMap, getConferenceSeatMap, defineVenueSeats, generateSeatLayout } from '@/services/api/usersApi'
 import type { VenueSeat } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 interface EditableSeat { uuid: string | null, label: string, x: number, y: number, occupied: boolean }
 
 export default {
   name: 'VenueMapEditorPage',
-  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor },
+  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor, BaseButton },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -185,9 +184,6 @@ h2 { color: #1e1b4b; margin-bottom: 16px; }
 .seat-row { display: flex; gap: 8px; align-items: center; }
 .seat-label { flex: 1; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; }
 .btn-remove { padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; color: #dc2626; cursor: pointer; font-size: 0.8rem; }
-.btn-outline { padding: 8px 18px; border: 1.5px solid #4f46e5; color: #4f46e5; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.9rem; margin-top: 4px; }
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 0.9rem; }
 .success { color: #166534; font-size: 0.9rem; }
 </style>
