@@ -37,7 +37,7 @@ describe('presentationsApi', () => {
     expect(getSlidesUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/slides`)
     expect(getSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/slides`)
     expect(getPresentationRootUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/`)
-    expect(getPresenterSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/presenter`)
+    expect(getPresenterSlidesUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/moderator/presenter`)
     expect(getSlidesPreviewUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/slides/preview`)
     expect(getPdfUrl('c1')).toBe(`${BASE}/conferences/c1/presentation/pdf`)
     expect(getPdfUrl('c1', 'a b+c')).toBe(`${BASE}/conferences/c1/presentation/pdf`)
