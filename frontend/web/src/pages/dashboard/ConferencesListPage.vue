@@ -74,6 +74,7 @@
               router-link.btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
               router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/${c.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") 🏅 Certificado
               router-link.btn-ghost(v-if="hasCapability(c, 'TICKETING_GENERAL') || hasCapability(c, 'TICKETING_SEATED')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/tickets`") 🎟️ Boletos
+              router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/tools`") 🔒 Herramientas
               button.btn-ghost(v-if="!c.expiresAt" @click="toggleActive(c)" :disabled="c._togglingActive")
                 | {{ c.status === 'ACTIVE' ? 'Desactivar' : 'Activar' }}
               router-link.btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editor

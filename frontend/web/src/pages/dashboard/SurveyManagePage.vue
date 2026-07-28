@@ -15,7 +15,76 @@
     p.engine-current(v-else) Motor activo: <strong>{{ engine === 'SURVEYJS' ? 'SurveyJS Form Library' : 'Nativo de InsightBloom' }}</strong>
     p.ai-shared La sugerencia de preguntas con IA sigue disponible para ambos motores.
 
-  .access-card
+  nav.tabs(v-if="engine")
+    button.tab-btn(type="button" :class="{ active: activeTab === 'create' }" @click="activeTab = 'create'") ➕ Crear
+    button.tab-btn(type="button" :class="{ active: activeTab === 'results' }" @click="activeTab = 'results'") 📊 Resultados
+    button.tab-btn(type="button" :class="{ active: activeTab === 'release' }" @click="activeTab = 'release'") 🔓 Liberar
+
+  .surveyjs-editor(v-if="engine === 'SURVEYJS'" v-show="activeTab === 'create'")
+    h3 Editor SurveyJS controlado
+    p.editor-help Solo se guardan tipos compatibles con SurveyJS Form Library. No se incluye Survey Creator ni componentes comerciales.
+    input(v-model="surveyJsTitle" placeholder="Título de la encuesta")
+    .surveyjs-add-row
+      select(v-model="surveyJsType")
+        option(value="text") Texto corto
+        option(value="comment") Texto largo
+        option(value="radiogroup") Opción única
+        option(value="checkbox") Opción múltiple
+        option(value="dropdown") Lista desplegable
+        option(value="rating") Calificación
+        option(value="boolean") Sí / No
+        option(value="ranking") Ordenar elementos
+      input(v-model="surveyJsQuestion" placeholder="Pregunta")
+      input(v-if="['radiogroup', 'checkbox', 'dropdown', 'ranking'].includes(surveyJsType)" v-model="surveyJsChoices" placeholder="Opciones separadas por coma")
+      label.required-check
+        input(type="checkbox" v-model="surveyJsRequired")
+        span Obligatoria
+      button.btn-primary-sm(type="button" @click="addSurveyElement()") Agregar
+    .ai-suggest-row
+      button.btn-outline(type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
+      span.ai-error(v-if="suggestError") {{ suggestError }}
+    .suggestions(v-if="suggestions.length")
+      h4 Sugerencias compatibles
+      .suggestion-row(v-for="(s, i) in suggestions" :key="i")
+        label.suggestion-check
+          input(type="checkbox" :value="i" v-model="selectedSuggestions")
+        .suggestion-text
+          strong {{ s.text }}
+          span.suggestion-type {{ typeLabel(s.type) }}
+      .suggestions-actions
+        button.btn-sm.btn-primary-sm(type="button" :disabled="!selectedSuggestions.length || addingSuggestions" @click="addSelectedSuggestions") Agregar seleccionadas
+    .surveyjs-elements(v-if="surveyElements.length")
+      p.editor-help Reordená con las flechas y marcá cuáles son obligatorias antes de guardar o publicar.
+      .surveyjs-element(v-for="(element, index) in surveyElements" :key="element.name")
+        span.element-index {{ index + 1 }}
+        .element-details
+          strong {{ element.title }}
+          span {{ element.type }}{{ element.isRequired ? ' · obligatoria' : '' }}
+          small(v-if="element.choices && element.choices.length") {{ element.choices.join(', ') }}
+        .element-controls
+          label.required-check.element-required
+            input(type="checkbox" :checked="!!element.isRequired" @change="toggleSurveyElementRequired(index)")
+            span Obligatoria
+          .option-arrows
+            button.btn-icon(type="button" @click="moveSurveyElement(index, -1)" :disabled="index === 0" title="Subir") ↑
+            button.btn-icon(type="button" @click="moveSurveyElement(index, 1)" :disabled="index === surveyElements.length - 1" title="Bajar") ↓
+          button.btn-icon(type="button" @click="removeSurveyElement(index)" title="Quitar") ✕
+    .surveyjs-actions
+      button.btn-outline(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(false)") {{ surveyJsSaving ? 'Guardando...' : 'Guardar borrador' }}
+      button.btn-primary(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(true)") Publicar encuesta
+    p.ai-error(v-if="surveyJsError") {{ surveyJsError }}
+    .surveyjs-preview(v-if="surveyPreviewModel")
+      h3 Vista previa
+      SurveyComponent(:model="surveyPreviewModel")
+
+  .surveyjs-results(v-if="engine === 'SURVEYJS'" v-show="activeTab === 'results'")
+    h3 Respuestas recibidas
+    .surveyjs-submission(v-for="submission in surveyJsSubmissions" :key="submission.uuid")
+      strong {{ submission.submittedAt }}
+      pre {{ JSON.stringify(submission.data, null, 2) }}
+    p.no-responses(v-if="!surveyJsSubmissions.length") Sin respuestas todavía
+
+  .access-card(v-show="activeTab === 'release'")
     h3 Liberar encuesta
     p.access-help La encuesta permanece bloqueada hasta que el moderador la libere. Puedes abrirla para todos los asistentes registrados o solo para los seleccionados.
     .access-state(:class="{ released: releasedForAll }") {{ releasedForAll ? 'Liberada para todos los asistentes, incluidos los que se registren después.' : 'Bloqueada para los asistentes.' }}
@@ -36,65 +105,6 @@
           | {{ attendee.responded ? 'Respondida' : attendee.released ? 'Liberada' : 'Bloqueada' }}
     p.access-empty(v-else) Aún no hay asistentes registrados en el evento.
     p.access-error(v-if="accessError") {{ accessError }}
-
-  .surveyjs-editor(v-if="engine === 'SURVEYJS'")
-    h3 Editor SurveyJS controlado
-    p.editor-help Solo se guardan tipos compatibles con SurveyJS Form Library. No se incluye Survey Creator ni componentes comerciales.
-    input(v-model="surveyJsTitle" placeholder="Título de la encuesta")
-    .surveyjs-add-row
-      select(v-model="surveyJsType")
-        option(value="text") Texto corto
-        option(value="comment") Texto largo
-        option(value="radiogroup") Opción única
-        option(value="checkbox") Opción múltiple
-        option(value="dropdown") Lista desplegable
-        option(value="rating") Calificación
-        option(value="boolean") Sí / No
-        option(value="ranking") Ordenar elementos
-      input(v-model="surveyJsQuestion" placeholder="Pregunta")
-      input(v-if="['radiogroup', 'checkbox', 'dropdown', 'ranking'].includes(surveyJsType)" v-model="surveyJsChoices" placeholder="Opciones separadas por coma")
-      label.required-check
-        input(type="checkbox" v-model="surveyJsRequired")
-        span Obligatoria
-      button.btn-primary-sm(type="button" @click="addSurveyElement") Agregar
-    .ai-suggest-row
-      button.btn-outline(type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
-      span.ai-error(v-if="suggestError") {{ suggestError }}
-    .suggestions(v-if="suggestions.length")
-      h4 Sugerencias compatibles
-      .suggestion-row(v-for="(s, i) in suggestions" :key="i")
-        label.suggestion-check
-          input(type="checkbox" :value="i" v-model="selectedSuggestions")
-        .suggestion-text
-          strong {{ s.text }}
-          span.suggestion-type {{ typeLabel(s.type) }}
-      .suggestions-actions
-        button.btn-sm.btn-primary-sm(type="button" :disabled="!selectedSuggestions.length || addingSuggestions" @click="addSelectedSuggestions") Agregar seleccionadas
-    .surveyjs-elements(v-if="surveyElements.length")
-      .surveyjs-element(v-for="(element, index) in surveyElements" :key="element.name")
-        span.element-index {{ index + 1 }}
-        .element-details
-          strong {{ element.title }}
-          span {{ element.type }}{{ element.isRequired ? ' · obligatoria' : '' }}
-          small(v-if="element.choices && element.choices.length") {{ element.choices.join(', ') }}
-        button.btn-icon(type="button" @click="removeSurveyElement(index)") ✕
-    .surveyjs-actions
-      button.btn-outline(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(false)") {{ surveyJsSaving ? 'Guardando...' : 'Guardar borrador' }}
-      button.btn-primary(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(true)") Publicar encuesta
-    p.ai-error(v-if="surveyJsError") {{ surveyJsError }}
-    .surveyjs-preview(v-if="surveyPreviewModel")
-      h3 Vista previa
-      SurveyComponent(:model="surveyPreviewModel")
-    .surveyjs-results(v-if="surveyJsSubmissions.length")
-      h3 Respuestas recibidas
-      .surveyjs-submission(v-for="submission in surveyJsSubmissions" :key="submission.uuid")
-        strong {{ submission.submittedAt }}
-        pre {{ JSON.stringify(submission.data, null, 2) }}
-
-  nav.tabs(v-if="engine === 'NATIVE'")
-    button.tab-btn(type="button" :class="{ active: activeTab === 'create' }" @click="activeTab = 'create'") {{ editingId ? '✏️ Editando pregunta' : '➕ Alta de preguntas' }}
-    button.tab-btn(type="button" :class="{ active: activeTab === 'edit' }" @click="activeTab = 'edit'") 📋 Edición de preguntas
-    button.tab-btn(type="button" :class="{ active: activeTab === 'results' }" @click="activeTab = 'results'") 📊 Resultados
 
   .add-card(v-if="engine === 'NATIVE'" v-show="activeTab === 'create'")
     h3 {{ editingId ? 'Editar pregunta' : 'Agregar pregunta' }}
@@ -189,7 +199,7 @@
       button.btn-primary(:disabled="!form.text || saving" @click="save") {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Agregar') }}
       button.btn-ghost-sm(v-if="editingId" type="button" @click="cancelEdit") Cancelar
 
-  .questions-card(v-if="engine === 'NATIVE' && questions.length" v-show="activeTab === 'edit'")
+  .questions-card(v-if="engine === 'NATIVE' && questions.length" v-show="activeTab === 'create'")
     h3 Preguntas activas
     .question-item(v-for="q in questions" :key="q.uuid" :class="{ editing: editingId === q.uuid }")
       .question-item-header
@@ -535,6 +545,21 @@ export default {
       refreshSurveyPreview()
     }
 
+    function moveSurveyElement(index: number, delta: number) {
+      const elements = surveySchema.value.pages[0].elements
+      const newIndex = index + delta
+      if (newIndex < 0 || newIndex >= elements.length) return
+      const [item] = elements.splice(index, 1)
+      elements.splice(newIndex, 0, item)
+      refreshSurveyPreview()
+    }
+
+    function toggleSurveyElementRequired(index: number) {
+      const element = surveySchema.value.pages[0].elements[index]
+      element.isRequired = !element.isRequired
+      refreshSurveyPreview()
+    }
+
     async function chooseEngine() {
       engineSaving.value = true
       surveyJsError.value = ''
@@ -861,7 +886,7 @@ export default {
       activeTab, questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
       engine, selectedEngine, engineSaving, chooseEngine, surveyJsTitle, surveyJsType, surveyJsQuestion,
       surveyJsChoices, surveyJsRequired, surveyJsSaving, surveyJsError, surveyJsSubmissions,
-      surveyElements, surveyPreviewModel, addSurveyElement, removeSurveyElement, saveSurveyJs,
+      surveyElements, surveyPreviewModel, addSurveyElement, removeSurveyElement, moveSurveyElement, toggleSurveyElementRequired, saveSurveyJs,
       selectedSuggestions, addingSuggestions,
       deleteTarget, purgeTarget, openDetail, improving, improveError, improvements,
       reviewOpen, selectedForGrading, regradeAll, grading, gradeStatus, gradeableQuestions, allGradeableSelected,
@@ -923,6 +948,8 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 .surveyjs-add-row .required-check { flex-shrink: 0; margin: 8px 0 0; }
 .surveyjs-elements { margin: 16px 0; border-top: 1px solid #f3f4f6; }
 .surveyjs-element { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+.element-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.element-required { margin: 0; white-space: nowrap; }
 .element-index { width: 24px; height: 24px; border-radius: 50%; background: #e0e7ff; color: #4338ca; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; }
 .element-details { flex: 1; display: flex; flex-direction: column; gap: 2px; color: #374151; }
 .element-details span, .element-details small { color: #6b7280; font-size: 0.78rem; }
