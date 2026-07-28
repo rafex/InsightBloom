@@ -328,6 +328,7 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid #d1d5db; bor
 .field-hint { margin: 8px 0 0; font-size: .8rem; color: var(--color-text-muted); }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .ticket-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+.ticket-main { display: flex; flex-direction: column; gap: 2px; }
 .ticket-main strong { font: 0.8rem monospace; overflow-wrap: anywhere; }
 .ticket-main span, .empty, .issue-card p { color: #6b7280; font-size: 0.9rem; }
 .list-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }

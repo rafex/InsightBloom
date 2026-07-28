@@ -174,9 +174,11 @@ export default {
         ticket.value = await claimTicket(props.conferenceId as string, ticketInput.value.trim(), auth.state.token)
       } catch (e: any) {
         const code = e.response?.data?.error?.code
-        error.value = code === 'ticket_already_claimed'
-          ? 'Este boleto ya fue canjeado por otra persona.'
-          : 'El QR o UUID no corresponde a esta conferencia.'
+        const messages: Record<string, string> = {
+          ticket_already_claimed: 'Este boleto ya fue canjeado por otra persona.',
+          user_already_has_ticket: 'Ya tenés un boleto para este evento. No se puede reclamar más de uno por persona.'
+        }
+        error.value = messages[code] || 'El QR o UUID no corresponde a esta conferencia.'
       } finally {
         claiming.value = false
       }

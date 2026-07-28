@@ -174,6 +174,12 @@ public class TicketUseCase {
             if (ticket.getClaimedByUserUuid().equals(userUuid)) return ticket;
             throw new IllegalStateException("ticket_already_claimed");
         }
+        // La plataforma no soporta que una persona adquiera más de un boleto por evento (uso
+        // por asiento/dispositivo). findByConferenceAndUser ya excluye REVOKED/EXPIRED, así que
+        // un boleto revocado no bloquea reclamar uno nuevo.
+        if (ticketRepository.findByConferenceAndUser(conferenceUuid, userUuid).isPresent()) {
+            throw new IllegalStateException("user_already_has_ticket");
+        }
         if (!ticketRepository.claim(ticket.getUuid(), userUuid, Instant.now().toString())) {
             final Ticket current = ticketRepository.findByUuid(ticket.getUuid()).orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
             if (userUuid.equals(current.getClaimedByUserUuid())) return current;
@@ -200,6 +206,9 @@ public class TicketUseCase {
         final Conference conference = conference(conferenceUuid);
         if (conference.getStatus() != ConferenceStatus.ACTIVE) throw new IllegalStateException("conference_closed");
         expireIfNeeded(conference);
+        if (ticketRepository.findByConferenceAndUser(conferenceUuid, userUuid).isPresent()) {
+            throw new IllegalStateException("user_already_has_ticket");
+        }
         for (final Ticket candidate : ticketRepository.findByConference(conferenceUuid)) {
             if (candidate.isOperational() || candidate.getStatus() != TicketStatus.ISSUED
                     || candidate.getClaimedByUserUuid() != null || candidate.getRecipientEmail() != null) {

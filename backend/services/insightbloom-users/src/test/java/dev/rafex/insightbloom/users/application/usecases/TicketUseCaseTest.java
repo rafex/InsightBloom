@@ -88,6 +88,31 @@ class TicketUseCaseTest {
     }
 
     @Test
+    void rejectsClaimingASecondTicketByTheSameUser() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final ConferenceMembershipRepository memberships = mock(ConferenceMembershipRepository.class);
+        final EmailPort email = mock(EmailPort.class);
+        final ReservationRepository reservations = mock(ReservationRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        final var alreadyClaimed = new Ticket(conference.getUuid(), "owner", null, null);
+        final var secondTicket = new Ticket(conference.getUuid(), "owner", null, null);
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByCode(conference.getUuid(), secondTicket.getTicketCode())).thenReturn(Optional.of(secondTicket));
+        when(tickets.findByConferenceAndUser(conference.getUuid(), "user")).thenReturn(Optional.of(alreadyClaimed));
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets, memberships, email,
+                "https://frontend.test", reservations);
+
+        final var thrown = assertThrows(IllegalStateException.class,
+                () -> useCase.claim(conference.getUuid(), secondTicket.getTicketCode(), "user"));
+        assertEquals("user_already_has_ticket", thrown.getMessage());
+        verify(tickets, never()).claim(eq(secondTicket.getUuid()), anyString(), anyString());
+    }
+
+    @Test
     void expiredConferenceDoesNotGrantAccess() {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
