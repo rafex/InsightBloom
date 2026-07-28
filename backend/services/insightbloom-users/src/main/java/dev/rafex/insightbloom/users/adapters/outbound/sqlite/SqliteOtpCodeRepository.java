@@ -19,8 +19,8 @@ public class SqliteOtpCodeRepository implements OtpCodeRepository {
     @Override
     public void save(final OtpCode otpCode) {
         final String sql = """
-            INSERT INTO otp_codes (uuid, identifier, channel, code, expires_at, consumed, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO otp_codes (uuid, identifier, channel, code, expires_at, consumed, created_at, failed_attempts)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, otpCode.getUuid());
@@ -30,6 +30,7 @@ public class SqliteOtpCodeRepository implements OtpCodeRepository {
             ps.setString(5, otpCode.getExpiresAt().toString());
             ps.setInt(6, otpCode.isConsumed() ? 1 : 0);
             ps.setString(7, otpCode.getCreatedAt().toString());
+            ps.setInt(8, otpCode.getFailedAttempts());
             ps.executeUpdate();
         } catch (final SQLException e) {
             throw new RuntimeException(e);
@@ -64,10 +65,38 @@ public class SqliteOtpCodeRepository implements OtpCodeRepository {
         }
     }
 
+    @Override
+    public void incrementFailedAttempts(final String uuid) {
+        try (Connection c = db.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "UPDATE otp_codes SET failed_attempts = failed_attempts + 1 WHERE uuid = ?")) {
+            ps.setString(1, uuid);
+            ps.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public int countSince(final String identifier, final Instant since) {
+        final String sql = "SELECT COUNT(*) FROM otp_codes WHERE identifier = ? AND created_at > ?";
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, identifier);
+            ps.setString(2, since.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
     private OtpCode map(final ResultSet rs) throws SQLException {
         return new OtpCode(
                 rs.getString("uuid"), rs.getString("identifier"), OtpChannel.valueOf(rs.getString("channel")),
                 rs.getString("code"), Instant.parse(rs.getString("expires_at")),
-                rs.getInt("consumed") == 1, Instant.parse(rs.getString("created_at")));
+                rs.getInt("consumed") == 1, Instant.parse(rs.getString("created_at")),
+                rs.getInt("failed_attempts"));
     }
 }

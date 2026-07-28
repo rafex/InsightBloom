@@ -29,6 +29,9 @@ public class User {
     // Huella del dispositivo desde el que se creo la cuenta -- inmutable en la practica (se fija
     // una sola vez al registrarse, ver RegisterUseCase/PlatformDeviceGuard.checkRegistration).
     private String registrationDeviceFingerprint;
+    // Metodo de acceso activo (ver SetAuthMethodUseCase). Default PASSWORD explicito: ningun
+    // usuario existente queda ambiguo tras la migracion de esta columna.
+    private AuthMethod authMethod = AuthMethod.PASSWORD;
 
     public User(String uuid, String username, String displayName, String email, UserRole role) {
         this(uuid, username, displayName, email, null, List.of(), false, false, Set.of(role));
@@ -119,5 +122,10 @@ public class User {
     public String getRegistrationDeviceFingerprint() { return registrationDeviceFingerprint; }
     public void setRegistrationDeviceFingerprint(String registrationDeviceFingerprint) {
         this.registrationDeviceFingerprint = registrationDeviceFingerprint;
+    }
+    public AuthMethod getAuthMethod() { return authMethod == null ? AuthMethod.PASSWORD : authMethod; }
+    public void setAuthMethod(AuthMethod authMethod) {
+        this.authMethod = authMethod == null ? AuthMethod.PASSWORD : authMethod;
+        this.updatedAt = Instant.now();
     }
 }

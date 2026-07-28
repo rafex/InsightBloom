@@ -1,11 +1,13 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import dev.rafex.insightbloom.users.domain.model.AuthMethod;
 import dev.rafex.insightbloom.users.domain.model.Token;
 import dev.rafex.insightbloom.users.domain.model.TokenKind;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.model.UserStatus;
 import dev.rafex.insightbloom.users.domain.ports.PlatformSettingsRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
+import dev.rafex.insightbloom.users.domain.services.OtpLoginRequiredException;
 import dev.rafex.insightbloom.users.domain.services.PasswordService;
 import dev.rafex.insightbloom.users.domain.services.PlatformDeviceBlockedException;
 import dev.rafex.insightbloom.users.domain.services.PlatformDeviceGuard;
@@ -42,6 +44,10 @@ public class LoginUseCase {
         final Optional<User> user = findByIdentifier(request.username());
         return user.flatMap(u -> {
             if (u.getStatus() != UserStatus.ACTIVE) return Optional.empty();
+            // La cuenta activo el login por codigo (ver SetAuthMethodUseCase): la contrasena ya
+            // no es un metodo de acceso valido, sin importar si coincide o no. Usar
+            // /auth/login/otp/request + /verify en su lugar.
+            if (u.getAuthMethod() == AuthMethod.OTP_EMAIL) throw new OtpLoginRequiredException();
             if (u.getPasswordHash() == null || u.getPasswordHash().isBlank()) return Optional.empty();
             if (!passwordService.verify(request.password(), u.getPasswordHash())) return Optional.empty();
             // Transparently upgrade SHA-256 hashes to PBKDF2 on first successful login

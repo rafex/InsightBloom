@@ -131,6 +131,12 @@ public class UsersApplication {
         final var registerUseCase = new RegisterUseCase(userRepo, passwordService, platformDeviceGuard, platformSettingsRepo);
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
         final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);
+        final var requestLoginOtpUseCase = new dev.rafex.insightbloom.users.application.usecases.RequestLoginOtpUseCase(
+                userRepo, otpRepo, emailPort);
+        final var verifyLoginOtpUseCase = new dev.rafex.insightbloom.users.application.usecases.VerifyLoginOtpUseCase(
+                userRepo, otpRepo, tokenService);
+        final var setAuthMethodUseCase = new dev.rafex.insightbloom.users.application.usecases.SetAuthMethodUseCase(
+                userRepo, passwordService);
         final var getUserProfileUseCase = new GetUserProfileUseCase(userRepo);
         final var updateProfileUseCase = new UpdateProfileUseCase(userRepo);
         final var changePasswordUseCase = new ChangePasswordUseCase(userRepo, passwordService);
@@ -380,7 +386,7 @@ public class UsersApplication {
         // Handlers
         final var authHandler = new AuthHandler(loginUseCase, createGuestUseCase, validateTokenUseCase,
                 registerUseCase, sendOtpUseCase, verifyOtpUseCase, logoutUseCase, refreshTokenUseCase,
-                createSsoExchangeUseCase, consumeSsoExchangeUseCase);
+                createSsoExchangeUseCase, consumeSsoExchangeUseCase, requestLoginOtpUseCase, verifyLoginOtpUseCase);
         final int maxPoolSizePerEvent = Integer.parseInt(System.getenv().getOrDefault("SANDBOX_POOL_MAX_PER_EVENT", "50"));
         // Techo de -Xmx configurable desde el Dashboard (SetSandboxConfigUseCase): limite de
         // memoria del contenedor menos margen para el resto del proceso -- 400Mi para Debian
@@ -434,7 +440,7 @@ public class UsersApplication {
                 sandboxHandler, sandboxFilesHandler, userRepo, deviceAccessGuard, getJaasUsageUseCase,
                 toolAccessUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
-                validateTokenUseCase, changePasswordUseCase);
+                validateTokenUseCase, changePasswordUseCase, setAuthMethodUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
         final var certificateSettingsHandler = new CertificateSettingsHandler(
                 getCertificateSettingsUseCase, saveCertificateSettingsUseCase, validateTokenUseCase);

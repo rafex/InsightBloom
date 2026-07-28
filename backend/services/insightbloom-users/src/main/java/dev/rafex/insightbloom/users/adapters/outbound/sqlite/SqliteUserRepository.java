@@ -1,5 +1,6 @@
 package dev.rafex.insightbloom.users.adapters.outbound.sqlite;
 
+import dev.rafex.insightbloom.users.domain.model.AuthMethod;
 import dev.rafex.insightbloom.users.domain.model.SocialLink;
 import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.model.UserRole;
@@ -30,8 +31,8 @@ public class SqliteUserRepository implements UserRepository {
             INSERT OR REPLACE INTO users
                 (uuid, username, display_name, email, phone, social_links, email_verified, phone_verified,
                  role, status, password_hash, created_at, updated_at, first_name, last_name, last_login_at,
-                 registration_device_fingerprint, public_profile_photo_base64)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 registration_device_fingerprint, public_profile_photo_base64, auth_method)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getUuid());
@@ -52,6 +53,7 @@ public class SqliteUserRepository implements UserRepository {
             ps.setString(16, user.getLastLoginAt() != null ? user.getLastLoginAt().toString() : null);
             ps.setString(17, user.getRegistrationDeviceFingerprint());
             ps.setString(18, user.getPublicProfilePhotoBase64());
+            ps.setString(19, user.getAuthMethod().name());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -165,6 +167,8 @@ public class SqliteUserRepository implements UserRepository {
         if (lastLoginAt != null) user.setLastLoginAt(parseInstant(lastLoginAt));
         user.setRegistrationDeviceFingerprint(rs.getString("registration_device_fingerprint"));
         user.setPublicProfilePhotoBase64(rs.getString("public_profile_photo_base64"));
+        final String authMethod = rs.getString("auth_method");
+        if (authMethod != null) user.setAuthMethod(AuthMethod.valueOf(authMethod));
         return user;
     }
 

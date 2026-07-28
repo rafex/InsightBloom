@@ -60,6 +60,8 @@ public class DatabaseManager {
             // vez al registrarse) -- ver PlatformDeviceGuard.checkRegistration, que cuenta cuantas
             // cuentas se crearon desde el mismo dispositivo en un dia para frenar spam de registro.
             ColumnMigrationHelper.addColumnIfMissing(conn, "users", "registration_device_fingerprint", "TEXT");
+            // Metodo de acceso activo (PASSWORD por defecto) -- ver AuthMethod/SetAuthMethodUseCase.
+            ColumnMigrationHelper.addColumnIfMissing(conn, "users", "auth_method", "TEXT NOT NULL DEFAULT 'PASSWORD'");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_registration_fingerprint "
@@ -335,6 +337,8 @@ public class DatabaseManager {
                     created_at TEXT NOT NULL
                 )
             """);
+            // Limite de intentos de verificacion fallidos (login OTP): ver VerifyLoginOtpUseCase.
+            ColumnMigrationHelper.addColumnIfMissing(conn, "otp_codes", "failed_attempts", "INTEGER NOT NULL DEFAULT 0");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_otp_identifier ON otp_codes(identifier)");
 
             stmt.executeUpdate("""
