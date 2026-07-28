@@ -108,7 +108,7 @@
               @touchmove.prevent="moveDraw(q.uuid, $event)"
               @touchend.prevent="endDraw(q.uuid)"
             )
-            button.btn-clear(type="button" @click="clearCanvas(q.uuid)") Borrar dibujo
+            BaseButton.btn-clear(variant="secondary" type="button" @click="clearCanvas(q.uuid)") Borrar dibujo
 
           .drag-drop(v-else-if="q.type === 'DRAG_DROP'")
             ul.drag-list
@@ -122,10 +122,10 @@
                 span.drag-handle ⠿
                 span {{ item }}
                 .drag-arrows
-                  button.btn-arrow(type="button" @click="moveItem(q.uuid, idx, -1)" :disabled="idx === 0") ↑
-                  button.btn-arrow(type="button" @click="moveItem(q.uuid, idx, 1)" :disabled="idx === dragOrder[q.uuid].length - 1") ↓
+                  BaseButton.btn-arrow(variant="secondary" type="button" @click="moveItem(q.uuid, idx, -1)" :disabled="idx === 0") ↑
+                  BaseButton.btn-arrow(variant="secondary" type="button" @click="moveItem(q.uuid, idx, 1)" :disabled="idx === dragOrder[q.uuid].length - 1") ↓
 
-        button.btn-primary(type="submit" :disabled="submitting") {{ submitting ? 'Enviando...' : 'Enviar respuestas' }}
+        BaseButton.btn-primary(variant="primary" type="submit" :disabled="submitting") {{ submitting ? 'Enviando...' : 'Enviar respuestas' }}
         p.survey-error(v-if="error") {{ error }}
 </template>
 
@@ -135,6 +135,7 @@ import { useRoute } from 'vue-router'
 import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { getQuestions, submitResponses, getSurveyAccess, getSurveyDefinition, submitSurveyJs } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl, primePresentationAccess } from '@/services/api/presentationsApi'
 import { getCertificateBlobUrl, downloadEventMaterials } from '@/services/api/usersApi'
@@ -157,7 +158,7 @@ type PointerLikeEvent = MouseEvent | TouchEvent
 
 export default {
   name: 'SurveyPage',
-  components: { SurveyComponent },
+  components: { SurveyComponent, BaseButton },
   props: {
     conferenceId: { type: String as PropType<string | undefined>, default: undefined },
     canvasAudienceMode: { type: String, default: '' }

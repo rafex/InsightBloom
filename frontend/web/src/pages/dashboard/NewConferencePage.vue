@@ -127,7 +127,7 @@
       label Ubicación (opcional)
       .map-url-row
         input.map-url-input(v-model.trim="mapUrl" type="url" placeholder="Pega una URL de Google Maps u OpenStreetMap")
-        button.btn-outline(type="button" @click="extractMapCoordinates") Extraer coordenadas
+        BaseButton(variant="secondary" type="button" @click="extractMapCoordinates") Extraer coordenadas
       p.field-hint Ejemplos: Google Maps con /@latitud,longitud o OpenStreetMap con #map=nivel/latitud/longitud.
       p.error(v-if="locationError") {{ locationError }}
       .coords-row
@@ -143,7 +143,7 @@
       ConferenceMap(:latitude="latitude" :longitude="longitude" :label="name || 'Evento'")
 
     .error(v-if="error") {{ error }}
-    button.btn-primary(@click="create" :disabled="loading || !name.trim()")
+    BaseButton(variant="primary" @click="create" :disabled="loading || !name.trim()")
       span(v-if="loading") Creando...
       span(v-else) Crear evento
 
@@ -178,12 +178,13 @@
     .actions
       router-link.btn-outline(:to="`/dashboard/conferences/${created.conferenceId}/moderation/messages`") Ver moderación mensajes
       router-link.btn-outline(:to="`/dashboard/conferences/${created.conferenceId}/moderation/words`") Ver moderación palabras
-      button.btn-primary(@click="reset") Crear otra
+      BaseButton(variant="primary" @click="reset") Crear otra
 </template>
 
 <script lang="ts">
 import { ref, computed, onMounted, reactive } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -203,7 +204,7 @@ const EXPIRY_OPTIONS = [
 
 export default {
   name: 'NewConferencePage',
-  components: { ConferenceMap },
+  components: { ConferenceMap, BaseButton },
   setup() {
     const name       = ref('')
     const displayName = ref('')
@@ -403,8 +404,6 @@ input:focus { outline: none; border-color: #4f46e5; }
 .capacity-alert.risk { background: #ffedd5; color: #9a3412; }
 .capacity-alert.critical { background: #fee2e2; color: #991b1b; }
 
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
 .created-info { background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 24px; }
 h3 { color: #166534; margin: 0 0 16px; }
@@ -414,7 +413,6 @@ h3 { color: #166534; margin: 0 0 16px; }
 .coords-display { font-family: monospace; font-size: 0.9rem; color: #374151; }
 .map-created { margin: 16px 0; border-radius: 10px; overflow: hidden; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
-.btn-outline { padding: 8px 16px; border: 1.5px solid #4f46e5; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 0.9rem; }
 
 @media (max-width: 480px) {
   .coords-row { flex-direction: column; gap: 14px; }

@@ -98,7 +98,7 @@
       label Ubicación (opcional)
       .map-url-row
         input.map-url-input(v-model.trim="mapUrl" type="url" placeholder="Pega una URL de Google Maps u OpenStreetMap")
-        button.btn-outline(type="button" @click="extractMapCoordinates") Extraer coordenadas
+        BaseButton(variant="secondary" type="button" @click="extractMapCoordinates") Extraer coordenadas
       p.field-hint Ejemplos: Google Maps con /@latitud,longitud o OpenStreetMap con #map=nivel/latitud/longitud.
       p.error(v-if="locationError") {{ locationError }}
       .coords-row
@@ -116,14 +116,14 @@
       label Flyer del evento (opcional)
       p.field-hint Se muestra en la animación de mapa al entrar a la conferencia. No siempre se cuenta con uno.
       input(type="file" accept="image/png,image/jpeg" @change="onFlyerSelected")
-      .flyer-preview(v-if="flyerBase64")
-        img(:src="flyerBase64" alt="Flyer del evento")
-        button.btn-remove-flyer(type="button" @click="removeFlyer") Quitar flyer
+        .flyer-preview(v-if="flyerBase64")
+          img(:src="flyerBase64" alt="Flyer del evento")
+          BaseButton(variant="danger" type="button" @click="removeFlyer") Quitar flyer
 
     .error(v-if="saveError") {{ saveError }}
     .success(v-if="saved") Cambios guardados correctamente.
     .actions
-      button.btn-primary(@click="save" :disabled="saving")
+      BaseButton(variant="primary" @click="save" :disabled="saving")
         span(v-if="saving") Guardando...
         span(v-else) Guardar cambios
       router-link.btn-outline(:to="`/dashboard`") Volver al dashboard
@@ -133,6 +133,7 @@
 import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { getConference, updateConference, uploadConferenceFlyer, getTimezones } from '@/services/api/usersApi'
 import type { Conference, Timezone } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -142,7 +143,7 @@ const MAX_FLYER_BYTES = 8 * 1024 * 1024
 
 export default {
   name: 'EditConferencePage',
-  components: { ConferenceMap, DashboardBreadcrumb },
+  components: { ConferenceMap, DashboardBreadcrumb, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -376,13 +377,8 @@ input:focus { outline: none; border-color: #4f46e5; }
 
 .flyer-preview { margin-top: 10px; display: flex; align-items: center; gap: 12px; }
 .flyer-preview img { max-width: 160px; max-height: 160px; border-radius: 8px; border: 1px solid #e5e7eb; object-fit: cover; }
-.btn-remove-flyer { padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #dc2626; cursor: pointer; font-size: 0.85rem; }
-.btn-remove-flyer:hover { background: #fee2e2; }
 
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-.btn-primary { padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-outline { padding: 10px 22px; border: 1.5px solid #4f46e5; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 1rem; }
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
 .success { color: #166534; font-size: 0.9rem; margin-bottom: 12px; }
 .loading-text { color: #6b7280; }
