@@ -45,6 +45,9 @@ jobs:
       - name: Lint frontend
         run: npm --prefix frontend/web run lint
 
+      - name: Validate UI governance
+        run: npm --prefix frontend/web run lint:ui-governance
+
       - name: Typecheck frontend
         run: npm --prefix frontend/web run typecheck
 

@@ -36,14 +36,14 @@ export default {
   align-items: center;
   gap: 6px;
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
-.breadcrumbs a { color: #4f46e5; text-decoration: none; }
+.breadcrumbs a { color: var(--color-primary); text-decoration: none; }
 .breadcrumbs a:hover { text-decoration: underline; }
 .breadcrumbs a:focus-visible,
-.crumb-current:focus-visible { outline: 2px solid #4f46e5; outline-offset: 3px; border-radius: 3px; }
-.crumb-current { color: #374151; font-weight: 500; }
+.crumb-current:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; border-radius: 3px; }
+.crumb-current { color: var(--color-text-secondary); font-weight: 500; }
 .crumb-loading { color: var(--color-text-muted); }
 </style>

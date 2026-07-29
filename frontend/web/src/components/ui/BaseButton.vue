@@ -38,13 +38,13 @@ export default {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .base-btn:disabled { cursor: not-allowed; opacity: 0.55; }
-.base-btn:focus-visible { outline: 3px solid var(--color-focus, #818cf8); outline-offset: 2px; }
+.base-btn:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 
 .s-sm { padding: 6px 12px; font-size: 0.85rem; }
 .s-md { padding: 10px 18px; font-size: 0.95rem; }
 .s-lg { padding: 12px 24px; font-size: 1rem; }
 
-.v-primary { background: var(--color-primary); color: #fff; }
+.v-primary { background: var(--color-primary); color: var(--color-on-primary); }
 .v-primary:hover:not(:disabled) { background: var(--color-primary-dark); }
 
 .v-secondary {
@@ -54,7 +54,7 @@ export default {
 }
 .v-secondary:hover:not(:disabled) { background: var(--color-primary-soft); }
 
-.v-danger { background: var(--color-danger); color: #fff; }
+.v-danger { background: var(--color-danger); color: var(--color-on-danger); }
 .v-danger:hover:not(:disabled) { background: var(--color-danger-dark); }
 
 .v-ghost { background: transparent; color: var(--color-text-secondary); }
