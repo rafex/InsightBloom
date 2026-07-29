@@ -216,24 +216,24 @@
       .q-preview(v-else-if="(q.type === 'OPEN_GRADED' || q.type === 'CODE_GRADED') && q.referenceAnswer")
         span.chip.chip-ref 📌 Referencia: {{ q.referenceAnswer }}
       .question-item-actions
-        button.btn-sm.btn-edit(@click="startEdit(q)") Editar
-        button.btn-sm.btn-delete(@click="confirmDelete(q)") 🗑 Eliminar
+        BaseButton(variant="secondary" size="sm" type="button" @click="startEdit(q)") Editar
+        BaseButton(variant="danger" size="sm" type="button" @click="confirmDelete(q)") 🗑 Eliminar
 
   .confirm-overlay(v-if="engine === 'NATIVE' && deleteTarget" @click.self="deleteTarget = null")
     .confirm-dialog
       h4 ¿Eliminar pregunta?
       p Esto quitará <strong>"{{ deleteTarget.text }}"</strong> de la encuesta de forma permanente. Las respuestas ya recibidas se conservan en los resultados.
       .confirm-actions
-        button.btn-cancel(@click="deleteTarget = null") Cancelar
-        button.btn-confirm(@click="doDelete") Eliminar
+        BaseButton(variant="ghost" size="sm" type="button" @click="deleteTarget = null") Cancelar
+        BaseButton(variant="danger" size="sm" type="button" @click="doDelete") Eliminar
 
   .confirm-overlay(v-if="engine === 'NATIVE' && purgeTarget" @click.self="purgeTarget = null")
     .confirm-dialog
       h4 ¿Purgar respuestas?
       p Esto eliminará permanentemente las <strong>{{ purgeTarget.responseCount }} respuestas</strong> recibidas para "{{ purgeTarget.text }}". La pregunta se conserva, solo se borran las respuestas.
       .confirm-actions
-        button.btn-cancel(@click="purgeTarget = null") Cancelar
-        button.btn-confirm(@click="doPurge") Purgar
+        BaseButton(variant="ghost" size="sm" type="button" @click="purgeTarget = null") Cancelar
+        BaseButton(variant="danger" size="sm" type="button" @click="doPurge") Purgar
 
   .results-card(v-if="engine === 'NATIVE' && results.length" v-show="activeTab === 'results'")
     h3 Resultados
@@ -273,7 +273,7 @@
       .result-actions(v-if="r.responseCount")
         button.btn-toggle(type="button" @click="toggleDetail(r.questionUuid)")
           | {{ openDetail[r.questionUuid] ? '▾ Ocultar respuestas individuales' : '▸ Ver respuestas individuales (' + r.responseCount + ')' }}
-        button.btn-purge(type="button" @click="confirmPurge(r)") 🗑 Purgar respuestas
+        BaseButton(variant="danger" size="sm" type="button" @click="confirmPurge(r)") 🗑 Purgar respuestas
 
       .individual-answers(v-if="openDetail[r.questionUuid]")
         .individual-answer(v-for="(a, i) in r.individualAnswers" :key="i")
@@ -999,8 +999,6 @@ input, select, textarea {
 .suggestions-actions { display: flex; gap: 10px; align-items: center; padding-top: 10px; }
 .suggestion-text { flex: 1; min-width: 0; font-size: 0.85rem; color: var(--color-text-secondary); }
 .suggestion-type { margin-left: 8px; color: var(--color-text-muted); font-size: 0.75rem; }
-.btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-
 .style-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .style-option {
   flex: 1; display: flex; align-items: center; gap: 6px; padding: 8px 12px;
@@ -1049,11 +1047,6 @@ input, select, textarea {
 .chip-ordered { background: var(--color-primary-soft); color: var(--color-primary-dark); }
 .chip-ref { background: var(--color-warning-soft); color: var(--color-warning); max-width: 100%; }
 .question-item-actions { margin: 8px 0 0 24px; display: flex; gap: 8px; }
-.btn-edit { background: var(--color-primary-soft); color: var(--color-primary-dark); }
-.btn-edit:hover { background: var(--color-primary-soft); }
-.btn-delete { background: var(--color-danger-soft); color: var(--color-danger); }
-.btn-delete:hover { background: var(--color-danger-soft); }
-
 .confirm-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4);
   display: flex; align-items: center; justify-content: center; z-index: 100;
@@ -1065,10 +1058,6 @@ input, select, textarea {
 .confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
 .confirm-dialog p { color: var(--color-text-muted); font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
-.btn-cancel { padding: 8px 18px; border: 1px solid var(--color-border-subtle); border-radius: 8px; background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; }
-.btn-cancel:hover { background: var(--color-surface-muted); }
-.btn-confirm { padding: 8px 18px; background: var(--color-danger); color: var(--color-on-danger); border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-.btn-confirm:hover { background: var(--color-danger-dark); }
 
 .grading-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .grading-status { font-size: 0.82rem; color: var(--color-success); }
@@ -1096,11 +1085,6 @@ input, select, textarea {
   cursor: pointer; font-size: 0.82rem; font-weight: 500;
 }
 .btn-toggle:hover { text-decoration: underline; }
-.btn-purge {
-  padding: 4px 10px; border: 1px solid var(--color-danger-soft); border-radius: 6px; background: var(--color-danger-soft); color: var(--color-danger);
-  cursor: pointer; font-size: 0.78rem; font-weight: 500;
-}
-.btn-purge:hover { background: var(--color-danger-soft); }
 .individual-answers { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .individual-answer { background: var(--color-surface-muted); border-radius: 8px; padding: 10px 12px; }
 .answer-author { font-size: 0.78rem; color: var(--color-primary); font-weight: 600; margin-bottom: 4px; }

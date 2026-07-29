@@ -4,7 +4,7 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `codex/design-system-governance`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-28 20:58 (aprox)
+> **Último checkpoint**: 2026-07-29 (acciones administrativas canónicas)
 
 ## Estado
 
@@ -25,6 +25,7 @@
 | **4.2** | Dashboard/config | 12/12 | Páginas administrativas y de configuración migradas a `BaseButton` y `link-btn-*` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
 | **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
+| **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
 
@@ -56,7 +57,7 @@ gradual y no debe crecer.
 
 ### Fase 4.2 — Dashboard/Config (12 archivos, 2 ya hechos parcialmente)
 
-Los 2 hechos por el agente (`SurveyManagePage`, `TicketManagementPage`) pueden requerir limpieza de CSS residual (siguen apareciendo en `grep -rl '\.btn-primary\s*{'`).
+Las acciones comunes están migradas; se conservan tabs, flechas e iconos compactos como controles especializados.
 
 - [x] `src/pages/dashboard/AdminAiSettingsPage.vue`
 - [x] `src/pages/dashboard/AdminDeviceAccessPage.vue`
@@ -108,8 +109,10 @@ Priorizar las 4 páginas de alto tráfico con formularios reales:
 
 ## Estrategia recomendada al retomar
 
-1. **Terminar los 3 archivos de alto tráfico** (ConferencesList, NewConference, EditConference) manualmente — ya están leídos, hacer los edits puntuales
-2. **Escribir un script Python** (`/tmp/ds_migrate.py`) que procese los ~19 archivos restantes de Phase 4.2 en lote:
+1. **Revisar los controles especializados restantes** de mapas, editores y herramientas embebidas, sin forzarlos dentro de `BaseButton` cuando su geometría sea parte de la interacción.
+2. **Reducir colores locales** fuera de paletas propias de mapas, SVG, código y temas editoriales, actualizando el baseline solo con evidencia.
+3. **Completar validación visual** en 375px y 1280px+ y recorridos autenticados con backend.
+4. **Escribir un script Python** (`/tmp/ds_migrate.py`) que procese los ~19 archivos restantes de Phase 4.2 en lote:
    - Lee cada `.vue`, busca patrones `<button class="btn-*">` en el template Pug
    - Convierte a `BaseButton(variant="..." ...)` con el mapeo de la sección 2.1
    - Agrega `import BaseButton` y registro en `components: { ... }`

@@ -161,13 +161,9 @@
                     span.seat-user(v-if="seat.userUuid" :title="seat.userUuid") Asiento {{ seat.seatIndex + 1 }}: {{ seat.userUuid.slice(0, 8) }}…
                     span.seat-empty(v-else) Asiento {{ seat.seatIndex + 1 }}: libre
                 td.sandbox-actions
-                  button.btn-small(type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
-                    span(v-if="sandboxActionBusy === pod.podName") Procesando...
-                    span(v-else) Eliminar
+                  BaseButton(variant="danger" size="sm" type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName") Eliminar
                   template(v-if="sandboxIsFree(pod)")
-                    button.btn-small.btn-recreate(type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName")
-                      span(v-if="sandboxActionBusy === pod.podName") Procesando...
-                      span(v-else) Recrear
+                    BaseButton(variant="secondary" size="sm" type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName") Recrear
                   span.action-note(v-else) Ocupado: eliminación forzada
         p.error(v-if="sandboxActionError") {{ sandboxActionError }}
 
@@ -218,7 +214,7 @@
         .role-row(v-for="r in eventRoles" :key="r.userUuid")
           span.role-person {{ r.displayName || r.email || r.userUuid }}
           span.role-badge {{ roleName(r.roleKey) }}
-          button.btn-remove(type="button" @click="removeRole(r.userUuid)") Quitar
+          BaseButton(variant="danger" size="sm" type="button" @click="removeRole(r.userUuid)") Quitar
       .assign-row
         input(v-model="assignIdentifier" type="text" placeholder="Email o usuario")
         select(v-model="assignRoleKey")
@@ -989,10 +985,7 @@ textarea:focus { outline: none; border-color: var(--color-primary); }
 .incidents-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
 .incidents-table th { text-align: left; padding: 6px 10px; background: var(--color-surface-muted); color: var(--color-text-muted); font-weight: 600; }
 .incidents-table td { padding: 6px 10px; border-top: 1px solid var(--color-surface-muted); color: var(--color-text-secondary); }
-.sandbox-actions { white-space: nowrap; }
-.btn-small { padding: 4px 8px; border: 1px solid var(--color-danger-soft); border-radius: 6px; background: var(--color-surface); color: var(--color-danger-dark); cursor: pointer; font-size: 0.75rem; margin-right: 4px; }
-.btn-small:disabled { opacity: 0.55; cursor: wait; }
-.btn-small.btn-recreate { border-color: var(--color-primary-border); color: var(--color-primary-dark); }
+.sandbox-actions { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
 .action-note { color: var(--color-text-muted); font-size: 0.75rem; }
 
 .seats-cell { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1004,7 +997,6 @@ textarea:focus { outline: none; border-color: var(--color-primary); }
 .role-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: var(--color-surface-muted); border-radius: 8px; }
 .role-person { flex: 1; font-size: 0.85rem; color: var(--color-text-secondary); }
 .role-badge { font-size: 0.72rem; background: var(--color-primary-soft); color: var(--color-primary-dark); padding: 2px 10px; border-radius: 10px; font-weight: 600; }
-.btn-remove { padding: 4px 10px; border: 1px solid var(--color-border-subtle); border-radius: 6px; background: var(--color-surface); color: var(--color-danger); cursor: pointer; font-size: 0.78rem; }
 .assign-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .assign-row input, .assign-row select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
 .assign-row input { flex: 1; min-width: 160px; }
