@@ -1,0 +1,26 @@
+{
+  "src/components/SandboxLoadingAnimation.vue": {
+    "count": 33,
+    "reason": "Paleta propia de ilustraciones de carga del sandbox"
+  },
+  "src/components/VenueMapCanvasEditor.vue": {
+    "count": 3,
+    "reason": "Colores de renderizado del lienzo de mapa"
+  },
+  "src/components/map/ConferenceIntroMap.vue": {
+    "count": 21,
+    "reason": "Paleta SVG de la ilustración del mapa introductorio"
+  },
+  "src/components/map/ConferenceMap.vue": {
+    "count": 18,
+    "reason": "Paleta SVG de la visualización del mapa del evento"
+  },
+  "src/pages/dashboard/CertificateEditorPage.vue": {
+    "count": 4,
+    "reason": "Valores hex por defecto del documento exportable de certificados"
+  },
+  "src/pages/dashboard/CertificateSettingsPage.vue": {
+    "count": 1,
+    "reason": "primaryColorHex: color elegido por el organizador para el documento"
+  }
+}

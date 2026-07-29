@@ -25,6 +25,7 @@
 | **4.2** | Dashboard/config | 12/12 | Páginas administrativas y de configuración migradas a `BaseButton` y `link-btn-*` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
 | **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
+| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 75 estilos scoped y fija las 80 excepciones hex en 6 superficies de mapas, ilustraciones y certificados; cualquier archivo o conteo nuevo falla CI |
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
