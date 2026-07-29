@@ -48,7 +48,7 @@
           td(data-label="ID amigable")
             span.friendly-id {{ c.friendlyId }}
           td(data-label="Estado")
-            span.status-badge(:class="c.status") {{ c.status }}
+            StatusBadge(:status="c.status" :label="c.status" :tone="c.status === 'ACTIVE' ? 'success' : c.status === 'CLOSED' ? 'danger' : 'neutral'")
           td(data-label="Expira")
             span.expiry-text(v-if="c.expiresAt" :class="{ expired: isExpired(c.expiresAt) }")
               | {{ isExpired(c.expiresAt) ? 'Expiró ' : 'Expira ' }}{{ formatRelative(c.expiresAt) }}
@@ -106,6 +106,7 @@ import DropdownMenu from '@/components/DropdownMenu.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { isExpired } from '@/utils/dates'
 import { eventTypeHasCapability } from '@/features/conferences/capabilities'
 import type { Conference, DownloadCounts, EventType, EventCapability } from '@/services/api/types'
@@ -118,7 +119,7 @@ interface ConferenceRow extends Conference {
 
 export default {
   name: 'ConferencesListPage',
-  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, EmptyState },
+  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, EmptyState, StatusBadge },
   setup() {
     const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)
@@ -253,10 +254,6 @@ h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
 }
 .btn-icon:hover { background: var(--color-primary-soft); border-color: var(--color-primary-border); }
 .friendly-id { font-size: 0.82rem; color: var(--color-text-muted); font-family: monospace; }
-.status-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; text-transform: uppercase; }
-.status-badge.ACTIVE { background: var(--color-success-soft); color: var(--color-success); }
-.status-badge.CLOSED { background: var(--color-danger-soft); color: var(--color-danger-dark); }
-
 .expiry-text { color: var(--color-text-muted); font-size: 0.85rem; }
 .expiry-text.expired { color: var(--color-danger); font-weight: 600; }
 .downloads-text { color: var(--color-text-muted); font-size: 0.85rem; white-space: nowrap; }

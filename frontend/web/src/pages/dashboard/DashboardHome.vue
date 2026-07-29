@@ -80,7 +80,7 @@
       .conf-card(v-for="h in history" :key="h.conferenceUuid" :class="{ unavailable: !h.available }")
         .conf-card-header
           span.friendly-id {{ h.friendlyId || h.conferenceUuid }}
-          span.status-badge(:class="h.available ? 'active' : 'unavailable'") {{ h.available ? 'Disponible' : 'No disponible' }}
+          StatusBadge(:status="h.available ? 'ACTIVE' : 'UNAVAILABLE'" :label="h.available ? 'Disponible' : 'No disponible'" :tone="h.available ? 'success' : 'neutral'")
         h3.conf-name {{ h.name || '(sin nombre)' }}
         p.joined-at Te uniste {{ formatDate(h.joinedAt) }}
         .conf-actions(v-if="h.available")
@@ -100,6 +100,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const ORGANIZER_TOUR_STEPS = [
   { selector: '#onboarding-events-summary', text: 'Aquí ves cuántos eventos tienes activos, registrados y expirados. Para crear uno nuevo o ver el listado completo, usá el menú de la izquierda.' },
@@ -108,7 +109,7 @@ const ORGANIZER_TOUR_STEPS = [
 
 export default {
   name: 'DashboardHome',
-  components: { OnboardingTour, UiIcon, EmptyState },
+  components: { OnboardingTour, UiIcon, EmptyState, StatusBadge },
   setup() {
     const conferences = ref<Conference[]>([])
     const loading     = ref(true)
@@ -228,10 +229,6 @@ h2 { color: var(--color-text-secondary); font-size: 1.1rem; font-weight: 600; ma
 
 .conf-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .friendly-id { font-size: 0.78rem; color: var(--color-text-muted); font-family: monospace; }
-.status-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; text-transform: uppercase; }
-.status-badge.active { background: var(--color-success-soft); color: var(--color-success); }
-.status-badge.unavailable { background: var(--color-surface-muted); color: var(--color-text-muted); }
-
 .conf-name { font-size: 1rem; font-weight: 600; color: var(--color-heading); margin: 0 0 8px; }
 .joined-at { font-size: 0.8rem; color: var(--color-text-muted); margin: 0 0 12px; }
 .unavailable-note { font-size: 0.82rem; color: var(--color-text-muted); font-style: italic; margin: 0; }
