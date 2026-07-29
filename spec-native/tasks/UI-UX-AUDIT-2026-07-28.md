@@ -307,7 +307,7 @@ La cabecera del evento debe mostrar nombre, estado, fecha y una sola navegación
 ### Fase 4 — Configuración
 
 - [x] **UX-TASK-013:** reorganizar pestañas por dominio.
-- [ ] **UX-TASK-014:** definir estrategia de guardado y cambios pendientes.
+- [x] **UX-TASK-014:** definir estrategia de guardado y cambios pendientes.
 - [x] **UX-TASK-015:** eliminar la duplicidad del Tutor IA.
 - [x] **UX-TASK-016:** mover la plantilla global de certificados a una ubicación secundaria.
 

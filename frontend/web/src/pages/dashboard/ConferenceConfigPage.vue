@@ -3,17 +3,20 @@
   DashboardBreadcrumb(:items="breadcrumbItems")
 
   h2 Configuración del evento
+  .save-state(:class="`state-${saveStateKind}`" role="status" aria-live="polite")
+    span.save-state-dot(aria-hidden="true")
+    span {{ saveStateLabel }}
 
   ConferenceToolsNav(:conferenceId="conferenceId")
 
   nav.config-tabs(v-if="!loading && !error" role="tablist" aria-label="Secciones de configuración")
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'general'" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'") General
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'tools'" :class="{ active: activeTab === 'tools' }" @click="activeTab = 'tools'") Contenido y herramientas
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'sandbox'" :class="{ active: activeTab === 'sandbox' }" @click="activeTab = 'sandbox'") IDE y sandboxes
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'access'" :class="{ active: activeTab === 'access' }" @click="activeTab = 'access'") Acceso y boletos
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'roles'" :class="{ active: activeTab === 'roles' }" @click="activeTab = 'roles'") Roles y moderación
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'ai'" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'") 🤖 IA
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="activeTab = 'network'") 🌐 Red
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'general'" :class="{ active: activeTab === 'general' }" @click="selectTab('general')") General
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'tools'" :class="{ active: activeTab === 'tools' }" @click="selectTab('tools')") Contenido y herramientas
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'sandbox'" :class="{ active: activeTab === 'sandbox' }" @click="selectTab('sandbox')") IDE y sandboxes
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'access'" :class="{ active: activeTab === 'access' }" @click="selectTab('access')") Acceso y boletos
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'roles'" :class="{ active: activeTab === 'roles' }" @click="selectTab('roles')") Roles y moderación
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'ai'" :class="{ active: activeTab === 'ai' }" @click="selectTab('ai')") 🤖 IA
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="selectTab('network')") 🌐 Red
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
@@ -537,6 +540,23 @@ export default {
       mentorSaved, surveyAiConfigSaved]
     savedFlags.forEach((flag) => watch(flag, (saved) => { if (saved) formDirty.value = false }))
 
+    const savingFlags = [savingEventType, savingCertificateEngine, savingCanvasConfig, savingSeating,
+      savingTicketSales, savingSandboxConfig, savingSandboxInternet, savingDeviceAccessConfig,
+      savingEgressPolicy, savingMentor, savingSurveyAiConfig]
+    const saveStateLabel = computed(() => {
+      if (savingFlags.some((flag) => flag.value)) return 'Guardando'
+      if (formDirty.value) return 'Cambios pendientes'
+      if (savedFlags.some((flag) => flag.value)) return 'Guardado'
+      return 'Sin cambios'
+    })
+    const saveStateKind = computed(() => saveStateLabel.value.toLowerCase().replaceAll(' ', '-'))
+    function selectTab(tab: typeof activeTab.value) {
+      if (tab === activeTab.value) return
+      if (formDirty.value && !window.confirm('Hay cambios sin guardar en esta sección. ¿Cambiar de pestaña de todos modos?')) return
+      activeTab.value = tab
+      formDirty.value = false
+    }
+
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       if (formDirty.value) { e.preventDefault(); e.returnValue = '' }
     }
@@ -887,7 +907,7 @@ export default {
       return mode === 'MODERATOR_ONLY' ? 'MODERATOR_ONLY' : 'INDEPENDENT'
     }
 
-    return { conference, loading, error, activeTab,
+    return { conference, loading, error, activeTab, selectTab, saveStateLabel, saveStateKind,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              ticketSalesEnabled, savingTicketSales, ticketSalesSaved, ticketSalesError, saveTicketSales,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
@@ -926,6 +946,12 @@ export default {
 <style scoped>
 .conf-config-page { max-width: 680px; }
 h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
+.save-state { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 14px; padding: 5px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+.save-state-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.state-sin-cambios { background: #f3f4f6; color: #6b7280; }
+.state-cambios-pendientes { background: #fef3c7; color: #92400e; }
+.state-guardando { background: #dbeafe; color: #1d4ed8; }
+.state-guardado { background: #dcfce7; color: #166534; }
 .config-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb; }
 .config-tab { padding: 8px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; color: #4b5563; cursor: pointer; font-size: 0.88rem; font-weight: 600; }
 .config-tab:hover { border-color: #a5b4fc; color: #4f46e5; }
