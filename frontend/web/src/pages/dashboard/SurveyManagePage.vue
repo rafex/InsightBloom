@@ -239,7 +239,7 @@
     h3 Resultados
 
     .grading-toolbar(v-if="gradeableQuestions.length")
-      button.btn-outline(type="button" @click="reviewOpen = !reviewOpen") 🤖 Revisar respuestas
+      BaseButton(variant="secondary" size="sm" type="button" @click="reviewOpen = !reviewOpen") 🤖 Revisar respuestas
       span.grading-status(v-if="gradeStatus") {{ gradeStatus }}
 
     .grading-panel(v-if="reviewOpen")
@@ -253,7 +253,7 @@
         label.grading-regrade
           input(type="checkbox" v-model="regradeAll")
           span Volver a calificar las que ya tienen puntaje
-        button.btn-primary-sm(type="button" :disabled="!selectedForGrading.length || grading" @click="runGrading")
+        BaseButton(size="sm" type="button" :disabled="!selectedForGrading.length || grading" :loading="grading" @click="runGrading")
           | {{ grading ? 'Calificando...' : `Revisar seleccionadas (${selectedForGrading.length})` }}
 
     .result-row(v-for="r in results" :key="r.questionUuid")

@@ -7,10 +7,10 @@
   p.field-hint Archivos de cada alumno conectado a un sandbox — abrí el editor para revisar su avance y apoyarlo en vivo.
 
   .toolbar
-    button.btn-outline(type="button" @click="load" :disabled="loading")
+    BaseButton(variant="secondary" size="sm" type="button" @click="load" :disabled="loading" :loading="loading")
       span(v-if="loading") Cargando...
       span(v-else) Actualizar
-    button.btn-outline(type="button" @click="prewarm" :disabled="prewarming")
+    BaseButton(variant="secondary" size="sm" type="button" @click="prewarm" :disabled="prewarming" :loading="prewarming")
       span(v-if="prewarming") Preparando...
       span(v-else) Preparar sandboxes antes del evento
 
@@ -29,7 +29,7 @@
         .seat-row(v-for="seat in pod.seats" :key="seat.seatIndex")
           span.seat-user(v-if="seat.userUuid") {{ seat.userUuid }}
           span.seat-empty(v-else) (asiento libre)
-          button.btn-sm.btn-primary-sm(v-if="seat.userUuid" @click="openEditor(seat.userUuid)") Ver archivos
+          BaseButton(variant="primary" size="sm" v-if="seat.userUuid" @click="openEditor(seat.userUuid)") Ver archivos
 
   WorkspaceFileEditor(
     v-if="editorUserUuid"
@@ -46,11 +46,12 @@ import { useAuthStore } from '@/features/auth/authStore'
 import WorkspaceFileEditor from '@/components/moderator/WorkspaceFileEditor.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import type { SandboxStatusEntry } from '@/services/api/types'
 
 export default {
   name: 'ModerationIdePage',
-  components: { WorkspaceFileEditor, DashboardBreadcrumb, ConferenceToolsNav },
+  components: { WorkspaceFileEditor, DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -120,9 +121,6 @@ export default {
 h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
 .field-hint { color: #6b7280; font-size: 0.85rem; margin: 0 0 16px; }
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-.btn-outline { display: inline-block; padding: 6px 14px; border: 1px solid #4f46e5; color: #4f46e5; border-radius: 8px; background: none; font-size: 0.85rem; cursor: pointer; }
-.btn-outline:hover { background: #eef2ff; }
-.btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 0.9rem; }
 .success { color: #166534; font-size: 0.9rem; }
 .empty-text { color: var(--color-text-muted); font-size: 0.9rem; }
@@ -139,7 +137,4 @@ h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
 .seat-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; background: #f9fafb; border-radius: 8px; }
 .seat-user { font-family: monospace; font-size: 0.8rem; color: #374151; }
 .seat-empty { font-size: 0.8rem; color: var(--color-text-muted); font-style: italic; }
-.btn-sm { padding: 4px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-.btn-primary-sm { background: #4f46e5; color: #fff; }
-.btn-primary-sm:hover { background: #4338ca; }
 </style>
