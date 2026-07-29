@@ -122,7 +122,7 @@ export default {
 .tour-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 12, 41, 0.55);
+  background: var(--color-onboarding-overlay);
   z-index: 3000;
 }
 .tour-highlight {
@@ -139,7 +139,7 @@ export default {
   background: var(--color-surface);
   border-radius: 12px;
   padding: 16px 18px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-onboarding);
 }
 .tour-text { margin: 0 0 14px; color: var(--color-heading); font-size: 0.92rem; line-height: 1.4; }
 .tour-actions { display: flex; align-items: center; gap: 10px; }

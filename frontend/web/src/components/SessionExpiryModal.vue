@@ -24,7 +24,7 @@ export default {
 .session-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -37,7 +37,7 @@ export default {
   max-width: 360px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-overlay);
 }
 .session-modal h3 { margin: 0 0 12px; color: var(--color-heading); }
 .session-modal p { margin: 0 0 20px; color: var(--color-text-secondary); font-size: 0.95rem; }

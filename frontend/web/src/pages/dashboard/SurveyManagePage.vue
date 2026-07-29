@@ -1048,12 +1048,12 @@ input, select, textarea {
 .chip-ref { background: var(--color-warning-soft); color: var(--color-warning); max-width: 100%; }
 .question-item-actions { margin: 8px 0 0 24px; display: flex; gap: 8px; }
 .confirm-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  position: fixed; inset: 0; background: var(--color-overlay);
   display: flex; align-items: center; justify-content: center; z-index: 100;
 }
 .confirm-dialog {
   background: var(--color-surface); border-radius: 16px; padding: 28px 32px;
-  max-width: 420px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+  max-width: 420px; width: 90%; box-shadow: var(--shadow-overlay);
 }
 .confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
 .confirm-dialog p { color: var(--color-text-muted); font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }

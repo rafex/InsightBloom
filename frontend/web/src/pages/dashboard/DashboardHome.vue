@@ -7,15 +7,18 @@
     h2 Eventos
     .summary-grid
       .summary-card
-        span.summary-icon 🟢
+        span.summary-icon(aria-hidden="true")
+          UiIcon(name="activity")
         span.summary-value {{ eventStats.active }}
         span.summary-label Activos
       .summary-card
-        span.summary-icon 🎤
+        span.summary-icon(aria-hidden="true")
+          UiIcon(name="presentation")
         span.summary-value {{ eventStats.registered }}
         span.summary-label Registrados
       .summary-card
-        span.summary-icon ⏱️
+        span.summary-icon(aria-hidden="true")
+          UiIcon(name="clock")
         span.summary-value {{ eventStats.expired }}
         span.summary-label Expirados
 
@@ -24,11 +27,13 @@
     p.summary-hint Asistentes de los eventos que administrás — no el total de cuentas de la plataforma.
     .summary-grid
       .summary-card
-        span.summary-icon 👥
+        span.summary-icon(aria-hidden="true")
+          UiIcon(name="users")
         span.summary-value {{ summaryLoading ? '…' : summary.registeredAttendees }}
         span.summary-label Registrados
       .summary-card
-        span.summary-icon ✅
+        span.summary-icon(aria-hidden="true")
+          UiIcon(name="check")
         span.summary-value {{ summaryLoading ? '…' : summary.activeAttendees }}
         span.summary-label Activos
 
@@ -36,7 +41,8 @@
     h2 Consumo estimado de videollamadas JaaS
     .jaas-usage-card(:class="{ 'jaas-warning': jaasUsage.percentage >= 80, 'jaas-limit': jaasUsage.remaining === 0 }")
       .jaas-usage-header
-        span.summary-icon 🎥
+        span.summary-icon(aria-hidden="true")
+          UiIcon(name="video")
         .jaas-usage-title
           strong Participantes únicos del mes
           span {{ jaasUsage.month }} · límite operativo configurado
@@ -81,7 +87,9 @@
         p.joined-at Te uniste {{ formatDate(h.joinedAt) }}
         .conf-actions(v-if="h.available")
           router-link.link-btn.link-btn-secondary(:to="`/c/${h.friendlyId}/doubts`") Entrar
-          router-link.link-btn.link-btn-secondary(v-if="h.seatingMode && h.seatingMode !== 'NONE'" :to="`/c/${h.friendlyId}/ticket`") 🎟️ Mi boleto
+          router-link.link-btn.link-btn-secondary(v-if="h.seatingMode && h.seatingMode !== 'NONE'" :to="`/c/${h.friendlyId}/ticket`")
+            UiIcon(name="ticket" size="16" aria-hidden="true")
+            | Mi boleto
         p.unavailable-note(v-else) Este evento ya no se encuentra disponible.
 </template>
 
@@ -92,6 +100,7 @@ import type { Conference, ConferenceHistoryEntry, JaasUsage } from '@/services/a
 import { isExpired } from '@/utils/dates'
 import { useAuthStore } from '@/features/auth/authStore'
 import OnboardingTour from '@/components/OnboardingTour.vue'
+import UiIcon from '@/components/ui/UiIcon.vue'
 
 const ORGANIZER_TOUR_STEPS = [
   { selector: '#onboarding-events-summary', text: 'Aquí ves cuántos eventos tienes activos, registrados y expirados. Para crear uno nuevo o ver el listado completo, usá el menú de la izquierda.' },
@@ -100,7 +109,7 @@ const ORGANIZER_TOUR_STEPS = [
 
 export default {
   name: 'DashboardHome',
-  components: { OnboardingTour },
+  components: { OnboardingTour, UiIcon },
   setup() {
     const conferences = ref<Conference[]>([])
     const loading     = ref(true)
@@ -219,7 +228,7 @@ h2 { color: var(--color-text-secondary); font-size: 1.1rem; font-weight: 600; ma
 .conference-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 
 .conf-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; transition: box-shadow 0.2s; }
-.conf-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.conf-card:hover { box-shadow: var(--shadow-dropdown); }
 .conf-card.unavailable { opacity: 0.6; }
 
 .conf-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }

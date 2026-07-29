@@ -71,7 +71,7 @@ export default {
   height: calc(var(--track-h) - 4px);
   border-radius: 50%;
   background: var(--color-surface);
-  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.35);
+  box-shadow: var(--shadow-control);
   transition: transform 0.2s ease;
 }
 

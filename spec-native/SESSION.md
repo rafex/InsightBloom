@@ -29,6 +29,7 @@
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 | **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
 | **Gobierno visual** | Shell y overlays | En progreso | Header, menús, modales, confirmaciones y overlays administrativos consumen tokens de superficie, sombra y scrim |
+| **Gobierno visual** | Iconografía administrativa | En progreso | `UiIcon.vue` aporta SVGs lineales para métricas del Panel y elimina emojis de indicadores operativos sin modificar contenido editorial |
 | **Recorridos por rol** | Moderador event-scoped | En progreso | El panel detecta eventos asignados aunque el rol global sea `ATTENDEE`; se mantienen ocultas acciones de propietario |
 | **UX evento** | QR, herramientas y cabecera | Completado | El QR del listado apunta siempre a `/c/{friendlyId}/ticket`; se retiraron botones internos de QR; se agregó Cronograma y se ordenaron las herramientas; la cabecera inicia compacta y se mantiene así al cambiar de ruta |
 
@@ -47,7 +48,7 @@ git stash list  # debería mostrar "pre-design-system-migration"
 
 ## Pendiente
 
-La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue. La tanda del 2026-07-29 añadió el estado de guardado canónico, el baseline global de tablas, tokens de overlays y detección de asignaciones event-scoped para moderadores.
+La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue. Las tandas del 2026-07-29 añadieron el estado de guardado canónico, el baseline global de tablas, tokens de overlays, detección de asignaciones event-scoped para moderadores e iconografía SVG reutilizable para el Panel.
 
 La migración de colores continúa: el gate mide 80 literales hex locales (baseline histórico
 1,278), todos fijados en excepciones documentadas de mapas, ilustraciones y certificados. Las nuevas

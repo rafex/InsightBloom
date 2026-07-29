@@ -37,7 +37,7 @@ tr:hover td { background: var(--color-surface-muted); }
 }
 button {
   padding: 6px 14px; border: 1px solid var(--color-border); border-radius: 6px;
-  background: #fff; cursor: pointer;
+  background: var(--color-surface); cursor: pointer;
 }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>

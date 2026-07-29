@@ -114,6 +114,7 @@
   --color-header-link: #c7d2fe;
   --color-header-link-muted: #a5b4fc;
   --color-overlay: rgba(17, 24, 39, 0.4);
+  --color-onboarding-overlay: rgba(15, 12, 41, 0.55);
 
   /* Familias aprobadas: Assistant para UI y una pila mono para código/IDs. */
   --font-family-sans: 'Assistant', system-ui, -apple-system, sans-serif;
@@ -138,6 +139,8 @@
   --shadow-modal: 0 10px 30px rgba(17, 24, 39, 0.18);
   --shadow-dropdown: 0 4px 16px rgba(17, 24, 39, 0.1);
   --shadow-overlay: 0 8px 40px rgba(17, 24, 39, 0.2);
+  --shadow-control: 0 1px 2px rgba(17, 24, 39, 0.35);
+  --shadow-onboarding: 0 8px 30px rgba(17, 24, 39, 0.3);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -229,4 +232,10 @@ input:disabled, select:disabled, textarea:disabled {
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scrollbar-width: thin;
+}
+
+.ui-icon {
+  display: inline-block;
+  flex: 0 0 auto;
+  vertical-align: middle;
 }

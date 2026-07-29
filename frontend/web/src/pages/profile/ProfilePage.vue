@@ -216,7 +216,7 @@ export default {
 <style scoped>
 .profile-page { min-height: 100vh; background: var(--color-bg); }
 .profile-main { display: flex; justify-content: center; padding: 60px 24px; }
-.profile-card { background: var(--color-surface); border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 460px; width: 100%; }
+.profile-card { background: var(--color-surface); border-radius: 16px; padding: 40px; box-shadow: var(--shadow-card); max-width: 460px; width: 100%; }
 h2 { margin: 0 0 8px; color: var(--color-heading); }
 h3 { margin: 24px 0 12px; color: var(--color-heading); font-size: 1rem; }
 h3:first-of-type { margin-top: 8px; }

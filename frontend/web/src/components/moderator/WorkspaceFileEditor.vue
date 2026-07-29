@@ -183,13 +183,13 @@ export default {
 
 <style scoped>
 .wfe-overlay {
-  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+  position: fixed; inset: 0; background: var(--color-overlay);
   display: flex; align-items: center; justify-content: center; z-index: 200;
 }
 
 .wfe-dialog {
   background: var(--color-surface); border-radius: 12px; width: min(1000px, 92vw); height: min(700px, 88vh);
-  display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+  display: flex; flex-direction: column; box-shadow: var(--shadow-overlay);
   overflow: hidden;
 }
 
