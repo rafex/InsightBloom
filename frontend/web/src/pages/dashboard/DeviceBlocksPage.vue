@@ -100,16 +100,16 @@ export default {
 
 <style scoped>
 .device-blocks-page { }
-h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
-.hint { color: #6b7280; font-size: 0.85rem; margin-bottom: 20px; max-width: 640px; }
-.empty { color: #6b7280; padding: 24px 0; }
-.fingerprint { font-family: monospace; font-size: 0.85rem; color: #1e1b4b; }
+h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
+.hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 20px; max-width: 640px; }
+.empty { color: var(--color-text-muted); padding: 24px 0; }
+.fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
-.status-blocked { background: #fee2e2; color: #991b1b; }
-.status-unblocked { background: #dcfce7; color: #166534; }
+.status-blocked { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.status-unblocked { background: var(--color-success-soft); color: var(--color-success); }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-success { background: #dcfce7; color: #16a34a; }
-.btn-success:hover { background: #bbf7d0; }
+.btn-success { background: var(--color-success-soft); color: var(--color-success); }
+.btn-success:hover { background: var(--color-success-soft); }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

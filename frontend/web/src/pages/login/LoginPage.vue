@@ -157,30 +157,30 @@ export default {
 </script>
 
 <style scoped>
-.login-page { min-height: 100vh; background: #f5f3ff; }
+.login-page { min-height: 100vh; background: var(--color-bg); }
 .login-main { display: flex; justify-content: center; padding: 80px 24px; }
 .login-card { background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 400px; width: 100%; }
-h2 { margin: 0 0 8px; color: #1e1b4b; }
-.login-mode-tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
+h2 { margin: 0 0 8px; color: var(--color-heading); }
+.login-mode-tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--color-border-subtle); }
 .mode-tab {
-  flex: 1; padding: 8px 10px; border: none; background: none; color: #6b7280; cursor: pointer;
+  flex: 1; padding: 8px 10px; border: none; background: none; color: var(--color-text-muted); cursor: pointer;
   font-size: 0.85rem; font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
-.mode-tab:hover { color: #4f46e5; }
-.mode-tab.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+.mode-tab:hover { color: var(--color-primary); }
+.mode-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
 .btn-resend {
   display: block; margin: 10px auto 0; padding: 6px 10px; border: none; background: none;
-  color: #4f46e5; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  color: var(--color-primary); font-size: 0.82rem; font-weight: 600; cursor: pointer;
 }
 .btn-resend:hover { text-decoration: underline; }
 .btn-resend:disabled { opacity: 0.5; cursor: not-allowed; }
-.hint { color: #6b7280; font-size: 0.85rem; margin-bottom: 24px; }
+.hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; }
 .guest-block { margin-top: 14px; text-align: center; }
 .divider { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 10px; }
 .guest-hint { margin: 8px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
-.error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
-.register-hint { text-align: center; margin: 16px 0 0; font-size: 0.85rem; color: #6b7280; }
-.register-hint a { color: #4f46e5; font-weight: 600; text-decoration: none; }
+.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
+.register-hint { text-align: center; margin: 16px 0 0; font-size: 0.85rem; color: var(--color-text-muted); }
+.register-hint a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 .register-hint a:hover { text-decoration: underline; }
 
 @media (max-width: 480px) {

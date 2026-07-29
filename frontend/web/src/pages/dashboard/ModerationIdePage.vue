@@ -118,23 +118,23 @@ export default {
 
 <style scoped>
 .mod-ide-page { padding: 24px; max-width: 900px; }
-h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
-.field-hint { color: #6b7280; font-size: 0.85rem; margin: 0 0 16px; }
+h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
+.field-hint { color: var(--color-text-muted); font-size: 0.85rem; margin: 0 0 16px; }
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-.error { color: #dc2626; font-size: 0.9rem; }
-.success { color: #166534; font-size: 0.9rem; }
+.error { color: var(--color-danger); font-size: 0.9rem; }
+.success { color: var(--color-success); font-size: 0.9rem; }
 .empty-text { color: var(--color-text-muted); font-size: 0.9rem; }
 
 .pods-list { display: flex; flex-direction: column; gap: 14px; }
-.pod-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+.pod-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 16px; }
 .pod-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-.pod-name { font-family: monospace; font-size: 0.85rem; color: #1e1b4b; font-weight: 600; }
-.pod-variant { font-size: 0.75rem; background: #e0e7ff; color: #4338ca; padding: 2px 10px; border-radius: 10px; font-weight: 600; }
+.pod-name { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); font-weight: 600; }
+.pod-variant { font-size: 0.75rem; background: var(--color-primary-soft); color: var(--color-primary-dark); padding: 2px 10px; border-radius: 10px; font-weight: 600; }
 .pod-ready { font-size: 0.75rem; color: var(--color-text-muted); }
-.pod-ready.ready { color: #166534; font-weight: 600; }
+.pod-ready.ready { color: var(--color-success); font-weight: 600; }
 
 .seats-list { display: flex; flex-direction: column; gap: 6px; }
-.seat-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; background: #f9fafb; border-radius: 8px; }
-.seat-user { font-family: monospace; font-size: 0.8rem; color: #374151; }
+.seat-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; background: var(--color-surface-muted); border-radius: 8px; }
+.seat-user { font-family: monospace; font-size: 0.8rem; color: var(--color-text-secondary); }
 .seat-empty { font-size: 0.8rem; color: var(--color-text-muted); font-style: italic; }
 </style>
