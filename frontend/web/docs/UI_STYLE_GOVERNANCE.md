@@ -11,6 +11,6 @@ Estado del baseline en 2026-07-29:
 
 - 76 estilos scoped clasificados: 33 pantallas, 14 herramientas embebidas, 10 componentes compartidos, 10 visualizaciones, 4 shell y 5 componentes canónicos.
 - 80 literales hex fijados en 6 superficies con intención documentada.
-- 1 redefinición legacy de selector canónico reportada temporalmente por el gate.
+- No quedan redefiniciones legacy de selector canónico.
 
 Las excepciones no autorizan crear nuevos estilos locales: los controles comunes deben usar `BaseButton`, `BaseModal`, `FormField`, `ToggleSwitch`, `StatusBadge` y tokens semánticos.

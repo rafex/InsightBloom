@@ -16,15 +16,6 @@ const scopedCategories = new Set(['shell', 'shared-component', 'canonical-compon
 const fileExtensions = new Set(['.vue', '.css'])
 const hexPattern = /#[0-9a-fA-F]{6}\b/g
 const forbiddenSelectors = /\.(?:btn-primary|btn-secondary|btn-danger|btn-ghost|link-btn-primary|link-btn-secondary|link-btn-ghost)\s*\{/g
-const legacySelectorAllowlist = new Set([
-  'src/pages/dashboard/ModerationMessagesPage.vue',
-  'src/pages/dashboard/ModerationWordsPage.vue',
-  'src/pages/dashboard/PresentationManagePage.vue',
-  'src/pages/dashboard/SpeakerPanelPage.vue',
-  'src/components/QrCodeModal.vue',
-  // Excepción: el tema editorial cambia deliberadamente el contraste del enlace canónico.
-  'src/pages/public/PublicEventDetailPage.vue'
-])
 
 function collectFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -60,7 +51,7 @@ const errors = []
 if (localHexCount > baselineLocalHex) {
   errors.push(`colores hex locales aumentaron: ${localHexCount} > ${baselineLocalHex}`)
 }
-const unexpectedSelectorViolations = selectorViolations.filter(({ file }) => !legacySelectorAllowlist.has(file))
+const unexpectedSelectorViolations = selectorViolations
 if (unexpectedSelectorViolations.length) {
   errors.push(`selectores canónicos redefinidos fuera de ${sourceOfTruth}: ${unexpectedSelectorViolations.map(({ location }) => location).join(', ')}`)
 }
@@ -103,7 +94,7 @@ console.log(`UI governance: ${files.length} archivos de páginas/componentes ins
 console.log(`UI governance: ${Object.keys(visualStyleExceptions).length} superficies con excepciones de color documentadas (${localHexCount} literales fijados por intención)`)
 console.log(`UI governance: ${scopedFiles.length} estilos scoped clasificados (${Object.entries(scopedCategoryCounts).sort(([a], [b]) => a.localeCompare(b)).map(([category, count]) => `${category}=${count}`).join(', ')})`)
 if (selectorViolations.length) {
-  console.warn(`UI governance: ${selectorViolations.length} redefiniciones legacy pendientes (allowlist temporal)`)
+  console.warn(`UI governance: ${selectorViolations.length} redefiniciones legacy pendientes`)
 }
 
 if (errors.length) {

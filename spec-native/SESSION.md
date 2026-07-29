@@ -25,7 +25,7 @@
 | **4.2** | Dashboard/config | 12/12 | Páginas administrativas y de configuración migradas a `BaseButton` y `link-btn-*` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
 | **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
-| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 76 estilos scoped y fija las 80 excepciones hex en 6 superficies de mapas, ilustraciones y certificados; cualquier archivo o conteo nuevo falla CI |
+| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 76 estilos scoped, fija las 80 excepciones hex en 6 superficies y ya no permite redefiniciones legacy de selectores canónicos |
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 | **UX evento** | QR, herramientas y cabecera | Completado | El QR del listado apunta siempre a `/c/{friendlyId}/ticket`; se retiraron botones internos de QR; se agregó Cronograma y se ordenaron las herramientas; la cabecera inicia compacta y se mantiene así al cambiar de ruta |
 
@@ -47,9 +47,8 @@ git stash list  # debería mostrar "pre-design-system-migration"
 La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue.
 
 La migración de colores continúa: el gate mide 80 literales hex locales (baseline histórico
-1,278) y deja visible el override legacy deliberado del tema editorial. Las nuevas pantallas deben
-usar tokens y componentes canónicos; la allowlist existente solo evita bloquear la migración
-gradual y no debe crecer.
+1,278), todos fijados en excepciones documentadas de mapas, ilustraciones y certificados. Las nuevas
+pantallas deben usar tokens y componentes canónicos; el gate ya no permite redefiniciones legacy.
 
 ### Fase 4.2 — Alto tráfico
 
