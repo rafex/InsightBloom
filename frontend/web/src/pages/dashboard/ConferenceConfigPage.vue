@@ -87,9 +87,9 @@
       p.success(v-if="ticketSalesSaved") Disponibilidad de boletos actualizada.
       p.error(v-if="ticketSalesError") {{ ticketSalesError }}
       .ticket-links(v-if="seatingMode !== 'NONE' || eventTypes.find(t => t.key === eventTypeKey)?.capabilities.some(c => c.startsWith('TICKETING_'))")
-        router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/tickets`") Administrar boletos
-        router-link.btn-outline(:to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
-        router-link.btn-outline(v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
+        router-link.link-btn.link-btn-secondary(:to="`/dashboard/conferences/${conferenceId}/tickets`") Administrar boletos
+        router-link.link-btn.link-btn-secondary(:to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
+        router-link.link-btn.link-btn-secondary(v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
 
     .form-group.sandbox-group(v-show="activeTab === 'sandbox'")
       label IDE de código
@@ -1008,7 +1008,6 @@ textarea:focus { outline: none; border-color: #4f46e5; }
 .assign-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .assign-row input, .assign-row select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
 .assign-row input { flex: 1; min-width: 160px; }
-.btn-outline { padding: 10px 22px; border: 1.5px solid #4f46e5; color: #4f46e5; border-radius: 8px; text-decoration: none; font-size: 1rem; background: none; cursor: pointer; }
 .error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
 .success { color: #166534; font-size: 0.9rem; margin-bottom: 12px; }
 .loading-text { color: #6b7280; }

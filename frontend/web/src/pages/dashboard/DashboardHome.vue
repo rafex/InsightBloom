@@ -54,14 +54,14 @@
   .section(v-else-if="conferences.length === 0")
     .empty-state
       p Aún no tienes conferencias.
-      router-link.btn-primary(to="/dashboard/conferences/new") Crear la primera
+      router-link.link-btn.link-btn-primary(to="/dashboard/conferences/new") Crear la primera
 
   OnboardingTour(storage-key="ib_onboarding_dashboard" :steps="organizerTourSteps")
 
 .dashboard-home(v-else)
   .dashboard-header
     h1 Mis eventos
-    router-link.btn-primary(to="/dashboard/join") + Unirse a un evento
+    router-link.link-btn.link-btn-primary(to="/dashboard/join") + Unirse a un evento
 
   .section(v-if="loadingHistory")
     .loading-text Cargando historial...
@@ -69,7 +69,7 @@
   .section(v-else-if="history.length === 0")
     .empty-state
       p Aún no te has unido a ningún evento.
-      router-link.btn-primary(to="/dashboard/join") Unirme a un evento
+      router-link.link-btn.link-btn-primary(to="/dashboard/join") Unirme a un evento
 
   .section(v-else)
     .conference-grid

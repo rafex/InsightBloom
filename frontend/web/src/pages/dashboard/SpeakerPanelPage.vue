@@ -12,7 +12,7 @@
       span.registered-count(v-if="registeredCount !== null") · 👥 {{ registeredCount }} registrados al evento
     .speaker-header-actions
       .utility-controls
-        a.btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
+        a.link-btn.link-btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
         BaseButton(variant="secondary" @click="showQr = true") Mostrar QR
         BaseButton(variant="secondary" @click="shareRemoteControl") Compartir control remoto
         BaseButton(variant="secondary" v-if="ready && !offlineMode && !offlinePreparing" @click="prepareOffline") Preparar offline
@@ -26,7 +26,7 @@
 
   .presentation-empty(v-if="checkedStatus && !ready")
     p Aún no hay una presentación subida para esta conferencia.
-    router-link.btn-primary(:to="`/dashboard/conferences/${conferenceId}/presentation`") Subir presentación
+    router-link.link-btn.link-btn-primary(:to="`/dashboard/conferences/${conferenceId}/presentation`") Subir presentación
 
   template(v-else)
     p.hint(v-if="!offlineMode") Navega el deck con las flechas del teclado, haciendo clic dentro, o con los controles de navegación — la audiencia te sigue automáticamente.
@@ -423,7 +423,7 @@ h2 { margin: 0; color: #1e1b4b; }
   .speaker-header { flex-direction: column; align-items: stretch; }
   .speaker-header-actions { flex-direction: column; align-items: stretch; margin-left: 0; }
   .utility-controls { justify-content: stretch; }
-  .utility-controls .btn-secondary { flex: 1; }
+  .utility-controls .link-btn-secondary, .utility-controls .base-btn { flex: 1; }
   .nav-controls .btn-nav { flex: 1; }
   .slides-frame { height: 45vh; }
   .nav-controls { gap: 8px; }

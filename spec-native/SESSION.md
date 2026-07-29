@@ -84,15 +84,21 @@ Los 2 hechos por el agente (`SurveyManagePage`, `TicketManagementPage`) pueden r
 
 Priorizar las 4 páginas de alto tráfico con formularios reales:
 
-- [ ] `src/pages/login/LoginPage.vue` — 2 campos (email, password)
-- [ ] `src/pages/login/RegisterPage.vue` — 5+ campos (username, email, phone, password, social links)
-- [ ] `src/pages/dashboard/NewConferencePage.vue` — ~15 campos
-- [ ] `src/pages/dashboard/EditConferencePage.vue` — ~12 campos
+- [x] `src/pages/login/LoginPage.vue` — 2 campos (email, password)
+- [x] `src/pages/login/RegisterPage.vue` — 5+ campos (username, email, phone, password, social links)
+- [x] `src/pages/dashboard/NewConferencePage.vue` — ~15 campos
+- [x] `src/pages/dashboard/EditConferencePage.vue` — ~12 campos
 
 ### Fase 4.4 — Botones-enlace (`.link-btn` classes)
 
-- [ ] Crear clases `.link-btn`, `.link-btn-primary`, `.link-btn-secondary` en `global.css` o `src/styles/link-buttons.css`
-- [ ] Migrar `router-link.btn-primary` / `router-link.btn-outline` en `DashboardHome`, `PublicEventDetailPage`, `ConferencesListPage`, `NewConferencePage`, `EditConferencePage`
+- [x] Crear clases `.link-btn`, `.link-btn-primary`, `.link-btn-secondary` en `global.css`
+- [ ] Migrar todos los `router-link.btn-primary` / `router-link.btn-outline`: `DashboardHome` ya está migrado; quedan `PublicEventDetailPage`, `ConferencesListPage`, `NewConferencePage` y `EditConferencePage`
+
+### Bloque completado en este checkpoint
+
+- [x] Migrar enlaces y acciones de `DashboardHome`, `ConferenceConfigPage`, `SpeakerPanelPage`,
+  `PresentationManagePage`, `SurveyPage` e `IdePage` a `link-btn-*`/`BaseButton`.
+- [x] Registrar `BaseButton` explícitamente en `IdePage`.
 
 ## Estrategia recomendada al retomar
 

@@ -50,15 +50,15 @@
             .value {{ formattedExpiry }}
 
         .ide-actions
-          a.btn-primary(v-if="fullGatewayUrl" :href="ideSessionUrl" target="_blank" rel="noopener")
+          a.link-btn.link-btn-primary(v-if="fullGatewayUrl" :href="ideSessionUrl" target="_blank" rel="noopener")
             span 🚀 Abrir IDE en navegador
-          button.btn-secondary(@click="downloadWorkspace" :disabled="downloadingWorkspace")
+          BaseButton(variant="secondary" @click="downloadWorkspace" :disabled="downloadingWorkspace")
             span(v-if="!downloadingWorkspace") 📥 Descargar workspace
             span(v-else) Descargando...
-          button.btn-secondary(@click="publishPreview" :disabled="publishingPreview")
+          BaseButton(variant="secondary" @click="publishPreview" :disabled="publishingPreview")
             span(v-if="!publishingPreview") 🌐 Publicar página temporal
             span(v-else) Validando y publicando...
-          button.btn-secondary(@click="publishApp" :disabled="publishingApp")
+          BaseButton(variant="secondary" @click="publishApp" :disabled="publishingApp")
             span(v-if="!publishingApp") 🔌 Publicar backend/API
             span(v-else) Publicando...
           button.btn-tertiary(@click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
@@ -104,6 +104,7 @@ import {
 import type { SandboxInfo, SandboxAvailability, SandboxVariant, WorkspacePreviewInfo, AppPreviewInfo } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import SandboxLoadingAnimation from '@/components/SandboxLoadingAnimation.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 // El endpoint devuelve una instantánea; mientras el Pod/seat-agent se prepara
 // usamos backoff para no golpear la API cada pocos segundos durante un cold start.
@@ -115,7 +116,7 @@ const POLL_TIMEOUT_MS = 5 * 60_000
 
 export default {
   name: 'IdePage',
-  components: { SandboxLoadingAnimation },
+  components: { SandboxLoadingAnimation, BaseButton },
   props: {
     conferenceId: {
       type: String,

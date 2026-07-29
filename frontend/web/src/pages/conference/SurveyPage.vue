@@ -14,7 +14,7 @@
           a.link-btn.link-btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
         template(v-else-if="certError")
           p.cert-error {{ certError }}
-          router-link.btn-outline-link(v-if="certNeedsLogin" :to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
+          router-link.link-btn.link-btn-secondary(v-if="certNeedsLogin" :to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
 
       .contact-card
         h3 Sigamos en contacto
@@ -47,8 +47,8 @@
     h2 Inicia sesión para responder la encuesta
     p Necesitas una cuenta verificada para participar.
     .login-actions
-      router-link.btn-primary-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
-      router-link.btn-outline-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Crear cuenta
+      router-link.link-btn.link-btn-primary(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
+      router-link.link-btn.link-btn-secondary(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Crear cuenta
 
   template(v-else)
     template(v-if="surveyLocked")
@@ -479,11 +479,6 @@ h2 { color: #1e1b4b; margin-bottom: 16px; }
 .login-required { text-align: center; padding: 60px 24px; }
 .login-required p { color: #6b7280; margin-bottom: 24px; }
 .login-actions { display: flex; gap: 10px; justify-content: center; }
-.btn-primary-link, .btn-outline-link {
-  padding: 10px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem;
-}
-.btn-primary-link { background: #4f46e5; color: #fff; }
-.btn-outline-link { border: 1.5px solid #4f46e5; color: #4f46e5; }
 .question { margin-bottom: 24px; }
 .question label { display: block; font-weight: 600; color: #1e1b4b; margin-bottom: 8px; }
 .required-mark { color: #dc2626; }

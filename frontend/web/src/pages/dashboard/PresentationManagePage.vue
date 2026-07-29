@@ -8,8 +8,8 @@
     p(v-if="ready") ✅ Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }}{{ presentationFormat === 'fat' ? ' FAT precompilada' : '' }} generada para esta conferencia.
     p(v-else) Aún no se ha subido una presentación.
     .preview-actions(v-if="ready")
-      a.btn-secondary(:href="publicSlidesUrl || slidesUrl" target="_blank" rel="noopener") Ver slides
-      a.btn-secondary(:href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
+      a.link-btn.link-btn-secondary(:href="publicSlidesUrl || slidesUrl" target="_blank" rel="noopener") Ver slides
+      a.link-btn.link-btn-secondary(:href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
 
   .upload-card
     h3 Subir presentación (.zip)
@@ -174,10 +174,6 @@ input[type="file"] { display: block; margin-bottom: 12px; }
 }
 .source-input:focus { outline: none; border-color: #4f46e5; }
 .field-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
-.btn-secondary {
-  padding: 8px 16px; border-radius: 8px; background: #eef2ff; color: #4f46e5; border: 2px solid #c7d2fe;
-  text-decoration: none; font-weight: 600; font-size: 0.88rem; margin-right: 8px;
-}
 .preview-actions { margin-top: 8px; }
 .upload-error { color: #dc2626; margin-top: 10px; }
 .upload-success { color: #16a34a; margin-top: 10px; }
@@ -185,6 +181,6 @@ input[type="file"] { display: block; margin-bottom: 12px; }
 @media (max-width: 480px) {
   .presentation-manage-page { padding: 14px; }
   .preview-actions { display: flex; flex-direction: column; gap: 8px; }
-  .btn-secondary { margin-right: 0; text-align: center; }
+  .link-btn-secondary { margin-right: 0; text-align: center; }
 }
 </style>
