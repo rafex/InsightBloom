@@ -134,32 +134,32 @@ export default {
 
 <style scoped>
 .cert-settings-page { padding: 24px; max-width: 980px; }
-h2 { color: #1e1b4b; margin-bottom: 8px; }
-.hint { color: #6b7280; font-size: 0.85rem; margin-bottom: 24px; max-width: 640px; }
-.loading { color: #6b7280; }
+h2 { color: var(--color-heading); margin-bottom: 8px; }
+.hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; max-width: 640px; }
+.loading { color: var(--color-text-muted); }
 .layout { display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start; }
 .form-col { flex: 1; min-width: 300px; max-width: 420px; }
 .preview-col { flex: 1; min-width: 320px; }
-.preview-col h3 { color: #1e1b4b; margin: 0 0 12px; font-size: 1rem; }
+.preview-col h3 { color: var(--color-heading); margin: 0 0 12px; font-size: 1rem; }
 .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
-label { font-weight: 600; font-size: 0.9rem; color: #374151; }
-input[type="file"], select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
+label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
+input[type="file"], select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
 input[type="range"] { width: 100%; }
-input[type="color"] { width: 60px; height: 36px; border: 1.5px solid #d1d5db; border-radius: 8px; padding: 2px; }
+input[type="color"] { width: 60px; height: 36px; border: 1.5px solid var(--color-border); border-radius: 8px; padding: 2px; }
 .options-label { margin-bottom: 2px; }
-.checkbox-row { display: flex; align-items: center; gap: 8px; font-weight: 400; font-size: 0.9rem; color: #374151; cursor: pointer; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; font-weight: 400; font-size: 0.9rem; color: var(--color-text-secondary); cursor: pointer; }
 .checkbox-row input { width: auto; }
-.error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
-.success { color: #059669; font-size: 0.9rem; margin-bottom: 12px; }
+.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
+.success { color: var(--color-success); font-size: 0.9rem; margin-bottom: 12px; }
 
 .preview-card {
-  background: #fdfdfd; border: 3px solid #1e1b4b; border-radius: 12px; padding: 32px 24px;
+  background: var(--color-surface); border: 3px solid var(--color-heading); border-radius: 12px; padding: 32px 24px;
   text-align: center; aspect-ratio: 11 / 8.5; display: flex; flex-direction: column; justify-content: center; gap: 8px;
 }
 .preview-logo { max-height: 50px; margin: 0 auto 8px; }
 .preview-card h4, .preview-card h5, .preview-card p { margin: 0; }
-.preview-card p { color: #374151; }
-.preview-meta { color: #6b7280 !important; font-size: 0.8em !important; }
+.preview-card p { color: var(--color-text-secondary); }
+.preview-meta { color: var(--color-text-muted) !important; font-size: 0.8em !important; }
 
 @media (max-width: 640px) {
   .cert-settings-page { padding: 14px; }

@@ -124,30 +124,30 @@ export default {
 
 <style scoped>
 .user-detail-page { padding: 24px; max-width: 900px; }
-.loading-text { color: #6b7280; }
+.loading-text { color: var(--color-text-muted); }
 .empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
 .empty-text { color: var(--color-text-muted); font-size: 0.88rem; }
 
 .header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-.header h2 { color: #1e1b4b; margin: 0; }
+.header h2 { color: var(--color-heading); margin: 0; }
 
 .status-badge { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 10px; }
-.status-badge.ACTIVE { background: #dcfce7; color: #166534; }
-.status-badge.BANNED { background: #fee2e2; color: #991b1b; }
-.status-badge.DELETED { background: #f3f4f6; color: #6b7280; }
-.status-badge.INACTIVE { background: #fef9c3; color: #854d0e; }
+.status-badge.ACTIVE { background: var(--color-success-soft); color: var(--color-success); }
+.status-badge.BANNED { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.status-badge.DELETED { background: var(--color-surface-muted); color: var(--color-text-muted); }
+.status-badge.INACTIVE { background: var(--color-warning-soft); color: var(--color-warning); }
 
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-.detail-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; }
-.detail-card h3 { margin: 0 0 14px; color: #374151; font-size: 1rem; }
+.detail-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; }
+.detail-card h3 { margin: 0 0 14px; color: var(--color-text-secondary); font-size: 1rem; }
 
 dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0; }
 dt { color: var(--color-text-muted); font-size: 0.78rem; text-transform: uppercase; font-weight: 600; }
-dd { margin: 0; font-size: 0.9rem; color: #1e1b4b; }
+dd { margin: 0; font-size: 0.9rem; color: var(--color-heading); }
 .uuid-text { font-family: monospace; font-size: 0.8rem; }
 
 .table-scroll { overflow-x: auto; }
 .reservations-table { width: 100%; border-collapse: collapse; }
-.reservations-table th { text-align: left; padding: 6px 8px; color: #6b7280; font-size: 0.72rem; text-transform: uppercase; font-weight: 600; }
-.reservations-table td { padding: 8px; border-top: 1px solid #f3f4f6; font-size: 0.85rem; }
+.reservations-table th { text-align: left; padding: 6px 8px; color: var(--color-text-muted); font-size: 0.72rem; text-transform: uppercase; font-weight: 600; }
+.reservations-table td { padding: 8px; border-top: 1px solid var(--color-surface-muted); font-size: 0.85rem; }
 </style>

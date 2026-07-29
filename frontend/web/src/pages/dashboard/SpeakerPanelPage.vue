@@ -389,34 +389,34 @@ export default {
  * ya funcionando: "los botones... están mal distribuidos"). */
 .speaker-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto; }
 .utility-controls { display: flex; gap: 8px; flex-wrap: wrap; }
-h2 { margin: 0; color: #1e1b4b; }
+h2 { margin: 0; color: var(--color-heading); }
 /* flex-basis 100% + min-height: el conteo de audiencia y el total de registrados llegan
  * async (WS y fetch aparte) y su texto entra y sale/cambia de largo. Sin esto, la fila
  * de speaker-status a veces cabía junto al título y a veces no, y ese cambio de wrap
  * corría hacia arriba/abajo la fila de botones debajo (reportado 2026-07-28: "genera un
  * brinco en la pantalla" entre "Presentar" y los botones). Forzarla a su propio renglón
  * de ancho completo, con una altura mínima fija, hace que los botones nunca se muevan. */
-.speaker-status { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #374151; font-weight: 600; flex-wrap: wrap; flex: 1 1 100%; min-height: 22px; }
-.registered-count { color: #6b7280; font-weight: 500; }
-.live-dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; }
-.live-dot.connected { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
-.hint { color: #6b7280; font-size: 0.85rem; margin-bottom: 10px; }
-.presentation-empty { text-align: center; color: #6b7280; padding: 60px; }
+.speaker-status { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--color-text-secondary); font-weight: 600; flex-wrap: wrap; flex: 1 1 100%; min-height: 22px; }
+.registered-count { color: var(--color-text-muted); font-weight: 500; }
+.live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--color-border); }
+.live-dot.connected { background: var(--color-success); box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
+.hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 10px; }
+.presentation-empty { text-align: center; color: var(--color-text-muted); padding: 60px; }
 /* El presentador de Slidev muestra diapositiva actual + siguiente + notas en un layout
  * de varias columnas propio -- necesita más alto Y más ancho que el visor público de
  * una sola diapositiva para que las notas no queden cortadas con scroll horizontal
  * (visto en vivo 2026-07-28: la columna de notas se recortaba contra el borde). Por
  * eso esta página ya no limita el ancho a 960px (ver .speaker-panel-page) y el iframe
  * sube de 70vh a 82vh. */
-.slides-frame { width: 100%; height: 82vh; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
+.slides-frame { width: 100%; height: 82vh; border: 1px solid var(--color-border-subtle); border-radius: 12px; background: var(--color-surface); }
 .nav-controls { display: flex; gap: 8px; }
 .btn-nav {
-  flex: 0 0 auto; padding: 10px 18px; border-radius: 10px; border: 2px solid #c7d2fe; background: #eef2ff;
-  color: #4f46e5; font-weight: 700; font-size: 0.95rem; cursor: pointer; white-space: nowrap;
+  flex: 0 0 auto; padding: 10px 18px; border-radius: 10px; border: 2px solid var(--color-primary-border); background: var(--color-primary-soft);
+  color: var(--color-primary); font-weight: 700; font-size: 0.95rem; cursor: pointer; white-space: nowrap;
 }
-.btn-nav:hover { background: #e0e7ff; }
-.offline-preparing { color: #4f46e5; font-weight: 600; font-size: 0.85rem; }
-.offline-error { color: #b91c1c; font-size: 0.85rem; font-weight: 600; }
+.btn-nav:hover { background: var(--color-primary-soft); }
+.offline-preparing { color: var(--color-primary); font-weight: 600; font-size: 0.85rem; }
+.offline-error { color: var(--color-danger-dark); font-size: 0.85rem; font-weight: 600; }
 
 @media (max-width: 640px) {
   .speaker-panel-page { padding: 14px; }

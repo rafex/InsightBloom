@@ -164,30 +164,30 @@ export default {
 </script>
 
 <style scoped>
-.register-page { min-height: 100vh; background: #f5f3ff; }
+.register-page { min-height: 100vh; background: var(--color-bg); }
 .register-main { display: flex; justify-content: center; padding: 60px 24px; }
 .register-card { background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 460px; width: 100%; }
-h2 { margin: 0 0 8px; color: #1e1b4b; }
-.hint { color: #6b7280; font-size: 0.85rem; margin-bottom: 24px; }
-.error { color: #dc2626; font-size: 0.9rem; margin-bottom: 12px; }
-.register-hint { text-align: center; margin: 8px 0 0; font-size: 0.85rem; color: #6b7280; }
-.register-hint a { color: #4f46e5; font-weight: 600; text-decoration: none; }
+h2 { margin: 0 0 8px; color: var(--color-heading); }
+.hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
+.register-hint { text-align: center; margin: 8px 0 0; font-size: 0.85rem; color: var(--color-text-muted); }
+.register-hint a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 .register-hint a:hover { text-decoration: underline; }
 
 .social-editor { margin-bottom: 16px; }
-.options-label { font-size: 0.82rem; color: #6b7280; margin-bottom: 6px; display: block; font-weight: 600; }
+.options-label { font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: 6px; display: block; font-weight: 600; }
 .social-row { display: flex; gap: 6px; margin-bottom: 6px; }
 .social-row select { flex: 0 0 130px; }
 .social-row input { flex: 1; }
 .btn-icon {
-  flex-shrink: 0; width: 38px; border: 1px solid #e5e7eb; border-radius: 8px;
-  background: #f9fafb; color: #6b7280; cursor: pointer;
+  flex-shrink: 0; width: 38px; border: 1px solid var(--color-border-subtle); border-radius: 8px;
+  background: var(--color-surface-muted); color: var(--color-text-muted); cursor: pointer;
 }
 .btn-add {
-  padding: 6px 14px; border: 1px dashed #a5b4fc; border-radius: 8px; background: #f5f3ff; color: #4338ca;
+  padding: 6px 14px; border: 1px dashed var(--color-primary-border); border-radius: 8px; background: var(--color-bg); color: var(--color-primary-dark);
   cursor: pointer; font-size: 0.82rem; font-weight: 500;
 }
-.btn-add:hover { background: #ede9fe; }
+.btn-add:hover { background: var(--color-primary-soft); }
 
 @media (max-width: 480px) {
   .register-main { padding: 24px 16px; }
