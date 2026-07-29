@@ -203,20 +203,20 @@ export default {
 .whiteboard-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; position: relative; }
 .editor-shell { flex: 1 1 auto; height: calc(100vh - 112px); min-height: 480px; width: 100%; overflow: hidden; }
 .editor-shell :deep(.excalidraw) { width: 100%; height: 100%; min-height: 480px; }
-.loading-text { padding: 40px; text-align: center; color: #6b7280; }
-.unavailable { margin: 40px auto; text-align: center; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; max-width: 420px; }
-.unavailable .hint { color: #78350f; font-size: 0.85rem; margin-top: 6px; }
+.loading-text { padding: 40px; text-align: center; color: var(--color-text-muted); }
+.unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
+.unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 .published-banner, .save-banner { padding: 10px 16px; font-size: 0.86rem; }
-.published-banner { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; background: #eef2ff; color: #3730a3; }
-.update-state { color: #4b5563; }
-.published-content { flex: 1; min-height: 480px; display: flex; align-items: center; justify-content: center; padding: 24px; background: #f8fafc; }
-.published-whiteboard { max-width: 100%; max-height: 72vh; background: white; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, .08); }
-.published-empty { text-align: center; color: #475569; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 28px; background: white; }
-.published-empty .hint { color: #64748b; font-size: .86rem; }
-.save-banner-info { background: #eef2ff; color: #3730a3; }
-.save-banner-error { background: #fee2e2; color: #991b1b; }
-.save-banner-ok { background: #dcfce7; color: #166534; }
-.refresh-floating { position: fixed; right: 24px; bottom: 24px; border: none; border-radius: 999px; width: 44px; height: 44px; background: #4f46e5; color: white; font-size: 1.45rem; cursor: pointer; box-shadow: 0 8px 18px rgba(79, 70, 229, .3); }
-.refresh-floating.has-update { background: #059669; }
+.published-banner { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; background: var(--color-primary-soft); color: var(--color-primary-dark); }
+.update-state { color: var(--color-text-secondary); }
+.published-content { flex: 1; min-height: 480px; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--color-surface-muted); }
+.published-whiteboard { max-width: 100%; max-height: 72vh; background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, .08); }
+.published-empty { text-align: center; color: var(--color-text-secondary); border: 1px dashed var(--color-border); border-radius: 12px; padding: 28px; background: var(--color-surface); }
+.published-empty .hint { color: var(--color-text-muted); font-size: .86rem; }
+.save-banner-info { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+.save-banner-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.save-banner-ok { background: var(--color-success-soft); color: var(--color-success); }
+.refresh-floating { position: fixed; right: 24px; bottom: 24px; border: none; border-radius: 999px; width: 44px; height: 44px; background: var(--color-primary); color: var(--color-text-inverse); font-size: 1.45rem; cursor: pointer; box-shadow: 0 8px 18px rgba(79, 70, 229, .3); }
+.refresh-floating.has-update { background: var(--color-success); }
 .refresh-floating:disabled { opacity: .65; cursor: wait; }
 </style>

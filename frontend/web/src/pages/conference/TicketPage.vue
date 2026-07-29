@@ -245,9 +245,9 @@ export default {
 
 <style scoped>
 .ticket-page { padding: 32px 24px 48px; max-width: 820px; margin: 0 auto; }
-.ticket-loading, .ticket-empty { text-align: center; color: #6b7280; padding: 60px 24px; }
-.ticket-status { font-size: 0.95rem; font-weight: 600; color: #4f46e5; text-align: center; }
-.ticket-status.checked { color: #166534; }
+.ticket-loading, .ticket-empty { text-align: center; color: var(--color-text-muted); padding: 60px 24px; }
+.ticket-status { font-size: 0.95rem; font-weight: 600; color: var(--color-primary); text-align: center; }
+.ticket-status.checked { color: var(--color-success); }
 .ticket-canvas { display: flex; align-items: center; justify-content: center; padding: 8px; }
 .ticket-wrapper {
   --t-bg: #1e1e24;
@@ -304,9 +304,9 @@ export default {
 .ticket-manual small { color: #6b7280; font-size: .78rem; }
 .ticket-general-cta { text-align: center; padding: 40px 24px; }
 .claim-scanner { margin: 14px auto; max-width: 320px; }
-.claim-scanner video { width: 100%; border-radius: 10px; background: #111827; }
-.claim-scanner p { color: #6b7280; font-size: 0.85rem; }
-.ticket-error { color: #dc2626; margin-top: 12px; font-size: 0.9rem; }
+.claim-scanner video { width: 100%; border-radius: 10px; background: var(--color-heading); }
+.claim-scanner p { color: var(--color-text-muted); font-size: 0.85rem; }
+.ticket-error { color: var(--color-danger); margin-top: 12px; font-size: 0.9rem; }
 .ticket-seated-picker { padding: 20px 0; text-align: center; }
 @media (max-width: 560px) {
   .ticket-page { padding: 20px 12px 36px; }
