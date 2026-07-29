@@ -1,6 +1,6 @@
 <template lang="pug">
 .whiteboard-page
-  .loading-text(v-if="loading") Cargando pizarra...
+  LoadingState(v-if="loading" message="Cargando pizarra...")
   template(v-else-if="isModeratorOnlyViewer")
     .published-banner
       span 🔒 Vista publicada por el moderador
@@ -39,11 +39,13 @@ import {
 } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import { mountExcalidrawEditor } from '@/components/ExcalidrawEditor'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'WhiteboardPage',
+  components: { LoadingState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -203,7 +205,6 @@ export default {
 .whiteboard-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; position: relative; }
 .editor-shell { flex: 1 1 auto; height: calc(100vh - 112px); min-height: 480px; width: 100%; overflow: hidden; }
 .editor-shell :deep(.excalidraw) { width: 100%; height: 100%; min-height: 480px; }
-.loading-text { padding: 40px; text-align: center; color: var(--color-text-muted); }
 .unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
 .unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 .published-banner, .save-banner { padding: 10px 16px; font-size: 0.86rem; }

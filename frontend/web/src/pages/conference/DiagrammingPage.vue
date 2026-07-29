@@ -1,6 +1,6 @@
 <template lang="pug">
 .diagramming-page
-  .loading-text(v-if="loading") Cargando pizarra de diagramas...
+  LoadingState(v-if="loading" message="Cargando pizarra de diagramas...")
   template(v-else-if="isModeratorOnlyViewer")
     .published-banner
       span 🔒 Vista publicada por el moderador
@@ -33,11 +33,13 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getIntegrationConfig, getEventDiagram, saveEventDiagram, streamEventDiagram, AuthenticatedEventStream } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'DiagrammingPage',
+  components: { LoadingState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -274,7 +276,6 @@ export default {
 .refresh-floating:hover { background: var(--color-primary-dark); }
 .refresh-floating:disabled { opacity: 0.65; cursor: wait; }
 .refresh-floating.has-update { background: var(--color-success); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.18), 0 6px 18px rgba(6, 95, 70, 0.3); }
-.loading-text { padding: 40px; text-align: center; color: var(--color-text-muted); }
 .unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
 .unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 </style>

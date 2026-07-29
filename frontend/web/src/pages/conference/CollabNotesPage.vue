@@ -1,6 +1,6 @@
 <template lang="pug">
 .collab-notes-page
-  .loading-text(v-if="loading") Cargando notas colaborativas...
+  LoadingState(v-if="loading" message="Cargando notas colaborativas...")
   .unavailable(v-else-if="!padUrl")
     p ⚠️ Las notas colaborativas no están disponibles en este momento.
     p.hint Intenta más tarde o contacta al organizador.
@@ -19,9 +19,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { getIntegrationConfig, getEventNotes, exportEventNotes } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 export default {
   name: 'CollabNotesPage',
+  components: { LoadingState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -92,7 +94,6 @@ export default {
 .notes-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; color: var(--color-text-secondary); font-size: .85rem; background: var(--color-surface-muted); border-bottom: 1px solid var(--color-border-subtle); }
 .notes-toolbar .error { color: var(--color-danger-dark); }
 .etherpad-frame { flex: 1; border: none; width: 100%; }
-.loading-text { padding: 40px; text-align: center; color: var(--color-text-muted); }
 .unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
 .unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 </style>

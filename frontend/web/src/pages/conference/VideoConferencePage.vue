@@ -6,7 +6,7 @@
     p.takeover-hint(v-if="!sessionTakenOver") Si abriste la llamada en otro dispositivo, este botón cierra la sesión anterior.
     p.takeover-hint.takeover-warning(v-else) Esta sesión fue reemplazada por otro dispositivo.
     p.takeover-error(v-if="takeoverError") {{ takeoverError }}
-  .loading-text(v-if="loading") Cargando videollamada...
+  LoadingState(v-if="loading" message="Cargando videollamada...")
   .unavailable(v-else-if="!conferenceId")
     p ⚠️ La videollamada no está disponible en este momento.
     p.hint Intenta más tarde o contacta al organizador.
@@ -29,6 +29,7 @@ import {
   takeOverVideoCall
 } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 declare global {
   interface Window {
@@ -55,6 +56,7 @@ function loadJitsiScript(scriptUrl: string): Promise<void> {
 
 export default {
   name: 'VideoConferencePage',
+  components: { LoadingState },
   props: {
     conferenceId: { type: String, default: '' },
     ticketed: { type: Boolean, default: false },
@@ -207,7 +209,6 @@ export default {
 .takeover-warning { color: var(--color-warning); }
 .takeover-error { margin: 0; color: var(--color-danger-dark); font-size: .78rem; }
 #jitsi-container { flex: 1; width: 100%; }
-.loading-text { padding: 40px; text-align: center; color: var(--color-text-muted); }
 .unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
 .unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 </style>
