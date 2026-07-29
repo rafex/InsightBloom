@@ -120,7 +120,7 @@ export default {
 <style scoped>
 .mod-ide-page { padding: 24px; max-width: 900px; }
 h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
-.field-hint { color: var(--color-text-muted); font-size: 0.85rem; margin: 0 0 16px; }
+.field-hint { font-size: 0.85rem; margin: 0 0 16px; }
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
 .error { color: var(--color-danger); font-size: 0.9rem; }
 .success { color: var(--color-success); font-size: 0.9rem; }

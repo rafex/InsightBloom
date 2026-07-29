@@ -372,7 +372,7 @@ h2 { color: var(--color-heading); margin-bottom: 24px; margin-top: 0; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .coord-label { font-size: 0.8rem; color: var(--color-text-muted); font-weight: 500; }
 .coord-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
-.field-hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.field-hint { margin: 4px 0 0; font-size: 0.8rem; }
 .map-url-row { display: flex; gap: 8px; align-items: center; }
 .map-url-input { flex: 1; min-width: 0; }
 .canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }

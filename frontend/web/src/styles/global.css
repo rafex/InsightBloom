@@ -234,6 +234,10 @@ input:disabled, select:disabled, textarea:disabled {
   scrollbar-width: thin;
 }
 
+/* Estados de carga y ayudas de formulario compartidos por pantallas autenticadas. */
+.loading-text { color: var(--color-text-muted); }
+.field-hint { color: var(--color-text-muted); }
+
 .ui-icon {
   display: inline-block;
   flex: 0 0 auto;

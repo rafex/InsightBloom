@@ -84,8 +84,7 @@ export default {
 <style scoped>
 .egress-policy-page { padding: 24px; max-width: 720px; margin: 0 auto; }
 h2 { color: var(--color-heading); margin-bottom: 8px; }
-.loading-text { color: var(--color-text-muted); }
-.field-hint { margin: 0 0 16px; font-size: 0.85rem; color: var(--color-text-muted); }
+.field-hint { margin: 0 0 16px; font-size: 0.85rem; }
 .settings-card { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }

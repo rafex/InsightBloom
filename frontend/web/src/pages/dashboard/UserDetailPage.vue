@@ -125,7 +125,6 @@ export default {
 
 <style scoped>
 .user-detail-page { padding: 24px; max-width: 900px; }
-.loading-text { color: var(--color-text-muted); }
 
 .header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .header h2 { color: var(--color-heading); margin: 0; }

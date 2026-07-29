@@ -161,7 +161,6 @@ export default {
 }
 .release-all-card p { margin: 2px 0 0; color: var(--color-text-secondary); font-size: 0.88rem; }
 
-.loading-text { color: var(--color-text-muted); }
 .error { color: var(--color-danger); }
 
 .tool-card {

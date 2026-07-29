@@ -172,13 +172,12 @@ export default {
 <style scoped>
 .venue-map-page { padding: 24px; max-width: 900px; margin: 0 auto; }
 h2 { color: var(--color-heading); margin-bottom: 16px; }
-.loading-text { color: var(--color-text-muted); }
 .tabs-selector { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--color-border-subtle); }
 .tab-btn { padding: 12px 16px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-muted); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
 .tab-btn:hover { color: var(--color-primary); }
 .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
 .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
-.field-hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.field-hint { margin: 0; font-size: 0.8rem; }
 .ai-description { padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; }
 .seat-list { margin: 16px 0; display: flex; flex-direction: column; gap: 6px; }
 .seat-row { display: flex; gap: 8px; align-items: center; }

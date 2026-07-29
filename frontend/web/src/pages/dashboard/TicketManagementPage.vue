@@ -326,7 +326,7 @@ h2 { color: var(--color-heading); }
 .issue-row { display: flex; gap: 10px; flex-wrap: wrap; }
 input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; }
 .issue-divider { text-align: center; color: var(--color-text-muted); font-size: .78rem; margin: 12px 0; text-transform: uppercase; letter-spacing: .04em; }
-.field-hint { margin: 8px 0 0; font-size: .8rem; color: var(--color-text-muted); }
+.field-hint { margin: 8px 0 0; font-size: .8rem; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .ticket-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-surface-muted); }
 .ticket-main { display: flex; flex-direction: column; gap: 2px; }

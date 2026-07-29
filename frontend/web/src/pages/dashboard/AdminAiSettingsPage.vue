@@ -216,7 +216,6 @@ h2 { color: var(--color-heading); margin-bottom: 6px; }
 .page-intro { color: var(--color-text-muted); margin: 0 0 18px; }
 .scope-note { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; margin: 0 0 18px; padding: 10px 12px; border: 1px solid var(--color-primary-border); border-radius: 8px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: 0.86rem; }
 .scope-note strong { font-weight: 700; }
-.loading-text { color: var(--color-text-muted); }
 .settings-shell { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 18px; align-items: start; }
 .ai-tabs { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 18px; }
 .ai-tab { display: flex; align-items: flex-start; gap: 10px; text-align: left; padding: 12px; border: 1px solid var(--color-border-subtle); border-radius: 10px; background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; }
@@ -227,7 +226,7 @@ h2 { color: var(--color-heading); margin-bottom: 6px; }
 .settings-card { background: var(--color-surface); border-radius: 12px; padding: 22px; border: 1px solid var(--color-border-subtle); }
 .capability-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .settings-card h3 { margin: 0 0 8px; color: var(--color-heading); font-size: 1.05rem; }
-.field-hint { margin: 0 0 16px; font-size: .85rem; color: var(--color-text-muted); }
+.field-hint { margin: 0 0 16px; font-size: .85rem; }
 .clear-key input { width: auto; }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: .9rem; color: var(--color-text-secondary); }

@@ -220,7 +220,6 @@ h2 { color: var(--color-text-secondary); font-size: 1.1rem; font-weight: 600; ma
 .jaas-bandwidth-note { margin: 8px 0 0; color: var(--color-text-secondary); font-size: .78rem; }
 
 .section { margin-bottom: 32px; }
-.loading-text { color: var(--color-text-muted); }
 .conference-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 
 .conf-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; transition: box-shadow 0.2s; }

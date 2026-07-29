@@ -205,10 +205,9 @@ export default {
 <style scoped>
 .device-access-page { padding: 24px; max-width: 720px; margin: 0 auto; }
 h2 { color: var(--color-heading); margin-bottom: 16px; }
-.loading-text { color: var(--color-text-muted); }
 .settings-card { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); margin-bottom: 32px; }
 .settings-card h3 { margin: 0 0 8px; color: var(--color-heading); font-size: 1rem; }
-.field-hint { margin: 0 0 12px; font-size: 0.85rem; color: var(--color-text-muted); }
+.field-hint { margin: 0 0 12px; font-size: 0.85rem; }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
 .form-group input { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }

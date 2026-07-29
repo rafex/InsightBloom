@@ -235,7 +235,6 @@ h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
 .type-badge { font-size: 0.75rem; background: var(--color-primary-soft); color: var(--color-primary-dark); padding: 3px 10px; border-radius: 10px; font-weight: 600; }
 
 .section { margin-bottom: 32px; }
-.loading-text { color: var(--color-text-muted); }
 .conferences-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
 .conferences-table th {
   text-align: left; padding: 10px 14px; background: var(--color-surface-muted); color: var(--color-text-muted);

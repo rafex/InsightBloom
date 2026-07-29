@@ -173,7 +173,7 @@ input[type="file"] { display: block; margin-bottom: 12px; }
   font-size: 0.95rem; box-sizing: border-box; background: var(--color-surface);
 }
 .source-input:focus { outline: none; border-color: var(--color-primary); }
-.field-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.field-hint { margin: 6px 0 0; font-size: 0.8rem; }
 .preview-actions { margin-top: 8px; }
 .upload-error { color: var(--color-danger); margin-top: 10px; }
 .upload-success { color: var(--color-success); margin-top: 10px; }

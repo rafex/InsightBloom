@@ -343,7 +343,7 @@ h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
   padding: 10px 14px; border: 1.5px solid var(--color-border-subtle); border-radius: 8px;
   background: var(--color-surface-muted); color: var(--color-text-muted); font-family: monospace; font-size: 0.9rem;
 }
-.field-hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.field-hint { margin: 4px 0 0; font-size: 0.8rem; }
 
 .schedule-help { margin-top: 4px; border: 1px solid var(--color-border-subtle); border-radius: 8px; padding: 8px 12px; background: var(--color-surface-muted); }
 .schedule-help summary { cursor: pointer; color: var(--color-primary); font-size: 0.85rem; font-weight: 600; }
@@ -363,7 +363,6 @@ h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
 .success { color: var(--color-success); font-size: 0.9rem; margin-bottom: 12px; }
-.loading-text { color: var(--color-text-muted); }
 
 @media (max-width: 480px) {
   .coords-row { flex-direction: column; gap: 14px; }
