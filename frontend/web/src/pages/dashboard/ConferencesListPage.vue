@@ -94,7 +94,7 @@
          BaseButton(variant="secondary" @click="deleteTarget = null") Cancelar
          BaseButton(variant="danger" @click="doDelete") Eliminar
 
-  QrCodeModal(v-if="qrTarget" :friendlyId="qrTarget.friendlyId" @close="qrTarget = null")
+  QrCodeModal(v-if="qrTarget" :friendlyId="qrTarget.friendlyId" :url="ticketUrl(qrTarget.friendlyId)" @close="qrTarget = null")
 </template>
 
 <script lang="ts">
@@ -199,6 +199,10 @@ export default {
       if (!child) window.location.assign(url)
     }
 
+    function ticketUrl(friendlyId: string): string {
+      return `${window.location.origin}/c/${friendlyId}/ticket`
+    }
+
     async function doDelete() {
       const c = deleteTarget.value
       if (!c) return
@@ -215,7 +219,7 @@ export default {
 
     return {
       conferences, loading, deleteTarget, qrTarget, downloadCounts, isAdmin,
-      isExpired, formatRelative, confirmDelete, doDelete, eventTypeName, hasCapability, toggleActive, openPublic
+      isExpired, formatRelative, confirmDelete, doDelete, eventTypeName, hasCapability, toggleActive, openPublic, ticketUrl
     }
   }
 }

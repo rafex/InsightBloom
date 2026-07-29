@@ -27,7 +27,6 @@
           .conf-location(v-if="privateAccess && conference.latitude != null")
             span.location-icon 📍
             span.location-coords {{ conference.latitude.toFixed(4) }}, {{ conference.longitude.toFixed(4) }}
-          button.btn-qr(v-if="privateAccess" type="button" @click="showQr = true") 📱 Mostrar QR
         .conf-schedule(v-if="privateAccess && conference.eventDate")
           span.schedule-icon 🗓️
           span {{ formattedEventDate }}
@@ -43,6 +42,12 @@
           router-link#onboarding-tab-flyer.tool-btn(:to="`/c/${friendlyId}/flyer`" active-class="active-tab" title="Flyer")
             span.tool-icon 🖼️
             span.tool-label Flyer
+          router-link#onboarding-tab-ticket.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
+            span.tool-icon 🎟️
+            span.tool-label Mi boleto
+          router-link#onboarding-tab-schedule.tool-btn(:to="`/c/${friendlyId}/schedule`" active-class="active-tab" title="Cronograma")
+            span.tool-icon 🗓️
+            span.tool-label Cronograma
           router-link#onboarding-tab-doubts.tool-btn(v-if="privateAllowed('WORD_CLOUD') && toolReleased('DOUBTS')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab" title="Dudas")
             span.tool-icon ❓
             span.tool-label Dudas
@@ -73,9 +78,6 @@
           router-link#onboarding-tab-notes.tool-btn(v-if="canvasAllowed('ETHERPAD', 'COLLAB_NOTES') && toolReleased('NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
             span.tool-icon 🗒️
             span.tool-label Notas
-          router-link#onboarding-tab-ticket.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
-            span.tool-icon 🎟️
-            span.tool-label Mi boleto
           router-link#onboarding-tab-ide.tool-btn(v-if="privateAllowed('CODE_IDE') && toolReleased('IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
             span.tool-icon 💻
             span.tool-label IDE
@@ -86,17 +88,15 @@
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
         router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
-      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator" :event-name="conference.name" :event-description="conference.description" :flyer-base64="conference.flyerBase64")
+      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator" :event-name="conference.name" :event-description="conference.description" :flyer-base64="conference.flyerBase64" :schedule-markdown="conference.scheduleMarkdown")
 
     OnboardingTour(storage-key="ib_onboarding_conference_v2" :steps="attendeeTourSteps")
 
-  QrCodeModal(v-if="showQr" :friendlyId="friendlyId" @close="showQr = false")
 </template>
 
 <script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
-import QrCodeModal from '@/components/QrCodeModal.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
@@ -105,11 +105,6 @@ import type { ToolKeyName } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
 import { downloadIcs, buildGoogleCalendarUrl } from '@/utils/calendarLink'
 import { useAuthStore } from '@/features/auth/authStore'
-
-// Rutas de herramientas de "lienzo" (presentación, diagramas, notas, video) donde el espacio
-// vertical importa mas que el titulo/horario del evento — se colapsa la cabecera por defecto,
-// el usuario puede reabrirla con el boton toggle.
-const TOOL_ROUTE_SUFFIXES = ['/presentation', '/diagrams', '/notes', '/video', '/whiteboard']
 
 const ATTENDEE_TOUR_STEPS = [
   { selector: '#onboarding-tab-doubts', text: 'Aquí envías tus dudas sobre la charla — todos las ven en una nube de palabras en vivo.' },
@@ -127,7 +122,7 @@ const ATTENDEE_TOUR_STEPS = [
 
 export default {
   name: 'ConferencePage',
-  components: { AppHeader, ConferenceIntroMap, QrCodeModal, OnboardingTour },
+  components: { AppHeader, ConferenceIntroMap, OnboardingTour },
   setup() {
     const route      = useRoute()
     const friendlyId = route.params.friendlyId as string
@@ -135,7 +130,6 @@ export default {
     const loading    = ref(true)
     const error      = ref('')
     const showIntro  = ref(false)
-    const showQr     = ref(false)
     const timezones  = ref<Timezone[]>([])
     const showCalendarMenu = ref(false)
     const capabilities = ref<Set<string>>(new Set())
@@ -143,7 +137,7 @@ export default {
     const presentationAccess = ref(false)
     const eventClosed = ref(false)
     const presentationManagementAccess = ref(false)
-    const headerCollapsed = ref(TOOL_ROUTE_SUFFIXES.some((s) => route.path.endsWith(s)))
+    const headerCollapsed = ref(true)
     const auth = useAuthStore()
     let accessWatchTimer: number | null = null
 
@@ -207,8 +201,8 @@ export default {
     })
     onBeforeUnmount(() => window.removeEventListener('resize', updateToolbarFades))
 
-    watch(() => route.path, (newPath) => {
-      headerCollapsed.value = TOOL_ROUTE_SUFFIXES.some((s) => newPath.endsWith(s))
+    watch(() => route.path, () => {
+      headerCollapsed.value = true
       void refreshEventAccess()
       void nextTick(scrollActiveTabIntoView)
     })
@@ -374,7 +368,7 @@ export default {
     })
 
     return {
-      friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, openChat, showQr,
+      friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, openChat,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
       privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed,
@@ -397,11 +391,6 @@ export default {
 h1 { margin: 0; color: var(--color-heading); }
 .conf-location { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--color-text-muted); }
 .location-coords { font-family: monospace; color: var(--color-primary); }
-.btn-qr {
-  margin-left: auto; padding: 8px 16px; border-radius: 8px; border: 2px solid var(--color-primary-border);
-  background: var(--color-primary-soft); color: var(--color-primary); font-weight: 600; font-size: 0.85rem; cursor: pointer;
-}
-.btn-qr:hover { background: var(--color-primary-soft); }
 .conf-schedule {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
   font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;
@@ -505,7 +494,6 @@ h1 { margin: 0; color: var(--color-heading); }
   h1 { font-size: 1.4rem; }
   .tool-btn { min-width: 48px; padding: 5px 6px; }
   .tool-label { font-size: 0.6rem; }
-  .btn-qr { margin-left: 0; }
   .anon-banner { margin: 12px 16px 0; }
 }
 </style>

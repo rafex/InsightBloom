@@ -13,7 +13,6 @@
     .speaker-header-actions
       .utility-controls
         a.link-btn.link-btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
-        BaseButton(variant="secondary" @click="showQr = true") Mostrar QR
         BaseButton(variant="secondary" @click="shareRemoteControl") Compartir control remoto
         BaseButton(variant="secondary" v-if="ready && !offlineMode && !offlinePreparing" @click="prepareOffline") Preparar offline
         BaseButton(variant="secondary" v-if="offlinePackage && !offlineMode" @click="openOfflineCached") Abrir offline
@@ -33,7 +32,6 @@
     p.hint(v-else) La presentación está disponible localmente hasta {{ offlinePackage?.expiresAt }}. La sincronización en vivo se reanuda al volver a estar online.
     iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" @load="onIframeLoad")
 
-  QrCodeModal(v-if="showQr && friendlyId" :friendlyId="friendlyId" @close="showQr = false")
   QrCodeModal(v-if="showRemoteShare" :url="remoteShareUrl" @close="showRemoteShare = false")
 </template>
 
@@ -71,7 +69,6 @@ export default {
     const wsConnected = ref(false)
     const audienceCount = ref(0)
     const registeredCount = ref<number | null>(null)
-    const showQr = ref(false)
     const friendlyId = ref('')
     const conferenceName = ref('')
     const showRemoteShare = ref(false)
@@ -371,7 +368,7 @@ export default {
 
     return {
       checkedStatus, ready, slidesUrl, slidesFrame,
-      wsConnected, audienceCount, registeredCount, showQr, friendlyId, onIframeLoad, navigate,
+      wsConnected, audienceCount, registeredCount, friendlyId, onIframeLoad, navigate,
       showRemoteShare, remoteShareUrl, shareRemoteControl, sourceUrl, breadcrumbItems,
       offlinePackage, offlineMode, offlinePreparing, offlineError, prepareOffline, openOfflineCached, openOnlinePresentation
     }

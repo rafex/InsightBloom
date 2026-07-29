@@ -1,7 +1,7 @@
 <template lang="pug">
 .qr-overlay(@click.self="$emit('close')")
-  .qr-dialog(role="dialog" aria-modal="true" aria-label="Código QR para entrar al evento")
-    h3 Escanea para entrar
+  .qr-dialog(role="dialog" aria-modal="true" aria-label="Código QR para obtener el boleto del evento")
+    h3 Escanea para obtener tu boleto
     canvas(ref="qrCanvas")
     p.qr-url {{ publicUrl }}
     BaseButton(variant="secondary" size="sm" @click="$emit('close')") Cerrar
@@ -22,7 +22,7 @@ export default {
   emits: ['close'],
   setup(props, { emit }) {
     const qrCanvas = ref(null)
-    const publicUrl = ref(props.url || `${window.location.origin}/c/${props.friendlyId}/doubts`)
+    const publicUrl = ref(props.url || `${window.location.origin}/c/${props.friendlyId}/ticket`)
 
     const onKeydown = (e: KeyboardEvent) => { if (e.key === 'Escape') emit('close') }
 

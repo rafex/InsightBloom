@@ -9,7 +9,7 @@ El gate falla si aparece un estilo scoped sin categoría, una clasificación obs
 
 Estado del baseline en 2026-07-29:
 
-- 75 estilos scoped clasificados: 32 pantallas, 14 herramientas embebidas, 10 componentes compartidos, 10 visualizaciones, 4 shell y 5 componentes canónicos.
+- 76 estilos scoped clasificados: 33 pantallas, 14 herramientas embebidas, 10 componentes compartidos, 10 visualizaciones, 4 shell y 5 componentes canónicos.
 - 80 literales hex fijados en 6 superficies con intención documentada.
 - 1 redefinición legacy de selector canónico reportada temporalmente por el gate.
 

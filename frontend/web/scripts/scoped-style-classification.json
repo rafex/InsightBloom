@@ -28,6 +28,7 @@
   "src/pages/conference/CloudTopicsPage.vue": "visualization",
   "src/pages/conference/CollabNotesPage.vue": "embedded-tool",
   "src/pages/conference/ConferencePage.vue": "shell",
+  "src/pages/conference/ConferenceSchedulePage.vue": "domain-screen",
   "src/pages/conference/DiagrammingPage.vue": "embedded-tool",
   "src/pages/conference/FlyerPage.vue": "domain-screen",
   "src/pages/conference/IdePage.vue": "embedded-tool",

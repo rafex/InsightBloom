@@ -54,6 +54,7 @@ const routes: RouteRecordRaw[] = [
       // boleto) que nunca se bloquea, asi que es el destino seguro por defecto.
       { path: '', redirect: to => `/c/${to.params.friendlyId}/flyer` },
       { path: 'flyer', component: () => import('@/pages/conference/FlyerPage.vue') },
+      { path: 'schedule', component: () => import('@/pages/conference/ConferenceSchedulePage.vue') },
       { path: 'doubts', component: () => import('@/pages/conference/CloudDoubtsPage.vue') },
       { path: 'topics', component: () => import('@/pages/conference/CloudTopicsPage.vue') },
       { path: 'words/:word', component: () => import('@/pages/conference/WordTimelinePage.vue') },
