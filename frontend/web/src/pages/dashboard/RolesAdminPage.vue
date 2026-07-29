@@ -34,7 +34,7 @@
             .permissions-list(v-else)
               span.permission-chip(v-for="p in r.permissions" :key="p") {{ permissionLabel(p) }}
           td(data-label="Estado")
-            span.status-badge(:class="{ active: r.active }") {{ r.active ? 'Activo' : 'Inactivo' }}
+            StatusBadge(:status="r.active ? 'ACTIVE' : 'INACTIVE'" :label="r.active ? 'Activo' : 'Inactivo'")
           td.actions(data-label="Acciones")
             template(v-if="editing === r.uuid")
               textarea(v-model="editForm.description" placeholder="Descripción")
@@ -80,6 +80,7 @@ import {
 import type { Role, PermissionValue, RoleScopeValue } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const PERMISSION_LABELS: Record<string, string> = {
   MANAGE_USERS: 'Gestionar usuarios',
@@ -98,7 +99,7 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export default {
   name: 'RolesAdminPage',
-  components: { BaseButton },
+  components: { BaseButton, StatusBadge },
   setup() {
     const auth = useAuthStore()
     const roles = ref<Role[]>([])
@@ -216,9 +217,6 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .permissions-editor { display: flex; flex-direction: column; gap: 4px; max-width: 320px; }
 .permissions-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
 .permissions-editor input { width: auto; margin: 0; }
-
-.status-badge { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 10px; background: var(--color-surface-muted); color: var(--color-text-muted); }
-.status-badge.active { background: var(--color-success-soft); color: var(--color-success); }
 
 .actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
 .actions textarea { padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.82rem; min-height: 50px; }

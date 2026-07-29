@@ -40,7 +40,7 @@
             strong {{ u.displayName || u.username }}
             .sub {{ u.username }}
           td(data-label="Estado")
-            span.status-badge(:class="u.status") {{ statusLabel(u.status) }}
+            StatusBadge(:status="u.status" :label="statusLabel(u.status)")
           td.actions(data-label="Acciones")
             template(v-if="editing === u.uuid")
               input(v-model="editForm.displayName" placeholder="Nombre visible")
@@ -80,6 +80,7 @@ import { listUsers, updateUser, banUser, unbanUser, deleteUserLogical } from '@/
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 type ConfirmActionType = 'ban' | 'unban' | 'delete'
 
@@ -96,7 +97,7 @@ interface AdminUserRow {
 
 export default {
   name: 'AdminUsersPage',
-  components: { DashboardBreadcrumb, BaseButton },
+  components: { DashboardBreadcrumb, BaseButton, StatusBadge },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
@@ -224,12 +225,6 @@ select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radi
 .uuid-text { font-family: monospace; font-size: 0.8rem; color: var(--color-text-muted); }
 .clickable { cursor: pointer; }
 .clickable:hover { background: var(--color-surface-muted); }
-
-.status-badge { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 10px; }
-.status-badge.ACTIVE { background: var(--color-success-soft); color: var(--color-success); }
-.status-badge.BANNED { background: var(--color-danger-soft); color: var(--color-danger-dark); }
-.status-badge.DELETED { background: var(--color-surface-muted); color: var(--color-text-muted); }
-.status-badge.INACTIVE { background: var(--color-warning-soft); color: var(--color-warning); }
 
 .roles-editor { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
 .roles-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }

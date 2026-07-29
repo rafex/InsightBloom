@@ -7,7 +7,7 @@
   template(v-else-if="user")
     .header
       h2 {{ user.displayName || user.username }}
-      span.status-badge(:class="user.status") {{ statusLabel(user.status) }}
+      StatusBadge(:status="user.status" :label="statusLabel(user.status)")
 
     .detail-grid
       .detail-card
@@ -60,10 +60,11 @@ import { getUser, getUserReservations, type UserReservationEntry } from '@/servi
 import { hasResponded } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 export default {
   name: 'UserDetailPage',
-  components: { DashboardBreadcrumb },
+  components: { DashboardBreadcrumb, StatusBadge },
   setup() {
     const route = useRoute()
     const auth = useAuthStore()
@@ -130,12 +131,6 @@ export default {
 
 .header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .header h2 { color: var(--color-heading); margin: 0; }
-
-.status-badge { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 10px; }
-.status-badge.ACTIVE { background: var(--color-success-soft); color: var(--color-success); }
-.status-badge.BANNED { background: var(--color-danger-soft); color: var(--color-danger-dark); }
-.status-badge.DELETED { background: var(--color-surface-muted); color: var(--color-text-muted); }
-.status-badge.INACTIVE { background: var(--color-warning-soft); color: var(--color-warning); }
 
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
 .detail-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; }
