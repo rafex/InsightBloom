@@ -33,7 +33,7 @@
       tbody
         tr(v-for="c in conferences" :key="c.uuid || c.conferenceId")
           td.qr-col(data-label="QR")
-            button.btn-icon(@click="qrTarget = c" title="Ver código QR")
+              button.btn-icon(@click="qrTarget = c" title="Ver código QR" aria-label="Ver código QR")
               svg(xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
                 rect(x="3" y="3" width="7" height="7")
                 rect(x="14" y="3" width="7" height="7")

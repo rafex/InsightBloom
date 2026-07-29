@@ -1,10 +1,10 @@
 <template lang="pug">
 .dropdown-menu(ref="rootEl")
-  button.dropdown-trigger(type="button" @click="toggle")
+  button.dropdown-trigger(type="button" @click="toggle" @keydown.esc="open = false" :aria-expanded="open" aria-haspopup="menu")
     | {{ label }}
     span.dropdown-caret ▾
   Teleport(to="body")
-    .dropdown-panel.dropdown-panel-fixed(v-if="open" ref="panelEl" :style="panelStyle" @click="open = false")
+    .dropdown-panel.dropdown-panel-fixed(v-if="open" ref="panelEl" role="menu" :style="panelStyle" @click="open = false")
       slot
 </template>
 
@@ -87,6 +87,7 @@ export default {
   font-size: 0.78rem; background: #fff; cursor: pointer;
 }
 .dropdown-trigger:hover { background: #f3f4f6; color: #374151; }
+.dropdown-trigger:focus-visible { outline: 3px solid var(--color-focus, #818cf8); outline-offset: 2px; }
 .dropdown-caret { font-size: 0.7rem; }
 
 .dropdown-panel {
@@ -100,6 +101,7 @@ export default {
   color: #374151; text-decoration: none; font-size: 0.85rem; border: none; background: none; cursor: pointer;
 }
 .dropdown-panel :deep(a:hover), .dropdown-panel :deep(button:hover) { background: #f3f4f6; }
+.dropdown-panel :deep(a:focus-visible), .dropdown-panel :deep(button:focus-visible) { outline: 2px solid var(--color-focus, #818cf8); outline-offset: -2px; }
 .dropdown-panel :deep(.menu-item-danger) { color: var(--color-danger); }
 .dropdown-panel :deep(button.menu-item-danger:hover) { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 .dropdown-panel :deep(button:disabled) { opacity: 0.55; cursor: not-allowed; }

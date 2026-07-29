@@ -38,6 +38,7 @@ export default {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .base-btn:disabled { cursor: not-allowed; opacity: 0.55; }
+.base-btn:focus-visible { outline: 3px solid var(--color-focus, #818cf8); outline-offset: 2px; }
 
 .s-sm { padding: 6px 12px; font-size: 0.85rem; }
 .s-md { padding: 10px 18px; font-size: 0.95rem; }
