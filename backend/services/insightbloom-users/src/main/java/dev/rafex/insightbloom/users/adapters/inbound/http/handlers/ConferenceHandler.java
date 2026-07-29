@@ -783,7 +783,6 @@ public class ConferenceHandler extends BaseResourceHandler {
         c.setSandboxPoolSize(null);
         c.setSandboxCliPoolSize(null);
         c.setSandboxInternetEnabled(null);
-        c.setSandboxExtraPackages(null);
         c.setSandboxRemoteGitUrl(null);
         c.setSandboxJvmHeapMb(null);
         c.setSandboxSeatsPerPod(null);
@@ -2766,13 +2765,12 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final String sandboxVariant = (String) body.get("sandboxVariant");
             final Integer sandboxPoolSize = (Integer) body.get("sandboxPoolSize");
-            final String sandboxExtraPackages = (String) body.get("sandboxExtraPackages");
             final String sandboxRemoteGitUrl = (String) body.get("sandboxRemoteGitUrl");
             final Integer sandboxJvmHeapMb = (Integer) body.get("sandboxJvmHeapMb");
             final Integer sandboxSeatsPerPod = (Integer) body.get("sandboxSeatsPerPod");
             final Integer sandboxCliPoolSize = (Integer) body.get("sandboxCliPoolSize");
             final var result = setSandboxConfigUseCase.execute(id, sandboxVariant, sandboxPoolSize,
-                sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb, sandboxSeatsPerPod,
+                sandboxRemoteGitUrl, sandboxJvmHeapMb, sandboxSeatsPerPod,
                 sandboxCliPoolSize);
             try {
                 // Best-effort: si falla (ej. Kubernetes no disponible), no debe tumbar el guardado

@@ -40,10 +40,10 @@ class EnsureUnassignedSandboxUseCaseTest {
 
         Mockito.verify(orchestratorMock).createSandbox(
             Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_WEB, 0)), Mockito.eq("conf-1"), Mockito.eq("python"),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+            Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
         Mockito.verify(orchestratorMock).createSandbox(
             Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_CLI, 0)), Mockito.eq("conf-1"), Mockito.eq("terminal-nvim"),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+            Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
         Mockito.verify(sandboxRepoMock, Mockito.times(2)).save(Mockito.any(Sandbox.class));
     }
 
@@ -57,10 +57,10 @@ class EnsureUnassignedSandboxUseCaseTest {
 
         Mockito.verify(orchestratorMock, Mockito.never()).createSandbox(
             Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_WEB, 0)), Mockito.anyString(), Mockito.anyString(),
-            Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
+            Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
         Mockito.verify(orchestratorMock).createSandbox(
             Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_CLI, 0)), Mockito.eq("conf-1"), Mockito.eq("terminal-nvim"),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+            Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
         Mockito.verify(sandboxRepoMock, Mockito.times(1)).save(Mockito.any());
     }
 
@@ -84,7 +84,7 @@ class EnsureUnassignedSandboxUseCaseTest {
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
         Mockito.doThrow(new IllegalStateException("kubernetes_not_configured"))
             .when(orchestratorMock).createSandbox(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
-                Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
+                Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
 
         assertDoesNotThrow(() -> useCase.execute("conf-1"));
         Mockito.verify(sandboxRepoMock, Mockito.never()).save(Mockito.any());
@@ -120,7 +120,7 @@ class EnsureUnassignedSandboxUseCaseTest {
 
         Mockito.verify(orchestratorMock).createSandbox(
             Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_WEB, 1)), Mockito.eq("conf-1"), Mockito.eq("python"),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+            Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
         Mockito.verify(sandboxRepoMock).save(Mockito.any(Sandbox.class));
     }
 
@@ -154,7 +154,7 @@ class EnsureUnassignedSandboxUseCaseTest {
 
         Mockito.verify(orchestratorMock).createSandbox(
             Mockito.eq(Sandbox.podName("conf-1", Sandbox.VARIANT_CLI, 1)), Mockito.eq("conf-1"), Mockito.eq("terminal-nvim"),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.eq(4));
+            Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.eq(4));
         Mockito.verify(sandboxRepoMock).save(Mockito.any(Sandbox.class));
     }
 }

@@ -166,7 +166,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
 
     @Override
     public void createSandbox(final String podName, final String conferenceUuid, final String variant,
-                               final String extraPackages, final String remoteGitUrl, final boolean internetEnabled,
+                               final String remoteGitUrl, final boolean internetEnabled,
                                final Integer jvmHeapMb, final Integer seatsPerPod) {
         requireEnabled();
         final boolean terminalMode = IDE_MODE_TERMINAL_NVIM.equals(variant);
@@ -180,7 +180,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             ensureIncidentReportEgressPolicy();
         }
         final String podJson = jsonCodec.toJson(
-                buildPodBody(podName, conferenceUuid, variant, extraPackages, remoteGitUrl,
+                buildPodBody(podName, conferenceUuid, variant, remoteGitUrl,
                         jvmHeapMb, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
         final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
@@ -558,7 +558,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     }
 
     private Map<String, Object> buildPodBody(final String podName, final String conferenceUuid, final String variant,
-                                              final String extraPackages, final String remoteGitUrl,
+                                              final String remoteGitUrl,
                                               final Integer jvmHeapMb,
                                               final int effectiveSeats) {
         final Map<String, Object> labels = Map.of(
@@ -597,9 +597,6 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_API_BASE_URL", "value", usersApiBase));
         runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_USERS_API", "value", usersApiBase));
         runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_SURVEY_API", "value", surveyApiBase));
-        if (extraPackages != null && !extraPackages.isBlank()) {
-            runtimeEnv.add(Map.of("name", "EXTRA_PACKAGES", "value", extraPackages));
-        }
         if (remoteGitUrl != null && !remoteGitUrl.isBlank()) {
             runtimeEnv.add(Map.of("name", "REMOTE_GIT_URL", "value", remoteGitUrl));
         }

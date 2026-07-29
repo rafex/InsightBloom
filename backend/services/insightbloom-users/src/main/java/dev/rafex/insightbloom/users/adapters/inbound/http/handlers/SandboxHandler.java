@@ -481,7 +481,6 @@ public class SandboxHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final String sandboxVariant = (String) body.get("sandboxVariant");
             final Integer sandboxPoolSize = (Integer) body.get("sandboxPoolSize");
-            final String sandboxExtraPackages = (String) body.get("sandboxExtraPackages");
             final String sandboxRemoteGitUrl = (String) body.get("sandboxRemoteGitUrl");
             final Integer sandboxJvmHeapMb = (Integer) body.get("sandboxJvmHeapMb");
             final Integer sandboxSeatsPerPod = (Integer) body.get("sandboxSeatsPerPod");
@@ -491,7 +490,6 @@ public class SandboxHandler extends BaseResourceHandler {
                 conferenceId,
                 sandboxVariant,
                 sandboxPoolSize,
-                sandboxExtraPackages,
                 sandboxRemoteGitUrl,
                 sandboxJvmHeapMb,
                 sandboxSeatsPerPod,

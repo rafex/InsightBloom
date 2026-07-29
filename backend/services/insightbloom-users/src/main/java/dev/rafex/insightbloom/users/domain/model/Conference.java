@@ -68,7 +68,6 @@ public class Conference {
     // configura (mismo patron que sandboxPoolSize).
     private Integer sandboxCliPoolSize;
     private Integer sandboxInternetEnabled; // 0|1, por defecto 0
-    private String sandboxExtraPackages; // paquetes adicionales a instalar, nullable
     private String sandboxRemoteGitUrl; // URL de remoto git del profesor, nullable
     // Heap maximo (-Xmx, en MB) de las JVMs dentro del sandbox (jdt.ls, java/mvn que corra el
     // alumno) -- nullable, si no se configura se usa un default chico pensado para cursos
@@ -285,7 +284,6 @@ public class Conference {
     public String getSandboxVariant() { return sandboxVariant; }
     public Integer getSandboxPoolSize() { return sandboxPoolSize; }
     public Integer getSandboxInternetEnabled() { return sandboxInternetEnabled; }
-    public String getSandboxExtraPackages() { return sandboxExtraPackages; }
     public String getSandboxRemoteGitUrl() { return sandboxRemoteGitUrl; }
     public Integer getSandboxJvmHeapMb() { return sandboxJvmHeapMb; }
     public Integer getSandboxSeatsPerPod() { return sandboxSeatsPerPod; }
@@ -294,7 +292,6 @@ public class Conference {
     public void setSandboxPoolSize(Integer sandboxPoolSize) { this.sandboxPoolSize = sandboxPoolSize; }
     public void setSandboxCliPoolSize(Integer sandboxCliPoolSize) { this.sandboxCliPoolSize = sandboxCliPoolSize; }
     public void setSandboxInternetEnabled(Integer sandboxInternetEnabled) { this.sandboxInternetEnabled = sandboxInternetEnabled; }
-    public void setSandboxExtraPackages(String sandboxExtraPackages) { this.sandboxExtraPackages = sandboxExtraPackages; }
     public void setSandboxRemoteGitUrl(String sandboxRemoteGitUrl) { this.sandboxRemoteGitUrl = sandboxRemoteGitUrl; }
     public void setSandboxJvmHeapMb(Integer sandboxJvmHeapMb) { this.sandboxJvmHeapMb = sandboxJvmHeapMb; }
     public void setSandboxSeatsPerPod(Integer sandboxSeatsPerPod) { this.sandboxSeatsPerPod = sandboxSeatsPerPod; }

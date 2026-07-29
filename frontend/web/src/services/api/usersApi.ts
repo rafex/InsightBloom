@@ -427,7 +427,6 @@ export async function setSandboxConfig(
   conferenceId: string,
   sandboxVariant: string,
   sandboxPoolSize: number | null,
-  sandboxExtraPackages: string | null,
   sandboxRemoteGitUrl: string | null,
   sandboxJvmHeapMb: number | null,
   sandboxSeatsPerPod: number | null,
@@ -435,7 +434,7 @@ export async function setSandboxConfig(
   token: string
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/sandbox-config`,
-    { sandboxVariant, sandboxPoolSize, sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb,
+    { sandboxVariant, sandboxPoolSize, sandboxRemoteGitUrl, sandboxJvmHeapMb,
       sandboxSeatsPerPod, sandboxCliPoolSize },
     authHeader(token))
   return res.data.data

@@ -50,7 +50,7 @@ class PrewarmSandboxPoolUseCaseTest {
 
         Mockito.verify(orchestrator, Mockito.times(5)).createSandbox(
             Mockito.anyString(), Mockito.eq("conf-1"), Mockito.anyString(),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.eq(4));
+            Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.eq(4));
         Mockito.verify(sandboxRepository, Mockito.times(5)).save(Mockito.any(Sandbox.class));
     }
 
@@ -66,7 +66,7 @@ class PrewarmSandboxPoolUseCaseTest {
         assertEquals(2, result.variants().get(1).createdPods());
         Mockito.verify(orchestrator, Mockito.times(3)).createSandbox(
             Mockito.anyString(), Mockito.eq("conf-1"), Mockito.anyString(),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.eq(4));
+            Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.eq(4));
         Mockito.verify(sandboxRepository, Mockito.times(3)).save(Mockito.any(Sandbox.class));
     }
 }
