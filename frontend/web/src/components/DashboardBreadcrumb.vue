@@ -1,16 +1,15 @@
 <template lang="pug">
-nav.breadcrumbs(aria-label="breadcrumb")
+nav.breadcrumbs(aria-label="Ruta de navegación")
   template(v-for="(item, i) in allItems" :key="i")
     router-link(v-if="item.to" :to="item.to") {{ item.label }}
     span.crumb-loading(v-else-if="item.loading") …
-    span.crumb-current(v-else) {{ item.label }}
-    span.sep(v-if="i < allItems.length - 1") /
+    span.crumb-current(v-else aria-current="page") {{ item.label }}
+    span.sep(v-if="i < allItems.length - 1" aria-hidden="true") /
 </template>
 
 <script lang="ts">
-// El crumb raíz ("Panel" → /dashboard) lo agrega este componente — estaba duplicado literal
-// como { label: 'Dashboard' } en 14 páginas (auditoría UX 2026-07-26; de paso se traduce el
-// anglicismo). Las páginas solo declaran sus crumbs propios.
+// Las páginas declaran únicamente la ruta contextual que necesitan. El dashboard raíz no se
+// repite aquí porque ya está disponible como "Inicio" en la navegación global.
 import { computed } from 'vue'
 
 export interface BreadcrumbItem {
@@ -25,10 +24,7 @@ export default {
     items: { type: Array as () => BreadcrumbItem[], required: true }
   },
   setup(props: { items: BreadcrumbItem[] }) {
-    const allItems = computed<BreadcrumbItem[]>(() => [
-      { label: 'Panel', to: '/dashboard' },
-      ...props.items
-    ])
+    const allItems = computed<BreadcrumbItem[]>(() => props.items)
     return { allItems }
   }
 }
@@ -46,6 +42,8 @@ export default {
 }
 .breadcrumbs a { color: #4f46e5; text-decoration: none; }
 .breadcrumbs a:hover { text-decoration: underline; }
+.breadcrumbs a:focus-visible,
+.crumb-current:focus-visible { outline: 2px solid #4f46e5; outline-offset: 3px; border-radius: 3px; }
 .crumb-current { color: #374151; font-weight: 500; }
 .crumb-loading { color: var(--color-text-muted); }
 </style>

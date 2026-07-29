@@ -295,7 +295,7 @@ La cabecera del evento debe mostrar nombre, estado, fecha y una sola navegación
 - [x] **UX-TASK-005:** eliminar la duplicidad `Panel`/`Inicio`.
 - [x] **UX-TASK-006:** agrupar menú global por dominio.
 - [x] **UX-TASK-007:** definir navegación contextual de evento.
-- [ ] **UX-TASK-008:** simplificar breadcrumbs.
+- [x] **UX-TASK-008:** simplificar breadcrumbs.
 
 ### Fase 3 — Eventos
 
