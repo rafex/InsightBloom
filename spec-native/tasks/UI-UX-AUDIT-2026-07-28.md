@@ -308,14 +308,14 @@ La cabecera del evento debe mostrar nombre, estado, fecha y una sola navegación
 
 - [x] **UX-TASK-013:** reorganizar pestañas por dominio.
 - [ ] **UX-TASK-014:** definir estrategia de guardado y cambios pendientes.
-- [ ] **UX-TASK-015:** eliminar la duplicidad del Tutor IA.
+- [x] **UX-TASK-015:** eliminar la duplicidad del Tutor IA.
 - [x] **UX-TASK-016:** mover la plantilla global de certificados a una ubicación secundaria.
 
 ### Fase 5 — Tablas y acciones administrativas
 
-- [ ] **UX-TASK-017:** aplicar jerarquía visual a usuarios y roles.
-- [ ] **UX-TASK-018:** normalizar confirmaciones para banear, desactivar y eliminar.
-- [ ] **UX-TASK-019:** normalizar filtros, orden y estados.
+- [x] **UX-TASK-017:** aplicar jerarquía visual a usuarios y roles.
+- [x] **UX-TASK-018:** normalizar confirmaciones para banear, desactivar y eliminar.
+- [x] **UX-TASK-019:** normalizar filtros, orden y estados.
 
 ### Fase 6 — Validación
 

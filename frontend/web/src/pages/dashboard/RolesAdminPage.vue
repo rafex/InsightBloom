@@ -42,9 +42,9 @@
                 BaseButton(size="sm" :disabled="saving" @click="saveEdit(r)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
-              button.btn-sm.btn-edit(@click="startEdit(r)") Editar
-              button.btn-sm.btn-warning(v-if="r.active" @click="toggleActive(r, false)") Desactivar
-              button.btn-sm.btn-success(v-else @click="toggleActive(r, true)") Activar
+              BaseButton(variant="secondary" size="sm" @click="startEdit(r)") Editar
+              BaseButton(variant="secondary" size="sm" v-if="r.active" @click="confirmToggleActive(r, false)") Desactivar
+              BaseButton(variant="secondary" size="sm" v-else @click="confirmToggleActive(r, true)") Activar
 
   .new-role-form
     h3 Nuevo rol
@@ -62,6 +62,14 @@
         span {{ permissionLabel(p) }}
     BaseButton(type="button" :disabled="creating" @click="createNew") Crear rol
     p.error(v-if="createError") {{ createError }}
+
+  .confirm-overlay(v-if="pendingRole" @click.self="pendingRole = null")
+    .confirm-dialog
+      h4 {{ pendingRoleActive ? '¿Activar rol?' : '¿Desactivar rol?' }}
+      p {{ pendingRoleActive ? 'El rol volverá a estar disponible para asignarse.' : 'El rol no podrá asignarse mientras esté inactivo.' }}
+      .confirm-actions
+        BaseButton(variant="ghost" @click="pendingRole = null") Cancelar
+        BaseButton(variant="primary" @click="runToggleActive") Confirmar
 </template>
 
 <script lang="ts">
@@ -104,6 +112,8 @@ export default {
       { key: '', name: '', description: '', scope: 'EVENT', permissions: [] })
     const creating = ref(false)
     const createError = ref('')
+    const pendingRole = ref<Role | null>(null)
+    const pendingRoleActive = ref(false)
 
     function permissionLabel(p: string): string {
       return PERMISSION_LABELS[p] || p
@@ -146,6 +156,18 @@ export default {
       Object.assign(r, updated)
     }
 
+    function confirmToggleActive(r: Role, active: boolean) {
+      pendingRole.value = r
+      pendingRoleActive.value = active
+    }
+
+    async function runToggleActive() {
+      const role = pendingRole.value
+      const active = pendingRoleActive.value
+      pendingRole.value = null
+      if (role) await toggleActive(role, active)
+    }
+
     async function createNew() {
       createError.value = ''
       creating.value = true
@@ -166,7 +188,8 @@ export default {
 
     return {
       roles, allPermissions, loading, editing, editForm, saving, newRole, creating, createError,
-      permissionLabel, startEdit, saveEdit, toggleActive, createNew
+      pendingRole, pendingRoleActive,
+      permissionLabel, startEdit, saveEdit, toggleActive, confirmToggleActive, runToggleActive, createNew
     }
   }
 }
@@ -200,16 +223,17 @@ h2 { color: #1e1b4b; margin-bottom: 20px; }
 .actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
 .actions textarea { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; min-height: 50px; }
 .actions-row { display: flex; gap: 6px; }
-.btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-.btn-edit { background: #e0e7ff; color: #4338ca; }
-.btn-warning { background: #fef3c7; color: #92400e; }
-.btn-success { background: #dcfce7; color: #166534; }
 .new-role-form { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; }
 .new-role-form h3 { margin: 0 0 14px; color: #1e1b4b; font-size: 1rem; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .form-row input, .form-row select { flex: 1; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
 .new-role-form textarea { width: 100%; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
 .error { color: #dc2626; font-size: 0.85rem; margin-top: 8px; }
+.confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.confirm-dialog { background: #fff; border-radius: 16px; padding: 28px 32px; max-width: 420px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+.confirm-dialog h4 { margin: 0 0 12px; color: #1e1b4b; font-size: 1.1rem; }
+.confirm-dialog p { color: #6b7280; font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 @media (max-width: 900px) {
   .roles-page { padding: 14px; }

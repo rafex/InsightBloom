@@ -228,6 +228,7 @@
 
     .form-group.mentor-group(v-show="activeTab === 'ai'")
       label Tutor IA del evento
+      span.scope-badge Configuración de este evento
       p.field-hint Configuración pedagógica exclusiva de este evento. El proveedor, la URL base y la clave del Tutor IA (compartidos por toda la plataforma) se configuran aparte, en #[router-link(to="/dashboard/admin/ai/tutor") IA → Tutor IA] (solo administradores).
       ToggleSwitch(v-model="mentorEnabled" :disabled="savingMentor")
         | {{ mentorEnabled ? 'Tutor habilitado para los asistentes' : 'Tutor deshabilitado para los asistentes' }}
@@ -942,6 +943,7 @@ input:focus { outline: none; border-color: #4f46e5; }
 textarea:focus { outline: none; border-color: #4f46e5; }
 
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.scope-badge { align-self: flex-start; display: inline-flex; padding: 3px 9px; border-radius: 999px; background: #e0e7ff; color: #3730a3; font-size: 0.72rem; font-weight: 700; }
 .canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; }
 .canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
 .canvas-tool-option input { width: auto; }
