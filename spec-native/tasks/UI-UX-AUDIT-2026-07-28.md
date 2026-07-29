@@ -285,10 +285,10 @@ La cabecera del evento debe mostrar nombre, estado, fecha y una sola navegación
 
 ### Fase 1 — Fundaciones
 
-- [ ] **UX-TASK-001:** inventariar colores, tipografías, botones, badges, cards, tabs y mensajes existentes.
-- [ ] **UX-TASK-002:** definir tokens visuales compartidos.
-- [ ] **UX-TASK-003:** crear o consolidar componentes base.
-- [ ] **UX-TASK-004:** agregar estados de focus y etiquetas accesibles.
+- [x] **UX-TASK-001:** inventariar colores, tipografías, botones, badges, cards, tabs y mensajes existentes.
+- [x] **UX-TASK-002:** definir tokens visuales compartidos.
+- [x] **UX-TASK-003:** crear o consolidar componentes base.
+- [x] **UX-TASK-004:** agregar estados de focus y etiquetas accesibles.
 
 ### Fase 2 — Shell y navegación
 
@@ -302,7 +302,7 @@ La cabecera del evento debe mostrar nombre, estado, fecha y una sola navegación
 - [x] **UX-TASK-009:** rediseñar la tabla de eventos con acción principal y menús.
 - [x] **UX-TASK-010:** separar acciones destructivas.
 - [x] **UX-TASK-011:** eliminar la repetición de `Presentación`.
-- [ ] **UX-TASK-012:** crear versión responsiva de la lista.
+- [x] **UX-TASK-012:** crear versión responsiva de la lista.
 
 ### Fase 4 — Configuración
 
@@ -339,3 +339,16 @@ La cabecera del evento debe mostrar nombre, estado, fecha y una sola navegación
 ## Nota de alcance
 
 Este documento registra una evaluación UI/UX basada en la versión observada del portal. No modifica datos, configuración de eventos ni código de aplicación. Debe utilizarse como base para iteraciones pequeñas y verificables.
+
+## Evidencia de implementación y validación — 2026-07-28
+
+- Fundaciones visuales: inventario en `frontend/web/docs/UI_UX_INVENTORY.md`, tokens y baseline en
+  `frontend/web/src/styles/global.css`, y componentes compartidos en `frontend/web/src/components/ui/`.
+- Responsive: la aplicación local no presentó overflow horizontal en 375×812, 768×900 ni
+  1280×900 px. La lista de eventos incluye una variante de tarjetas para viewport angosto.
+- Automatizado: `vue-tsc --noEmit`, Vitest (106 tests), Vite build y `git diff --check` pasan.
+- Dashboard autenticado: la prueba interactiva no pudo completarse porque el entorno local no
+  tiene servicios backend ni una sesión de prueba; no se versionaron credenciales.
+- Despliegue: la consulta al cluster falló porque la credencial GCloud usada por `kubectl` está
+  expirada (`invalid_grant`). La correspondencia con el commit desplegado queda pendiente de
+  renovar esa sesión y consultar FluxCD/los pods.

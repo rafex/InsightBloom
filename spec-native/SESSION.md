@@ -39,7 +39,7 @@ git stash list  # debería mostrar "pre-design-system-migration"
 
 ## Pendiente
 
-La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-005 a UX-TASK-019 salvo UX-TASK-012. El código de la lista ya incluye tarjetas responsive para viewport móvil, pero falta completar la validación manual documentada antes de marcarla como done. También siguen pendientes la prueba completa de teclado/lector, recorridos funcionales y verificación post-despliegue.
+La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue.
 
 ### Fase 4.2 — Alto tráfico
 
