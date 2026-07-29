@@ -43,7 +43,7 @@ git stash list  # debería mostrar "pre-design-system-migration"
 
 La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue.
 
-La migración de colores continúa: el gate mide 160 literales hex locales (baseline histórico
+La migración de colores continúa: el gate mide 80 literales hex locales (baseline histórico
 1,278) y deja visible el override legacy deliberado del tema editorial. Las nuevas pantallas deben
 usar tokens y componentes canónicos; la allowlist existente solo evita bloquear la migración
 gradual y no debe crecer.

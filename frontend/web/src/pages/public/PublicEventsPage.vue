@@ -102,8 +102,8 @@ h2 { color: var(--color-heading); margin: 0 0 8px; font-size: 1.3rem; }
 .event-action { color: var(--color-primary); font-weight: 800; white-space: nowrap; text-decoration: none; }
 .state, .empty { background: var(--color-surface); padding: 30px; border-radius: 16px; color: var(--color-text-muted); }
 .error { color: var(--color-danger-dark); }
-.event-card.theme-editorial { border-radius: 4px; background: #17152d; color: #fef3c7; box-shadow: 0 12px 30px rgba(23,21,45,.2); }
-.event-card.theme-editorial .event-card-body { padding: 24px; }.event-card.theme-editorial h2 { color: #fff7ed; font-family: Georgia, serif; font-size: 1.5rem; }.event-card.theme-editorial .description, .event-card.theme-editorial .event-facts dd, .event-card.theme-editorial .event-card-footer { color: #d6d3d1; }.event-card.theme-editorial .event-facts dt { color: #fbbf24; }.event-card.theme-editorial .event-card-footer { border-color: #3f3a5d; }.event-card.theme-editorial .event-action { color: #fbbf24; }
+.event-card.theme-editorial { border-radius: 4px; background: var(--color-editorial-page); color: var(--color-warning-soft); box-shadow: 0 12px 30px rgba(23,21,45,.2); }
+.event-card.theme-editorial .event-card-body { padding: 24px; }.event-card.theme-editorial h2 { color: var(--color-editorial-heading); font-family: Georgia, serif; font-size: 1.5rem; }.event-card.theme-editorial .description, .event-card.theme-editorial .event-facts dd, .event-card.theme-editorial .event-card-footer { color: var(--color-editorial-muted); }.event-card.theme-editorial .event-facts dt { color: var(--color-editorial-accent); }.event-card.theme-editorial .event-card-footer { border-color: var(--color-editorial-border); }.event-card.theme-editorial .event-action { color: var(--color-editorial-accent); }
 .event-card.theme-minimal { border-radius: 4px; box-shadow: none; border: 1px solid var(--color-border); }.event-card.theme-minimal .event-card-body { padding: 18px; }.event-card.theme-minimal .event-flyer { height: 130px; filter: saturate(.6); }
 @media (max-width: 560px) { .public-main { padding: 38px 16px; } }
 </style>

@@ -171,18 +171,18 @@ export default {
 
 <style scoped>
 .venue-map-page { padding: 24px; max-width: 900px; margin: 0 auto; }
-h2 { color: #1e1b4b; margin-bottom: 16px; }
-.loading-text { color: #6b7280; }
-.tabs-selector { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #e5e7eb; }
-.tab-btn { padding: 12px 16px; background: none; border: none; border-bottom: 3px solid transparent; color: #6b7280; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
-.tab-btn:hover { color: #4f46e5; }
-.tab-btn.active { color: #4f46e5; border-bottom-color: #4f46e5; }
+h2 { color: var(--color-heading); margin-bottom: 16px; }
+.loading-text { color: var(--color-text-muted); }
+.tabs-selector { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--color-border-subtle); }
+.tab-btn { padding: 12px 16px; background: none; border: none; border-bottom: 3px solid transparent; color: var(--color-text-muted); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+.tab-btn:hover { color: var(--color-primary); }
+.tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
 .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
 .field-hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted); }
-.ai-description { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; }
+.ai-description { padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.85rem; font-family: inherit; resize: vertical; }
 .seat-list { margin: 16px 0; display: flex; flex-direction: column; gap: 6px; }
 .seat-row { display: flex; gap: 8px; align-items: center; }
-.seat-label { flex: 1; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; }
-.error { color: #dc2626; font-size: 0.9rem; }
-.success { color: #166534; font-size: 0.9rem; }
+.seat-label { flex: 1; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.85rem; }
+.error { color: var(--color-danger); font-size: 0.9rem; }
+.success { color: var(--color-success); font-size: 0.9rem; }
 </style>
