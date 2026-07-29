@@ -292,24 +292,24 @@ La cabecera del evento debe mostrar nombre, estado, fecha y una sola navegación
 
 ### Fase 2 — Shell y navegación
 
-- [ ] **UX-TASK-005:** eliminar la duplicidad `Panel`/`Inicio`.
-- [ ] **UX-TASK-006:** agrupar menú global por dominio.
-- [ ] **UX-TASK-007:** definir navegación contextual de evento.
+- [x] **UX-TASK-005:** eliminar la duplicidad `Panel`/`Inicio`.
+- [x] **UX-TASK-006:** agrupar menú global por dominio.
+- [x] **UX-TASK-007:** definir navegación contextual de evento.
 - [ ] **UX-TASK-008:** simplificar breadcrumbs.
 
 ### Fase 3 — Eventos
 
-- [ ] **UX-TASK-009:** rediseñar la tabla de eventos con acción principal y menús.
-- [ ] **UX-TASK-010:** separar acciones destructivas.
-- [ ] **UX-TASK-011:** eliminar la repetición de `Presentación`.
+- [x] **UX-TASK-009:** rediseñar la tabla de eventos con acción principal y menús.
+- [x] **UX-TASK-010:** separar acciones destructivas.
+- [x] **UX-TASK-011:** eliminar la repetición de `Presentación`.
 - [ ] **UX-TASK-012:** crear versión responsiva de la lista.
 
 ### Fase 4 — Configuración
 
-- [ ] **UX-TASK-013:** reorganizar pestañas por dominio.
+- [x] **UX-TASK-013:** reorganizar pestañas por dominio.
 - [ ] **UX-TASK-014:** definir estrategia de guardado y cambios pendientes.
 - [ ] **UX-TASK-015:** eliminar la duplicidad del Tutor IA.
-- [ ] **UX-TASK-016:** mover la plantilla global de certificados a una ubicación secundaria.
+- [x] **UX-TASK-016:** mover la plantilla global de certificados a una ubicación secundaria.
 
 ### Fase 5 — Tablas y acciones administrativas
 

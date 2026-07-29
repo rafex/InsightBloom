@@ -20,7 +20,7 @@
       label Generar asientos con IA
       p.field-hint Describe el recinto: medidas, distancias, referencias (escenario, pasillos, entrada) y figuras geométricas (filas, semicírculo, herradura). El resultado es una propuesta que puedes editar antes de guardar.
       textarea.ai-description(v-model="aiDescription" rows="3" placeholder="Ej. Salón rectangular de 10x8 metros, 8 filas de 10 asientos con pasillo central, escenario al frente")
-      button.btn-outline(type="button" @click="generateWithAi" :disabled="generatingAi || !aiDescription.trim()")
+      BaseButton(variant="secondary" type="button" @click="generateWithAi" :disabled="generatingAi || !aiDescription.trim()")
         span(v-if="generatingAi") Generando...
         span(v-else) ✨ Generar con IA
       p.error(v-if="aiError") {{ aiError }}
@@ -35,7 +35,7 @@
     .seat-list(v-if="seats.length")
       .seat-row(v-for="seat in seats" :key="seat.uuid || seat.label")
         input.seat-label(v-model="seat.label" type="text" placeholder="Etiqueta, ej. A1")
-        button.btn-remove(type="button" @click="removeSeat(seat)") Quitar
+        BaseButton(variant="danger" size="sm" type="button" @click="removeSeat(seat)") Quitar
       BaseButton(:loading="savingSeats" @click="saveSeats") Guardar asientos
     p.success(v-if="seatsSaved") Asientos guardados.
     p.error(v-if="seatsError") {{ seatsError }}
@@ -183,7 +183,6 @@ h2 { color: #1e1b4b; margin-bottom: 16px; }
 .seat-list { margin: 16px 0; display: flex; flex-direction: column; gap: 6px; }
 .seat-row { display: flex; gap: 8px; align-items: center; }
 .seat-label { flex: 1; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; }
-.btn-remove { padding: 6px 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; color: #dc2626; cursor: pointer; font-size: 0.8rem; }
 .error { color: #dc2626; font-size: 0.9rem; }
 .success { color: #166534; font-size: 0.9rem; }
 </style>

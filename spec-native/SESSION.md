@@ -10,7 +10,7 @@
 
 | State    | Bloqueante | Próximo paso |
 |----------|------------|-------------|
-| `in_progress` | No | Terminar Phase 4.2 alto tráfico (3 archivos pendientes), luego lanzar script Python para los ~22 restantes |
+| `in_progress` | No | Continuar Phase 4.2 en dashboard/config; navegación global y contextual de evento ya consolidadas, frontend validado con build, typecheck y tests |
 
 ## Resumen de avance
 
@@ -22,7 +22,7 @@
 | **4.2** | Alto tráfico (manual) | 3/8 | `LoginPage.vue` — 2 botones (`BaseButton size="lg"`, `variant="secondary"`) |
 | | | | `RegisterPage.vue` — 3 botones (`BaseButton size="lg"` ×2, `variant="ghost"`). Conservado `.btn-primary-link` (router-link para Fase 4.4) |
 | | | | `TicketPage.vue` — 3 botones (`BaseButton` ×2, `variant="secondary"`). `:loading` reemplaza spans condicionales. CSS huérfano eliminado |
-| **4.2** | Dashboard (agente coder parcial) | 2/14 | `TicketManagementPage.vue` — múltiples botones (`variant="primary"`, `"secondary"`, `"ghost"`, `"danger"`), import y registro |
+| **4.2** | Dashboard/config | 11/12 | Páginas administrativas y de configuración migradas a `BaseButton`; queda `SpeakerPanelPage.vue`, que requiere recuperar primero el stash `pre-design-system-migration` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
 
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
@@ -39,28 +39,28 @@ git stash list  # debería mostrar "pre-design-system-migration"
 
 ## Pendiente
 
-### Fase 4.2 — Alto tráfico (3 archivos restantes)
+### Fase 4.2 — Alto tráfico
 
-- [ ] `src/pages/dashboard/ConferencesListPage.vue` — tiene `.btn-ghost` (1 `<button>` real), `.btn-trash` (1), `.btn-cancel` (1), `.btn-confirm` (1). Los router-links con `.btn-primary`/`.btn-outline`/`.btn-ghost` se dejan para Fase 4.4
-- [ ] `src/pages/dashboard/NewConferencePage.vue` — 3 `<button>`: `.btn-primary` (×2), `.btn-outline` (×1). Router-links con `.btn-outline` se dejan
-- [ ] `src/pages/dashboard/EditConferencePage.vue` — 2 `<button>`: `.btn-primary` (×1), `.btn-outline` (×1). Router-link `.btn-outline` se deja
+- [x] `src/pages/dashboard/ConferencesListPage.vue` — acción primaria `Abrir evento`, menús `Gestionar`/`Más`, eliminación separada y sin CSS `.btn-trash` huérfano
+- [x] `src/pages/dashboard/NewConferencePage.vue` — botones reales migrados a `BaseButton`; router-links con `.btn-outline` se dejan para Fase 4.4
+- [x] `src/pages/dashboard/EditConferencePage.vue` — botones reales migrados a `BaseButton`; router-link `.btn-outline` se deja para Fase 4.4
 
 ### Fase 4.2 — Dashboard/Config (12 archivos, 2 ya hechos parcialmente)
 
 Los 2 hechos por el agente (`SurveyManagePage`, `TicketManagementPage`) pueden requerir limpieza de CSS residual (siguen apareciendo en `grep -rl '\.btn-primary\s*{'`).
 
-- [ ] `src/pages/dashboard/AdminAiSettingsPage.vue`
-- [ ] `src/pages/dashboard/AdminDeviceAccessPage.vue`
-- [ ] `src/pages/dashboard/AdminEgressPolicyPage.vue`
-- [ ] `src/pages/dashboard/EventTypesAdminPage.vue`
-- [ ] `src/pages/dashboard/RolesAdminPage.vue`
-- [ ] `src/pages/dashboard/CertificateSettingsPage.vue`
-- [ ] `src/pages/dashboard/CertificateEditorPage.vue`
-- [ ] `src/pages/dashboard/PresentationManagePage.vue`
-- [ ] `src/pages/dashboard/VenueMapEditorPage.vue`
+- [x] `src/pages/dashboard/AdminAiSettingsPage.vue`
+- [x] `src/pages/dashboard/AdminDeviceAccessPage.vue`
+- [x] `src/pages/dashboard/AdminEgressPolicyPage.vue`
+- [x] `src/pages/dashboard/EventTypesAdminPage.vue`
+- [x] `src/pages/dashboard/RolesAdminPage.vue`
+- [x] `src/pages/dashboard/CertificateSettingsPage.vue`
+- [x] `src/pages/dashboard/CertificateEditorPage.vue`
+- [x] `src/pages/dashboard/PresentationManagePage.vue`
+- [x] `src/pages/dashboard/VenueMapEditorPage.vue`
 - [ ] `src/pages/dashboard/SpeakerPanelPage.vue` ← **recuperar de stash primero**
-- [ ] `src/pages/dashboard/JoinConferencePage.vue`
-- [ ] `src/pages/profile/ProfilePage.vue`
+- [x] `src/pages/dashboard/JoinConferencePage.vue`
+- [x] `src/pages/profile/ProfilePage.vue`
 
 ### Fase 4.2 — Resto/Asistente (7 archivos)
 

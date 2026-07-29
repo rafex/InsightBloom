@@ -100,4 +100,7 @@ export default {
   color: #374151; text-decoration: none; font-size: 0.85rem; border: none; background: none; cursor: pointer;
 }
 .dropdown-panel :deep(a:hover), .dropdown-panel :deep(button:hover) { background: #f3f4f6; }
+.dropdown-panel :deep(.menu-item-danger) { color: var(--color-danger); }
+.dropdown-panel :deep(button.menu-item-danger:hover) { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.dropdown-panel :deep(button:disabled) { opacity: 0.55; cursor: not-allowed; }
 </style>
