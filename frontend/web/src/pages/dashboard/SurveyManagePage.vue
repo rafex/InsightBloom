@@ -103,7 +103,7 @@
           span {{ attendee.email || attendee.uuid }}
         span.attendee-status(:class="{ released: attendee.released, responded: attendee.responded }")
           | {{ attendee.responded ? 'Respondida' : attendee.released ? 'Liberada' : 'Bloqueada' }}
-    p.access-empty(v-else) Aún no hay asistentes registrados en el evento.
+    EmptyState(v-else message="Aún no hay asistentes registrados en el evento.")
     p.access-error(v-if="accessError") {{ accessError }}
 
   .add-card(v-if="engine === 'NATIVE'" v-show="activeTab === 'create'")
@@ -296,6 +296,7 @@ import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, getSurveyAccessManagement, releaseSurveyAccess, type SurveyEngine, type SurveyAttendee } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -372,7 +373,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, EmptyState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -909,7 +910,7 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .access-card {
   background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; margin-bottom: 20px;
 }
-.access-help, .access-empty { color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.45; }
+.access-help { color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.45; }
 .access-state { display: inline-block; padding: 6px 10px; border-radius: 999px; background: var(--color-warning-soft); color: var(--color-warning); font-size: 0.82rem; margin: 4px 0 14px; }
 .access-state.released { background: var(--color-success-soft); color: var(--color-success); }
 .access-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }

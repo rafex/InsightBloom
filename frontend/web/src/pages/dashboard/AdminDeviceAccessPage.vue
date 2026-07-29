@@ -28,7 +28,7 @@
     p.error(v-if="error") {{ error }}
 
   h3.blocks-title Dispositivos bloqueados
-  p.empty(v-if="!loadingBlocks && blocks.length === 0") No hay dispositivos bloqueados a nivel plataforma.
+  EmptyState(v-if="!loadingBlocks && blocks.length === 0" message="No hay dispositivos bloqueados a nivel plataforma.")
   ModerationTable(v-else :items="blocks" :currentPage="1" :totalPages="1")
     template(#headers)
       th Dispositivo
@@ -56,7 +56,7 @@
   h3.blocks-title Discrepancias de huella detectadas
   p.field-hint Se detecta (sin bloquear) cuando el fingerprint de un request no coincide con el
     |  del login de esa misma sesión — no significa que la sesión se cortó, solo queda visible para revisar.
-  p.empty(v-if="!loadingFlags && flags.length === 0") No hay discrepancias detectadas.
+  EmptyState(v-if="!loadingFlags && flags.length === 0" message="No hay discrepancias detectadas.")
   ModerationTable(v-else :items="flags" :currentPage="1" :totalPages="1")
     template(#headers)
       th Sujeto
@@ -90,6 +90,7 @@
 <script lang="ts">
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { ref, onMounted } from 'vue'
 import {
   getDeviceAccessSettings, setDeviceAccessSettings, listPlatformDeviceBlocks, unblockPlatformDevice,
@@ -103,7 +104,7 @@ type DeviceFingerprintFlagRow = DeviceFingerprintFlag & { _loading: boolean }
 
 export default {
   name: 'AdminDeviceAccessPage',
-  components: { ModerationTable, BaseButton },
+  components: { ModerationTable, BaseButton, EmptyState },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -214,7 +215,6 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .success { color: var(--color-success); font-size: 0.85rem; margin-top: 10px; }
 .error { color: var(--color-danger); font-size: 0.85rem; margin-top: 10px; }
 .blocks-title { color: var(--color-heading); font-size: 1rem; margin-bottom: 8px; }
-.empty { color: var(--color-text-muted); padding: 24px 0; }
 .fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
 .status-blocked { background: var(--color-danger-soft); color: var(--color-danger-dark); }

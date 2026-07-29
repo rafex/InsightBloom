@@ -17,7 +17,7 @@
   p.success(v-if="prewarmSummary") {{ prewarmSummary }}
 
   p.error(v-if="error") {{ error }}
-  p.empty-text(v-else-if="!loading && pods.length === 0") No hay sandboxes activos en este momento.
+  EmptyState(v-else-if="!loading && pods.length === 0" message="No hay sandboxes activos en este momento.")
 
   .pods-list(v-else)
     .pod-card(v-for="pod in pods" :key="pod.podName")
@@ -47,11 +47,12 @@ import WorkspaceFileEditor from '@/components/moderator/WorkspaceFileEditor.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import type { SandboxStatusEntry } from '@/services/api/types'
 
 export default {
   name: 'ModerationIdePage',
-  components: { WorkspaceFileEditor, DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
+  components: { WorkspaceFileEditor, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -123,8 +124,6 @@ h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
 .error { color: var(--color-danger); font-size: 0.9rem; }
 .success { color: var(--color-success); font-size: 0.9rem; }
-.empty-text { color: var(--color-text-muted); font-size: 0.9rem; }
-
 .pods-list { display: flex; flex-direction: column; gap: 14px; }
 .pod-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 16px; }
 .pod-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }

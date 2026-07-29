@@ -3,15 +3,17 @@
   .schedule-card
     h2 Cronograma
     .markdown-body(v-if="renderedSchedule" v-html="renderedSchedule")
-    p.empty-state(v-else) El organizador todavía no publicó un cronograma para este evento.
+    EmptyState(v-else message="El organizador todavía no publicó un cronograma para este evento.")
 </template>
 
 <script lang="ts">
 import { computed } from 'vue'
 import { marked, Renderer } from 'marked'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 export default {
   name: 'ConferenceSchedulePage',
+  components: { EmptyState },
   props: {
     scheduleMarkdown: { type: String, default: '' }
   },
@@ -37,6 +39,5 @@ h2 { margin: 0 0 20px; color: var(--color-heading); }
 .markdown-body :deep(h1:first-child), .markdown-body :deep(h2:first-child), .markdown-body :deep(h3:first-child) { margin-top: 0; }
 .markdown-body :deep(p), .markdown-body :deep(li) { color: var(--color-text-secondary); line-height: 1.6; }
 .markdown-body :deep(a) { color: var(--color-primary); }
-.empty-state { margin: 0; color: var(--color-text-muted); }
 @media (max-width: 640px) { .conference-schedule-page { padding: 14px; }.schedule-card { padding: 20px 16px; } }
 </style>

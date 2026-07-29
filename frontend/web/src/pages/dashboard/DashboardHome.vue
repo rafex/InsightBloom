@@ -58,8 +58,7 @@
     .loading-text Cargando conferencias...
 
   .section(v-else-if="conferences.length === 0")
-    .empty-state
-      p Aún no tienes conferencias.
+    EmptyState(message="Aún no tienes conferencias.")
       router-link.link-btn.link-btn-primary(to="/dashboard/conferences/new") Crear la primera
 
   OnboardingTour(storage-key="ib_onboarding_dashboard" :steps="organizerTourSteps")
@@ -73,8 +72,7 @@
     .loading-text Cargando historial...
 
   .section(v-else-if="history.length === 0")
-    .empty-state
-      p Aún no te has unido a ningún evento.
+    EmptyState(message="Aún no te has unido a ningún evento.")
       router-link.link-btn.link-btn-primary(to="/dashboard/join") Unirme a un evento
 
   .section(v-else)
@@ -101,6 +99,7 @@ import { isExpired } from '@/utils/dates'
 import { useAuthStore } from '@/features/auth/authStore'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const ORGANIZER_TOUR_STEPS = [
   { selector: '#onboarding-events-summary', text: 'Aquí ves cuántos eventos tienes activos, registrados y expirados. Para crear uno nuevo o ver el listado completo, usá el menú de la izquierda.' },
@@ -109,7 +108,7 @@ const ORGANIZER_TOUR_STEPS = [
 
 export default {
   name: 'DashboardHome',
-  components: { OnboardingTour, UiIcon },
+  components: { OnboardingTour, UiIcon, EmptyState },
   setup() {
     const conferences = ref<Conference[]>([])
     const loading     = ref(true)
@@ -222,9 +221,6 @@ h2 { color: var(--color-text-secondary); font-size: 1.1rem; font-weight: 600; ma
 
 .section { margin-bottom: 32px; }
 .loading-text { color: var(--color-text-muted); }
-.empty-state { text-align: center; padding: 48px; background: var(--color-surface-muted); border-radius: 12px; }
-.empty-state p { color: var(--color-text-muted); margin-bottom: 16px; }
-
 .conference-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 
 .conf-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; transition: box-shadow 0.2s; }

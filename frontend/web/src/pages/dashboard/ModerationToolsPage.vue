@@ -31,7 +31,7 @@
     button.btn-link(type="button" @click="expanded[tool.key] = !expanded[tool.key]")
       | {{ expanded[tool.key] ? 'Ocultar' : 'Ver' }} asistentes individuales ({{ matrix[tool.key]?.attendees.length || 0 }})
     .attendee-list(v-if="expanded[tool.key]")
-      p.empty-text(v-if="!matrix[tool.key]?.attendees.length") Todavía no hay asistentes registrados en este evento.
+      EmptyState(v-if="!matrix[tool.key]?.attendees.length" message="Todavía no hay asistentes registrados en este evento.")
       .attendee-row(v-for="a in matrix[tool.key]?.attendees" :key="a.uuid")
         div
           strong {{ a.displayName || 'Sin nombre' }}
@@ -50,6 +50,7 @@ import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { getToolAccessManagement, releaseTool, lockTool, releaseAllTools as releaseAllToolsApi } from '@/services/api/usersApi'
 import type { ToolKeyName, ToolManagementEntry } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -68,7 +69,7 @@ const TOOLS: { key: ToolKeyName, label: string, icon: string }[] = [
 
 export default {
   name: 'ModerationToolsPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, ToggleSwitch, UiIcon },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, ToggleSwitch, UiIcon, EmptyState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -186,5 +187,4 @@ export default {
 }
 .attendee-row div { display: flex; flex-direction: column; }
 .attendee-row span { font-size: 0.8rem; color: var(--color-text-muted); }
-.empty-text { color: var(--color-text-muted); font-size: 0.88rem; }
 </style>

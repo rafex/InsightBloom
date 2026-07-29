@@ -236,9 +236,6 @@ h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
 
 .section { margin-bottom: 32px; }
 .loading-text { color: var(--color-text-muted); }
-.empty-state { text-align: center; padding: 48px; background: var(--color-surface-muted); border-radius: 12px; }
-.empty-state p { color: var(--color-text-muted); margin-bottom: 16px; }
-
 .conferences-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
 .conferences-table th {
   text-align: left; padding: 10px 14px; background: var(--color-surface-muted); color: var(--color-text-muted);

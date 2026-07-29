@@ -16,8 +16,7 @@
       option(value="PENDIENTE_REVISION") Pendiente revisión
       option(value="DELETED") Eliminado
 
-  .empty-state(v-if="!loading && items.length === 0")
-    p No hay mensajes para moderar.
+  EmptyState(v-if="!loading && items.length === 0" message="No hay mensajes para moderar.")
 
   .message-list(v-else)
     .message-row(v-for="item in items" :key="item.id || item.messageId || item.uuid")
@@ -80,6 +79,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb, { type BreadcrumbItem } from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 interface ModMessageItem {
   id?: string
@@ -106,7 +106,7 @@ interface ModMessageItem {
 
 export default {
   name: 'ModerationMessagesPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const route = useRoute()
@@ -293,8 +293,6 @@ h2 { color: var(--color-heading); margin-bottom: 20px; margin-top: 0; }
 
 .filters { margin-bottom: 16px; }
 select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
-
-.empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
 
 .message-list { display: flex; flex-direction: column; gap: 12px; }
 

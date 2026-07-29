@@ -58,7 +58,7 @@
     .qr-preview(v-if="selectedTicket")
       TicketQr(:ticket-code="selectedTicket.ticketCode" :ticket-url="ticketUrl(selectedTicket)" :show-code="false")
       BaseButton(variant="ghost" size="sm" type="button" @click="share(selectedTicket)") Compartir QR
-  p.empty(v-if="!loading && !tickets.length") Aún no hay boletos emitidos.
+  EmptyState(v-if="!loading && !tickets.length" message="Aún no hay boletos emitidos.")
 </template>
 
 <script lang="ts">
@@ -66,13 +66,14 @@ import { ref, computed, onMounted } from 'vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import TicketQr from '@/components/TicketQr.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets, sendAttendeeEmail } from '@/services/api/usersApi'
 import type { Ticket, TicketManagementSummary, TicketStatus } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'TicketManagementPage',
-  components: { DashboardBreadcrumb, TicketQr, BaseButton },
+  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -330,7 +331,7 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--color-
 .ticket-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-surface-muted); }
 .ticket-main { display: flex; flex-direction: column; gap: 2px; }
 .ticket-main strong { font: 0.8rem monospace; overflow-wrap: anywhere; }
-.ticket-main span, .empty, .issue-card p { color: var(--color-text-muted); font-size: 0.9rem; }
+.ticket-main span, .issue-card p { color: var(--color-text-muted); font-size: 0.9rem; }
 .list-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .list-header h3 { margin: 0; }
 .ticket-group { margin-top: 18px; }
