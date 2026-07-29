@@ -55,6 +55,7 @@
 
   /* Texto */
   --color-text: #111827;
+  --color-heading: #1e1b4b;
   --color-text-secondary: #374151;
   /* Muted: #6b7280 y no #9ca3af — #9ca3af sobre blanco da ~2.5:1 de contraste (WCAG pide
    * 4.5:1 para texto); estaba usado en texto real (código del boleto, breadcrumbs). */

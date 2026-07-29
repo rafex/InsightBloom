@@ -240,13 +240,13 @@ con `npm run lint:ui-governance` y con el checkpoint de `spec-native/SESSION.md`
 - [x] `src/pages/profile/ProfilePage.vue`
 
 **Vistas del asistente / resto**:
-- [ ] `src/pages/conference/PresentationPage.vue`
-- [ ] `src/pages/conference/SurveyPage.vue`
-- [ ] `src/pages/conference/IdePage.vue`
-- [ ] `src/pages/public/NotFoundPage.vue`
-- [ ] `src/components/SessionExpiryModal.vue`
-- [ ] `src/components/VenueMapCanvasEditor.vue`
-- [ ] `src/components/moderator/WorkspaceFileEditor.vue`
+- [x] `src/pages/conference/PresentationPage.vue`
+- [x] `src/pages/conference/SurveyPage.vue`
+- [x] `src/pages/conference/IdePage.vue`
+- [x] `src/pages/public/NotFoundPage.vue`
+- [x] `src/components/SessionExpiryModal.vue`
+- [x] `src/components/VenueMapCanvasEditor.vue`
+- [x] `src/components/moderator/WorkspaceFileEditor.vue`
 
 **Por archivo, el procedimiento es**:
 1. Abrir el archivo, buscar `.btn-primary` (y `.btn-outline`/`.btn-danger`/`.btn-ghost`
