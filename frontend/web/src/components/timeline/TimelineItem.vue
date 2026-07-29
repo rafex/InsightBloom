@@ -53,8 +53,8 @@ export default {
 
 <style scoped>
 .timeline-item {
-  background: #fff;
-  border-left: 4px solid #4f46e5;
+  background: var(--color-surface);
+  border-left: 4px solid var(--color-primary);
   border-radius: 6px;
   padding: 12px 16px;
   margin-bottom: 12px;
@@ -66,19 +66,19 @@ export default {
   align-items: center;
   margin-bottom: 6px;
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
-.author { font-weight: 600; color: #374151; }
+.author { font-weight: 600; color: var(--color-text-secondary); }
 .badge {
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 0.75rem;
-  background: #e0e7ff;
-  color: #3730a3;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
 }
-.badge.guest { background: #fef9c3; color: #854d0e; }
-.timeline-detail { color: #1f2937; font-size: 0.95rem; line-height: 1.5; }
-.timeline-answer { background: #f0fdf4; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
-.timeline-answer strong { color: #166534; font-size: 0.8rem; }
-.answer-text { margin: 4px 0 0; color: #1f2937; font-size: 0.9rem; white-space: pre-wrap; }
+.badge.guest { background: var(--color-warning-soft); color: var(--color-warning); }
+.timeline-detail { color: var(--color-text); font-size: 0.95rem; line-height: 1.5; }
+.timeline-answer { background: var(--color-success-soft); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+.timeline-answer strong { color: var(--color-success); font-size: 0.8rem; }
+.answer-text { margin: 4px 0 0; color: var(--color-text); font-size: 0.9rem; white-space: pre-wrap; }
 </style>

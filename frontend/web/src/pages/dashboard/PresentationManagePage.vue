@@ -155,28 +155,28 @@ export default {
 
 <style scoped>
 .presentation-manage-page { padding: 24px; max-width: 600px; }
-h2 { color: #1e1b4b; margin-bottom: 20px; }
+h2 { color: var(--color-heading); margin-bottom: 20px; }
 .status-card, .upload-card {
-  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 20px;
+  background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; margin-bottom: 20px;
 }
-h3 { margin: 0 0 8px; color: #1e1b4b; }
-.hint { color: #6b7280; font-size: 0.88rem; margin-bottom: 12px; }
+h3 { margin: 0 0 8px; color: var(--color-heading); }
+.hint { color: var(--color-text-muted); font-size: 0.88rem; margin-bottom: 12px; }
 input[type="file"] { display: block; margin-bottom: 12px; }
 .form-group { margin-bottom: 16px; }
-.form-group label { display: block; font-weight: 600; font-size: 0.88rem; color: #374151; margin-bottom: 6px; }
+.form-group label { display: block; font-weight: 600; font-size: 0.88rem; color: var(--color-text-secondary); margin-bottom: 6px; }
 .source-input {
-  width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px;
+  width: 100%; padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px;
   font-size: 0.95rem; box-sizing: border-box;
 }
 .provider-select {
-  width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px;
-  font-size: 0.95rem; box-sizing: border-box; background: #fff;
+  width: 100%; padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px;
+  font-size: 0.95rem; box-sizing: border-box; background: var(--color-surface);
 }
-.source-input:focus { outline: none; border-color: #4f46e5; }
+.source-input:focus { outline: none; border-color: var(--color-primary); }
 .field-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
 .preview-actions { margin-top: 8px; }
-.upload-error { color: #dc2626; margin-top: 10px; }
-.upload-success { color: #16a34a; margin-top: 10px; }
+.upload-error { color: var(--color-danger); margin-top: 10px; }
+.upload-success { color: var(--color-success); margin-top: 10px; }
 
 @media (max-width: 480px) {
   .presentation-manage-page { padding: 14px; }

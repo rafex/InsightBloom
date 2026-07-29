@@ -74,15 +74,15 @@ export default {
 </script>
 
 <style scoped>
-.jitsi-invite-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f5f3ff; color: #1e1b4b; font-family: system-ui, sans-serif; }
-.invite-card { width: min(100%, 460px); padding: 36px 28px; text-align: center; background: #fff; border: 1px solid #ddd6fe; border-radius: 18px; box-shadow: 0 12px 32px rgba(49, 46, 129, .12); }
+.jitsi-invite-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--color-bg); color: var(--color-heading); font-family: system-ui, sans-serif; }
+.invite-card { width: min(100%, 460px); padding: 36px 28px; text-align: center; background: var(--color-surface); border: 1px solid var(--color-primary-border); border-radius: 18px; box-shadow: 0 12px 32px rgba(49, 46, 129, .12); }
 .invite-card h1 { margin: 12px 0 8px; font-size: 1.45rem; }
-.invite-card p { margin: 0; color: #6b7280; line-height: 1.55; }
+.invite-card p { margin: 0; color: var(--color-text-muted); line-height: 1.55; }
 .icon { font-size: 2.25rem; }
-.spinner { width: 28px; height: 28px; margin: 0 auto 18px; border: 3px solid #ddd6fe; border-top-color: #4f46e5; border-radius: 50%; animation: spin .8s linear infinite; }
+.spinner { width: 28px; height: 28px; margin: 0 auto 18px; border: 3px solid var(--color-primary-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin .8s linear infinite; }
 .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
 .actions a { display: inline-block; padding: 10px 16px; border-radius: 9px; text-decoration: none; font-weight: 700; }
-.primary { background: #4f46e5; color: #fff; }
-.secondary { border: 1px solid #a5b4fc; color: #4338ca; background: #eef2ff; }
+.primary { background: var(--color-primary); color: var(--color-text-inverse); }
+.secondary { border: 1px solid var(--color-primary-border); color: var(--color-primary-dark); background: var(--color-primary-soft); }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

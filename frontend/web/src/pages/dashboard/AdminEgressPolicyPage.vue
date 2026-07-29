@@ -83,16 +83,16 @@ export default {
 
 <style scoped>
 .egress-policy-page { padding: 24px; max-width: 720px; margin: 0 auto; }
-h2 { color: #1e1b4b; margin-bottom: 8px; }
-.loading-text { color: #6b7280; }
-.field-hint { margin: 0 0 16px; font-size: 0.85rem; color: #6b7280; }
-.settings-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; }
+h2 { color: var(--color-heading); margin-bottom: 8px; }
+.loading-text { color: var(--color-text-muted); }
+.field-hint { margin: 0 0 16px; font-size: 0.85rem; color: var(--color-text-muted); }
+.settings-card { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
-.form-group label { font-weight: 600; font-size: 0.9rem; color: #374151; }
+.form-group label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
 .form-group textarea {
-  padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.85rem;
+  padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.85rem;
   font-family: monospace; resize: vertical;
 }
-.success { color: #166534; font-size: 0.85rem; margin-top: 10px; }
-.error { color: #dc2626; font-size: 0.85rem; margin-top: 10px; }
+.success { color: var(--color-success); font-size: 0.85rem; margin-top: 10px; }
+.error { color: var(--color-danger); font-size: 0.85rem; margin-top: 10px; }
 </style>
