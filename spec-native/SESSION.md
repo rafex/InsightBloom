@@ -92,7 +92,8 @@ Priorizar las 4 páginas de alto tráfico con formularios reales:
 ### Fase 4.4 — Botones-enlace (`.link-btn` classes)
 
 - [x] Crear clases `.link-btn`, `.link-btn-primary`, `.link-btn-secondary` en `global.css`
-- [ ] Migrar todos los `router-link.btn-primary` / `router-link.btn-outline`: `DashboardHome` ya está migrado; quedan `PublicEventDetailPage`, `ConferencesListPage`, `NewConferencePage` y `EditConferencePage`
+- [x] Migrar los enlaces de `DashboardHome`, `PublicEventDetailPage`, `ConferencesListPage`,
+  `NewConferencePage` y `EditConferencePage` a `link-btn-*`
 
 ### Bloque completado en este checkpoint
 

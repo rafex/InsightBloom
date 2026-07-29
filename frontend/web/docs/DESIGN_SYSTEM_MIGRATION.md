@@ -211,34 +211,33 @@ alto alcance, aunque de bajo riesgo porque son solo valores por defecto que las 
 
 ### Fase 4.2 — Migrar botones, página por página
 
-Lista completa de los 29 archivos con `.btn-primary` local (generada con
-`grep -rl '\.btn-primary\s*{' src/pages src/components`):
+Lista histórica de archivos que requerían migración de botones. El estado vigente se verifica
+con `npm run lint:ui-governance` y con el checkpoint de `spec-native/SESSION.md`.
 
 **Alto tráfico (migrar primero)**:
-- [ ] `src/pages/login/LoginPage.vue`
-- [ ] `src/pages/login/RegisterPage.vue`
-- [ ] `src/pages/dashboard/DashboardHome.vue`
-- [ ] `src/pages/dashboard/ConferencesListPage.vue`
-- [ ] `src/pages/dashboard/NewConferencePage.vue`
-- [ ] `src/pages/dashboard/EditConferencePage.vue`
-- [ ] `src/pages/public/PublicEventDetailPage.vue`
-- [ ] `src/pages/conference/TicketPage.vue`
+- [x] `src/pages/login/LoginPage.vue`
+- [x] `src/pages/login/RegisterPage.vue`
+- [x] `src/pages/dashboard/DashboardHome.vue`
+- [x] `src/pages/dashboard/ConferencesListPage.vue`
+- [x] `src/pages/dashboard/NewConferencePage.vue`
+- [x] `src/pages/dashboard/EditConferencePage.vue`
+- [x] `src/pages/public/PublicEventDetailPage.vue`
+- [x] `src/pages/conference/TicketPage.vue`
 
 **Dashboard / configuración (segunda tanda)**:
-- [ ] `src/pages/dashboard/TicketManagementPage.vue`
-- [ ] `src/pages/dashboard/SurveyManagePage.vue`
-- [ ] `src/pages/dashboard/AdminAiSettingsPage.vue`
-- [ ] `src/pages/dashboard/AdminDeviceAccessPage.vue`
-- [ ] `src/pages/dashboard/AdminEgressPolicyPage.vue`
-- [ ] `src/pages/dashboard/EventTypesAdminPage.vue`
-- [ ] `src/pages/dashboard/RolesAdminPage.vue`
-- [ ] `src/pages/dashboard/CertificateSettingsPage.vue`
-- [ ] `src/pages/dashboard/CertificateEditorPage.vue`
-- [ ] `src/pages/dashboard/PresentationManagePage.vue`
-- [ ] `src/pages/dashboard/VenueMapEditorPage.vue`
-- [ ] `src/pages/dashboard/SpeakerPanelPage.vue`
-- [ ] `src/pages/dashboard/JoinConferencePage.vue`
-- [ ] `src/pages/profile/ProfilePage.vue`
+- [x] `src/pages/dashboard/TicketManagementPage.vue`
+- [x] `src/pages/dashboard/SurveyManagePage.vue`
+- [x] `src/pages/dashboard/AdminAiSettingsPage.vue`
+- [x] `src/pages/dashboard/AdminDeviceAccessPage.vue`
+- [x] `src/pages/dashboard/AdminEgressPolicyPage.vue`
+- [x] `src/pages/dashboard/EventTypesAdminPage.vue`
+- [x] `src/pages/dashboard/RolesAdminPage.vue`
+- [x] `src/pages/dashboard/CertificateSettingsPage.vue`
+- [x] `src/pages/dashboard/CertificateEditorPage.vue`
+- [x] `src/pages/dashboard/PresentationManagePage.vue`
+- [x] `src/pages/dashboard/VenueMapEditorPage.vue`
+- [x] `src/pages/dashboard/JoinConferencePage.vue`
+- [x] `src/pages/profile/ProfilePage.vue`
 
 **Vistas del asistente / resto**:
 - [ ] `src/pages/conference/PresentationPage.vue`

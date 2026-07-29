@@ -15,7 +15,9 @@ const legacySelectorAllowlist = new Set([
   'src/pages/dashboard/ModerationWordsPage.vue',
   'src/pages/dashboard/PresentationManagePage.vue',
   'src/pages/dashboard/SpeakerPanelPage.vue',
-  'src/components/QrCodeModal.vue'
+  'src/components/QrCodeModal.vue',
+  // Excepción: el tema editorial cambia deliberadamente el contraste del enlace canónico.
+  'src/pages/public/PublicEventDetailPage.vue'
 ])
 
 function collectFiles(directory) {
