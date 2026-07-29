@@ -40,46 +40,46 @@
       .conf-toolbar-wrap(:class="{ 'fade-left': toolbarFadeLeft, 'fade-right': toolbarFadeRight }")
         nav.conf-toolbar(ref="toolbarRef" aria-label="Herramientas del evento" @scroll.passive="updateToolbarFades")
           router-link#onboarding-tab-flyer.tool-btn(:to="`/c/${friendlyId}/flyer`" active-class="active-tab" title="Flyer")
-            span.tool-icon 🖼️
+            UiIcon.tool-icon(name="flyer" size="18")
             span.tool-label Flyer
           router-link#onboarding-tab-ticket.tool-btn(v-if="hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :to="`/c/${friendlyId}/ticket`" active-class="active-tab" title="Mi boleto")
-            span.tool-icon 🎟️
+            UiIcon.tool-icon(name="ticket" size="18")
             span.tool-label Mi boleto
           router-link#onboarding-tab-schedule.tool-btn(:to="`/c/${friendlyId}/schedule`" active-class="active-tab" title="Cronograma")
-            span.tool-icon 🗓️
+            UiIcon.tool-icon(name="calendar" size="18")
             span.tool-label Cronograma
           router-link#onboarding-tab-doubts.tool-btn(v-if="privateAllowed('WORD_CLOUD') && toolReleased('DOUBTS')" :to="`/c/${friendlyId}/doubts`" active-class="active-tab" title="Dudas")
-            span.tool-icon ❓
+            UiIcon.tool-icon(name="help" size="18")
             span.tool-label Dudas
           router-link#onboarding-tab-topics.tool-btn(v-if="privateAllowed('WORD_CLOUD') && toolReleased('TOPICS')" :to="`/c/${friendlyId}/topics`" active-class="active-tab" title="Temas")
-            span.tool-icon 💡
+            UiIcon.tool-icon(name="idea" size="18")
             span.tool-label Temas
           router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION') && toolReleased('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
-            span.tool-icon 📽️
+            UiIcon.tool-icon(name="presentation" size="18")
             span.tool-label Presentación
           a#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && toolReleased('CHAT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
-            span.tool-icon 💬
+            UiIcon.tool-icon(name="chat" size="18")
             span.tool-label Chat
           a#onboarding-tab-chat.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT') && toolReleased('CHAT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo" @click="openChat")
-            span.tool-icon 💬
+            UiIcon.tool-icon(name="chat" size="18")
             span.tool-label Chat
           router-link#onboarding-tab-survey.tool-btn(v-if="privateAllowed('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
-            span.tool-icon 📝
+            UiIcon.tool-icon(name="survey" size="18")
             span.tool-label Encuesta
           router-link#onboarding-tab-video.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE') && toolReleased('VIDEO')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
-            span.tool-icon 🎥
+            UiIcon.tool-icon(name="video" size="18")
             span.tool-label Videollamada
           router-link#onboarding-tab-diagrams.tool-btn(v-if="canvasAllowed('DRAWIO', 'DIAGRAMMING') && toolReleased('DIAGRAMS')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
-            span.tool-icon 🧩
+            UiIcon.tool-icon(name="diagram" size="18")
             span.tool-label Diagramas
           router-link#onboarding-tab-whiteboard.tool-btn(v-if="canvasAllowed('EXCALIDRAW', 'WHITEBOARD') && toolReleased('WHITEBOARD')" :to="`/c/${friendlyId}/whiteboard`" active-class="active-tab" title="Pizarra")
-            span.tool-icon 🖍️
+            UiIcon.tool-icon(name="whiteboard" size="18")
             span.tool-label Pizarra
           router-link#onboarding-tab-notes.tool-btn(v-if="canvasAllowed('ETHERPAD', 'COLLAB_NOTES') && toolReleased('NOTES')" :to="`/c/${friendlyId}/notes`" active-class="active-tab" title="Notas")
-            span.tool-icon 🗒️
+            UiIcon.tool-icon(name="notes" size="18")
             span.tool-label Notas
           router-link#onboarding-tab-ide.tool-btn(v-if="privateAllowed('CODE_IDE') && toolReleased('IDE')" :to="`/c/${friendlyId}/ide`" active-class="active-tab" title="IDE de código")
-            span.tool-icon 💻
+            UiIcon.tool-icon(name="code" size="18")
             span.tool-label IDE
     .conf-body
       .anon-banner(v-if="isAnonymous && !$route.path.endsWith('/presentation')")
@@ -98,6 +98,7 @@
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
+import UiIcon from '@/components/ui/UiIcon.vue'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess, getPresentationManagementAccess, createChatSsoExchange, getToolAccess } from '@/services/api/usersApi'
@@ -122,7 +123,7 @@ const ATTENDEE_TOUR_STEPS = [
 
 export default {
   name: 'ConferencePage',
-  components: { AppHeader, ConferenceIntroMap, OnboardingTour },
+  components: { AppHeader, ConferenceIntroMap, OnboardingTour, UiIcon },
   setup() {
     const route      = useRoute()
     const friendlyId = route.params.friendlyId as string

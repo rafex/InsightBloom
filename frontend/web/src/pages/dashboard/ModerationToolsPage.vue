@@ -18,7 +18,9 @@
   .tool-card(v-for="tool in tools" :key="tool.key" v-else)
     .tool-card-header
       div
-        strong {{ tool.icon }} {{ tool.label }}
+        strong
+          UiIcon(:name="tool.icon" size="18" aria-hidden="true")
+          | {{ tool.label }}
         span.tool-status(:class="{ on: matrix[tool.key]?.releasedForAll }")
           | {{ matrix[tool.key]?.releasedForAll ? 'Liberado para todos' : 'Bloqueado' }}
       ToggleSwitch(
@@ -47,25 +49,26 @@ import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
+import UiIcon from '@/components/ui/UiIcon.vue'
 import { getToolAccessManagement, releaseTool, lockTool, releaseAllTools as releaseAllToolsApi } from '@/services/api/usersApi'
 import type { ToolKeyName, ToolManagementEntry } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 const TOOLS: { key: ToolKeyName, label: string, icon: string }[] = [
-  { key: 'DOUBTS', label: 'Dudas', icon: '❓' },
-  { key: 'TOPICS', label: 'Temas', icon: '💡' },
-  { key: 'PRESENTATION', label: 'Presentación', icon: '📽️' },
-  { key: 'CHAT', label: 'Chat', icon: '💬' },
-  { key: 'VIDEO', label: 'Videollamada', icon: '🎥' },
-  { key: 'DIAGRAMS', label: 'Diagramas', icon: '🧩' },
-  { key: 'WHITEBOARD', label: 'Pizarra', icon: '🖍️' },
-  { key: 'NOTES', label: 'Notas', icon: '🗒️' },
-  { key: 'IDE', label: 'IDE de código', icon: '💻' }
+  { key: 'DOUBTS', label: 'Dudas', icon: 'help' },
+  { key: 'TOPICS', label: 'Temas', icon: 'idea' },
+  { key: 'PRESENTATION', label: 'Presentación', icon: 'presentation' },
+  { key: 'CHAT', label: 'Chat', icon: 'chat' },
+  { key: 'VIDEO', label: 'Videollamada', icon: 'video' },
+  { key: 'DIAGRAMS', label: 'Diagramas', icon: 'diagram' },
+  { key: 'WHITEBOARD', label: 'Pizarra', icon: 'whiteboard' },
+  { key: 'NOTES', label: 'Notas', icon: 'notes' },
+  { key: 'IDE', label: 'IDE de código', icon: 'code' }
 ]
 
 export default {
   name: 'ModerationToolsPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, ToggleSwitch },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, ToggleSwitch, UiIcon },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -165,6 +168,7 @@ export default {
   padding: 16px 20px; margin-bottom: 12px; background: var(--color-surface);
 }
 .tool-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tool-card-header strong { display: inline-flex; align-items: center; gap: 8px; }
 .tool-status {
   display: block; font-size: 0.8rem; margin-top: 2px; color: var(--color-text-muted);
 }
