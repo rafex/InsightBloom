@@ -25,7 +25,7 @@ export default {
 .flyer-page { max-width: 720px; margin: 0 auto; padding: 24px; text-align: center; }
 .flyer-image { max-width: 100%; border-radius: 12px; box-shadow: var(--shadow-card, 0 1px 3px rgba(17,24,39,.12)); }
 .flyer-fallback { padding: 48px 24px; }
-.flyer-fallback h2 { margin: 0 0 12px; color: var(--color-text, #1e1b4b); }
-.flyer-fallback p { color: var(--color-text-secondary, #374151); line-height: 1.5; }
-.flyer-empty { color: var(--color-text-muted, #6b7280); }
+.flyer-fallback h2 { margin: 0 0 12px; color: var(--color-heading); }
+.flyer-fallback p { color: var(--color-text-secondary); line-height: 1.5; }
+.flyer-empty { color: var(--color-text-muted); }
 </style>

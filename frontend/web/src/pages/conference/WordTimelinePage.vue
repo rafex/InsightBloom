@@ -49,18 +49,18 @@ export default {
 
 .breadcrumbs {
   display: flex; align-items: center; gap: 6px;
-  font-size: 0.85rem; color: #6b7280; margin-bottom: 20px; flex-wrap: wrap;
+  font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 20px; flex-wrap: wrap;
 }
-.breadcrumbs a { color: #4f46e5; text-decoration: none; }
+.breadcrumbs a { color: var(--color-primary); text-decoration: none; }
 .breadcrumbs a:hover { text-decoration: underline; }
-.sep { color: #d1d5db; }
-.crumb-current { color: #374151; font-weight: 600; font-family: monospace; }
+.sep { color: var(--color-border); }
+.crumb-current { color: var(--color-text-secondary); font-weight: 600; font-family: monospace; }
 
 .timeline-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
-h2 { margin: 0; color: #1e1b4b; font-size: 1.4rem; font-family: monospace; }
-.type-badge { padding: 4px 12px; background: #ede9fe; color: #4f46e5; border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
+h2 { margin: 0; color: var(--color-heading); font-size: 1.4rem; font-family: monospace; }
+.type-badge { padding: 4px 12px; background: var(--color-primary-soft); color: var(--color-primary); border-radius: 12px; font-size: 0.85rem; font-weight: 600; }
 .timeline-empty { text-align: center; color: var(--color-text-muted); padding: 60px; }
-.timeline-loading { text-align: center; color: #6b7280; padding: 40px; }
+.timeline-loading { text-align: center; color: var(--color-text-muted); padding: 40px; }
 
 @media (max-width: 640px) {
   .timeline-page { padding: 14px; }

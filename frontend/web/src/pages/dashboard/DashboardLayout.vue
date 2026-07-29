@@ -44,11 +44,11 @@ export default {
 </script>
 
 <style scoped>
-.dashboard-layout { min-height: 100vh; background: #f5f3ff; }
+.dashboard-layout { min-height: 100vh; background: var(--color-bg); }
 .dashboard-body { display: flex; position: relative; }
 .sidebar-toggle { display: none; }
 .sidebar-backdrop { display: none; }
-.sidebar { width: 220px; background: #fff; border-right: 1px solid #e5e7eb; min-height: calc(100vh - 56px); padding: 24px 16px; }
+.sidebar { width: 220px; background: var(--color-surface); border-right: 1px solid var(--color-border-subtle); min-height: calc(100vh - 56px); padding: 24px 16px; }
 .sidebar nav { display: flex; flex-direction: column; gap: 8px; }
 .nav-section { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
 .nav-section-title {
@@ -59,15 +59,15 @@ export default {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.sidebar nav a { padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #374151; font-size: 0.95rem; }
-.sidebar nav a:hover, .sidebar nav a.router-link-active { background: #ede9fe; color: #4f46e5; }
+.sidebar nav a { padding: 8px 12px; border-radius: 6px; text-decoration: none; color: var(--color-text-secondary); font-size: 0.95rem; }
+.sidebar nav a:hover, .sidebar nav a.router-link-active { background: var(--color-primary-soft); color: var(--color-primary); }
 .dashboard-main { flex: 1; padding: 32px; min-width: 0; }
 
 @media (max-width: 768px) {
   .sidebar-toggle {
     display: block; position: fixed; top: 64px; left: 12px; z-index: 60;
-    width: 40px; height: 40px; border-radius: 8px; border: 1px solid #e5e7eb;
-    background: #fff; color: #4f46e5; font-size: 1.1rem; cursor: pointer;
+    width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface); color: var(--color-primary); font-size: 1.1rem; cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
   .sidebar-backdrop {

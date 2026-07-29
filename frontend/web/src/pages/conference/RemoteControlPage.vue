@@ -64,14 +64,14 @@ export default {
 
 <style scoped>
 .remote-control-page { padding: 24px; max-width: 480px; margin: 0 auto; min-height: 80vh; display: flex; flex-direction: column; gap: 24px; }
-.remote-status { display: flex; align-items: center; gap: 8px; justify-content: center; color: #374151; font-size: 0.95rem; font-weight: 600; text-align: center; }
-.live-dot { width: 10px; height: 10px; border-radius: 50%; background: #d1d5db; flex-shrink: 0; }
-.live-dot.connected { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
+.remote-status { display: flex; align-items: center; gap: 8px; justify-content: center; color: var(--color-text-secondary); font-size: 0.95rem; font-weight: 600; text-align: center; }
+.live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-border); flex-shrink: 0; }
+.live-dot.connected { background: var(--color-success); box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
 .remote-buttons { display: flex; flex-direction: column; gap: 16px; flex: 1; }
 .btn-nav {
-  flex: 1; min-height: 120px; border-radius: 16px; border: 2px solid #c7d2fe; background: #eef2ff;
-  color: #4f46e5; font-weight: 700; font-size: 1.4rem; cursor: pointer;
+  flex: 1; min-height: 120px; border-radius: 16px; border: 2px solid var(--color-primary-border); background: var(--color-primary-soft);
+  color: var(--color-primary); font-weight: 700; font-size: 1.4rem; cursor: pointer;
 }
-.btn-nav:active { background: #e0e7ff; }
+.btn-nav:active { background: var(--color-primary-soft); }
 .btn-nav:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

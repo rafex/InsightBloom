@@ -43,7 +43,7 @@ export default {
 .ide-session-page {
   position: fixed;
   inset: 0;
-  background: #1e1e1e;
+  background: var(--color-heading);
 }
 
 .ide-frame {
@@ -60,7 +60,7 @@ export default {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #d1d5db;
+  color: var(--color-border);
   text-align: center;
   padding: 24px;
 }

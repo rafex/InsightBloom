@@ -39,8 +39,8 @@ export default {
   gap: 16px;
   flex-wrap: wrap;
   padding: 14px 20px;
-  background: #1e1b4b;
-  color: #e0e7ff;
+  background: var(--color-heading);
+  color: var(--color-primary-soft);
   font-size: 0.85rem;
 }
 .cookie-banner p { margin: 0; max-width: 640px; }
@@ -48,14 +48,14 @@ export default {
   padding: 8px 18px;
   border: none;
   border-radius: 8px;
-  background: #4f46e5;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   font-weight: 600;
   font-size: 0.85rem;
   cursor: pointer;
   flex-shrink: 0;
 }
-.btn-accept:hover { background: #4338ca; }
+.btn-accept:hover { background: var(--color-primary-dark); }
 
 @media (max-width: 480px) {
   .cookie-banner { flex-direction: column; text-align: center; padding: 12px 16px; }

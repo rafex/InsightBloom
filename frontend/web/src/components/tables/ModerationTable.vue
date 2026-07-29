@@ -28,15 +28,15 @@ export default {
 <style scoped>
 .moderation-table { width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-thead tr { background: #f3f4f6; }
-th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-tr:hover td { background: #f9fafb; }
+thead tr { background: var(--color-surface-muted); }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--color-border-subtle); }
+tr:hover td { background: var(--color-surface-muted); }
 .pagination {
   display: flex; gap: 12px; align-items: center; justify-content: flex-end;
   padding: 12px 0; font-size: 0.9rem;
 }
 button {
-  padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 6px;
+  padding: 6px 14px; border: 1px solid var(--color-border); border-radius: 6px;
   background: #fff; cursor: pointer;
 }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
