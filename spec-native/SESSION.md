@@ -2,15 +2,15 @@
 
 > **Iniciativa**: Migración a design system unificado
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
-> **Branch**: `design-system/baseline-css`
+> **Branch**: `agent/ui-ux-audit`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-28 19:00 (aprox)
+> **Último checkpoint**: 2026-07-28 20:36 (aprox)
 
 ## Estado
 
 | State    | Bloqueante | Próximo paso |
 |----------|------------|-------------|
-| `in_progress` | No | Continuar Phase 4.2 en dashboard/config; navegación global y contextual de evento ya consolidadas, frontend validado con build, typecheck y tests |
+| `in_progress` | No | Continuar pendientes de validación responsive y accesibilidad; navegación, breadcrumbs, configuración y acciones administrativas ya consolidadas |
 
 ## Resumen de avance
 
@@ -38,6 +38,8 @@ git stash list  # debería mostrar "pre-design-system-migration"
 ```
 
 ## Pendiente
+
+La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-005 a UX-TASK-019 salvo UX-TASK-012. El código de la lista ya incluye tarjetas responsive para viewport móvil, pero falta completar la validación manual documentada antes de marcarla como done. También siguen pendientes la prueba completa de teclado/lector, recorridos funcionales y verificación post-despliegue.
 
 ### Fase 4.2 — Alto tráfico
 
