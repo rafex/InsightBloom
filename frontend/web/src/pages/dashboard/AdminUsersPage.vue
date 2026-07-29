@@ -5,16 +5,20 @@
   h2 Usuarios
 
   .filters
-    select(v-model="statusFilter" @change="reload")
-      option(value="") Todos los estados
-      option(value="ACTIVE") Activos
-      option(value="INACTIVE") Inactivos
-      option(value="BANNED") Baneados
-      option(value="DELETED") Eliminados
-    select(v-model="roleFilter" @change="reload")
-      option(value="") Todos los roles
-      option(v-for="r in availableRoles" :key="r" :value="r") {{ r }}
-    button.btn-sort(type="button" @click="toggleSort")
+    label.filter-field
+      span Estado
+      select(v-model="statusFilter" @change="reload")
+        option(value="") Todos los estados
+        option(value="ACTIVE") Activos
+        option(value="INACTIVE") Inactivos
+        option(value="BANNED") Baneados
+        option(value="DELETED") Eliminados
+    label.filter-field
+      span Rol
+      select(v-model="roleFilter" @change="reload")
+        option(value="") Todos los roles
+        option(v-for="r in availableRoles" :key="r" :value="r") {{ r }}
+    BaseButton(variant="secondary" size="sm" type="button" @click="toggleSort")
       | Orden alfabético {{ sort === 'username' ? '✓' : '' }}
 
   .empty-state(v-if="!loading && users.length === 0")
@@ -47,13 +51,13 @@
                   input(type="checkbox" :value="r" v-model="editForm.roles")
                   span {{ r }}
               .actions-row
-                button.btn-sm.btn-primary-sm(:disabled="saving" @click="saveEdit(u)") Guardar
-                button.btn-sm.btn-ghost-sm(@click="editing = null") Cancelar
+                BaseButton(size="sm" :loading="saving" @click="saveEdit(u)") Guardar
+                BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
-              button.btn-sm.btn-edit(@click="startEdit(u)") Editar
-              button.btn-sm.btn-warning(v-if="u.status === 'ACTIVE'" @click="confirmAction(u, 'ban')") Banear
-              button.btn-sm.btn-success(v-if="u.status === 'BANNED'" @click="confirmAction(u, 'unban')") Reactivar
-              button.btn-sm.btn-danger(v-if="u.status !== 'DELETED'" @click="confirmAction(u, 'delete')") Eliminar
+              BaseButton(variant="secondary" size="sm" @click="startEdit(u)") Editar
+              BaseButton(variant="secondary" size="sm" v-if="u.status === 'ACTIVE'" @click="confirmAction(u, 'ban')") Banear
+              BaseButton(variant="secondary" size="sm" v-if="u.status === 'BANNED'" @click="confirmAction(u, 'unban')") Reactivar
+              BaseButton(variant="danger" size="sm" v-if="u.status !== 'DELETED'" @click="confirmAction(u, 'delete')") Eliminar
 
   .pagination(v-if="totalPages > 1")
     button(@click="goToPage(page - 1)" :disabled="page <= 1") ‹
@@ -65,8 +69,8 @@
       h4 {{ confirmTitle }}
       p {{ confirmMessage }}
       .confirm-actions
-        button.btn-cancel(@click="confirmTarget = null") Cancelar
-        button.btn-confirm(@click="runConfirmedAction") Confirmar
+        BaseButton(variant="ghost" @click="confirmTarget = null") Cancelar
+        BaseButton(:variant="confirmAction_ === 'delete' ? 'danger' : 'primary'" @click="runConfirmedAction") Confirmar
 </template>
 
 <script lang="ts">
@@ -75,6 +79,7 @@ import { useRouter } from 'vue-router'
 import { listUsers, updateUser, banUser, unbanUser, deleteUserLogical } from '@/services/api/adminApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 type ConfirmActionType = 'ban' | 'unban' | 'delete'
 
@@ -91,7 +96,7 @@ interface AdminUserRow {
 
 export default {
   name: 'AdminUsersPage',
-  components: { DashboardBreadcrumb },
+  components: { DashboardBreadcrumb, BaseButton },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
@@ -197,6 +202,7 @@ export default {
       users, loading, page, totalPages, statusFilter, roleFilter, sort, availableRoles,
       editing, editForm, saving,
       confirmTarget, confirmTitle, confirmMessage,
+      confirmAction_,
       reload, toggleSort, goToPage, goToDetail, statusLabel, startEdit, saveEdit, confirmAction, runConfirmedAction
     }
   }
@@ -207,9 +213,8 @@ export default {
 .admin-users-page { padding: 24px; max-width: 1280px; }
 h2 { color: #1e1b4b; margin-bottom: 20px; }
 .filters { margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filter-field { display: flex; align-items: center; gap: 6px; color: #4b5563; font-size: 0.82rem; font-weight: 600; }
 select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
-.btn-sort { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; background: #fff; cursor: pointer; }
-.btn-sort:hover { background: #f3f4f6; }
 .empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
 
 .table-scroll { overflow-x: auto; }
@@ -234,14 +239,6 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
 .actions input { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; }
 .actions-row { display: flex; gap: 6px; }
-.btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-.btn-edit { background: #e0e7ff; color: #4338ca; }
-.btn-warning { background: #fef3c7; color: #92400e; }
-.btn-success { background: #dcfce7; color: #166534; }
-.btn-danger { background: #fee2e2; color: #991b1b; }
-.btn-primary-sm { background: #4f46e5; color: #fff; }
-.btn-ghost-sm { background: #fff; color: #6b7280; border: 1px solid #e5e7eb; }
-
 .pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: #374151; }
 .pagination button { padding: 4px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }

@@ -4,9 +4,7 @@
 
   h2 Editor del evento
 
-  nav.sub-links(v-if="conferenceId")
-    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/edit`") Editor
-    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/config`") Configuración
+  ConferenceToolsNav(:conferenceId="conferenceId")
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
@@ -130,6 +128,7 @@
 import { ref, computed, onMounted } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FormField from '@/components/ui/FormField.vue'
 import { getConference, updateConference, uploadConferenceFlyer, getTimezones } from '@/services/api/usersApi'
@@ -141,7 +140,7 @@ const MAX_FLYER_BYTES = 8 * 1024 * 1024
 
 export default {
   name: 'EditConferencePage',
-  components: { ConferenceMap, DashboardBreadcrumb, BaseButton, FormField },
+  components: { ConferenceMap, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, FormField },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -340,13 +339,6 @@ Conclusiones, encuesta y entrega de certificados.`
 @media (max-width: 580px) { .theme-options { grid-template-columns: 1fr; } .theme-option { display: grid; grid-template-columns: 72px 1fr; align-items: center; }.theme-preview { grid-row: span 2; } }
 .edit-conf-page { max-width: 680px; }
 h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
-.sub-links { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; }
-.sub-link {
-  padding: 6px 14px; border: 1.5px solid #e5e7eb; border-radius: 20px; text-decoration: none;
-  color: #374151; font-size: 0.82rem; font-weight: 500; transition: all 0.15s;
-}
-.sub-link:hover { border-color: #a5b4fc; color: #4f46e5; }
-.sub-link.router-link-active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
 .readonly-group .readonly-value {
   padding: 10px 14px; border: 1.5px solid #e5e7eb; border-radius: 8px;
   background: #f9fafb; color: #6b7280; font-family: monospace; font-size: 0.9rem;

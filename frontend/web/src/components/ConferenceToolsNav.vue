@@ -1,22 +1,31 @@
 <template lang="pug">
 nav.tools-nav(v-if="conferenceId")
-  DropdownMenu(v-if="hasCapability('PRESENTATION') || hasCapability('SURVEY')" label="Presentador")
-    router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/speaker`") Presentar
+  DropdownMenu(v-if="hasCapability('PRESENTATION') || hasCapability('SURVEY')" label="Contenido")
+    router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/presentation`") Gestionar presentación
+    router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/speaker`") Presentar en vivo
     router-link(v-if="hasCapability('SURVEY')" :to="`/dashboard/conferences/${conferenceId}/survey`") Encuesta
-  a.btn-ghost(v-if="hasCapability('PRESENTATION') && friendlyId" :href="`/c/${friendlyId}/presentation`" @click.prevent="openPublic") 📺 Público
-  DropdownMenu(v-if="hasCapability('WORD_CLOUD')" label="Moderación")
-    router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Mensajes
-    router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/words`") Palabras/Nube
+    a(v-if="hasCapability('PRESENTATION') && friendlyId" :href="`/c/${friendlyId}/presentation`" @click.prevent="openPublic") Ver vista pública
+  DropdownMenu(label="Moderación")
+    router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Mensajes
+    router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/conferences/${conferenceId}/moderation/words`") Palabras/Nube
     router-link(v-if="hasCapability('CODE_IDE')" :to="`/dashboard/conferences/${conferenceId}/moderation/ide`") Editor Monaco
-  router-link.btn-ghost(:to="`/dashboard/conferences/${conferenceId}/moderation/tools`") 🔒 Herramientas
-  router-link.btn-ghost(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/presentation`") Presentación
+    router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/tools`") Herramientas
+    router-link(v-if="hasCapability('VIDEO_CONFERENCE') || hasCapability('CODE_IDE')" :to="`/dashboard/conferences/${conferenceId}/device-blocks`") Bloqueos
+  DropdownMenu(v-if="hasTicketing() || hasSeating()" label="Acceso")
+    router-link(v-if="hasTicketing()" :to="`/dashboard/conferences/${conferenceId}/tickets`") Boletos
+    router-link(v-if="hasSeating()" :to="`/dashboard/conferences/${conferenceId}/check-in`") Check-in
+    router-link(v-if="conference?.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Mapa de asientos
+  DropdownMenu(label="Configuración")
+    router-link(:to="`/dashboard/conferences/${conferenceId}/edit`") Datos del evento
+    router-link(:to="`/dashboard/conferences/${conferenceId}/config`") Configuración del evento
+    router-link(:to="`/dashboard/conferences/${conferenceId}/${conference?.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") Certificado
 </template>
 
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
 import { getConference, getActiveEventTypes } from '@/services/api/usersApi'
-import type { EventCapability, EventType } from '@/services/api/types'
+import type { Conference, EventCapability, EventType } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { eventTypeHasCapability } from '@/features/conferences/capabilities'
 
@@ -34,12 +43,21 @@ export default {
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
+    const conference = ref<Conference | null>(null)
     const friendlyId = ref('')
     const eventTypeKey = ref<string | undefined>(undefined)
     const eventTypes = ref<EventType[]>([])
 
     function hasCapability(capability: EventCapability): boolean {
       return eventTypeHasCapability(eventTypes.value, eventTypeKey.value, capability)
+    }
+
+    function hasTicketing(): boolean {
+      return hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')
+    }
+
+    function hasSeating(): boolean {
+      return Boolean(conference.value?.seatingMode && conference.value.seatingMode !== 'NONE')
     }
 
     function openPublic() {
@@ -55,13 +73,14 @@ export default {
           getConference(props.conferenceId, auth.state.token as string),
           getActiveEventTypes()
         ])
+        conference.value = conf
         friendlyId.value = conf?.friendlyId || ''
         eventTypeKey.value = conf?.eventTypeKey
         eventTypes.value = types
       } catch (e: any) { /* nav degrada a "mostrar todo" si el fetch falla, ver hasCapability */ }
     })
 
-    return { friendlyId, hasCapability, openPublic }
+    return { conference, friendlyId, hasCapability, hasTicketing, hasSeating, openPublic }
   }
 }
 </script>
@@ -74,18 +93,4 @@ export default {
   flex-wrap: wrap;
   margin-bottom: 20px;
 }
-.btn-ghost {
-  display: inline-block;
-  padding: 6px 14px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 20px;
-  text-decoration: none;
-  color: #374151;
-  font-size: 0.82rem;
-  font-weight: 500;
-  transition: all 0.15s;
-  background: none;
-}
-.btn-ghost:hover { border-color: #a5b4fc; color: #4f46e5; }
-.btn-ghost.router-link-active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
 </style>

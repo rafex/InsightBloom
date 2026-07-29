@@ -33,7 +33,7 @@
       tbody
         tr(v-for="c in conferences" :key="c.uuid || c.conferenceId")
           td.qr-col(data-label="QR")
-            button.btn-icon(@click="qrTarget = c" title="Ver código QR")
+              button.btn-icon(@click="qrTarget = c" title="Ver código QR" aria-label="Ver código QR")
               svg(xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
                 rect(x="3" y="3" width="7" height="7")
                 rect(x="14" y="3" width="7" height="7")
@@ -71,24 +71,20 @@
                 router-link(v-if="hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/device-blocks`") Bloqueos
           td.actions-cell(data-label="Acciones")
             .conf-actions
-              router-link.link-btn.link-btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Presentación
-              router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/${c.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") 🏅 Certificado
-              router-link.link-btn.link-btn-ghost(v-if="hasCapability(c, 'TICKETING_GENERAL') || hasCapability(c, 'TICKETING_SEATED')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/tickets`") 🎟️ Boletos
-              router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/tools`") 🔒 Herramientas
-              BaseButton(variant="ghost" v-if="!c.expiresAt" @click="toggleActive(c)" :disabled="c._togglingActive")
-                | {{ c.status === 'ACTIVE' ? 'Desactivar' : 'Activar' }}
-              router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editor
-              router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Configuración
-              template(v-if="c.seatingMode && c.seatingMode !== 'NONE'")
-                router-link.link-btn.link-btn-ghost(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/check-in`") Check-in
-                router-link.link-btn.link-btn-ghost(v-if="c.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/venue-map`") Mapa de asientos
-              BaseButton(variant="danger" @click="confirmDelete(c)" :disabled="c._deleting" title="Eliminar conferencia")
-                svg(xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
-                  polyline(points="3 6 5 6 21 6")
-                  path(d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6")
-                  path(d="M10 11v6")
-                  path(d="M14 11v6")
-                  path(d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2")
+              router-link.link-btn.link-btn-primary.link-btn-sm(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Abrir evento
+              DropdownMenu(label="Gestionar")
+                router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editar información
+                router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Configuración
+                router-link(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Gestionar presentación
+                router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/${c.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") Certificado
+                router-link(v-if="hasCapability(c, 'TICKETING_GENERAL') || hasCapability(c, 'TICKETING_SEATED')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/tickets`") Boletos
+                router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/tools`") Herramientas
+                router-link(v-if="c.seatingMode && c.seatingMode !== 'NONE'" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/check-in`") Check-in
+                router-link(v-if="c.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/venue-map`") Mapa de asientos
+              DropdownMenu(label="Más")
+                button.menu-item(v-if="!c.expiresAt" type="button" @click="toggleActive(c)" :disabled="c._togglingActive")
+                  | {{ c.status === 'ACTIVE' ? 'Desactivar evento' : 'Activar evento' }}
+                button.menu-item.menu-item-danger(type="button" @click="confirmDelete(c)" :disabled="c._deleting") Eliminar evento
 
   .confirm-overlay(v-if="deleteTarget" @click.self="deleteTarget = null")
     .confirm-dialog
@@ -267,17 +263,6 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
 .conf-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .conf-modes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
-.btn-trash {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px;
-  background: transparent; color: var(--color-text-muted);
-  border: 1px solid #e5e7eb; border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.btn-trash:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
-.btn-trash:disabled { opacity: 0.4; cursor: not-allowed; }
-
 .confirm-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4);
   display: flex; align-items: center; justify-content: center; z-index: 100;
@@ -331,11 +316,10 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
   }
   .conferences-table td.actions-cell::before { margin-bottom: 8px; }
   .conf-actions, .conf-modes { gap: 7px; }
-  .conf-actions .btn-ghost, .conf-actions .btn-trash,
-  .conf-modes .btn-ghost, .conf-modes :deep(.dropdown-trigger) {
+  .conf-actions .link-btn, .conf-actions :deep(.dropdown-trigger),
+  .conf-modes :deep(.dropdown-trigger) {
     min-height: 36px; padding: 7px 10px; font-size: 0.76rem;
   }
-  .conf-actions .btn-trash { width: 36px; }
   .type-badge, .status-badge { justify-self: start; }
 
   @media (max-width: 380px) {
@@ -343,7 +327,7 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
     .header-actions { flex-direction: column; }
     .header-actions > * { flex-basis: auto; width: 100%; }
     .conferences-table td { grid-template-columns: 78px minmax(0, 1fr); gap: 8px; }
-    .conf-actions .btn-ghost, .conf-modes .btn-ghost,
+    .conf-actions .link-btn, .conf-actions :deep(.dropdown-trigger),
     .conf-modes :deep(.dropdown-trigger) { padding-left: 8px; padding-right: 8px; }
   }
 }

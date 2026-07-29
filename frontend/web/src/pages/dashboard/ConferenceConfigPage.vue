@@ -3,18 +3,20 @@
   DashboardBreadcrumb(:items="breadcrumbItems")
 
   h2 Configuración del evento
+  .save-state(:class="`state-${saveStateKind}`" role="status" aria-live="polite")
+    span.save-state-dot(aria-hidden="true")
+    span {{ saveStateLabel }}
 
-  nav.sub-links(v-if="conferenceId")
-    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/edit`") Editor
-    router-link.sub-link(:to="`/dashboard/conferences/${conferenceId}/config`") Configuración
+  ConferenceToolsNav(:conferenceId="conferenceId")
 
   nav.config-tabs(v-if="!loading && !error" role="tablist" aria-label="Secciones de configuración")
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'general'" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'") General
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'tools'" :class="{ active: activeTab === 'tools' }" @click="activeTab = 'tools'") Herramientas
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'sandbox'" :class="{ active: activeTab === 'sandbox' }" @click="activeTab = 'sandbox'") IDE y sandboxes
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'access'" :class="{ active: activeTab === 'access' }" @click="activeTab = 'access'") Acceso y roles
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'ai'" :class="{ active: activeTab === 'ai' }" @click="activeTab = 'ai'") 🤖 IA
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="activeTab = 'network'") 🌐 Red
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'general'" :class="{ active: activeTab === 'general' }" @click="selectTab('general')") General
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'tools'" :class="{ active: activeTab === 'tools' }" @click="selectTab('tools')") Contenido y herramientas
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'sandbox'" :class="{ active: activeTab === 'sandbox' }" @click="selectTab('sandbox')") IDE y sandboxes
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'access'" :class="{ active: activeTab === 'access' }" @click="selectTab('access')") Acceso y boletos
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'roles'" :class="{ active: activeTab === 'roles' }" @click="selectTab('roles')") Roles y moderación
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'ai'" :class="{ active: activeTab === 'ai' }" @click="selectTab('ai')") 🤖 IA
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="selectTab('network')") 🌐 Red
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
@@ -24,7 +26,7 @@
       select(v-model="eventTypeKey")
         option(v-for="t in eventTypes" :key="t.key" :value="t.key") {{ t.name }}
       p.field-hint Determina qué herramientas están disponibles (boletos, encuestas, videollamada...).
-      button.btn-outline(type="button" @click="saveEventType" :disabled="savingEventType")
+      BaseButton(variant="secondary" type="button" @click="saveEventType" :disabled="savingEventType")
         span(v-if="savingEventType") Guardando...
         span(v-else) Guardar tipo de evento
       p.success(v-if="eventTypeSaved") Tipo de evento actualizado.
@@ -36,7 +38,7 @@
         option(value="INHOUSE") Clásico (editor simple)
         option(value="HTML_CHROME") Visual (editor de diseños)
       p.field-hint El motor Clásico usa el editor simple y la configuración global como respaldo. El Visual usa el editor de diseños del evento y su catálogo de plantillas.
-      button.btn-outline(type="button" @click="saveCertificateEngine" :disabled="savingCertificateEngine")
+      BaseButton(variant="secondary" type="button" @click="saveCertificateEngine" :disabled="savingCertificateEngine")
         span(v-if="savingCertificateEngine") Guardando...
         span(v-else) Guardar motor de certificado
       p.success(v-if="certificateEngineSaved") Motor de certificado actualizado.
@@ -54,13 +56,13 @@
         select(v-model="canvasModes[tool]")
           option(v-for="option in canvasModeOptions(tool)" :key="option.value" :value="option.value") {{ option.label }}
       p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
-      button.btn-outline(type="button" @click="saveCanvasConfig" :disabled="savingCanvasConfig")
+      BaseButton(variant="secondary" type="button" @click="saveCanvasConfig" :disabled="savingCanvasConfig")
         span(v-if="savingCanvasConfig") Guardando...
         span(v-else) Guardar configuración del lienzo
       p.success(v-if="canvasConfigSaved") Configuración del lienzo guardada.
       p.error(v-if="canvasConfigError") {{ canvasConfigError }}
 
-    .form-group.tickets-group(v-show="activeTab === 'general'")
+    .form-group.tickets-group(v-show="activeTab === 'access'")
       label Boletos y aforo
       p.field-hint Elige cómo se registran los asistentes: sin control (solo unirse), con aforo, o con mapa de asientos.
       select(v-model="seatingMode")
@@ -72,14 +74,14 @@
         input(v-model.number="capacity" type="number" min="2" placeholder="10")
       p.field-hint Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), sin importar el modo de boletos elegido — la infraestructura tiene recursos limitados. El mínimo es 2 porque el creador ocupa un boleto operativo contado. Cada moderador adicional ocupa otra plaza. Recomendado hasta {{ recommendedMaxCapacity }}.
       p.capacity-alert(v-if="capacityAlert" :class="capacityAlert.level") {{ capacityAlert.text }}
-      button.btn-outline(type="button" @click="saveSeating" :disabled="savingSeating")
+      BaseButton(variant="secondary" type="button" @click="saveSeating" :disabled="savingSeating")
         span(v-if="savingSeating") Guardando...
         span(v-else) Guardar configuración de boletos
       p.success(v-if="seatingSaved") Configuración de boletos guardada.
       p.error(v-if="seatingError") {{ seatingError }}
       ToggleSwitch(v-model="ticketSalesEnabled") Permitir adquisición de boletos desde la cartelera pública
       p.field-hint El evento puede seguir activo aunque cierres la emisión de boletos. Los boletos ya emitidos conservan su acceso.
-      button.btn-outline(type="button" @click="saveTicketSales" :disabled="savingTicketSales")
+      BaseButton(variant="secondary" type="button" @click="saveTicketSales" :disabled="savingTicketSales")
         span(v-if="savingTicketSales") Guardando...
         span(v-else) Guardar disponibilidad de boletos
       p.success(v-if="ticketSalesSaved") Disponibilidad de boletos actualizada.
@@ -112,7 +114,7 @@
         span.coord-label Memoria máxima de Java por sandbox (MB, opcional)
         input(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="70 (por defecto)")
       p.field-hint Cuánta memoria puede usar cada programa de Java que corran los asistentes (incluido el autocompletado del editor). El valor por defecto (70 MB) está pensado para cursos: alcanza para ejercicios y no acapara el sandbox. Si ponés un valor mayor al que soporta la infraestructura, el servidor rechaza el guardado y te lo indica.
-      button.btn-outline(type="button" @click="saveSandboxConfig" :disabled="savingSandboxConfig")
+      BaseButton(variant="secondary" type="button" @click="saveSandboxConfig" :disabled="savingSandboxConfig")
         span(v-if="savingSandboxConfig") Guardando...
         span(v-else) Guardar configuración del IDE
       p.success(v-if="sandboxConfigSaved") Configuración del IDE guardada.
@@ -123,11 +125,11 @@
       .sandbox-status
         .coord-field
           span.coord-label Estado de las máquinas
-          button.btn-outline(type="button" @click="loadSandboxStatus" :disabled="loadingSandboxStatus")
+          BaseButton(variant="secondary" size="sm" type="button" @click="loadSandboxStatus" :disabled="loadingSandboxStatus")
             span(v-if="loadingSandboxStatus") Cargando...
             span(v-else) Ver estado de sandboxes
         .prewarm-control
-          button.btn-outline(type="button" @click="prewarmSandboxPool" :disabled="prewarmingSandboxPool")
+          BaseButton(variant="secondary" size="sm" type="button" @click="prewarmSandboxPool" :disabled="prewarmingSandboxPool")
             span(v-if="prewarmingSandboxPool") Preparando...
             span(v-else) Preparar sandboxes antes del evento
           p.field-hint Crea por adelantado los sandboxes Web y CLI configurados, pero no los asigna a ningún alumno. Quedan listos para reclamarse cuando entren los asistentes.
@@ -174,7 +176,7 @@
       .sandbox-incidents(v-if="cliEnabled")
         .coord-field
           span.coord-label Incidentes de recursos
-          button.btn-outline(type="button" @click="loadSandboxIncidents" :disabled="loadingSandboxIncidents")
+          BaseButton(variant="secondary" size="sm" type="button" @click="loadSandboxIncidents" :disabled="loadingSandboxIncidents")
             span(v-if="loadingSandboxIncidents") Cargando...
             span(v-else) Ver incidentes
         p.field-hint Cuando un sandbox compartido detecta que un alumno acapara CPU/memoria (por error o a propósito), lo reinicia automáticamente y lo registra acá — para que sepas quién está causando problemas.
@@ -205,13 +207,13 @@
       .coord-field
         span.coord-label Máx. cuentas distintas por dispositivo antes de bloquear
         input(v-model.number="maxAccountsPerDevice" type="number" min="1" max="50" placeholder="3 (por defecto)")
-      button.btn-outline(type="button" @click="saveDeviceAccessConfig" :disabled="savingDeviceAccessConfig")
+      BaseButton(variant="secondary" type="button" @click="saveDeviceAccessConfig" :disabled="savingDeviceAccessConfig")
         span(v-if="savingDeviceAccessConfig") Guardando...
         span(v-else) Guardar acceso por dispositivo
       p.success(v-if="deviceAccessConfigSaved") Configuración de acceso por dispositivo guardada.
       p.error(v-if="deviceAccessConfigError") {{ deviceAccessConfigError }}
 
-    .form-group.roles-group(v-if="canManageRoles" v-show="activeTab === 'access'")
+    .form-group.roles-group(v-if="canManageRoles" v-show="activeTab === 'roles'")
       label Roles del evento
       p.field-hint Asigna moderadores, staff de acceso u otros roles a personas solo para este evento.
       .roles-list(v-if="eventRoles.length")
@@ -223,12 +225,13 @@
         input(v-model="assignIdentifier" type="text" placeholder="Email o usuario")
         select(v-model="assignRoleKey")
           option(v-for="role in assignableRoles" :key="role.key" :value="role.key") {{ role.name }}
-        button.btn-outline(type="button" @click="assignRole" :disabled="assigning") Asignar
+        BaseButton(variant="secondary" size="sm" type="button" @click="assignRole" :disabled="assigning") Asignar
       p.success(v-if="roleAssigned") Rol asignado.
       p.error(v-if="roleError") {{ roleError }}
 
     .form-group.mentor-group(v-show="activeTab === 'ai'")
       label Tutor IA del evento
+      span.scope-badge Configuración de este evento
       p.field-hint Configuración pedagógica exclusiva de este evento. El proveedor, la URL base y la clave del Tutor IA (compartidos por toda la plataforma) se configuran aparte, en #[router-link(to="/dashboard/admin/ai/tutor") IA → Tutor IA] (solo administradores).
       ToggleSwitch(v-model="mentorEnabled" :disabled="savingMentor")
         | {{ mentorEnabled ? 'Tutor habilitado para los asistentes' : 'Tutor deshabilitado para los asistentes' }}
@@ -243,7 +246,7 @@
       .coord-field
         span.coord-label Máximo de consultas por usuario/minuto
         input(v-model.number="mentorMaxRequests" type="number" min="1" max="30" :disabled="savingMentor")
-      button.btn-outline(type="button" @click="saveMentor" :disabled="savingMentor")
+      BaseButton(variant="secondary" type="button" @click="saveMentor" :disabled="savingMentor")
         span(v-if="savingMentor") Guardando...
         span(v-else) Guardar configuración pedagógica del evento
       p.success(v-if="mentorSaved") Configuración del tutor IA guardada.
@@ -255,7 +258,7 @@
       .coord-field
         span.coord-label Contexto adicional para sugerir preguntas
         textarea(v-model="surveyExtraContext" rows="5" maxlength="4000" placeholder="Por ejemplo: enfatizar seguridad y buenas prácticas, o los temas del capítulo 3 del material del curso")
-      button.btn-outline(type="button" @click="saveSurveyAiConfig" :disabled="savingSurveyAiConfig")
+      BaseButton(variant="secondary" type="button" @click="saveSurveyAiConfig" :disabled="savingSurveyAiConfig")
         span(v-if="savingSurveyAiConfig") Guardando...
         span(v-else) Guardar contexto de Encuesta IA
       p.success(v-if="surveyAiConfigSaved") Contexto de Encuesta IA guardado.
@@ -272,7 +275,7 @@
       .coord-field
         span.coord-label Lista negra adicional (bloqueados)
         textarea(v-model="egressBlockedHosts" rows="3" placeholder="dominio-a-bloquear.com")
-      button.btn-outline(type="button" @click="saveEgressPolicy" :disabled="savingEgressPolicy")
+      BaseButton(variant="secondary" type="button" @click="saveEgressPolicy" :disabled="savingEgressPolicy")
         span(v-if="savingEgressPolicy") Guardando...
         span(v-else) Guardar control de red
       p.success(v-if="egressPolicySaved") Control de red del evento guardado.
@@ -315,12 +318,14 @@ import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, San
 import { useAuthStore } from '@/features/auth/authStore'
 import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarning'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, BaseModal, ToggleSwitch },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseModal, ToggleSwitch },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -328,7 +333,7 @@ export default {
     const loading      = ref(true)
     const error        = ref('')
 
-    const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access' | 'ai' | 'network'>('general')
+    const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access' | 'roles' | 'ai' | 'network'>('general')
     const seatingMode  = ref<SeatingMode>('NONE')
     const capacity     = ref<number | null>(null)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
@@ -534,6 +539,23 @@ export default {
       ticketSalesSaved, sandboxConfigSaved, deviceAccessConfigSaved, egressPolicySaved,
       mentorSaved, surveyAiConfigSaved]
     savedFlags.forEach((flag) => watch(flag, (saved) => { if (saved) formDirty.value = false }))
+
+    const savingFlags = [savingEventType, savingCertificateEngine, savingCanvasConfig, savingSeating,
+      savingTicketSales, savingSandboxConfig, savingSandboxInternet, savingDeviceAccessConfig,
+      savingEgressPolicy, savingMentor, savingSurveyAiConfig]
+    const saveStateLabel = computed(() => {
+      if (savingFlags.some((flag) => flag.value)) return 'Guardando'
+      if (formDirty.value) return 'Cambios pendientes'
+      if (savedFlags.some((flag) => flag.value)) return 'Guardado'
+      return 'Sin cambios'
+    })
+    const saveStateKind = computed(() => saveStateLabel.value.toLowerCase().replaceAll(' ', '-'))
+    function selectTab(tab: typeof activeTab.value) {
+      if (tab === activeTab.value) return
+      if (formDirty.value && !window.confirm('Hay cambios sin guardar en esta sección. ¿Cambiar de pestaña de todos modos?')) return
+      activeTab.value = tab
+      formDirty.value = false
+    }
 
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       if (formDirty.value) { e.preventDefault(); e.returnValue = '' }
@@ -885,7 +907,7 @@ export default {
       return mode === 'MODERATOR_ONLY' ? 'MODERATOR_ONLY' : 'INDEPENDENT'
     }
 
-    return { conference, loading, error, activeTab,
+    return { conference, loading, error, activeTab, selectTab, saveStateLabel, saveStateKind,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              ticketSalesEnabled, savingTicketSales, ticketSalesSaved, ticketSalesError, saveTicketSales,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
@@ -924,13 +946,12 @@ export default {
 <style scoped>
 .conf-config-page { max-width: 680px; }
 h2 { color: #1e1b4b; margin-bottom: 8px; margin-top: 0; }
-.sub-links { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; }
-.sub-link {
-  padding: 6px 14px; border: 1.5px solid #e5e7eb; border-radius: 20px; text-decoration: none;
-  color: #374151; font-size: 0.82rem; font-weight: 500; transition: all 0.15s;
-}
-.sub-link:hover { border-color: #a5b4fc; color: #4f46e5; }
-.sub-link.router-link-active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+.save-state { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 14px; padding: 5px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+.save-state-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.state-sin-cambios { background: #f3f4f6; color: #6b7280; }
+.state-cambios-pendientes { background: #fef3c7; color: #92400e; }
+.state-guardando { background: #dbeafe; color: #1d4ed8; }
+.state-guardado { background: #dcfce7; color: #166534; }
 .config-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb; }
 .config-tab { padding: 8px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; color: #4b5563; cursor: pointer; font-size: 0.88rem; font-weight: 600; }
 .config-tab:hover { border-color: #a5b4fc; color: #4f46e5; }
@@ -948,6 +969,7 @@ input:focus { outline: none; border-color: #4f46e5; }
 textarea:focus { outline: none; border-color: #4f46e5; }
 
 .field-hint { margin: 4px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
+.scope-badge { align-self: flex-start; display: inline-flex; padding: 3px 9px; border-radius: 999px; background: #e0e7ff; color: #3730a3; font-size: 0.72rem; font-weight: 700; }
 .canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; }
 .canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
 .canvas-tool-option input { width: auto; }

@@ -5,9 +5,8 @@ header.app-header
     .header-brand
       router-link(to="/")
         img.brand-logo(src="@/assets/logo.svg" alt="InsightBloom")
-    nav.header-nav
+    nav.header-nav(aria-label="Acciones de sesión")
       span.version-tag(v-if="version") v{{ version }}{{ gitSha ? ' \u00b7 ' + gitSha : '' }}
-      router-link(v-if="auth.state.token" to="/dashboard") Panel
       a(v-if="auth.state.token" href="#" @click.prevent="logout") Salir
       router-link(v-else to="/login") Entrar
 </template>

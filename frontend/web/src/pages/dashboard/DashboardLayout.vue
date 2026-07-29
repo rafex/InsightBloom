@@ -5,20 +5,25 @@
     button.sidebar-toggle(type="button" @click="sidebarOpen = !sidebarOpen" :aria-expanded="sidebarOpen") ☰
     .sidebar-backdrop(v-if="sidebarOpen" @click="sidebarOpen = false")
     aside.sidebar(:class="{ open: sidebarOpen }")
-      nav
+      nav(aria-label="Navegación principal")
         router-link(to="/dashboard" active-class="" exact-active-class="router-link-active" @click="sidebarOpen = false") Inicio
-        router-link(to="/events" @click="sidebarOpen = false") Cartelera
-        router-link(v-if="isOrganizer" to="/dashboard/conferences" @click="sidebarOpen = false") Eventos
-        router-link(v-if="!isOrganizer" to="/dashboard/join" @click="sidebarOpen = false") Unirse a un evento
-        //- Rutas que existian pero eran huerfanas (auditoria UX): sin entrada en ninguna nav.
-        router-link(v-if="isOrganizer" to="/dashboard/certificate-settings" @click="sidebarOpen = false") Certificados
-        router-link(v-if="isAdmin" to="/dashboard/admin/event-types" @click="sidebarOpen = false") Tipos de evento
-        router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="sidebarOpen = false") Usuarios
-        router-link(v-if="isAdmin" to="/dashboard/admin/roles" @click="sidebarOpen = false") Roles
-        router-link(v-if="isAdmin" to="/dashboard/admin/ai" @click="sidebarOpen = false") IA
-        router-link(v-if="isAdmin" to="/dashboard/admin/device-access" @click="sidebarOpen = false") Acceso por dispositivo
-        router-link(v-if="isAdmin" to="/dashboard/admin/egress-policy" @click="sidebarOpen = false") Control de red
-        router-link(to="/profile" @click="sidebarOpen = false") Mi perfil
+        .nav-section
+          h2.nav-section-title Eventos
+          router-link(v-if="isOrganizer" to="/dashboard/conferences" @click="sidebarOpen = false") Mis eventos
+          router-link(to="/events" @click="sidebarOpen = false") Cartelera pública
+          router-link(v-if="!isOrganizer" to="/dashboard/join" @click="sidebarOpen = false") Unirse a un evento
+        .nav-section(v-if="isOrganizer || isAdmin")
+          h2.nav-section-title Plataforma
+          router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="sidebarOpen = false") Usuarios
+          router-link(v-if="isAdmin" to="/dashboard/admin/roles" @click="sidebarOpen = false") Roles
+          router-link(v-if="isAdmin" to="/dashboard/admin/event-types" @click="sidebarOpen = false") Tipos de evento
+          router-link(v-if="isAdmin" to="/dashboard/admin/ai" @click="sidebarOpen = false") IA
+          router-link(v-if="isAdmin" to="/dashboard/admin/device-access" @click="sidebarOpen = false") Acceso por dispositivo
+          router-link(v-if="isAdmin" to="/dashboard/admin/egress-policy" @click="sidebarOpen = false") Control de red
+          router-link(v-if="isOrganizer" to="/dashboard/certificate-settings" @click="sidebarOpen = false") Plantilla global
+        .nav-section
+          h2.nav-section-title Cuenta
+          router-link(to="/profile" @click="sidebarOpen = false") Mi perfil
     main.dashboard-main
       router-view
 </template>
@@ -45,6 +50,15 @@ export default {
 .sidebar-backdrop { display: none; }
 .sidebar { width: 220px; background: #fff; border-right: 1px solid #e5e7eb; min-height: calc(100vh - 56px); padding: 24px 16px; }
 .sidebar nav { display: flex; flex-direction: column; gap: 8px; }
+.nav-section { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.nav-section-title {
+  margin: 0 12px 2px;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 .sidebar nav a { padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #374151; font-size: 0.95rem; }
 .sidebar nav a:hover, .sidebar nav a.router-link-active { background: #ede9fe; color: #4f46e5; }
 .dashboard-main { flex: 1; padding: 32px; min-width: 0; }

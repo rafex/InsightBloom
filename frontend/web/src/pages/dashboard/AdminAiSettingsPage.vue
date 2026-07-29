@@ -2,6 +2,9 @@
 .ai-settings-page
   h2 IA
   p.page-intro Cada capacidad de IA tiene su propio proveedor. Así puedes usar modelos, claves y prompts distintos para cada flujo.
+  p.scope-note
+    strong Alcance: Configuración global
+    span Proveedores, modelos, claves y prompts base compartidos por toda la plataforma.
 
   .loading-text(v-if="loading") Cargando...
   .settings-shell(v-else)
@@ -211,6 +214,8 @@ export default {
 .ai-settings-page { padding: 24px; max-width: 980px; margin: 0 auto; }
 h2 { color: #1e1b4b; margin-bottom: 6px; }
 .page-intro { color: #6b7280; margin: 0 0 18px; }
+.scope-note { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; margin: 0 0 18px; padding: 10px 12px; border: 1px solid #c7d2fe; border-radius: 8px; background: #eef2ff; color: #3730a3; font-size: 0.86rem; }
+.scope-note strong { font-weight: 700; }
 .loading-text { color: #6b7280; }
 .settings-shell { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 18px; align-items: start; }
 .ai-tabs { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 18px; }

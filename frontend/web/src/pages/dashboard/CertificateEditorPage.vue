@@ -24,15 +24,15 @@
       .workspace-toolbar
         label Nombre
           input(v-model="form.templateName" maxlength="80")
-        button.btn-outline(type="button" @click="addTextBlock") + Texto
-        button.btn-outline(type="button" @click="addShapeBlock") + Borde
+        BaseButton(variant="secondary" size="sm" type="button" @click="addTextBlock") + Texto
+        BaseButton(variant="secondary" size="sm" type="button" @click="addShapeBlock") + Borde
       .asset-toolbar
         label.asset-field Logotipo
           input(type="file" accept="image/png,image/jpeg" @change="handleLogoUpload")
-        button.btn-subtle(v-if="logoBlock" type="button" @click="removeLogo") Quitar logotipo
+        BaseButton(variant="secondary" size="sm" v-if="logoBlock" type="button" @click="removeLogo") Quitar logotipo
         label.asset-field Imagen de fondo
           input(type="file" accept="image/png,image/jpeg" @change="handleBackgroundUpload")
-        button.btn-subtle(v-if="document.page.backgroundImage" type="button" @click="removeBackground") Quitar fondo
+        BaseButton(variant="secondary" size="sm" v-if="document.page.backgroundImage" type="button" @click="removeBackground") Quitar fondo
         small.asset-hint PNG/JPEG, máximo 2 MB por imagen. El fondo cubre toda la hoja y el logotipo se puede mover como un bloque.
       .certificate-preview(ref="previewHost")
         .certificate-page-wrap(:style="{ width: `${1056 * previewScale}px`, height: `${816 * previewScale}px` }")
@@ -63,7 +63,7 @@
               option(value="left") Izquierda
               option(value="center") Centro
               option(value="right") Derecha
-        button.btn-danger(type="button" @click="removeSelected") Eliminar bloque
+        BaseButton(variant="danger" size="sm" type="button" @click="removeSelected") Eliminar bloque
   .loading(v-else) Cargando editor…
 </template>
 
@@ -235,8 +235,7 @@ h2 { font-size:1rem; color:#1e1b4b; margin:0 0 12px; } .catalog-card { padding:1
 .workspace-toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:16px; } .workspace-toolbar label { color:#6b7280; font-size:.82rem; flex:1; } input,textarea,select { display:block; width:100%; box-sizing:border-box; border:1px solid #d1d5db; border-radius:7px; padding:8px; margin-top:4px; background:#fff; } .workspace-toolbar input { max-width:300px; }
 .asset-toolbar { display:grid; grid-template-columns:minmax(150px, 1fr) auto minmax(150px, 1fr) auto; gap:10px; align-items:end; margin:-4px 0 16px; padding:12px; border:1px solid #e5e7eb; border-radius:10px; background:#f8fafc; }
 .asset-field { color:#6b7280; font-size:.78rem; } .asset-field input { font-size:.75rem; padding:6px; } .asset-hint { grid-column:1 / -1; color:#6b7280; font-size:.75rem; }
-.btn-subtle { border:1px solid #d1d5db; border-radius:7px; background:white; color:#4b5563; padding:7px 9px; cursor:pointer; font-size:.75rem; }
 .certificate-preview { background:#e5e7eb; padding:22px; overflow:auto; border-radius:10px; } .certificate-page-wrap { position:relative; margin:0 auto; } .certificate-page { position:absolute; left:0; top:0; width:1056px; height:816px; background:#fff; transform-origin:top left; } .preview-block { position:absolute; box-sizing:border-box; overflow:hidden; white-space:pre-wrap; cursor:pointer; } .preview-block.active { outline:2px solid #4f46e5; outline-offset:2px; } .preview-block img { width:100%; height:100%; object-fit:contain; }
-.block-editor { border-top:1px solid #e5e7eb; margin-top:18px; padding-top:18px; } .block-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; } .block-fields label { color:#6b7280; font-size:.78rem; } .btn-subtle { border:1px solid #d1d5db; border-radius:7px; background:white; color:#4b5563; padding:7px 9px; cursor:pointer; font-size:.75rem; } .error { color:#b91c1c; font-size:.85rem; } .loading { padding:40px; color:#6b7280; }
+.block-editor { border-top:1px solid #e5e7eb; margin-top:18px; padding-top:18px; } .block-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; } .block-fields label { color:#6b7280; font-size:.78rem; } .error { color:#b91c1c; font-size:.85rem; } .loading { padding:40px; color:#6b7280; }
 @media (max-width: 850px) { .editor-grid { grid-template-columns:1fr; } .catalog-panel { order:2; } .workspace { order:1; } .block-fields { grid-template-columns:repeat(2,1fr); } .asset-toolbar { grid-template-columns:1fr auto; } .asset-hint { grid-column:1 / -1; } }
 </style>
