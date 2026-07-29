@@ -211,45 +211,45 @@ export default {
 
 <style scoped>
 .admin-users-page { padding: 24px; max-width: 1280px; }
-h2 { color: #1e1b4b; margin-bottom: 20px; }
+h2 { color: var(--color-heading); margin-bottom: 20px; }
 .filters { margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.filter-field { display: flex; align-items: center; gap: 6px; color: #4b5563; font-size: 0.82rem; font-weight: 600; }
-select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
+.filter-field { display: flex; align-items: center; gap: 6px; color: var(--color-text-secondary); font-size: 0.82rem; font-weight: 600; }
+select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
 .empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
 
 .table-scroll { overflow-x: auto; }
-.users-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
-.users-table th { text-align: left; padding: 10px 12px; background: #f9fafb; color: #6b7280; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
-.users-table td { padding: 10px 12px; border-top: 1px solid #f3f4f6; vertical-align: top; font-size: 0.88rem; }
+.users-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
+.users-table th { text-align: left; padding: 10px 12px; background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
+.users-table td { padding: 10px 12px; border-top: 1px solid var(--color-surface-muted); vertical-align: top; font-size: 0.88rem; }
 .sub { font-size: 0.78rem; color: var(--color-text-muted); }
-.uuid-text { font-family: monospace; font-size: 0.8rem; color: #6b7280; }
+.uuid-text { font-family: monospace; font-size: 0.8rem; color: var(--color-text-muted); }
 .clickable { cursor: pointer; }
-.clickable:hover { background: #f9fafb; }
+.clickable:hover { background: var(--color-surface-muted); }
 
 .status-badge { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 10px; }
-.status-badge.ACTIVE { background: #dcfce7; color: #166534; }
-.status-badge.BANNED { background: #fee2e2; color: #991b1b; }
-.status-badge.DELETED { background: #f3f4f6; color: #6b7280; }
-.status-badge.INACTIVE { background: #fef9c3; color: #854d0e; }
+.status-badge.ACTIVE { background: var(--color-success-soft); color: var(--color-success); }
+.status-badge.BANNED { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.status-badge.DELETED { background: var(--color-surface-muted); color: var(--color-text-muted); }
+.status-badge.INACTIVE { background: var(--color-warning-soft); color: var(--color-warning); }
 
 .roles-editor { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
 .roles-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
 .roles-editor input { width: auto; margin: 0; }
 
 .actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
-.actions input { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; }
+.actions input { padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.82rem; }
 .actions-row { display: flex; gap: 6px; }
-.pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: #374151; }
-.pagination button { padding: 4px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; }
+.pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: var(--color-text-secondary); }
+.pagination button { padding: 4px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); cursor: pointer; }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.confirm-dialog { background: #fff; border-radius: 16px; padding: 28px 32px; max-width: 420px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
-.confirm-dialog h4 { margin: 0 0 12px; color: #1e1b4b; font-size: 1.1rem; }
-.confirm-dialog p { color: #6b7280; font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
+.confirm-dialog { background: var(--color-surface); border-radius: 16px; padding: 28px 32px; max-width: 420px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+.confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
+.confirm-dialog p { color: var(--color-text-muted); font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
-.btn-cancel { padding: 8px 18px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #374151; cursor: pointer; }
-.btn-confirm { padding: 8px 18px; background: #dc2626; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.btn-cancel { padding: 8px 18px; border: 1px solid var(--color-border-subtle); border-radius: 8px; background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; }
+.btn-confirm { padding: 8px 18px; background: var(--color-danger); color: var(--color-text-inverse); border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
 
 @media (max-width: 900px) {
   .admin-users-page { padding: 14px; }
@@ -261,7 +261,7 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
     display: block; width: 100%;
   }
   .users-table tr {
-    margin-bottom: 12px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 4px;
+    margin-bottom: 12px; border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 8px 4px;
   }
   .users-table td {
     border-top: none; padding: 8px 12px;

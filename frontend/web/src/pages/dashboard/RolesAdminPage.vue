@@ -197,49 +197,49 @@ export default {
 
 <style scoped>
 .roles-page { padding: 24px; max-width: 1200px; }
-h2 { color: #1e1b4b; margin-bottom: 20px; }
+h2 { color: var(--color-heading); margin-bottom: 20px; }
 .empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
 
 .table-scroll { overflow-x: auto; margin-bottom: 32px; }
-.roles-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
-.roles-table th { text-align: left; padding: 10px 12px; background: #f9fafb; color: #6b7280; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
-.roles-table td { padding: 10px 12px; border-top: 1px solid #f3f4f6; vertical-align: top; font-size: 0.88rem; }
+.roles-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
+.roles-table th { text-align: left; padding: 10px 12px; background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
+.roles-table td { padding: 10px 12px; border-top: 1px solid var(--color-surface-muted); vertical-align: top; font-size: 0.88rem; }
 .sub { font-size: 0.78rem; color: var(--color-text-muted); }
 
-.scope-badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #f3f4f6; color: #6b7280; }
-.scope-badge.platform { background: #fef3c7; color: #92400e; }
-.scope-badge.event { background: #e0e7ff; color: #4338ca; }
+.scope-badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: var(--color-surface-muted); color: var(--color-text-muted); }
+.scope-badge.platform { background: var(--color-warning-soft); color: var(--color-warning); }
+.scope-badge.event { background: var(--color-primary-soft); color: var(--color-primary-dark); }
 
 .permissions-list { display: flex; flex-wrap: wrap; gap: 4px; max-width: 260px; }
-.permission-chip { font-size: 0.7rem; background: #ecfdf5; color: #065f46; padding: 2px 8px; border-radius: 10px; }
+.permission-chip { font-size: 0.7rem; background: var(--color-success-soft); color: var(--color-success); padding: 2px 8px; border-radius: 10px; }
 
 .permissions-editor { display: flex; flex-direction: column; gap: 4px; max-width: 320px; }
 .permissions-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
 .permissions-editor input { width: auto; margin: 0; }
 
-.status-badge { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 10px; background: #f3f4f6; color: #6b7280; }
-.status-badge.active { background: #dcfce7; color: #166534; }
+.status-badge { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 10px; background: var(--color-surface-muted); color: var(--color-text-muted); }
+.status-badge.active { background: var(--color-success-soft); color: var(--color-success); }
 
 .actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
-.actions textarea { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.82rem; min-height: 50px; }
+.actions textarea { padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.82rem; min-height: 50px; }
 .actions-row { display: flex; gap: 6px; }
-.new-role-form { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; }
-.new-role-form h3 { margin: 0 0 14px; color: #1e1b4b; font-size: 1rem; }
+.new-role-form { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); }
+.new-role-form h3 { margin: 0 0 14px; color: var(--color-heading); font-size: 1rem; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
-.form-row input, .form-row select { flex: 1; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
-.new-role-form textarea { width: 100%; padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
-.error { color: #dc2626; font-size: 0.85rem; margin-top: 8px; }
+.form-row input, .form-row select { flex: 1; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
+.new-role-form textarea { width: 100%; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
+.error { color: var(--color-danger); font-size: 0.85rem; margin-top: 8px; }
 .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.confirm-dialog { background: #fff; border-radius: 16px; padding: 28px 32px; max-width: 420px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
-.confirm-dialog h4 { margin: 0 0 12px; color: #1e1b4b; font-size: 1.1rem; }
-.confirm-dialog p { color: #6b7280; font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
+.confirm-dialog { background: var(--color-surface); border-radius: 16px; padding: 28px 32px; max-width: 420px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
+.confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
+.confirm-dialog p { color: var(--color-text-muted); font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 @media (max-width: 900px) {
   .roles-page { padding: 14px; }
   .roles-table thead { display: none; }
   .roles-table, .roles-table tbody, .roles-table tr, .roles-table td { display: block; width: 100%; }
-  .roles-table tr { margin-bottom: 12px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px 4px; }
+  .roles-table tr { margin-bottom: 12px; border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 8px 4px; }
   .roles-table td { border-top: none; padding: 8px 12px; }
   .roles-table td::before {
     content: attr(data-label); display: block; font-size: 0.7rem; font-weight: 600;
