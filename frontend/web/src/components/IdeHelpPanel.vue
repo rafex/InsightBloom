@@ -5,7 +5,8 @@
     span(v-else) ✕
 
   transition(name="slide")
-    aside.help-panel(v-if="open")
+    aside.help-panel(v-if="open" :style="{ width: panelWidth + 'px' }")
+      .help-resize-handle(@pointerdown="startResize" title="Arrastrá para cambiar el ancho")
       nav.help-nav
         h3 Ayuda
         button.help-nav-item(
@@ -15,7 +16,7 @@
           :class="{ active: topic.id === activeId }"
           @click="activeId = topic.id"
         ) {{ topic.title }}
-      .help-content(v-if="activeId !== 'mentor'" v-html="renderedActive")
+      .help-content(v-if="activeId !== 'mentor'" v-html="renderedActive" @click="onHelpContentClick")
       .mentor-content(v-else)
         h1 🤖 Tutor IA
         p.mentor-intro {{ mentorEnabled ? 'Pregunta sobre tu código o sobre la charla. El tutor te guiará con pistas, no te dará la solución completa.' : 'El tutor IA está deshabilitado para este evento.' }}
@@ -36,7 +37,7 @@
 
 <script lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { marked } from 'marked'
+import { Marked } from 'marked'
 import neovimBasico from '@/assets/ide-help/00-neovim-basico.md?raw'
 import helloJava from '@/assets/ide-help/10-hello-world-java.md?raw'
 import helloPython from '@/assets/ide-help/11-hello-world-python.md?raw'
@@ -63,6 +64,28 @@ const TOPICS = [
   { id: 'deploy-api', title: '🚀 Desplegar API REST', markdown: deployApi }
 ]
 
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
+// Instancia propia (no el singleton "marked" global que tambien usa PublicEventDetailPage.vue)
+// para que el renderer de codigo con boton de copiar no afecte a otras paginas.
+const helpMarked = new Marked({
+  renderer: {
+    code(token: { text: string, lang?: string }) {
+      const lang = (token.lang || '').trim().split(/\s+/)[0]
+      const langClass = lang ? ` class="language-${escapeHtml(lang)}"` : ''
+      return `<div class="code-block"><button type="button" class="copy-code-btn">Copiar</button>`
+        + `<pre><code${langClass}>${escapeHtml(token.text)}</code></pre></div>`
+    }
+  }
+})
+
+const HELP_WIDTH_STORAGE_KEY = 'insightbloom-ide-help-width'
+const HELP_PANEL_MIN_WIDTH = 320
+const HELP_PANEL_RIGHT_MARGIN = 40
+
 export default {
   name: 'IdeHelpPanel',
   props: {
@@ -81,8 +104,50 @@ export default {
 
     const renderedActive = computed(() => {
       const topic = TOPICS.find(t => t.id === activeId.value)
-      return topic ? marked.parse(topic.markdown, { async: false }) : ''
+      return topic ? helpMarked.parse(topic.markdown, { async: false }) : ''
     })
+
+    function onHelpContentClick(event: MouseEvent) {
+      const target = event.target as HTMLElement | null
+      const button = target?.closest('.copy-code-btn') as HTMLButtonElement | null
+      if (!button) return
+      const code = button.closest('.code-block')?.querySelector('code')
+      const text = code?.textContent || ''
+      navigator.clipboard?.writeText(text).then(() => {
+        const original = button.textContent
+        button.textContent = '¡Copiado!'
+        button.classList.add('copied')
+        setTimeout(() => { button.textContent = original; button.classList.remove('copied') }, 1500)
+      }).catch(() => {
+        button.textContent = 'No se pudo copiar'
+      })
+    }
+
+    // Ancho del panel: persistido en localStorage para que el usuario no tenga que
+    // reajustarlo cada vez que abre la ayuda.
+    const panelWidth = ref(Number(localStorage.getItem(HELP_WIDTH_STORAGE_KEY)) || 480)
+
+    function clampPanelWidth(width: number): number {
+      const max = Math.max(HELP_PANEL_MIN_WIDTH, window.innerWidth - HELP_PANEL_RIGHT_MARGIN)
+      return Math.min(max, Math.max(HELP_PANEL_MIN_WIDTH, width))
+    }
+
+    function startResize(event: PointerEvent) {
+      event.preventDefault()
+      let resizing = true
+      const onMove = (moveEvent: PointerEvent) => {
+        if (!resizing) return
+        panelWidth.value = clampPanelWidth(window.innerWidth - moveEvent.clientX)
+      }
+      const onUp = () => {
+        resizing = false
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        localStorage.setItem(HELP_WIDTH_STORAGE_KEY, String(panelWidth.value))
+      }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+    }
 
     const availableTopics = computed(() => mentorEnabled.value
       ? [...TOPICS, { id: 'mentor', title: '🤖 Tutor IA', markdown: '' }]
@@ -128,7 +193,8 @@ export default {
 
     return {
       open, activeId, availableTopics, renderedActive, mentorEnabled, mentorInput,
-      mentorCodeContext, mentorMessages, mentorSending, mentorError, sendMentorMessage
+      mentorCodeContext, mentorMessages, mentorSending, mentorError, sendMentorMessage,
+      onHelpContentClick, panelWidth, startResize
     }
   }
 }
@@ -165,13 +231,29 @@ export default {
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(480px, 100vw);
+  max-width: 100vw;
   z-index: 1900;
   background: #ffffff;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.help-resize-handle {
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  touch-action: none;
+}
+
+.help-resize-handle:hover,
+.help-resize-handle:active {
+  background: rgba(79, 70, 229, 0.25);
 }
 
 .help-nav {
@@ -269,13 +351,42 @@ export default {
   padding: 14px 16px;
   border-radius: 8px;
   overflow-x: auto;
-  margin: 12px 0;
+  margin: 0;
 }
 
 .help-content :deep(pre code) {
   background: none;
   padding: 0;
   color: inherit;
+}
+
+.help-content :deep(.code-block) {
+  position: relative;
+  margin: 12px 0;
+}
+
+.help-content :deep(.copy-code-btn) {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #e0e7ff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.help-content :deep(.copy-code-btn:hover) {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.help-content :deep(.copy-code-btn.copied) {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
 }
 
 .mentor-content {
@@ -310,7 +421,11 @@ export default {
 
 @media (max-width: 600px) {
   .help-panel {
-    width: 100vw;
+    width: 100vw !important;
+  }
+
+  .help-resize-handle {
+    display: none;
   }
 }
 </style>
