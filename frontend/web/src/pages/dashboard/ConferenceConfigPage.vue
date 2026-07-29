@@ -103,11 +103,9 @@
         input(v-model.number="sandboxSeatsPerPod" type="number" min="1" max="10" placeholder="4 (por defecto)")
       p.field-hint(v-if="cliEnabled") En modo CLI, varios alumnos pueden compartir el mismo sandbox — cada uno con su propio usuario y espacio de trabajo aislado. El modo Web no admite esto: siempre es un sandbox por alumno.
       .coord-field
-        span.coord-label Paquetes adicionales (opcional)
-        input(v-model="sandboxExtraPackages" type="text" placeholder="numpy pandas")
-      .coord-field
         span.coord-label Repositorio git remoto (opcional)
         input(v-model="sandboxRemoteGitUrl" type="text" placeholder="https://github.com/...")
+      p.field-hint Si lo indicás, se clona automáticamente en el workspace de cada alumno al arrancar su sandbox (solo si el workspace está vacío — no pisa trabajo ya en progreso).
       .coord-field
         span.coord-label Memoria máxima de Java por sandbox (MB, opcional)
         input(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="70 (por defecto)")
@@ -348,7 +346,6 @@ export default {
     // Pool "cli" (Neovim, reusable/multi-alumno) -- independiente del pool "web" de arriba.
     const sandboxCliPoolSize = ref<number | null>(1)
     const cliEnabled = computed(() => (sandboxCliPoolSize.value ?? 0) > 0)
-    const sandboxExtraPackages = ref('')
     const sandboxRemoteGitUrl = ref('')
     // Heap maximo (-Xmx, en MB) de las JVMs del sandbox -- null = usa el default chico del
     // backend (70Mi, ver KubernetesPodClient). El backend rechaza (400) valores que excedan el
@@ -561,7 +558,6 @@ export default {
         sandboxVariant.value = conference.value.sandboxVariant === 'terminal-nvim' ? 'terminal-nvim' : ''
         sandboxPoolSize.value = conference.value.sandboxPoolSize ?? 1
         sandboxCliPoolSize.value = conference.value.sandboxCliPoolSize ?? 1
-        sandboxExtraPackages.value = conference.value.sandboxExtraPackages || ''
         sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''
         sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? 70
         sandboxSeatsPerPod.value = conference.value.sandboxSeatsPerPod ?? null
@@ -670,7 +666,7 @@ export default {
       try {
         conference.value = await setSandboxConfig(
           props.conferenceId as string, sandboxVariant.value, sandboxPoolSize.value,
-          sandboxExtraPackages.value.trim() || null, sandboxRemoteGitUrl.value.trim() || null,
+          sandboxRemoteGitUrl.value.trim() || null,
           sandboxJvmHeapMb.value, sandboxSeatsPerPod.value, sandboxCliPoolSize.value,
           auth.state.token as string
         )
@@ -889,7 +885,7 @@ export default {
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              ticketSalesEnabled, savingTicketSales, ticketSalesSaved, ticketSalesError, saveTicketSales,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
-             sandboxExtraPackages, sandboxRemoteGitUrl, sandboxJvmHeapMb,
+             sandboxRemoteGitUrl, sandboxJvmHeapMb,
              sandboxSeatsPerPod, sandboxInternetEnabled,
              savingSandboxConfig, sandboxConfigSaved, sandboxConfigError, savingSandboxInternet,
              saveSandboxConfig, saveSandboxInternet,

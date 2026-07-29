@@ -214,7 +214,7 @@ public class AssignSandboxUseCase {
             // (ver mas abajo).
             try {
                 sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, orchestratorVariant,
-                    conference.getSandboxExtraPackages(), conference.getSandboxRemoteGitUrl(), internetEnabled,
+                    conference.getSandboxRemoteGitUrl(), internetEnabled,
                     conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
             } catch (final IllegalStateException e) {
                 if ("kubernetes_not_configured".equals(e.getMessage())) {
@@ -301,7 +301,7 @@ public class AssignSandboxUseCase {
             && conference.getSandboxInternetEnabled() == 1;
         try {
             sandboxOrchestrator.createSandbox(sandbox.podName(), sandbox.getConferenceUuid(), orchestratorVariant,
-                conference.getSandboxExtraPackages(), conference.getSandboxRemoteGitUrl(), internetEnabled,
+                conference.getSandboxRemoteGitUrl(), internetEnabled,
                 conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
         } catch (final IllegalStateException e) {
             if ("kubernetes_not_configured".equals(e.getMessage())) {

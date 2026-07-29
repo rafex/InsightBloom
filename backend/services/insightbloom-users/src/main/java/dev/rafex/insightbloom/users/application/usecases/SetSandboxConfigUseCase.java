@@ -37,7 +37,6 @@ public class SetSandboxConfigUseCase {
         String conferenceUuid,
         String sandboxVariant,
         Integer sandboxPoolSize,
-        String sandboxExtraPackages,
         String sandboxRemoteGitUrl,
         Integer sandboxJvmHeapMb,
         Integer sandboxSeatsPerPod,
@@ -84,7 +83,6 @@ public class SetSandboxConfigUseCase {
 
         conf.setSandboxVariant(sandboxVariant);
         conf.setSandboxPoolSize(sandboxPoolSize);
-        conf.setSandboxExtraPackages(sandboxExtraPackages);
         conf.setSandboxRemoteGitUrl(sandboxRemoteGitUrl);
         conf.setSandboxJvmHeapMb(sandboxJvmHeapMb);
         conf.setSandboxSeatsPerPod(sandboxSeatsPerPod);

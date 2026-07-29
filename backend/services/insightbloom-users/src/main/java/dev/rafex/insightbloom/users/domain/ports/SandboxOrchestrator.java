@@ -31,7 +31,7 @@ public interface SandboxOrchestrator {
      *                    puertos expone el Pod/Service -- llamar siempre con el mismo valor para
      *                    un {@code podName} dado (no cambia dinamicamente el Pod ya creado).
      */
-    void createSandbox(String podName, String conferenceUuid, String variant, String extraPackages,
+    void createSandbox(String podName, String conferenceUuid, String variant,
                         String remoteGitUrl, boolean internetEnabled, Integer jvmHeapMb, Integer seatsPerPod);
 
     /**

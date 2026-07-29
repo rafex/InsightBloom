@@ -126,7 +126,6 @@ export interface Conference {
   sandboxVariant?: string | null
   sandboxPoolSize?: number | null
   sandboxInternetEnabled?: number | null
-  sandboxExtraPackages?: string | null
   sandboxRemoteGitUrl?: string | null
   canvasTool?: CanvasTool | null
   canvasAudienceMode?: CanvasAudienceMode | null

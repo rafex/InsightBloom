@@ -46,8 +46,7 @@ class AssignSandboxUseCaseTest {
         assertEquals("user-student-1", result.getUserUuid());
         assertEquals(0, result.getSandboxSlot());
         Mockito.verify(orchestratorMock).createSandbox(
-                Mockito.eq(result.podName()), Mockito.eq("conf-1"), Mockito.eq("python"),
-                Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+                Mockito.eq(result.podName()), Mockito.eq("conf-1"), Mockito.eq("python"), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
         Mockito.verify(sandboxRepoMock).save(Mockito.any(Sandbox.class));
     }
 
@@ -66,7 +65,7 @@ class AssignSandboxUseCaseTest {
         // largas expiraban a mitad de camino porque el TTL nunca se renovaba en el reconecte).
         Mockito.verify(sandboxRepoMock).updateExpiresAt(Mockito.eq(existing.getUuid()), Mockito.any());
         Mockito.verify(orchestratorMock, Mockito.never()).createSandbox(
-            Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.any(),
+            Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any(),
             Mockito.anyBoolean(), Mockito.any(), Mockito.any());
         Mockito.verify(sandboxRepoMock, Mockito.never()).save(Mockito.any());
     }
@@ -89,8 +88,7 @@ class AssignSandboxUseCaseTest {
         Mockito.verify(orchestratorMock).deleteSandbox(existingWeb.podName());
         Mockito.verify(sandboxRepoMock).deleteByUuid(existingWeb.getUuid());
         Mockito.verify(orchestratorMock).createSandbox(
-            Mockito.eq(result.podName()), Mockito.eq("conf-1"), Mockito.eq("terminal-nvim"),
-            Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
+            Mockito.eq(result.podName()), Mockito.eq("conf-1"), Mockito.eq("terminal-nvim"), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
     }
 
     @Test
@@ -108,8 +106,7 @@ class AssignSandboxUseCaseTest {
         assertEquals(existing.getUserUuid(), result.getUserUuid());
         Mockito.verify(sandboxRepoMock).updateExpiresAt(Mockito.eq(existing.getUuid()), Mockito.any());
         Mockito.verify(orchestratorMock).createSandbox(
-            Mockito.eq(existing.podName()), Mockito.eq("conf-1"), Mockito.eq("python"),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+            Mockito.eq(existing.podName()), Mockito.eq("conf-1"), Mockito.eq("python"), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
         Mockito.verify(sandboxRepoMock, Mockito.never()).save(Mockito.any());
     }
 
@@ -157,8 +154,7 @@ class AssignSandboxUseCaseTest {
         Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
         Mockito.doThrow(new IllegalStateException("kubernetes_not_configured"))
-            .when(orchestratorMock).createSandbox(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
-                    Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
+            .when(orchestratorMock).createSandbox(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
 
         final var ex = assertThrows(IllegalArgumentException.class,
             () -> useCase.execute("conf-1", "user-student-1", Sandbox.VARIANT_WEB));
@@ -226,8 +222,7 @@ class AssignSandboxUseCaseTest {
         assertEquals("user-student-1", result.getUserUuid());
         assertEquals(1, result.getSandboxSlot());
         Mockito.verify(orchestratorMock).createSandbox(
-            Mockito.eq(result.podName()), Mockito.eq("conf-1"), Mockito.eq("python"),
-            Mockito.isNull(), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+            Mockito.eq(result.podName()), Mockito.eq("conf-1"), Mockito.eq("python"), Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
         Mockito.verify(sandboxRepoMock).save(Mockito.any(Sandbox.class));
     }
 
@@ -249,8 +244,7 @@ class AssignSandboxUseCaseTest {
         assertEquals(0, s1.getSandboxSlot());
         assertEquals(0, s1.getSeatIndex());
         Mockito.verify(orchestratorMock, Mockito.times(1)).createSandbox(
-            Mockito.eq(s1.podName()), Mockito.anyString(), Mockito.eq("terminal-nvim"),
-            Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.eq(4));
+            Mockito.eq(s1.podName()), Mockito.anyString(), Mockito.eq("terminal-nvim"), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.eq(4));
 
         // Alumnos 2-4: mismo slot 0, ya tiene Pod -- se suman como asientos 1, 2, 3, SIN volver
         // a llamar createSandbox (el pod ya existe).
@@ -269,8 +263,7 @@ class AssignSandboxUseCaseTest {
 
         // Solo UNA llamada a createSandbox en total (la del primer alumno) para los 4.
         Mockito.verify(orchestratorMock, Mockito.times(1)).createSandbox(
-            Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
-            Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
+            Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.any());
 
         // Alumno 5: slot 0 lleno (4/4) -> abre slot 1, seatIndex 0, Pod nuevo.
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(s1, s2, s3, s4));
@@ -278,8 +271,7 @@ class AssignSandboxUseCaseTest {
         assertEquals(1, s5.getSandboxSlot());
         assertEquals(0, s5.getSeatIndex());
         Mockito.verify(orchestratorMock, Mockito.times(1)).createSandbox(
-            Mockito.eq(s5.podName()), Mockito.anyString(), Mockito.eq("terminal-nvim"),
-            Mockito.any(), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.eq(4));
+            Mockito.eq(s5.podName()), Mockito.anyString(), Mockito.eq("terminal-nvim"), Mockito.any(), Mockito.anyBoolean(), Mockito.any(), Mockito.eq(4));
     }
 
     @Test

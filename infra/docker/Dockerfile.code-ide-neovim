@@ -258,6 +258,7 @@ COPY infra/docker/IDE-AI-MENTOR.md /usr/local/share/doc/insightbloom/IDE-AI-MENT
 COPY infra/docker/IDE-REST-CLIENT.md /usr/local/share/doc/insightbloom/IDE-REST-CLIENT.md
 COPY infra/docker/IDE-APP-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-APP-PUBLICATION.md
 COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
+COPY infra/docker/seed-remote-git.sh /usr/local/bin/seed-remote-git.sh
 RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \
     chmod -R a+rX /usr/local/share/insightbloom-node-types && \
@@ -267,7 +268,7 @@ RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     test -x /opt/insightbloom/node-global/bin/vscode-css-language-server && \
     chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py \
     /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py /usr/local/bin/insightbloom \
-    /usr/local/bin/seed-ide-docs.sh
+    /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh
 
 # La consulta distribuida por Alpine usa #is-not?, un predicado de nvim-treesitter que no
 # existe en Neovim 0.10.4. Se conserva el resaltado JavaScript con una variante compatible
@@ -295,4 +296,4 @@ ENTRYPOINT ["dumb-init", "--"]
 # conexion, perdiendo todo el estado del editor igual que sin tmux (ver incidente 2026-07-19).
 # Precrear la sesion en un proceso que ya termino (sin pty de ttyd de por medio) resuelve la
 # carrera de raiz: cualquier reconexion reatende la MISMA sesion en vez de perder el estado.
-CMD ["sh", "-c", "/usr/local/bin/seed-node-types.sh /home/coder/workspace; /usr/local/bin/seed-ide-docs.sh /home/coder/workspace; tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]
+CMD ["sh", "-c", "/usr/local/bin/seed-remote-git.sh /home/coder/workspace; /usr/local/bin/seed-node-types.sh /home/coder/workspace; /usr/local/bin/seed-ide-docs.sh /home/coder/workspace; tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]
