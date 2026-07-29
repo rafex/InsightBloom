@@ -311,32 +311,32 @@ export default {
 
 <style scoped>
 .tickets-page { padding: 24px; max-width: 900px; margin: 0 auto; }
-h2 { color: #1e1b4b; }
-.issue-card, .tickets-list, .compose-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-top: 16px; }
-.compose-card textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font: inherit; resize: vertical; margin: 10px 0; }
+h2 { color: var(--color-heading); }
+.issue-card, .tickets-list, .compose-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; margin-top: 16px; }
+.compose-card textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; font: inherit; resize: vertical; margin: 10px 0; }
 .compose-card input { width: 100%; box-sizing: border-box; margin-bottom: 0; }
-.link-inline { color: #4f46e5; font-size: 0.8rem; }
+.link-inline { color: var(--color-primary); font-size: 0.8rem; }
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
-.metric-card { display: flex; flex-direction: column; gap: 4px; background: #fff; border: 1px solid #e0e7ff; border-radius: 12px; padding: 16px; min-height: 92px; }
-.metric-card strong { color: #4338ca; font-size: 1.65rem; }
-.metric-card span { color: #1f2937; font-weight: 700; }
-.metric-card small, .helper { color: #6b7280; font-size: .78rem; }
-.metric-capacity { border-color: #a5b4fc; }
+.metric-card { display: flex; flex-direction: column; gap: 4px; background: var(--color-surface); border: 1px solid var(--color-primary-soft); border-radius: 12px; padding: 16px; min-height: 92px; }
+.metric-card strong { color: var(--color-primary-dark); font-size: 1.65rem; }
+.metric-card span { color: var(--color-text); font-weight: 700; }
+.metric-card small, .helper { color: var(--color-text-muted); font-size: .78rem; }
+.metric-capacity { border-color: var(--color-primary-border); }
 .issue-row { display: flex; gap: 10px; flex-wrap: wrap; }
-input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; }
 .issue-divider { text-align: center; color: var(--color-text-muted); font-size: .78rem; margin: 12px 0; text-transform: uppercase; letter-spacing: .04em; }
 .field-hint { margin: 8px 0 0; font-size: .8rem; color: var(--color-text-muted); }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.ticket-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+.ticket-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-surface-muted); }
 .ticket-main { display: flex; flex-direction: column; gap: 2px; }
 .ticket-main strong { font: 0.8rem monospace; overflow-wrap: anywhere; }
-.ticket-main span, .empty, .issue-card p { color: #6b7280; font-size: 0.9rem; }
+.ticket-main span, .empty, .issue-card p { color: var(--color-text-muted); font-size: 0.9rem; }
 .list-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .list-header h3 { margin: 0; }
 .ticket-group { margin-top: 18px; }
-.ticket-group h4 { margin: 0 0 8px; color: #3730a3; }
-.claimant { color: #166534 !important; overflow-wrap: anywhere; }
-.audit-line { color: #b91c1c !important; overflow-wrap: anywhere; }
-.feedback { margin: 12px 0 0; color: #166534; }
-.feedback.error { color: #b91c1c; }
+.ticket-group h4 { margin: 0 0 8px; color: var(--color-primary-dark); }
+.claimant { color: var(--color-success) !important; overflow-wrap: anywhere; }
+.audit-line { color: var(--color-danger-dark) !important; overflow-wrap: anywhere; }
+.feedback { margin: 12px 0 0; color: var(--color-success); }
+.feedback.error { color: var(--color-danger-dark); }
 </style>
