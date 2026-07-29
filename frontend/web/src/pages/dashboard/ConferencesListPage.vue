@@ -12,9 +12,7 @@
     .loading-text Cargando eventos...
 
   .section(v-else-if="conferences.length === 0")
-    .empty-state
-      p(v-if="isOrganizer") Aún no tienes eventos.
-      p(v-else) No tienes eventos asignados.
+    EmptyState(:message="isOrganizer ? 'Aún no tienes eventos.' : 'No tienes eventos asignados.'")
       router-link.link-btn.link-btn-primary(v-if="isOrganizer" to="/dashboard/conferences/new") Crear el primero
 
   .table-scroll(v-else)
@@ -107,6 +105,7 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { isExpired } from '@/utils/dates'
 import { eventTypeHasCapability } from '@/features/conferences/capabilities'
 import type { Conference, DownloadCounts, EventType, EventCapability } from '@/services/api/types'
@@ -119,7 +118,7 @@ interface ConferenceRow extends Conference {
 
 export default {
   name: 'ConferencesListPage',
-  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton },
+  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, EmptyState },
   setup() {
     const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)

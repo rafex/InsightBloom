@@ -31,7 +31,7 @@
       .detail-card
         h3 Eventos en los que está inscrito
         .loading-text(v-if="loadingReservations") Cargando...
-        p.empty-text(v-else-if="reservations.length === 0") No está inscrito en ningún evento.
+        EmptyState(v-else-if="reservations.length === 0" message="No está inscrito en ningún evento.")
         .table-scroll(v-else)
           table.reservations-table
             thead
@@ -49,8 +49,7 @@
                   span(v-else) {{ surveyStatus[r.conferenceUuid] ? 'Respondida ✓' : 'Sin responder' }}
                 td {{ r.certificateDownloaded ? 'Descargado ✓' : 'No descargado' }}
 
-  .empty-state(v-else)
-    p Usuario no encontrado.
+  EmptyState(v-else message="Usuario no encontrado.")
 </template>
 
 <script lang="ts">
@@ -61,10 +60,11 @@ import { hasResponded } from '@/services/api/surveyApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 export default {
   name: 'UserDetailPage',
-  components: { DashboardBreadcrumb, StatusBadge },
+  components: { DashboardBreadcrumb, StatusBadge, EmptyState },
   setup() {
     const route = useRoute()
     const auth = useAuthStore()
@@ -126,8 +126,6 @@ export default {
 <style scoped>
 .user-detail-page { padding: 24px; max-width: 900px; }
 .loading-text { color: var(--color-text-muted); }
-.empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
-.empty-text { color: var(--color-text-muted); font-size: 0.88rem; }
 
 .header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .header h2 { color: var(--color-heading); margin: 0; }

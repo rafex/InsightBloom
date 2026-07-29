@@ -2,8 +2,7 @@
 .roles-page
   h2 Roles
 
-  .empty-state(v-if="!loading && roles.length === 0")
-    p No hay roles creados.
+  EmptyState(v-if="!loading && roles.length === 0" message="No hay roles creados.")
 
   .table-scroll(v-else)
     table.roles-table
@@ -81,6 +80,7 @@ import type { Role, PermissionValue, RoleScopeValue } from '@/services/api/types
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const PERMISSION_LABELS: Record<string, string> = {
   MANAGE_USERS: 'Gestionar usuarios',
@@ -99,7 +99,7 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export default {
   name: 'RolesAdminPage',
-  components: { BaseButton, StatusBadge },
+  components: { BaseButton, StatusBadge, EmptyState },
   setup() {
     const auth = useAuthStore()
     const roles = ref<Role[]>([])
@@ -199,8 +199,6 @@ export default {
 <style scoped>
 .roles-page { padding: 24px; max-width: 1200px; }
 h2 { color: var(--color-heading); margin-bottom: 20px; }
-.empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
-
 .table-scroll { margin-bottom: 32px; }
 .roles-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
 .roles-table th { text-align: left; padding: 10px 12px; background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }

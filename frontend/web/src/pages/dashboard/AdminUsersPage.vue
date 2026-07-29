@@ -21,8 +21,7 @@
     BaseButton(variant="secondary" size="sm" type="button" @click="toggleSort")
       | Orden alfabético {{ sort === 'username' ? '✓' : '' }}
 
-  .empty-state(v-if="!loading && users.length === 0")
-    p No hay usuarios para mostrar.
+  EmptyState(v-if="!loading && users.length === 0" message="No hay usuarios para mostrar.")
 
   .table-scroll(v-else)
     table.users-table
@@ -81,6 +80,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 type ConfirmActionType = 'ban' | 'unban' | 'delete'
 
@@ -97,7 +97,7 @@ interface AdminUserRow {
 
 export default {
   name: 'AdminUsersPage',
-  components: { DashboardBreadcrumb, BaseButton, StatusBadge },
+  components: { DashboardBreadcrumb, BaseButton, StatusBadge, EmptyState },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
@@ -216,8 +216,6 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .filters { margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .filter-field { display: flex; align-items: center; gap: 6px; color: var(--color-text-secondary); font-size: 0.82rem; font-weight: 600; }
 select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
-.empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
-
 .users-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
 .users-table th { text-align: left; padding: 10px 12px; background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
 .users-table td { padding: 10px 12px; border-top: 1px solid var(--color-surface-muted); vertical-align: top; font-size: 0.88rem; }

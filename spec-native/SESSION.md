@@ -4,7 +4,7 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `main`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-29 (acciones administrativas canónicas)
+> **Último checkpoint**: 2026-07-29 (estados vacíos canónicos)
 
 ## Estado
 
@@ -25,10 +25,11 @@
 | **4.2** | Dashboard/config | 12/12 | Páginas administrativas y de configuración migradas a `BaseButton` y `link-btn-*` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
 | **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
-| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 76 estilos scoped, fija las 80 excepciones hex en 6 superficies y ya no permite redefiniciones legacy de selectores canónicos |
+| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 79 estilos scoped, fija las 80 excepciones hex en 6 superficies y ya no permite redefiniciones legacy de selectores canónicos |
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 | **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
 | **Gobierno de componentes** | Estados semánticos | En progreso | `StatusBadge.vue` centraliza estados de usuarios, roles y detalle de usuario con tonos semánticos reutilizables |
+| **Gobierno de componentes** | Estados vacíos | En progreso | `EmptyState.vue` centraliza mensajes y acciones de ausencia de datos en usuarios, roles, tipos de evento, eventos, dispositivos y reservas |
 | **Gobierno visual** | Shell y overlays | En progreso | Header, menús, modales, confirmaciones y overlays administrativos consumen tokens de superficie, sombra y scrim |
 | **Gobierno visual** | Iconografía administrativa | En progreso | `UiIcon.vue` aporta SVGs lineales para métricas del Panel y herramientas del evento; elimina emojis de indicadores operativos sin modificar contenido editorial |
 | **Recorridos por rol** | Moderador event-scoped | En progreso | El panel detecta eventos asignados aunque el rol global sea `ATTENDEE`; se mantienen ocultas acciones de propietario |

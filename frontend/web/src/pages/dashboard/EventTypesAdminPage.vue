@@ -2,8 +2,7 @@
 .event-types-page
   h2 Tipos de evento
 
-  .empty-state(v-if="!loading && eventTypes.length === 0")
-    p No hay tipos de evento creados.
+  EmptyState(v-if="!loading && eventTypes.length === 0" message="No hay tipos de evento creados.")
 
   .table-scroll(v-else)
     table.types-table
@@ -65,6 +64,7 @@ import {
 import type { EventType, EventCapability } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 const CAPABILITY_LABELS: Record<string, string> = {
   TICKETING_GENERAL: 'Boletos (aforo)',
@@ -82,7 +82,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 export default {
   name: 'EventTypesAdminPage',
-  components: { BaseButton },
+  components: { BaseButton, EmptyState },
   setup() {
     const auth = useAuthStore()
     const eventTypes = ref<EventType[]>([])
@@ -167,8 +167,6 @@ export default {
 <style scoped>
 .event-types-page { padding: 24px; max-width: 1100px; }
 h2 { color: var(--color-heading); margin-bottom: 20px; }
-.empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
-
 .table-scroll { margin-bottom: 32px; }
 .types-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
 .types-table th { text-align: left; padding: 10px 12px; background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }

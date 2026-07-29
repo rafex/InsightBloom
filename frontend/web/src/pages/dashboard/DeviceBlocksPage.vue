@@ -8,7 +8,7 @@
     |  desde él (posible compu compartida de laboratorio o intento de evasión de límites). Revisa
     |  y decide si desbloquear.
 
-  p.empty(v-if="!loading && blocks.length === 0") No hay dispositivos bloqueados en este evento.
+  EmptyState(v-if="!loading && blocks.length === 0" message="No hay dispositivos bloqueados en este evento.")
 
   ModerationTable(v-else :items="blocks" :currentPage="1" :totalPages="1")
     template(#headers)
@@ -37,6 +37,7 @@
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import { ref, computed, onMounted } from 'vue'
 import { listDeviceBlocks, unblockDevice, getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -46,7 +47,7 @@ type DeviceBlockRow = DeviceBlock & { _loading: boolean }
 
 export default {
   name: 'DeviceBlocksPage',
-  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav },
+  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, EmptyState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -102,7 +103,6 @@ export default {
 .device-blocks-page { }
 h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 20px; max-width: 640px; }
-.empty { color: var(--color-text-muted); padding: 24px 0; }
 .fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
 .status-blocked { background: var(--color-danger-soft); color: var(--color-danger-dark); }
