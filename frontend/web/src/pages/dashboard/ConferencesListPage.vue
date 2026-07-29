@@ -6,15 +6,16 @@
     h1 Eventos
     .header-actions
       router-link.link-btn.link-btn-secondary(v-if="isAdmin" to="/dashboard/admin/event-types") Tipos de evento
-      router-link.link-btn.link-btn-primary(to="/dashboard/conferences/new") + Nuevo evento
+      router-link.link-btn.link-btn-primary(v-if="isOrganizer" to="/dashboard/conferences/new") + Nuevo evento
 
   .section(v-if="loading")
     .loading-text Cargando eventos...
 
   .section(v-else-if="conferences.length === 0")
     .empty-state
-      p Aún no tienes eventos.
-      router-link.link-btn.link-btn-primary(to="/dashboard/conferences/new") Crear el primero
+      p(v-if="isOrganizer") Aún no tienes eventos.
+      p(v-else) No tienes eventos asignados.
+      router-link.link-btn.link-btn-primary(v-if="isOrganizer" to="/dashboard/conferences/new") Crear el primero
 
   .table-scroll(v-else)
     table.conferences-table
@@ -68,11 +69,12 @@
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/messages`") Mensajes
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Palabras/Nube
                 router-link(v-if="hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/ide`") Editor Monaco
-                router-link(v-if="hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/device-blocks`") Bloqueos
+                router-link(v-if="isOrganizer && (hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE'))" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/device-blocks`") Bloqueos
           td.actions-cell(data-label="Acciones")
             .conf-actions
-              router-link.link-btn.link-btn-primary.link-btn-sm(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Abrir evento
-              DropdownMenu(label="Gestionar")
+              router-link.link-btn.link-btn-primary.link-btn-sm(v-if="isOrganizer" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Abrir evento
+              router-link.link-btn.link-btn-primary.link-btn-sm(v-else :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/tools`") Abrir moderación
+              DropdownMenu(v-if="isOrganizer" label="Gestionar")
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editar información
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Configuración
                 router-link(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Gestionar presentación
@@ -127,6 +129,7 @@ export default {
     const eventTypes = ref<EventType[]>([])
     const auth = useAuthStore()
     const isAdmin = auth.isAdmin()
+    const isOrganizer = auth.isOrganizer()
 
     onMounted(async () => {
       try {
@@ -218,7 +221,7 @@ export default {
     }
 
     return {
-      conferences, loading, deleteTarget, qrTarget, downloadCounts, isAdmin,
+      conferences, loading, deleteTarget, qrTarget, downloadCounts, isAdmin, isOrganizer,
       isExpired, formatRelative, confirmDelete, doDelete, eventTypeName, hasCapability, toggleActive, openPublic, ticketUrl
     }
   }

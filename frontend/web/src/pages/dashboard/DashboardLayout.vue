@@ -6,10 +6,10 @@
     .sidebar-backdrop(v-if="sidebarOpen" @click="sidebarOpen = false")
     aside.sidebar(:class="{ open: sidebarOpen }")
       nav(aria-label="Navegación principal")
-        router-link(to="/dashboard" active-class="" exact-active-class="router-link-active" @click="sidebarOpen = false") Inicio
+        router-link(to="/dashboard" active-class="" exact-active-class="router-link-active" @click="sidebarOpen = false") Panel
         .nav-section
           h2.nav-section-title Eventos
-          router-link(v-if="isOrganizer" to="/dashboard/conferences" @click="sidebarOpen = false") Mis eventos
+          router-link(v-if="isModerator" to="/dashboard/conferences" @click="sidebarOpen = false") Mis eventos
           router-link(to="/events" @click="sidebarOpen = false") Cartelera pública
           router-link(v-if="!isOrganizer" to="/dashboard/join" @click="sidebarOpen = false") Unirse a un evento
         .nav-section(v-if="isOrganizer || isAdmin")
@@ -38,7 +38,12 @@ export default {
   setup() {
     const auth = useAuthStore()
     const sidebarOpen = ref(false)
-    return { isOrganizer: auth.isOrganizer(), isAdmin: auth.isAdmin(), sidebarOpen }
+    return {
+      isOrganizer: auth.isOrganizer(),
+      isModerator: auth.isModerator(),
+      isAdmin: auth.isAdmin(),
+      sidebarOpen
+    }
   }
 }
 </script>

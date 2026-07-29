@@ -1073,7 +1073,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+            if (!canViewAttendeeSummary(v)) {
                 sendError(jx, 403, "forbidden", "Only organizers can view attendee counts");
                 return true;
             }
@@ -1090,7 +1090,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+            if (!canViewAttendeeSummary(v)) {
                 sendError(jx, 403, "forbidden", "Only organizers can view attendee counts");
                 return true;
             }
@@ -1355,7 +1355,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var v = validateTokenUseCase.execute(token);
-            if (!v.valid() || !isOrganizerOrAdmin(v.role())) {
+            if (!canViewConferenceAttendeeCount(conferenceId, v)) {
                 sendError(jx, 403, "forbidden", "Only organizers can view attendee counts");
                 return true;
             }
@@ -2924,6 +2924,29 @@ public class ConferenceHandler extends BaseResourceHandler {
 
     private static boolean isOrganizerOrAdmin(final String role) {
         return legacyRoleHasAny(role, "organizer", "admin");
+    }
+
+    /**
+     * El resumen del panel se limita a eventos propios o a eventos donde el usuario tiene una
+     * asignación operativa. No concede acceso al listado global de cuentas: solo permite el
+     * agregado de asistentes de los eventos que realmente administra.
+     */
+    private boolean canViewAttendeeSummary(final ValidateTokenUseCase.ValidationResult validation) {
+        if (validation == null || !validation.valid()) return false;
+        if (isOrganizerOrAdmin(validation.role())) return true;
+        return getConferenceUseCase.byUser(validation.subjectUuid()).stream().anyMatch(conference ->
+                eventPermissionGuard.hasPermission(conference.getUuid(), validation.subjectUuid(), validation.role(), Permission.MODERATE_CONTENT)
+                    || eventPermissionGuard.hasPermission(conference.getUuid(), validation.subjectUuid(), validation.role(), Permission.MANAGE_TICKETS)
+                    || eventPermissionGuard.hasPermission(conference.getUuid(), validation.subjectUuid(), validation.role(), Permission.HOST_EVENT));
+    }
+
+    private boolean canViewConferenceAttendeeCount(final String conferenceId,
+                                                    final ValidateTokenUseCase.ValidationResult validation) {
+        if (validation == null || !validation.valid()) return false;
+        if (isOrganizerOrAdmin(validation.role())) return true;
+        return eventPermissionGuard.hasPermission(conferenceId, validation.subjectUuid(), validation.role(), Permission.MODERATE_CONTENT)
+                || eventPermissionGuard.hasPermission(conferenceId, validation.subjectUuid(), validation.role(), Permission.MANAGE_TICKETS)
+                || eventPermissionGuard.hasPermission(conferenceId, validation.subjectUuid(), validation.role(), Permission.HOST_EVENT);
     }
 
     private static boolean isPlatformAdminRole(final String role) {

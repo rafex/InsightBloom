@@ -205,9 +205,18 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     @Override
     public List<Conference> findByUser(String userUuid) {
         List<Conference> list = new ArrayList<>();
-        String sql = "SELECT * FROM conferences WHERE created_by_user_uuid = ? ORDER BY created_at DESC";
+        // El panel debe incluir tanto eventos propios como eventos donde el usuario tiene
+        // una asignación operativa (moderador, host, presentador, etc.).
+        String sql = """
+            SELECT DISTINCT c.*
+            FROM conferences c
+            LEFT JOIN event_roles er ON er.event_uuid = c.uuid AND er.user_uuid = ?
+            WHERE c.created_by_user_uuid = ? OR er.user_uuid IS NOT NULL
+            ORDER BY c.created_at DESC
+        """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, userUuid);
+            ps.setString(2, userUuid);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) list.add(map(conn, rs));
         } catch (SQLException e) { throw new RuntimeException(e); }

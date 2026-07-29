@@ -199,7 +199,7 @@ router.beforeEach(async (to) => {
 
   const roles = (localStorage.getItem('ib_role') || '').split(',').map((r) => r.trim())
   const isOrganizerOrAdmin = roles.includes('organizer') || roles.includes('admin')
-  const organizerOnlyPaths = ['/dashboard/conferences', '/dashboard/conferences/new', '/dashboard/certificate-settings']
+  const organizerOnlyPaths = ['/dashboard/conferences/new', '/dashboard/certificate-settings']
   if (organizerOnlyPaths.includes(to.path) && !isOrganizerOrAdmin) return '/dashboard'
   if (to.path === '/dashboard/admin/users' && !roles.includes('admin')) return '/dashboard'
   if (to.path === '/dashboard/admin/event-types' && !roles.includes('admin')) return '/dashboard'

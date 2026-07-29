@@ -1,5 +1,5 @@
 <template lang="pug">
-.dashboard-home(v-if="isOrganizer" id="onboarding-dashboard-home")
+.dashboard-home(v-if="isEventManager" id="onboarding-dashboard-home")
   .dashboard-header
     h1 Panel
 
@@ -21,7 +21,7 @@
 
   .summary-group(v-if="!loading && conferences.length" id="onboarding-users-summary")
     h2 Usuarios en tus eventos
-    p.summary-hint Asistentes de los eventos que organizás — no el total de cuentas de la plataforma (ver "Usuarios" en el menú).
+    p.summary-hint Asistentes de los eventos que administrás — no el total de cuentas de la plataforma.
     .summary-grid
       .summary-card
         span.summary-icon 👥
@@ -107,7 +107,7 @@ export default {
     const history = ref<ConferenceHistoryEntry[]>([])
     const loadingHistory = ref(true)
     const auth = useAuthStore()
-    const isOrganizer = auth.isOrganizer()
+    const isEventManager = auth.isModerator()
     const summary = ref({ registeredAttendees: 0, activeAttendees: 0 })
     const summaryLoading = ref(true)
     const jaasUsage = ref<JaasUsage | null>(null)
@@ -136,7 +136,7 @@ export default {
 
     onMounted(async () => {
       const token = auth.state.token
-      if (isOrganizer) {
+      if (isEventManager) {
         try {
           if (token) {
             conferences.value = await getConferences(token)
@@ -164,7 +164,7 @@ export default {
     }
 
     return {
-      conferences, loading, isOrganizer, history, loadingHistory,
+      conferences, loading, isEventManager, history, loadingHistory,
       summary, summaryLoading, eventStats, formatDate, organizerTourSteps, jaasUsage
     }
   }

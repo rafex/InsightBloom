@@ -8,9 +8,11 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.time.Instant;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SqliteConferenceRepositoryTest {
     @Test
@@ -86,6 +88,37 @@ class SqliteConferenceRepositoryTest {
 
         restored.setPublicTheme("not-a-theme");
         assertEquals("CLASSIC", restored.getPublicTheme());
+    }
+
+    @Test
+    void listsOwnedAndAssignedConferencesForTheDashboard(@TempDir final Path tempDir) throws Exception {
+        final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
+        database.initialize();
+        final SqliteConferenceRepository repository = new SqliteConferenceRepository(database);
+        final Conference owned = new Conference("owned-event", "Owned event", "user-1");
+        final Conference assigned = new Conference("assigned-event", "Assigned event", "user-2");
+        final Conference unrelated = new Conference("unrelated-event", "Unrelated event", "user-3");
+        repository.save(owned);
+        repository.save(assigned);
+        repository.save(unrelated);
+
+        try (Connection connection = database.getConnection(); var statement = connection.prepareStatement(
+                "INSERT INTO event_roles (uuid, event_uuid, user_uuid, role_key, assigned_at) VALUES (?, ?, ?, ?, ?)")) {
+            statement.setString(1, "role-assignment-1");
+            statement.setString(2, assigned.getUuid());
+            statement.setString(3, "user-1");
+            statement.setString(4, "moderator");
+            statement.setString(5, Instant.now().toString());
+            statement.executeUpdate();
+        }
+
+        final List<Conference> visible = repository.findByUser("user-1");
+
+        final List<String> visibleIds = visible.stream().map(Conference::getUuid).toList();
+        assertEquals(2, visibleIds.size());
+        assertTrue(visibleIds.contains(owned.getUuid()));
+        assertTrue(visibleIds.contains(assigned.getUuid()));
+        assertTrue(!visibleIds.contains(unrelated.getUuid()));
     }
 
     @Test
