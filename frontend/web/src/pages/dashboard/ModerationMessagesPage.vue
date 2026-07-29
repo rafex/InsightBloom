@@ -30,7 +30,7 @@
       .msg-status
         span.status(:class="statusClass(item.detailStatus)") {{ statusLabel(item.detailStatus) }}
       .msg-actions
-        button.btn-sm.btn-danger(
+        BaseButton(size="sm" variant="danger"
           v-if="!item.detailStatus || item.detailStatus === 'VISIBLE' || item.detailStatus === 'PENDIENTE_REVISION'"
           @click="censorDetail(item)"
           :disabled="item._loading"
@@ -79,6 +79,7 @@ import { getConference, getUserProfile } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb, { type BreadcrumbItem } from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 interface ModMessageItem {
   id?: string
@@ -105,7 +106,7 @@ interface ModMessageItem {
 
 export default {
   name: 'ModerationMessagesPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const route = useRoute()
@@ -287,20 +288,20 @@ export default {
 
 <style scoped>
 .mod-messages-page { }
-h2 { color: #1e1b4b; margin-bottom: 20px; margin-top: 0; }
-.word-filter-badge { font-family: monospace; color: #4f46e5; }
+h2 { color: var(--color-heading); margin-bottom: 20px; margin-top: 0; }
+.word-filter-badge { font-family: monospace; color: var(--color-primary); }
 
 .filters { margin-bottom: 16px; }
-select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
+select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
 
 .empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
 
 .message-list { display: flex; flex-direction: column; gap: 12px; }
 
 .message-row {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-left: 4px solid #4f46e5;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-left: 4px solid var(--color-primary);
   border-radius: 8px;
   padding: 14px 16px;
   display: flex; flex-direction: column; gap: 6px;
@@ -308,44 +309,42 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .msg-word { }
 .word-chip {
   font-family: monospace; font-weight: 700; font-size: 0.9rem;
-  background: #ede9fe; color: #4f46e5;
+  background: var(--color-primary-soft); color: var(--color-primary);
   padding: 2px 8px; border-radius: 6px;
 }
-.msg-detail { color: #1f2937; font-size: 0.95rem; line-height: 1.5; }
-.msg-meta { display: flex; gap: 8px; font-size: 0.82rem; color: #6b7280; }
-.msg-author { font-weight: 600; color: #374151; }
+.msg-detail { color: var(--color-text); font-size: 0.95rem; line-height: 1.5; }
+.msg-meta { display: flex; gap: 8px; font-size: 0.82rem; color: var(--color-text-muted); }
+.msg-author { font-weight: 600; color: var(--color-text-secondary); }
 .msg-status { }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
-.status-visible { background: #dcfce7; color: #166534; }
-.status-censored { background: #fee2e2; color: #991b1b; }
-.status-pending { background: #fef9c3; color: #854d0e; }
-.status-deleted { background: #f3f4f6; color: #6b7280; }
+.status-visible { background: var(--color-success-soft); color: var(--color-success); }
+.status-censored { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.status-pending { background: var(--color-warning-soft); color: var(--color-warning); }
+.status-deleted { background: var(--color-surface-muted); color: var(--color-text-muted); }
 .msg-actions { display: flex; gap: 6px; }
 
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-danger { background: #fee2e2; color: #dc2626; }
-.btn-danger:hover { background: #fecaca; }
-.btn-success { background: #dcfce7; color: #16a34a; }
-.btn-success:hover { background: #bbf7d0; }
-.btn-warning { background: #fef3c7; color: #d97706; }
-.btn-warning:hover { background: #fde68a; }
+.btn-success { background: var(--color-success-soft); color: var(--color-success); }
+.btn-success:hover { background: var(--color-success-soft); }
+.btn-warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.btn-warning:hover { background: var(--color-warning-soft); }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-answer { background: #e0e7ff; color: #4338ca; }
-.btn-answer:hover { background: #c7d2fe; }
-.btn-primary-sm { background: #4f46e5; color: #fff; }
-.btn-ghost-sm { background: #fff; color: #6b7280; border: 1px solid #e5e7eb; }
-.answer-block { background: #f0fdf4; border-radius: 8px; padding: 10px 12px; margin-top: 6px; }
-.answer-block strong { color: #166534; font-size: 0.8rem; }
-.answer-text { margin: 4px 0 0; color: #1f2937; font-size: 0.9rem; white-space: pre-wrap; }
+.btn-answer { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+.btn-answer:hover { background: var(--color-primary-soft); }
+.btn-primary-sm { background: var(--color-primary); color: var(--color-text-inverse); }
+.btn-ghost-sm { background: var(--color-surface); color: var(--color-text-muted); border: 1px solid var(--color-border-subtle); }
+.answer-block { background: var(--color-success-soft); border-radius: 8px; padding: 10px 12px; margin-top: 6px; }
+.answer-block strong { color: var(--color-success); font-size: 0.8rem; }
+.answer-text { margin: 4px 0 0; color: var(--color-text); font-size: 0.9rem; white-space: pre-wrap; }
 .answer-form { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
 .answer-form textarea {
-  width: 100%; padding: 8px 10px; border: 1.5px solid #d1d5db; border-radius: 8px;
+  width: 100%; padding: 8px 10px; border: 1.5px solid var(--color-border); border-radius: 8px;
   font-size: 0.9rem; font-family: inherit; resize: vertical;
 }
 .answer-form-actions { display: flex; gap: 6px; }
 
-.pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: #374151; }
-.pagination button { padding: 4px 12px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; cursor: pointer; font-size: 1rem; }
+.pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: var(--color-text-secondary); }
+.pagination button { padding: 4px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); cursor: pointer; font-size: 1rem; }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 @media (max-width: 480px) {

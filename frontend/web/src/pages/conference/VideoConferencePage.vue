@@ -200,14 +200,14 @@ export default {
 <style scoped>
 .video-conference-page { position: relative; flex: 1; min-height: 480px; display: flex; }
 .takeover-toolbar { position: absolute; z-index: 2; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, calc(100% - 32px)); }
-.btn-takeover { border: 1px solid #c7d2fe; border-radius: 8px; padding: 8px 12px; color: #3730a3; background: #eef2ff; font-weight: 600; cursor: pointer; }
-.btn-takeover:hover:not(:disabled) { background: #e0e7ff; }
+.btn-takeover { border: 1px solid var(--color-primary-border); border-radius: 8px; padding: 8px 12px; color: var(--color-primary-dark); background: var(--color-primary-soft); font-weight: 600; cursor: pointer; }
+.btn-takeover:hover:not(:disabled) { background: var(--color-primary-soft); }
 .btn-takeover:disabled { opacity: .65; cursor: wait; }
-.takeover-hint { margin: 0; font-size: .75rem; color: #6b7280; text-align: right; }
-.takeover-warning { color: #92400e; }
-.takeover-error { margin: 0; color: #b91c1c; font-size: .78rem; }
+.takeover-hint { margin: 0; font-size: .75rem; color: var(--color-text-muted); text-align: right; }
+.takeover-warning { color: var(--color-warning); }
+.takeover-error { margin: 0; color: var(--color-danger-dark); font-size: .78rem; }
 #jitsi-container { flex: 1; width: 100%; }
-.loading-text { padding: 40px; text-align: center; color: #6b7280; }
-.unavailable { margin: 40px auto; text-align: center; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; max-width: 420px; }
-.unavailable .hint { color: #78350f; font-size: 0.85rem; margin-top: 6px; }
+.loading-text { padding: 40px; text-align: center; color: var(--color-text-muted); }
+.unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
+.unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 </style>

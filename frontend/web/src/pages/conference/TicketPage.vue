@@ -245,17 +245,17 @@ export default {
 
 <style scoped>
 .ticket-page { padding: 32px 24px 48px; max-width: 820px; margin: 0 auto; }
-.ticket-loading, .ticket-empty { text-align: center; color: #6b7280; padding: 60px 24px; }
-.ticket-status { font-size: 0.95rem; font-weight: 600; color: #4f46e5; text-align: center; }
-.ticket-status.checked { color: #166534; }
+.ticket-loading, .ticket-empty { text-align: center; color: var(--color-text-muted); padding: 60px 24px; }
+.ticket-status { font-size: 0.95rem; font-weight: 600; color: var(--color-primary); text-align: center; }
+.ticket-status.checked { color: var(--color-success); }
 .ticket-canvas { display: flex; align-items: center; justify-content: center; padding: 8px; }
 .ticket-wrapper {
-  --t-bg: #1e1e24;
-  --t-bg-light: #2b2b36;
-  --t-accent: #7c3aed;
-  --t-accent-glow: rgba(124, 58, 237, 0.5);
-  --t-text-main: #f8fafc;
-  --t-text-muted: #94a3b8;
+  --t-bg: var(--ticket-bg);
+  --t-bg-light: var(--ticket-bg-light);
+  --t-accent: var(--ticket-accent);
+  --t-accent-glow: var(--ticket-accent-glow);
+  --t-text-main: var(--ticket-text-main);
+  --t-text-muted: var(--ticket-text-muted);
   width: min(100%, 720px);
   perspective: 1000px;
 }
@@ -279,8 +279,8 @@ export default {
 .t-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: clamp(24px, 4vw, 38px); gap: 16px; }
 .t-logo { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: .95rem; letter-spacing: .04em; color: #fff; }
 .logo-mark { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: #fff; background: var(--t-accent); box-shadow: 0 0 12px var(--t-accent-glow); font-size: 1.4rem; }
-.t-type { font-size: .68rem; text-transform: uppercase; letter-spacing: .16em; color: #c4b5fd; border: 1px solid #8b5cf6; padding: 6px 10px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
-.t-title { font-size: clamp(1.8rem, 5vw, 3.15rem); font-weight: 900; line-height: 1.08; margin-bottom: 8px; text-transform: uppercase; overflow-wrap: anywhere; background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.t-type { font-size: .68rem; text-transform: uppercase; letter-spacing: .16em; color: var(--ticket-accent-soft); border: 1px solid var(--ticket-accent-border); padding: 6px 10px; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+.t-title { font-size: clamp(1.8rem, 5vw, 3.15rem); font-weight: 900; line-height: 1.08; margin-bottom: 8px; text-transform: uppercase; overflow-wrap: anywhere; background: linear-gradient(135deg, var(--color-text-inverse) 0%, var(--ticket-title-soft) 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .t-subtitle { color: var(--t-text-muted); font-size: .95rem; margin-bottom: 32px; }
 .t-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; margin-bottom: 12px; }
 .t-detail-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -295,18 +295,18 @@ export default {
 .t-qr-caption { color: var(--t-text-muted); font-size: .72rem; text-align: center; }
 .t-admit { text-align: right; min-width: 150px; }
 .t-admit-text { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .12em; color: var(--t-text-muted); }
-.t-admit-num { display: block; font-size: clamp(1.35rem, 3vw, 2.1rem); font-weight: 900; line-height: 1.15; color: #a78bfa; text-shadow: 0 0 15px var(--t-accent-glow); }
-.t-admit-num.checked { color: #86efac; text-shadow: none; }
+.t-admit-num { display: block; font-size: clamp(1.35rem, 3vw, 2.1rem); font-weight: 900; line-height: 1.15; color: var(--ticket-number); text-shadow: 0 0 15px var(--t-accent-glow); }
+.t-admit-num.checked { color: var(--ticket-success); text-shadow: none; }
 .t-admit-hint { display: block; margin-top: 8px; color: var(--t-text-muted); font-size: .72rem; }
 .ticket-manual { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 16px 0; text-align: center; }
-.ticket-manual span { color: #4c1d95; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
-.ticket-manual code { color: #312e81; font: 700 .84rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
-.ticket-manual small { color: #6b7280; font-size: .78rem; }
+.ticket-manual span { color: var(--ticket-manual); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.ticket-manual code { color: var(--ticket-manual-code); font: 700 .84rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.ticket-manual small { color: var(--color-text-muted); font-size: .78rem; }
 .ticket-general-cta { text-align: center; padding: 40px 24px; }
 .claim-scanner { margin: 14px auto; max-width: 320px; }
-.claim-scanner video { width: 100%; border-radius: 10px; background: #111827; }
-.claim-scanner p { color: #6b7280; font-size: 0.85rem; }
-.ticket-error { color: #dc2626; margin-top: 12px; font-size: 0.9rem; }
+.claim-scanner video { width: 100%; border-radius: 10px; background: var(--color-heading); }
+.claim-scanner p { color: var(--color-text-muted); font-size: 0.85rem; }
+.ticket-error { color: var(--color-danger); margin-top: 12px; font-size: 0.9rem; }
 .ticket-seated-picker { padding: 20px 0; text-align: center; }
 @media (max-width: 560px) {
   .ticket-page { padding: 20px 12px 36px; }

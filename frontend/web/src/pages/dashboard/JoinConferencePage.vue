@@ -127,25 +127,25 @@ export default {
 
 <style scoped>
 .join-page { max-width: 680px; }
-h1 { color: #1e1b4b; margin: 0 0 8px; font-size: 1.5rem; }
-.hint { color: #6b7280; font-size: 0.9rem; margin-bottom: 20px; }
+h1 { color: var(--color-heading); margin: 0 0 8px; font-size: 1.5rem; }
+.hint { color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: 20px; }
 .access-methods { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .method-button {
-  padding: 10px 14px; border: 1px solid #c7d2fe; border-radius: 8px; background: #fff;
-  color: #4338ca; cursor: pointer; font-weight: 600;
+  padding: 10px 14px; border: 1px solid var(--color-primary-border); border-radius: 8px; background: var(--color-surface);
+  color: var(--color-primary-dark); cursor: pointer; font-weight: 600;
 }
-.method-button.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
-.access-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; }
-label { display: block; color: #374151; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
+.method-button.active { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-text-inverse); }
+.access-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 18px; }
+label { display: block; color: var(--color-text-secondary); font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
 .form-row { display: flex; gap: 8px; align-items: stretch; }
 input {
-  flex: 1; min-width: 0; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 1rem;
+  flex: 1; min-width: 0; padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 1rem;
 }
-input:focus { outline: none; border-color: #4f46e5; }
+input:focus { outline: none; border-color: var(--color-primary); }
 .claim-scanner { margin: 14px auto 0; max-width: 320px; text-align: center; }
-.claim-scanner video { width: 100%; border-radius: 10px; background: #111827; }
-.claim-scanner p { color: #6b7280; font-size: 0.85rem; }
-.error { color: #dc2626; margin-top: 12px; font-size: 0.9rem; }
+.claim-scanner video { width: 100%; border-radius: 10px; background: var(--color-heading); }
+.claim-scanner p { color: var(--color-text-muted); font-size: 0.85rem; }
+.error { color: var(--color-danger); margin-top: 12px; font-size: 0.9rem; }
 
 @media (max-width: 620px) {
   .form-row { flex-direction: column; }

@@ -248,7 +248,7 @@ export default {
 <style scoped>
 .venue-canvas-editor {
   padding: 24px;
-  background: #f9fafb;
+  background: var(--color-surface-muted);
   border-radius: 12px;
   max-width: 700px;
   margin: 0 auto;
@@ -261,13 +261,13 @@ export default {
 
 .editor-header h3 {
   margin: 0 0 8px 0;
-  color: #1e1b4b;
+  color: var(--color-heading);
   font-size: 1.3rem;
 }
 
 .editor-header p {
   margin: 0;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
 }
 
@@ -283,26 +283,26 @@ export default {
 
 .selector-group label {
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
   min-width: 120px;
 }
 
 .shape-select {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 0.95rem;
-  background: white;
+  background: var(--color-surface);
   cursor: pointer;
 }
 
 .config-section {
-  background: white;
+  background: var(--color-surface);
   padding: 16px;
   border-radius: 8px;
   margin-bottom: 20px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-subtle);
 }
 
 .config-row {
@@ -325,26 +325,26 @@ export default {
 .input-group label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #4b5563;
+  color: var(--color-text-secondary);
 }
 
 .input-field {
   padding: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 0.9rem;
 }
 
 .input-field:focus {
   outline: none;
-  border-color: #4f46e5;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 .info-text {
   padding: 8px;
-  background: #eff6ff;
-  color: #1e40af;
+  background: var(--color-info-soft);
+  color: var(--color-info);
   font-size: 0.85rem;
   border-radius: 4px;
   font-style: italic;
@@ -356,12 +356,12 @@ export default {
 
 .preview-section h4 {
   margin: 0 0 12px 0;
-  color: #1e1b4b;
+  color: var(--color-heading);
 }
 
 .canvas-container {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
   border-radius: 8px;
   overflow: hidden;
   aspect-ratio: 4 / 3;
@@ -373,11 +373,11 @@ export default {
 }
 
 .background {
-  fill: #f3f4f6;
+  fill: var(--color-surface-muted);
 }
 
 .stage-rect {
-  stroke: #4f46e5;
+  stroke: var(--color-primary);
   stroke-width: 2;
 }
 
@@ -386,7 +386,7 @@ export default {
 }
 
 .seat-circle {
-  fill: #4f46e5;
+  fill: var(--color-primary);
   stroke: #312e81;
   stroke-width: 0.5;
 }

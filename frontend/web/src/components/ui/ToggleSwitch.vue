@@ -60,7 +60,7 @@ export default {
   width: var(--track-w);
   height: var(--track-h);
   border-radius: var(--track-h);
-  background: #d1d5db;
+  background: var(--color-border);
   padding: 2px;
   box-sizing: border-box;
   transition: background 0.2s ease;
@@ -70,7 +70,7 @@ export default {
   width: calc(var(--track-h) - 4px);
   height: calc(var(--track-h) - 4px);
   border-radius: 50%;
-  background: #fff;
+  background: var(--color-surface);
   box-shadow: 0 1px 2px rgba(17, 24, 39, 0.35);
   transition: transform 0.2s ease;
 }

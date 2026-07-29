@@ -203,25 +203,25 @@ export default {
 
 <style scoped>
 .device-access-page { padding: 24px; max-width: 720px; margin: 0 auto; }
-h2 { color: #1e1b4b; margin-bottom: 16px; }
-.loading-text { color: #6b7280; }
-.settings-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 32px; }
-.settings-card h3 { margin: 0 0 8px; color: #1e1b4b; font-size: 1rem; }
-.field-hint { margin: 0 0 12px; font-size: 0.85rem; color: #6b7280; }
+h2 { color: var(--color-heading); margin-bottom: 16px; }
+.loading-text { color: var(--color-text-muted); }
+.settings-card { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); margin-bottom: 32px; }
+.settings-card h3 { margin: 0 0 8px; color: var(--color-heading); font-size: 1rem; }
+.field-hint { margin: 0 0 12px; font-size: 0.85rem; color: var(--color-text-muted); }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
-.form-group label { font-weight: 600; font-size: 0.9rem; color: #374151; }
-.form-group input { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
-.success { color: #166534; font-size: 0.85rem; margin-top: 10px; }
-.error { color: #dc2626; font-size: 0.85rem; margin-top: 10px; }
-.blocks-title { color: #1e1b4b; font-size: 1rem; margin-bottom: 8px; }
-.empty { color: #6b7280; padding: 24px 0; }
-.fingerprint { font-family: monospace; font-size: 0.85rem; color: #1e1b4b; }
+.form-group label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
+.form-group input { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
+.success { color: var(--color-success); font-size: 0.85rem; margin-top: 10px; }
+.error { color: var(--color-danger); font-size: 0.85rem; margin-top: 10px; }
+.blocks-title { color: var(--color-heading); font-size: 1rem; margin-bottom: 8px; }
+.empty { color: var(--color-text-muted); padding: 24px 0; }
+.fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
-.status-blocked { background: #fee2e2; color: #991b1b; }
-.status-unblocked { background: #dcfce7; color: #166534; }
+.status-blocked { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.status-unblocked { background: var(--color-success-soft); color: var(--color-success); }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-success { background: #dcfce7; color: #16a34a; }
-.btn-success:hover { background: #bbf7d0; }
+.btn-success { background: var(--color-success-soft); color: var(--color-success); }
+.btn-success:hover { background: var(--color-success-soft); }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

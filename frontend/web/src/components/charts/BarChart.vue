@@ -23,7 +23,7 @@ export default {
     data: { type: Array as PropType<BarDatum[]>, required: true },
     width: { type: Number, default: 320 },
     height: { type: Number, default: 140 },
-    color: { type: String, default: '#4f46e5' }
+    color: { type: String, default: 'var(--color-primary)' }
   },
   setup(props: { data: BarDatum[], width: number, height: number, color: string }) {
     const chartHeight = props.height - 24
@@ -52,6 +52,6 @@ export default {
 <style scoped>
 .bar-chart { width: 100%; height: 140px; }
 .bar { rx: 3; }
-.bar-value { font-size: 10px; fill: #374151; font-weight: 600; }
-.bar-label { font-size: 10px; fill: #6b7280; }
+.bar-value { font-size: 10px; fill: var(--color-text-secondary); font-weight: 600; }
+.bar-label { font-size: 10px; fill: var(--color-text-muted); }
 </style>

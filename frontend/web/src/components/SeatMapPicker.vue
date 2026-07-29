@@ -48,15 +48,15 @@ export default {
 
 <style scoped>
 .seat-map-picker { width: 100%; }
-.map-wrap { position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #f3f4f6; }
+.map-wrap { position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: var(--color-surface-muted); }
 .map-wrap img { width: 100%; display: block; }
 .seat-marker {
   position: absolute; transform: translate(-50%, -50%);
   width: 28px; height: 28px; border-radius: 50%;
-  background: #4f46e5; color: #fff; font-size: 0.65rem; font-weight: 700;
+  background: var(--color-primary); color: var(--color-text-inverse); font-size: 0.65rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.25);
 }
-.seat-marker.occupied { background: #9ca3af; cursor: not-allowed; }
-.seat-marker.selected { background: #16a34a; }
+.seat-marker.occupied { background: var(--color-text-muted); cursor: not-allowed; }
+.seat-marker.selected { background: var(--color-success); }
 </style>

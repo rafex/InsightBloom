@@ -89,10 +89,10 @@ export default {
 
 <style scoped>
 .collab-notes-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; }
-.notes-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; color: #4b5563; font-size: .85rem; background: #f8fafc; border-bottom: 1px solid #e5e7eb; }
-.notes-toolbar .error { color: #b91c1c; }
+.notes-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; color: var(--color-text-secondary); font-size: .85rem; background: var(--color-surface-muted); border-bottom: 1px solid var(--color-border-subtle); }
+.notes-toolbar .error { color: var(--color-danger-dark); }
 .etherpad-frame { flex: 1; border: none; width: 100%; }
-.loading-text { padding: 40px; text-align: center; color: #6b7280; }
-.unavailable { margin: 40px auto; text-align: center; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; max-width: 420px; }
-.unavailable .hint { color: #78350f; font-size: 0.85rem; margin-top: 6px; }
+.loading-text { padding: 40px; text-align: center; color: var(--color-text-muted); }
+.unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
+.unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 </style>

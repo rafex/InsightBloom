@@ -224,41 +224,41 @@ export default {
 <style scoped>
 .conferences-list-page { padding: 32px 24px; max-width: 1200px; }
 .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
+h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
 .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.type-badge { font-size: 0.75rem; background: #e0e7ff; color: #4338ca; padding: 3px 10px; border-radius: 10px; font-weight: 600; }
+.type-badge { font-size: 0.75rem; background: var(--color-primary-soft); color: var(--color-primary-dark); padding: 3px 10px; border-radius: 10px; font-weight: 600; }
 
 .section { margin-bottom: 32px; }
-.loading-text { color: #6b7280; }
-.empty-state { text-align: center; padding: 48px; background: #f9fafb; border-radius: 12px; }
-.empty-state p { color: #6b7280; margin-bottom: 16px; }
+.loading-text { color: var(--color-text-muted); }
+.empty-state { text-align: center; padding: 48px; background: var(--color-surface-muted); border-radius: 12px; }
+.empty-state p { color: var(--color-text-muted); margin-bottom: 16px; }
 
 .table-scroll { overflow-x: auto; }
-.conferences-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
+.conferences-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
 .conferences-table th {
-  text-align: left; padding: 10px 14px; background: #f9fafb; color: #6b7280;
+  text-align: left; padding: 10px 14px; background: var(--color-surface-muted); color: var(--color-text-muted);
   font-size: 0.78rem; font-weight: 600; text-transform: uppercase;
 }
-.conferences-table td { padding: 12px 14px; border-top: 1px solid #f3f4f6; vertical-align: top; font-size: 0.9rem; }
+.conferences-table td { padding: 12px 14px; border-top: 1px solid var(--color-surface-muted); vertical-align: top; font-size: 0.9rem; }
 
 .qr-col { width: 40px; text-align: center; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .btn-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px;
-  background: transparent; color: #4f46e5;
-  border: 1px solid #e5e7eb; border-radius: 8px;
+  background: transparent; color: var(--color-primary);
+  border: 1px solid var(--color-border-subtle); border-radius: 8px;
   cursor: pointer; transition: all 0.15s;
 }
-.btn-icon:hover { background: #eef2ff; border-color: #c7d2fe; }
-.friendly-id { font-size: 0.82rem; color: #6b7280; font-family: monospace; }
+.btn-icon:hover { background: var(--color-primary-soft); border-color: var(--color-primary-border); }
+.friendly-id { font-size: 0.82rem; color: var(--color-text-muted); font-family: monospace; }
 .status-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; text-transform: uppercase; }
-.status-badge.ACTIVE { background: #d1fae5; color: #065f46; }
-.status-badge.CLOSED { background: #fee2e2; color: #991b1b; }
+.status-badge.ACTIVE { background: var(--color-success-soft); color: var(--color-success); }
+.status-badge.CLOSED { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 
-.expiry-text { color: #6b7280; font-size: 0.85rem; }
-.expiry-text.expired { color: #dc2626; font-weight: 600; }
-.downloads-text { color: #6b7280; font-size: 0.85rem; white-space: nowrap; }
+.expiry-text { color: var(--color-text-muted); font-size: 0.85rem; }
+.expiry-text.expired { color: var(--color-danger); font-weight: 600; }
+.downloads-text { color: var(--color-text-muted); font-size: 0.85rem; white-space: nowrap; }
 
 .conf-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .conf-modes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -268,11 +268,11 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
   display: flex; align-items: center; justify-content: center; z-index: 100;
 }
 .confirm-dialog {
-  background: #fff; border-radius: 16px; padding: 28px 32px;
+  background: var(--color-surface); border-radius: 16px; padding: 28px 32px;
   max-width: 400px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
 }
-.confirm-dialog h4 { margin: 0 0 12px; color: #1e1b4b; font-size: 1.1rem; }
-.confirm-dialog p { color: #6b7280; font-size: 0.95rem; margin: 0 0 24px; }
+.confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
+.confirm-dialog p { color: var(--color-text-muted); font-size: 0.95rem; margin: 0 0 24px; }
 .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 @media (max-width: 768px) {
@@ -289,8 +289,8 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
   }
   .conferences-table tbody { display: grid; gap: 14px; }
   .conferences-table tr {
-    position: relative; margin: 0; border: 1px solid #e5e7eb; border-radius: 14px;
-    padding: 12px 14px; background: #fff; box-shadow: 0 2px 8px rgba(30, 27, 75, 0.06);
+    position: relative; margin: 0; border: 1px solid var(--color-border-subtle); border-radius: 14px;
+    padding: 12px 14px; background: var(--color-surface); box-shadow: 0 2px 8px rgba(30, 27, 75, 0.06);
   }
   .conferences-table td {
     border-top: none; padding: 7px 0; min-width: 0;
@@ -305,14 +305,14 @@ h1 { color: #1e1b4b; margin: 0; font-size: 1.8rem; }
   }
   .conferences-table td.qr-col::before { display: none; }
   .conferences-table td[data-label="Nombre"] {
-    display: block; padding: 2px 42px 12px 0; border-bottom: 1px solid #f3f4f6;
-    font-size: 1rem; font-weight: 600; color: #1e1b4b; overflow-wrap: anywhere;
+    display: block; padding: 2px 42px 12px 0; border-bottom: 1px solid var(--color-surface-muted);
+    font-size: 1rem; font-weight: 600; color: var(--color-heading); overflow-wrap: anywhere;
   }
   .conferences-table td[data-label="Nombre"]::before { margin-bottom: 3px; }
   .conferences-table td[data-label="ID amigable"] .friendly-id { overflow-wrap: anywhere; }
   .conferences-table td[data-label="Descargas"] .downloads-text { white-space: normal; }
   .conferences-table td.actions-cell {
-    display: block; margin-top: 8px; padding: 12px 0 0; border-top: 1px solid #e5e7eb;
+    display: block; margin-top: 8px; padding: 12px 0 0; border-top: 1px solid var(--color-border-subtle);
   }
   .conferences-table td.actions-cell::before { margin-bottom: 8px; }
   .conf-actions, .conf-modes { gap: 7px; }

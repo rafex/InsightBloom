@@ -390,48 +390,48 @@ export default {
    antes reservaban un calc(100vh - 220px) fijo que asumia el header SIN colapsar (~220px), pero
    en estas rutas headerCollapsed=true oculta AppHeader y encoge .conf-header, dejando ~150px+ de
    espacio en blanco sin usar debajo del iframe (reportado 2026-07-19). */
-.conference-page { min-height: 100vh; display: flex; flex-direction: column; background: #f5f3ff; }
+.conference-page { min-height: 100vh; display: flex; flex-direction: column; background: var(--color-bg); }
 .conf-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.conf-header { padding: 24px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+.conf-header { padding: 24px; background: var(--color-surface); border-bottom: 1px solid var(--color-border-subtle); }
 .conf-title-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
-h1 { margin: 0; color: #1e1b4b; }
-.conf-location { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #6b7280; }
-.location-coords { font-family: monospace; color: #4f46e5; }
+h1 { margin: 0; color: var(--color-heading); }
+.conf-location { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--color-text-muted); }
+.location-coords { font-family: monospace; color: var(--color-primary); }
 .btn-qr {
-  margin-left: auto; padding: 8px 16px; border-radius: 8px; border: 2px solid #c7d2fe;
-  background: #eef2ff; color: #4f46e5; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+  margin-left: auto; padding: 8px 16px; border-radius: 8px; border: 2px solid var(--color-primary-border);
+  background: var(--color-primary-soft); color: var(--color-primary); font-weight: 600; font-size: 0.85rem; cursor: pointer;
 }
-.btn-qr:hover { background: #e0e7ff; }
+.btn-qr:hover { background: var(--color-primary-soft); }
 .conf-schedule {
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
-  font-size: 0.85rem; color: #4b5563; margin-bottom: 12px;
+  font-size: 0.85rem; color: var(--color-text-secondary); margin-bottom: 12px;
 }
 .schedule-icon { margin-right: 2px; }
 .calendar-dropdown { position: relative; margin-left: 12px; }
 .btn-calendar {
-  padding: 6px 14px; border-radius: 8px; border: 1.5px solid #4f46e5;
-  background: #fff; color: #4f46e5; font-weight: 600; font-size: 0.8rem; cursor: pointer;
+  padding: 6px 14px; border-radius: 8px; border: 1.5px solid var(--color-primary);
+  background: var(--color-surface); color: var(--color-primary); font-weight: 600; font-size: 0.8rem; cursor: pointer;
 }
-.btn-calendar:hover { background: #eef2ff; }
+.btn-calendar:hover { background: var(--color-primary-soft); }
 .calendar-menu {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 20;
-  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden; min-width: 200px;
   display: flex; flex-direction: column;
 }
 .calendar-menu a, .calendar-menu button {
-  padding: 10px 16px; text-align: left; font-size: 0.85rem; color: #374151;
+  padding: 10px 16px; text-align: left; font-size: 0.85rem; color: var(--color-text-secondary);
   text-decoration: none; background: none; border: none; cursor: pointer; font-family: inherit;
 }
-.calendar-menu a:hover, .calendar-menu button:hover { background: #f3f4f6; }
+.calendar-menu a:hover, .calendar-menu button:hover { background: var(--color-surface-muted); }
 
 .btn-collapse-toggle {
-  border: none; background: none; cursor: pointer; color: #6b7280; font-size: 0.78rem;
+  border: none; background: none; cursor: pointer; color: var(--color-text-muted); font-size: 0.78rem;
   font-weight: 600; padding: 2px 4px; margin-bottom: 6px;
 }
-.btn-collapse-toggle:hover { color: #4f46e5; }
+.btn-collapse-toggle:hover { color: var(--color-primary); }
 .conf-header.collapsed { padding: 8px 24px; }
-.conf-header.collapsed .btn-collapse-toggle { margin-bottom: 4px; font-size: 0.9rem; color: #1e1b4b; }
+.conf-header.collapsed .btn-collapse-toggle { margin-bottom: 4px; font-size: 0.9rem; color: var(--color-heading); }
 
 .conf-toolbar-wrap { position: relative; }
 .conf-toolbar { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
@@ -448,8 +448,8 @@ h1 { margin: 0; color: #1e1b4b; }
   transition: opacity 0.15s;
   z-index: 1;
 }
-.conf-toolbar-wrap::before { left: 0; background: linear-gradient(to right, #ffffff, transparent); }
-.conf-toolbar-wrap::after { right: 0; background: linear-gradient(to left, #ffffff, transparent); }
+.conf-toolbar-wrap::before { left: 0; background: linear-gradient(to right, var(--color-surface), transparent); }
+.conf-toolbar-wrap::after { right: 0; background: linear-gradient(to left, var(--color-surface), transparent); }
 .conf-toolbar-wrap.fade-left::before { opacity: 1; }
 .conf-toolbar-wrap.fade-right::after { opacity: 1; }
 .tool-btn {
@@ -457,20 +457,20 @@ h1 { margin: 0; color: #1e1b4b; }
   gap: 2px; min-width: 56px; padding: 6px 8px;
   border-radius: 8px; text-decoration: none;
   border: 1.5px solid transparent;
-  color: #4f46e5;
+  color: var(--color-primary);
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
 .tool-icon { font-size: 1.1rem; line-height: 1; }
 .tool-label { font-size: 0.65rem; font-weight: 600; white-space: nowrap; }
 .tool-btn:hover:not(.active-tab) {
-  background: #eef2ff;
-  border-color: #a5b4fc;
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
 }
 .tool-btn.active-tab {
-  background: #4f46e5;
-  color: #ffffff !important;
-  border-color: #4f46e5;
+  background: var(--color-primary);
+  color: var(--color-text-inverse) !important;
+  border-color: var(--color-primary);
 }
 .tool-btn.tab-disabled {
   cursor: not-allowed;
@@ -481,23 +481,23 @@ h1 { margin: 0; color: #1e1b4b; }
   font-weight: 500;
 }
 .tool-btn.tab-secondary:hover {
-  color: #6b7280;
-  background: #f9fafb;
-  border-color: #e5e7eb;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+  border-color: var(--color-border-subtle);
 }
-.conf-loading, .conf-error, .conf-closed { padding: 40px; text-align: center; color: #6b7280; }
-.conf-closed h2 { color: #1e1b4b; margin-bottom: 8px; }
+.conf-loading, .conf-error, .conf-closed { padding: 40px; text-align: center; color: var(--color-text-muted); }
+.conf-closed h2 { color: var(--color-heading); margin-bottom: 8px; }
 
 .anon-banner {
   margin: 16px 24px 0;
   padding: 10px 16px;
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
   border-radius: 8px;
   font-size: 0.85rem;
 }
-.anon-banner :deep(a) { color: #4f46e5; font-weight: 600; text-decoration: none; }
+.anon-banner :deep(a) { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 .anon-banner :deep(a):hover { text-decoration: underline; }
 
 @media (max-width: 640px) {

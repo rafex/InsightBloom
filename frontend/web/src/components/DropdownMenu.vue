@@ -83,25 +83,25 @@ export default {
 
 .dropdown-trigger {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 6px 12px; color: #6b7280; border: 1px solid #e5e7eb; border-radius: 8px;
+  padding: 6px 12px; color: var(--color-text-muted); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
   font-size: 0.78rem; background: #fff; cursor: pointer;
 }
-.dropdown-trigger:hover { background: #f3f4f6; color: #374151; }
-.dropdown-trigger:focus-visible { outline: 3px solid var(--color-focus, #818cf8); outline-offset: 2px; }
+.dropdown-trigger:hover { background: var(--color-surface-muted); color: var(--color-text-secondary); }
+.dropdown-trigger:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 .dropdown-caret { font-size: 0.7rem; }
 
 .dropdown-panel {
-  min-width: 160px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+  min-width: 160px; background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
   box-shadow: 0 4px 16px rgba(0,0,0,0.1); padding: 4px; display: flex; flex-direction: column;
 }
 .dropdown-panel-fixed { position: fixed; z-index: 1000; }
 
 .dropdown-panel :deep(a), .dropdown-panel :deep(button) {
   display: block; width: 100%; text-align: left; padding: 8px 10px; border-radius: 6px;
-  color: #374151; text-decoration: none; font-size: 0.85rem; border: none; background: none; cursor: pointer;
+  color: var(--color-text-secondary); text-decoration: none; font-size: 0.85rem; border: none; background: none; cursor: pointer;
 }
-.dropdown-panel :deep(a:hover), .dropdown-panel :deep(button:hover) { background: #f3f4f6; }
-.dropdown-panel :deep(a:focus-visible), .dropdown-panel :deep(button:focus-visible) { outline: 2px solid var(--color-focus, #818cf8); outline-offset: -2px; }
+.dropdown-panel :deep(a:hover), .dropdown-panel :deep(button:hover) { background: var(--color-surface-muted); }
+.dropdown-panel :deep(a:focus-visible), .dropdown-panel :deep(button:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: -2px; }
 .dropdown-panel :deep(.menu-item-danger) { color: var(--color-danger); }
 .dropdown-panel :deep(button.menu-item-danger:hover) { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 .dropdown-panel :deep(button:disabled) { opacity: 0.55; cursor: not-allowed; }

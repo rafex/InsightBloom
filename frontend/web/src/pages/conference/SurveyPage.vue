@@ -14,7 +14,7 @@
           a.link-btn.link-btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
         template(v-else-if="certError")
           p.cert-error {{ certError }}
-          router-link.btn-outline-link(v-if="certNeedsLogin" :to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
+          router-link.link-btn.link-btn-secondary(v-if="certNeedsLogin" :to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
 
       .contact-card
         h3 Sigamos en contacto
@@ -47,8 +47,8 @@
     h2 Inicia sesión para responder la encuesta
     p Necesitas una cuenta verificada para participar.
     .login-actions
-      router-link.btn-primary-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
-      router-link.btn-outline-link(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Crear cuenta
+      router-link.link-btn.link-btn-primary(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
+      router-link.link-btn.link-btn-secondary(:to="{ path: '/register', query: { redirect: $route.fullPath } }") Crear cuenta
 
   template(v-else)
     template(v-if="surveyLocked")
@@ -285,7 +285,7 @@ export default {
       const { x, y } = canvasPos(canvas, evt)
       ctx.lineWidth = 2
       ctx.lineCap = 'round'
-      ctx.strokeStyle = '#1e1b4b'
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-heading').trim()
       ctx.lineTo(x, y)
       ctx.stroke()
     }
@@ -463,40 +463,35 @@ export default {
 
 <style scoped>
 .survey-page { padding: 24px; max-width: 640px; margin: 0 auto; }
-h2 { color: #1e1b4b; margin-bottom: 16px; }
-.survey-loading, .survey-empty { text-align: center; color: #6b7280; padding: 60px; }
+h2 { color: var(--color-heading); margin-bottom: 16px; }
+.survey-loading, .survey-empty { text-align: center; color: var(--color-text-muted); padding: 60px; }
 .survey-locked {
-  text-align: center; background: #fff; border: 1px solid #fde68a; border-radius: 12px;
-  color: #92400e; padding: 48px 24px; margin: 24px 0;
+  text-align: center; background: var(--color-surface); border: 1px solid var(--color-warning); border-radius: 12px;
+  color: var(--color-warning); padding: 48px 24px; margin: 24px 0;
 }
-.survey-locked h2 { color: #92400e; }
+.survey-locked h2 { color: var(--color-warning); }
 .survey-locked p { margin: 8px 0; }
 .benefits-banner {
-  display: flex; align-items: center; gap: 10px; background: #fef3c7; color: #92400e;
+  display: flex; align-items: center; gap: 10px; background: var(--color-warning-soft); color: var(--color-warning);
   border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.88rem; line-height: 1.4;
 }
 .benefits-icon { font-size: 1.3rem; flex-shrink: 0; }
 .login-required { text-align: center; padding: 60px 24px; }
-.login-required p { color: #6b7280; margin-bottom: 24px; }
+.login-required p { color: var(--color-text-muted); margin-bottom: 24px; }
 .login-actions { display: flex; gap: 10px; justify-content: center; }
-.btn-primary-link, .btn-outline-link {
-  padding: 10px 22px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 0.95rem;
-}
-.btn-primary-link { background: #4f46e5; color: #fff; }
-.btn-outline-link { border: 1.5px solid #4f46e5; color: #4f46e5; }
 .question { margin-bottom: 24px; }
-.question label { display: block; font-weight: 600; color: #1e1b4b; margin-bottom: 8px; }
-.required-mark { color: #dc2626; }
+.question label { display: block; font-weight: 600; color: var(--color-heading); margin-bottom: 8px; }
+.required-mark { color: var(--color-danger); }
 textarea {
-  width: 100%; padding: 10px 12px; border: 1.5px solid #d1d5db; border-radius: 8px;
+  width: 100%; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: 8px;
   font-size: 0.95rem; font-family: inherit; resize: vertical;
 }
-.code-input { font-family: 'SF Mono', Consolas, monospace; font-size: 0.85rem; background: #1e1b4b; color: #e0e7ff; }
+.code-input { font-family: 'SF Mono', Consolas, monospace; font-size: 0.85rem; background: var(--color-heading); color: var(--color-primary-soft); }
 .rating { display: flex; gap: 4px; }
 .star {
-  background: none; border: none; font-size: 2rem; color: #d1d5db; cursor: pointer; line-height: 1;
+  background: none; border: none; font-size: 2rem; color: var(--color-border); cursor: pointer; line-height: 1;
 }
-.star.active { color: #f59e0b; }
+.star.active { color: var(--color-warning); }
 .emoji-rating .emoji {
   background: none; border: none; font-size: 1.8rem; cursor: pointer; line-height: 1; opacity: 0.4;
   filter: grayscale(60%); transition: all 0.15s;
@@ -504,45 +499,45 @@ textarea {
 .emoji-rating .emoji.active { opacity: 1; filter: none; transform: scale(1.2); }
 .choices { display: flex; flex-direction: column; gap: 8px; }
 .choice { display: flex; align-items: center; gap: 8px; font-weight: 400; cursor: pointer; }
-.survey-error { color: #dc2626; margin-top: 12px; }
+.survey-error { color: var(--color-danger); margin-top: 12px; }
 .download-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 
 .canvas-wrap { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.draw-canvas { border: 1.5px solid #d1d5db; border-radius: 8px; background: #fff; touch-action: none; max-width: 100%; }
+.draw-canvas { border: 1.5px solid var(--color-border); border-radius: 8px; background: var(--color-surface); touch-action: none; max-width: 100%; }
 .btn-clear {
-  padding: 6px 14px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; color: #6b7280;
+  padding: 6px 14px; border: 1px solid var(--color-border-subtle); border-radius: 8px; background: var(--color-surface); color: var(--color-text-muted);
   cursor: pointer; font-size: 0.82rem;
 }
 
 .drag-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .drag-item {
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fff;
-  border: 1.5px solid #e5e7eb; border-radius: 8px; cursor: grab; font-weight: 500;
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--color-surface);
+  border: 1.5px solid var(--color-border-subtle); border-radius: 8px; cursor: grab; font-weight: 500;
 }
 .drag-handle { color: var(--color-text-muted); }
 .drag-arrows { margin-left: auto; display: flex; gap: 4px; }
 .btn-arrow {
-  width: 26px; height: 26px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb;
+  width: 26px; height: 26px; border: 1px solid var(--color-border-subtle); border-radius: 6px; background: var(--color-surface-muted);
   cursor: pointer; font-size: 0.8rem;
 }
 .btn-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .thank-you { text-align: center; padding: 24px 0; }
 .certificate-card {
-  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 24px 0;
+  background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 24px; margin: 24px 0;
 }
-.certificate-card h3 { margin: 0 0 8px; color: #1e1b4b; }
-.cert-hint { color: #6b7280; font-size: 0.85rem; margin: 0 0 16px; }
-.cert-loading { color: #6b7280; padding: 20px; }
-.cert-error { color: #dc2626; font-size: 0.9rem; }
-.cert-preview { width: 100%; height: 360px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; }
+.certificate-card h3 { margin: 0 0 8px; color: var(--color-heading); }
+.cert-hint { color: var(--color-text-muted); font-size: 0.85rem; margin: 0 0 16px; }
+.cert-loading { color: var(--color-text-muted); padding: 20px; }
+.cert-error { color: var(--color-danger); font-size: 0.9rem; }
+.cert-preview { width: 100%; height: 360px; border: 1px solid var(--color-border-subtle); border-radius: 8px; margin-bottom: 16px; }
 .contact-card {
-  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin: 24px 0;
+  background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 24px; margin: 24px 0;
 }
-.contact-card h3 { margin: 0 0 8px; color: #1e1b4b; }
-.contact-name { font-weight: 600; color: #4f46e5; margin-bottom: 12px; }
+.contact-card h3 { margin: 0 0 8px; color: var(--color-heading); }
+.contact-name { font-weight: 600; color: var(--color-primary); margin-bottom: 12px; }
 .contact-links { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.contact-links a { color: #4f46e5; text-decoration: none; font-weight: 500; }
+.contact-links a { color: var(--color-primary); text-decoration: none; font-weight: 500; }
 .contact-links a:hover { text-decoration: underline; }
 
 @media (max-width: 640px) {

@@ -147,40 +147,40 @@ export default {
 
 <style scoped>
 .mod-tools-page { padding: 24px; max-width: 800px; }
-.page-intro { color: var(--color-text-secondary, #374151); margin-bottom: 20px; }
+.page-intro { color: var(--color-text-secondary); margin-bottom: 20px; }
 
 .release-all-card {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 16px 20px; border-radius: var(--radius-lg, 12px);
-  background: var(--color-warning-soft, #fef3c7); border: 1px solid #fde68a;
+  background: var(--color-warning-soft); border: 1px solid var(--color-warning);
   margin-bottom: 24px;
 }
-.release-all-card p { margin: 2px 0 0; color: var(--color-text-secondary, #374151); font-size: 0.88rem; }
+.release-all-card p { margin: 2px 0 0; color: var(--color-text-secondary); font-size: 0.88rem; }
 
-.loading-text { color: var(--color-text-muted, #6b7280); }
-.error { color: var(--color-danger, #dc2626); }
+.loading-text { color: var(--color-text-muted); }
+.error { color: var(--color-danger); }
 
 .tool-card {
-  border: 1px solid #e5e7eb; border-radius: var(--radius-lg, 12px);
-  padding: 16px 20px; margin-bottom: 12px; background: #fff;
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg, 12px);
+  padding: 16px 20px; margin-bottom: 12px; background: var(--color-surface);
 }
 .tool-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .tool-status {
-  display: block; font-size: 0.8rem; margin-top: 2px; color: var(--color-text-muted, #6b7280);
+  display: block; font-size: 0.8rem; margin-top: 2px; color: var(--color-text-muted);
 }
-.tool-status.on { color: var(--color-success, #166534); font-weight: 600; }
+.tool-status.on { color: var(--color-success); font-weight: 600; }
 
 .btn-link {
-  background: none; border: none; color: var(--color-primary, #4f46e5);
+  background: none; border: none; color: var(--color-primary);
   font-size: 0.85rem; cursor: pointer; padding: 8px 0 0; text-decoration: underline;
 }
 
-.attendee-list { margin-top: 10px; border-top: 1px solid #f3f4f6; padding-top: 10px; }
+.attendee-list { margin-top: 10px; border-top: 1px solid var(--color-surface-muted); padding-top: 10px; }
 .attendee-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 8px 0;
 }
 .attendee-row div { display: flex; flex-direction: column; }
-.attendee-row span { font-size: 0.8rem; color: var(--color-text-muted, #6b7280); }
-.empty-text { color: var(--color-text-muted, #6b7280); font-size: 0.88rem; }
+.attendee-row span { font-size: 0.8rem; color: var(--color-text-muted); }
+.empty-text { color: var(--color-text-muted); font-size: 0.88rem; }
 </style>

@@ -29,16 +29,16 @@ interface LayoutEntry {
 
 // Paleta de 10 colores vivos para la nube
 const PALETTE = [
-  '#4f46e5', // indigo
-  '#0ea5e9', // sky
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#8b5cf6', // violet
-  '#06b6d4', // cyan
-  '#f97316', // orange
-  '#84cc16', // lime
-  '#ec4899', // pink
+  'var(--color-cloud-indigo)',
+  'var(--color-cloud-sky)',
+  'var(--color-cloud-emerald)',
+  'var(--color-cloud-amber)',
+  'var(--color-cloud-red)',
+  'var(--color-cloud-violet)',
+  'var(--color-cloud-cyan)',
+  'var(--color-cloud-orange)',
+  'var(--color-cloud-lime)',
+  'var(--color-cloud-pink)',
 ]
 
 export default {

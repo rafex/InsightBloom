@@ -10,6 +10,8 @@ elementos canónicos que deben usarse en nuevas pantallas y migraciones.
 | Categoría | Fuente canónica | Estado |
 |---|---|---|
 | Colores y estados | `src/styles/global.css` (`--color-*`) | Consolidado |
+| Tipografía UI | `src/styles/global.css` (`@font-face`, `--font-family-sans`) | Consolidado |
+| Tipografía técnica | `src/styles/global.css` (`--font-family-mono`) | Consolidado |
 | Espaciado | `src/styles/global.css` (`--space-*`) | Consolidado |
 | Radios y sombras | `src/styles/global.css` (`--radius-*`, `--shadow-*`) | Consolidado |
 | Campos | `src/components/ui/FormField.vue` + baseline global | Disponible |
@@ -36,7 +38,8 @@ elementos canónicos que deben usarse en nuevas pantallas y migraciones.
 
 - 30 archivos usan `BaseButton`.
 - No quedan definiciones locales de `.btn-primary {` en `src/pages` o `src/components`.
-- `global.css` contiene 30 tokens compartidos y baseline para `input`, `select` y `textarea`.
+- `global.css` contiene los tokens compartidos, `@font-face` local para Assistant y baseline para
+  `input`, `select` y `textarea`.
 - `DashboardBreadcrumb` ya no agrega un `Panel` duplicado y expone `aria-current` en el crumb actual.
 - La lista de eventos cambia a tarjetas apiladas en viewport angosto y fue comprobada sin overflow
   horizontal en 375, 768 y 1280 px.
@@ -46,3 +49,6 @@ elementos canónicos que deben usarse en nuevas pantallas y migraciones.
 La migración de `FormField` sigue siendo gradual; las pantallas existentes que aún usan grupos
 locales se mantienen funcionales y deben migrarse por lotes separados. La prueba completa del
 dashboard autenticado requiere una sesión de prueba; no se versionan credenciales ni tokens.
+
+Las reglas de incorporación y el gate de CI están en
+[`UI_UX_GOVERNANCE.md`](./UI_UX_GOVERNANCE.md).

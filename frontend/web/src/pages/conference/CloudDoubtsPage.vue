@@ -20,7 +20,7 @@
     :words="words"
     :width="cloudWidth"
     :height="500"
-    color="#4f46e5"
+    color="var(--color-primary)"
     @word-click="onWordClick"
   )
   .cloud-loading(v-if="loading") Cargando dudas...
@@ -112,30 +112,30 @@ export default {
 <style scoped>
 .cloud-page { padding: 24px; }
 .cloud-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
-h2 { margin: 0; color: #1e1b4b; }
-.count { color: #6b7280; font-size: 0.9rem; }
+h2 { margin: 0; color: var(--color-heading); }
+.count { color: var(--color-text-muted); font-size: 0.9rem; }
 .cloud-empty { text-align: center; color: var(--color-text-muted); padding: 60px; font-size: 1.1rem; }
-.cloud-loading { text-align: center; color: #6b7280; padding: 40px; }
+.cloud-loading { text-align: center; color: var(--color-text-muted); padding: 40px; }
 
 .submit-box { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .submit-input {
-  flex: 1; min-width: 180px; padding: 10px 14px; border: 1.5px solid #d1d5db;
+  flex: 1; min-width: 180px; padding: 10px 14px; border: 1.5px solid var(--color-border);
   border-radius: 8px; font-size: 0.95rem;
 }
-.submit-input:focus { outline: none; border-color: #4f46e5; }
+.submit-input:focus { outline: none; border-color: var(--color-primary); }
 .btn-submit {
-  padding: 10px 22px; background: #4f46e5; color: #fff; border: none; border-radius: 8px;
+  padding: 10px 22px; background: var(--color-primary); color: var(--color-text-inverse); border: none; border-radius: 8px;
   font-weight: 600; cursor: pointer; font-size: 0.95rem;
 }
 .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 .submit-anon {
-  margin-bottom: 12px; padding: 10px 16px; background: #fef3c7; color: #92400e;
-  border: 1px solid #fde68a; border-radius: 8px; font-size: 0.85rem;
+  margin-bottom: 12px; padding: 10px 16px; background: var(--color-warning-soft); color: var(--color-warning);
+  border: 1px solid var(--color-warning); border-radius: 8px; font-size: 0.85rem;
 }
-.submit-anon :deep(a) { color: #4f46e5; font-weight: 600; text-decoration: none; }
+.submit-anon :deep(a) { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 .submit-feedback { margin: 0 0 12px; font-size: 0.85rem; }
-.submit-feedback.ok { color: #166534; }
-.submit-feedback.error { color: #dc2626; }
+.submit-feedback.ok { color: var(--color-success); }
+.submit-feedback.error { color: var(--color-danger); }
 
 @media (max-width: 640px) {
   .cloud-page { padding: 14px; }

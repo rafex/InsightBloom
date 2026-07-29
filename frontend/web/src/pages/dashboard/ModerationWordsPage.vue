@@ -32,7 +32,7 @@
       td
         span.status(:class="statusClass(item.contentStatus)") {{ statusLabel(item.contentStatus) }}
       td.actions
-        button.btn-sm.btn-danger(
+        BaseButton(size="sm" variant="danger"
           v-if="item.contentStatus === 'VISIBLE' || item.contentStatus === 'PENDIENTE_REVISION'"
           @click="censor(item)"
           :disabled="item._loading"
@@ -47,13 +47,14 @@
           @click="deleteItem(item)"
           :disabled="item._loading"
         ) Eliminar
-        button.btn-sm.btn-secondary(@click="verMensajes(item)") Ver mensajes
+        BaseButton(size="sm" variant="secondary" @click="verMensajes(item)") Ver mensajes
 </template>
 
 <script lang="ts">
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getModerationWords, censorWord, restoreWord, deleteWord } from '@/services/api/moderationApi'
@@ -71,7 +72,7 @@ interface ModWordItem {
 
 export default {
   name: 'ModerationWordsPage',
-  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav },
+  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const words = ref<ModWordItem[]>([])
@@ -152,24 +153,20 @@ export default {
 
 <style scoped>
 .mod-words-page { }
-h2 { color: #1e1b4b; margin-bottom: 20px; margin-top: 0; }
+h2 { color: var(--color-heading); margin-bottom: 20px; margin-top: 0; }
 .filters { margin-bottom: 16px; }
-select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
-.word-cell { font-family: monospace; font-weight: 700; font-size: 1rem; color: #1e1b4b; }
+select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
+.word-cell { font-family: monospace; font-weight: 700; font-size: 1rem; color: var(--color-heading); }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
-.status-visible { background: #dcfce7; color: #166534; }
-.status-censored { background: #fee2e2; color: #991b1b; }
-.status-pending { background: #fef9c3; color: #854d0e; }
-.status-deleted { background: #f3f4f6; color: #6b7280; }
+.status-visible { background: var(--color-success-soft); color: var(--color-success); }
+.status-censored { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.status-pending { background: var(--color-warning-soft); color: var(--color-warning); }
+.status-deleted { background: var(--color-surface-muted); color: var(--color-text-muted); }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-danger { background: #fee2e2; color: #dc2626; }
-.btn-danger:hover { background: #fecaca; }
-.btn-success { background: #dcfce7; color: #16a34a; }
-.btn-success:hover { background: #bbf7d0; }
-.btn-warning { background: #fef3c7; color: #d97706; }
-.btn-warning:hover { background: #fde68a; }
-.btn-secondary { background: #ede9fe; color: #4f46e5; }
-.btn-secondary:hover { background: #ddd6fe; }
+.btn-success { background: var(--color-success-soft); color: var(--color-success); }
+.btn-success:hover { background: var(--color-success-soft); }
+.btn-warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.btn-warning:hover { background: var(--color-warning-soft); }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

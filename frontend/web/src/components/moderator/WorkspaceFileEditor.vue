@@ -188,55 +188,55 @@ export default {
 }
 
 .wfe-dialog {
-  background: #fff; border-radius: 12px; width: min(1000px, 92vw); height: min(700px, 88vh);
+  background: var(--color-surface); border-radius: 12px; width: min(1000px, 92vw); height: min(700px, 88vh);
   display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
   overflow: hidden;
 }
 
 .wfe-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 20px; border-bottom: 1px solid #e5e7eb;
+  padding: 14px 20px; border-bottom: 1px solid var(--color-border-subtle);
 }
 
-.wfe-header h3 { margin: 0; color: #1e1b4b; font-size: 1.05rem; }
+.wfe-header h3 { margin: 0; color: var(--color-heading); font-size: 1.05rem; }
 
 .wfe-close {
-  border: none; background: transparent; font-size: 1.1rem; cursor: pointer; color: #6b7280;
+  border: none; background: transparent; font-size: 1.1rem; cursor: pointer; color: var(--color-text-muted);
 }
 
 .wfe-body { flex: 1; display: flex; min-height: 0; }
 
 .wfe-sidebar {
-  width: 260px; border-right: 1px solid #e5e7eb; overflow-y: auto; padding: 12px;
+  width: 260px; border-right: 1px solid var(--color-border-subtle); overflow-y: auto; padding: 12px;
 }
 
 .wfe-file-list { list-style: none; margin: 0; padding: 0; }
 
 .wfe-file-entry {
   padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
-  word-break: break-all; color: #374151;
+  word-break: break-all; color: var(--color-text-secondary);
 }
 
-.wfe-file-entry:hover { background: #f3f4f6; }
-.wfe-file-entry.active { background: #eef2ff; color: #4f46e5; font-weight: 600; }
+.wfe-file-entry:hover { background: var(--color-surface-muted); }
+.wfe-file-entry.active { background: var(--color-primary-soft); color: var(--color-primary); font-weight: 600; }
 .wfe-file-entry.dir { cursor: default; color: var(--color-text-muted); }
 
 .wfe-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 .wfe-toolbar {
-  display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #e5e7eb;
+  display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--color-border-subtle);
 }
 
-.wfe-filename { font-family: monospace; font-size: 0.85rem; color: #374151; flex: 1; }
+.wfe-filename { font-family: var(--font-family-mono); font-size: 0.85rem; color: var(--color-text-secondary); flex: 1; }
 .wfe-loading { font-size: 0.8rem; color: var(--color-text-muted); }
 
 .wfe-editor { flex: 1; min-height: 0; }
 
-.wfe-hint { padding: 16px; color: #6b7280; font-size: 0.9rem; }
-.wfe-error { padding: 8px 16px; color: #991b1b; font-size: 0.85rem; }
+.wfe-hint { padding: 16px; color: var(--color-text-muted); font-size: 0.9rem; }
+.wfe-error { padding: 8px 16px; color: var(--color-danger-dark); font-size: 0.85rem; }
 
 .wfe-conflict {
-  margin: 0; padding: 10px 16px; background: #fef3c7; color: #92400e; font-size: 0.85rem;
+  margin: 0; padding: 10px 16px; background: var(--color-warning-soft); color: var(--color-warning); font-size: 0.85rem;
   display: flex; align-items: center; gap: 12px;
 }
 </style>

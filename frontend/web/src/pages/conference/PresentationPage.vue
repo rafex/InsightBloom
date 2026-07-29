@@ -5,7 +5,7 @@
     .live-status(v-if="wsConnected")
       span.live-dot.connected
       span En vivo · sigue al presentador automáticamente
-    button.btn-presenter(v-if="presentationManager" type="button" @click="openPresenter") 🎛️ Abrir control del presentador
+    BaseButton(variant="secondary" size="sm" v-if="presentationManager" type="button" @click="openPresenter") 🎛️ Abrir control del presentador
   .presentation-loading(v-if="loading") Verificando presentación...
   .presentation-empty(v-else-if="!ready")
     p El organizador aún no ha subido la presentación de esta conferencia.
@@ -31,11 +31,13 @@ import { useRoute } from 'vue-router'
 import { getPresentationStatus, getSlidesUrl, getPresentationRootUrl, getSlidesPreviewUrl, getAudienceWsUrl, primePresentationAccess } from '@/services/api/presentationsApi'
 import type { PresentationProvider } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const PREVIEW_SLIDE_LIMIT = 5
 
 export default {
   name: 'PresentationPage',
+  components: { BaseButton },
   props: {
     conferenceId: String,
     presentationSourceUrl: String,
@@ -179,19 +181,17 @@ export default {
 <style scoped>
 .presentation-page { padding: 24px; }
 .presentation-header { margin-bottom: 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-h2 { margin: 0; color: #1e1b4b; }
-.live-status { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #6b7280; }
-.btn-presenter { margin-left: auto; padding: 8px 14px; border: 2px solid #c7d2fe; border-radius: 8px; background: #eef2ff; color: #4f46e5; font-weight: 700; cursor: pointer; }
-.btn-presenter:hover { background: #e0e7ff; }
-.live-dot { width: 9px; height: 9px; border-radius: 50%; background: #d1d5db; }
-.live-dot.connected { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
-.presentation-loading, .presentation-empty { text-align: center; color: #6b7280; padding: 60px; }
+h2 { margin: 0; color: var(--color-heading); }
+.live-status { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--color-text-muted); }
+.live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--color-border); }
+.live-dot.connected { background: var(--color-success); box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
+.presentation-loading, .presentation-empty { text-align: center; color: var(--color-text-muted); padding: 60px; }
 .slides-frame {
   width: 100%;
   height: 70vh;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-subtle);
   border-radius: 12px;
-  background: #fff;
+  background: var(--color-surface);
 }
 .presentation-actions {
   display: flex;
@@ -202,14 +202,14 @@ h2 { margin: 0; color: #1e1b4b; }
 
 .preview-banner {
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  background: #fef3c7; color: #92400e; border-radius: 8px; padding: 8px 14px;
+  background: var(--color-warning-soft); color: var(--color-warning); border-radius: 8px; padding: 8px 14px;
   font-size: 0.85rem; margin-bottom: 10px; flex-wrap: wrap;
 }
-.preview-banner a { color: #4f46e5; font-weight: 600; text-decoration: none; }
+.preview-banner a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 .preview-banner a:hover { text-decoration: underline; }
 
 .preview-expired { text-align: center; padding: 60px 24px; }
-.preview-expired p { color: #6b7280; margin-bottom: 24px; }
+.preview-expired p { color: var(--color-text-muted); margin-bottom: 24px; }
 .login-actions { display: flex; gap: 10px; justify-content: center; }
 
 @media (max-width: 640px) {

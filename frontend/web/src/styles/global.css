@@ -1,3 +1,34 @@
+/* Tipografía local del producto. Los archivos se versionan en src/assets para que el sitio no
+ * dependa de una fuente remota ni de la caché de una dependencia de desarrollo. */
+@font-face {
+  font-family: 'Assistant';
+  src: url('../assets/fonts/assistant/Assistant-Regular.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Assistant';
+  src: url('../assets/fonts/assistant/Assistant-Medium.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Assistant';
+  src: url('../assets/fonts/assistant/Assistant-SemiBold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Assistant';
+  src: url('../assets/fonts/assistant/Assistant-Bold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 /* Tokens del sistema de diseño (auditoría UX 2026-07-26). Los valores canónicos salen de los
  * colores MÁS usados que ya existían en el código (#4f46e5 aparecía 192 veces como primario,
  * #166534 39 veces como éxito, #dc2626 18 como error) — no se inventó una paleta nueva, se
@@ -9,6 +40,9 @@
   --color-primary-dark: #4338ca;
   --color-primary-soft: #eef2ff;   /* fondos lavanda: consolida eef2ff/f5f3ff/ede9fe/e0e7ff */
   --color-primary-border: #c7d2fe;
+  --color-focus: #818cf8;
+  --color-on-primary: #ffffff;
+  --color-on-danger: #ffffff;
 
   /* Estados semánticos */
   --color-success: #166534;
@@ -18,19 +52,66 @@
   --color-danger-soft: #fef2f2;
   --color-warning: #b45309;
   --color-warning-soft: #fef3c7;
+  --color-info: #1e40af;
+  --color-info-soft: #eff6ff;
+
+  /* Paletas de visualización y contenido con intención propia. Se centralizan para que
+   * componentes como WordCloud y TicketPage no vuelvan a declarar hex locales. */
+  --color-cloud-indigo: #4f46e5;
+  --color-cloud-sky: #0ea5e9;
+  --color-cloud-emerald: #10b981;
+  --color-cloud-amber: #f59e0b;
+  --color-cloud-red: #ef4444;
+  --color-cloud-violet: #8b5cf6;
+  --color-cloud-cyan: #06b6d4;
+  --color-cloud-orange: #f97316;
+  --color-cloud-lime: #84cc16;
+  --color-cloud-pink: #ec4899;
+
+  --ticket-bg: #1e1e24;
+  --ticket-bg-light: #2b2b36;
+  --ticket-accent: #7c3aed;
+  --ticket-accent-glow: rgba(124, 58, 237, 0.5);
+  --ticket-text-main: #f8fafc;
+  --ticket-text-muted: #94a3b8;
+  --ticket-accent-soft: #c4b5fd;
+  --ticket-accent-border: #8b5cf6;
+  --ticket-title-soft: #a5b4fc;
+  --ticket-number: #a78bfa;
+  --ticket-success: #86efac;
+  --ticket-manual: #4c1d95;
+  --ticket-manual-code: #312e81;
+
+  /* Tema editorial público: paleta de contenido aprobada y compartida entre cartelera y detalle. */
+  --color-editorial-page: #17152d;
+  --color-editorial-surface: #24213f;
+  --color-editorial-text: #f5f5f4;
+  --color-editorial-heading: #fff7ed;
+  --color-editorial-muted: #d6d3d1;
+  --color-editorial-accent: #fbbf24;
+  --color-editorial-border: #3f3a5d;
 
   /* Texto */
   --color-text: #111827;
+  --color-heading: #1e1b4b;
   --color-text-secondary: #374151;
   /* Muted: #6b7280 y no #9ca3af — #9ca3af sobre blanco da ~2.5:1 de contraste (WCAG pide
    * 4.5:1 para texto); estaba usado en texto real (código del boleto, breadcrumbs). */
   --color-text-muted: #6b7280;
+  --color-text-inverse: #ffffff;
 
   /* Superficies y bordes */
   --color-bg: #f5f3ff;
   --color-surface: #ffffff;
+  --color-surface-muted: #f3f4f6;
+  --color-border: #d1d5db;
+  --color-border-subtle: #e5e7eb;
   --border-subtle: 1px solid #e5e7eb;
   --border-input: 1.5px solid #d1d5db;
+
+  /* Familias aprobadas: Assistant para UI y una pila mono para código/IDs. */
+  --font-family-sans: 'Assistant', system-ui, -apple-system, sans-serif;
+  --font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
 
   /* Espaciado (escala de 4) */
   --space-1: 4px;
@@ -54,13 +135,13 @@
 *, *::before, *::after { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-family-sans);
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; }
-button { font-family: inherit; }
+button, input, select, textarea { font-family: inherit; }
 h1, h2, h3, h4 { line-height: 1.2; }
 
 /* Foco visible global (auditoría a11y: solo había 17 reglas :focus en 70 componentes y varias
@@ -113,7 +194,7 @@ input:disabled, select:disabled, textarea:disabled {
 .link-btn-lg { padding: 12px 24px; font-size: 1rem; }
 .link-btn-primary {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
   border: none;
 }
 .link-btn-primary:hover { background: var(--color-primary-dark); }

@@ -261,20 +261,20 @@ export default {
 .diagramming-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; position: relative; }
 .drawio-frame { flex: 1; border: none; width: 100%; }
 .save-banner { flex: 0 0 auto; padding: 8px 16px; font-size: 0.85rem; text-align: center; }
-.save-banner-info { background: #eff6ff; color: #1e40af; }
-.save-banner-ok { background: #dcfce7; color: #166534; }
-.save-banner-error { background: #fee2e2; color: #991b1b; }
-.published-banner { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 10px 16px; background: #eef2ff; color: #3730a3; font-size: 0.88rem; }
-.update-state { color: #64748b; font-size: 0.8rem; }
-.published-content { flex: 1; min-height: 420px; display: flex; align-items: center; justify-content: center; padding: 24px; background: #f8fafc; overflow: auto; }
-.published-diagram { display: block; max-width: 100%; max-height: 72vh; object-fit: contain; background: white; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); }
-.published-empty { text-align: center; color: #475569; background: white; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 32px; }
-.published-empty .hint { color: #64748b; font-size: 0.85rem; margin-top: 6px; }
-.refresh-floating { position: absolute; right: 22px; bottom: 22px; width: 46px; height: 46px; border: 0; border-radius: 50%; background: #4f46e5; color: white; font-size: 1.6rem; line-height: 1; cursor: pointer; box-shadow: 0 6px 18px rgba(30, 27, 75, 0.28); z-index: 2; }
-.refresh-floating:hover { background: #4338ca; }
+.save-banner-info { background: var(--color-info-soft); color: var(--color-info); }
+.save-banner-ok { background: var(--color-success-soft); color: var(--color-success); }
+.save-banner-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.published-banner { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 10px 16px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: 0.88rem; }
+.update-state { color: var(--color-text-muted); font-size: 0.8rem; }
+.published-content { flex: 1; min-height: 420px; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--color-surface-muted); overflow: auto; }
+.published-diagram { display: block; max-width: 100%; max-height: 72vh; object-fit: contain; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); }
+.published-empty { text-align: center; color: var(--color-text-secondary); background: var(--color-surface); border: 1px dashed var(--color-border); border-radius: 12px; padding: 32px; }
+.published-empty .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-top: 6px; }
+.refresh-floating { position: absolute; right: 22px; bottom: 22px; width: 46px; height: 46px; border: 0; border-radius: 50%; background: var(--color-primary); color: var(--color-text-inverse); font-size: 1.6rem; line-height: 1; cursor: pointer; box-shadow: 0 6px 18px rgba(30, 27, 75, 0.28); z-index: 2; }
+.refresh-floating:hover { background: var(--color-primary-dark); }
 .refresh-floating:disabled { opacity: 0.65; cursor: wait; }
-.refresh-floating.has-update { background: #059669; box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.18), 0 6px 18px rgba(6, 95, 70, 0.3); }
-.loading-text { padding: 40px; text-align: center; color: #6b7280; }
-.unavailable { margin: 40px auto; text-align: center; color: #92400e; background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 24px; max-width: 420px; }
-.unavailable .hint { color: #78350f; font-size: 0.85rem; margin-top: 6px; }
+.refresh-floating.has-update { background: var(--color-success); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.18), 0 6px 18px rgba(6, 95, 70, 0.3); }
+.loading-text { padding: 40px; text-align: center; color: var(--color-text-muted); }
+.unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
+.unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 </style>

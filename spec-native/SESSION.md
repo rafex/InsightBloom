@@ -2,9 +2,9 @@
 
 > **Iniciativa**: Migración a design system unificado
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
-> **Branch**: `agent/ui-ux-audit`
+> **Branch**: `codex/design-system-governance`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-28 20:36 (aprox)
+> **Último checkpoint**: 2026-07-28 20:58 (aprox)
 
 ## Estado
 
@@ -22,8 +22,9 @@
 | **4.2** | Alto tráfico (manual) | 3/8 | `LoginPage.vue` — 2 botones (`BaseButton size="lg"`, `variant="secondary"`) |
 | | | | `RegisterPage.vue` — 3 botones (`BaseButton size="lg"` ×2, `variant="ghost"`). Conservado `.btn-primary-link` (router-link para Fase 4.4) |
 | | | | `TicketPage.vue` — 3 botones (`BaseButton` ×2, `variant="secondary"`). `:loading` reemplaza spans condicionales. CSS huérfano eliminado |
-| **4.2** | Dashboard/config | 11/12 | Páginas administrativas y de configuración migradas a `BaseButton`; queda `SpeakerPanelPage.vue`, que requiere recuperar primero el stash `pre-design-system-migration` |
+| **4.2** | Dashboard/config | 12/12 | Páginas administrativas y de configuración migradas a `BaseButton` y `link-btn-*` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
+| **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
 
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
 
@@ -32,7 +33,8 @@
 
 ### Carpeta stash
 
-Hay un stash `pre-design-system-migration` con el archivo `SpeakerPanelPage.vue` que estaba sucio antes de empezar. Recuperar antes de trabajar ese archivo:
+El stash `pre-design-system-migration` conserva un estado histórico de `SpeakerPanelPage.vue`; no
+es necesario recuperarlo para la implementación vigente.
 ```bash
 git stash list  # debería mostrar "pre-design-system-migration"
 ```
@@ -40,6 +42,11 @@ git stash list  # debería mostrar "pre-design-system-migration"
 ## Pendiente
 
 La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue.
+
+La migración de colores continúa: el gate mide 80 literales hex locales (baseline histórico
+1,278) y deja visible el override legacy deliberado del tema editorial. Las nuevas pantallas deben
+usar tokens y componentes canónicos; la allowlist existente solo evita bloquear la migración
+gradual y no debe crecer.
 
 ### Fase 4.2 — Alto tráfico
 
@@ -60,33 +67,44 @@ Los 2 hechos por el agente (`SurveyManagePage`, `TicketManagementPage`) pueden r
 - [x] `src/pages/dashboard/CertificateEditorPage.vue`
 - [x] `src/pages/dashboard/PresentationManagePage.vue`
 - [x] `src/pages/dashboard/VenueMapEditorPage.vue`
-- [ ] `src/pages/dashboard/SpeakerPanelPage.vue` ← **recuperar de stash primero**
+- [x] `src/pages/dashboard/SpeakerPanelPage.vue`
 - [x] `src/pages/dashboard/JoinConferencePage.vue`
 - [x] `src/pages/profile/ProfilePage.vue`
 
 ### Fase 4.2 — Resto/Asistente (7 archivos)
 
-- [ ] `src/pages/conference/PresentationPage.vue`
-- [ ] `src/pages/conference/SurveyPage.vue`
-- [ ] `src/pages/conference/IdePage.vue`
-- [ ] `src/pages/public/NotFoundPage.vue`
-- [ ] `src/components/SessionExpiryModal.vue`
-- [ ] `src/components/VenueMapCanvasEditor.vue`
-- [ ] `src/components/moderator/WorkspaceFileEditor.vue`
+- [x] `src/pages/conference/PresentationPage.vue`
+- [x] `src/pages/conference/SurveyPage.vue`
+- [x] `src/pages/conference/IdePage.vue`
+- [x] `src/pages/public/NotFoundPage.vue`
+- [x] `src/components/SessionExpiryModal.vue`
+- [x] `src/components/VenueMapCanvasEditor.vue`
+- [x] `src/components/moderator/WorkspaceFileEditor.vue`
+
+La adopción de componentes base está completada en estas superficies; todavía queda migrar sus
+colores locales restantes a tokens, excepto paletas propias de mapas, SVG, código y temas
+editoriales.
 
 ### Fase 4.3 — FormField migration
 
 Priorizar las 4 páginas de alto tráfico con formularios reales:
 
-- [ ] `src/pages/login/LoginPage.vue` — 2 campos (email, password)
-- [ ] `src/pages/login/RegisterPage.vue` — 5+ campos (username, email, phone, password, social links)
-- [ ] `src/pages/dashboard/NewConferencePage.vue` — ~15 campos
-- [ ] `src/pages/dashboard/EditConferencePage.vue` — ~12 campos
+- [x] `src/pages/login/LoginPage.vue` — 2 campos (email, password)
+- [x] `src/pages/login/RegisterPage.vue` — 5+ campos (username, email, phone, password, social links)
+- [x] `src/pages/dashboard/NewConferencePage.vue` — ~15 campos
+- [x] `src/pages/dashboard/EditConferencePage.vue` — ~12 campos
 
 ### Fase 4.4 — Botones-enlace (`.link-btn` classes)
 
-- [ ] Crear clases `.link-btn`, `.link-btn-primary`, `.link-btn-secondary` en `global.css` o `src/styles/link-buttons.css`
-- [ ] Migrar `router-link.btn-primary` / `router-link.btn-outline` en `DashboardHome`, `PublicEventDetailPage`, `ConferencesListPage`, `NewConferencePage`, `EditConferencePage`
+- [x] Crear clases `.link-btn`, `.link-btn-primary`, `.link-btn-secondary` en `global.css`
+- [x] Migrar los enlaces de `DashboardHome`, `PublicEventDetailPage`, `ConferencesListPage`,
+  `NewConferencePage` y `EditConferencePage` a `link-btn-*`
+
+### Bloque completado en este checkpoint
+
+- [x] Migrar enlaces y acciones de `DashboardHome`, `ConferenceConfigPage`, `SpeakerPanelPage`,
+  `PresentationManagePage`, `SurveyPage` e `IdePage` a `link-btn-*`/`BaseButton`.
+- [x] Registrar `BaseButton` explícitamente en `IdePage`.
 
 ## Estrategia recomendada al retomar
 

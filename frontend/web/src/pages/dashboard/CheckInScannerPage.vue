@@ -12,15 +12,15 @@
     label(for="manual-ticket-code") Si la cámara no puede leerlo, captura el UUID del boleto
     .manual-checkin-row
       input#manual-ticket-code(v-model="manualCode" type="text" autocomplete="off" spellcheck="false" placeholder="UUID del boleto" @keyup.enter="submitManualCode")
-      button.btn-primary(type="button" :disabled="processing || !manualCode.trim()" @click="submitManualCode") Registrar
+      BaseButton(type="button" :disabled="processing || !manualCode.trim()" :loading="processing" @click="submitManualCode") Registrar
 
   .image-checkin
     p Si la cámara en vivo no lo detecta, toma una foto o selecciona una captura del QR.
-    button.btn-secondary.image-picker(type="button" :disabled="!scannerReady || imageProcessing || processing" @click="takePhotoAndScan")
+    BaseButton(variant="secondary" size="sm" type="button" :disabled="!scannerReady || imageProcessing || processing" :loading="imageProcessing" @click="takePhotoAndScan")
       span(v-if="imageProcessing") Procesando foto...
       span(v-else) 📸 Tomar foto y leer QR
     span.image-or O selecciona una imagen:
-    label.btn-secondary.image-picker(:for="'qr-image-input'")
+    label.link-btn.link-btn-secondary.link-btn-sm.image-picker(:for="'qr-image-input'")
       | 📷 Leer QR desde imagen
     input#qr-image-input(type="file" accept="image/*" capture="environment" @change="scanQrImage")
 
@@ -35,13 +35,14 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import QrScanner from 'qr-scanner'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { checkInIssuedTicket, checkInTicket, getConference } from '@/services/api/usersApi'
 import type { Ticket, Reservation } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'CheckInScannerPage',
-  components: { DashboardBreadcrumb },
+  components: { DashboardBreadcrumb, BaseButton },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -54,7 +55,7 @@ export default {
     const scannerError = ref(false)
     const imageProcessing = ref(false)
     let scanner: QrScanner | null = null
-    let processing = false
+    const processing = ref(false)
 
     function extractTicketCode(rawValue: string): string {
       const value = rawValue.trim()
@@ -98,8 +99,8 @@ export default {
     }
 
     async function onDecoded(rawValue: string) {
-      if (processing || !props.conferenceId) return
-      processing = true
+      if (processing.value || !props.conferenceId) return
+      processing.value = true
       const ticketCode = extractTicketCode(rawValue)
       try {
         let reservation: Ticket | Reservation
@@ -120,7 +121,7 @@ export default {
         lastResult.value = { ok: false, message: errorMessage(e) }
       } finally {
         manualCode.value = ''
-        setTimeout(() => { processing = false }, 1500)
+        setTimeout(() => { processing.value = false }, 1500)
       }
     }
 
@@ -135,7 +136,7 @@ export default {
       // Reset the input so the same screenshot can be selected again after a
       // failed attempt or after correcting the lighting/focus.
       input.value = ''
-      if (!file || imageProcessing.value || processing) return
+      if (!file || imageProcessing.value || processing.value) return
 
       imageProcessing.value = true
       lastResult.value = null
@@ -159,7 +160,7 @@ export default {
 
     async function takePhotoAndScan() {
       const video = videoEl.value
-      if (!video || !video.videoWidth || !video.videoHeight || imageProcessing.value || processing) return
+      if (!video || !video.videoWidth || !video.videoHeight || imageProcessing.value || processing.value) return
 
       imageProcessing.value = true
       lastResult.value = null
@@ -236,7 +237,7 @@ export default {
 
     return {
       videoEl, lastResult, recent, breadcrumbItems, manualCode, submitManualCode,
-      scannerReady, scannerError, scannerStatus, scanQrImage, takePhotoAndScan, imageProcessing
+      scannerReady, scannerError, scannerStatus, scanQrImage, takePhotoAndScan, imageProcessing, processing
     }
   }
 }
@@ -244,31 +245,29 @@ export default {
 
 <style scoped>
 .checkin-page { padding: 24px; max-width: 480px; margin: 0 auto; }
-h2 { color: #1e1b4b; margin-bottom: 16px; }
+h2 { color: var(--color-heading); margin-bottom: 16px; }
 .scanner-wrap {
   border-radius: 12px; overflow: hidden; background: #000; aspect-ratio: 1; max-width: 360px; margin: 0 auto;
 }
 .scanner-wrap video { width: 100%; height: 100%; object-fit: cover; }
-.scan-hint { text-align: center; color: #6b7280; font-size: 0.85rem; margin-top: 10px; }
-.scanner-status { text-align: center; color: #6b7280; font-size: 0.82rem; margin: 8px 0 18px; }
-.scanner-status.ready { color: #166534; }
-.scanner-status.error { color: #991b1b; }
-.manual-checkin { margin-top: 18px; padding: 14px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; }
-.manual-checkin label { display: block; color: #374151; font-size: 0.82rem; font-weight: 600; margin-bottom: 8px; }
+.scan-hint { text-align: center; color: var(--color-text-muted); font-size: 0.85rem; margin-top: 10px; }
+.scanner-status { text-align: center; color: var(--color-text-muted); font-size: 0.82rem; margin: 8px 0 18px; }
+.scanner-status.ready { color: var(--color-success); }
+.scanner-status.error { color: var(--color-danger-dark); }
+.manual-checkin { margin-top: 18px; padding: 14px; border: 1px solid var(--color-border-subtle); border-radius: 10px; background: var(--color-surface); }
+.manual-checkin label { display: block; color: var(--color-text-secondary); font-size: 0.82rem; font-weight: 600; margin-bottom: 8px; }
 .manual-checkin-row { display: flex; gap: 8px; }
-.manual-checkin input { min-width: 0; flex: 1; border: 1px solid #d1d5db; border-radius: 7px; padding: 9px 10px; font: 0.8rem monospace; }
-.manual-checkin button { border: 0; border-radius: 7px; padding: 9px 12px; cursor: pointer; }
-.manual-checkin button:disabled { opacity: 0.55; cursor: not-allowed; }
-.image-checkin { margin-top: 10px; padding: 12px 14px; border: 1px dashed #c7d2fe; border-radius: 10px; background: #eef2ff; text-align: center; }
-.image-checkin p { margin: 0 0 9px; color: #4b5563; font-size: 0.78rem; }
-.image-picker { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 13px; border-radius: 7px; background: #fff; color: #4338ca; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.manual-checkin input { min-width: 0; flex: 1; border: 1px solid var(--color-border); border-radius: 7px; padding: 9px 10px; font: 0.8rem monospace; }
+.image-checkin { margin-top: 10px; padding: 12px 14px; border: 1px dashed var(--color-primary-border); border-radius: 10px; background: var(--color-primary-soft); text-align: center; }
+.image-checkin p { margin: 0 0 9px; color: var(--color-text-secondary); font-size: 0.78rem; }
+.image-picker { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 13px; border-radius: 7px; background: var(--color-surface); color: var(--color-primary-dark); font-size: 0.8rem; font-weight: 700; cursor: pointer; }
 .image-picker:disabled { cursor: not-allowed; opacity: .55; }
-.image-or { display: inline-block; margin: 0 8px; color: #6b7280; font-size: 0.75rem; }
+.image-or { display: inline-block; margin: 0 8px; color: var(--color-text-muted); font-size: 0.75rem; }
 .image-checkin input[type="file"] { display: none; }
 .scan-result { text-align: center; font-weight: 600; margin-top: 16px; padding: 10px; border-radius: 8px; }
-.scan-result.ok { background: #dcfce7; color: #166534; }
-.scan-result.error { background: #fee2e2; color: #991b1b; }
+.scan-result.ok { background: var(--color-success-soft); color: var(--color-success); }
+.scan-result.error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 .recent-list { margin-top: 24px; }
-.recent-list h3 { color: #374151; font-size: 0.9rem; margin-bottom: 8px; }
-.recent-item { font-family: monospace; font-size: 0.8rem; color: #6b7280; padding: 4px 0; border-bottom: 1px solid #f3f4f6; }
+.recent-list h3 { color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
+.recent-item { font-family: monospace; font-size: 0.8rem; color: var(--color-text-muted); padding: 4px 0; border-bottom: 1px solid var(--color-surface-muted); }
 </style>

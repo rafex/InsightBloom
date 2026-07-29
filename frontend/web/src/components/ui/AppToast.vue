@@ -39,7 +39,7 @@ export default {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-modal);
   font-size: 0.92rem;
-  color: #fff;
+  color: var(--color-text-inverse);
 }
 .k-success { background: var(--color-success); }
 .k-error { background: var(--color-danger); }

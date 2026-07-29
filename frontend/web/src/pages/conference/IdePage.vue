@@ -50,15 +50,15 @@
             .value {{ formattedExpiry }}
 
         .ide-actions
-          a.btn-primary(v-if="fullGatewayUrl" :href="ideSessionUrl" target="_blank" rel="noopener")
+          a.link-btn.link-btn-primary(v-if="fullGatewayUrl" :href="ideSessionUrl" target="_blank" rel="noopener")
             span 🚀 Abrir IDE en navegador
-          button.btn-secondary(@click="downloadWorkspace" :disabled="downloadingWorkspace")
+          BaseButton(variant="secondary" @click="downloadWorkspace" :disabled="downloadingWorkspace")
             span(v-if="!downloadingWorkspace") 📥 Descargar workspace
             span(v-else) Descargando...
-          button.btn-secondary(@click="publishPreview" :disabled="publishingPreview")
+          BaseButton(variant="secondary" @click="publishPreview" :disabled="publishingPreview")
             span(v-if="!publishingPreview") 🌐 Publicar página temporal
             span(v-else) Validando y publicando...
-          button.btn-secondary(@click="publishApp" :disabled="publishingApp")
+          BaseButton(variant="secondary" @click="publishApp" :disabled="publishingApp")
             span(v-if="!publishingApp") 🔌 Publicar backend/API
             span(v-else) Publicando...
           button.btn-tertiary(@click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
@@ -104,6 +104,7 @@ import {
 import type { SandboxInfo, SandboxAvailability, SandboxVariant, WorkspacePreviewInfo, AppPreviewInfo } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import SandboxLoadingAnimation from '@/components/SandboxLoadingAnimation.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 // El endpoint devuelve una instantánea; mientras el Pod/seat-agent se prepara
 // usamos backoff para no golpear la API cada pocos segundos durante un cold start.
@@ -115,7 +116,7 @@ const POLL_TIMEOUT_MS = 5 * 60_000
 
 export default {
   name: 'IdePage',
-  components: { SandboxLoadingAnimation },
+  components: { SandboxLoadingAnimation, BaseButton },
   props: {
     conferenceId: {
       type: String,
@@ -436,7 +437,7 @@ export default {
 }
 
 .ide-container {
-  background: white;
+  background: var(--color-surface);
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   padding: 32px;
@@ -450,13 +451,13 @@ export default {
 .ide-header h2 {
   margin: 0 0 8px;
   font-size: 1.5rem;
-  color: #1e1b4b;
+  color: var(--color-heading);
 }
 
 .subtitle {
   margin: 0;
   font-size: 0.95rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .ide-status {
@@ -479,22 +480,22 @@ export default {
   gap: 4px;
   text-align: left;
   padding: 16px 20px;
-  border: 1.5px solid #e5e7eb;
+  border: 1.5px solid var(--color-border-subtle);
   border-radius: 10px;
-  background: white;
+  background: var(--color-surface);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .variant-btn:hover:not(:disabled) {
-  border-color: #a5b4fc;
-  background: #eef2ff;
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
 }
 
 .variant-btn.active {
-  border-color: #4f46e5;
-  background: #eef2ff;
-  box-shadow: 0 0 0 1px #4f46e5;
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 .variant-btn:disabled {
@@ -505,12 +506,12 @@ export default {
 .variant-title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #1e1b4b;
+  color: var(--color-heading);
 }
 
 .variant-desc {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .variant-slots {
@@ -531,22 +532,22 @@ export default {
 .loading-spinner {
   text-align: center;
   padding: 40px;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: 1.1rem;
 }
 
 .error-message {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-dark);
   padding: 16px;
   border-radius: 8px;
-  border-left: 4px solid #dc2626;
+  border-left: 4px solid var(--color-danger);
   margin-bottom: 16px;
 }
 
 .sandbox-info {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-subtle);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 24px;
@@ -556,7 +557,7 @@ export default {
   display: flex;
   gap: 16px;
   padding: 12px 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .info-row:last-child {
@@ -565,12 +566,12 @@ export default {
 
 .label {
   font-weight: 600;
-  color: #374151;
+  color: var(--color-text-secondary);
   min-width: 140px;
 }
 
 .value {
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-family: 'Monaco', 'Courier New', monospace;
   font-size: 0.9rem;
 }
@@ -584,10 +585,10 @@ export default {
 .preview-result {
   margin-top: 18px;
   padding: 16px;
-  border: 1px solid #bbf7d0;
+  border: 1px solid var(--color-success);
   border-radius: 10px;
-  background: #f0fdf4;
-  color: #166534;
+  background: var(--color-success-soft);
+  color: var(--color-success);
 }
 
 .preview-result p {
@@ -603,10 +604,10 @@ export default {
 
 a.btn-tertiary {
   padding: 10px 20px;
-  border: 1.5px solid #c7d2fe;
+  border: 1.5px solid var(--color-primary-border);
   border-radius: 8px;
-  background: white;
-  color: #4f46e5;
+  background: var(--color-surface);
+  color: var(--color-primary);
   font-size: 0.95rem;
   font-weight: 600;
   text-decoration: none;
@@ -616,14 +617,14 @@ a.btn-tertiary {
 }
 
 a.btn-tertiary:hover {
-  background: #eef2ff;
-  border-color: #a5b4fc;
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
 }
 
 .no-sandbox {
   text-align: center;
   padding: 40px 24px;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .no-sandbox p {

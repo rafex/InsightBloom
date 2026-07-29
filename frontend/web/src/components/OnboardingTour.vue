@@ -127,7 +127,7 @@ export default {
 }
 .tour-highlight {
   position: fixed;
-  border: 2px solid #4f46e5;
+  border: 2px solid var(--color-primary);
   border-radius: 10px;
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.25);
   pointer-events: none;
@@ -136,20 +136,20 @@ export default {
 .tour-popover {
   position: fixed;
   max-width: 300px;
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 16px 18px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
 }
-.tour-text { margin: 0 0 14px; color: #1e1b4b; font-size: 0.92rem; line-height: 1.4; }
+.tour-text { margin: 0 0 14px; color: var(--color-heading); font-size: 0.92rem; line-height: 1.4; }
 .tour-actions { display: flex; align-items: center; gap: 10px; }
 .tour-progress { font-size: 0.75rem; color: var(--color-text-muted); margin-right: auto; }
 .tour-skip {
-  background: none; border: none; color: #6b7280; font-size: 0.85rem; cursor: pointer;
+  background: none; border: none; color: var(--color-text-muted); font-size: 0.85rem; cursor: pointer;
 }
 .tour-next {
-  padding: 6px 16px; background: #4f46e5; color: #fff; border: none; border-radius: 8px;
+  padding: 6px 16px; background: var(--color-primary); color: var(--color-text-inverse); border: none; border-radius: 8px;
   font-weight: 600; font-size: 0.85rem; cursor: pointer;
 }
-.tour-next:hover { background: #4338ca; }
+.tour-next:hover { background: var(--color-primary-dark); }
 </style>

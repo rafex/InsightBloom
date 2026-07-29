@@ -4,15 +4,17 @@
     h3 Escanea para entrar
     canvas(ref="qrCanvas")
     p.qr-url {{ publicUrl }}
-    button.btn-secondary(@click="$emit('close')") Cerrar
+    BaseButton(variant="secondary" size="sm" @click="$emit('close')") Cerrar
 </template>
 
 <script lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import QRCode from 'qrcode'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 export default {
   name: 'QrCodeModal',
+  components: { BaseButton },
   props: {
     friendlyId: { type: String, default: '' },
     url: { type: String, default: '' }
@@ -43,13 +45,9 @@ export default {
   display: flex; align-items: center; justify-content: center; z-index: 100;
 }
 .qr-dialog {
-  background: #fff; border-radius: 16px; padding: 28px 32px; text-align: center;
+  background: var(--color-surface); border-radius: 16px; padding: 28px 32px; text-align: center;
   box-shadow: 0 8px 40px rgba(0,0,0,0.2);
 }
-.qr-dialog h3 { margin: 0 0 16px; color: #1e1b4b; }
-.qr-url { color: #6b7280; font-size: 0.82rem; margin: 12px 0 16px; word-break: break-all; }
-.btn-secondary {
-  padding: 8px 16px; border-radius: 8px; background: #eef2ff; color: #4f46e5; border: 2px solid #c7d2fe;
-  font-weight: 600; font-size: 0.88rem; cursor: pointer;
-}
+.qr-dialog h3 { margin: 0 0 16px; color: var(--color-heading); }
+.qr-url { color: var(--color-text-muted); font-size: 0.82rem; margin: 12px 0 16px; word-break: break-all; }
 </style>

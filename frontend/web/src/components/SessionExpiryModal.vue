@@ -31,7 +31,7 @@ export default {
   z-index: 2000;
 }
 .session-modal {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 16px;
   padding: 28px 32px;
   max-width: 360px;
@@ -39,7 +39,7 @@ export default {
   text-align: center;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
 }
-.session-modal h3 { margin: 0 0 12px; color: #1e1b4b; }
-.session-modal p { margin: 0 0 20px; color: #374151; font-size: 0.95rem; }
-.session-modal strong { color: #dc2626; }
+.session-modal h3 { margin: 0 0 12px; color: var(--color-heading); }
+.session-modal p { margin: 0 0 20px; color: var(--color-text-secondary); font-size: 0.95rem; }
+.session-modal strong { color: var(--color-danger); }
 </style>
