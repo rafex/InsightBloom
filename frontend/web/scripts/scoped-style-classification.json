@@ -23,6 +23,7 @@
   "src/components/ui/BaseButton.vue": "canonical-component",
   "src/components/ui/BaseModal.vue": "canonical-component",
   "src/components/ui/FormField.vue": "canonical-component",
+  "src/components/ui/SaveState.vue": "canonical-component",
   "src/components/ui/ToggleSwitch.vue": "canonical-component",
   "src/pages/conference/CloudDoubtsPage.vue": "visualization",
   "src/pages/conference/CloudTopicsPage.vue": "visualization",

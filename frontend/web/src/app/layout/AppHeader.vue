@@ -42,11 +42,11 @@ export default {
 
 <style scoped>
 .app-header {
-  background: #1e1b4b; color: #fff;
+  background: var(--color-heading); color: var(--color-text-inverse);
   position: sticky; top: 0; z-index: 100;
 }
 .offline-banner {
-  background: #92400e; color: #fff; text-align: center;
+  background: var(--color-warning-dark); color: var(--color-text-inverse); text-align: center;
   font-size: 0.78rem; padding: 4px 8px;
 }
 .header-row {
@@ -56,10 +56,10 @@ export default {
 .header-brand a { text-decoration: none; display: flex; align-items: center; }
 .brand-logo { height: 36px; width: auto; }
 .header-nav { display: flex; gap: 16px; }
-.header-nav a { color: #c7d2fe; text-decoration: none; font-size: 0.9rem; }
-.header-nav a:hover { color: #fff; }
+.header-nav a { color: var(--color-header-link); text-decoration: none; font-size: 0.9rem; }
+.header-nav a:hover { color: var(--color-text-inverse); }
 .version-tag {
-  font-size: 0.7rem; color: #a5b4fc;
+  font-size: 0.7rem; color: var(--color-header-link-muted);
   background: rgba(255,255,255,0.08); padding: 2px 8px;
   border-radius: 9999px; margin-left: auto;
   white-space: nowrap; opacity: 0.7;

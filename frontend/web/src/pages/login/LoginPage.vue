@@ -162,7 +162,7 @@ export default {
 <style scoped>
 .login-page { min-height: 100vh; background: var(--color-bg); }
 .login-main { display: flex; justify-content: center; padding: 80px 24px; }
-.login-card { background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 400px; width: 100%; }
+.login-card { background: var(--color-surface); border-radius: 16px; padding: 40px; box-shadow: var(--shadow-card); max-width: 400px; width: 100%; }
 h2 { margin: 0 0 8px; color: var(--color-heading); }
 .login-mode-tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 1px solid var(--color-border-subtle); }
 .mode-tab {

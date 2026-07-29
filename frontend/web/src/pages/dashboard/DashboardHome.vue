@@ -107,7 +107,7 @@ export default {
     const history = ref<ConferenceHistoryEntry[]>([])
     const loadingHistory = ref(true)
     const auth = useAuthStore()
-    const isEventManager = auth.isModerator()
+    const isEventManager = ref(auth.isModerator())
     const summary = ref({ registeredAttendees: 0, activeAttendees: 0 })
     const summaryLoading = ref(true)
     const jaasUsage = ref<JaasUsage | null>(null)
@@ -136,25 +136,31 @@ export default {
 
     onMounted(async () => {
       const token = auth.state.token
-      if (isEventManager) {
-        try {
-          if (token) {
-            conferences.value = await getConferences(token)
-            void loadSummary(token)
-          }
-        } catch (e: any) {
-          console.error('Error cargando conferencias', e)
-        } finally {
-          loading.value = false
+      if (!token) {
+        loading.value = false
+        loadingHistory.value = false
+        return
+      }
+      try {
+        // También resolvemos asignaciones event-scoped: un moderador operativo puede
+        // conservar ATTENDEE como rol global y aun así administrar sus eventos asignados.
+        conferences.value = await getConferences(token)
+        if (isEventManager.value || conferences.value.length > 0) {
+          isEventManager.value = true
+          void loadSummary(token)
+          return
         }
-      } else {
-        try {
-          if (token) history.value = await getConferenceHistory(token)
-        } catch (e: any) {
-          console.error('Error cargando historial', e)
-        } finally {
-          loadingHistory.value = false
-        }
+      } catch (e: any) {
+        console.error('Error cargando conferencias', e)
+      } finally {
+        loading.value = false
+      }
+      try {
+        history.value = await getConferenceHistory(token)
+      } catch (e: any) {
+        console.error('Error cargando historial', e)
+      } finally {
+        loadingHistory.value = false
       }
     })
 

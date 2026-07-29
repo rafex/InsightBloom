@@ -240,7 +240,6 @@ h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
 .empty-state { text-align: center; padding: 48px; background: var(--color-surface-muted); border-radius: 12px; }
 .empty-state p { color: var(--color-text-muted); margin-bottom: 16px; }
 
-.table-scroll { overflow-x: auto; }
 .conferences-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
 .conferences-table th {
   text-align: left; padding: 10px 14px; background: var(--color-surface-muted); color: var(--color-text-muted);
@@ -271,12 +270,12 @@ h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
 .conf-modes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
 .confirm-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  position: fixed; inset: 0; background: var(--color-overlay);
   display: flex; align-items: center; justify-content: center; z-index: 100;
 }
 .confirm-dialog {
   background: var(--color-surface); border-radius: 16px; padding: 28px 32px;
-  max-width: 400px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+  max-width: 400px; width: 90%; box-shadow: var(--shadow-overlay);
 }
 .confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
 .confirm-dialog p { color: var(--color-text-muted); font-size: 0.95rem; margin: 0 0 24px; }

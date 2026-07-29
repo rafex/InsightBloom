@@ -2,7 +2,7 @@
 
 > **Iniciativa**: Migración a design system unificado
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
-> **Branch**: `codex/design-system-governance`
+> **Branch**: `main`
 > **Creado**: 2026-07-28
 > **Último checkpoint**: 2026-07-29 (acciones administrativas canónicas)
 
@@ -10,7 +10,7 @@
 
 | State    | Bloqueante | Próximo paso |
 |----------|------------|-------------|
-| `in_progress` | No | Continuar pendientes de validación responsive y accesibilidad; navegación, breadcrumbs, configuración y acciones administrativas ya consolidadas |
+| `in_progress` | No | Continuar migración de superficies elegibles y validar recorridos autenticados responsive por rol |
 
 ## Resumen de avance
 
@@ -27,6 +27,9 @@
 | **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
 | **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 76 estilos scoped, fija las 80 excepciones hex en 6 superficies y ya no permite redefiniciones legacy de selectores canónicos |
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
+| **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
+| **Gobierno visual** | Shell y overlays | En progreso | Header, menús, modales, confirmaciones y overlays administrativos consumen tokens de superficie, sombra y scrim |
+| **Recorridos por rol** | Moderador event-scoped | En progreso | El panel detecta eventos asignados aunque el rol global sea `ATTENDEE`; se mantienen ocultas acciones de propietario |
 | **UX evento** | QR, herramientas y cabecera | Completado | El QR del listado apunta siempre a `/c/{friendlyId}/ticket`; se retiraron botones internos de QR; se agregó Cronograma y se ordenaron las herramientas; la cabecera inicia compacta y se mantiene así al cambiar de ruta |
 
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
@@ -44,7 +47,7 @@ git stash list  # debería mostrar "pre-design-system-migration"
 
 ## Pendiente
 
-La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue.
+La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue. La tanda del 2026-07-29 añadió el estado de guardado canónico, el baseline global de tablas, tokens de overlays y detección de asignaciones event-scoped para moderadores.
 
 La migración de colores continúa: el gate mide 80 literales hex locales (baseline histórico
 1,278), todos fijados en excepciones documentadas de mapas, ilustraciones y certificados. Las nuevas

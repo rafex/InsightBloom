@@ -84,7 +84,7 @@ export default {
 .dropdown-trigger {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 6px 12px; color: var(--color-text-muted); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
-  font-size: 0.78rem; background: #fff; cursor: pointer;
+  font-size: 0.78rem; background: var(--color-surface); cursor: pointer;
 }
 .dropdown-trigger:hover { background: var(--color-surface-muted); color: var(--color-text-secondary); }
 .dropdown-trigger:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
@@ -92,7 +92,7 @@ export default {
 
 .dropdown-panel {
   min-width: 160px; background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.1); padding: 4px; display: flex; flex-direction: column;
+  box-shadow: var(--shadow-dropdown); padding: 4px; display: flex; flex-direction: column;
 }
 .dropdown-panel-fixed { position: fixed; z-index: 1000; }
 

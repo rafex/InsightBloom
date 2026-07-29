@@ -51,6 +51,7 @@
   --color-danger-dark: #b91c1c;
   --color-danger-soft: #fef2f2;
   --color-warning: #b45309;
+  --color-warning-dark: #92400e;
   --color-warning-soft: #fef3c7;
   --color-info: #1e40af;
   --color-info-soft: #eff6ff;
@@ -109,6 +110,11 @@
   --border-subtle: 1px solid #e5e7eb;
   --border-input: 1.5px solid #d1d5db;
 
+  /* Shell y superficies flotantes */
+  --color-header-link: #c7d2fe;
+  --color-header-link-muted: #a5b4fc;
+  --color-overlay: rgba(17, 24, 39, 0.4);
+
   /* Familias aprobadas: Assistant para UI y una pila mono para código/IDs. */
   --font-family-sans: 'Assistant', system-ui, -apple-system, sans-serif;
   --font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
@@ -130,6 +136,8 @@
   /* Sombra estándar de tarjetas/modales */
   --shadow-card: 0 1px 3px rgba(17, 24, 39, 0.08);
   --shadow-modal: 0 10px 30px rgba(17, 24, 39, 0.18);
+  --shadow-dropdown: 0 4px 16px rgba(17, 24, 39, 0.1);
+  --shadow-overlay: 0 8px 40px rgba(17, 24, 39, 0.2);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -212,4 +220,13 @@ input:disabled, select:disabled, textarea:disabled {
 .link-btn-ghost:hover {
   background: var(--color-primary-soft);
   color: var(--color-primary);
+}
+
+/* Contenedor único para tablas: conserva el ancho de la página y permite desplazamiento
+   horizontal accesible cuando una tabla no puede convertirse en tarjetas. */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
 }

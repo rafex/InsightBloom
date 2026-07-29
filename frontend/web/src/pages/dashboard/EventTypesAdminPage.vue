@@ -169,7 +169,7 @@ export default {
 h2 { color: var(--color-heading); margin-bottom: 20px; }
 .empty-state { text-align: center; color: var(--color-text-muted); padding: 60px; }
 
-.table-scroll { overflow-x: auto; margin-bottom: 32px; }
+.table-scroll { margin-bottom: 32px; }
 .types-table { width: 100%; border-collapse: collapse; background: var(--color-surface); border-radius: 12px; overflow: hidden; }
 .types-table th { text-align: left; padding: 10px 12px; background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; }
 .types-table td { padding: 10px 12px; border-top: 1px solid var(--color-surface-muted); vertical-align: top; font-size: 0.88rem; }

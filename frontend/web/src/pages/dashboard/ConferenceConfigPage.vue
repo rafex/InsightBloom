@@ -3,9 +3,7 @@
   DashboardBreadcrumb(:items="breadcrumbItems")
 
   h2 Configuración del evento
-  .save-state(:class="`state-${saveStateKind}`" role="status" aria-live="polite")
-    span.save-state-dot(aria-hidden="true")
-    span {{ saveStateLabel }}
+  SaveState(:state="saveState")
 
   ConferenceToolsNav(:conferenceId="conferenceId")
 
@@ -15,8 +13,8 @@
     button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'sandbox'" :class="{ active: activeTab === 'sandbox' }" @click="selectTab('sandbox')") IDE y sandboxes
     button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'access'" :class="{ active: activeTab === 'access' }" @click="selectTab('access')") Acceso y boletos
     button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'roles'" :class="{ active: activeTab === 'roles' }" @click="selectTab('roles')") Roles y moderación
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'ai'" :class="{ active: activeTab === 'ai' }" @click="selectTab('ai')") 🤖 IA
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="selectTab('network')") 🌐 Red
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'ai'" :class="{ active: activeTab === 'ai' }" @click="selectTab('ai')") IA
+    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="selectTab('network')") Red
 
   .loading-text(v-if="loading") Cargando conferencia...
   .error(v-else-if="error") {{ error }}
@@ -316,10 +314,11 @@ import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseModal, ToggleSwitch },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseModal, ToggleSwitch, SaveState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -536,13 +535,12 @@ export default {
     const savingFlags = [savingEventType, savingCertificateEngine, savingCanvasConfig, savingSeating,
       savingTicketSales, savingSandboxConfig, savingSandboxInternet, savingDeviceAccessConfig,
       savingEgressPolicy, savingMentor, savingSurveyAiConfig]
-    const saveStateLabel = computed(() => {
-      if (savingFlags.some((flag) => flag.value)) return 'Guardando'
-      if (formDirty.value) return 'Cambios pendientes'
-      if (savedFlags.some((flag) => flag.value)) return 'Guardado'
-      return 'Sin cambios'
+    const saveState = computed(() => {
+      if (savingFlags.some((flag) => flag.value)) return 'saving'
+      if (formDirty.value) return 'dirty'
+      if (savedFlags.some((flag) => flag.value)) return 'saved'
+      return 'clean'
     })
-    const saveStateKind = computed(() => saveStateLabel.value.toLowerCase().replaceAll(' ', '-'))
     function selectTab(tab: typeof activeTab.value) {
       if (tab === activeTab.value) return
       if (formDirty.value && !window.confirm('Hay cambios sin guardar en esta sección. ¿Cambiar de pestaña de todos modos?')) return
@@ -899,7 +897,7 @@ export default {
       return mode === 'MODERATOR_ONLY' ? 'MODERATOR_ONLY' : 'INDEPENDENT'
     }
 
-    return { conference, loading, error, activeTab, selectTab, saveStateLabel, saveStateKind,
+    return { conference, loading, error, activeTab, selectTab, saveState,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              ticketSalesEnabled, savingTicketSales, ticketSalesSaved, ticketSalesError, saveTicketSales,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
@@ -938,12 +936,6 @@ export default {
 <style scoped>
 .conf-config-page { max-width: 680px; }
 h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
-.save-state { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 14px; padding: 5px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
-.save-state-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.state-sin-cambios { background: var(--color-surface-muted); color: var(--color-text-muted); }
-.state-cambios-pendientes { background: var(--color-warning-soft); color: var(--color-warning); }
-.state-guardando { background: var(--color-info-soft); color: var(--color-info); }
-.state-guardado { background: var(--color-success-soft); color: var(--color-success); }
 .config-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--color-border-subtle); }
 .config-tab { padding: 8px 14px; border: 1.5px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; font-size: 0.88rem; font-weight: 600; }
 .config-tab:hover { border-color: var(--color-focus); color: var(--color-primary); }
@@ -981,7 +973,6 @@ textarea:focus { outline: none; border-color: var(--color-primary); }
 .sandbox-status { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--color-border-subtle); }
 .prewarm-control { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--color-primary-border); border-radius: 8px; background: var(--color-primary-soft); }
 .sandbox-incidents { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--color-border-subtle); }
-.table-scroll { overflow-x: auto; }
 .incidents-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
 .incidents-table th { text-align: left; padding: 6px 10px; background: var(--color-surface-muted); color: var(--color-text-muted); font-weight: 600; }
 .incidents-table td { padding: 6px 10px; border-top: 1px solid var(--color-surface-muted); color: var(--color-text-secondary); }

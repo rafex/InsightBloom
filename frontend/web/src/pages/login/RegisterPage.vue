@@ -166,7 +166,7 @@ export default {
 <style scoped>
 .register-page { min-height: 100vh; background: var(--color-bg); }
 .register-main { display: flex; justify-content: center; padding: 60px 24px; }
-.register-card { background: #fff; border-radius: 16px; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 460px; width: 100%; }
+.register-card { background: var(--color-surface); border-radius: 16px; padding: 40px; box-shadow: var(--shadow-card); max-width: 460px; width: 100%; }
 h2 { margin: 0 0 8px; color: var(--color-heading); }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; }
 .error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }

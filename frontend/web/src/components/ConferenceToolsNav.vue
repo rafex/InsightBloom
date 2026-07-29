@@ -10,12 +10,12 @@ nav.tools-nav(v-if="conferenceId")
     router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/conferences/${conferenceId}/moderation/words`") Palabras/Nube
     router-link(v-if="hasCapability('CODE_IDE')" :to="`/dashboard/conferences/${conferenceId}/moderation/ide`") Editor Monaco
     router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/tools`") Herramientas
-    router-link(v-if="hasCapability('VIDEO_CONFERENCE') || hasCapability('CODE_IDE')" :to="`/dashboard/conferences/${conferenceId}/device-blocks`") Bloqueos
+    router-link(v-if="isOrganizer && (hasCapability('VIDEO_CONFERENCE') || hasCapability('CODE_IDE'))" :to="`/dashboard/conferences/${conferenceId}/device-blocks`") Bloqueos
   DropdownMenu(v-if="hasTicketing() || hasSeating()" label="Acceso")
     router-link(v-if="hasTicketing()" :to="`/dashboard/conferences/${conferenceId}/tickets`") Boletos
     router-link(v-if="hasSeating()" :to="`/dashboard/conferences/${conferenceId}/check-in`") Check-in
     router-link(v-if="conference?.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Mapa de asientos
-  DropdownMenu(label="Configuración")
+  DropdownMenu(v-if="isOrganizer" label="Configuración")
     router-link(:to="`/dashboard/conferences/${conferenceId}/edit`") Datos del evento
     router-link(:to="`/dashboard/conferences/${conferenceId}/config`") Configuración del evento
     router-link(:to="`/dashboard/conferences/${conferenceId}/${conference?.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") Certificado
@@ -43,6 +43,7 @@ export default {
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
+    const isOrganizer = auth.isOrganizer()
     const conference = ref<Conference | null>(null)
     const friendlyId = ref('')
     const eventTypeKey = ref<string | undefined>(undefined)
@@ -80,7 +81,7 @@ export default {
       } catch (e: any) { /* nav degrada a "mostrar todo" si el fetch falla, ver hasCapability */ }
     })
 
-    return { conference, friendlyId, hasCapability, hasTicketing, hasSeating, openPublic }
+    return { conference, friendlyId, isOrganizer, hasCapability, hasTicketing, hasSeating, openPublic }
   }
 }
 </script>

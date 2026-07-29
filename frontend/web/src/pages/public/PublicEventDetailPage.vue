@@ -87,7 +87,7 @@ export default {
 .back { color: var(--color-primary); text-decoration: none; font-weight: 700; }
 .detail-hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 34px; align-items: center; margin-top: 26px; }
 .detail-hero.reverse { direction: rtl; }.detail-hero.reverse > * { direction: ltr; }
-.detail-copy { background: #fff; padding: 28px; border-radius: 18px; box-shadow: 0 8px 25px rgba(30,27,75,.08); }
+.detail-copy { background: var(--color-surface); padding: 28px; border-radius: 18px; box-shadow: var(--shadow-card); }
 h1 { color: var(--color-heading); font-size: clamp(2rem, 5vw, 3.4rem); margin: 12px 0 8px; }.organizer-card { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }.organizer-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }.organizer-copy { display: flex; flex-direction: column; gap: 2px; }.organizer-label { color: var(--color-text-muted); font-size: .78rem; }.organizer { color: var(--color-text-muted); font-weight: 700; }
 .description { color: var(--color-text-secondary); line-height: 1.65; white-space: pre-wrap; }.detail-flyer { width: 100%; max-height: 440px; object-fit: cover; border-radius: 18px; box-shadow: 0 8px 25px rgba(30,27,75,.12); }.placeholder { display: grid; place-items: center; min-height: 300px; background: var(--color-primary-soft); font-size: 5rem; }
 .badges { display: flex; flex-wrap: wrap; gap: 7px; }.badge { border-radius: 999px; padding: 5px 10px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: .8rem; font-weight: 700; }.badge-ticket { background: var(--color-warning-soft); color: var(--color-warning); }

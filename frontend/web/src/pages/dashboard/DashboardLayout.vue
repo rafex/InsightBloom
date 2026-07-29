@@ -29,18 +29,30 @@
 </template>
 
 <script lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppHeader from '@/app/layout/AppHeader.vue'
 import { useAuthStore } from '@/features/auth/authStore'
+import { getConferences } from '@/services/api/usersApi'
 export default {
   name: 'DashboardLayout',
   components: { AppHeader },
   setup() {
     const auth = useAuthStore()
     const sidebarOpen = ref(false)
+    const isModerator = ref(auth.isModerator())
+    onMounted(async () => {
+      // Los moderadores asignados por evento pueden tener solo el rol global ATTENDEE.
+      // La lista de conferencias ya está limitada por el backend a eventos propios/asignados.
+      if (isModerator.value || !auth.state.token) return
+      try {
+        isModerator.value = (await getConferences(auth.state.token)).length > 0
+      } catch (e: any) {
+        // La navegación base sigue disponible aunque falle la detección opcional.
+      }
+    })
     return {
       isOrganizer: auth.isOrganizer(),
-      isModerator: auth.isModerator(),
+      isModerator,
       isAdmin: auth.isAdmin(),
       sidebarOpen
     }
@@ -73,15 +85,15 @@ export default {
     display: block; position: fixed; top: 64px; left: 12px; z-index: 60;
     width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--color-border-subtle);
     background: var(--color-surface); color: var(--color-primary); font-size: 1.1rem; cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-dropdown);
   }
   .sidebar-backdrop {
-    display: block; position: fixed; inset: 0; top: 56px; background: rgba(0,0,0,0.4); z-index: 40;
+    display: block; position: fixed; inset: 0; top: 56px; background: var(--color-overlay); z-index: 40;
   }
   .sidebar {
     position: fixed; top: 56px; bottom: 0; left: 0; z-index: 50;
     min-height: auto; padding-top: 64px; transform: translateX(-100%); transition: transform 0.2s ease;
-    box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+    box-shadow: var(--shadow-dropdown);
   }
   .sidebar.open { transform: translateX(0); }
   .dashboard-main { padding: 64px 16px 24px; }

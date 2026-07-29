@@ -41,12 +41,12 @@ export default {
 
 <style scoped>
 .qr-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  position: fixed; inset: 0; background: var(--color-overlay);
   display: flex; align-items: center; justify-content: center; z-index: 100;
 }
 .qr-dialog {
   background: var(--color-surface); border-radius: 16px; padding: 28px 32px; text-align: center;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-overlay);
 }
 .qr-dialog h3 { margin: 0 0 16px; color: var(--color-heading); }
 .qr-url { color: var(--color-text-muted); font-size: 0.82rem; margin: 12px 0 16px; word-break: break-all; }
