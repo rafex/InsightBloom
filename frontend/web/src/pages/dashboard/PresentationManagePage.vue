@@ -181,6 +181,6 @@ input[type="file"] { display: block; margin-bottom: 12px; }
 @media (max-width: 480px) {
   .presentation-manage-page { padding: 14px; }
   .preview-actions { display: flex; flex-direction: column; gap: 8px; }
-  .link-btn-secondary { margin-right: 0; text-align: center; }
+  .preview-actions > :where(.link-btn-secondary) { text-align: center; }
 }
 </style>

@@ -38,14 +38,13 @@ nueva reutilice el sistema existente en lugar de crear otra variante visual.
 ## Gate automatizado
 
 `npm run lint:ui-governance` inspecciona `src/pages` y `src/components` en CI. Actualmente
-reporta **1,257 colores hex locales**, frente al baseline histórico de 1,278; el límite solo
+reporta **1,245 colores hex locales**, frente al baseline histórico de 1,278; el límite solo
 puede bajar. También falla si reaparecen selectores canónicos de botones en estilos locales.
 
 El gate es una baranda de transición, no sustituye la migración. Cada lote debe reducir el
-conteo y mover los colores compartidos a tokens. Las redefiniciones históricas de cinco
-archivos, más el override deliberado del tema editorial, están temporalmente en allowlist y se
-imprimen como deuda; una redefinición nueva sí rompe CI. No se debe aumentar el baseline ni la
-allowlist para ocultar una regresión.
+conteo y mover los colores compartidos a tokens. El override deliberado del tema editorial está
+temporalmente en allowlist y se imprime como deuda; una redefinición nueva sí rompe CI. No se
+debe aumentar el baseline ni la allowlist para ocultar una regresión.
 
 ## Flujo para un componente nuevo
 

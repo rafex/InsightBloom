@@ -30,7 +30,7 @@
       .msg-status
         span.status(:class="statusClass(item.detailStatus)") {{ statusLabel(item.detailStatus) }}
       .msg-actions
-        button.btn-sm.btn-danger(
+        BaseButton(size="sm" variant="danger"
           v-if="!item.detailStatus || item.detailStatus === 'VISIBLE' || item.detailStatus === 'PENDIENTE_REVISION'"
           @click="censorDetail(item)"
           :disabled="item._loading"
@@ -79,6 +79,7 @@ import { getConference, getUserProfile } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb, { type BreadcrumbItem } from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 interface ModMessageItem {
   id?: string
@@ -105,7 +106,7 @@ interface ModMessageItem {
 
 export default {
   name: 'ModerationMessagesPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const route = useRoute()
@@ -323,8 +324,6 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .msg-actions { display: flex; gap: 6px; }
 
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-danger { background: #fee2e2; color: #dc2626; }
-.btn-danger:hover { background: #fecaca; }
 .btn-success { background: #dcfce7; color: #16a34a; }
 .btn-success:hover { background: #bbf7d0; }
 .btn-warning { background: #fef3c7; color: #d97706; }

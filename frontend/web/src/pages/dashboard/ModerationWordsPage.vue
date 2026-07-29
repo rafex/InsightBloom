@@ -32,7 +32,7 @@
       td
         span.status(:class="statusClass(item.contentStatus)") {{ statusLabel(item.contentStatus) }}
       td.actions
-        button.btn-sm.btn-danger(
+        BaseButton(size="sm" variant="danger"
           v-if="item.contentStatus === 'VISIBLE' || item.contentStatus === 'PENDIENTE_REVISION'"
           @click="censor(item)"
           :disabled="item._loading"
@@ -47,13 +47,14 @@
           @click="deleteItem(item)"
           :disabled="item._loading"
         ) Eliminar
-        button.btn-sm.btn-secondary(@click="verMensajes(item)") Ver mensajes
+        BaseButton(size="sm" variant="secondary" @click="verMensajes(item)") Ver mensajes
 </template>
 
 <script lang="ts">
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getModerationWords, censorWord, restoreWord, deleteWord } from '@/services/api/moderationApi'
@@ -71,7 +72,7 @@ interface ModWordItem {
 
 export default {
   name: 'ModerationWordsPage',
-  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav },
+  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const words = ref<ModWordItem[]>([])
@@ -163,13 +164,9 @@ select { padding: 8px 12px; border: 1.5px solid #d1d5db; border-radius: 8px; fon
 .status-deleted { background: #f3f4f6; color: #6b7280; }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-danger { background: #fee2e2; color: #dc2626; }
-.btn-danger:hover { background: #fecaca; }
 .btn-success { background: #dcfce7; color: #16a34a; }
 .btn-success:hover { background: #bbf7d0; }
 .btn-warning { background: #fef3c7; color: #d97706; }
 .btn-warning:hover { background: #fde68a; }
-.btn-secondary { background: #ede9fe; color: #4f46e5; }
-.btn-secondary:hover { background: #ddd6fe; }
 .btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
