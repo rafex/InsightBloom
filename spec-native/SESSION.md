@@ -2,9 +2,9 @@
 
 > **Iniciativa**: Migración a design system unificado
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
-> **Branch**: `agent/ui-ux-audit`
+> **Branch**: `codex/design-system-governance`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-28 20:36 (aprox)
+> **Último checkpoint**: 2026-07-28 20:58 (aprox)
 
 ## Estado
 
@@ -24,6 +24,7 @@
 | | | | `TicketPage.vue` — 3 botones (`BaseButton` ×2, `variant="secondary"`). `:loading` reemplaza spans condicionales. CSS huérfano eliminado |
 | **4.2** | Dashboard/config | 11/12 | Páginas administrativas y de configuración migradas a `BaseButton`; queda `SpeakerPanelPage.vue`, que requiere recuperar primero el stash `pre-design-system-migration` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
+| **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
 
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
 
@@ -40,6 +41,11 @@ git stash list  # debería mostrar "pre-design-system-migration"
 ## Pendiente
 
 La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue.
+
+La migración de colores continúa: el gate mide 1,265 literales hex locales (baseline histórico
+1,278) y deja visibles siete redefiniciones legacy en cinco archivos. Las nuevas pantallas deben
+usar tokens y componentes canónicos; la allowlist existente solo evita bloquear la migración
+gradual y no debe crecer.
 
 ### Fase 4.2 — Alto tráfico
 
