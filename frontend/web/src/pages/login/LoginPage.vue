@@ -17,7 +17,8 @@
           template(#default="{ id, describedBy }")
             input(:id="id" :aria-describedby="describedBy" v-model="password" type="password" autocomplete="current-password" placeholder="••••••••" @keyup.enter="doLogin")
         .error(v-if="error") {{ error }}
-        BaseButton(size="lg" @click="doLogin" :disabled="loading" :loading="loading") Iniciar sesión
+        .login-actions
+          BaseButton(size="lg" @click="doLogin" :disabled="loading" :loading="loading") Iniciar sesión
 
       template(v-else)
         template(v-if="otpStep === 'request'")
@@ -26,14 +27,16 @@
             template(#default="{ id, describedBy }")
               input(:id="id" :aria-describedby="describedBy" v-model="otpIdentifier" type="text" autocomplete="username" placeholder="tu@correo.com" @keyup.enter="doRequestOtp")
           .error(v-if="error") {{ error }}
-          BaseButton(size="lg" @click="doRequestOtp" :disabled="loading" :loading="loading") Enviar código
+          .login-actions
+            BaseButton(size="lg" @click="doRequestOtp" :disabled="loading" :loading="loading") Enviar código
         template(v-else)
           p.hint Ingresá el código de 6 dígitos que te llegó a tu correo. Vence en 10 minutos.
           FormField(label="Código")
             template(#default="{ id, describedBy }")
               input(:id="id" :aria-describedby="describedBy" v-model="otpCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" @keyup.enter="doVerifyOtp")
           .error(v-if="error") {{ error }}
-          BaseButton(size="lg" @click="doVerifyOtp" :disabled="loading" :loading="loading") Verificar e iniciar sesión
+          .login-actions
+            BaseButton(size="lg" @click="doVerifyOtp" :disabled="loading" :loading="loading") Verificar e iniciar sesión
           button.btn-resend(type="button" @click="doRequestOtp" :disabled="loading") Reenviar código
 
       p.register-hint ¿No tienes cuenta? #[router-link(to="/register") Regístrate]
@@ -175,6 +178,7 @@ h2 { margin: 0 0 8px; color: var(--color-heading); }
 .btn-resend:hover { text-decoration: underline; }
 .btn-resend:disabled { opacity: 0.5; cursor: not-allowed; }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+.login-actions { display: flex; justify-content: center; }
 .guest-block { margin-top: 14px; text-align: center; }
 .divider { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 10px; }
 .guest-hint { margin: 8px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }

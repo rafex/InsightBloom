@@ -104,6 +104,9 @@ Priorizar las 4 páginas de alto tráfico con formularios reales:
 
 ### Bloque completado en este checkpoint
 
+- [x] `LoginPage` — las acciones principales de contraseña y código por correo quedan
+  centradas en la tarjeta tanto en escritorio como en móvil; se conserva `BaseButton` como
+  único componente visual de acción.
 - [x] Migrar enlaces y acciones de `DashboardHome`, `ConferenceConfigPage`, `SpeakerPanelPage`,
   `PresentationManagePage`, `SurveyPage` e `IdePage` a `link-btn-*`/`BaseButton`.
 - [x] Registrar `BaseButton` explícitamente en `IdePage`.
