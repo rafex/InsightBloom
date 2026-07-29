@@ -245,29 +245,29 @@ export default {
 
 <style scoped>
 .checkin-page { padding: 24px; max-width: 480px; margin: 0 auto; }
-h2 { color: #1e1b4b; margin-bottom: 16px; }
+h2 { color: var(--color-heading); margin-bottom: 16px; }
 .scanner-wrap {
   border-radius: 12px; overflow: hidden; background: #000; aspect-ratio: 1; max-width: 360px; margin: 0 auto;
 }
 .scanner-wrap video { width: 100%; height: 100%; object-fit: cover; }
-.scan-hint { text-align: center; color: #6b7280; font-size: 0.85rem; margin-top: 10px; }
-.scanner-status { text-align: center; color: #6b7280; font-size: 0.82rem; margin: 8px 0 18px; }
-.scanner-status.ready { color: #166534; }
-.scanner-status.error { color: #991b1b; }
-.manual-checkin { margin-top: 18px; padding: 14px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; }
-.manual-checkin label { display: block; color: #374151; font-size: 0.82rem; font-weight: 600; margin-bottom: 8px; }
+.scan-hint { text-align: center; color: var(--color-text-muted); font-size: 0.85rem; margin-top: 10px; }
+.scanner-status { text-align: center; color: var(--color-text-muted); font-size: 0.82rem; margin: 8px 0 18px; }
+.scanner-status.ready { color: var(--color-success); }
+.scanner-status.error { color: var(--color-danger-dark); }
+.manual-checkin { margin-top: 18px; padding: 14px; border: 1px solid var(--color-border-subtle); border-radius: 10px; background: var(--color-surface); }
+.manual-checkin label { display: block; color: var(--color-text-secondary); font-size: 0.82rem; font-weight: 600; margin-bottom: 8px; }
 .manual-checkin-row { display: flex; gap: 8px; }
-.manual-checkin input { min-width: 0; flex: 1; border: 1px solid #d1d5db; border-radius: 7px; padding: 9px 10px; font: 0.8rem monospace; }
-.image-checkin { margin-top: 10px; padding: 12px 14px; border: 1px dashed #c7d2fe; border-radius: 10px; background: #eef2ff; text-align: center; }
-.image-checkin p { margin: 0 0 9px; color: #4b5563; font-size: 0.78rem; }
-.image-picker { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 13px; border-radius: 7px; background: #fff; color: #4338ca; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.manual-checkin input { min-width: 0; flex: 1; border: 1px solid var(--color-border); border-radius: 7px; padding: 9px 10px; font: 0.8rem monospace; }
+.image-checkin { margin-top: 10px; padding: 12px 14px; border: 1px dashed var(--color-primary-border); border-radius: 10px; background: var(--color-primary-soft); text-align: center; }
+.image-checkin p { margin: 0 0 9px; color: var(--color-text-secondary); font-size: 0.78rem; }
+.image-picker { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 13px; border-radius: 7px; background: var(--color-surface); color: var(--color-primary-dark); font-size: 0.8rem; font-weight: 700; cursor: pointer; }
 .image-picker:disabled { cursor: not-allowed; opacity: .55; }
-.image-or { display: inline-block; margin: 0 8px; color: #6b7280; font-size: 0.75rem; }
+.image-or { display: inline-block; margin: 0 8px; color: var(--color-text-muted); font-size: 0.75rem; }
 .image-checkin input[type="file"] { display: none; }
 .scan-result { text-align: center; font-weight: 600; margin-top: 16px; padding: 10px; border-radius: 8px; }
-.scan-result.ok { background: #dcfce7; color: #166534; }
-.scan-result.error { background: #fee2e2; color: #991b1b; }
+.scan-result.ok { background: var(--color-success-soft); color: var(--color-success); }
+.scan-result.error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 .recent-list { margin-top: 24px; }
-.recent-list h3 { color: #374151; font-size: 0.9rem; margin-bottom: 8px; }
-.recent-item { font-family: monospace; font-size: 0.8rem; color: #6b7280; padding: 4px 0; border-bottom: 1px solid #f3f4f6; }
+.recent-list h3 { color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
+.recent-item { font-family: monospace; font-size: 0.8rem; color: var(--color-text-muted); padding: 4px 0; border-bottom: 1px solid var(--color-surface-muted); }
 </style>
