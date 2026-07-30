@@ -3,15 +3,16 @@
   h1 Unirse a un evento
   p.hint Elige cómo quieres acceder al evento.
   .access-methods(role="tablist" aria-label="Forma de acceso")
-    button.method-button(type="button" :class="{ active: mode === 'friendly' }" @click="selectMode('friendly')") Nombre amigable
-    button.method-button(type="button" :class="{ active: mode === 'qr' }" @click="selectMode('qr')") QR del boleto
-    button.method-button(type="button" :class="{ active: mode === 'uuid' }" @click="selectMode('uuid')") UUID del boleto
-  .access-card
-    label(for="event-access-input") {{ mode === 'friendly' ? 'Nombre amigable del evento' : mode === 'qr' ? 'Contenido del QR del boleto' : 'UUID v4 del boleto' }}
-    .form-row
-      input#event-access-input(v-model="code" :placeholder="placeholder" autocomplete="off" @keyup.enter="doJoin")
-      BaseButton(variant="secondary" v-if="mode === 'qr'" type="button" @click="toggleScanner") {{ scanning ? 'Cerrar cámara' : 'Escanear QR' }}
-      BaseButton(type="button" :disabled="!code.trim() || loading" @click="doJoin") {{ loading ? (mode === 'friendly' ? 'Uniendo...' : 'Canjeando...') : (mode === 'friendly' ? 'Unirme' : 'Canjear boleto') }}
+    BaseButton.method-tab(type="button" :variant="mode === 'friendly' ? 'primary' : 'secondary'" role="tab" aria-controls="event-access-panel" :aria-selected="mode === 'friendly'" @click="selectMode('friendly')") Nombre amigable
+    BaseButton.method-tab(type="button" :variant="mode === 'qr' ? 'primary' : 'secondary'" role="tab" aria-controls="event-access-panel" :aria-selected="mode === 'qr'" @click="selectMode('qr')") QR del boleto
+    BaseButton.method-tab(type="button" :variant="mode === 'uuid' ? 'primary' : 'secondary'" role="tab" aria-controls="event-access-panel" :aria-selected="mode === 'uuid'" @click="selectMode('uuid')") UUID del boleto
+  .access-card#event-access-panel(role="tabpanel")
+    FormField(:label="accessLabel")
+      template(#default="{ id, describedBy }")
+        .form-row
+          input(:id="id" :aria-describedby="describedBy" v-model="code" :placeholder="placeholder" autocomplete="off" @keyup.enter="doJoin")
+          BaseButton(variant="secondary" v-if="mode === 'qr'" type="button" @click="toggleScanner") {{ scanning ? 'Cerrar cámara' : 'Escanear QR' }}
+          BaseButton(type="button" :disabled="!code.trim()" :loading="loading" @click="doJoin") {{ mode === 'friendly' ? 'Unirme' : 'Canjear boleto' }}
     .claim-scanner(v-if="scanning")
       video(ref="videoEl")
       p Apunta la cámara al QR del boleto.
@@ -26,12 +27,13 @@ import { claimTicketByCode, getConference, joinConference } from '@/services/api
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import FormField from '@/components/ui/FormField.vue'
 
 type AccessMode = 'friendly' | 'qr' | 'uuid'
 
 export default {
   name: 'JoinConferencePage',
-  components: { BaseButton, FeedbackMessage },
+  components: { BaseButton, FeedbackMessage, FormField },
   setup() {
     const router = useRouter()
     const auth = useAuthStore()
@@ -48,6 +50,9 @@ export default {
       : mode.value === 'qr'
         ? 'Pega el contenido del QR o escanéalo'
         : 'ej. 123e4567-e89b-42d3-a456-426614174000')
+    const accessLabel = computed(() => mode.value === 'friendly'
+      ? 'Nombre amigable del evento'
+      : mode.value === 'qr' ? 'Contenido del QR del boleto' : 'UUID v4 del boleto')
 
     function stopScanner() {
       if (scanner) { scanner.stop(); scanner.destroy(); scanner = null }
@@ -121,7 +126,7 @@ export default {
 
     onBeforeUnmount(stopScanner)
 
-    return { mode, code, loading, error, scanning, videoEl, placeholder, selectMode, doJoin, toggleScanner }
+    return { mode, code, loading, error, scanning, videoEl, placeholder, accessLabel, selectMode, doJoin, toggleScanner }
   }
 }
 </script>
@@ -131,13 +136,8 @@ export default {
 h1 { color: var(--color-heading); margin: 0 0 8px; font-size: 1.5rem; }
 .hint { color: var(--color-text-muted); font-size: 0.9rem; margin-bottom: 20px; }
 .access-methods { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
-.method-button {
-  padding: 10px 14px; border: 1px solid var(--color-primary-border); border-radius: 8px; background: var(--color-surface);
-  color: var(--color-primary-dark); cursor: pointer; font-weight: 600;
-}
-.method-button.active { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-text-inverse); }
+.method-tab { flex: 1 1 150px; }
 .access-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 18px; }
-label { display: block; color: var(--color-text-secondary); font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
 .form-row { display: flex; gap: 8px; align-items: stretch; }
 input {
   flex: 1; min-width: 0; font-size: 1rem;
