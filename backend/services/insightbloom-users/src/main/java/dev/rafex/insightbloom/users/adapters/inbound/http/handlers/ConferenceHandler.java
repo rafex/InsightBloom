@@ -62,6 +62,7 @@ import dev.rafex.insightbloom.users.application.usecases.TicketUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ToolAccessUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SendAttendeeEmailUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GenerateEmailDraftUseCase;
 import dev.rafex.insightbloom.users.application.usecases.NotifyConferenceUpdatedUseCase;
 import dev.rafex.insightbloom.users.domain.model.ToolKey;
 import dev.rafex.insightbloom.users.domain.model.Conference;
@@ -167,6 +168,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GetJaasUsageUseCase getJaasUsageUseCase;
     private final ToolAccessUseCase toolAccessUseCase;
     private final SendAttendeeEmailUseCase sendAttendeeEmailUseCase;
+    private final GenerateEmailDraftUseCase generateEmailDraftUseCase;
     private final NotifyConferenceUpdatedUseCase notifyConferenceUpdatedUseCase;
     private final Map<String, CopyOnWriteArrayList<EventStream>> diagramSubscribers = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArrayList<EventStream>> whiteboardSubscribers = new ConcurrentHashMap<>();
@@ -238,8 +240,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final DeviceAccessGuard deviceAccessGuard,
                              final GetJaasUsageUseCase getJaasUsageUseCase,
                              final ToolAccessUseCase toolAccessUseCase,
-                             final SendAttendeeEmailUseCase sendAttendeeEmailUseCase,
-                             final NotifyConferenceUpdatedUseCase notifyConferenceUpdatedUseCase) {
+                              final SendAttendeeEmailUseCase sendAttendeeEmailUseCase,
+                              final GenerateEmailDraftUseCase generateEmailDraftUseCase,
+                              final NotifyConferenceUpdatedUseCase notifyConferenceUpdatedUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -301,6 +304,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.getJaasUsageUseCase = getJaasUsageUseCase;
         this.toolAccessUseCase = toolAccessUseCase;
         this.sendAttendeeEmailUseCase = sendAttendeeEmailUseCase;
+        this.generateEmailDraftUseCase = generateEmailDraftUseCase;
         this.notifyConferenceUpdatedUseCase = notifyConferenceUpdatedUseCase;
     }
 
@@ -364,6 +368,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/reservations", Set.of("GET", "POST")),
                 Route.of("/{id}/attendees", Set.of("GET")),
                 Route.of("/{id}/attendees/email", Set.of("POST")),
+                Route.of("/{id}/email/draft", Set.of("POST")),
                 Route.of("/{id}/reservations/me", Set.of("GET", "DELETE")),
                 Route.of("/{id}/access", Set.of("GET")),
                 Route.of("/{id}/survey-management-access", Set.of("GET")),
@@ -570,6 +575,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/attendees/email")) {
             return handleSendAttendeeEmail(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/email/draft")) {
+            return handleGenerateEmailDraft(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/reservations")) {
             return handleReserve(jx, jx.pathParam("id"));
@@ -2460,7 +2468,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                     ? items.stream().filter(String.class::isInstance).map(String.class::cast).toList()
                     : null;
             final var summary = sendAttendeeEmailUseCase.execute(id, new SendAttendeeEmailUseCase.SendRequest(
-                    (String) body.get("subject"), (String) body.get("message"), recipientUuids));
+                    (String) body.get("subject"), (String) body.get("message"),
+                    (String) body.getOrDefault("format", "text"), recipientUuids));
             sendOk(jx, 200, Map.of("sent", summary.sent(), "skipped", summary.skipped()));
         } catch (final IllegalStateException e) {
             final String detail = "email_provider_not_configured".equals(e.getMessage())
@@ -2471,9 +2480,39 @@ public class ConferenceHandler extends BaseResourceHandler {
             final String detail = switch (e.getMessage() == null ? "" : e.getMessage()) {
                 case "subject_invalid" -> "El asunto es obligatorio";
                 case "message_invalid" -> "El mensaje es obligatorio";
-                case "no_recipients" -> "No hay destinatarios válidos para este envío";
+                case "format_invalid" -> "Formato no soportado (usar text, html o markdown)";
+                case "no_recipients" -> "No hay destinatarios validos para este envio";
                 case "conference_not_found" -> "Evento no encontrado";
                 default -> "Datos inválidos";
+            };
+            sendError(jx, 400, e.getMessage(), detail);
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleGenerateEmailDraft(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !canManageTickets(id, v)) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para usar el asistente IA de correos");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String prompt = (String) body.get("prompt");
+            final String draft = generateEmailDraftUseCase.execute(id, prompt);
+            sendOk(jx, 200, Map.of("draft", draft));
+        } catch (final IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(),
+                    "El asistente IA de correos no esta configurado en la plataforma. Configuralo en Dashboard → IA.");
+        } catch (final IllegalArgumentException e) {
+            final String detail = switch (e.getMessage() == null ? "" : e.getMessage()) {
+                case "prompt_required" -> "Describe que queres comunicar";
+                case "conference_not_found" -> "Evento no encontrado";
+                default -> "Datos invalidos";
             };
             sendError(jx, 400, e.getMessage(), detail);
         } catch (final Exception e) {

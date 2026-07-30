@@ -619,10 +619,22 @@ export async function resendAllTickets(conferenceId: string, token: string): Pro
 
 export async function sendAttendeeEmail(
   conferenceId: string,
-  payload: { subject: string, message: string, recipientUuids?: string[] | null },
+  payload: { subject: string, message: string, format?: string, recipientUuids?: string[] | null },
   token: string
 ): Promise<{ sent: number, skipped: number }> {
   const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/attendees/email`, payload, authHeader(token))
+  return res.data.data
+}
+
+export async function generateEmailDraft(
+  conferenceId: string,
+  prompt: string,
+  token: string
+): Promise<{ draft: string }> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/email/draft`,
+    { prompt },
+    authHeader(token)
+  )
   return res.data.data
 }
 
@@ -918,7 +930,7 @@ export async function setAiSettings(
 }
 
 export async function setAiProviderSettings(
-  capability: 'chat' | 'tutor' | 'survey' | 'seat-layout',
+  capability: 'chat' | 'tutor' | 'survey' | 'seat-layout' | 'email',
   enabled: boolean, baseUrl: string, model: string, apiKey: string | null,
   clearApiKey: boolean, systemPrompt: string | null, guardrails: string | null, temperature: number | null,
   token: string

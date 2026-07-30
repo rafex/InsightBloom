@@ -485,6 +485,7 @@ export interface AiSettings {
     tutor: AiProviderSettings
     survey: AiProviderSettings
     seatLayout: AiProviderSettings
+    email: AiProviderSettings
   }
   chatAiEnabled: boolean
   chatSystemPrompt: string | null
