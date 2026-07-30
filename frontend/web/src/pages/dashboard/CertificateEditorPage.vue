@@ -5,7 +5,7 @@
     div
       h1 Certificado del evento
       p Elige un diseño base y enriquécelo con los datos disponibles del participante, evento y plataforma.
-    span.saved(v-if="saved") Guardado
+    FeedbackMessage(v-if="saved" message="Guardado" tone="success")
   .editor-grid(v-if="loaded")
     .panel.catalog-panel
       h2 Diseños base
@@ -19,7 +19,7 @@
           code {{ '{' + '{' + variable.key + '}' + '}' }}
           span {{ variable.label }}
       BaseButton(:loading="saving" type="button" @click="save") Guardar certificado
-      p.error(v-if="error") {{ error }}
+      FeedbackMessage(v-if="error" :message="error" tone="error")
     .panel.workspace
       .workspace-toolbar
         label Nombre
@@ -64,7 +64,7 @@
               option(value="center") Centro
               option(value="right") Derecha
         BaseButton(variant="danger" size="sm" type="button" @click="removeSelected") Eliminar bloque
-  .loading(v-else) Cargando editor…
+  LoadingState(v-else message="Cargando editor…")
 </template>
 
 <script lang="ts">
@@ -72,6 +72,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import { getCertificateTemplateCatalog, getEventCertificateTemplate, saveEventCertificateTemplate, setCertificateEngine } from '@/services/api/usersApi'
 import type { CertificateEngine, CertificateTemplateCatalog, CertificateTemplateCatalogItem } from '@/services/api/types'
 
@@ -92,7 +94,7 @@ const sampleData: Record<string, string> = {
 
 export default {
   name: 'CertificateEditorPage',
-  components: { DashboardBreadcrumb, BaseButton },
+  components: { DashboardBreadcrumb, BaseButton, FeedbackMessage, LoadingState },
   props: { conferenceId: { type: String, required: true } },
   setup(props: { conferenceId: string }) {
     const auth = useAuthStore()
@@ -227,7 +229,7 @@ export default {
 <style scoped>
 .certificate-editor-page { padding: 28px 24px; max-width: 1400px; margin: 0 auto; }
 .page-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin:18px 0 24px; }
-h1 { margin:0; color:var(--color-heading); } .page-heading p { color:var(--color-text-muted); margin:8px 0 0; } .saved { color:var(--color-success); font-weight:700; }
+h1 { margin:0; color:var(--color-heading); } .page-heading p { color:var(--color-text-muted); margin:8px 0 0; }
 .editor-grid { display:grid; grid-template-columns:320px minmax(0,1fr); gap:20px; align-items:start; }
 .panel { background:var(--color-surface); border:1px solid var(--color-border-subtle); border-radius:14px; padding:18px; box-shadow:0 4px 18px rgba(30,27,75,.06); }
 h2 { font-size:1rem; color:var(--color-heading); margin:0 0 12px; } .catalog-card { padding:12px; border:1px solid var(--color-border-subtle); border-radius:10px; margin-bottom:8px; cursor:pointer; } .catalog-card.selected { border-color:var(--color-primary); background:var(--color-primary-soft); } .catalog-card strong,.catalog-card small { display:block; } .catalog-card small,.hint,.muted { color:var(--color-text-muted); font-size:.82rem; margin-top:4px; }
@@ -236,6 +238,6 @@ h2 { font-size:1rem; color:var(--color-heading); margin:0 0 12px; } .catalog-car
 .asset-toolbar { display:grid; grid-template-columns:minmax(150px, 1fr) auto minmax(150px, 1fr) auto; gap:10px; align-items:end; margin:-4px 0 16px; padding:12px; border:1px solid var(--color-border-subtle); border-radius:10px; background:var(--color-surface-muted); }
 .asset-field { color:var(--color-text-muted); font-size:.78rem; } .asset-field input { font-size:.75rem; padding:6px; } .asset-hint { grid-column:1 / -1; color:var(--color-text-muted); font-size:.75rem; }
 .certificate-preview { background:var(--color-border-subtle); padding:22px; overflow:auto; border-radius:10px; } .certificate-page-wrap { position:relative; margin:0 auto; } .certificate-page { position:absolute; left:0; top:0; width:1056px; height:816px; background:var(--color-surface); transform-origin:top left; } .preview-block { position:absolute; box-sizing:border-box; overflow:hidden; white-space:pre-wrap; cursor:pointer; } .preview-block.active { outline:2px solid var(--color-primary); outline-offset:2px; } .preview-block img { width:100%; height:100%; object-fit:contain; }
-.block-editor { border-top:1px solid var(--color-border-subtle); margin-top:18px; padding-top:18px; } .block-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; } .block-fields label { color:var(--color-text-muted); font-size:.78rem; } .error { color:var(--color-danger-dark); font-size:.85rem; } .loading { padding:40px; color:var(--color-text-muted); }
+.block-editor { border-top:1px solid var(--color-border-subtle); margin-top:18px; padding-top:18px; } .block-fields { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; } .block-fields label { color:var(--color-text-muted); font-size:.78rem; }
 @media (max-width: 850px) { .editor-grid { grid-template-columns:1fr; } .catalog-panel { order:2; } .workspace { order:1; } .block-fields { grid-template-columns:repeat(2,1fr); } .asset-toolbar { grid-template-columns:1fr auto; } .asset-hint { grid-column:1 / -1; } }
 </style>
