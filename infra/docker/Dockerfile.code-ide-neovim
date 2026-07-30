@@ -41,6 +41,7 @@ RUN apk add --no-cache \
     fzf \
     jq \
     tmux \
+    xclip \
     tree \
     bat \
     eza \
@@ -137,11 +138,21 @@ RUN curl -fsSL "$GOBANG_URL" -o /tmp/gobang.tar.gz && \
 # paquete solo instala el script, sin engancharlo a /etc/profile.d.
 RUN echo '. /usr/share/bash-completion/bash_completion' > /etc/profile.d/bash_completion.sh
 
+# just + tmux plugins are vendored in the image, so the IDE remains usable when
+# the sandbox has no outbound network access.
+COPY infra/docker/install-just.sh /usr/local/bin/install-just.sh
+COPY infra/docker/install-tmux-plugins.sh /usr/local/bin/install-tmux-plugins.sh
+RUN chmod +x /usr/local/bin/install-just.sh /usr/local/bin/install-tmux-plugins.sh && \
+    /usr/local/bin/install-just.sh && \
+    /usr/local/bin/install-tmux-plugins.sh && \
+    rm -f /usr/local/bin/install-just.sh /usr/local/bin/install-tmux-plugins.sh
+
 COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
 COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
 COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
 COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
 COPY infra/docker/runtime-fzf.sh /etc/profile.d/insightbloom-fzf.sh
+COPY infra/docker/runtime-insightbloom-completion.sh /etc/profile.d/insightbloom-completion.sh
 
 # Plugins de Neovim vendorizados en build time (git clone, con red disponible en CI) e
 # instalados como paquetes nativos de Neovim (pack/*/start/, auto-cargados sin plugin manager)
@@ -236,6 +247,8 @@ RUN curl -fsSL https://opencode.ai/install | bash
 ENV TERM=xterm-256color
 
 RUN mkdir -p /home/coder/workspace /home/coder/db /home/coder/.m2 /home/coder/.config/nvim
+COPY --chown=coder:coder Makefile /home/coder/Makefile
+COPY --chown=coder:coder Justfile /home/coder/Justfile
 COPY --chown=coder:coder infra/docker/nvim-init.lua /home/coder/.config/nvim/init.lua
 
 # Copia compartida de nvim-init.lua para el seat-agent (Fase B, DEC-0025): cada asiento de un
@@ -245,8 +258,12 @@ COPY --chown=coder:coder infra/docker/nvim-init.lua /home/coder/.config/nvim/ini
 # resto del Dockerfile corre como "coder" (no-root) desde arriba, pero /etc/insightbloom y
 # /usr/local/bin no son escribibles por ese usuario.
 USER root
-RUN mkdir -p /etc/insightbloom /usr/local/share/doc/insightbloom
+RUN mkdir -p /etc/insightbloom /usr/local/share/doc/insightbloom /usr/local/share/insightbloom
 COPY infra/docker/nvim-init.lua /etc/insightbloom/nvim-init.lua
+COPY infra/docker/insightbloom-bash-completion.sh /usr/share/bash-completion/completions/insightbloom
+COPY infra/docker/insightbloom-tmux-clipboard /usr/local/bin/insightbloom-tmux-clipboard
+COPY infra/docker/tmux.conf /etc/tmux.conf
+COPY Makefile Justfile /usr/local/share/insightbloom/
 COPY infra/docker/seed-node-types.sh /usr/local/bin/seed-node-types.sh
 COPY infra/docker/sandbox-agent.py /usr/local/bin/sandbox-agent.py
 COPY infra/docker/sandbox_file_api.py /usr/local/bin/sandbox_file_api.py
@@ -268,7 +285,8 @@ RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     test -x /opt/insightbloom/node-global/bin/vscode-css-language-server && \
     chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py \
     /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py /usr/local/bin/insightbloom \
-    /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh
+    /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh \
+    /usr/local/bin/insightbloom-tmux-clipboard
 
 # La consulta distribuida por Alpine usa #is-not?, un predicado de nvim-treesitter que no
 # existe en Neovim 0.10.4. Se conserva el resaltado JavaScript con una variante compatible

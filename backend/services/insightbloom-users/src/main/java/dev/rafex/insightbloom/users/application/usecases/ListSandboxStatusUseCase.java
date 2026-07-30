@@ -34,7 +34,7 @@ public class ListSandboxStatusUseCase {
     }
 
     public record PodStatus(String sandboxUuid, String podName, String variant, String phase,
-                            boolean ready, List<Seat> seats) {
+                            boolean ready, String reason, int restartCount, List<Seat> seats) {
     }
 
     public List<PodStatus> execute(final String conferenceUuid) {
@@ -53,8 +53,14 @@ public class ListSandboxStatusUseCase {
             final List<Sandbox> seatsInPod = entry.getValue();
             final String variant = seatsInPod.get(0).getVariant();
 
-            final String phase = sandboxOrchestrator.getPhase(podName);
-            final boolean ready = phase != null && sandboxOrchestrator.isReady(podName);
+            SandboxOrchestrator.RuntimeStatus runtimeStatus = sandboxOrchestrator.getRuntimeStatus(podName);
+            // Mockito y adaptadores anteriores pueden no invocar el método default del puerto.
+            if (runtimeStatus == null) {
+                final String legacyPhase = sandboxOrchestrator.getPhase(podName);
+                runtimeStatus = new SandboxOrchestrator.RuntimeStatus(legacyPhase,
+                        legacyPhase != null && sandboxOrchestrator.isReady(podName), null, 0);
+            }
+            final String phase = runtimeStatus.phase();
 
             final List<Seat> seats = new ArrayList<>();
             for (final Sandbox s : seatsInPod) {
@@ -64,7 +70,8 @@ public class ListSandboxStatusUseCase {
             // que si existe pero sin status.phase todavia) -- el Pod no existe en Kubernetes (ej.
             // evicted/borrado a mano), la fila en SQLite sobrevive hasta la proxima purga/reintento.
             result.add(new PodStatus(seatsInPod.get(0).getUuid(), podName, variant,
-                phase != null ? phase : "NotFound", ready, seats));
+                phase != null ? phase : "NotFound", runtimeStatus.ready(), runtimeStatus.reason(),
+                runtimeStatus.restartCount(), seats));
         }
         return result;
     }

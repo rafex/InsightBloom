@@ -267,8 +267,13 @@ public class UsersApplication {
         final var sandboxOrchestrator = new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient(
                 JacksonJsonCodec.defaultCodec(),
                 System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"),
+                // GitOps sobreescribe ambas referencias con builds inmutables y precargados.
+                // El fallback conservado sirve para instalaciones sin GitOps: primero intenta
+                // la cache local (IfNotPresent) y solo entonces consulta GHCR con latest.
                 System.getenv().getOrDefault("SANDBOX_DEBIAN_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-debian:latest"),
                 System.getenv().getOrDefault("SANDBOX_NEOVIM_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-neovim:latest"),
+                System.getenv().getOrDefault("SANDBOX_IMAGE_PULL_POLICY", "IfNotPresent"),
+                System.getenv("SANDBOX_PRIORITY_CLASS"),
                 // Cambio de paradigma 2026-07-17: un solo contenedor por Pod (ver
                 // KubernetesPodClient), pero DOS sets de recursos -- uno por imagen, no uno
                 // compartido: las imagenes tienen perfiles de consumo muy distintos. Debian
@@ -280,13 +285,13 @@ public class UsersApplication {
                 // repo) con tope de Pod en 2048Mi/1000m desde el ajuste del 2026-07-17 -- los
                 // dos sets quedan con margen debajo de ese tope.
                 new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient.ContainerResources(
-                        System.getenv().getOrDefault("SANDBOX_DEBIAN_CPU_REQUEST", "200m"),
-                        System.getenv().getOrDefault("SANDBOX_DEBIAN_MEMORY_REQUEST", "640Mi"),
+                        System.getenv().getOrDefault("SANDBOX_DEBIAN_CPU_REQUEST", "500m"),
+                        System.getenv().getOrDefault("SANDBOX_DEBIAN_MEMORY_REQUEST", "1Gi"),
                         System.getenv().getOrDefault("SANDBOX_DEBIAN_CPU_LIMIT", "750m"),
                         sandboxDebianMemoryLimit),
                 new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient.ContainerResources(
-                        System.getenv().getOrDefault("SANDBOX_NEOVIM_CPU_REQUEST", "100m"),
-                        System.getenv().getOrDefault("SANDBOX_NEOVIM_MEMORY_REQUEST", "512Mi"),
+                        System.getenv().getOrDefault("SANDBOX_NEOVIM_CPU_REQUEST", "350m"),
+                        System.getenv().getOrDefault("SANDBOX_NEOVIM_MEMORY_REQUEST", "768Mi"),
                         System.getenv().getOrDefault("SANDBOX_NEOVIM_CPU_LIMIT", "500m"),
                         sandboxNeovimMemoryLimit),
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PORT", "8080")),
@@ -362,6 +367,8 @@ public class UsersApplication {
                         appPreviewRepo, System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"));
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo, sandboxOrchestrator);
         final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
+        final var reconcileSandboxHealthUseCase = new dev.rafex.insightbloom.users.application.usecases.ReconcileSandboxHealthUseCase(
+                sandboxRepo, conferenceRepo, sandboxOrchestrator);
         final var resolveSandboxTargetUseCase = new ResolveSandboxTargetUseCase(
                 validateTokenUseCase, sandboxRepo,
                 System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"),
@@ -532,6 +539,21 @@ public class UsersApplication {
             t.setDaemon(true);
             return t;
         });
+        final var sandboxHealthScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            final var t = new Thread(r, "sandbox-health-scheduler");
+            t.setDaemon(true);
+            return t;
+        });
+        final long sandboxHealthIntervalSeconds = Long.parseLong(
+                System.getenv().getOrDefault("SANDBOX_HEALTH_RECONCILE_INTERVAL_SECONDS", "30"));
+        sandboxHealthScheduler.scheduleAtFixedRate(() -> {
+            try {
+                final int recovered = reconcileSandboxHealthUseCase.execute(java.time.Instant.now());
+                if (recovered > 0) System.out.println("sandbox-health-scheduler: recovered " + recovered + " sandboxes");
+            } catch (final Exception e) {
+                System.err.println("sandbox-health-scheduler: tick failed: " + e.getMessage());
+            }
+        }, sandboxHealthIntervalSeconds, sandboxHealthIntervalSeconds, java.util.concurrent.TimeUnit.SECONDS);
         reminderScheduler.scheduleAtFixedRate(() -> {
             try {
                 sendConferenceRemindersUseCase.execute(java.time.Instant.now());

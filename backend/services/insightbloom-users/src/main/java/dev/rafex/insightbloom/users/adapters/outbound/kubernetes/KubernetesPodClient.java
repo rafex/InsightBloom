@@ -114,6 +114,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final String namespace;
     private final String debianImage;
     private final String neovimImage;
+    private final String imagePullPolicy;
+    private final String priorityClassName;
     private final ContainerResources debianResources;
     private final ContainerResources neovimResources;
     private final int port;
@@ -130,6 +132,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
                                 final String debianImage, final String neovimImage,
+                                final String imagePullPolicy, final String priorityClassName,
                                 final ContainerResources debianResources, final ContainerResources neovimResources,
                                 final int port, final int uid, final int gid, final int fsGroup,
                                 final String gatewayNamespace, final String gatewayPodComponentLabel,
@@ -139,6 +142,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         this.namespace = namespace;
         this.debianImage = debianImage;
         this.neovimImage = neovimImage;
+        this.imagePullPolicy = imagePullPolicy;
+        this.priorityClassName = priorityClassName;
         this.debianResources = debianResources;
         this.neovimResources = neovimResources;
         this.port = port;
@@ -526,6 +531,45 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     }
 
     @Override
+    public RuntimeStatus getRuntimeStatus(final String podName) {
+        requireEnabled();
+        final HttpRequest request = authedRequest("/api/v1/namespaces/" + namespace + "/pods/" + podName).GET().build();
+        final HttpResponse<String> response = send(request);
+        if (response.statusCode() == 404) return new RuntimeStatus(null, false, "NotFound", 0);
+        if (response.statusCode() >= 300) {
+            throw new IllegalStateException("kubernetes_get_pod_failed: " + response.statusCode() + " " + response.body());
+        }
+        final var node = jsonCodec.readTree(response.body());
+        final var phaseNode = jsonCodec.at(node, "/status/phase");
+        final String phase = phaseNode.isMissingNode() || phaseNode.isNull() ? "Unknown" : phaseNode.asText();
+        boolean ready = false;
+        final var conditions = jsonCodec.at(node, "/status/conditions");
+        if (conditions.isArray()) {
+            for (final var condition : conditions) {
+                if ("Ready".equals(condition.path("type").asText())) {
+                    ready = "True".equals(condition.path("status").asText());
+                    break;
+                }
+            }
+        }
+        String reason = node.path("status").path("reason").asText(null);
+        int restartCount = 0;
+        final var statuses = node.path("status").path("containerStatuses");
+        if (statuses.isArray()) {
+            for (final var status : statuses) {
+                restartCount += status.path("restartCount").asInt(0);
+                if (reason == null || reason.isBlank()) {
+                    final String waitingReason = status.path("state").path("waiting").path("reason").asText("");
+                    final String terminatedReason = status.path("state").path("terminated").path("reason").asText("");
+                    reason = !waitingReason.isBlank() ? waitingReason
+                            : (!terminatedReason.isBlank() ? terminatedReason : reason);
+                }
+            }
+        }
+        return new RuntimeStatus(phase, ready, reason, restartCount);
+    }
+
+    @Override
     public boolean isReady(final String podName) {
         requireEnabled();
         final HttpRequest request = authedRequest("/api/v1/namespaces/" + namespace + "/pods/" + podName).GET().build();
@@ -678,7 +722,10 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final Map<String, Object> sandboxContainer = new LinkedHashMap<>();
         sandboxContainer.put("name", "sandbox");
         sandboxContainer.put("image", terminalMode ? neovimImage : debianImage);
-        sandboxContainer.put("imagePullPolicy", "Always");
+        // GitOps inyecta "Never" junto con tags inmutables ya precargados. Fuera de GitOps el
+        // fallback es IfNotPresent + ghcr.io/...:latest, por lo que la imagen local se intenta
+        // primero y GHCR solo se consulta si no existe en el nodo.
+        sandboxContainer.put("imagePullPolicy", imagePullPolicy);
         sandboxContainer.put("ports", containerPorts);
         if (!runtimeEnv.isEmpty()) sandboxContainer.put("env", runtimeEnv);
         sandboxContainer.put("securityContext", containerSecurityContext(multiSeat));
@@ -741,7 +788,10 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("serviceAccountName", "default");
         spec.put("automountServiceAccountToken", false);
-        spec.put("restartPolicy", "Never");
+        spec.put("restartPolicy", "Always");
+        if (priorityClassName != null && !priorityClassName.isBlank()) {
+            spec.put("priorityClassName", priorityClassName);
+        }
         spec.put("securityContext", podSecurityContext);
         spec.put("containers", containers);
         spec.put("volumes", List.of(

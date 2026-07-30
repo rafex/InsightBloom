@@ -44,6 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fzf \
     jq \
     tmux \
+    xclip \
     tree \
     bat \
     fd-find \
@@ -57,6 +58,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && ln -s /usr/bin/batcat /usr/local/bin/bat \
     && ln -s /usr/bin/fdfind /usr/local/bin/fd
+
+# just + tmux plugins are installed during the image build. The runtime can
+# therefore be network-isolated while still exposing the complete IDE toolkit.
+COPY infra/docker/install-just.sh /usr/local/bin/install-just.sh
+COPY infra/docker/install-tmux-plugins.sh /usr/local/bin/install-tmux-plugins.sh
+RUN chmod +x /usr/local/bin/install-just.sh /usr/local/bin/install-tmux-plugins.sh && \
+    /usr/local/bin/install-just.sh && \
+    /usr/local/bin/install-tmux-plugins.sh && \
+    rm -f /usr/local/bin/install-just.sh /usr/local/bin/install-tmux-plugins.sh
 
 # es_ES.UTF-8: publico exclusivamente hispanohablante (mismo pedido que --locale es de
 # code-server abajo) -- sin esto los acentos/enies en output de comandos (ej. mensajes de
@@ -263,12 +273,17 @@ ENV TERM=xterm-256color
 # Prompt coloreado + banner de bienvenida + fix de PATH para shells de login -- mismos scripts
 # que usaba la imagen "runtime" vieja, ahora en la unica imagen que los necesita.
 USER root
-RUN mkdir -p /usr/local/share/doc/insightbloom
+RUN mkdir -p /usr/local/share/doc/insightbloom /usr/local/share/insightbloom
 COPY infra/docker/runtime-prompt.sh /etc/profile.d/insightbloom-prompt.sh
 COPY infra/docker/runtime-banner.sh /etc/profile.d/insightbloom-banner.sh
 COPY infra/docker/runtime-path.sh /etc/profile.d/000-insightbloom-path.sh
 COPY infra/docker/runtime-debug-helpers.sh /etc/profile.d/insightbloom-debug-helpers.sh
 COPY infra/docker/runtime-fzf.sh /etc/profile.d/insightbloom-fzf.sh
+COPY infra/docker/runtime-insightbloom-completion.sh /etc/profile.d/insightbloom-completion.sh
+COPY infra/docker/insightbloom-bash-completion.sh /usr/share/bash-completion/completions/insightbloom
+COPY infra/docker/insightbloom-tmux-clipboard /usr/local/bin/insightbloom-tmux-clipboard
+COPY infra/docker/tmux.conf /etc/tmux.conf
+COPY Makefile Justfile /usr/local/share/insightbloom/
 COPY infra/docker/seed-node-types.sh /usr/local/bin/seed-node-types.sh
 COPY infra/docker/insightbloom-publish.py /usr/local/bin/insightbloom-publish.py
 COPY infra/docker/insightbloom-mentor.py /usr/local/bin/insightbloom-mentor.py
@@ -280,10 +295,13 @@ COPY infra/docker/IDE-APP-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-A
 COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
 COPY infra/docker/seed-remote-git.sh /usr/local/bin/seed-remote-git.sh
 RUN chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py \
-    /usr/local/bin/insightbloom /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh
+    /usr/local/bin/insightbloom /usr/local/bin/seed-ide-docs.sh \
+    /usr/local/bin/seed-remote-git.sh /usr/local/bin/insightbloom-tmux-clipboard
 USER coder
 
 RUN mkdir -p /home/coder/.local/share/code-server/User /home/coder/workspace /home/coder/db /home/coder/.m2
+COPY --chown=coder:coder Makefile /home/coder/Makefile
+COPY --chown=coder:coder Justfile /home/coder/Justfile
 COPY --chown=coder:coder infra/docker/code-ide-settings.json /home/coder/.local/share/code-server/User/settings.json
 
 # Template de launch.json (debug remoto via JDWP/debugpy, ver runtime-debug-helpers.sh) y

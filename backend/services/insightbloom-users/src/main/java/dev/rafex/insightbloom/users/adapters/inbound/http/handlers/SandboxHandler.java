@@ -368,13 +368,16 @@ public class SandboxHandler extends BaseResourceHandler {
     }
 
     private String sandboxStatusPayload(final Sandbox sandbox, final boolean ready) {
-        return JsonUtils.toJson(Map.of(
+        final Map<String, Object> payload = new java.util.LinkedHashMap<>(Map.of(
                 "sandboxUuid", sandbox.getUuid(),
                 "sandboxSlot", sandbox.getSandboxSlot(),
                 "variant", sandbox.getVariant(),
                 "status", ready ? "READY" : "PENDING",
                 "gatewayUrl", gatewayBaseUrl,
                 "sandboxPath", "/"));
+        final String reason = sandboxOrchestrator.getRuntimeStatus(sandbox.podName()).reason();
+        if (reason != null && !reason.isBlank()) payload.put("reason", reason);
+        return JsonUtils.toJson(payload);
     }
 
     private boolean handleGetAvailability(final JettyHttpExchange jx, final String conferenceId) {

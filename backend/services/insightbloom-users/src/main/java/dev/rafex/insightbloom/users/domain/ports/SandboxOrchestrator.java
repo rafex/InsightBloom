@@ -15,6 +15,9 @@ import java.util.Optional;
  */
 public interface SandboxOrchestrator {
 
+    record RuntimeStatus(String phase, boolean ready, String reason, int restartCount) {
+    }
+
     /**
      * Idempotente: si el Pod/Service ya existen con ese nombre, no falla.
      * @param conferenceUuid usado para etiquetar el Pod con {@link dev.rafex.insightbloom.users.domain.model.Sandbox#conferenceLabel}
@@ -62,6 +65,11 @@ public interface SandboxOrchestrator {
 
     /** "Pending", "Running", "Failed", "Succeeded", "Unknown", o null si el Pod no existe. */
     String getPhase(String podName);
+
+    default RuntimeStatus getRuntimeStatus(String podName) {
+        final String phase = getPhase(podName);
+        return new RuntimeStatus(phase, phase != null && isReady(podName), null, 0);
+    }
 
     /**
      * A diferencia de {@link #getPhase}: el Pod pasa a fase "Running" en cuanto TODOS sus

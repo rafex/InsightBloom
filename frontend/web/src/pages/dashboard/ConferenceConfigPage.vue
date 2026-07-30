@@ -132,7 +132,7 @@
         p.success(v-if="sandboxPrewarmResult")
           | Pool solicitado: Web {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.desiredPods || 0 }}; CLI {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.desiredPods || 0 }}.
         p.error(v-if="sandboxPrewarmError") {{ sandboxPrewarmError }}
-        p.field-hint Sandboxes activos de este evento -- quién los ocupa, en qué modo (Web/CLI) y si ya están listos para usarse. Para revisar y editar los archivos de un alumno, usá el "Editor de código" en Moderación.
+        p.field-hint Sandboxes: {{ sandboxStatus.filter(p => p.ready).length }} listos, {{ sandboxStatus.filter(p => !p.ready).length }} pendientes, {{ sandboxStatus.filter(p => !p.seats.some(s => s.userUuid)).length }} libres. Para revisar y editar los archivos de un alumno, usá el "Editor de código" en Moderación.
         p.error(v-if="sandboxStatusError") {{ sandboxStatusError }}
         .table-scroll(v-if="sandboxStatusLoaded")
           table.incidents-table
@@ -142,16 +142,18 @@
                 th Modo
                 th Fase
                 th Listo
+                th Diagnóstico
                 th Asientos
                 th Acciones
             tbody
               tr(v-if="!sandboxStatus.length")
-                td(colspan="6") No hay sandboxes activos.
+                td(colspan="7") No hay sandboxes activos.
               tr(v-for="pod in sandboxStatus" :key="pod.podName")
                 td {{ pod.podName }}
                 td {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
                 td {{ pod.phase }}
                 td {{ pod.ready ? '✓' : '—' }}
+                td {{ pod.reason || '—' }}{{ pod.restartCount ? ` (${pod.restartCount} reinicios)` : '' }}
                 td.seats-cell
                   //- El backend solo expone el UUID del ocupante; se muestra "Asiento N" + UUID
                   //- corto (el completo queda en el tooltip) en vez del UUID crudo de 36 chars.

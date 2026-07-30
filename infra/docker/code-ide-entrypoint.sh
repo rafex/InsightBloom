@@ -10,9 +10,8 @@ set -euo pipefail
 # tiene que correr primero (ver seed-remote-git.sh).
 /usr/local/bin/seed-remote-git.sh /home/coder/workspace
 
-# El workspace es un emptyDir y oculta los archivos de build. Publicamos los tipos de Node.js
-# precargados antes de iniciar code-server para que el TypeScript language service pueda
-# resolver fs/http/process/Buffer sin npm ni Internet durante la sesión.
+# Configuracion del workspace: publica los tipos de Node.js precargados para que el TypeScript
+# language service pueda resolver fs/http/process/Buffer sin npm ni Internet durante la sesion.
 /usr/local/bin/seed-node-types.sh /home/coder/workspace
 /usr/local/bin/seed-ide-docs.sh /home/coder/workspace
 

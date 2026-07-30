@@ -393,6 +393,7 @@ export interface SandboxInfo {
   gatewayUrl: string
   sandboxPath: string
   expiresInSeconds?: number
+  reason?: string | null
 }
 
 export interface SandboxVariantAvailability {
@@ -418,6 +419,8 @@ export interface SandboxStatusEntry {
   variant: SandboxVariant
   phase: string
   ready: boolean
+  reason: string | null
+  restartCount: number
   seats: SandboxStatusSeat[]
 }
 

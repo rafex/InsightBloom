@@ -2,6 +2,12 @@
 
 Derivado de `spec-native/specs/code-ide-sandboxes/SPEC.md`.
 
+## Backlog — retención temporal de workspace
+
+- [ ] Diseñar cierre explícito del curso por moderador y retención de workspaces hasta un máximo
+  de una hora posterior. Debe incluir política de borrado verificable, aviso visible para alumnos
+  y no convertir el workspace efímero actual en persistencia indefinida. **No implementar aún.**
+
 ## Orden recomendado de ejecución
 
 1. **Fase 0** (TASK-0001 a TASK-0003): capacidad `CODE_IDE` + modelo de

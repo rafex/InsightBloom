@@ -24,6 +24,11 @@ on:
       - 'infra/docker/code-ide-launch.json'
       - 'infra/docker/code-ide-entrypoint.sh'
       - 'infra/docker/runtime-*.sh'
+      - 'infra/docker/tmux.conf'
+      - 'infra/docker/insightbloom-bash-completion.sh'
+      - 'infra/docker/insightbloom-tmux-clipboard'
+      - 'infra/docker/install-just.sh'
+      - 'infra/docker/install-tmux-plugins.sh'
       - 'infra/docker/nvim-init.lua'
       - 'infra/docker/nvim-init-lazyvim.lua'
       - 'infra/docker/lazyvim-config/**'
@@ -33,6 +38,8 @@ on:
       - 'infra/docker/sandbox_file_api.py'
       - 'infra/docker/IDE-*.md'
       - 'infra/docker/seed-ide-docs.sh'
+      - 'Makefile'
+      - 'Justfile'
       - '.github/workflows/publish-code-ide.yml'
   workflow_dispatch: {}
 

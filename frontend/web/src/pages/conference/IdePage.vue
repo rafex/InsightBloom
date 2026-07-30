@@ -34,6 +34,9 @@
       .pending-sandbox(v-else-if="sandbox && sandbox.status === 'PENDING'")
         sandbox-loading-animation(:message="pendingMessage")
         p.hint Esto puede tardar hasta un par de minutos la primera vez.
+        p.hint(v-if="sandbox.reason") {{ sandbox.reason }}
+        BaseButton(v-if="sandbox.variant === 'web' && availability?.cli?.available" variant="secondary" @click="switchVariant")
+          | Usar CLI mientras tanto
       template(v-else-if="sandbox")
         .sandbox-info
           .info-row
@@ -162,7 +165,12 @@ export default {
       pollDelayMs = POLL_INITIAL_DELAY_MS
     }
 
-    const pendingMessage = ref('🔧 Preparando tu ambiente de desarrollo...')
+    const pendingMessage = computed(() => {
+      const reason = sandbox.value?.reason || ''
+      if (/OOMKilled|CrashLoop/i.test(reason)) return '♻️ Reiniciando tu ambiente de desarrollo...'
+      if (/ImagePull|ErrImage/i.test(reason)) return '📦 Esperando la imagen del IDE en este nodo...'
+      return '🔧 Preparando tu ambiente de desarrollo...'
+    })
 
     const formattedExpiry = computed(() => {
       if (!sandbox.value?.expiresInSeconds) return 'N/A'

@@ -40,12 +40,16 @@ Todas las descargas se verifican con `sha256sum -c` contra un hash fijado en el 
 
 Ademas del toolchain de lenguajes, ambas imagenes incluyen: `git`, `fzf`, `bash-completion`,
 `bat`/`eza`/`fd`/`ripgrep`/`ncdu` (mejoras de cat/ls/find/grep/du), `jq`, `tmux`, `tree`,
-`httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `nano`, `less`+`man`, y
-`opencode` (CLI de agente de codigo IA). El CLI tambien incluye `posting` 2.10.0 para probar REST
+`httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `nano`, `less`+`man`,
+`just` 1.57.0 y `opencode` (CLI de agente de codigo IA). `insightbloom` incluye autocompletado
+de bash para subcomandos, opciones y rutas. El CLI tambien incluye `posting` 2.10.0 para probar REST
 desde terminal. Paquetes globales de Python (`jupyter`, `numpy`,
 `pandas`, `matplotlib`, `flask`, `django`, `fastapi`, `pytest`, `black`, `pylint`, `debugpy`) y
 de Node (`typescript`, `typescript-language-server`, `eslint`, `prettier`, `@types/node`, `vite`, `webpack`, `@vue/cli`, `create-react-app`)
-tambien pre-instalados — nada requiere setup manual del instructor/alumno.
+tambien pre-instalados — nada requiere setup manual del instructor/alumno. `Makefile` y
+`Justfile` se conservan como archivos base de la imagen en `/home/coder` y
+`/usr/local/share/insightbloom`; no se copian al `emptyDir` de cada sesión para no mezclar el
+contenido base con el repositorio configurado por el evento.
 
 ### LSP y autocompletado semántico en ambos IDE
 
@@ -73,6 +77,16 @@ Como `/home/*/workspace` es un volumen efímero, la imagen guarda una copia inmu
 tipos en `/usr/local/share/insightbloom-node-types`. `seed-node-types.sh` crea enlaces dentro
 del workspace al arrancar el asiento, tanto en el modo de un solo usuario como en el agente
 multi-asiento. El script no ejecuta `npm install`, no usa Mason/Lazy y no requiere Internet.
+
+## Distribución en K3s
+
+InsightBloom-gitops configura `SANDBOX_DEBIAN_IMAGE`, `SANDBOX_NEOVIM_IMAGE` y
+`SANDBOX_IMAGE_PULL_POLICY=Never` con builds inmutables precargados en cada nodo. Así, crear un
+sandbox no consulta GHCR ni puede cambiar de imagen durante una sesión. Si la imagen no fue
+precargada en el nodo donde agenda Kubernetes, el Pod queda en `ErrImageNeverPull`; GitOps debe
+corregir la distribución antes de habilitar esa versión. Fuera de GitOps, el fallback conserva
+`ghcr.io/...:latest` con `IfNotPresent`: usa primero cualquier copia local y consulta GHCR sólo
+cuando no exista.
 
 ## Publicación de páginas web
 
@@ -105,6 +119,14 @@ El comando no ejecuta scripts de npm ni requiere Internet. La publicación es so
 estáticos: APIs, WebSockets, procesos persistentes y puertos arbitrarios quedan fuera de este
 flujo. La duración de la URL la controla el servicio y la documentación completa se siembra en el
 workspace al iniciar cada sandbox.
+
+## tmux
+
+Ambas imágenes instalan la configuración común en `/etc/tmux.conf`, junto con TPM,
+`tmux-sensible`, `tmux-resurrect`, `tmux-continuum` y `vim-tmux-navigator`. Los plugins quedan
+vendorizados durante el build para que tmux funcione sin red en runtime. La combinación `v`/`y`
+del modo copy usa `pbcopy` cuando existe, `xclip` en Linux de escritorio y OSC 52 en el terminal
+web/headless.
 
 ## Estructura de las imagenes
 
