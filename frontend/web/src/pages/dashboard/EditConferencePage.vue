@@ -121,7 +121,7 @@
     FeedbackMessage(v-if="saved" message="Cambios guardados correctamente." tone="success")
     .actions
       BaseButton(:loading="saving" :disabled="saving" @click="save") Guardar cambios
-      router-link.link-btn.link-btn-secondary(:to="`/dashboard`") Volver al dashboard
+      BaseLink(variant="secondary" to="/dashboard") Volver al panel
 </template>
 
 <script lang="ts">
@@ -130,6 +130,7 @@ import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
 import FormField from '@/components/ui/FormField.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
@@ -142,7 +143,7 @@ const MAX_FLYER_BYTES = 8 * 1024 * 1024
 
 export default {
   name: 'EditConferencePage',
-  components: { ConferenceMap, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, FormField, FeedbackMessage, LoadingState },
+  components: { ConferenceMap, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, FormField, FeedbackMessage, LoadingState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
