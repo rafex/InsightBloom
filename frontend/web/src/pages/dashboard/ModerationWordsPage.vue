@@ -30,19 +30,23 @@
         span.word-cell {{ item.wordCanonical }}
       td {{ item.wordNormalized }}
       td
-        span.status(:class="statusClass(item.contentStatus)") {{ statusLabel(item.contentStatus) }}
+        StatusBadge(:status="item.contentStatus")
       td.actions
         BaseButton(size="sm" variant="danger"
           v-if="item.contentStatus === 'VISIBLE' || item.contentStatus === 'PENDIENTE_REVISION'"
           @click="censor(item)"
           :disabled="item._loading"
         ) Censurar
-        button.btn-sm.btn-success(
+        BaseButton(
+          variant="success"
+          size="sm"
           v-if="item.contentStatus !== 'VISIBLE' && item.contentStatus !== 'DELETED'"
           @click="restore(item)"
           :disabled="item._loading"
         ) Restaurar
-        button.btn-sm.btn-warning(
+        BaseButton(
+          variant="danger"
+          size="sm"
           v-if="item.contentStatus !== 'DELETED'"
           @click="deleteItem(item)"
           :disabled="item._loading"
@@ -55,6 +59,7 @@ import ModerationTable from '@/components/tables/ModerationTable.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getModerationWords, censorWord, restoreWord, deleteWord } from '@/services/api/moderationApi'
@@ -72,7 +77,7 @@ interface ModWordItem {
 
 export default {
   name: 'ModerationWordsPage',
-  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
+  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const words = ref<ModWordItem[]>([])
@@ -122,15 +127,6 @@ export default {
       router.push(`/dashboard/conferences/${props.conferenceId}/moderation/messages?${params}`)
     }
 
-    function statusClass(s: string | undefined) {
-      return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION', 'status-deleted': s === 'DELETED' }
-    }
-
-    function statusLabel(s: string): string {
-      const map: Record<string, string> = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente', DELETED: 'Eliminado' }
-      return map[s] || s
-    }
-
     onMounted(async () => {
       load()
       if (props.conferenceId) {
@@ -146,7 +142,7 @@ export default {
       { label: 'Moderación (palabras)' }
     ])
 
-    return { words, loading, page, totalPages, statusFilter, conferenceName, breadcrumbItems, load, goToPage, censor, restore, deleteItem, verMensajes, statusClass, statusLabel }
+    return { words, loading, page, totalPages, statusFilter, conferenceName, breadcrumbItems, load, goToPage, censor, restore, deleteItem, verMensajes }
   }
 }
 </script>
@@ -157,16 +153,5 @@ h2 { color: var(--color-heading); margin-bottom: 20px; margin-top: 0; }
 .filters { margin-bottom: 16px; }
 select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
 .word-cell { font-family: monospace; font-weight: 700; font-size: 1rem; color: var(--color-heading); }
-.status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
-.status-visible { background: var(--color-success-soft); color: var(--color-success); }
-.status-censored { background: var(--color-danger-soft); color: var(--color-danger-dark); }
-.status-pending { background: var(--color-warning-soft); color: var(--color-warning); }
-.status-deleted { background: var(--color-surface-muted); color: var(--color-text-muted); }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-success { background: var(--color-success-soft); color: var(--color-success); }
-.btn-success:hover { background: var(--color-success-soft); }
-.btn-warning { background: var(--color-warning-soft); color: var(--color-warning); }
-.btn-warning:hover { background: var(--color-warning-soft); }
-.btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

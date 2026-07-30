@@ -23,10 +23,11 @@
       td {{ item.accountCount }}
       td {{ formatDate(item.blockedAt) }}
       td
-        span.status(:class="item.unblockedAt ? 'status-unblocked' : 'status-blocked'")
-          | {{ item.unblockedAt ? 'Desbloqueado' : 'Bloqueado' }}
+        StatusBadge(:status="item.unblockedAt ? 'ACTIVE' : 'BANNED'" :label="item.unblockedAt ? 'Desbloqueado' : 'Bloqueado'")
       td.actions
-        button.btn-sm.btn-success(
+        BaseButton(
+          variant="success"
+          size="sm"
           v-if="!item.unblockedAt"
           @click="unblock(item)"
           :disabled="item._loading"
@@ -37,7 +38,9 @@
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { ref, computed, onMounted } from 'vue'
 import { listDeviceBlocks, unblockDevice, getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -47,7 +50,7 @@ type DeviceBlockRow = DeviceBlock & { _loading: boolean }
 
 export default {
   name: 'DeviceBlocksPage',
-  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, EmptyState },
+  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -104,12 +107,5 @@ export default {
 h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 20px; max-width: 640px; }
 .fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
-.status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
-.status-blocked { background: var(--color-danger-soft); color: var(--color-danger-dark); }
-.status-unblocked { background: var(--color-success-soft); color: var(--color-success); }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-success { background: var(--color-success-soft); color: var(--color-success); }
-.btn-success:hover { background: var(--color-success-soft); }
-.btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

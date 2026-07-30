@@ -27,28 +27,36 @@
         span.msg-author {{ item.authorDisplayName || authorNames[item.authorUuid] || item.authorLabel || 'Anónimo' }}
         span.msg-time(v-if="item.receivedAt || item.updatedAt") · {{ formatTime(item.receivedAt || item.updatedAt) }}
       .msg-status
-        span.status(:class="statusClass(item.detailStatus)") {{ statusLabel(item.detailStatus) }}
+        StatusBadge(:status="item.detailStatus || 'VISIBLE'")
       .msg-actions
         BaseButton(size="sm" variant="danger"
           v-if="!item.detailStatus || item.detailStatus === 'VISIBLE' || item.detailStatus === 'PENDIENTE_REVISION'"
           @click="censorDetail(item)"
           :disabled="item._loading"
         ) Censurar detalle
-        button.btn-sm.btn-success(
+        BaseButton(
+          variant="success"
+          size="sm"
           v-if="item.detailStatus && item.detailStatus !== 'VISIBLE' && item.detailStatus !== 'DELETED'"
           @click="restore(item)"
           :disabled="item._loading"
         ) Restaurar
-        button.btn-sm.btn-warning(
+        BaseButton(
+          variant="danger"
+          size="sm"
           v-if="!item.detailStatus || item.detailStatus !== 'DELETED'"
           @click="deleteItem(item)"
           :disabled="item._loading"
         ) Eliminar
-        button.btn-sm.btn-answer(
+        BaseButton(
+          variant="secondary"
+          size="sm"
           v-if="!item.answerText && !item._answering"
           @click="startAnswering(item)"
         ) 💬 Responder
-        button.btn-sm.btn-answer(
+        BaseButton(
+          variant="secondary"
+          size="sm"
           v-if="item.answerText && !item._answering"
           @click="startAnswering(item)"
         ) ✏️ Editar respuesta
@@ -60,8 +68,8 @@
       .answer-form(v-if="item._answering")
         textarea(v-model="item._answerDraft" rows="3" placeholder="Escribe la respuesta para quien envió esta duda...")
         .answer-form-actions
-          button.btn-sm.btn-primary-sm(:disabled="!item._answerDraft || item._loading" @click="submitAnswer(item)") Enviar respuesta
-          button.btn-sm.btn-ghost-sm(@click="item._answering = false") Cancelar
+          BaseButton(:disabled="!item._answerDraft || item._loading" :loading="item._loading" size="sm" @click="submitAnswer(item)") Enviar respuesta
+          BaseButton(variant="ghost" size="sm" @click="item._answering = false") Cancelar
 
   .pagination(v-if="!wordCanonical && totalPages > 1")
     button(@click="goToPage(page - 1)" :disabled="page <= 1") ‹
@@ -80,6 +88,7 @@ import DashboardBreadcrumb, { type BreadcrumbItem } from '@/components/Dashboard
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 interface ModMessageItem {
   id?: string
@@ -106,7 +115,7 @@ interface ModMessageItem {
 
 export default {
   name: 'ModerationMessagesPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const route = useRoute()
@@ -232,17 +241,6 @@ export default {
       }
     }
 
-    function statusClass(s: string | null | undefined) {
-      if (!s) return {}
-      return { 'status-visible': s === 'VISIBLE', 'status-censored': s?.startsWith('CENSURADO'), 'status-pending': s === 'PENDIENTE_REVISION', 'status-deleted': s === 'DELETED' }
-    }
-
-    function statusLabel(s: string | null | undefined): string {
-      if (!s) return 'Visible'
-      const map: Record<string, string> = { VISIBLE: 'Visible', CENSURADO_AUTO: 'Auto', CENSURADO_MANUAL: 'Manual', PENDIENTE_REVISION: 'Pendiente', DELETED: 'Eliminado' }
-      return map[s] || s
-    }
-
     function formatTime(ts: string | undefined): string {
       if (!ts) return ''
       return new Date(ts).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
@@ -280,7 +278,7 @@ export default {
       items, loading, page, totalPages, statusFilter, conferenceName, authorNames,
       wordNormalized, wordCanonical, breadcrumbItems,
       loadModMessages, goToPage, censorDetail, restore, deleteItem, startAnswering, submitAnswer,
-      statusClass, statusLabel, formatTime
+      formatTime
     }
   }
 }
@@ -314,23 +312,7 @@ select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radi
 .msg-meta { display: flex; gap: 8px; font-size: 0.82rem; color: var(--color-text-muted); }
 .msg-author { font-weight: 600; color: var(--color-text-secondary); }
 .msg-status { }
-.status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
-.status-visible { background: var(--color-success-soft); color: var(--color-success); }
-.status-censored { background: var(--color-danger-soft); color: var(--color-danger-dark); }
-.status-pending { background: var(--color-warning-soft); color: var(--color-warning); }
-.status-deleted { background: var(--color-surface-muted); color: var(--color-text-muted); }
 .msg-actions { display: flex; gap: 6px; }
-
-.btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-success { background: var(--color-success-soft); color: var(--color-success); }
-.btn-success:hover { background: var(--color-success-soft); }
-.btn-warning { background: var(--color-warning-soft); color: var(--color-warning); }
-.btn-warning:hover { background: var(--color-warning-soft); }
-.btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-answer { background: var(--color-primary-soft); color: var(--color-primary-dark); }
-.btn-answer:hover { background: var(--color-primary-soft); }
-.btn-primary-sm { background: var(--color-primary); color: var(--color-text-inverse); }
-.btn-ghost-sm { background: var(--color-surface); color: var(--color-text-muted); border: 1px solid var(--color-border-subtle); }
 .answer-block { background: var(--color-success-soft); border-radius: 8px; padding: 10px 12px; margin-top: 6px; }
 .answer-block strong { color: var(--color-success); font-size: 0.8rem; }
 .answer-text { margin: 4px 0 0; color: var(--color-text); font-size: 0.9rem; white-space: pre-wrap; }

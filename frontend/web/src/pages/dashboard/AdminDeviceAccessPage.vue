@@ -44,8 +44,7 @@
       td {{ item.relatedCount }}
       td {{ formatDate(item.blockedAt) }}
       td
-        span.status(:class="item.unblockedAt ? 'status-unblocked' : 'status-blocked'")
-          | {{ item.unblockedAt ? 'Desbloqueado' : 'Bloqueado' }}
+        StatusBadge(:status="item.unblockedAt ? 'ACTIVE' : 'BANNED'" :label="item.unblockedAt ? 'Desbloqueado' : 'Bloqueado'")
       td.actions
         BaseButton(
           variant="success"
@@ -79,8 +78,7 @@
       td {{ formatDate(item.firstSeenAt) }}
       td {{ formatDate(item.lastSeenAt) }}
       td
-        span.status(:class="item.reviewedAt ? 'status-unblocked' : 'status-blocked'")
-          | {{ item.reviewedAt ? 'Revisado' : 'Pendiente' }}
+        StatusBadge(:status="item.reviewedAt ? 'ACTIVE' : 'PENDING'" :label="item.reviewedAt ? 'Revisado' : 'Pendiente'")
       td.actions
         BaseButton(
           variant="success"
@@ -96,6 +94,7 @@ import ModerationTable from '@/components/tables/ModerationTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { ref, onMounted } from 'vue'
 import {
   getDeviceAccessSettings, setDeviceAccessSettings, listPlatformDeviceBlocks, unblockPlatformDevice,
@@ -109,7 +108,7 @@ type DeviceFingerprintFlagRow = DeviceFingerprintFlag & { _loading: boolean }
 
 export default {
   name: 'AdminDeviceAccessPage',
-  components: { ModerationTable, BaseButton, EmptyState, FeedbackMessage },
+  components: { ModerationTable, BaseButton, EmptyState, FeedbackMessage, StatusBadge },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -218,8 +217,5 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .form-group input { font-size: 0.9rem; }
 .blocks-title { color: var(--color-heading); font-size: 1rem; margin-bottom: 8px; }
 .fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
-.status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
-.status-blocked { background: var(--color-danger-soft); color: var(--color-danger-dark); }
-.status-unblocked { background: var(--color-success-soft); color: var(--color-success); }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 </style>
