@@ -11,7 +11,7 @@
   template(v-else)
     .preview-banner(v-if="!canParticipate")
       span Vista pública: primeras {{ previewSlideLimit }} diapositivas
-      router-link(:to="`/c/${friendlyId}/ticket`") Regístrate y canjea tu boleto para continuar
+      BaseLink(size="sm" variant="ghost" :to="`/c/${friendlyId}/ticket`") Regístrate y canjea tu boleto para continuar
     // Slidev's ES modules are loaded from the same protected presentation
     // path. `allow-same-origin` is required so the browser keeps the iframe
     // origin and sends the path-scoped HttpOnly access cookie to the module
@@ -207,8 +207,7 @@ h2 { margin: 0; color: var(--color-heading); }
   background: var(--color-warning-soft); color: var(--color-warning); border-radius: 8px; padding: 8px 14px;
   font-size: 0.85rem; margin-bottom: 10px; flex-wrap: wrap;
 }
-.preview-banner a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
-.preview-banner a:hover { text-decoration: underline; }
+.preview-banner :deep(.base-link) { margin: -6px -8px; color: var(--color-primary); }
 
 .preview-expired { text-align: center; padding: 60px 24px; }
 .preview-expired p { color: var(--color-text-muted); margin-bottom: 24px; }
