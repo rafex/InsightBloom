@@ -37,7 +37,8 @@
           FeedbackMessage(v-if="error" :message="error" tone="error")
           .login-actions
             BaseButton(size="lg" @click="doVerifyOtp" :disabled="loading" :loading="loading") Verificar e iniciar sesión
-          button.btn-resend(type="button" @click="doRequestOtp" :disabled="loading") Reenviar código
+          .login-actions
+            BaseButton(variant="ghost" size="sm" type="button" @click="doRequestOtp" :disabled="loading") Reenviar código
 
       p.register-hint ¿No tienes cuenta? #[router-link(to="/register") Regístrate]
       //- Entrada como invitado visible solo cuando se llegó desde un evento (auditoría UX: el
@@ -172,14 +173,8 @@ h2 { margin: 0 0 8px; color: var(--color-heading); }
 }
 .mode-tab:hover { color: var(--color-primary); }
 .mode-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
-.btn-resend {
-  display: block; margin: 10px auto 0; padding: 6px 10px; border: none; background: none;
-  color: var(--color-primary); font-size: 0.82rem; font-weight: 600; cursor: pointer;
-}
-.btn-resend:hover { text-decoration: underline; }
-.btn-resend:disabled { opacity: 0.5; cursor: not-allowed; }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; }
-.login-actions { display: flex; justify-content: center; }
+.login-actions { display: flex; justify-content: center; margin-top: var(--space-2); }
 .guest-block { margin-top: 14px; text-align: center; }
 .divider { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 10px; }
 .guest-hint { margin: 8px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
