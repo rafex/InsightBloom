@@ -43,7 +43,7 @@
             tbody
               tr(v-for="r in reservations" :key="r.conferenceUuid")
                 td {{ r.conferenceName || r.friendlyId || r.conferenceUuid }}
-                td {{ r.status }}
+                td {{ formatStatusLabel(r.status) }}
                 td
                   span(v-if="surveyStatus[r.conferenceUuid] === undefined") …
                   span(v-else) {{ surveyStatus[r.conferenceUuid] ? 'Respondida ✓' : 'Sin responder' }}
@@ -61,6 +61,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { formatStatusLabel } from '@/utils/status'
 
 export default {
   name: 'UserDetailPage',
@@ -118,7 +119,7 @@ export default {
       { label: user.value?.displayName || user.value?.username || '', loading: loading.value }
     ])
 
-    return { user, loading, reservations, loadingReservations, surveyStatus, statusLabel, formatDate, breadcrumbItems }
+    return { user, loading, reservations, loadingReservations, surveyStatus, statusLabel, formatDate, formatStatusLabel, breadcrumbItems }
   }
 }
 </script>

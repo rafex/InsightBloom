@@ -28,7 +28,7 @@
 
   .recent-list(v-if="recent.length")
     h3 Últimos check-ins
-    .recent-item(v-for="r in recent" :key="r.uuid") {{ r.ticketCode }} — {{ r.status }}
+    .recent-item(v-for="r in recent" :key="r.uuid") {{ r.ticketCode }} — {{ formatStatusLabel(r.status) }}
 </template>
 
 <script lang="ts">
@@ -39,6 +39,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import { checkInIssuedTicket, checkInTicket, getConference } from '@/services/api/usersApi'
 import type { Ticket, Reservation } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import { formatStatusLabel } from '@/utils/status'
 
 export default {
   name: 'CheckInScannerPage',
@@ -236,7 +237,7 @@ export default {
     })
 
     return {
-      videoEl, lastResult, recent, breadcrumbItems, manualCode, submitManualCode,
+      videoEl, lastResult, recent, breadcrumbItems, manualCode, submitManualCode, formatStatusLabel,
       scannerReady, scannerError, scannerStatus, scanQrImage, takePhotoAndScan, imageProcessing, processing
     }
   }

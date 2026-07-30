@@ -1,9 +1,10 @@
 <template lang="pug">
-span.status-badge(:class="`tone-${resolvedTone}`") {{ label }}
+span.status-badge(:class="`tone-${resolvedTone}`") {{ resolvedLabel }}
 </template>
 
 <script lang="ts">
 import { computed } from 'vue'
+import { formatStatusLabel } from '@/utils/status'
 
 type StatusTone = 'success' | 'warning' | 'danger' | 'neutral' | 'info'
 
@@ -23,17 +24,18 @@ export default {
   name: 'StatusBadge',
   props: {
     status: { type: String, required: true },
-    label: { type: String, required: true },
+    label: { type: String, default: '' },
     tone: { type: String, default: '' }
   },
   setup(props: { status: string, label: string, tone: string }) {
+    const resolvedLabel = computed(() => props.label || formatStatusLabel(props.status))
     const resolvedTone = computed<StatusTone>(() => {
       if (props.tone && props.tone in { success: true, warning: true, danger: true, neutral: true, info: true }) {
         return props.tone as StatusTone
       }
       return STATUS_TONES[props.status] || 'neutral'
     })
-    return { resolvedTone }
+    return { resolvedLabel, resolvedTone }
   }
 }
 </script>

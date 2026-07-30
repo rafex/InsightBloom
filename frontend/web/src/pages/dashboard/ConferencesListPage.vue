@@ -48,7 +48,7 @@
           td(data-label="ID amigable")
             span.friendly-id {{ c.friendlyId }}
           td(data-label="Estado")
-            StatusBadge(:status="c.status" :label="c.status" :tone="c.status === 'ACTIVE' ? 'success' : c.status === 'CLOSED' ? 'danger' : 'neutral'")
+            StatusBadge(:status="c.status" :tone="c.status === 'ACTIVE' ? 'success' : c.status === 'CLOSED' ? 'danger' : 'neutral'")
           td(data-label="Expira")
             span.expiry-text(v-if="c.expiresAt" :class="{ expired: isExpired(c.expiresAt) }")
               | {{ isExpired(c.expiresAt) ? 'Expiró ' : 'Expira ' }}{{ formatRelative(c.expiresAt) }}
