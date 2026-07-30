@@ -1,6 +1,6 @@
 # Diagnóstico del Proyecto
 
-_Fecha: 2026-07-22 | Repositorio: InsightBloom_
+_Fecha: 2026-07-29 | Repositorio: InsightBloom_
 
 ---
 
@@ -8,146 +8,102 @@ _Fecha: 2026-07-22 | Repositorio: InsightBloom_
 
 ### Estructura general
 
-Monorepo con 3 ecosistemas tecnológicos:
+Monorepo organizado en dominios funcionales:
 
 ```
-InsightBloom/
-├── backend/
-│   ├── common/              → código compartido (BaseResourceHandler, SQLite helpers)
-│   ├── contracts/           → DTOs compartidos entre servicios
-│   ├── services/            → 6 microservicios Java + 1 Node.js + 1 gateway
-│   │   ├── insightbloom-users      (8081) — auth, conferencias, roles, boletos
-│   │   ├── insightbloom-ingest     (8082) — recepción y normalización de mensajes
-│   │   ├── insightbloom-query      (8083) — nubes D3.js y timelines
-│   │   ├── insightbloom-moderation (8084) — censura manual/automática
-│   │   ├── insightbloom-stats      (8085) — agregados y relevancia
-│   │   ├── insightbloom-survey     (8086) — encuestas y certificados
-│   │   ├── insightbloom-presentations — Node.js/Express (Marp/Slidev)
-│   │   └── insightbloom-tools-gateway (8090) — proxy WebSocket a herramientas/IDE
-│   └── cli/
-│       └── insightbloom-cli        — CLI administrativo (crear usuarios sin endpoint admin)
-├── frontend/
-│   └── web/                 → SPA Vue 3 + Vite 6 + D3.js + Leaflet (servido por nginx)
-├── chat/                    → Python 3.12 FastAPI + WebSocket (puerto 8090, bot IA "Roberto")
-├── telegram/                → Python 3.12 FastAPI, integración Telegram
-├── container/               → Docker Compose + Dockerfiles multi-stage
-│   ├── compose.yml          — orquestación completa (9 servicios + healthchecks)
-│   ├── backend/java/Dockerfile — multi-stage parametrizado por ARG SERVICE
-│   └── frontend/Dockerfile  — Vite build + runtime nginx con nginx.conf
-├── infra/                   → Helm charts para K3s (Chart.yaml, values.*.yaml)
-├── scripts/                 → build/, run/, sim/ (bash)
-├── spec-native/             → contexto SpecNative (PRODUCT, ARCHITECTURE, STACK, DECISIONS…)
-├── agents/                  → SECURITY.md, DIAGNOSE.md
-├── .github/workflows/       → 17 workflows (ci.yml, 14 publish-*.yml, integration-tests.yml, 2 shared)
-├── pom.xml                  → Parent POM Maven (hereda ether-parent 9.5.5)
-├── Makefile                 → Builder (build, test, lint, clean)
-├── Justfile                 → Task runner (dev, CI, docker, k3s, demo, simulación)
-└── README.md                → Navegación del repositorio
+backend/          → Microservicios Java 25 (Maven multi-módulo)
+  cli/            → CLI administrativo
+  common/         → Librería compartida entre servicios
+  services/       → 8 microservicios (users, ingest, query, moderation,
+                     stats, survey, tools-gateway, presentations)
+  contracts/      → Definiciones de contratos entre servicios
+frontend/web/     → SPA Vue 3 + Vite 6 + D3.js + Leaflet
+chat/             → FastAPI + WebSocket + bot IA (Python 3.12)
+telegram/         → Bot de Telegram (Python 3.12)
+container/        → Docker Compose (7 servicios) + Dockerfiles
+infra/            → Egress proxy, code-ide, sandbox agents, scripts
+scripts/          → Build, run, simulación y demos
+spec-native/      → Documentación SpecNative (60+ archivos)
+test/             → Tests E2E con pytest
+agents/           → DIAGNOSE.md, SECURITY.md
 ```
 
 ### Lenguajes y tecnologías
 
-| Capa | Lenguaje | Framework / Runtime | Versión |
-|------|----------|---------------------|---------|
-| Backend | Java | Ether 9.5.5 (Jetty 12, Jackson, JWT, SQLite JDBC) | Java 25 |
-| Backend Presentations | JavaScript | Node.js, Express 4.21, Marp CLI, Slidev CLI | Node 22 |
-| Frontend | JavaScript/TypeScript | Vue 3.5, Vite 6, Vue Router 4.5, D3.js 7.9, d3-cloud 1.2, Leaflet 1.9, Axios 1.7 | Node 25 |
-| Chat | Python | FastAPI, uvicorn, cryptography, openai (DeepSeek) | Python 3.12 |
-| Telegram | Python | FastAPI | Python 3.12 |
-| Infra | — | Docker (temurin:25-jdk-alpine, nginx:1.27-alpine), Helm, K3s, FluxCD | — |
-| CI/CD | — | GitHub Actions (17 workflows), GHCR | — |
+| Stack | Tecnologías |
+|-------|-------------|
+| Backend | Java 25 (Temurin) + Ether 9.5.5 (Jetty 12) + SQLite (WAL mode) |
+| Frontend | Vue 3 + Vite 6 + D3.js 7.9 + Leaflet 1.9 + Monaco Editor + Excalidraw + SurveyJS |
+| Chat/IA | Python 3.12 + FastAPI + WebSocket + NATS + openai |
+| Telegram | Python 3.12 + FastAPI |
+| Presentaciones | Node.js 22 + Express + Marp CLI |
+| Contenedores | Docker Compose, nginx:1.27-alpine |
+| CI/CD | GitHub Actions (18 workflows), Helm charts para K3s |
+| Identidad | JWT (ether-jwt), ThumbmarkJS (fingerprint), Twilio SMS, Zoho SMTP |
 
 ### Sistema de build / dependencias
 
-- **Java — Maven multi-módulo**: `pom.xml` raíz declara 4 módulos (common, contracts, services, cli). Hereda de `dev.rafex.ether.parent:ether-parent:9.5.5`. Plugins versionados explícitamente en properties. Maven Wrapper (mvnw) incluido.
-- **Frontend — npm**: `package.json` en `frontend/web/`. 19 dependencias + 15 devDependencies, todas con rango `^`. Vite 6, ESLint 9, Vitest 4, TypeScript 6 solo para typecheck (no runtime).
-- **Chat/Telegram — pip**: `requirements.txt` con versiones fijadas (`==`). También `pyproject.toml`.
+- **Maven** — `pom.xml` raíz como parent POM; 3 submódulos (cli, common, services). Maven Wrapper.
+- **npm** — `frontend/web/package.json` con 23 dependencias; dependencias con `^` (semver compatible). Vitest + ESLint.
+- **pip** — `chat/requirements.txt` (7 deps) y `telegram/requirements.txt` (4 deps), ambas con versiones fijas (`==`).
+- **Makefile** — Build principal: `make build` → `services-build` + `web-build`.
+- **Justfile** — Task runner (5389 bytes).
+- **Docker Compose** — `container/compose.yml` con 7 servicios orquestados con `depends_on` + `condition: service_healthy`.
 
 ### Puntos de entrada
 
-| Servicio | Entry point | Puerto |
-|----------|-------------|--------|
-| Users | `backend/services/insightbloom-users/.../bootstrap/UsersApplication.java` | 8081 |
-| Ingest | `backend/services/insightbloom-ingest/.../bootstrap/IngestApplication.java` | 8082 |
-| Query | `backend/services/insightbloom-query/.../bootstrap/QueryApplication.java` | 8083 |
-| Moderation | `backend/services/insightbloom-moderation/.../bootstrap/ModerationApplication.java` | 8084 |
-| Stats | `backend/services/insightbloom-stats/.../bootstrap/StatsApplication.java` | 8085 |
-| Survey | `backend/services/insightbloom-survey/.../bootstrap/SurveyApplication.java` | 8086 |
-| Tools Gateway | `backend/services/insightbloom-tools-gateway/.../bootstrap/GatewayApplication.java` | 8090 |
-| Presentations | `backend/services/insightbloom-presentations/server.js` | 8091 |
-| CLI | `backend/cli/insightbloom-cli/` | — |
-| Frontend | `frontend/web/src/main.ts` → `index.html` | 80 (nginx) |
-| Chat | `chat/main.py` | 8090 |
-| Telegram | `telegram/main.py` | según entorno |
+| Componente | Entry point | Puerto |
+|-----------|-------------|--------|
+| Chat | `chat/main.py` (FastAPI + lifespan) | 8090 |
+| Telegram | `telegram/main.py` (FastAPI + lifespan) | N/A (webhook) |
+| Users | `backend/services/insightbloom-users/` | 8081 |
+| Ingest | `backend/services/insightbloom-ingest/` | 8082 |
+| Query | `backend/services/insightbloom-query/` | 8083 |
+| Moderation | `backend/services/insightbloom-moderation/` | 8084 |
+| Stats | `backend/services/insightbloom-stats/` | 8085 |
+| Survey | `backend/services/insightbloom-survey/` | — |
+| Tools Gateway | `backend/services/insightbloom-tools-gateway/` | — |
+| Presentations | `backend/services/insightbloom-presentations/` | — |
+| Frontend SPA | `frontend/web/index.html` → `src/` | 8080 |
+| CLI | `backend/cli/insightbloom-cli/` | N/A |
+| Egress Proxy | `infra/egress-proxy/egress_proxy.py` | — |
 
 ### Módulos y componentes clave
 
-```
-frontend (Vue 3 SPA)
-  ├─► /api/users       → insightbloom-users (8081)     [auth, conferencias, boletos]
-  ├─► /api/ingest      → insightbloom-ingest (8082)     [recepción mensajes]
-  ├─► /api/query       → insightbloom-query (8083)      [nube, timeline]
-  ├─► /api/moderation  → insightbloom-moderation (8084) [censura manual]
-  ├─► /api/survey      → insightbloom-survey (8086)     [encuestas, certificados]
-  ├─► /api/presentations → insightbloom-presentations (8091) [slides]
-  └─► WebSocket        → insightbloom-tools-gateway (8090) [proxy a herramientas/IDE]
+**Microservicios Java** (arquitectura hexagonal con capas domain/application/adapters):
+1. **Users** — Auth (JWT/OTP), conferencias, roles, tickets, sandboxes, certificados, perfil. El más grande.
+2. **Ingest** — Ingesta, clasificación y normalización de mensajes. Se comunica con users, moderation, stats, query.
+3. **Query** — Consultas de nube de palabras y timeline.
+4. **Moderation** — Censura automática/manual, dashboard de moderación.
+5. **Stats** — Estadísticas y relevancia de palabras.
+6. **Survey** — Encuestas y respuestas.
+7. **Tools Gateway** — API gateway para Jitsi, Etherpad, sandboxes.
+8. **Presentations** — Conversión Markdown→HTML slides (Marp).
 
-insightbloom-ingest
-  ├─► users (validación token, resolución usuario/conferencia)
-  ├─► moderation (censura automática)
-  ├─► stats (recálculo agregados)
-  └─► query (proyecciones de nube)
+**Python**: Chat (FastAPI+WebSocket+NATS+bot IA Roberto) y Telegram (FastAPI+webhook). Ambos hablan con ingest vía HTTP.
 
-insightbloom-moderation
-  └─► query (POST /internal/visibility — best-effort)
-
-insightbloom-chat (Python)
-  ├─► users (validación login)
-  └─► ingest (envío mensajes vía webhook con HMAC-SHA256)
-```
-
-Arquitectura hexagonal en cada servicio Java:
-```
-domain/model → domain/ports → domain/services → application/usecases
-                                                      ↓
-adapters/inbound/http/handlers ←──────────────────────┘
-adapters/outbound/sqlite, {servicio}client
-
-Wiring manual en bootstrap/*Application.java:
-DatabaseManager → Repositorios → Puertos → Servicios → Casos de uso → Handlers → HttpServer.start()
-```
+**Frontend**: SPA Vue 3 con router, nginx reverse proxy hacia todos los backends.
 
 ### Archivos de configuración relevantes
 
 | Archivo | Propósito |
 |---------|-----------|
-| `pom.xml` | Parent POM Maven, gestión de dependencias Ether y plugins |
-| `frontend/web/package.json` | Dependencias npm y scripts (dev, build, test, lint, typecheck) |
-| `frontend/web/vite.config.js` | Proxy de desarrollo /api/* → backends |
-| `frontend/web/tsconfig.json` | Configuración TypeScript (solo typecheck, no runtime) |
-| `chat/requirements.txt` | Dependencias Python con versiones fijadas (==) |
-| `chat/pyproject.toml` | Metadatos del proyecto Python |
-| `container/compose.yml` | Orquestación Docker de 9 servicios con healthchecks, depends_on |
-| `container/backend/java/Dockerfile` | Imagen multi-stage Java parametrizada (ARG SERVICE) |
-| `container/frontend/Dockerfile` | Build Vite + runtime nginx con nginx.conf |
-| `.github/workflows/ci.yml` | CI: build + test Maven, frontend y chat en paralelo |
-| `.github/workflows/publish-*.yml` | Build y push de imágenes Docker a GHCR (14 workflows, path-filtered) |
-| `.github/workflows/integration-tests.yml` | Tests de integración (workflow_dispatch, bajo demanda) |
-| `.github/workflows/_build-java-service.yml` | Workflow reutilizable para build de servicios Java |
-| `infra/Chart.yaml` | Helm chart metadata para K3s |
-| `infra/values.dev.yaml`, `values.staging.yaml`, `values.prod.yaml` | Configuración de entorno Helm |
-| `.gitignore` | 166 líneas — cubre Java, Node, Python, Docker, Helm, secretos, BD locales |
-| `Makefile` | Builder: build, test, lint, clean |
-| `Justfile` | Task runner: dev, CI, docker, k3s, demo, simulación |
+| `.gitignore` (166 líneas) | Exclusión de IDE, OS, logs, DBs, secrets, artifacts |
+| `container/compose.yml` | Orquestación 7 servicios con healthchecks |
+| `container/frontend/nginx.conf` | Reverse proxy + cache SPA + catch-all |
+| `.github/workflows/` (18 archivos) | CI + publish por servicio |
+| `.github/dependabot.yml` | Auto-actualización de dependencias |
+| `opencode.json` | Configuración de opencode |
+| `codex.toml` | Configuración Codex/Codeium |
+| `Makefile` + `Justfile` | Build y task runner |
+| `pom.xml` | Parent POM Maven |
 
 ### Estado del repositorio
 
-- **Rama activa**: `main`
-- **Último commit**: `4e7a689 cambios` (2026-07-22)
-- **Ramas locales**: main, agent/event-canvas-access-modes, agent/event-notes-materials, agent/operational-tickets-counted, agent/ticket-access-expiration, feature/specnative-migration, refactor/tech-debt
-- **Ramas remotas**: origin/main, origin/develop, origin/feature/deploy-k3s, origin/feature/specnative-migration, origin/refactor/tech-debt, + 20 branches de dependabot
-- **Archivos modificados/sin trackear**: clean (nada pendiente)
-- **CD**: repositorio externo `InsightBloom-gitops` reconciliado por FluxCD en K3s
+- **Rama activa**: `main` (sincronizado con `origin/main`)
+- **Último commit**: `545e17c3` — `fix(web): nest event QR icon in button` (2026-07-29)
+- **Working tree**: Limpio (sin staged, unstaged, untracked, ni conflictos)
+- **Ramas**: 11 total, 6 activas de agentes (event-canvas-access-modes, ui-ux-audit, etc.)
 
 ---
 
@@ -155,41 +111,61 @@ DatabaseManager → Repositorios → Puertos → Servicios → Casos de uso → 
 
 ### Problemas estructurales o de diseño
 
-- **[ALTA] Sobrediseño de microservicios**: 6+ servicios Java con comunicación HTTP síncrona para la escala actual. El riesgo está documentado en `ARCHITECTURE.md:549` — "la topología puede ser más compleja de operar que el valor que aporta". Merger candidates: stats + query (proyecciones de lectura), moderation como módulo de ingest.
-- **[MEDIA] Wiring manual sin DI**: cada `*Application.java` instancia manualmente DatabaseManager → Repositorios → Puertos → Servicios → Casos de uso → Handlers. Es repetitivo y propenso a errores de orden de inicialización. No hay framework de inyección de dependencias externo.
-- **[MEDIA] SQLite aislado sin migraciones versionadas compartidas**: cada servicio maneja su propio esquema. Cambios en cadena (censura → query) requieren coordinación manual de esquemas entre servicios.
+- **Handlers monolíticos**: `ConferenceHandler.java` (~3025 líneas) y otros handlers (>500 líneas) concentran demasiada lógica en una sola clase. Violan SRP y dificultan mantenimiento y testing.
+- **Dependencia circular**: `ingest` → `moderation` → `query` → `ingest` forma un ciclo de dependencias HTTP directas que complica despliegues y puede causar deadlocks en inicialización.
+- **Servicio `users` sobrecargado**: Acumula auth, conferencias, tickets, sandboxes, certificados, roles, OTP, perfil — es un "god service" que debería descomponerse.
+- **Duplicación Python**: `chat/` y `telegram/` comparten patrones (CommandParser, modelos, clientes HTTP) pero no comparten código. Cada uno mantiene su propia copia.
 
 ### Deuda técnica identificada
 
-- **[ALTA] DatabaseManager duplicado 6 veces** (`backend/services/*/adapters/outbound/sqlite/DatabaseManager.java`): implementaciones casi idénticas de gestión de conexiones SQLite y migraciones. El módulo `backend/common` existe con dependencias de JDBC/SQLite pero no centraliza esta lógica.
-- **[MEDIA] Patrones de handlers inconsistentes**: validación de tokens, parseo de body JSON y manejo de errores HTTP replicados en cada handler. `BaseResourceHandler` existe en `backend/common` pero su uso no es uniforme en todos los servicios.
-- **[MEDIA] Módulo common subutilizado**: `backend/common/pom.xml` declara dependencias de ether-http-jetty12, ether-json, ether-jdbc, sqlite-jdbc, insightbloom-contracts. Tiene potencial para centralizar mucho más de lo que actualmente contiene.
+| Archivo | Líneas | Severidad | Problema |
+|---------|--------|-----------|----------|
+| `ConferenceHandler.java` | ~3025 | **Alta** | Handler monolítico, múltiples responsabilidades |
+| `DatabaseManager.java` | ~1078 | Media | Gestión de DB demasiado grande |
+| `SurveyHandler.java` | 662 | Media | Complejidad elevada para un handler |
+| `SandboxHandler.java` | 633 | Media | Lógica de sandbox densa |
+| `AuthGateHandler.java` | 572 | Media | Gateway de auth con múltiples concerns |
+| `chat/services/command_parser.py` | ~100 | Baja | Duplicado casi idéntico en `telegram/` |
+
+Nota positiva: no se encontraron marcadores `TODO`/`FIXME`/`HACK` en el código fuente.
 
 ### Prácticas del lenguaje no seguidas
 
-- **Java**: arquitectura hexagonal consistente pero el wiring manual contradice prácticas estándar para microservicios Java. El framework Ether 9.5.5 no impone un estilo particular de DI, pero la comunidad Java espera algún contenedor (Spring, Micronaut, Guice) para esta escala.
-- **Frontend JavaScript/Vue**: sin TypeScript en código de runtime (decisión explícita documentada en STACK.md). Sin embargo, el tooling TS está presente (vue-tsc, typescript, @types/*) para typecheck estático.
-- **Python chat**: `main.py` (91 líneas) concentra creación de app, CORS, static files, lifespan, variables globales (`db`, `roberto`, `manager`), routers, NATS connection y health/version endpoints. Una estructura más modular con factories mejoraría testabilidad.
+- **Python**: Los docstrings están presentes en los módulos principales (main.py, connection_manager.py, command_parser.py) — buena práctica. Sin embargo, falta tipado estático (type hints) en varios servicios.
+- **Java**: La estructura de paquetes sigue el estándar `dev.rafex.insightbloom.<servicio>`. Arquitectura hexagonal con capas bien definidas (`domain`, `application`, `adapters`).
+- **Shell**: Scripts con shebangs correctos. `wait-for-service.sh` incluye healthcheck con timeout.
+- **Frontend**: ESLint configurado, TypeScript config presente aunque el código es principalmente JavaScript.
 
 ### Riesgos de seguridad
 
-- **[MEDIA] Dependencias npm con rangos flotantes (`^`)**: 34 dependencias en `package.json` usan `^`, permitiendo actualizaciones automáticas que podrían introducir vulnerabilidades. Python (`requirements.txt`) usa `==` correctamente.
-- **[MEDIA] Dependencias transitivas con vulnerabilidades sin fix compatible** (documentado en `agents/SECURITY.md`):
-  - SEC-DEP-001: Slidev → @hono/node-server (path traversal, CVSS 5.9)
-  - SEC-DEP-002: Excalidraw → lodash-es (code injection, CVSS 8.1)
-  - SEC-DEP-003: Excalidraw → nanoid (IDs predecibles, CVSS 4.3)
-- **[BAJA] `.secret_key` local presente**: `chat/.secret_key` existe en el filesystem pero NO está trackeado en git (cubierto por `.gitignore`).
-- **Hallazgos de seguridad previos CERRADOS**: 3 auditorías documentadas en `agents/SECURITY.md` con 15 hallazgos. Todos cerrados (5 críticos, 6 altos, 3 medios, 1 bajo). Estado actual: ningún hallazgo de código abierto.
+- **Archivos `.secret_key`**: Presentes en disco (raíz y `chat/.secret_key`) pero correctamente excluidos por `.gitignore`. No están en git history. **Riesgo: Bajo**.
+- **Dependencias npm con `^`**: Las versiones con rango `^` pueden introducir breaking changes en minor updates. Dependabot mitiga parcialmente.
+- **Dependencias Python fijas**: `requirements.txt` usan `==` — buena práctica. Reduce riesgo de supply chain.
+- **Comunicación inter-servicio**: Protegida con header `X-Internal-Auth` (no opcional en producción).
+- **Variables de entorno**: `.env` y `secrets/` en `.gitignore`. Docker Compose requiere `DEEPSEEK_API_KEY` como variable.
+- **Sin secretos hardcodeados**: No se detectaron credenciales en Dockerfiles ni código fuente.
 
 ### Cobertura de tests y documentación
 
-- **Tests Java**: 41 archivos de test. Distribución desigual — users concentra ~32 tests; ingest (2), moderation (1), query (1), stats (1), survey (1), tools-gateway (2). Servicios críticos como ingest y moderation tienen cobertura mínima.
-- **Tests frontend**: 14 archivos de test cubriendo APIs (9), stores (2), composables (1), utils (1). Distribución aceptable. Vitest configurado.
-- **Tests chat**: 36 tests en 8 archivos (commands, websocket, auth, security). Cobertura mejorando.
-- **Tests Telegram**: 4 archivos de test (internal notify, db, command parser, webhook).
-- **Sin tests de integración entre servicios**: perfil Maven `-Pintegration` existe en `pom.xml:330` pero se ejecuta solo bajo demanda (`workflow_dispatch`). Sin tests automatizados de flujos cross-service.
-- **Sin OpenAPI/Swagger specs generadas**: existe dependencia `ether-http-openapi` en `pom.xml:139` pero no se usa para generar documentación de API.
-- **Documentación excelente**: `spec-native/` contiene PRODUCT.md (105 líneas), ARCHITECTURE.md (559 líneas), STACK.md (99 líneas), CONVENTIONS.md (66 líneas), DECISIONS.md, ROADMAP.md, ROLES.md, TRACEABILITY.md, + specs, tasks, workflows y pipelines.
+| Componente | Tests | Cobertura |
+|-----------|-------|-----------|
+| Java `users` | 37 tests | **Alta** |
+| Java `ingest` | 2 tests | Baja |
+| Java `moderation` | 1 test | Baja |
+| Java `query` | 1 test | Baja |
+| Java `stats` | 1 test | Baja |
+| Java `survey` | 1 test | Baja |
+| Java `tools-gateway` | 2 tests | Baja |
+| Java `cli` | 0 tests | **Nula** |
+| Java `common` | 0 tests | **Nula** |
+| Python `chat` | 4 tests | Media |
+| Python `telegram` | 4 tests | Media |
+| Python `egress-proxy` | 1 test | Baja |
+| Frontend JS | 12+ tests | Media |
+| Presentations Node.js | 3 tests | Media |
+| E2E | 2 tests | Baja |
+
+**Documentación**: Extensa (60+ archivos en `spec-native/`). Cubre producto, arquitectura, stack, convenciones, decisiones (ADRs), roadmap, roles, trazabilidad, workflows y pipelines.
 
 ---
 
@@ -197,41 +173,31 @@ DatabaseManager → Repositorios → Puertos → Servicios → Casos de uso → 
 
 ### Resumen del proyecto
 
-InsightBloom es una plataforma que transforma mensajes de chat en nubes de palabras interactivas para conferencias en vivo. Los participantes envían comandos como `/duda` y `/tema`, y la plataforma agrega y visualiza en tiempo real los conceptos que concentran más interés. Incluye además sistema de boletos con QR, encuestas con certificados, presentaciones (Marp/Slidev), herramientas colaborativas (Drawio, Excalidraw, Etherpad), IDE aislado por participante (code-server, Neovim), videollamada Jitsi y un bot de chat con IA.
-
-Organizado como monorepo con backend Java 25 (6 microservicios sobre Ether 9.5.5, Jetty 12, arquitectura hexagonal, SQLite WAL aislado), frontend Vue 3 + Vite 6 + D3.js + Leaflet (SPA con PWA y modo offline), servicios Python 3.12 para chat (FastAPI + WebSocket) y Telegram, y servicio Node.js para presentaciones. Infraestructura completamente contenerizada (Docker Compose para desarrollo, Helm charts para K3s en producción). CI/CD con 17 workflows de GitHub Actions, GHCR y GitOps vía FluxCD.
+InsightBloom es una plataforma de conferencias en vivo que convierte mensajes de chat en nubes de palabras interactivas (dudas y temas), complementada con moderación en vivo, encuestas con certificados, presentaciones de slides (Marp), y un bot de IA (Roberto). Está construida como un monorepo que integra microservicios Java 25 (Ether 9.5.5 + SQLite), servicios Python 3.12 (FastAPI + WebSocket + NATS), y una SPA Vue 3 + D3.js + Leaflet. La infraestructura se orquesta con Docker Compose (7 servicios con healthchecks) y se despliega en K3s vía Helm. Toda la documentación sigue la metodología SpecNative (spec-native/ con 12 specs, 6 task sets, 9 workflows).
 
 ### Estado de salud
 
-**🟡 Amarillo** — El proyecto tiene una base sólida: arquitectura limpia y bien documentada, infraestructura reproducible con un solo comando, seguridad operativa auditada y corregida (15 hallazgos cerrados), y una suite de tests en crecimiento. Sin embargo, sufre de sobrediseño de microservicios para la etapa actual (6 servicios Java cuando 3-4 bastarían), deuda técnica por duplicación de código de infraestructura (DatabaseManager ×6, wiring manual repetitivo), y cobertura de tests desbalanceada (users concentra el 78% de los tests Java mientras ingest y moderation tienen solo 1-2 tests). Las dependencias npm con rangos flotantes (`^`) y 3 vulnerabilidades transitivas sin fix compatible representan un riesgo latente.
+**🟡 Amarillo** — El repositorio está operacional y estable (CI/CD activo, working tree limpio, buena cobertura de tests en el servicio principal). Sin embargo, existen handlers monolíticos en Java (~3000 líneas), una dependencia circular entre microservicios (`ingest → moderation → query → ingest`), y duplicación de lógica entre servicios Python. Estos problemas no bloquean el desarrollo actual pero elevan el costo de mantenimiento y el riesgo de regresiones a mediano plazo.
 
 ### Top 3 fortalezas
 
-1. **Infraestructura reproducible y automatizada**: Docker Compose con 9 servicios, healthchecks, depends_on y volúmenes nombrados. Helm charts con NetworkPolicy, CronJob de backup SQLite, y ServiceAccount dedicado para sandbox. 17 workflows de GitHub Actions con publish path-filtered. El proyecto se levanta completo con `just container-dev`.
-
-2. **Documentación SpecNative de alta calidad**: PRODUCT.md, ARCHITECTURE.md (559 líneas), STACK.md, CONVENTIONS.md, DECISIONS.md, ROADMAP.md, ROLES.md, TRACEABILITY.md, specs por iniciativa, workflows operativos. Contexto completo para cualquier desarrollador o agente.
-
-3. **Seguridad operativa madura**: 3 auditorías documentadas en SECURITY.md (333 líneas) con 15 hallazgos — todos cerrados. PBKDF2 para passwords, SHA-256 para tokens at rest, rate limiting en auth, NetworkPolicy deny-by-default, validación HMAC-SHA256 en webhooks, backup automatizado de SQLite. `.gitignore` de 166 líneas cubriendo todos los artefactos sensibles.
+1. **Documentación exhaustiva** — `spec-native/` contiene PRODUCT, ARCHITECTURE, STACK, DECISIONS (ADRs), specs por iniciativa, tareas, workflows y pipelines. Facilita onboarding, trazabilidad y continuidad multi-agente.
+2. **Arquitectura bien delimitada** — Separación clara entre backend Java, servicios Python y frontend SPA. Docker Compose con healthchecks y `depends_on` asegura orden de inicio correcto. Arquitectura hexagonal en servicios Java con capas domain/application/adapters.
+3. **Cobertura de tests razonable en componentes críticos** — 60+ tests unitarios Java, 12+ tests frontend, tests Python en chat/telegram, tests E2E. CI verifica cada commit con GitHub Actions.
 
 ### Top 3 riesgos o deudas
 
-1. **[ALTA] Sobrediseño de microservicios**: 6 servicios Java con HTTP síncrono y SQLite aislado para una etapa que no requiere esa granularidad. La complejidad operativa supera el beneficio. Consolidar stats+query y evaluar moderation como módulo de ingest reduciría puntos de fallo sin perder capacidades.
-
-2. **[ALTA] Cobertura de tests desbalanceada**: users concentra el 78% de los tests Java; ingest, moderation, query, stats y survey tienen solo 1-2 tests cada uno. Sin tests de integración cross-service ejecutándose en CI, cualquier cambio en la cadena ingest→moderation→query requiere despliegue manual para validación.
-
-3. **[MEDIA] Duplicación de infraestructura y wiring manual**: DatabaseManager ×6, patrones de handlers inconsistentes, módulo `backend/common` subutilizado. El wiring manual sin DI en cada `*Application.java` es repetitivo y propenso a errores. Un fix en DatabaseManager requiere replicación en 6 servicios.
+1. **Handlers monolíticos en Java** — `ConferenceHandler.java` (~3025 líneas) y otros handlers >500 líneas concentran demasiada lógica. Violan SRP, dificultan testing y ralentizan cualquier cambio en la lógica de conferencias.
+2. **Dependencia circular entre microservicios** — `ingest → moderation → query → ingest` crea un ciclo de dependencias HTTP directas que puede provocar deadlocks en inicialización, despliegues inconsistentes y dificultad para testear servicios de forma aislada.
+3. **Servicio `users` sobrecargado y duplicación Python** — `users` acumula demasiadas responsabilidades (auth, conferencias, tickets, sandboxes, certificados). Los servicios Python (`chat` y `telegram`) duplican lógica de parsing y modelos sin compartir código.
 
 ### Próximos pasos recomendados
 
-1. **Centralizar DatabaseManager y helpers HTTP en backend/common** — extraer la lógica duplicada de gestión SQLite, migraciones y validación de tokens al módulo compartido existente. Impacto alto, esfuerzo medio.
-
-2. **Añadir tests a servicios con baja cobertura** — priorizar ingest (2 tests → 10+), moderation (1 test → 8+), query (1 test → 5+). Usar el patrón de tests existente en users como referencia. Impacto alto, esfuerzo medio.
-
-3. **Habilitar tests de integración en CI** — activar perfil Maven `-Pintegration` en CI para flujos críticos (ingest→moderation→query, users→auth→token validation). Impacto alto, esfuerzo bajo (la infraestructura ya existe en `integration-tests.yml`).
-
-4. **Fijar versiones npm** — reemplazar rangos `^` por versiones exactas (`==`) en `package.json`. Evaluar overrides para las 3 vulnerabilidades transitivas documentadas. Impacto medio, esfuerzo bajo.
-
-5. **Evaluar consolidación de microservicios** — planificar merge de stats + query (ambos son proyecciones de lectura) y evaluar si moderation puede ser un módulo interno de ingest. Pasar de 6 a 3-4 servicios. Impacto medio, esfuerzo alto.
+1. **Refactorizar `ConferenceHandler`** — Extraer responsabilidades en handlers separados (ConferenceCreateHandler, ConferenceUpdateHandler, ConferenceQueryHandler) y mover lógica de negocio a use cases del dominio. *Impacto: alto — reduce deuda del archivo más grande del proyecto.*
+2. **Romper el ciclo de dependencias** — Reemplazar llamadas HTTP directas entre ingest/moderation/query por eventos asincrónicos vía NATS (ya disponible en el chat). Definir tópicos y contratos de eventos. *Impacto: alto — elimina riesgo de deadlocks y habilita testeo aislado.*
+3. **Crear paquete Python compartido** — Factorizar `CommandParser`, modelos de dominio y utilidades HTTP en `common/python/` y actualizar `chat/` y `telegram/` para consumirlo. *Impacto: medio — elimina duplicación y unifica comportamiento.*
+4. **Ampliar cobertura de tests en servicios Java** — Agregar tests unitarios en `ingest`, `moderation`, `query`, `stats`, `survey`, `common` y `cli`. Usar los 37 tests de `users` como referencia de estilo. *Impacto: medio — reduce riesgo de regresiones.*
+5. **Fijar versiones npm** — Cambiar rangos `^` a versiones exactas en `frontend/web/package.json` o auditar con `npm audit` periódicamente. *Impacto: bajo — reduce riesgo de supply chain.*
 
 ---
 
@@ -239,31 +205,20 @@ Organizado como monorepo con backend Java 25 (6 microservicios sobre Ether 9.5.5
 
 | Archivo | Tipo | Relevancia |
 |---------|------|------------|
-| `pom.xml` | config | Parent POM raíz — define 4 módulos, dependencias Ether 9.5.5, plugins y perfil de integración |
-| `spec-native/ARCHITECTURE.md` | doc | Fuente de verdad de la arquitectura — boundaries, flujo de datos, contratos (559 líneas) |
-| `spec-native/PRODUCT.md` | doc | Define problema, usuarios, objetivos, capacidades y alcance del producto |
-| `spec-native/STACK.md` | doc | Stack tecnológico completo con versiones y restricciones (99 líneas) |
-| `spec-native/CONVENTIONS.md` | doc | Reglas de código, naming, testing, estructura de carpetas |
-| `spec-native/SESSION.md` | doc | Estado activo de trabajo — iniciativa certificate-editor en progreso |
-| `agents/SECURITY.md` | doc | 3 auditorías de seguridad — 15 hallazgos documentados, todos cerrados (333 líneas) |
-| `container/compose.yml` | config | Orquestación Docker de 9 servicios — entry point para desarrollo local |
-| `container/backend/java/Dockerfile` | config | Imagen multi-stage Java parametrizada por ARG SERVICE |
-| `container/frontend/Dockerfile` | config | Build Vite + runtime nginx con reverse proxy a backends |
-| `Makefile` | config | Builder principal — targets: build, test, lint, clean |
-| `Justfile` | config | Task runner — orquesta dev, CI, docker, k3s, demo, simulación |
-| `.github/workflows/ci.yml` | config | CI pipeline — build + test Maven, frontend y chat en paralelo |
-| `.github/workflows/publish-*.yml` | config | 14 workflows de publicación de imágenes Docker a GHCR (path-filtered) |
-| `.gitignore` | config | 166 líneas cubriendo Java, Node, Python, Docker, Helm, secretos, BD locales |
-| `frontend/web/package.json` | config | 34 dependencias del frontend (Vue 3, D3.js, Leaflet, Excalidraw, SurveyJS) |
-| `frontend/web/vite.config.js` | config | Proxy de desarrollo /api/* → backends |
-| `chat/main.py` | entry | Entry point del chat — FastAPI + WebSocket + bot IA Roberto |
-| `chat/requirements.txt` | config | Dependencias Python con versiones fijadas |
-| `backend/services/insightbloom-users/.../bootstrap/UsersApplication.java` | entry | Entry point del servicio más complejo — wiring canónico de la arquitectura hexagonal |
-| `backend/services/insightbloom-ingest/.../bootstrap/IngestApplication.java` | entry | Entry point del servicio más interconectado — 4 puertos externos |
-| `backend/common/pom.xml` | config | Módulo compartido subutilizado — debe centralizar DatabaseManager y helpers |
-| `backend/services/insightbloom-stats/src/main/java/.../adapters/outbound/sqlite/DatabaseManager.java` | module | Ejemplo representativo de código duplicado 6 veces |
-| `spec-native/DECISIONS.md` | doc | Registro de decisiones de diseño con trade-offs |
-| `spec-native/pipelines/CI.md` | doc | Gates de integración continua |
-| `spec-native/pipelines/CD.md` | doc | Proceso de entrega vía FluxCD y GitOps |
-| `infra/Chart.yaml` | config | Helm chart para despliegue en K3s |
-| `infra/values.prod.yaml` | config | Valores de producción para Helm |
+| `backend/services/insightbloom-users/src/main/java/.../ConferenceHandler.java` | handler | Núcleo de lógica de conferencias, ~3025 líneas — deuda técnica más alta |
+| `backend/services/insightbloom-ingest/src/main/java/.../IngestHandler.java` | handler | Punto de entrada del ciclo de dependencias circular |
+| `backend/services/insightbloom-moderation/src/main/java/.../ModerationHandler.java` | handler | Participa en el ciclo ingest→moderation→query→ingest |
+| `chat/main.py` | entry | Punto de entrada del bot de IA y WebSocket |
+| `chat/services/command_parser.py` | module | Lógica duplicada en `telegram/services/command_parser.py` |
+| `frontend/web/package.json` | config | 23 dependencias con rangos `^` — riesgo de supply chain |
+| `frontend/web/src/main.js` | entry | Bootstrap de la SPA Vue 3 |
+| `container/compose.yml` | infra | Orquestación de 7 servicios — fuente de verdad de topología local |
+| `container/frontend/nginx.conf` | infra | Reverse proxy con reglas de ruteo hacia backends |
+| `pom.xml` | build | Parent POM Maven — versiones centralizadas de Ether/Jetty/Jackson |
+| `spec-native/ARCHITECTURE.md` | docs | Define la arquitectura del sistema (24K) |
+| `spec-native/DECISIONS.md` | docs | 10 decisiones de arquitectura y trade-offs persistentes (94K) |
+| `spec-native/STACK.md` | docs | Stack tecnológico y restricciones |
+| `.github/workflows/ci.yml` | ci | Workflow principal de CI |
+| `agents/SECURITY.md` | docs | Auditoría de seguridad y mitigaciones (19K) |
+| `Makefile` | build | Orquestación de build multi-lenguaje |
+| `Justfile` | tasks | Task runner con 50+ comandos |
