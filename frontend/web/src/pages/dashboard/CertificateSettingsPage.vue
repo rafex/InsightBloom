@@ -4,7 +4,7 @@
   p.hint(v-if="isEvent") Editor legacy Inhouse (PDFBox) para este evento. Este diseño se usa cuando el motor del evento está configurado como Inhouse.
   p.hint(v-else) Configuración global de respaldo para los certificados de asistencia. Para diseñar el certificado de un evento, usa la acción Certificado dentro del evento.
 
-  .loading(v-if="loading") Cargando...
+  LoadingState(v-if="loading" message="Cargando configuración...")
   template(v-else)
     .layout
       .form-col
@@ -44,8 +44,8 @@
             input(type="checkbox" v-model="form.showIssuedDate")
             span Fecha de emisión del certificado
 
-        .error(v-if="error") {{ error }}
-        .success(v-if="success") ¡Configuración guardada!
+        FeedbackMessage(v-if="error" :message="error" tone="error")
+        FeedbackMessage(v-if="success" message="¡Configuración guardada!" tone="success")
         BaseButton(:loading="saving" @click="save") Guardar configuración
 
       .preview-col
@@ -67,12 +67,14 @@ import { ref, computed, onMounted } from 'vue'
 import { getCertificateSettings, saveCertificateSettings, getEventLegacyCertificateSettings, saveEventLegacyCertificateSettings } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 const FONT_MAP: Record<string, string> = { HELVETICA: 'Helvetica, Arial, sans-serif', TIMES_ROMAN: '"Times New Roman", serif', COURIER: '"Courier New", monospace' }
 
 export default {
   name: 'CertificateSettingsPage',
-  components: { BaseButton },
+  components: { BaseButton, FeedbackMessage, LoadingState },
   props: { conferenceId: { type: String, required: false } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -136,7 +138,6 @@ export default {
 .cert-settings-page { padding: 24px; max-width: 980px; }
 h2 { color: var(--color-heading); margin-bottom: 8px; }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; max-width: 640px; }
-.loading { color: var(--color-text-muted); }
 .layout { display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start; }
 .form-col { flex: 1; min-width: 300px; max-width: 420px; }
 .preview-col { flex: 1; min-width: 320px; }
@@ -149,8 +150,6 @@ input[type="color"] { width: 60px; height: 36px; border: 1.5px solid var(--color
 .options-label { margin-bottom: 2px; }
 .checkbox-row { display: flex; align-items: center; gap: 8px; font-weight: 400; font-size: 0.9rem; color: var(--color-text-secondary); cursor: pointer; }
 .checkbox-row input { width: auto; }
-.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
-.success { color: var(--color-success); font-size: 0.9rem; margin-bottom: 12px; }
 
 .preview-card {
   background: var(--color-surface); border: 3px solid var(--color-heading); border-radius: 12px; padding: 32px 24px;

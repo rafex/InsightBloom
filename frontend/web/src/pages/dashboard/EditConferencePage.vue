@@ -6,8 +6,8 @@
 
   ConferenceToolsNav(:conferenceId="conferenceId")
 
-  .loading-text(v-if="loading") Cargando conferencia...
-  .error(v-else-if="error") {{ error }}
+  LoadingState(v-if="loading" message="Cargando conferencia...")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
   .form(v-else)
     .form-group.readonly-group
       label UUID
@@ -97,7 +97,7 @@
         input.map-url-input(v-model.trim="mapUrl" type="url" placeholder="Pega una URL de Google Maps u OpenStreetMap")
         BaseButton(variant="secondary" type="button" @click="extractMapCoordinates") Extraer coordenadas
       p.field-hint Ejemplos: Google Maps con /@latitud,longitud o OpenStreetMap con #map=nivel/latitud/longitud.
-      p.error(v-if="locationError") {{ locationError }}
+      FeedbackMessage(v-if="locationError" :message="locationError" tone="error")
       .coords-row
         .coord-field
           span.coord-label Latitud
@@ -117,8 +117,8 @@
         img(:src="flyerBase64" alt="Flyer del evento")
         BaseButton(variant="danger" type="button" @click="removeFlyer") Quitar flyer
 
-    .error(v-if="saveError") {{ saveError }}
-    .success(v-if="saved") Cambios guardados correctamente.
+    FeedbackMessage(v-if="saveError" :message="saveError" tone="error")
+    FeedbackMessage(v-if="saved" message="Cambios guardados correctamente." tone="success")
     .actions
       BaseButton(:loading="saving" :disabled="saving" @click="save") Guardar cambios
       router-link.link-btn.link-btn-secondary(:to="`/dashboard`") Volver al dashboard
@@ -131,6 +131,8 @@ import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FormField from '@/components/ui/FormField.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import { getConference, updateConference, uploadConferenceFlyer, getTimezones } from '@/services/api/usersApi'
 import type { Conference, Timezone } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -140,7 +142,7 @@ const MAX_FLYER_BYTES = 8 * 1024 * 1024
 
 export default {
   name: 'EditConferencePage',
-  components: { ConferenceMap, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, FormField },
+  components: { ConferenceMap, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, FormField, FeedbackMessage, LoadingState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -361,8 +363,6 @@ h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
 .flyer-preview img { max-width: 160px; max-height: 160px; border-radius: 8px; border: 1px solid var(--color-border-subtle); object-fit: cover; }
 
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
-.success { color: var(--color-success); font-size: 0.9rem; margin-bottom: 12px; }
 
 @media (max-width: 480px) {
   .coords-row { flex-direction: column; gap: 14px; }
