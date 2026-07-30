@@ -1,9 +1,8 @@
 <template lang="pug">
 .jitsi-invite-page
   .invite-card(v-if="loading")
-    .spinner(aria-hidden="true")
     h1 Validando acceso
-    p Espera un momento mientras comprobamos tu sesión y tu boleto.
+    LoadingState(message="Espera un momento mientras comprobamos tu sesión y tu boleto.")
   .invite-card(v-else-if="errorCode === 'login_required'")
     .icon(aria-hidden="true") 🔐
     h1 Inicia sesión para entrar
@@ -32,10 +31,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/authStore'
 import { getJitsiInviteAccess } from '@/services/api/usersApi'
 import BaseLink from '@/components/ui/BaseLink.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 export default {
   name: 'JitsiInvitePage',
-  components: { BaseLink },
+  components: { BaseLink, LoadingState },
   setup() {
     const route = useRoute()
     const router = useRouter()
@@ -81,7 +81,5 @@ export default {
 .invite-card h1 { margin: 12px 0 8px; font-size: 1.45rem; }
 .invite-card p { margin: 0; color: var(--color-text-muted); line-height: 1.55; }
 .icon { font-size: 2.25rem; }
-.spinner { width: 28px; height: 28px; margin: 0 auto 18px; border: 3px solid var(--color-primary-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin .8s linear infinite; }
 .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
-@keyframes spin { to { transform: rotate(360deg); } }
 </style>
