@@ -20,12 +20,11 @@
         span.offline-preparing(v-if="offlinePreparing") Cifrando paquete…
         span.offline-error(v-if="offlineError") {{ offlineError }}
       .nav-controls(v-if="ready")
-        button.btn-nav(type="button" @click="navigate('prev')") ← Anterior
-        button.btn-nav(type="button" @click="navigate('next')") Siguiente →
+        BaseButton.speaker-nav-button(variant="secondary" type="button" @click="navigate('prev')") ← Anterior
+        BaseButton.speaker-nav-button(variant="secondary" type="button" @click="navigate('next')") Siguiente →
 
-  .presentation-empty(v-if="checkedStatus && !ready")
-    p Aún no hay una presentación subida para esta conferencia.
-    router-link.link-btn.link-btn-primary(:to="`/dashboard/conferences/${conferenceId}/presentation`") Subir presentación
+  EmptyState.presentation-empty(v-if="checkedStatus && !ready" message="Aún no hay una presentación subida para esta conferencia.")
+    BaseLink(:to="`/dashboard/conferences/${conferenceId}/presentation`") Subir presentación
 
   template(v-else)
     p.hint(v-if="!offlineMode") Navega el deck con las flechas del teclado, haciendo clic dentro, o con los controles de navegación — la audiencia te sigue automáticamente.
@@ -47,6 +46,8 @@ import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 
 type NavDirection = 'next' | 'prev'
 
@@ -57,7 +58,7 @@ const NAV_KEYS: Record<NavDirection, { key: string, keyCode: number }> = {
 
 export default {
   name: 'SpeakerPanelPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal, BaseButton },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal, BaseButton, BaseLink, EmptyState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -398,7 +399,6 @@ h2 { margin: 0; color: var(--color-heading); }
 .live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--color-border); }
 .live-dot.connected { background: var(--color-success); box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 10px; }
-.presentation-empty { text-align: center; color: var(--color-text-muted); padding: 60px; }
 /* El presentador de Slidev muestra diapositiva actual + siguiente + notas en un layout
  * de varias columnas propio -- necesita más alto Y más ancho que el visor público de
  * una sola diapositiva para que las notas no queden cortadas con scroll horizontal
@@ -407,11 +407,7 @@ h2 { margin: 0; color: var(--color-heading); }
  * sube de 70vh a 82vh. */
 .slides-frame { width: 100%; height: 82vh; border: 1px solid var(--color-border-subtle); border-radius: 12px; background: var(--color-surface); }
 .nav-controls { display: flex; gap: 8px; }
-.btn-nav {
-  flex: 0 0 auto; padding: 10px 18px; border-radius: 10px; border: 2px solid var(--color-primary-border); background: var(--color-primary-soft);
-  color: var(--color-primary); font-weight: 700; font-size: 0.95rem; cursor: pointer; white-space: nowrap;
-}
-.btn-nav:hover { background: var(--color-primary-soft); }
+.speaker-nav-button { flex: 0 0 auto; padding: 10px 18px; border-width: 2px; border-radius: 10px; font-size: 0.95rem; white-space: nowrap; }
 .offline-preparing { color: var(--color-primary); font-weight: 600; font-size: 0.85rem; }
 .offline-error { color: var(--color-danger-dark); font-size: 0.85rem; font-weight: 600; }
 
@@ -421,9 +417,9 @@ h2 { margin: 0; color: var(--color-heading); }
   .speaker-header-actions { flex-direction: column; align-items: stretch; margin-left: 0; }
   .utility-controls { justify-content: stretch; }
   .utility-controls .link-btn-secondary, .utility-controls .base-btn { flex: 1; }
-  .nav-controls .btn-nav { flex: 1; }
+  .nav-controls .speaker-nav-button { flex: 1; }
   .slides-frame { height: 45vh; }
   .nav-controls { gap: 8px; }
-  .btn-nav { padding: 16px; font-size: 1.05rem; min-height: 48px; }
+  .speaker-nav-button { padding: 16px; font-size: 1.05rem; min-height: 48px; }
 }
 </style>

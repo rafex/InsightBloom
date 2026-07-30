@@ -29,7 +29,7 @@
           :disabled="busyTool === tool.key"
           @update:modelValue="(v: boolean) => toggleAll(tool.key, v)"
         )
-      button.btn-link(type="button" @click="expanded[tool.key] = !expanded[tool.key]")
+      BaseButton.toggle-attendees(variant="ghost" size="sm" type="button" @click="expanded[tool.key] = !expanded[tool.key]")
         | {{ expanded[tool.key] ? 'Ocultar' : 'Ver' }} asistentes individuales ({{ matrix[tool.key]?.attendees.length || 0 }})
       .attendee-list(v-if="expanded[tool.key]")
         EmptyState(v-if="!matrix[tool.key]?.attendees.length" message="Todavía no hay asistentes registrados en este evento.")
@@ -158,14 +158,14 @@ export default {
 
 .release-all-card {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 16px 20px; border-radius: var(--radius-lg, 12px);
+  padding: 16px 20px; border-radius: var(--radius-lg);
   background: var(--color-warning-soft); border: 1px solid var(--color-warning);
   margin-bottom: 24px;
 }
 .release-all-card p { margin: 2px 0 0; color: var(--color-text-secondary); font-size: 0.88rem; }
 
 .tool-card {
-  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-lg);
   padding: 16px 20px; margin-bottom: 12px; background: var(--color-surface);
 }
 .tool-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -175,10 +175,7 @@ export default {
 }
 .tool-status.on { color: var(--color-success); font-weight: 600; }
 
-.btn-link {
-  background: none; border: none; color: var(--color-primary);
-  font-size: 0.85rem; cursor: pointer; padding: 8px 0 0; text-decoration: underline;
-}
+.toggle-attendees { margin-top: var(--space-2); padding-left: 0; text-decoration: underline; }
 
 .attendee-list { margin-top: 10px; border-top: 1px solid var(--color-surface-muted); padding-top: 10px; }
 .attendee-row {
