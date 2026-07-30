@@ -1,8 +1,7 @@
 <template lang="pug">
 .ticket-page
-  .ticket-loading(v-if="loading") Cargando tu boleto...
-  .ticket-empty(v-else-if="!ticketed")
-    p Esta conferencia no requiere boleto, solo únete y participa.
+  LoadingState.ticket-loading(v-if="loading" message="Cargando tu boleto...")
+  EmptyState.ticket-empty(v-else-if="!ticketed" message="Esta conferencia no requiere boleto, solo únete y participa.")
 
   template(v-else-if="ticket")
     .ticket-canvas
@@ -52,21 +51,21 @@
   .ticket-general-cta(v-else)
     p Aún no tienes un boleto canjeado para esta conferencia.
     template(v-if="auth.state.token && auth.state.role !== 'guest'")
-      input.ticket-input(v-model="ticketInput" placeholder="Pega el QR o escribe el UUID v4")
+      input.ticket-input(v-model="ticketInput" aria-label="Código QR o UUID del boleto" placeholder="Pega el QR o escribe el UUID v4")
       BaseButton(type="button" @click="claim" :disabled="!ticketInput.trim()" :loading="claiming") Canjear boleto
     template(v-else)
       p Puedes canjearlo como invitado o asociarlo a una cuenta.
-      input.ticket-input(v-model="guestName" placeholder="Tu nombre para entrar como invitado")
-      input.ticket-input(v-model="ticketInput" placeholder="Pega el QR o escribe el UUID v4")
+      input.ticket-input(v-model="guestName" aria-label="Tu nombre" placeholder="Tu nombre para entrar como invitado")
+      input.ticket-input(v-model="ticketInput" aria-label="Código QR o UUID del boleto" placeholder="Pega el QR o escribe el UUID v4")
       BaseButton(variant="secondary" type="button" @click="toggleScanner") {{ scanning ? 'Cerrar cámara' : 'Escanear QR' }}
       .claim-scanner(v-if="scanning")
         video(ref="videoEl")
         p Apunta la cámara al QR del boleto.
       BaseButton(type="button" @click="claimAsGuest" :disabled="!ticketInput.trim()" :loading="claiming") Canjear como invitado
       .auth-links
-        router-link(:to="{ path: '/login', query: { redirect: $route.fullPath, ticket: ticketInput } }") Iniciar sesión
-        router-link(:to="{ path: '/register', query: { redirect: $route.fullPath, ticket: ticketInput } }") Registrarme
-    p.ticket-error(v-if="error") {{ error }}
+        BaseLink(size="sm" :to="{ path: '/login', query: { redirect: $route.fullPath, ticket: ticketInput } }") Iniciar sesión
+        BaseLink(size="sm" variant="secondary" :to="{ path: '/register', query: { redirect: $route.fullPath, ticket: ticketInput } }") Registrarme
+    FeedbackMessage.ticket-error(v-if="error" :message="error")
 
 </template>
 
@@ -80,10 +79,14 @@ import { getConferenceByFriendlyId, getMyIssuedTicket, getMyTicket, claimTicket,
 import type { Ticket, Reservation, SeatingMode } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 export default {
   name: 'TicketPage',
-  components: { TicketQr, BaseButton },
+  components: { TicketQr, BaseButton, BaseLink, EmptyState, FeedbackMessage, LoadingState },
   props: {
     conferenceId: { type: String, default: '' },
     seatingMode: { type: String as () => SeatingMode | undefined, default: undefined },
@@ -245,7 +248,7 @@ export default {
 
 <style scoped>
 .ticket-page { padding: 32px 24px 48px; max-width: 820px; margin: 0 auto; }
-.ticket-loading, .ticket-empty { text-align: center; color: var(--color-text-muted); padding: 60px 24px; }
+.ticket-loading, .ticket-empty { min-height: 180px; }
 .ticket-status { width: min(100%, 720px); box-sizing: border-box; margin: 14px auto 0; font-size: 0.95rem; font-weight: 600; color: var(--color-primary); text-align: center; }
 .ticket-status.checked { color: var(--color-success); }
 .ticket-canvas { display: flex; align-items: center; justify-content: center; padding: 8px; }
@@ -306,7 +309,7 @@ export default {
 .claim-scanner { margin: 14px auto; max-width: 320px; }
 .claim-scanner video { width: 100%; border-radius: 10px; background: var(--color-heading); }
 .claim-scanner p { color: var(--color-text-muted); font-size: 0.85rem; }
-.ticket-error { color: var(--color-danger); margin-top: 12px; font-size: 0.9rem; }
+.ticket-error { margin-top: 12px; }
 .ticket-seated-picker { padding: 20px 0; text-align: center; }
 @media (max-width: 560px) {
   .ticket-page { padding: 20px 12px 36px; }

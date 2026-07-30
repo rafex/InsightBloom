@@ -6,21 +6,21 @@
     h3 Emitir boleto
     p Envía el QR por correo o copia el UUID para compartirlo directamente.
     .issue-row
-      input(v-model="recipientEmail" type="email" placeholder="Correo (opcional)")
-      input(v-model="seatUuid" type="text" placeholder="UUID de asiento (opcional)")
+      input(v-model="recipientEmail" type="email" aria-label="Correo del destinatario" placeholder="Correo (opcional)")
+      input(v-model="seatUuid" type="text" aria-label="UUID del asiento" placeholder="UUID de asiento (opcional)")
       BaseButton(variant="primary" type="button" :loading="issuing" @click="issue") {{ issuing ? 'Emitiendo...' : 'Emitir boleto' }}
-    p.feedback(v-if="feedback" :class="{ error: feedbackError }") {{ feedback }}
+    FeedbackMessage(v-if="feedback" :message="feedback" :tone="feedbackError ? 'error' : 'success'")
     template(v-if="canIssueBatch")
       .issue-divider o
       .issue-row
-        input(v-model.number="batchQuantity" type="number" min="2" max="200" placeholder="Cantidad")
+        input(v-model.number="batchQuantity" type="number" min="2" max="200" aria-label="Cantidad de boletos anónimos" placeholder="Cantidad")
         BaseButton(variant="secondary" type="button" :disabled="issuingBatch || !batchQuantity || batchQuantity < 2" @click="issueBatch") {{ issuingBatch ? 'Emitiendo...' : `Emitir ${batchQuantity || ''} boletos anónimos` }}
       p.field-hint Genera varios boletos sin destinatario de una sola vez. Podés compartir el QR/UUID de cada uno a mano con invitados puntuales; los que no repartas quedan disponibles igual para que cualquiera los reclame solo desde la cartelera pública (botón "Adquirir boleto"), hasta agotarse. No exceden el aforo restante: si pedís más de lo que queda, no se emite ninguno.
   .compose-card#compose-card
     h3 Comunicarse con inscritos
     p.helper(v-if="!composeTarget") Para: todos los inscritos
     p.helper(v-else) Para: {{ composeTarget.label }} #[a.link-inline(href="#" @click.prevent="clearComposeTarget") (enviar a todos en su lugar)]
-    input(v-model="composeSubject" type="text" placeholder="Asunto")
+    input(v-model="composeSubject" type="text" aria-label="Asunto" placeholder="Asunto")
     AiEmailAssistant(:conference-id="conferenceId" :visible="showAiAssistant" @close="showAiAssistant = false" @use-draft="draft => composeMessage = draft")
     EmailComposeEditor(v-model="composeMessage" v-model:format="composeFormat" v-model:show-ai-assistant="showAiAssistant")
     BaseButton(variant="primary" type="button" :loading="sendingEmail" :disabled="!composeSubject.trim() || !composeMessage.trim()" @click="sendEmail") {{ sendingEmail ? 'Enviando...' : 'Enviar' }}
@@ -69,6 +69,7 @@ import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import TicketQr from '@/components/TicketQr.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import EmailComposeEditor from '@/components/EmailComposeEditor.vue'
 import AiEmailAssistant from '@/components/AiEmailAssistant.vue'
 import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets, sendAttendeeEmail } from '@/services/api/usersApi'
@@ -79,7 +80,7 @@ const sendMarked = new Marked()
 
 export default {
   name: 'TicketManagementPage',
-  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, EmailComposeEditor, AiEmailAssistant },
+  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, FeedbackMessage, EmailComposeEditor, AiEmailAssistant },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
