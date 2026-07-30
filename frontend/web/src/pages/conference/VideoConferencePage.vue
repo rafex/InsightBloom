@@ -1,11 +1,10 @@
 <template lang="pug">
 .video-conference-page
   .takeover-toolbar(v-if="jaasEnabled")
-    button.btn-takeover(type="button" :disabled="takingControl" @click="takeControl")
-      | {{ takingControl ? 'Tomando control...' : '🎥 Tomar control de la videollamada' }}
+    BaseButton(variant="secondary" size="sm" type="button" :loading="takingControl" @click="takeControl") 🎥 Tomar control de la videollamada
     p.takeover-hint(v-if="!sessionTakenOver") Si abriste la llamada en otro dispositivo, este botón cierra la sesión anterior.
     p.takeover-hint.takeover-warning(v-else) Esta sesión fue reemplazada por otro dispositivo.
-    p.takeover-error(v-if="takeoverError") {{ takeoverError }}
+    FeedbackMessage(v-if="takeoverError" :message="takeoverError" tone="error")
   LoadingState(v-if="loading" message="Cargando videollamada...")
   .unavailable(v-else-if="!conferenceId")
     p ⚠️ La videollamada no está disponible en este momento.
@@ -29,6 +28,8 @@ import {
   takeOverVideoCall
 } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 
 declare global {
@@ -56,7 +57,7 @@ function loadJitsiScript(scriptUrl: string): Promise<void> {
 
 export default {
   name: 'VideoConferencePage',
-  components: { LoadingState },
+  components: { BaseButton, FeedbackMessage, LoadingState },
   props: {
     conferenceId: { type: String, default: '' },
     ticketed: { type: Boolean, default: false },
@@ -202,12 +203,8 @@ export default {
 <style scoped>
 .video-conference-page { position: relative; flex: 1; min-height: 480px; display: flex; }
 .takeover-toolbar { position: absolute; z-index: 2; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, calc(100% - 32px)); }
-.btn-takeover { border: 1px solid var(--color-primary-border); border-radius: 8px; padding: 8px 12px; color: var(--color-primary-dark); background: var(--color-primary-soft); font-weight: 600; cursor: pointer; }
-.btn-takeover:hover:not(:disabled) { background: var(--color-primary-soft); }
-.btn-takeover:disabled { opacity: .65; cursor: wait; }
 .takeover-hint { margin: 0; font-size: .75rem; color: var(--color-text-muted); text-align: right; }
 .takeover-warning { color: var(--color-warning); }
-.takeover-error { margin: 0; color: var(--color-danger-dark); font-size: .78rem; }
 #jitsi-container { flex: 1; width: 100%; }
 .unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
 .unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }

@@ -8,7 +8,7 @@
       .certificate-card
         h3 🎓 Tu certificado de asistencia
         p.cert-hint Se genera al momento, no se almacena. Puedes descargarlo cuando quieras volviendo a esta página.
-        .cert-loading(v-if="certLoading") Generando certificado...
+        LoadingState(v-if="certLoading" message="Generando certificado…")
         template(v-else-if="certUrl")
           iframe.cert-preview(:src="certUrl")
           a.link-btn.link-btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
@@ -40,8 +40,8 @@
             a(:href="contact.telegramGroup" target="_blank" rel="noopener") 👥 Grupo de Telegram
       .download-actions
         a.link-btn.link-btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
-        BaseButton(type="button" v-if="isGroupNotes" :disabled="materialsDownloading" @click="downloadMaterials") {{ materialsDownloading ? 'Preparando materiales...' : 'Descargar materiales ZIP' }}
-      p.cert-error(v-if="materialsError") {{ materialsError }}
+        BaseButton(type="button" v-if="isGroupNotes" :loading="materialsDownloading" @click="downloadMaterials") Descargar materiales ZIP
+      FeedbackMessage(v-if="materialsError" :message="materialsError" tone="error")
 
   .login-required(v-else-if="!canParticipate")
     h2 Inicia sesión para responder la encuesta
@@ -61,10 +61,10 @@
       .benefits-banner(v-if="!loading && (questions.length || engine === 'SURVEYJS')")
         span.benefits-icon 🎁
         span Al terminar el cuestionario obtienes: los datos de contacto del presentador, tu <strong>certificado de asistencia</strong> y la <strong>presentación en PDF</strong> para descargar.
-      .survey-loading(v-if="loading") Cargando encuesta...
-      .survey-empty(v-else-if="engine === 'SURVEYJS' && !surveyModel") Esta conferencia no tiene una encuesta SurveyJS publicada.
+      LoadingState(v-if="loading" message="Cargando encuesta…")
+      EmptyState(v-else-if="engine === 'SURVEYJS' && !surveyModel" message="Esta conferencia no tiene una encuesta SurveyJS publicada.")
       SurveyComponent.surveyjs-form(v-else-if="engine === 'SURVEYJS' && surveyModel" :model="surveyModel")
-      .survey-empty(v-else-if="!questions.length") Esta conferencia no tiene encuesta configurada.
+      EmptyState(v-else-if="!questions.length" message="Esta conferencia no tiene encuesta configurada.")
       form.survey-form(v-else @submit.prevent="submit")
         .question(v-for="q in questions" :key="q.uuid")
           label {{ q.text }}
@@ -124,8 +124,8 @@
                   BaseButton.btn-arrow(variant="secondary" type="button" @click="moveItem(q.uuid, idx, -1)" :disabled="idx === 0") ↑
                   BaseButton.btn-arrow(variant="secondary" type="button" @click="moveItem(q.uuid, idx, 1)" :disabled="idx === dragOrder[q.uuid].length - 1") ↓
 
-        BaseButton(type="submit" :disabled="submitting") {{ submitting ? 'Enviando...' : 'Enviar respuestas' }}
-        p.survey-error(v-if="error") {{ error }}
+        BaseButton(type="submit" :loading="submitting") Enviar respuestas
+        FeedbackMessage(v-if="error" :message="error" tone="error")
 </template>
 
 <script lang="ts">
@@ -135,6 +135,9 @@ import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import { getQuestions, submitResponses, getSurveyAccess, getSurveyDefinition, submitSurveyJs } from '@/services/api/surveyApi'
 import { getPresentationStatus, getPdfUrl, primePresentationAccess } from '@/services/api/presentationsApi'
 import { getCertificateBlobUrl, downloadEventMaterials } from '@/services/api/usersApi'
@@ -157,7 +160,7 @@ type PointerLikeEvent = MouseEvent | TouchEvent
 
 export default {
   name: 'SurveyPage',
-  components: { SurveyComponent, BaseButton },
+  components: { SurveyComponent, BaseButton, EmptyState, FeedbackMessage, LoadingState },
   props: {
     conferenceId: { type: String as PropType<string | undefined>, default: undefined },
     canvasAudienceMode: { type: String, default: '' }
