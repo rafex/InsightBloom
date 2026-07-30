@@ -9,21 +9,21 @@
     h1 Inicia sesión para entrar
     p La videollamada sólo está disponible para usuarios con sesión iniciada y acceso al evento.
     .actions
-      router-link.primary(:to="{ path: '/login', query: { redirect: invitePath } }") Iniciar sesión
-      router-link.secondary(:to="{ path: '/register', query: { redirect: invitePath } }") Crear cuenta
+      BaseLink(:to="{ path: '/login', query: { redirect: invitePath } }") Iniciar sesión
+      BaseLink(variant="secondary" :to="{ path: '/register', query: { redirect: invitePath } }") Crear cuenta
   .invite-card(v-else-if="errorCode === 'ticket_required'")
     .icon(aria-hidden="true") 🎟️
     h1 Boleto requerido
     p Necesitas un boleto vigente para acceder a la videollamada de este evento.
     .actions
-      router-link.primary(:to="`/c/${friendlyId}/ticket`") Ver mi boleto
-      router-link.secondary(:to="`/c/${friendlyId}/presentation`") Volver al evento
+      BaseLink(:to="`/c/${friendlyId}/ticket`") Ver mi boleto
+      BaseLink(variant="secondary" :to="`/c/${friendlyId}/presentation`") Volver al evento
   .invite-card(v-else)
     .icon(aria-hidden="true") 🚫
     h1 No se pudo abrir la videollamada
     p {{ errorMessage }}
     .actions
-      router-link.secondary(:to="`/c/${friendlyId}/presentation`") Volver al evento
+      BaseLink(variant="secondary" :to="`/c/${friendlyId}/presentation`") Volver al evento
 </template>
 
 <script lang="ts">
@@ -31,9 +31,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/authStore'
 import { getJitsiInviteAccess } from '@/services/api/usersApi'
+import BaseLink from '@/components/ui/BaseLink.vue'
 
 export default {
   name: 'JitsiInvitePage',
+  components: { BaseLink },
   setup() {
     const route = useRoute()
     const router = useRouter()
@@ -81,8 +83,5 @@ export default {
 .icon { font-size: 2.25rem; }
 .spinner { width: 28px; height: 28px; margin: 0 auto 18px; border: 3px solid var(--color-primary-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin .8s linear infinite; }
 .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
-.actions a { display: inline-block; padding: 10px 16px; border-radius: 9px; text-decoration: none; font-weight: 700; }
-.primary { background: var(--color-primary); color: var(--color-text-inverse); }
-.secondary { border: 1px solid var(--color-primary-border); color: var(--color-primary-dark); background: var(--color-primary-soft); }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
