@@ -53,7 +53,7 @@
         input(type="checkbox" :value="c" v-model="newType.capabilities")
         span {{ capabilityLabel(c) }}
     BaseButton(type="button" :disabled="creating" @click="createNew") Crear tipo de evento
-    p.error(v-if="createError") {{ createError }}
+    FeedbackMessage(v-if="createError" :message="createError" tone="error")
 </template>
 
 <script lang="ts">
@@ -65,6 +65,7 @@ import type { EventType, EventCapability } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 
 const CAPABILITY_LABELS: Record<string, string> = {
   TICKETING_GENERAL: 'Boletos (aforo)',
@@ -82,7 +83,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 export default {
   name: 'EventTypesAdminPage',
-  components: { BaseButton, EmptyState },
+  components: { BaseButton, EmptyState, FeedbackMessage },
   setup() {
     const auth = useAuthStore()
     const eventTypes = ref<EventType[]>([])
@@ -196,8 +197,6 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .form-row input { flex: 1; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
 .new-type-form textarea { width: 100%; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
-.error { color: var(--color-danger); font-size: 0.85rem; margin-top: 8px; }
-
 @media (max-width: 900px) {
   .event-types-page { padding: 14px; }
   .types-table thead { display: none; }

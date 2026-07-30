@@ -68,8 +68,8 @@
         input#ai-temperature.temperature-slider(type="range" v-model.number="activeProvider.temperature" min="0" max="2" step="0.01")
 
       BaseButton(:loading="saving" type="button" @click="save") Guardar configuración de {{ activeTab.label }}
-      p.success(v-if="saved") Configuración guardada.
-      p.error(v-if="error") {{ error }}
+      FeedbackMessage(v-if="saved" message="Configuración guardada." tone="success")
+      FeedbackMessage(v-if="error" :message="error" tone="error")
 
       p.field-hint(v-if="activeCapability === 'tutor'") El objetivo pedagógico, las instrucciones y el límite de consultas de cada evento se configuran en la sección "Tutor IA" de la configuración de ese evento (Eventos → [evento] → Configuración → Tutor IA), no aquí — esta pantalla solo define el proveedor (URL, clave, prompts) que comparten todos los eventos.
 </template>
@@ -82,6 +82,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import type { AiProviderSettings, AiSettings, AiPromptVariable } from '@/services/api/types'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 
 type Capability = 'chat' | 'tutor' | 'survey' | 'seat-layout'
 
@@ -113,7 +114,7 @@ function emptyProvider(): ProviderForm {
 
 export default {
   name: 'AdminAiSettingsPage',
-  components: { ToggleSwitch, BaseButton },
+  components: { ToggleSwitch, BaseButton, FeedbackMessage },
   setup() {
     const auth = useAuthStore()
     const route = useRoute()
@@ -244,7 +245,5 @@ h2 { color: var(--color-heading); margin-bottom: 6px; }
 .variables-list li { flex-wrap: wrap; }
 .variables-list .var-scope { font-size: .72rem; color: var(--color-success); background: var(--color-success-soft); padding: 1px 8px; border-radius: 8px; }
 .variables-list .var-scope-pending { color: var(--color-warning); background: var(--color-warning-soft); }
-.success { color: var(--color-success); font-size: .85rem; margin-top: 10px; }
-.error { color: var(--color-danger); font-size: .85rem; margin-top: 10px; }
 @media (max-width: 760px) { .settings-shell { grid-template-columns: 1fr; } .ai-tabs { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .capability-heading { flex-direction: column; } }
 </style>

@@ -19,19 +19,20 @@
       textarea(v-model="blockedHosts" rows="4" placeholder="localhost&#10;169.254.169.254")
 
     BaseButton(:loading="saving" @click="save") Guardar cambios
-    p.success(v-if="saved") Cambios guardados.
-    p.error(v-if="error") {{ error }}
+    FeedbackMessage(v-if="saved" message="Cambios guardados." tone="success")
+    FeedbackMessage(v-if="error" :message="error" tone="error")
 </template>
 
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import { getGlobalEgressPolicy, setGlobalEgressPolicy } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'AdminEgressPolicyPage',
-  components: { BaseButton },
+  components: { BaseButton, FeedbackMessage },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -92,6 +93,4 @@ h2 { color: var(--color-heading); margin-bottom: 8px; }
   padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.85rem;
   font-family: monospace; resize: vertical;
 }
-.success { color: var(--color-success); font-size: 0.85rem; margin-top: 10px; }
-.error { color: var(--color-danger); font-size: 0.85rem; margin-top: 10px; }
 </style>

@@ -24,8 +24,8 @@
       input(v-model.number="maxRegistrationsPerDevicePerDay" type="number" min="1" max="50" placeholder="3 (por defecto)")
 
     BaseButton(:loading="saving" @click="save") Guardar cambios
-    p.success(v-if="saved") Cambios guardados.
-    p.error(v-if="error") {{ error }}
+    FeedbackMessage(v-if="saved" message="Cambios guardados." tone="success")
+    FeedbackMessage(v-if="error" :message="error" tone="error")
 
   h3.blocks-title Dispositivos bloqueados
   EmptyState(v-if="!loadingBlocks && blocks.length === 0" message="No hay dispositivos bloqueados a nivel plataforma.")
@@ -91,6 +91,7 @@
 import ModerationTable from '@/components/tables/ModerationTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import { ref, onMounted } from 'vue'
 import {
   getDeviceAccessSettings, setDeviceAccessSettings, listPlatformDeviceBlocks, unblockPlatformDevice,
@@ -104,7 +105,7 @@ type DeviceFingerprintFlagRow = DeviceFingerprintFlag & { _loading: boolean }
 
 export default {
   name: 'AdminDeviceAccessPage',
-  components: { ModerationTable, BaseButton, EmptyState },
+  components: { ModerationTable, BaseButton, EmptyState, FeedbackMessage },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -211,8 +212,6 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
 .form-group input { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
-.success { color: var(--color-success); font-size: 0.85rem; margin-top: 10px; }
-.error { color: var(--color-danger); font-size: 0.85rem; margin-top: 10px; }
 .blocks-title { color: var(--color-heading); font-size: 1rem; margin-bottom: 8px; }
 .fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }

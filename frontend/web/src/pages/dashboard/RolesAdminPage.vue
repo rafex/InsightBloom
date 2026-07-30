@@ -60,7 +60,7 @@
         input(type="checkbox" :value="p" v-model="newRole.permissions")
         span {{ permissionLabel(p) }}
     BaseButton(type="button" :disabled="creating" @click="createNew") Crear rol
-    p.error(v-if="createError") {{ createError }}
+    FeedbackMessage(v-if="createError" :message="createError" tone="error")
 
   .confirm-overlay(v-if="pendingRole" @click.self="pendingRole = null")
     .confirm-dialog
@@ -81,6 +81,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 
 const PERMISSION_LABELS: Record<string, string> = {
   MANAGE_USERS: 'Gestionar usuarios',
@@ -99,7 +100,7 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export default {
   name: 'RolesAdminPage',
-  components: { BaseButton, StatusBadge, EmptyState },
+  components: { BaseButton, StatusBadge, EmptyState, FeedbackMessage },
   setup() {
     const auth = useAuthStore()
     const roles = ref<Role[]>([])
@@ -224,7 +225,6 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .form-row input, .form-row select { flex: 1; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
 .new-role-form textarea { width: 100%; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
-.error { color: var(--color-danger); font-size: 0.85rem; margin-top: 8px; }
 .confirm-overlay { position: fixed; inset: 0; background: var(--color-overlay); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .confirm-dialog { background: var(--color-surface); border-radius: 16px; padding: 28px 32px; max-width: 420px; width: 90%; box-shadow: var(--shadow-overlay); }
 .confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }

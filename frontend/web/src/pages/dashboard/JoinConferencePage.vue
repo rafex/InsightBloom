@@ -15,7 +15,7 @@
     .claim-scanner(v-if="scanning")
       video(ref="videoEl")
       p Apunta la cámara al QR del boleto.
-  p.error(v-if="error") {{ error }}
+  FeedbackMessage(v-if="error" :message="error" tone="error")
 </template>
 
 <script lang="ts">
@@ -25,12 +25,13 @@ import QrScanner from 'qr-scanner'
 import { claimTicketByCode, getConference, joinConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 
 type AccessMode = 'friendly' | 'qr' | 'uuid'
 
 export default {
   name: 'JoinConferencePage',
-  components: { BaseButton },
+  components: { BaseButton, FeedbackMessage },
   setup() {
     const router = useRouter()
     const auth = useAuthStore()
@@ -145,7 +146,6 @@ input:focus { outline: none; border-color: var(--color-primary); }
 .claim-scanner { margin: 14px auto 0; max-width: 320px; text-align: center; }
 .claim-scanner video { width: 100%; border-radius: 10px; background: var(--color-heading); }
 .claim-scanner p { color: var(--color-text-muted); font-size: 0.85rem; }
-.error { color: var(--color-danger); margin-top: 12px; font-size: 0.9rem; }
 
 @media (max-width: 620px) {
   .form-row { flex-direction: column; }
