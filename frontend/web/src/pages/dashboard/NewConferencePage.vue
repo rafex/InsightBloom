@@ -55,10 +55,12 @@
     .form-group
       label Tiempo de vida
       .expiry-options
-        button.expiry-btn(
+        BaseButton.expiry-option(
           v-for="opt in expiryOptions" :key="opt.value"
-          :class="{ active: expiryMode === opt.value }"
           type="button"
+          size="sm"
+          :variant="expiryMode === opt.value ? 'primary' : 'secondary'"
+          :aria-pressed="expiryMode === opt.value"
           @click="setExpiryMode(opt.value)"
         ) {{ opt.label }}
       .custom-date(v-if="expiryMode === 'custom'")
@@ -167,8 +169,8 @@
     .map-created(v-if="created.latitude != null")
       ConferenceMap(:latitude="created.latitude" :longitude="created.longitude" :label="created.name")
     .actions
-      router-link.link-btn.link-btn-secondary(:to="`/dashboard/conferences/${created.conferenceId}/moderation/messages`") Ver moderación mensajes
-      router-link.link-btn.link-btn-secondary(:to="`/dashboard/conferences/${created.conferenceId}/moderation/words`") Ver moderación palabras
+      BaseLink(variant="secondary" :to="`/dashboard/conferences/${created.conferenceId}/moderation/messages`") Ver moderación mensajes
+      BaseLink(variant="secondary" :to="`/dashboard/conferences/${created.conferenceId}/moderation/words`") Ver moderación palabras
       BaseButton(@click="reset") Crear otra
 </template>
 
@@ -176,6 +178,7 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
 import FormField from '@/components/ui/FormField.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
@@ -197,7 +200,7 @@ const EXPIRY_OPTIONS = [
 
 export default {
   name: 'NewConferencePage',
-  components: { ConferenceMap, BaseButton, FormField, FeedbackMessage },
+  components: { ConferenceMap, BaseButton, BaseLink, FormField, FeedbackMessage },
   setup() {
     const name       = ref('')
     const displayName = ref('')
@@ -359,13 +362,6 @@ export default {
 .new-conf-page { max-width: 680px; }
 h2 { color: var(--color-heading); margin-bottom: 24px; margin-top: 0; }
 .expiry-options { display: flex; gap: 6px; flex-wrap: wrap; }
-.expiry-btn {
-  padding: 6px 14px; border: 1.5px solid var(--color-border); border-radius: 20px;
-  background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; font-size: 0.85rem; font-weight: 500;
-  transition: all 0.15s;
-}
-.expiry-btn:hover { border-color: var(--color-primary-border); color: var(--color-primary); }
-.expiry-btn.active { background: var(--color-primary); color: var(--color-text-inverse); border-color: var(--color-primary); }
 .custom-date { margin-top: 8px; }
 
 .coords-row { display: flex; gap: 12px; }
