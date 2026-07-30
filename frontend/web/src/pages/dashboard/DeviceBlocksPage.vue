@@ -8,7 +8,9 @@
     |  desde él (posible compu compartida de laboratorio o intento de evasión de límites). Revisa
     |  y decide si desbloquear.
 
-  EmptyState(v-if="!loading && blocks.length === 0" message="No hay dispositivos bloqueados en este evento.")
+  LoadingState(v-if="loading" message="Cargando bloqueos de dispositivo…")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
+  EmptyState(v-else-if="blocks.length === 0" message="No hay dispositivos bloqueados en este evento.")
 
   ModerationTable(v-else :items="blocks" :currentPage="1" :totalPages="1")
     template(#headers)
@@ -40,6 +42,8 @@ import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { ref, computed, onMounted } from 'vue'
 import { listDeviceBlocks, unblockDevice, getConference } from '@/services/api/usersApi'
@@ -50,28 +54,35 @@ type DeviceBlockRow = DeviceBlock & { _loading: boolean }
 
 export default {
   name: 'DeviceBlocksPage',
-  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, StatusBadge },
+  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
     const blocks = ref<DeviceBlockRow[]>([])
     const loading = ref(false)
+    const error = ref('')
     const conferenceName = ref('')
 
     async function load() {
       if (!props.conferenceId) return
       loading.value = true
+      error.value = ''
       try {
         const res = await listDeviceBlocks(props.conferenceId, auth.state.token as string)
         blocks.value = res.map((b) => ({ ...b, _loading: false }))
-      } catch (e: any) { /* deja la tabla vacia */ } finally { loading.value = false }
+      } catch (e: any) {
+        error.value = 'No fue posible cargar los bloqueos de dispositivo. Inténtalo nuevamente.'
+      } finally { loading.value = false }
     }
 
     async function unblock(item: DeviceBlockRow) {
       if (!props.conferenceId) return
       item._loading = true
       try { await unblockDevice(props.conferenceId, item.uuid, auth.state.token as string); await load() }
-      catch (e: any) { item._loading = false }
+      catch (e: any) {
+        item._loading = false
+        error.value = 'No fue posible desbloquear el dispositivo. Inténtalo nuevamente.'
+      }
     }
 
     function shortFingerprint(fp: string): string {
@@ -97,7 +108,7 @@ export default {
       { label: 'Bloqueos de dispositivo' }
     ])
 
-    return { blocks, loading, conferenceName, breadcrumbItems, unblock, shortFingerprint, formatDate }
+    return { blocks, loading, error, conferenceName, breadcrumbItems, unblock, shortFingerprint, formatDate }
   }
 }
 </script>

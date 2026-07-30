@@ -2,7 +2,8 @@
 .user-detail-page
   DashboardBreadcrumb(:items="breadcrumbItems")
 
-  .loading-text(v-if="loading") Cargando usuario...
+  LoadingState(v-if="loading" message="Cargando usuario…")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
 
   template(v-else-if="user")
     .header
@@ -30,7 +31,8 @@
 
       .detail-card
         h3 Eventos en los que está inscrito
-        .loading-text(v-if="loadingReservations") Cargando...
+        LoadingState(v-if="loadingReservations" message="Cargando inscripciones…")
+        FeedbackMessage(v-else-if="reservationsError" :message="reservationsError" tone="error")
         EmptyState(v-else-if="reservations.length === 0" message="No está inscrito en ningún evento.")
         .table-scroll(v-else)
           table.reservations-table
@@ -61,18 +63,22 @@ import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import { formatStatusLabel } from '@/utils/status'
 
 export default {
   name: 'UserDetailPage',
-  components: { DashboardBreadcrumb, StatusBadge, EmptyState },
+  components: { DashboardBreadcrumb, StatusBadge, EmptyState, FeedbackMessage, LoadingState },
   setup() {
     const route = useRoute()
     const auth = useAuthStore()
     const user = ref<Record<string, any> | null>(null)
     const loading = ref(true)
+    const error = ref('')
     const reservations = ref<UserReservationEntry[]>([])
     const loadingReservations = ref(true)
+    const reservationsError = ref('')
     const surveyStatus = ref<Record<string, boolean>>({})
 
     function statusLabel(s: string): string {
@@ -85,6 +91,7 @@ export default {
 
     async function loadReservations(uuid: string, token: string) {
       loadingReservations.value = true
+      reservationsError.value = ''
       try {
         reservations.value = await getUserReservations(uuid, token)
         await Promise.all(reservations.value.map(async (r) => {
@@ -96,6 +103,7 @@ export default {
         }))
       } catch (e: any) {
         reservations.value = []
+        reservationsError.value = 'No fue posible cargar las inscripciones de este usuario.'
       } finally {
         loadingReservations.value = false
       }
@@ -109,6 +117,7 @@ export default {
         loadReservations(uuid, token)
       } catch (e: any) {
         user.value = null
+        error.value = 'No fue posible cargar la información del usuario.'
       } finally {
         loading.value = false
       }
@@ -119,7 +128,7 @@ export default {
       { label: user.value?.displayName || user.value?.username || '', loading: loading.value }
     ])
 
-    return { user, loading, reservations, loadingReservations, surveyStatus, statusLabel, formatDate, formatStatusLabel, breadcrumbItems }
+    return { user, loading, error, reservations, loadingReservations, reservationsError, surveyStatus, statusLabel, formatDate, formatStatusLabel, breadcrumbItems }
   }
 }
 </script>

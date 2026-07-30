@@ -8,15 +8,19 @@
     span.word-filter-badge(v-if="wordCanonical") &nbsp;de "{{ wordCanonical }}"
 
   .filters(v-if="!wordCanonical")
-    select(v-model="statusFilter" @change="loadModMessages")
-      option(value="") Todos los estados
-      option(value="VISIBLE") Visible
-      option(value="CENSURADO_AUTO") Censurado automático
-      option(value="CENSURADO_MANUAL") Censurado manual
-      option(value="PENDIENTE_REVISION") Pendiente revisión
-      option(value="DELETED") Eliminado
+    FormField(label="Estado de moderación")
+      template(#default="{ id, describedBy }")
+        select(:id="id" :aria-describedby="describedBy" v-model="statusFilter" @change="applyFilter")
+          option(value="") Todos los estados
+          option(value="VISIBLE") Visible
+          option(value="CENSURADO_AUTO") Censurado automático
+          option(value="CENSURADO_MANUAL") Censurado manual
+          option(value="PENDIENTE_REVISION") Pendiente revisión
+          option(value="DELETED") Eliminado
 
-  EmptyState(v-if="!loading && items.length === 0" message="No hay mensajes para moderar.")
+  LoadingState(v-if="loading" message="Cargando mensajes para moderar…")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
+  EmptyState(v-else-if="items.length === 0" message="No hay mensajes para moderar.")
 
   .message-list(v-else)
     .message-row(v-for="item in items" :key="item.id || item.messageId || item.uuid")
@@ -72,9 +76,9 @@
           BaseButton(variant="ghost" size="sm" @click="item._answering = false") Cancelar
 
   .pagination(v-if="!wordCanonical && totalPages > 1")
-    button(@click="goToPage(page - 1)" :disabled="page <= 1") ‹
+    BaseButton(variant="secondary" size="sm" @click="goToPage(page - 1)" :disabled="page <= 1") Anterior
     span Página {{ page }} / {{ totalPages }}
-    button(@click="goToPage(page + 1)" :disabled="page >= totalPages") ›
+    BaseButton(variant="secondary" size="sm" @click="goToPage(page + 1)" :disabled="page >= totalPages") Siguiente
 </template>
 
 <script lang="ts">
@@ -88,6 +92,9 @@ import DashboardBreadcrumb, { type BreadcrumbItem } from '@/components/Dashboard
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import FormField from '@/components/ui/FormField.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 interface ModMessageItem {
@@ -115,7 +122,7 @@ interface ModMessageItem {
 
 export default {
   name: 'ModerationMessagesPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, StatusBadge },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, FeedbackMessage, FormField, LoadingState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const route = useRoute()
@@ -127,6 +134,7 @@ export default {
 
     const items = ref<ModMessageItem[]>([])
     const loading = ref(false)
+    const error = ref('')
     const page = ref(1)
     const totalPages = ref(1)
     const statusFilter = ref('')
@@ -152,6 +160,7 @@ export default {
     async function loadWordTimeline() {
       if (!props.conferenceId || !wordNormalized) return
       loading.value = true
+      error.value = ''
       try {
         // Fetch both types and merge (a word might be doubt or topic)
         const [doubts, topics] = await Promise.allSettled([
@@ -171,22 +180,28 @@ export default {
         // Sort by receivedAt descending
         merged.sort((a: any, b: any) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
         items.value = merged.map((m: any) => ({ ...m, detailStatus: null, _loading: false }))
-      } catch (e: any) { } finally { loading.value = false }
+      } catch (e: any) {
+        error.value = 'No fue posible cargar los mensajes relacionados con esta palabra. Inténtalo nuevamente.'
+      } finally { loading.value = false }
     }
 
     // ── Global moderation messages view ──────────────────────────────────────
     async function loadModMessages() {
       if (!props.conferenceId) return
       loading.value = true
+      error.value = ''
       try {
         const res = await getModerationMessages(props.conferenceId, page.value, 20, statusFilter.value, auth.state.token as string)
         items.value = (res.data || []).map((m: any) => ({ ...m, _loading: false }))
         totalPages.value = res.meta?.totalPages || 1
         resolveAuthors()
-      } catch (e: any) { } finally { loading.value = false }
+      } catch (e: any) {
+        error.value = 'No fue posible cargar los mensajes para moderar. Inténtalo nuevamente.'
+      } finally { loading.value = false }
     }
 
     function goToPage(p: number) { page.value = p; loadModMessages() }
+    function applyFilter() { page.value = 1; loadModMessages() }
 
     async function censorDetail(item: ModMessageItem) {
       item._loading = true
@@ -201,7 +216,10 @@ export default {
         )
         item.detailStatus = 'CENSURADO_MANUAL'
         item._loading = false
-      } catch (e: any) { item._loading = false }
+      } catch (e: any) {
+        item._loading = false
+        error.value = 'No fue posible censurar el detalle. Inténtalo nuevamente.'
+      }
     }
 
     async function restore(item: ModMessageItem) {
@@ -211,7 +229,10 @@ export default {
         await restoreMessage(messageId, auth.state.token as string, props.conferenceId as string)
         item.detailStatus = 'VISIBLE'
         item._loading = false
-      } catch (e: any) { item._loading = false }
+      } catch (e: any) {
+        item._loading = false
+        error.value = 'No fue posible restaurar el mensaje. Inténtalo nuevamente.'
+      }
     }
 
     async function deleteItem(item: ModMessageItem) {
@@ -221,7 +242,10 @@ export default {
         await deleteMessage(messageId, auth.state.token as string, props.conferenceId as string)
         item.detailStatus = 'DELETED'
         item._loading = false
-      } catch (e: any) { item._loading = false }
+      } catch (e: any) {
+        item._loading = false
+        error.value = 'No fue posible eliminar el mensaje. Inténtalo nuevamente.'
+      }
     }
 
     function startAnswering(item: ModMessageItem) {
@@ -236,6 +260,8 @@ export default {
         await answerMessage(messageId, item._answerDraft as string, auth.state.userUuid as string, auth.state.token as string, props.conferenceId as string)
         item.answerText = item._answerDraft
         item._answering = false
+      } catch (e: any) {
+        error.value = 'No fue posible enviar la respuesta. Inténtalo nuevamente.'
       } finally {
         item._loading = false
       }
@@ -275,9 +301,9 @@ export default {
     })
 
     return {
-      items, loading, page, totalPages, statusFilter, conferenceName, authorNames,
+      items, loading, error, page, totalPages, statusFilter, conferenceName, authorNames,
       wordNormalized, wordCanonical, breadcrumbItems,
-      loadModMessages, goToPage, censorDetail, restore, deleteItem, startAnswering, submitAnswer,
+      loadModMessages, applyFilter, goToPage, censorDetail, restore, deleteItem, startAnswering, submitAnswer,
       formatTime
     }
   }
@@ -324,8 +350,6 @@ select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radi
 .answer-form-actions { display: flex; gap: 6px; }
 
 .pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: var(--color-text-secondary); }
-.pagination button { padding: 4px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); cursor: pointer; font-size: 1rem; }
-.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 @media (max-width: 480px) {
   .msg-actions { flex-wrap: wrap; }

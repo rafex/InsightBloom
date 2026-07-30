@@ -7,17 +7,19 @@
     span(v-else) Conectando...
 
   .remote-buttons(v-if="!invalid")
-    button.btn-nav(:disabled="!wsConnected" @click="send('prev')") ← Anterior
-    button.btn-nav(:disabled="!wsConnected" @click="send('next')") Siguiente →
+    BaseButton.remote-nav-button(variant="secondary" size="lg" :disabled="!wsConnected" @click="send('prev')") ← Anterior
+    BaseButton.remote-nav-button(variant="secondary" size="lg" :disabled="!wsConnected" @click="send('next')") Siguiente →
 </template>
 
 <script lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { getRemoteWsUrl } from '@/services/api/presentationsApi'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 export default {
   name: 'RemoteControlPage',
+  components: { BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const route = useRoute()
@@ -68,10 +70,5 @@ export default {
 .live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--color-border); flex-shrink: 0; }
 .live-dot.connected { background: var(--color-success); box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
 .remote-buttons { display: flex; flex-direction: column; gap: 16px; flex: 1; }
-.btn-nav {
-  flex: 1; min-height: 120px; border-radius: 16px; border: 2px solid var(--color-primary-border); background: var(--color-primary-soft);
-  color: var(--color-primary); font-weight: 700; font-size: 1.4rem; cursor: pointer;
-}
-.btn-nav:active { background: var(--color-primary-soft); }
-.btn-nav:disabled { opacity: 0.5; cursor: not-allowed; }
+.remote-nav-button { flex: 1; min-height: 120px; border-width: 2px; border-radius: var(--radius-lg); font-size: 1.4rem; }
 </style>

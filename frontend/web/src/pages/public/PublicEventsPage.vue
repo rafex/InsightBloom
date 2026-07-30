@@ -6,8 +6,8 @@
       p.eyebrow InsightBloom
       h1 Cartelera de eventos
       p Descubre eventos públicos, revisa sus detalles y solicita tu boleto.
-    .state(v-if="loading") Cargando eventos...
-    .state.error(v-else-if="error") {{ error }}
+    LoadingState.state(v-if="loading" message="Cargando eventos…")
+    FeedbackMessage.state(v-else-if="error" :message="error" tone="error")
     EmptyState.public-empty(v-else-if="events.length === 0" message="No hay eventos públicos publicados por ahora.")
     .event-grid(v-else)
       article.event-card(v-for="event in events" :key="event.friendlyId" :class="`theme-${(event.publicTheme || 'CLASSIC').toLowerCase()}`")
@@ -43,13 +43,15 @@
 import { onMounted, ref } from 'vue'
 import AppHeader from '@/app/layout/AppHeader.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import { getPublicConferences } from '@/services/api/usersApi'
 import type { PublicConference } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'PublicEventsPage',
-  components: { AppHeader, EmptyState },
+  components: { AppHeader, EmptyState, FeedbackMessage, LoadingState },
   setup() {
     const events = ref<PublicConference[]>([])
     const loading = ref(true)
@@ -101,9 +103,8 @@ h2 { color: var(--color-heading); margin: 0 0 8px; font-size: 1.3rem; }
 .event-card-footer { border-top: 1px solid var(--color-border-subtle); display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 20px; padding: 14px 0; color: var(--color-text-muted); font-size: .8rem; }
 .organizer-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }.organizer-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
 .event-action { color: var(--color-primary); font-weight: 800; white-space: nowrap; text-decoration: none; }
-.state { background: var(--color-surface); padding: 30px; border-radius: 16px; color: var(--color-text-muted); }
+.state { background: var(--color-surface); padding: 30px; border-radius: var(--radius-lg); }
 .public-empty { background: var(--color-surface); padding: 30px; border-radius: 16px; color: var(--color-text-muted); }
-.error { color: var(--color-danger-dark); }
 .event-card.theme-editorial { border-radius: 4px; background: var(--color-editorial-page); color: var(--color-warning-soft); box-shadow: 0 12px 30px rgba(23,21,45,.2); }
 .event-card.theme-editorial .event-card-body { padding: 24px; }.event-card.theme-editorial h2 { color: var(--color-editorial-heading); font-family: Georgia, serif; font-size: 1.5rem; }.event-card.theme-editorial .description, .event-card.theme-editorial .event-facts dd, .event-card.theme-editorial .event-card-footer { color: var(--color-editorial-muted); }.event-card.theme-editorial .event-facts dt { color: var(--color-editorial-accent); }.event-card.theme-editorial .event-card-footer { border-color: var(--color-editorial-border); }.event-card.theme-editorial .event-action { color: var(--color-editorial-accent); }
 .event-card.theme-minimal { border-radius: 4px; box-shadow: none; border: 1px solid var(--color-border); }.event-card.theme-minimal .event-card-body { padding: 18px; }.event-card.theme-minimal .event-flyer { height: 130px; filter: saturate(.6); }

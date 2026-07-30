@@ -6,15 +6,20 @@
   h2 Moderación de palabras
 
   .filters
-    select(v-model="statusFilter" @change="load")
-      option(value="") Todos los estados
-      option(value="VISIBLE") Visible
-      option(value="CENSURADO_AUTO") Censurado automático
-      option(value="CENSURADO_MANUAL") Censurado manual
-      option(value="PENDIENTE_REVISION") Pendiente revisión
-      option(value="DELETED") Eliminado
+    FormField(label="Estado de moderación")
+      template(#default="{ id, describedBy }")
+        select(:id="id" :aria-describedby="describedBy" v-model="statusFilter" @change="applyFilter")
+          option(value="") Todos los estados
+          option(value="VISIBLE") Visible
+          option(value="CENSURADO_AUTO") Censurado automático
+          option(value="CENSURADO_MANUAL") Censurado manual
+          option(value="PENDIENTE_REVISION") Pendiente revisión
+          option(value="DELETED") Eliminado
 
-  ModerationTable(
+  LoadingState(v-if="loading" message="Cargando palabras moderadas…")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
+  EmptyState(v-else-if="words.length === 0" message="No hay palabras que coincidan con este filtro.")
+  ModerationTable(v-else
     :items="words"
     :currentPage="page"
     :totalPages="totalPages"
@@ -59,6 +64,10 @@ import ModerationTable from '@/components/tables/ModerationTable.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import FormField from '@/components/ui/FormField.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -77,11 +86,12 @@ interface ModWordItem {
 
 export default {
   name: 'ModerationWordsPage',
-  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, StatusBadge },
+  components: { ModerationTable, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, FeedbackMessage, FormField, LoadingState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const words = ref<ModWordItem[]>([])
     const loading = ref(false)
+    const error = ref('')
     const page = ref(1)
     const totalPages = ref(1)
     const statusFilter = ref('')
@@ -92,31 +102,44 @@ export default {
     async function load() {
       if (!props.conferenceId) return
       loading.value = true
+      error.value = ''
       try {
         const res = await getModerationWords(props.conferenceId, page.value, 20, statusFilter.value, auth.state.token as string)
         words.value = (res.data || []).map((w: any) => ({ ...w, _loading: false }))
         totalPages.value = res.meta?.totalPages || 1
-      } catch (e: any) { } finally { loading.value = false }
+      } catch (e: any) {
+        error.value = 'No fue posible cargar las palabras moderadas. Inténtalo nuevamente.'
+      } finally { loading.value = false }
     }
 
     function goToPage(p: number) { page.value = p; load() }
+    function applyFilter() { page.value = 1; load() }
 
     async function censor(item: ModWordItem) {
       item._loading = true
       try { await censorWord(item.uuid, null as any, auth.state.token as string, props.conferenceId as string); await load() }
-      catch (e: any) { item._loading = false }
+      catch (e: any) {
+        item._loading = false
+        error.value = 'No fue posible censurar la palabra. Inténtalo nuevamente.'
+      }
     }
 
     async function restore(item: ModWordItem) {
       item._loading = true
       try { await restoreWord(item.uuid, auth.state.token as string, props.conferenceId as string); await load() }
-      catch (e: any) { item._loading = false }
+      catch (e: any) {
+        item._loading = false
+        error.value = 'No fue posible restaurar la palabra. Inténtalo nuevamente.'
+      }
     }
 
     async function deleteItem(item: ModWordItem) {
       item._loading = true
       try { await deleteWord(item.uuid, auth.state.token as string, props.conferenceId as string); await load() }
-      catch (e: any) { item._loading = false }
+      catch (e: any) {
+        item._loading = false
+        error.value = 'No fue posible eliminar la palabra. Inténtalo nuevamente.'
+      }
     }
 
     function verMensajes(item: ModWordItem) {
@@ -142,7 +165,7 @@ export default {
       { label: 'Moderación (palabras)' }
     ])
 
-    return { words, loading, page, totalPages, statusFilter, conferenceName, breadcrumbItems, load, goToPage, censor, restore, deleteItem, verMensajes }
+    return { words, loading, error, page, totalPages, statusFilter, conferenceName, breadcrumbItems, load, applyFilter, goToPage, censor, restore, deleteItem, verMensajes }
   }
 }
 </script>

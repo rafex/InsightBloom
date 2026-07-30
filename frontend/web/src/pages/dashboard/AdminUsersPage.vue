@@ -21,7 +21,9 @@
     BaseButton(variant="secondary" size="sm" type="button" @click="toggleSort")
       | Orden alfabético {{ sort === 'username' ? '✓' : '' }}
 
-  EmptyState(v-if="!loading && users.length === 0" message="No hay usuarios para mostrar.")
+  LoadingState(v-if="loading" message="Cargando usuarios…")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
+  EmptyState(v-else-if="users.length === 0" message="No hay usuarios para mostrar.")
 
   .table-scroll(v-else)
     table.users-table
@@ -83,6 +85,8 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 type ConfirmActionType = 'ban' | 'unban' | 'delete'
 
@@ -99,12 +103,13 @@ interface AdminUserRow {
 
 export default {
   name: 'AdminUsersPage',
-  components: { DashboardBreadcrumb, BaseButton, BaseModal, StatusBadge, EmptyState },
+  components: { DashboardBreadcrumb, BaseButton, BaseModal, StatusBadge, EmptyState, FeedbackMessage, LoadingState },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
     const users = ref<AdminUserRow[]>([])
     const loading = ref(true)
+    const error = ref('')
     const page = ref(1)
     const totalPages = ref(1)
     const statusFilter = ref('')
@@ -119,6 +124,7 @@ export default {
 
     async function load() {
       loading.value = true
+      error.value = ''
       try {
         const res = await listUsers(auth.state.token as string, page.value, 50, {
           status: statusFilter.value || undefined,
@@ -129,6 +135,7 @@ export default {
         totalPages.value = res.meta?.totalPages || 1
       } catch (e: any) {
         users.value = []
+        error.value = 'No fue posible cargar los usuarios. Inténtalo nuevamente.'
       } finally {
         loading.value = false
       }
@@ -158,11 +165,14 @@ export default {
 
     async function saveEdit(u: AdminUserRow) {
       saving.value = true
+      error.value = ''
       try {
         const payload = { ...editForm.value, roles: editForm.value.roles.join(',') }
         const updated = await updateUser(u.uuid, payload, auth.state.token as string)
         Object.assign(u, updated)
         editing.value = null
+      } catch (e: any) {
+        error.value = 'No fue posible guardar los cambios del usuario. Inténtalo nuevamente.'
       } finally {
         saving.value = false
       }
@@ -195,14 +205,19 @@ export default {
       confirmTarget.value = null
       if (!u || !action) return
       const fn = { ban: banUser, unban: unbanUser, delete: deleteUserLogical }[action]
-      const updated = await fn(u.uuid, auth.state.token as string)
-      Object.assign(u, updated)
+      try {
+        error.value = ''
+        const updated = await fn(u.uuid, auth.state.token as string)
+        Object.assign(u, updated)
+      } catch (e: any) {
+        error.value = 'No fue posible actualizar el estado del usuario. Inténtalo nuevamente.'
+      }
     }
 
     onMounted(load)
 
     return {
-      users, loading, page, totalPages, statusFilter, roleFilter, sort, availableRoles,
+      users, loading, error, page, totalPages, statusFilter, roleFilter, sort, availableRoles,
       editing, editForm, saving,
       confirmTarget, confirmTitle, confirmMessage,
       confirmAction_,
