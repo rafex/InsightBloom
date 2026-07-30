@@ -122,7 +122,7 @@
         input.map-url-input(v-model.trim="mapUrl" type="url" placeholder="Pega una URL de Google Maps u OpenStreetMap")
         BaseButton(variant="secondary" type="button" @click="extractMapCoordinates") Extraer coordenadas
       p.field-hint Ejemplos: Google Maps con /@latitud,longitud o OpenStreetMap con #map=nivel/latitud/longitud.
-      p.error(v-if="locationError") {{ locationError }}
+      FeedbackMessage(v-if="locationError" :message="locationError" tone="error")
       .coords-row
         .coord-field
           span.coord-label Latitud
@@ -135,7 +135,7 @@
     .map-preview(v-if="latitude != null && longitude != null && !isNaN(latitude) && !isNaN(longitude)")
       ConferenceMap(:latitude="latitude" :longitude="longitude" :label="name || 'Evento'")
 
-    .error(v-if="error") {{ error }}
+    FeedbackMessage(v-if="error" :message="error" tone="error")
     BaseButton(:loading="loading" :disabled="loading || !name.trim()" @click="create") Crear evento
 
   .created-info.animate__animated.animate__fadeIn(v-else)
@@ -177,6 +177,7 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FormField from '@/components/ui/FormField.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -196,7 +197,7 @@ const EXPIRY_OPTIONS = [
 
 export default {
   name: 'NewConferencePage',
-  components: { ConferenceMap, BaseButton, FormField },
+  components: { ConferenceMap, BaseButton, FormField, FeedbackMessage },
   setup() {
     const name       = ref('')
     const displayName = ref('')
@@ -387,7 +388,6 @@ h2 { color: var(--color-heading); margin-bottom: 24px; margin-top: 0; }
 .capacity-alert.risk { background: var(--color-warning-soft); color: var(--color-warning); }
 .capacity-alert.critical { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 
-.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
 .created-info { background: var(--color-success-soft); border: 1.5px solid var(--color-success); border-radius: 12px; padding: 24px; }
 h3 { color: var(--color-success); margin: 0 0 16px; }
 .info-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; font-size: 0.95rem; }
