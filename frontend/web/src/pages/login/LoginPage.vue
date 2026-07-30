@@ -16,7 +16,7 @@
         FormField(label="Contraseña")
           template(#default="{ id, describedBy }")
             input(:id="id" :aria-describedby="describedBy" v-model="password" type="password" autocomplete="current-password" placeholder="••••••••" @keyup.enter="doLogin")
-        .error(v-if="error") {{ error }}
+        FeedbackMessage(v-if="error" :message="error" tone="error")
         .login-actions
           BaseButton(size="lg" @click="doLogin" :disabled="loading" :loading="loading") Iniciar sesión
 
@@ -26,7 +26,7 @@
           FormField(label="Correo electrónico o usuario")
             template(#default="{ id, describedBy }")
               input(:id="id" :aria-describedby="describedBy" v-model="otpIdentifier" type="text" autocomplete="username" placeholder="tu@correo.com" @keyup.enter="doRequestOtp")
-          .error(v-if="error") {{ error }}
+          FeedbackMessage(v-if="error" :message="error" tone="error")
           .login-actions
             BaseButton(size="lg" @click="doRequestOtp" :disabled="loading" :loading="loading") Enviar código
         template(v-else)
@@ -34,7 +34,7 @@
           FormField(label="Código")
             template(#default="{ id, describedBy }")
               input(:id="id" :aria-describedby="describedBy" v-model="otpCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" @keyup.enter="doVerifyOtp")
-          .error(v-if="error") {{ error }}
+          FeedbackMessage(v-if="error" :message="error" tone="error")
           .login-actions
             BaseButton(size="lg" @click="doVerifyOtp" :disabled="loading" :loading="loading") Verificar e iniciar sesión
           button.btn-resend(type="button" @click="doRequestOtp" :disabled="loading") Reenviar código
@@ -57,9 +57,10 @@ import { useAuthStore } from '@/features/auth/authStore'
 import { requestLoginOtp, verifyLoginOtp } from '@/services/api/authApi'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FormField from '@/components/ui/FormField.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 export default {
   name: 'LoginPage',
-  components: { AppHeader, BaseButton, FormField },
+  components: { AppHeader, BaseButton, FormField, FeedbackMessage },
   setup() {
     const username = ref('')
     const password = ref('')
@@ -182,7 +183,6 @@ h2 { margin: 0 0 8px; color: var(--color-heading); }
 .guest-block { margin-top: 14px; text-align: center; }
 .divider { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 10px; }
 .guest-hint { margin: 8px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
-.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
 .register-hint { text-align: center; margin: 16px 0 0; font-size: 0.85rem; color: var(--color-text-muted); }
 .register-hint a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 .register-hint a:hover { text-decoration: underline; }

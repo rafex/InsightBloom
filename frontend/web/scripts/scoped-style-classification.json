@@ -23,6 +23,7 @@
   "src/components/ui/BaseButton.vue": "canonical-component",
   "src/components/ui/BaseModal.vue": "canonical-component",
   "src/components/ui/EmptyState.vue": "canonical-component",
+  "src/components/ui/FeedbackMessage.vue": "canonical-component",
   "src/components/ui/LoadingState.vue": "canonical-component",
   "src/components/ui/FormField.vue": "canonical-component",
   "src/components/ui/SaveState.vue": "canonical-component",

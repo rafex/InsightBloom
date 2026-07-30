@@ -34,7 +34,7 @@
             button.btn-icon(type="button" @click="removeLink(idx)" title="Quitar") ✕
           button.btn-add(type="button" @click="addLink") + Agregar red social
 
-        .error(v-if="error") {{ error }}
+        FeedbackMessage(v-if="error" :message="error" tone="error")
         BaseButton(size="lg" @click="submitRegister" :disabled="loading" :loading="loading") Crear cuenta
         p.register-hint ¿Ya tienes cuenta? #[router-link(to="/login") Inicia sesión]
 
@@ -44,7 +44,7 @@
         FormField(label="Código de verificación")
           template(#default="{ id, describedBy }")
             input(:id="id" :aria-describedby="describedBy" v-model="code" placeholder="123456" maxlength="6" @keyup.enter="submitVerify")
-        .error(v-if="error") {{ error }}
+        FeedbackMessage(v-if="error" :message="error" tone="error")
         BaseButton(size="lg" @click="submitVerify" :disabled="loading" :loading="loading") Verificar
         BaseButton(variant="ghost" type="button" @click="resendOtp" :disabled="loading") Reenviar código
 
@@ -58,6 +58,7 @@
 import AppHeader from '@/app/layout/AppHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FormField from '@/components/ui/FormField.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { register, sendOtp, verifyOtp, type SocialLink } from '@/services/api/authApi'
@@ -65,7 +66,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'RegisterPage',
-  components: { AppHeader, BaseButton, FormField },
+  components: { AppHeader, BaseButton, FormField, FeedbackMessage },
   setup() {
     const router = useRouter()
     const route = useRoute()
@@ -169,7 +170,6 @@ export default {
 .register-card { background: var(--color-surface); border-radius: 16px; padding: 40px; box-shadow: var(--shadow-card); max-width: 460px; width: 100%; }
 h2 { margin: 0 0 8px; color: var(--color-heading); }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; }
-.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
 .register-hint { text-align: center; margin: 8px 0 0; font-size: 0.85rem; color: var(--color-text-muted); }
 .register-hint a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 .register-hint a:hover { text-decoration: underline; }

@@ -38,8 +38,8 @@
             label.btn-secondary(for="profile-photo-input") Seleccionar foto
             input#profile-photo-input.hidden-input(type="file" accept="image/png,image/jpeg" @change="onPhotoSelected")
             BaseButton(variant="ghost" size="sm" v-if="profilePhoto" type="button" @click="profilePhoto = ''") Quitar foto
-        .error(v-if="error") {{ error }}
-        .success(v-if="success") ¡Perfil actualizado!
+        FeedbackMessage(v-if="error" :message="error" tone="error")
+        FeedbackMessage(v-if="success" message="¡Perfil actualizado!" tone="success")
         BaseButton(size="lg" :loading="saving" @click="save") Guardar
 
         h3.password-title Cambiar contraseña
@@ -49,8 +49,8 @@
         .form-group
           label Nueva contraseña
           input(v-model="newPassword" type="password" placeholder="••••••••")
-        .error(v-if="passwordError") {{ passwordError }}
-        .success(v-if="passwordSuccess") ¡Contraseña actualizada!
+        FeedbackMessage(v-if="passwordError" :message="passwordError" tone="error")
+        FeedbackMessage(v-if="passwordSuccess" message="¡Contraseña actualizada!" tone="success")
         BaseButton(size="lg" :disabled="changingPassword || !newPassword" @click="changePassword") Cambiar contraseña
 
         h3.password-title Método de acceso
@@ -59,8 +59,8 @@
         .form-group
           label Confirmá tu contraseña actual para cambiar el método
           input(v-model="authMethodPassword" type="password" placeholder="••••••••")
-        .error(v-if="authMethodError") {{ authMethodError }}
-        .success(v-if="authMethodSuccess") ¡Método de acceso actualizado!
+        FeedbackMessage(v-if="authMethodError" :message="authMethodError" tone="error")
+        FeedbackMessage(v-if="authMethodSuccess" message="¡Método de acceso actualizado!" tone="success")
         BaseButton(
           size="lg"
           variant="secondary"
@@ -77,10 +77,11 @@ import type { AuthMethod } from '@/services/api/usersApi'
 import type { UserProfile } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 
 export default {
   name: 'ProfilePage',
-  components: { AppHeader, BaseButton },
+  components: { AppHeader, BaseButton, FeedbackMessage },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -227,8 +228,6 @@ label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary);
 input { padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 1rem; }
 input:focus { outline: none; border-color: var(--color-primary); }
 .hidden-input { display: none; }
-.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
-.success { color: var(--color-success); font-size: 0.9rem; margin-bottom: 12px; }
 .profile-loading { color: var(--color-text-muted); }
 
 .registration-data { background: var(--color-surface-muted); border-radius: 10px; padding: 16px; margin-bottom: 8px; }
