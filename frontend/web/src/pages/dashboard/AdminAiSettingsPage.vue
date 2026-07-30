@@ -6,16 +6,16 @@
     strong Alcance: Configuración global
     span Proveedores, modelos, claves y prompts base compartidos por toda la plataforma.
 
-  .loading-text(v-if="loading") Cargando...
+  LoadingState(v-if="loading" message="Cargando configuración de IA…")
   .settings-shell(v-else)
-    nav.ai-tabs(aria-label="Configuración de IA")
-      button.ai-tab(v-for="tab in tabs" :key="tab.id" :class="{ active: activeCapability === tab.id }" @click="selectCapability(tab.id)" type="button")
+    nav.ai-tabs(role="tablist" aria-label="Configuración de IA")
+      button.ai-tab(v-for="tab in tabs" :key="tab.id" :class="{ active: activeCapability === tab.id }" @click="selectCapability(tab.id)" type="button" role="tab" :aria-selected="activeCapability === tab.id" aria-controls="ai-settings-panel")
         span.tab-icon {{ tab.icon }}
         span
           strong {{ tab.label }}
           small {{ tab.summary }}
 
-    .settings-card
+    .settings-card#ai-settings-panel(role="tabpanel")
       .capability-heading
         div
           h3 {{ activeTab.label }}
@@ -52,8 +52,7 @@
         p.field-hint Reglas de seguridad que se añaden después del prompt base y antes del prompt de la operación (que ya trae sus propias reglas fijas). Útil para restricciones específicas de tu plataforma: temas prohibidos, tono obligatorio, qué nunca confirmar o negar.
 
       .form-group.variables-group
-        button.variables-toggle(type="button" @click="showVariables = !showVariables")
-          | {{ showVariables ? 'Ocultar' : 'Ver' }} variables de contexto disponibles
+        BaseButton.variables-toggle(variant="ghost" size="sm" type="button" @click="showVariables = !showVariables") {{ showVariables ? 'Ocultar' : 'Ver' }} variables de contexto disponibles
         .variables-list(v-if="showVariables")
           p.field-hint No se escriben como texto literal en el prompt: cuando dicen "ya incluida en...", ese dato ya viaja automáticamente al modelo en esa capacidad, sin que tengas que hacer nada. Sirven como referencia de qué contexto real está disponible. No se incluyen datos sensibles como el correo del asistente.
           ul
@@ -83,6 +82,7 @@ import type { AiProviderSettings, AiSettings, AiPromptVariable } from '@/service
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 type Capability = 'chat' | 'tutor' | 'survey' | 'seat-layout' | 'email'
 
@@ -115,7 +115,7 @@ function emptyProvider(): ProviderForm {
 
 export default {
   name: 'AdminAiSettingsPage',
-  components: { ToggleSwitch, BaseButton, FeedbackMessage },
+  components: { ToggleSwitch, BaseButton, FeedbackMessage, LoadingState },
   setup() {
     const auth = useAuthStore()
     const route = useRoute()
@@ -237,7 +237,7 @@ h2 { color: var(--color-heading); margin-bottom: 6px; }
 .prompt-input { font-size: .9rem; font-family: inherit; resize: vertical; }
 .clear-key { display: flex; gap: 8px; align-items: center; font-size: .85rem; color: var(--color-danger-dark); font-weight: 400 !important; margin-top: 4px; }
 .temperature-slider { width: 100%; margin-top: 4px; }
-.variables-toggle { align-self: flex-start; background: none; border: 1px solid var(--color-border); border-radius: 8px; padding: 6px 12px; font-size: .82rem; color: var(--color-primary); cursor: pointer; }
+.variables-toggle { align-self: flex-start; }
 .variables-list { margin-top: 10px; background: var(--color-surface-muted); border: 1px solid var(--color-border-subtle); border-radius: 8px; padding: 10px 14px; }
 .variables-list ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .variables-list li { display: flex; align-items: center; gap: 8px; font-size: .82rem; }
