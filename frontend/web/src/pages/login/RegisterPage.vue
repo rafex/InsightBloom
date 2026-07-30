@@ -51,12 +51,13 @@
       template(v-else-if="step === 'done'")
         h2 ¡Cuenta verificada! 🎉
         p.hint Ya puedes participar en las conferencias.
-        router-link.link-btn.link-btn-primary(to="/") Ir al inicio
+        BaseLink(to="/") Ir al inicio
 </template>
 
 <script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
 import FormField from '@/components/ui/FormField.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import { ref } from 'vue'
@@ -66,7 +67,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'RegisterPage',
-  components: { AppHeader, BaseButton, FormField, FeedbackMessage },
+  components: { AppHeader, BaseButton, BaseLink, FormField, FeedbackMessage },
   setup() {
     const router = useRouter()
     const route = useRoute()

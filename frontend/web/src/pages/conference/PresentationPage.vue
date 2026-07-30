@@ -6,9 +6,8 @@
       span.live-dot.connected
       span En vivo · sigue al presentador automáticamente
     BaseButton(variant="secondary" size="sm" v-if="presentationManager" type="button" @click="openPresenter") 🎛️ Abrir control del presentador
-  .presentation-loading(v-if="loading") Verificando presentación...
-  .presentation-empty(v-else-if="!ready")
-    p El organizador aún no ha subido la presentación de esta conferencia.
+  LoadingState(v-if="loading" message="Verificando presentación…")
+  EmptyState(v-else-if="!ready" message="El organizador aún no ha subido la presentación de esta conferencia.")
   template(v-else)
     .preview-banner(v-if="!canParticipate")
       span Vista pública: primeras {{ previewSlideLimit }} diapositivas
@@ -22,7 +21,7 @@
     iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" :sandbox="iframeSandbox")
     .presentation-actions
       a.link-btn.link-btn-secondary(v-if="canParticipate && presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
-      router-link.link-btn.link-btn-primary(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
+      BaseLink(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
 </template>
 
 <script lang="ts">
@@ -32,12 +31,15 @@ import { getPresentationStatus, getSlidesUrl, getPresentationRootUrl, getSlidesP
 import type { PresentationProvider } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 const PREVIEW_SLIDE_LIMIT = 5
 
 export default {
   name: 'PresentationPage',
-  components: { BaseButton },
+  components: { BaseButton, BaseLink, EmptyState, LoadingState },
   props: {
     conferenceId: String,
     presentationSourceUrl: String,

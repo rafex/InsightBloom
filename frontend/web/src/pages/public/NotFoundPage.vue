@@ -6,16 +6,17 @@
     h2 Esta página no existe
     p La dirección puede estar mal escrita o el contenido ya no está disponible.
     .nf-actions
-      router-link.link-btn.link-btn-primary(to="/") Ir a la cartelera de eventos
-      router-link.link-btn.link-btn-secondary(to="/dashboard") Ir al panel
+      BaseLink(to="/") Ir a la cartelera de eventos
+      BaseLink(to="/dashboard" variant="secondary") Ir al panel
 </template>
 
 <script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
 
 export default {
   name: 'NotFoundPage',
-  components: { AppHeader }
+  components: { AppHeader, BaseLink }
 }
 </script>
 
