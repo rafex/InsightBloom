@@ -3,16 +3,18 @@
   p.
     Usamos cookies estándar para mantener tu sesión y mejorar tu experiencia en InsightBloom.
     Al continuar navegando aceptas su uso.
-  button.btn-accept(type="button" @click="accept") Entendido
+  BaseButton.cookie-accept(size="sm" type="button" @click="accept") Entendido
 </template>
 
 <script lang="ts">
 import { ref } from 'vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const STORAGE_KEY = 'ib_cookie_consent'
 
 export default {
   name: 'CookieConsentBanner',
+  components: { BaseButton },
   setup() {
     const visible = ref(!localStorage.getItem(STORAGE_KEY))
 
@@ -44,18 +46,7 @@ export default {
   font-size: 0.85rem;
 }
 .cookie-banner p { margin: 0; max-width: 640px; }
-.btn-accept {
-  padding: 8px 18px;
-  border: none;
-  border-radius: 8px;
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.btn-accept:hover { background: var(--color-primary-dark); }
+.cookie-accept { flex-shrink: 0; }
 
 @media (max-width: 480px) {
   .cookie-banner { flex-direction: column; text-align: center; padding: 12px 16px; }
