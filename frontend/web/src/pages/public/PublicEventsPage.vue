@@ -36,12 +36,13 @@
           span.organizer-name
             img.organizer-avatar(v-if="event.organizerPhotoBase64" :src="event.organizerPhotoBase64" alt="")
             span {{ event.organizer }}
-          router-link.event-action(:to="eventActionPath(event)") {{ eventActionLabel(event) }} →
+          BaseLink.event-action(size="sm" variant="ghost" :to="eventActionPath(event)") {{ eventActionLabel(event) }} →
 </template>
 
 <script lang="ts">
 import { onMounted, ref } from 'vue'
 import AppHeader from '@/app/layout/AppHeader.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
@@ -51,7 +52,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'PublicEventsPage',
-  components: { AppHeader, EmptyState, FeedbackMessage, LoadingState },
+  components: { AppHeader, BaseLink, EmptyState, FeedbackMessage, LoadingState },
   setup() {
     const events = ref<PublicConference[]>([])
     const loading = ref(true)
@@ -102,7 +103,7 @@ h2 { color: var(--color-heading); margin: 0 0 8px; font-size: 1.3rem; }
 .event-facts dd { color: var(--color-text-secondary); margin: 0; }
 .event-card-footer { border-top: 1px solid var(--color-border-subtle); display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 20px; padding: 14px 0; color: var(--color-text-muted); font-size: .8rem; }
 .organizer-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }.organizer-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
-.event-action { color: var(--color-primary); font-weight: 800; white-space: nowrap; text-decoration: none; }
+.event-action { color: var(--color-primary); white-space: nowrap; }
 .state { background: var(--color-surface); padding: 30px; border-radius: var(--radius-lg); }
 .public-empty { background: var(--color-surface); padding: 30px; border-radius: 16px; color: var(--color-text-muted); }
 .event-card.theme-editorial { border-radius: 4px; background: var(--color-editorial-page); color: var(--color-warning-soft); box-shadow: 0 12px 30px rgba(23,21,45,.2); }
