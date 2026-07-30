@@ -59,17 +59,18 @@
               BaseButton(variant="danger" size="sm" v-if="u.status !== 'DELETED'" @click="confirmAction(u, 'delete')") Eliminar
 
   .pagination(v-if="totalPages > 1")
-    button(@click="goToPage(page - 1)" :disabled="page <= 1") ‹
+    BaseButton(variant="ghost" size="sm" type="button" :disabled="page <= 1" aria-label="Página anterior" @click="goToPage(page - 1)") ‹
     span Página {{ page }} / {{ totalPages }}
-    button(@click="goToPage(page + 1)" :disabled="page >= totalPages") ›
+    BaseButton(variant="ghost" size="sm" type="button" :disabled="page >= totalPages" aria-label="Página siguiente" @click="goToPage(page + 1)") ›
 
-  .confirm-overlay(v-if="confirmTarget" @click.self="confirmTarget = null")
-    .confirm-dialog
-      h4 {{ confirmTitle }}
-      p {{ confirmMessage }}
-      .confirm-actions
-        BaseButton(variant="ghost" @click="confirmTarget = null") Cancelar
-        BaseButton(:variant="confirmAction_ === 'delete' ? 'danger' : 'primary'" @click="runConfirmedAction") Confirmar
+  BaseModal(
+    v-if="confirmTarget"
+    :title="confirmTitle"
+    :confirm-variant="confirmAction_ === 'delete' ? 'danger' : 'primary'"
+    @close="confirmTarget = null"
+    @confirm="runConfirmedAction"
+  )
+    p {{ confirmMessage }}
 </template>
 
 <script lang="ts">
@@ -79,6 +80,7 @@ import { listUsers, updateUser, banUser, unbanUser, deleteUserLogical } from '@/
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 
@@ -97,7 +99,7 @@ interface AdminUserRow {
 
 export default {
   name: 'AdminUsersPage',
-  components: { DashboardBreadcrumb, BaseButton, StatusBadge, EmptyState },
+  components: { DashboardBreadcrumb, BaseButton, BaseModal, StatusBadge, EmptyState },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
@@ -232,17 +234,6 @@ select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radi
 .actions input { padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.82rem; }
 .actions-row { display: flex; gap: 6px; }
 .pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: var(--color-text-secondary); }
-.pagination button { padding: 4px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); cursor: pointer; }
-.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.confirm-overlay { position: fixed; inset: 0; background: var(--color-overlay); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.confirm-dialog { background: var(--color-surface); border-radius: 16px; padding: 28px 32px; max-width: 420px; width: 90%; box-shadow: var(--shadow-overlay); }
-.confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
-.confirm-dialog p { color: var(--color-text-muted); font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
-.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
-.btn-cancel { padding: 8px 18px; border: 1px solid var(--color-border-subtle); border-radius: 8px; background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; }
-.btn-confirm { padding: 8px 18px; background: var(--color-danger); color: var(--color-text-inverse); border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-
 @media (max-width: 900px) {
   .admin-users-page { padding: 14px; }
 

@@ -219,21 +219,25 @@
         BaseButton(variant="secondary" size="sm" type="button" @click="startEdit(q)") Editar
         BaseButton(variant="danger" size="sm" type="button" @click="confirmDelete(q)") 🗑 Eliminar
 
-  .confirm-overlay(v-if="engine === 'NATIVE' && deleteTarget" @click.self="deleteTarget = null")
-    .confirm-dialog
-      h4 ¿Eliminar pregunta?
-      p Esto quitará <strong>"{{ deleteTarget.text }}"</strong> de la encuesta de forma permanente. Las respuestas ya recibidas se conservan en los resultados.
-      .confirm-actions
-        BaseButton(variant="ghost" size="sm" type="button" @click="deleteTarget = null") Cancelar
-        BaseButton(variant="danger" size="sm" type="button" @click="doDelete") Eliminar
+  BaseModal(
+    v-if="engine === 'NATIVE' && deleteTarget"
+    title="¿Eliminar pregunta?"
+    confirm-label="Eliminar"
+    confirm-variant="danger"
+    @close="deleteTarget = null"
+    @confirm="doDelete"
+  )
+    p Esto quitará <strong>"{{ deleteTarget.text }}"</strong> de la encuesta de forma permanente. Las respuestas ya recibidas se conservan en los resultados.
 
-  .confirm-overlay(v-if="engine === 'NATIVE' && purgeTarget" @click.self="purgeTarget = null")
-    .confirm-dialog
-      h4 ¿Purgar respuestas?
-      p Esto eliminará permanentemente las <strong>{{ purgeTarget.responseCount }} respuestas</strong> recibidas para "{{ purgeTarget.text }}". La pregunta se conserva, solo se borran las respuestas.
-      .confirm-actions
-        BaseButton(variant="ghost" size="sm" type="button" @click="purgeTarget = null") Cancelar
-        BaseButton(variant="danger" size="sm" type="button" @click="doPurge") Purgar
+  BaseModal(
+    v-if="engine === 'NATIVE' && purgeTarget"
+    title="¿Purgar respuestas?"
+    confirm-label="Purgar"
+    confirm-variant="danger"
+    @close="purgeTarget = null"
+    @confirm="doPurge"
+  )
+    p Esto eliminará permanentemente las <strong>{{ purgeTarget.responseCount }} respuestas</strong> recibidas para "{{ purgeTarget.text }}". La pregunta se conserva, solo se borran las respuestas.
 
   .results-card(v-if="engine === 'NATIVE' && results.length" v-show="activeTab === 'results'")
     h3 Resultados
@@ -296,6 +300,7 @@ import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, getSurveyAccessManagement, releaseSurveyAccess, type SurveyEngine, type SurveyAttendee } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
@@ -373,7 +378,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, EmptyState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, BaseModal, EmptyState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -1048,18 +1053,6 @@ input, select, textarea {
 .chip-ordered { background: var(--color-primary-soft); color: var(--color-primary-dark); }
 .chip-ref { background: var(--color-warning-soft); color: var(--color-warning); max-width: 100%; }
 .question-item-actions { margin: 8px 0 0 24px; display: flex; gap: 8px; }
-.confirm-overlay {
-  position: fixed; inset: 0; background: var(--color-overlay);
-  display: flex; align-items: center; justify-content: center; z-index: 100;
-}
-.confirm-dialog {
-  background: var(--color-surface); border-radius: 16px; padding: 28px 32px;
-  max-width: 420px; width: 90%; box-shadow: var(--shadow-overlay);
-}
-.confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
-.confirm-dialog p { color: var(--color-text-muted); font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
-.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
-
 .grading-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .grading-status { font-size: 0.82rem; color: var(--color-success); }
 .grading-panel {

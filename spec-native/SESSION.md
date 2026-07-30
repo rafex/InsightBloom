@@ -4,7 +4,7 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `main`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-29 (controles canónicos en formularios administrativos)
+> **Último checkpoint**: 2026-07-30 (modales canónicos en usuarios y roles)
 
 ## Estado
 
@@ -25,7 +25,7 @@
 | **4.2** | Dashboard/config | 12/12 | Páginas administrativas y de configuración migradas a `BaseButton` y `link-btn-*` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
 | **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
-| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 79 estilos scoped, fija las 80 excepciones hex en 6 superficies y ya no permite redefiniciones legacy de selectores canónicos |
+| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 83 estilos scoped, fija las 80 excepciones hex en 6 superficies y ya no permite redefiniciones legacy de selectores canónicos |
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 | **Gobierno de componentes** | Formularios y acciones administrativas | Completado | Los inputs, selects y textareas de IA, egresos, dispositivos, roles y tipos de evento heredan el baseline global; acciones locales migradas a `BaseButton`, incluida la variante semántica `success` |
 | **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
@@ -35,7 +35,7 @@
 | **Gobierno de componentes** | Estados de carga | En progreso | `LoadingState.vue` unifica la espera de Diagramas, Notas colaborativas, Videollamada y Pizarra con semántica `status` y `aria-live` |
 | **Gobierno de componentes** | Feedback de operaciones | En progreso | `FeedbackMessage.vue` centraliza errores y confirmaciones de Login, Registro, Perfil, acceso a eventos y configuración administrativa con tonos semánticos y roles accesibles |
 | **Gobierno visual** | Checkout y formularios | En progreso | Checkout usa `LoadingState`/`FeedbackMessage`; Perfil y Unirse a un evento heredan el baseline global de inputs y conservan el foco `:focus-visible` |
-| **Gobierno visual** | Shell y overlays | En progreso | Header, menús, modales, confirmaciones y overlays administrativos consumen tokens de superficie, sombra y scrim |
+| **Gobierno visual** | Shell y overlays | En progreso | Header, menús y overlays administrativos consumen tokens de superficie, sombra y scrim; Usuarios y Roles ya usan `BaseModal` con foco, Escape y focus-trap |
 | **Gobierno visual** | Iconografía administrativa | En progreso | `UiIcon.vue` aporta SVGs lineales para métricas del Panel y herramientas del evento; elimina emojis de indicadores operativos sin modificar contenido editorial |
 | **Recorridos por rol** | Moderador event-scoped | En progreso | El panel detecta eventos asignados aunque el rol global sea `ATTENDEE`; se mantienen ocultas acciones de propietario |
 | **UX evento** | QR, herramientas y cabecera | Completado | El QR del listado apunta siempre a `/c/{friendlyId}/ticket`; se retiraron botones internos de QR; se agregó Cronograma y se ordenaron las herramientas; la cabecera inicia compacta y se mantiene así al cambiar de ruta |
@@ -55,7 +55,7 @@ git stash list  # debería mostrar "pre-design-system-migration"
 
 ## Pendiente
 
-La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue. Las tandas del 2026-07-29 añadieron el estado de guardado canónico, el baseline global de tablas, tokens de overlays, detección de asignaciones event-scoped para moderadores e iconografía SVG reutilizable para el Panel y las herramientas del evento.
+La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue. Las tandas del 2026-07-29 y 2026-07-30 añadieron el estado de guardado canónico, el baseline global de tablas, tokens de overlays, detección de asignaciones event-scoped para moderadores, iconografía SVG reutilizable para el Panel y las herramientas del evento, y la migración de confirmaciones de Usuarios/Roles a `BaseModal`.
 
 La migración de colores continúa: el gate mide 80 literales hex locales (baseline histórico
 1,278), todos fijados en excepciones documentadas de mapas, ilustraciones y certificados. Las nuevas

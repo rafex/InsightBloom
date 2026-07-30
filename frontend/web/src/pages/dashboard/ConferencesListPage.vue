@@ -86,13 +86,15 @@
                   | {{ c.status === 'ACTIVE' ? 'Desactivar evento' : 'Activar evento' }}
                 button.menu-item.menu-item-danger(type="button" @click="confirmDelete(c)" :disabled="c._deleting") Eliminar evento
 
-  .confirm-overlay(v-if="deleteTarget" @click.self="deleteTarget = null")
-    .confirm-dialog
-      h4 ¿Eliminar conferencia?
-      p Esto borrará permanentemente <strong>{{ deleteTarget.name }}</strong> y no se puede deshacer.
-       .confirm-actions
-         BaseButton(variant="secondary" @click="deleteTarget = null") Cancelar
-         BaseButton(variant="danger" @click="doDelete") Eliminar
+  BaseModal(
+    v-if="deleteTarget"
+    title="¿Eliminar conferencia?"
+    confirm-label="Eliminar"
+    confirm-variant="danger"
+    @close="deleteTarget = null"
+    @confirm="doDelete"
+  )
+    p Esto borrará permanentemente <strong>{{ deleteTarget.name }}</strong> y no se puede deshacer.
 
   QrCodeModal(v-if="qrTarget" :friendlyId="qrTarget.friendlyId" :url="ticketUrl(qrTarget.friendlyId)" @close="qrTarget = null")
 </template>
@@ -105,6 +107,7 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { isExpired } from '@/utils/dates'
@@ -119,7 +122,7 @@ interface ConferenceRow extends Conference {
 
 export default {
   name: 'ConferencesListPage',
-  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, EmptyState, StatusBadge },
+  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, BaseModal, EmptyState, StatusBadge },
   setup() {
     const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)
@@ -260,18 +263,6 @@ h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
 
 .conf-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .conf-modes { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-
-.confirm-overlay {
-  position: fixed; inset: 0; background: var(--color-overlay);
-  display: flex; align-items: center; justify-content: center; z-index: 100;
-}
-.confirm-dialog {
-  background: var(--color-surface); border-radius: 16px; padding: 28px 32px;
-  max-width: 400px; width: 90%; box-shadow: var(--shadow-overlay);
-}
-.confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
-.confirm-dialog p { color: var(--color-text-muted); font-size: 0.95rem; margin: 0 0 24px; }
-.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 @media (max-width: 768px) {
   .conferences-list-page { padding: 16px 14px; }

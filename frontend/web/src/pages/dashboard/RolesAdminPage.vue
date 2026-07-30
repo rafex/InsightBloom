@@ -62,13 +62,13 @@
     BaseButton(type="button" :disabled="creating" @click="createNew") Crear rol
     FeedbackMessage(v-if="createError" :message="createError" tone="error")
 
-  .confirm-overlay(v-if="pendingRole" @click.self="pendingRole = null")
-    .confirm-dialog
-      h4 {{ pendingRoleActive ? '¿Activar rol?' : '¿Desactivar rol?' }}
-      p {{ pendingRoleActive ? 'El rol volverá a estar disponible para asignarse.' : 'El rol no podrá asignarse mientras esté inactivo.' }}
-      .confirm-actions
-        BaseButton(variant="ghost" @click="pendingRole = null") Cancelar
-        BaseButton(variant="primary" @click="runToggleActive") Confirmar
+  BaseModal(
+    v-if="pendingRole"
+    :title="pendingRoleActive ? '¿Activar rol?' : '¿Desactivar rol?'"
+    @close="pendingRole = null"
+    @confirm="runToggleActive"
+  )
+    p {{ pendingRoleActive ? 'El rol volverá a estar disponible para asignarse.' : 'El rol no podrá asignarse mientras esté inactivo.' }}
 </template>
 
 <script lang="ts">
@@ -79,6 +79,7 @@ import {
 import type { Role, PermissionValue, RoleScopeValue } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
@@ -100,7 +101,7 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export default {
   name: 'RolesAdminPage',
-  components: { BaseButton, StatusBadge, EmptyState, FeedbackMessage },
+  components: { BaseButton, BaseModal, StatusBadge, EmptyState, FeedbackMessage },
   setup() {
     const auth = useAuthStore()
     const roles = ref<Role[]>([])
@@ -225,12 +226,6 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
 .form-row input, .form-row select { flex: 1; font-size: 0.9rem; }
 .new-role-form textarea { width: 100%; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
-.confirm-overlay { position: fixed; inset: 0; background: var(--color-overlay); display: flex; align-items: center; justify-content: center; z-index: 100; }
-.confirm-dialog { background: var(--color-surface); border-radius: 16px; padding: 28px 32px; max-width: 420px; width: 90%; box-shadow: var(--shadow-overlay); }
-.confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }
-.confirm-dialog p { color: var(--color-text-muted); font-size: 0.92rem; margin: 0 0 24px; line-height: 1.5; }
-.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
-
 @media (max-width: 900px) {
   .roles-page { padding: 14px; }
   .roles-table thead { display: none; }
