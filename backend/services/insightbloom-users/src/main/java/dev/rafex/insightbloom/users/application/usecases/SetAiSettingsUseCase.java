@@ -64,6 +64,7 @@ public class SetAiSettingsUseCase {
             case "tutor" -> settings.getTutorAi();
             case "survey" -> settings.getSurveyAi();
             case "seat-layout" -> settings.getSeatLayoutAi();
+            case "email" -> settings.getEmailAi();
             default -> throw new IllegalArgumentException("ai_capability_invalid");
         };
     }

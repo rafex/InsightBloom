@@ -11,7 +11,9 @@ import {
   downloadEventMaterials,
   getEventDiagram,
   saveEventDiagram,
-  streamEventDiagram
+  streamEventDiagram,
+  sendAttendeeEmail,
+  generateEmailDraft
 } from '../usersApi'
 
 vi.mock('axios')
@@ -181,6 +183,54 @@ describe('usersApi', () => {
       expect(axios.get).toHaveBeenCalledWith(
         '/api/users/api/v1/conferences/c1/materials.zip',
         { headers: { Authorization: 'Bearer tok' }, responseType: 'blob' }
+      )
+    })
+  })
+
+  describe('sendAttendeeEmail', () => {
+    it('sends email to conference attendees with subject and message', async () => {
+      axios.post.mockResolvedValue({ data: { data: { sent: 3, skipped: 0 } } })
+      const result = await sendAttendeeEmail('c1', { subject: 'Test', message: 'Hello' }, 'tok')
+      expect(result).toEqual({ sent: 3, skipped: 0 })
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/attendees/email',
+        { subject: 'Test', message: 'Hello' },
+        { headers: { Authorization: 'Bearer tok' } }
+      )
+    })
+
+    it('includes format field in the payload when provided', async () => {
+      axios.post.mockResolvedValue({ data: { data: { sent: 1, skipped: 0 } } })
+      await sendAttendeeEmail('c1', { subject: 'Test', message: '<p>Hi</p>', format: 'html' }, 'tok')
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/attendees/email',
+        { subject: 'Test', message: '<p>Hi</p>', format: 'html' },
+        { headers: { Authorization: 'Bearer tok' } }
+      )
+    })
+
+    it('includes recipientUuids when targeting specific attendee', async () => {
+      axios.post.mockResolvedValue({ data: { data: { sent: 1, skipped: 0 } } })
+      await sendAttendeeEmail('c1', {
+        subject: 'Test', message: 'Personal', recipientUuids: ['user-b']
+      }, 'tok')
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/attendees/email',
+        { subject: 'Test', message: 'Personal', recipientUuids: ['user-b'] },
+        { headers: { Authorization: 'Bearer tok' } }
+      )
+    })
+  })
+
+  describe('generateEmailDraft', () => {
+    it('calls the draft endpoint with the prompt', async () => {
+      axios.post.mockResolvedValue({ data: { data: { draft: 'Hola a todos' } } })
+      const result = await generateEmailDraft('c1', 'Recordar evento', 'tok')
+      expect(result).toEqual({ draft: 'Hola a todos' })
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/email/draft',
+        { prompt: 'Recordar evento' },
+        { headers: { Authorization: 'Bearer tok' } }
       )
     })
   })
