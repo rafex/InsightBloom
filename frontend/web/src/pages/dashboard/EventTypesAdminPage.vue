@@ -2,7 +2,9 @@
 .event-types-page
   h2 Tipos de evento
 
-  EmptyState(v-if="!loading && eventTypes.length === 0" message="No hay tipos de evento creados.")
+  LoadingState(v-if="loading" message="Cargando tipos de evento…")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
+  EmptyState(v-else-if="eventTypes.length === 0" message="No hay tipos de evento creados.")
 
   .table-scroll(v-else)
     table.types-table
@@ -30,7 +32,7 @@
             .capabilities-list(v-else)
               span.capability-chip(v-for="c in t.capabilities" :key="c") {{ capabilityLabel(c) }}
           td(data-label="Estado")
-            span.status-badge(:class="{ active: t.active }") {{ t.active ? 'Activo' : 'Inactivo' }}
+            StatusBadge(:status="t.active ? 'ACTIVE' : 'INACTIVE'" :label="t.active ? 'Activo' : 'Inactivo'")
           td.actions(data-label="Acciones")
             template(v-if="editing === t.uuid")
               textarea(v-model="editForm.description" placeholder="Descripción")
@@ -66,6 +68,8 @@ import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const CAPABILITY_LABELS: Record<string, string> = {
   TICKETING_GENERAL: 'Boletos (aforo)',
@@ -83,12 +87,13 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 export default {
   name: 'EventTypesAdminPage',
-  components: { BaseButton, EmptyState, FeedbackMessage },
+  components: { BaseButton, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
   setup() {
     const auth = useAuthStore()
     const eventTypes = ref<EventType[]>([])
     const allCapabilities = ref<EventCapability[]>([])
     const loading = ref(true)
+    const error = ref('')
     const editing = ref<string | null>(null)
     const editForm = ref<{ name: string, description: string, capabilities: EventCapability[] }>(
       { name: '', description: '', capabilities: [] })
@@ -104,6 +109,7 @@ export default {
 
     async function load() {
       loading.value = true
+      error.value = ''
       try {
         const [types, capabilities] = await Promise.all([
           getAllEventTypes(auth.state.token as string),
@@ -111,6 +117,8 @@ export default {
         ])
         eventTypes.value = types
         allCapabilities.value = capabilities
+      } catch (e: any) {
+        error.value = 'No fue posible cargar los tipos de evento. Inténtalo nuevamente.'
       } finally {
         loading.value = false
       }
@@ -123,20 +131,28 @@ export default {
 
     async function saveEdit(t: EventType) {
       saving.value = true
+      error.value = ''
       try {
         const updated = await updateEventType(
           t.uuid, editForm.value.name, editForm.value.description || null,
           editForm.value.capabilities, auth.state.token as string)
         Object.assign(t, updated)
         editing.value = null
+      } catch (e: any) {
+        error.value = 'No fue posible guardar el tipo de evento. Inténtalo nuevamente.'
       } finally {
         saving.value = false
       }
     }
 
     async function toggleActive(t: EventType, active: boolean) {
-      const updated = await setEventTypeActive(t.uuid, active, auth.state.token as string)
-      Object.assign(t, updated)
+      try {
+        error.value = ''
+        const updated = await setEventTypeActive(t.uuid, active, auth.state.token as string)
+        Object.assign(t, updated)
+      } catch (e: any) {
+        error.value = 'No fue posible actualizar el estado del tipo de evento. Inténtalo nuevamente.'
+      }
     }
 
     async function createNew() {
@@ -158,7 +174,7 @@ export default {
     onMounted(load)
 
     return {
-      eventTypes, allCapabilities, loading, editing, editForm, saving, newType, creating, createError,
+      eventTypes, allCapabilities, loading, error, editing, editForm, saving, newType, creating, createError,
       capabilityLabel, startEdit, saveEdit, toggleActive, createNew
     }
   }
@@ -180,9 +196,6 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .capabilities-editor { display: flex; flex-direction: column; gap: 4px; }
 .capabilities-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
 .capabilities-editor input { width: auto; margin: 0; }
-
-.status-badge { font-size: 0.78rem; font-weight: 600; padding: 2px 10px; border-radius: 10px; background: var(--color-surface-muted); color: var(--color-text-muted); }
-.status-badge.active { background: var(--color-success-soft); color: var(--color-success); }
 
 .actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
 .actions textarea { font-size: 0.82rem; min-height: 50px; }

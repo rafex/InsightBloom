@@ -2,7 +2,9 @@
 .roles-page
   h2 Roles
 
-  EmptyState(v-if="!loading && roles.length === 0" message="No hay roles creados.")
+  LoadingState(v-if="loading" message="Cargando roles…")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
+  EmptyState(v-else-if="roles.length === 0" message="No hay roles creados.")
 
   .table-scroll(v-else)
     table.roles-table
@@ -83,6 +85,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 const PERMISSION_LABELS: Record<string, string> = {
   MANAGE_USERS: 'Gestionar usuarios',
@@ -101,12 +104,13 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export default {
   name: 'RolesAdminPage',
-  components: { BaseButton, BaseModal, StatusBadge, EmptyState, FeedbackMessage },
+  components: { BaseButton, BaseModal, StatusBadge, EmptyState, FeedbackMessage, LoadingState },
   setup() {
     const auth = useAuthStore()
     const roles = ref<Role[]>([])
     const allPermissions = ref<PermissionValue[]>([])
     const loading = ref(true)
+    const error = ref('')
     const editing = ref<string | null>(null)
     const editForm = ref<{ name: string, description: string, permissions: PermissionValue[] }>(
       { name: '', description: '', permissions: [] })
@@ -124,6 +128,7 @@ export default {
 
     async function load() {
       loading.value = true
+      error.value = ''
       try {
         const [roleList, permissions] = await Promise.all([
           getAllRoles(auth.state.token as string),
@@ -131,6 +136,8 @@ export default {
         ])
         roles.value = roleList
         allPermissions.value = permissions
+      } catch (e: any) {
+        error.value = 'No fue posible cargar los roles. Inténtalo nuevamente.'
       } finally {
         loading.value = false
       }
@@ -143,20 +150,28 @@ export default {
 
     async function saveEdit(r: Role) {
       saving.value = true
+      error.value = ''
       try {
         const updated = await updateRole(
           r.uuid, editForm.value.name, editForm.value.description || null,
           editForm.value.permissions, auth.state.token as string)
         Object.assign(r, updated)
         editing.value = null
+      } catch (e: any) {
+        error.value = 'No fue posible guardar el rol. Inténtalo nuevamente.'
       } finally {
         saving.value = false
       }
     }
 
     async function toggleActive(r: Role, active: boolean) {
-      const updated = await setRoleActive(r.uuid, active, auth.state.token as string)
-      Object.assign(r, updated)
+      try {
+        error.value = ''
+        const updated = await setRoleActive(r.uuid, active, auth.state.token as string)
+        Object.assign(r, updated)
+      } catch (e: any) {
+        error.value = 'No fue posible actualizar el estado del rol. Inténtalo nuevamente.'
+      }
     }
 
     function confirmToggleActive(r: Role, active: boolean) {
@@ -190,7 +205,7 @@ export default {
     onMounted(load)
 
     return {
-      roles, allPermissions, loading, editing, editForm, saving, newRole, creating, createError,
+      roles, allPermissions, loading, error, editing, editForm, saving, newRole, creating, createError,
       pendingRole, pendingRoleActive,
       permissionLabel, startEdit, saveEdit, toggleActive, confirmToggleActive, runToggleActive, createNew
     }
