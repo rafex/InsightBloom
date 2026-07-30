@@ -1,11 +1,9 @@
 <template lang="pug">
 .conference-page
   AppHeader(v-if="!headerCollapsed")
-  .conf-loading(v-if="loading") Cargando conferencia...
-  .conf-error(v-else-if="error") {{ error }}
-  .conf-closed(v-else-if="eventClosed")
-    h2 Evento desactivado
-    p Este evento está desactivado temporalmente. El organizador puede reactivarlo desde el dashboard.
+  LoadingState(v-if="loading" message="Cargando conferencia…")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
+  EmptyState(v-else-if="eventClosed" message="Este evento está desactivado temporalmente. El organizador puede reactivarlo desde el panel.")
   template(v-else-if="conference")
     //- Fullscreen intro map (only when conference has coordinates)
     ConferenceIntroMap(
@@ -87,7 +85,7 @@
       .private-access-block(v-if="!privateAccess && !isTicketRoute && !isPublicRoute")
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
-        router-link.btn-ticket(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
+        BaseLink(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
       router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator" :event-name="conference.name" :event-description="conference.description" :flyer-base64="conference.flyerBase64" :schedule-markdown="conference.scheduleMarkdown")
 
     OnboardingTour(storage-key="ib_onboarding_conference_v2" :steps="attendeeTourSteps")
@@ -98,6 +96,10 @@
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
@@ -123,7 +125,7 @@ const ATTENDEE_TOUR_STEPS = [
 
 export default {
   name: 'ConferencePage',
-  components: { AppHeader, ConferenceIntroMap, OnboardingTour, UiIcon },
+  components: { AppHeader, BaseLink, ConferenceIntroMap, EmptyState, FeedbackMessage, LoadingState, OnboardingTour, UiIcon },
   setup() {
     const route      = useRoute()
     const friendlyId = route.params.friendlyId as string
@@ -475,8 +477,6 @@ h1 { margin: 0; color: var(--color-heading); }
   background: var(--color-surface-muted);
   border-color: var(--color-border-subtle);
 }
-.conf-loading, .conf-error, .conf-closed { padding: 40px; text-align: center; color: var(--color-text-muted); }
-.conf-closed h2 { color: var(--color-heading); margin-bottom: 8px; }
 
 .anon-banner {
   margin: 16px 24px 0;
