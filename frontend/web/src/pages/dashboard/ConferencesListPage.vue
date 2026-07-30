@@ -5,15 +5,15 @@
   .list-header
     h1 Eventos
     .header-actions
-      router-link.link-btn.link-btn-secondary(v-if="isAdmin" to="/dashboard/admin/event-types") Tipos de evento
-      router-link.link-btn.link-btn-primary(v-if="isOrganizer" to="/dashboard/conferences/new") + Nuevo evento
+      BaseLink(v-if="isAdmin" variant="secondary" to="/dashboard/admin/event-types") Tipos de evento
+      BaseLink(v-if="isOrganizer" to="/dashboard/conferences/new") + Nuevo evento
 
   .section(v-if="loading")
-    .loading-text Cargando eventos...
+    LoadingState(message="Cargando eventos…")
 
   .section(v-else-if="conferences.length === 0")
     EmptyState(:message="isOrganizer ? 'Aún no tienes eventos.' : 'No tienes eventos asignados.'")
-      router-link.link-btn.link-btn-primary(v-if="isOrganizer" to="/dashboard/conferences/new") Crear el primero
+      BaseLink(v-if="isOrganizer" to="/dashboard/conferences/new") Crear el primero
 
   .table-scroll(v-else)
     table.conferences-table
@@ -70,8 +70,8 @@
                 router-link(v-if="isOrganizer && (hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE'))" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/device-blocks`") Bloqueos
           td.actions-cell(data-label="Acciones")
             .conf-actions
-              router-link.link-btn.link-btn-primary.link-btn-sm(v-if="isOrganizer" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Abrir evento
-              router-link.link-btn.link-btn-primary.link-btn-sm(v-else :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/tools`") Abrir moderación
+              BaseLink(v-if="isOrganizer" size="sm" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Abrir evento
+              BaseLink(v-else size="sm" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/tools`") Abrir moderación
               DropdownMenu(v-if="isOrganizer" label="Gestionar")
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editar información
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Configuración
@@ -107,8 +107,10 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { isExpired } from '@/utils/dates'
 import { eventTypeHasCapability } from '@/features/conferences/capabilities'
@@ -122,7 +124,7 @@ interface ConferenceRow extends Conference {
 
 export default {
   name: 'ConferencesListPage',
-  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, BaseModal, EmptyState, StatusBadge },
+  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, BaseLink, BaseModal, EmptyState, LoadingState, StatusBadge },
   setup() {
     const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)

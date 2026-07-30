@@ -55,25 +55,25 @@
       p.jaas-bandwidth-note 📡 Límite de referencia: {{ jaasUsage.bandwidthLimitGb }} GB de ancho de banda al mes. El consumo exacto de bytes debe confirmarse en la actividad de 8x8 porque JaaS no lo expone en este endpoint.
 
   .section(v-if="loading")
-    .loading-text Cargando conferencias...
+    LoadingState(message="Cargando eventos…")
 
   .section(v-else-if="conferences.length === 0")
     EmptyState(message="Aún no tienes conferencias.")
-      router-link.link-btn.link-btn-primary(to="/dashboard/conferences/new") Crear la primera
+      BaseLink(to="/dashboard/conferences/new") Crear la primera
 
   OnboardingTour(storage-key="ib_onboarding_dashboard" :steps="organizerTourSteps")
 
 .dashboard-home(v-else)
   .dashboard-header
     h1 Mis eventos
-    router-link.link-btn.link-btn-primary(to="/dashboard/join") + Unirse a un evento
+    BaseLink(to="/dashboard/join") + Unirse a un evento
 
   .section(v-if="loadingHistory")
-    .loading-text Cargando historial...
+    LoadingState(message="Cargando historial…")
 
   .section(v-else-if="history.length === 0")
     EmptyState(message="Aún no te has unido a ningún evento.")
-      router-link.link-btn.link-btn-primary(to="/dashboard/join") Unirme a un evento
+      BaseLink(to="/dashboard/join") Unirme a un evento
 
   .section(v-else)
     .conference-grid
@@ -84,8 +84,8 @@
         h3.conf-name {{ h.name || '(sin nombre)' }}
         p.joined-at Te uniste {{ formatDate(h.joinedAt) }}
         .conf-actions(v-if="h.available")
-          router-link.link-btn.link-btn-secondary(:to="`/c/${h.friendlyId}/doubts`") Entrar
-          router-link.link-btn.link-btn-secondary(v-if="h.seatingMode && h.seatingMode !== 'NONE'" :to="`/c/${h.friendlyId}/ticket`")
+          BaseLink(variant="secondary" :to="`/c/${h.friendlyId}/doubts`") Entrar
+          BaseLink(variant="secondary" v-if="h.seatingMode && h.seatingMode !== 'NONE'" :to="`/c/${h.friendlyId}/ticket`")
             UiIcon(name="ticket" size="16" aria-hidden="true")
             | Mi boleto
         p.unavailable-note(v-else) Este evento ya no se encuentra disponible.
@@ -99,7 +99,9 @@ import { isExpired } from '@/utils/dates'
 import { useAuthStore } from '@/features/auth/authStore'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const ORGANIZER_TOUR_STEPS = [
@@ -109,7 +111,7 @@ const ORGANIZER_TOUR_STEPS = [
 
 export default {
   name: 'DashboardHome',
-  components: { OnboardingTour, UiIcon, EmptyState, StatusBadge },
+  components: { OnboardingTour, UiIcon, BaseLink, EmptyState, LoadingState, StatusBadge },
   setup() {
     const conferences = ref<Conference[]>([])
     const loading     = ref(true)
