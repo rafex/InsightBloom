@@ -8,10 +8,8 @@
     .notes-toolbar
       span(v-if="isIndividual") Notas individuales: se purgan después de vencer el evento y puedes exportarlas.
       span(v-else) Notas grupales: las notas se compartirán con los asistentes y quedarán en el ZIP de materiales.
-      button.btn-outline(v-if="isIndividual" type="button" @click="downloadNotes" :disabled="downloading")
-        span(v-if="downloading") Preparando...
-        span(v-else) Descargar TXT
-      span.error(v-if="exportError") {{ exportError }}
+      BaseButton(v-if="isIndividual" variant="secondary" size="sm" type="button" :loading="downloading" @click="downloadNotes") Descargar TXT
+      FeedbackMessage(v-if="exportError" :message="exportError" tone="error")
     iframe.etherpad-frame(:src="padUrl" title="Notas" @load="stripSessionToken")
 </template>
 
@@ -19,11 +17,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { getIntegrationConfig, getEventNotes, exportEventNotes } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 
 export default {
   name: 'CollabNotesPage',
-  components: { LoadingState },
+  components: { BaseButton, FeedbackMessage, LoadingState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -92,7 +92,6 @@ export default {
 <style scoped>
 .collab-notes-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; }
 .notes-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; color: var(--color-text-secondary); font-size: .85rem; background: var(--color-surface-muted); border-bottom: 1px solid var(--color-border-subtle); }
-.notes-toolbar .error { color: var(--color-danger-dark); }
 .etherpad-frame { flex: 1; border: none; width: 100%; }
 .unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
 .unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }

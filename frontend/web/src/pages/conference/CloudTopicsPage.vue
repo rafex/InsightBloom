@@ -7,23 +7,21 @@
   .submit-box(v-if="canSubmit")
     input.submit-input(v-model="word" type="text" placeholder="Escribe el tema en una palabra o frase corta" maxlength="80" @keyup.enter="submit")
     input.submit-input(v-model="detail" type="text" placeholder="Detalle (opcional)" maxlength="240" @keyup.enter="submit")
-    button.btn-submit(type="button" :disabled="!word.trim() || sending" @click="submit")
-      span(v-if="sending") Enviando...
-      span(v-else) Enviar
+    BaseButton(type="button" :disabled="!word.trim()" :loading="sending" @click="submit") Enviar
   .submit-anon(v-else)
     span ⚠️ #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Inicia sesión] para enviar tu tema directamente aquí.
-  p.submit-feedback(v-if="feedback" :class="feedbackClass") {{ feedback }}
+  FeedbackMessage(v-if="feedback" :message="feedback" :tone="feedbackTone")
 
-  .cloud-empty(v-if="!loading && !words.length") No hay temas aún. Sé el primero en enviar uno.
+  LoadingState(v-if="loading" message="Cargando temas…")
+  EmptyState(v-else-if="!words.length" message="No hay temas aún. Sé el primero en enviar uno.")
   WordCloud(
-    v-if="words.length"
+    v-else
     :words="words"
     :width="cloudWidth"
     :height="500"
     color="var(--color-info)"
     @word-click="onWordClick"
   )
-  .cloud-loading(v-if="loading") Cargando temas...
 </template>
 
 <script lang="ts">
@@ -33,9 +31,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { streamTopicCloud, type CloudWord } from '@/services/api/queryApi'
 import { sendMessage } from '@/services/api/ingestApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 export default {
   name: 'CloudTopicsPage',
-  components: { WordCloud },
+  components: { BaseButton, EmptyState, FeedbackMessage, LoadingState, WordCloud },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const words = ref<CloudWord[]>([])
@@ -50,7 +52,7 @@ export default {
     const detail = ref('')
     const sending = ref(false)
     const feedback = ref('')
-    const feedbackClass = ref('')
+    const feedbackTone = ref<'success' | 'error'>('success')
     let eventSource: EventSource | null = null
     function upsertWord(updated: CloudWord) {
       const i = words.value.findIndex((w) => w.wordNormalized === updated.wordNormalized)
@@ -87,10 +89,10 @@ export default {
         })
         word.value = ''; detail.value = ''
         feedback.value = 'Tema enviado.'
-        feedbackClass.value = 'ok'
+        feedbackTone.value = 'success'
       } catch (e: any) {
         feedback.value = 'No se pudo enviar. Intenta de nuevo.'
-        feedbackClass.value = 'error'
+        feedbackTone.value = 'error'
       } finally {
         sending.value = false
       }
@@ -103,7 +105,7 @@ export default {
     onUnmounted(() => { if (eventSource) eventSource.close(); window.removeEventListener('resize', resize) })
     return {
       words, loading, cloudWidth, onWordClick, canSubmit, word, detail, sending,
-      feedback, feedbackClass, submit
+      feedback, feedbackTone, submit
     }
   }
 }
@@ -114,8 +116,6 @@ export default {
 .cloud-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
 h2 { margin: 0; color: var(--color-heading); }
 .count { color: var(--color-text-muted); font-size: 0.9rem; }
-.cloud-empty { text-align: center; color: var(--color-text-muted); padding: 60px; font-size: 1.1rem; }
-.cloud-loading { text-align: center; color: var(--color-text-muted); padding: 40px; }
 
 .submit-box { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .submit-input {
@@ -123,20 +123,11 @@ h2 { margin: 0; color: var(--color-heading); }
   border-radius: 8px; font-size: 0.95rem;
 }
 .submit-input:focus { outline: none; border-color: var(--color-info); }
-.btn-submit {
-  padding: 10px 22px; background: var(--color-info); color: var(--color-text-inverse); border: none; border-radius: 8px;
-  font-weight: 600; cursor: pointer; font-size: 0.95rem;
-}
-.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 .submit-anon {
   margin-bottom: 12px; padding: 10px 16px; background: var(--color-warning-soft); color: var(--color-warning);
   border: 1px solid var(--color-warning); border-radius: 8px; font-size: 0.85rem;
 }
 .submit-anon :deep(a) { color: var(--color-info); font-weight: 600; text-decoration: none; }
-.submit-feedback { margin: 0 0 12px; font-size: 0.85rem; }
-.submit-feedback.ok { color: var(--color-success); }
-.submit-feedback.error { color: var(--color-danger); }
-
 @media (max-width: 640px) {
   .cloud-page { padding: 14px; }
   .submit-box { flex-direction: column; }
