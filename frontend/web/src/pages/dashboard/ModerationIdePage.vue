@@ -8,16 +8,15 @@
 
   .toolbar
     BaseButton(variant="secondary" size="sm" type="button" @click="load" :disabled="loading" :loading="loading")
-      span(v-if="loading") Cargando...
-      span(v-else) Actualizar
+      | Actualizar
     BaseButton(variant="secondary" size="sm" type="button" @click="prewarm" :disabled="prewarming" :loading="prewarming")
-      span(v-if="prewarming") Preparando...
-      span(v-else) Preparar sandboxes antes del evento
+      | Preparar sandboxes antes del evento
 
-  p.success(v-if="prewarmSummary") {{ prewarmSummary }}
+  FeedbackMessage(v-if="prewarmSummary" :message="prewarmSummary" tone="success")
 
-  p.error(v-if="error") {{ error }}
-  EmptyState(v-else-if="!loading && pods.length === 0" message="No hay sandboxes activos en este momento.")
+  LoadingState(v-if="loading" message="Cargando estado de los sandboxes...")
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
+  EmptyState(v-else-if="pods.length === 0" message="No hay sandboxes activos en este momento.")
 
   .pods-list(v-else)
     .pod-card(v-for="pod in pods" :key="pod.podName")
@@ -48,11 +47,13 @@ import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import type { SandboxStatusEntry } from '@/services/api/types'
 
 export default {
   name: 'ModerationIdePage',
-  components: { WorkspaceFileEditor, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState },
+  components: { WorkspaceFileEditor, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, FeedbackMessage, LoadingState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -122,8 +123,6 @@ export default {
 h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
 .field-hint { font-size: 0.85rem; margin: 0 0 16px; }
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-.error { color: var(--color-danger); font-size: 0.9rem; }
-.success { color: var(--color-success); font-size: 0.9rem; }
 .pods-list { display: flex; flex-direction: column; gap: 14px; }
 .pod-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 16px; }
 .pod-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
