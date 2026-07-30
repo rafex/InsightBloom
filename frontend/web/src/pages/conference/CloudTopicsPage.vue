@@ -5,8 +5,8 @@
     span.count(v-if="words.length") {{ words.length }} palabras
 
   .submit-box(v-if="canSubmit")
-    input.submit-input(v-model="word" type="text" placeholder="Escribe el tema en una palabra o frase corta" maxlength="80" @keyup.enter="submit")
-    input.submit-input(v-model="detail" type="text" placeholder="Detalle (opcional)" maxlength="240" @keyup.enter="submit")
+    input.submit-input(v-model="word" type="text" aria-label="Tema" placeholder="Escribe el tema en una palabra o frase corta" maxlength="80" @keyup.enter="submit")
+    input.submit-input(v-model="detail" type="text" aria-label="Detalle del tema" placeholder="Detalle (opcional)" maxlength="240" @keyup.enter="submit")
     BaseButton(type="button" :disabled="!word.trim()" :loading="sending" @click="submit") Enviar
   .submit-anon(v-else)
     span ⚠️ #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Inicia sesión] para enviar tu tema directamente aquí.
