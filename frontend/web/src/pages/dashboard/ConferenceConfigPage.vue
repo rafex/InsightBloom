@@ -17,7 +17,7 @@
     button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="selectTab('network')") Red
 
   .loading-text(v-if="loading") Cargando conferencia...
-  .error(v-else-if="error") {{ error }}
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
   .form(v-else @input.capture="markFormDirty" @change.capture="markFormDirty")
     .form-group.general-group(v-if="eventTypes.length" v-show="activeTab === 'general'")
       label Tipo de evento
@@ -27,8 +27,8 @@
       BaseButton(variant="secondary" type="button" @click="saveEventType" :disabled="savingEventType")
         span(v-if="savingEventType") Guardando...
         span(v-else) Guardar tipo de evento
-      p.success(v-if="eventTypeSaved") Tipo de evento actualizado.
-      p.error(v-if="eventTypeError") {{ eventTypeError }}
+      FeedbackMessage(v-if="eventTypeSaved" message="Tipo de evento actualizado." tone="success")
+      FeedbackMessage(v-if="eventTypeError" :message="eventTypeError" tone="error")
 
     .form-group.certificate-engine-group(v-show="activeTab === 'tools'")
       label Motor de certificado
@@ -39,8 +39,8 @@
       BaseButton(variant="secondary" type="button" @click="saveCertificateEngine" :disabled="savingCertificateEngine")
         span(v-if="savingCertificateEngine") Guardando...
         span(v-else) Guardar motor de certificado
-      p.success(v-if="certificateEngineSaved") Motor de certificado actualizado.
-      p.error(v-if="certificateEngineError") {{ certificateEngineError }}
+      FeedbackMessage(v-if="certificateEngineSaved" message="Motor de certificado actualizado." tone="success")
+      FeedbackMessage(v-if="certificateEngineError" :message="certificateEngineError" tone="error")
 
     .form-group.canvas-group(v-show="activeTab === 'tools'")
       label Lienzo del evento
@@ -57,8 +57,8 @@
       BaseButton(variant="secondary" type="button" @click="saveCanvasConfig" :disabled="savingCanvasConfig")
         span(v-if="savingCanvasConfig") Guardando...
         span(v-else) Guardar configuración del lienzo
-      p.success(v-if="canvasConfigSaved") Configuración del lienzo guardada.
-      p.error(v-if="canvasConfigError") {{ canvasConfigError }}
+      FeedbackMessage(v-if="canvasConfigSaved" message="Configuración del lienzo guardada." tone="success")
+      FeedbackMessage(v-if="canvasConfigError" :message="canvasConfigError" tone="error")
 
     .form-group.tickets-group(v-show="activeTab === 'access'")
       label Boletos y aforo
@@ -75,15 +75,15 @@
       BaseButton(variant="secondary" type="button" @click="saveSeating" :disabled="savingSeating")
         span(v-if="savingSeating") Guardando...
         span(v-else) Guardar configuración de boletos
-      p.success(v-if="seatingSaved") Configuración de boletos guardada.
-      p.error(v-if="seatingError") {{ seatingError }}
+      FeedbackMessage(v-if="seatingSaved" message="Configuración de boletos guardada." tone="success")
+      FeedbackMessage(v-if="seatingError" :message="seatingError" tone="error")
       ToggleSwitch(v-model="ticketSalesEnabled") Permitir adquisición de boletos desde la cartelera pública
       p.field-hint El evento puede seguir activo aunque cierres la emisión de boletos. Los boletos ya emitidos conservan su acceso.
       BaseButton(variant="secondary" type="button" @click="saveTicketSales" :disabled="savingTicketSales")
         span(v-if="savingTicketSales") Guardando...
         span(v-else) Guardar disponibilidad de boletos
-      p.success(v-if="ticketSalesSaved") Disponibilidad de boletos actualizada.
-      p.error(v-if="ticketSalesError") {{ ticketSalesError }}
+      FeedbackMessage(v-if="ticketSalesSaved" message="Disponibilidad de boletos actualizada." tone="success")
+      FeedbackMessage(v-if="ticketSalesError" :message="ticketSalesError" tone="error")
       .ticket-links(v-if="seatingMode !== 'NONE' || eventTypes.find(t => t.key === eventTypeKey)?.capabilities.some(c => c.startsWith('TICKETING_'))")
         BaseLink(variant="secondary" :to="`/dashboard/conferences/${conferenceId}/tickets`") Administrar boletos
         BaseLink(variant="secondary" :to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
@@ -113,8 +113,8 @@
       BaseButton(variant="secondary" type="button" @click="saveSandboxConfig" :disabled="savingSandboxConfig")
         span(v-if="savingSandboxConfig") Guardando...
         span(v-else) Guardar configuración del IDE
-      p.success(v-if="sandboxConfigSaved") Configuración del IDE guardada.
-      p.error(v-if="sandboxConfigError") {{ sandboxConfigError }}
+      FeedbackMessage(v-if="sandboxConfigSaved" message="Configuración del IDE guardada." tone="success")
+      FeedbackMessage(v-if="sandboxConfigError" :message="sandboxConfigError" tone="error")
       ToggleSwitch(v-model="sandboxInternetEnabled" :disabled="savingSandboxInternet" @update:modelValue="saveSandboxInternet") Permitir acceso a internet desde los sandboxes
       p.field-hint Por defecto los sandboxes no tienen salida de red. Al activarlo, solo pueden salir mediante la proxy interna hacia los hosts de la lista blanca definida por la plataforma; la lista negra siempre tiene prioridad.
 
@@ -204,8 +204,8 @@
       BaseButton(variant="secondary" type="button" @click="saveDeviceAccessConfig" :disabled="savingDeviceAccessConfig")
         span(v-if="savingDeviceAccessConfig") Guardando...
         span(v-else) Guardar acceso por dispositivo
-      p.success(v-if="deviceAccessConfigSaved") Configuración de acceso por dispositivo guardada.
-      p.error(v-if="deviceAccessConfigError") {{ deviceAccessConfigError }}
+      FeedbackMessage(v-if="deviceAccessConfigSaved" message="Configuración de acceso por dispositivo guardada." tone="success")
+      FeedbackMessage(v-if="deviceAccessConfigError" :message="deviceAccessConfigError" tone="error")
 
     .form-group.roles-group(v-if="canManageRoles" v-show="activeTab === 'roles'")
       label Roles del evento
@@ -220,8 +220,8 @@
         select(v-model="assignRoleKey")
           option(v-for="role in assignableRoles" :key="role.key" :value="role.key") {{ role.name }}
         BaseButton(variant="secondary" size="sm" type="button" @click="assignRole" :disabled="assigning") Asignar
-      p.success(v-if="roleAssigned") Rol asignado.
-      p.error(v-if="roleError") {{ roleError }}
+      FeedbackMessage(v-if="roleAssigned" message="Rol asignado." tone="success")
+      FeedbackMessage(v-if="roleError" :message="roleError" tone="error")
 
     .form-group.mentor-group(v-show="activeTab === 'ai'")
       label Tutor IA del evento
@@ -243,8 +243,8 @@
       BaseButton(variant="secondary" type="button" @click="saveMentor" :disabled="savingMentor")
         span(v-if="savingMentor") Guardando...
         span(v-else) Guardar configuración pedagógica del evento
-      p.success(v-if="mentorSaved") Configuración del tutor IA guardada.
-      p.error(v-if="mentorError") {{ mentorError }}
+      FeedbackMessage(v-if="mentorSaved" message="Configuración del tutor IA guardada." tone="success")
+      FeedbackMessage(v-if="mentorError" :message="mentorError" tone="error")
 
     .form-group.survey-ai-group(v-show="activeTab === 'ai'")
       label Encuesta IA del evento
@@ -255,8 +255,8 @@
       BaseButton(variant="secondary" type="button" @click="saveSurveyAiConfig" :disabled="savingSurveyAiConfig")
         span(v-if="savingSurveyAiConfig") Guardando...
         span(v-else) Guardar contexto de Encuesta IA
-      p.success(v-if="surveyAiConfigSaved") Contexto de Encuesta IA guardado.
-      p.error(v-if="surveyAiConfigError") {{ surveyAiConfigError }}
+      FeedbackMessage(v-if="surveyAiConfigSaved" message="Contexto de Encuesta IA guardado." tone="success")
+      FeedbackMessage(v-if="surveyAiConfigError" :message="surveyAiConfigError" tone="error")
 
     .form-group.egress-policy-group(v-show="activeTab === 'network'")
       label Control de red del evento
@@ -272,8 +272,8 @@
       BaseButton(variant="secondary" type="button" @click="saveEgressPolicy" :disabled="savingEgressPolicy")
         span(v-if="savingEgressPolicy") Guardando...
         span(v-else) Guardar control de red
-      p.success(v-if="egressPolicySaved") Control de red del evento guardado.
-      p.error(v-if="egressPolicyError") {{ egressPolicyError }}
+      FeedbackMessage(v-if="egressPolicySaved" message="Control de red del evento guardado." tone="success")
+      FeedbackMessage(v-if="egressPolicyError" :message="egressPolicyError" tone="error")
 
   //- Confirmación de acciones destructivas sobre sandboxes (reemplaza window.confirm: la accion
   //- mas destructiva de la pagina merece un dialogo con consecuencias explicitas y accesible).
@@ -316,12 +316,13 @@ import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import SaveState from '@/components/ui/SaveState.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, ToggleSwitch, SaveState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, FeedbackMessage, ToggleSwitch, SaveState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
