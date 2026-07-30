@@ -21,9 +21,7 @@
       title="Actualizar diagrama publicado"
       @click="refreshPublishedDiagram"
     ) ↻
-  .unavailable(v-else-if="!drawioUrl")
-    p ⚠️ La pizarra de diagramas no está disponible en este momento.
-    p.hint Intenta más tarde o contacta al organizador.
+  NoticeState(v-else-if="!drawioUrl" title="Diagramas no disponibles" message="Intenta más tarde o contacta al organizador." tone="warning")
   template(v-else)
     .save-banner(v-if="!canPersist" class="save-banner-info") ℹ️ Tu edición es local y no se conservará; solo el material del moderador se persiste.
     .save-banner(v-if="saveError" class="save-banner-error") ⚠️ No se pudo publicar el diagrama: {{ saveError }}
@@ -37,12 +35,13 @@ import { getIntegrationConfig, getEventDiagram, saveEventDiagram, streamEventDia
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import NoticeState from '@/components/ui/NoticeState.vue'
 
 const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'DiagrammingPage',
-  components: { BaseButton, LoadingState },
+  components: { BaseButton, LoadingState, NoticeState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -279,6 +278,4 @@ export default {
 .refresh-floating:hover { background: var(--color-primary-dark); }
 .refresh-floating:disabled { opacity: 0.65; cursor: wait; }
 .refresh-floating.has-update { background: var(--color-success); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.18), 0 6px 18px rgba(6, 95, 70, 0.3); }
-.unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
-.unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 </style>

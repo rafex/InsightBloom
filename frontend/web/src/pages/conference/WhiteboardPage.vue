@@ -21,9 +21,7 @@
       title="Actualizar pizarra publicada"
       @click="refreshPublishedWhiteboard"
     ) ↻
-  .unavailable(v-else-if="!available")
-    p ⚠️ La pizarra no está disponible en este momento.
-    p.hint Intenta más tarde o contacta al organizador.
+  NoticeState(v-else-if="!available" title="Pizarra no disponible" message="Intenta más tarde o contacta al organizador." tone="warning")
   template(v-else)
     .save-banner(v-if="!canPersist" class="save-banner-info") ℹ️ Tu edición es local y no se conservará; solo el material del moderador se persiste.
     .save-banner(v-if="saveError" class="save-banner-error") ⚠️ No se pudo publicar la pizarra: {{ saveError }}
@@ -43,12 +41,13 @@ import { useAuthStore } from '@/features/auth/authStore'
 import { mountExcalidrawEditor } from '@/components/ExcalidrawEditor'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import NoticeState from '@/components/ui/NoticeState.vue'
 
 const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'WhiteboardPage',
-  components: { BaseButton, LoadingState },
+  components: { BaseButton, LoadingState, NoticeState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -208,8 +207,6 @@ export default {
 .whiteboard-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; position: relative; }
 .editor-shell { flex: 1 1 auto; height: calc(100vh - 112px); min-height: 480px; width: 100%; overflow: hidden; }
 .editor-shell :deep(.excalidraw) { width: 100%; height: 100%; min-height: 480px; }
-.unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
-.unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 .published-banner, .save-banner { padding: 10px 16px; font-size: 0.86rem; }
 .published-banner { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; background: var(--color-primary-soft); color: var(--color-primary-dark); }
 .update-state { color: var(--color-text-secondary); }
