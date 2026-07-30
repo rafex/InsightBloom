@@ -4,7 +4,7 @@
   main.profile-main
     .profile-card
       h2 Mi perfil
-      .profile-loading(v-if="loading") Cargando...
+      LoadingState(v-if="loading" message="Cargando perfil…")
       template(v-else)
         .registration-data
           h3 Datos de registro
@@ -23,12 +23,12 @@
 
         h3 Nombre para tu certificado
         p.hint Completa tu nombre y apellido para personalizar tu certificado de asistencia.
-        .form-group
-          label Nombre
-          input(v-model="firstName" placeholder="Tu nombre")
-        .form-group
-          label Apellido
-          input(v-model="lastName" placeholder="Tu apellido")
+        FormField(label="Nombre")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="firstName" placeholder="Tu nombre")
+        FormField(label="Apellido")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="lastName" placeholder="Tu apellido")
         h3 Perfil público del organizador
         p.hint Si organizas un evento público, esta imagen aparecerá junto a tu nombre. Se guarda optimizada y sin SVG.
         .profile-photo-editor
@@ -43,12 +43,12 @@
         BaseButton(size="lg" :loading="saving" @click="save") Guardar
 
         h3.password-title Cambiar contraseña
-        .form-group(v-if="hasPassword")
-          label Contraseña actual
-          input(v-model="currentPassword" type="password" placeholder="••••••••")
-        .form-group
-          label Nueva contraseña
-          input(v-model="newPassword" type="password" placeholder="••••••••")
+        FormField(v-if="hasPassword" label="Contraseña actual")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="currentPassword" type="password" placeholder="••••••••")
+        FormField(label="Nueva contraseña")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="newPassword" type="password" placeholder="••••••••")
         FeedbackMessage(v-if="passwordError" :message="passwordError" tone="error")
         FeedbackMessage(v-if="passwordSuccess" message="¡Contraseña actualizada!" tone="success")
         BaseButton(size="lg" :disabled="changingPassword || !newPassword" @click="changePassword") Cambiar contraseña
@@ -56,9 +56,9 @@
         h3.password-title Método de acceso
         p.hint(v-if="profileData.authMethod === 'OTP_EMAIL'") Activo: código de acceso por correo. Entrás con un código de 6 dígitos que te mandamos a tu correo, ya no con tu contraseña.
         p.hint(v-else) Activo: contraseña. Podés cambiar a un código de acceso por correo — cada inicio de sesión te va a pedir un código nuevo enviado a tu correo, en vez de tu contraseña.
-        .form-group
-          label Confirmá tu contraseña actual para cambiar el método
-          input(v-model="authMethodPassword" type="password" placeholder="••••••••")
+        FormField(label="Confirmá tu contraseña actual para cambiar el método")
+          template(#default="{ id, describedBy }")
+            input(:id="id" :aria-describedby="describedBy" v-model="authMethodPassword" type="password" placeholder="••••••••")
         FeedbackMessage(v-if="authMethodError" :message="authMethodError" tone="error")
         FeedbackMessage(v-if="authMethodSuccess" message="¡Método de acceso actualizado!" tone="success")
         BaseButton(
@@ -78,10 +78,12 @@ import type { UserProfile } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import FormField from '@/components/ui/FormField.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 export default {
   name: 'ProfilePage',
-  components: { AppHeader, BaseButton, FeedbackMessage },
+  components: { AppHeader, BaseButton, FeedbackMessage, FormField, LoadingState },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -223,10 +225,7 @@ h3 { margin: 24px 0 12px; color: var(--color-heading); font-size: 1rem; }
 h3:first-of-type { margin-top: 8px; }
 .password-title { border-top: 1px solid var(--color-border-subtle); padding-top: 20px; }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 16px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
 .hidden-input { display: none; }
-.profile-loading { color: var(--color-text-muted); }
 
 .registration-data { background: var(--color-surface-muted); border-radius: 10px; padding: 16px; margin-bottom: 8px; }
 .data-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 0; font-size: 0.9rem; }

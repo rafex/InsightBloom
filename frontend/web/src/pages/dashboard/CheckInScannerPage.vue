@@ -9,10 +9,11 @@
   p.scanner-status(:class="{ ready: scannerReady, error: scannerError }") {{ scannerStatus }}
 
   .manual-checkin
-    label(for="manual-ticket-code") Si la cámara no puede leerlo, captura el UUID del boleto
-    .manual-checkin-row
-      input#manual-ticket-code(v-model="manualCode" type="text" autocomplete="off" spellcheck="false" placeholder="UUID del boleto" @keyup.enter="submitManualCode")
-      BaseButton(type="button" :disabled="processing || !manualCode.trim()" :loading="processing" @click="submitManualCode") Registrar
+    FormField(label="Si la cámara no puede leerlo, captura el UUID del boleto")
+      template(#default="{ id, describedBy }")
+        .manual-checkin-row
+          input(:id="id" :aria-describedby="describedBy" v-model="manualCode" type="text" autocomplete="off" spellcheck="false" placeholder="UUID del boleto" @keyup.enter="submitManualCode")
+          BaseButton(type="button" :disabled="processing || !manualCode.trim()" :loading="processing" @click="submitManualCode") Registrar
 
   .image-checkin
     p Si la cámara en vivo no lo detecta, toma una foto o selecciona una captura del QR.
@@ -36,6 +37,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import QrScanner from 'qr-scanner'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FormField from '@/components/ui/FormField.vue'
 import { checkInIssuedTicket, checkInTicket, getConference } from '@/services/api/usersApi'
 import type { Ticket, Reservation } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -43,7 +45,7 @@ import { formatStatusLabel } from '@/utils/status'
 
 export default {
   name: 'CheckInScannerPage',
-  components: { DashboardBreadcrumb, BaseButton },
+  components: { DashboardBreadcrumb, BaseButton, FormField },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -256,7 +258,6 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .scanner-status.ready { color: var(--color-success); }
 .scanner-status.error { color: var(--color-danger-dark); }
 .manual-checkin { margin-top: 18px; padding: 14px; border: 1px solid var(--color-border-subtle); border-radius: 10px; background: var(--color-surface); }
-.manual-checkin label { display: block; color: var(--color-text-secondary); font-size: 0.82rem; font-weight: 600; margin-bottom: 8px; }
 .manual-checkin-row { display: flex; gap: 8px; }
 .manual-checkin input { min-width: 0; flex: 1; border: 1px solid var(--color-border); border-radius: 7px; padding: 9px 10px; font: 0.8rem monospace; }
 .image-checkin { margin-top: 10px; padding: 12px 14px; border: 1px dashed var(--color-primary-border); border-radius: 10px; background: var(--color-primary-soft); text-align: center; }
