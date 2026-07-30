@@ -12,13 +12,15 @@
       .published-empty(v-else)
         p El moderador todavía no ha publicado un diagrama.
         p.hint Esta vista se actualizará automáticamente cuando exista una publicación.
-    button.refresh-floating(
+    BaseButton.refresh-floating(
+      type="button"
       :class="{ 'has-update': newVersionAvailable }"
       :disabled="refreshing"
+      :loading="refreshing"
       aria-label="Actualizar diagrama publicado"
       title="Actualizar diagrama publicado"
       @click="refreshPublishedDiagram"
-    ) {{ refreshing ? '…' : '↻' }}
+    ) ↻
   .unavailable(v-else-if="!drawioUrl")
     p ⚠️ La pizarra de diagramas no está disponible en este momento.
     p.hint Intenta más tarde o contacta al organizador.
@@ -33,13 +35,14 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getIntegrationConfig, getEventDiagram, saveEventDiagram, streamEventDiagram, AuthenticatedEventStream } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 
 const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'DiagrammingPage',
-  components: { LoadingState },
+  components: { BaseButton, LoadingState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -272,7 +275,7 @@ export default {
 .published-diagram { display: block; max-width: 100%; max-height: 72vh; object-fit: contain; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); }
 .published-empty { text-align: center; color: var(--color-text-secondary); background: var(--color-surface); border: 1px dashed var(--color-border); border-radius: 12px; padding: 32px; }
 .published-empty .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-top: 6px; }
-.refresh-floating { position: absolute; right: 22px; bottom: 22px; width: 46px; height: 46px; border: 0; border-radius: 50%; background: var(--color-primary); color: var(--color-text-inverse); font-size: 1.6rem; line-height: 1; cursor: pointer; box-shadow: 0 6px 18px rgba(30, 27, 75, 0.28); z-index: 2; }
+.refresh-floating { position: absolute; right: 22px; bottom: 22px; width: 46px; height: 46px; padding: 0; border-radius: 50%; font-size: 1.6rem; line-height: 1; box-shadow: 0 6px 18px rgba(30, 27, 75, 0.28); z-index: 2; }
 .refresh-floating:hover { background: var(--color-primary-dark); }
 .refresh-floating:disabled { opacity: 0.65; cursor: wait; }
 .refresh-floating.has-update { background: var(--color-success); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.18), 0 6px 18px rgba(6, 95, 70, 0.3); }

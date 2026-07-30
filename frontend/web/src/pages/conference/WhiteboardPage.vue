@@ -12,13 +12,15 @@
       .published-empty(v-else)
         p El moderador todavía no ha publicado una pizarra.
         p.hint Esta vista se actualizará automáticamente cuando exista una publicación.
-    button.refresh-floating(
+    BaseButton.refresh-floating(
+      type="button"
       :class="{ 'has-update': newVersionAvailable }"
       :disabled="refreshing"
+      :loading="refreshing"
       aria-label="Actualizar pizarra publicada"
       title="Actualizar pizarra publicada"
       @click="refreshPublishedWhiteboard"
-    ) {{ refreshing ? '…' : '↻' }}
+    ) ↻
   .unavailable(v-else-if="!available")
     p ⚠️ La pizarra no está disponible en este momento.
     p.hint Intenta más tarde o contacta al organizador.
@@ -39,13 +41,14 @@ import {
 } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import { mountExcalidrawEditor } from '@/components/ExcalidrawEditor'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 
 const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'WhiteboardPage',
-  components: { LoadingState },
+  components: { BaseButton, LoadingState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -217,7 +220,7 @@ export default {
 .save-banner-info { background: var(--color-primary-soft); color: var(--color-primary-dark); }
 .save-banner-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 .save-banner-ok { background: var(--color-success-soft); color: var(--color-success); }
-.refresh-floating { position: fixed; right: 24px; bottom: 24px; border: none; border-radius: 999px; width: 44px; height: 44px; background: var(--color-primary); color: var(--color-text-inverse); font-size: 1.45rem; cursor: pointer; box-shadow: 0 8px 18px rgba(79, 70, 229, .3); }
+.refresh-floating { position: fixed; right: 24px; bottom: 24px; width: 44px; height: 44px; padding: 0; border-radius: 999px; font-size: 1.45rem; box-shadow: 0 8px 18px rgba(79, 70, 229, .3); }
 .refresh-floating.has-update { background: var(--color-success); }
 .refresh-floating:disabled { opacity: .65; cursor: wait; }
 </style>
