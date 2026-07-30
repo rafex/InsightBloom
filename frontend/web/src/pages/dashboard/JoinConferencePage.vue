@@ -140,9 +140,8 @@ h1 { color: var(--color-heading); margin: 0 0 8px; font-size: 1.5rem; }
 label { display: block; color: var(--color-text-secondary); font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
 .form-row { display: flex; gap: 8px; align-items: stretch; }
 input {
-  flex: 1; min-width: 0; padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 1rem;
+  flex: 1; min-width: 0; font-size: 1rem;
 }
-input:focus { outline: none; border-color: var(--color-primary); }
 .claim-scanner { margin: 14px auto 0; max-width: 320px; text-align: center; }
 .claim-scanner video { width: 100%; border-radius: 10px; background: var(--color-heading); }
 .claim-scanner p { color: var(--color-text-muted); font-size: 0.85rem; }

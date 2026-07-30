@@ -225,8 +225,6 @@ h3:first-of-type { margin-top: 8px; }
 .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 16px; }
 .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
-input { padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 1rem; }
-input:focus { outline: none; border-color: var(--color-primary); }
 .hidden-input { display: none; }
 .profile-loading { color: var(--color-text-muted); }
 

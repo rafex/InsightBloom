@@ -4,7 +4,7 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `main`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-29 (feedback semántico en flujos administrativos)
+> **Último checkpoint**: 2026-07-29 (checkout público y foco de formularios)
 
 ## Estado
 
@@ -33,6 +33,7 @@
 | **Gobierno visual** | Utilidades transversales | En progreso | `.loading-text` y el color base de `.field-hint` viven en `global.css`; las pantallas conservan solo sus márgenes y tamaños específicos |
 | **Gobierno de componentes** | Estados de carga | En progreso | `LoadingState.vue` unifica la espera de Diagramas, Notas colaborativas, Videollamada y Pizarra con semántica `status` y `aria-live` |
 | **Gobierno de componentes** | Feedback de operaciones | En progreso | `FeedbackMessage.vue` centraliza errores y confirmaciones de Login, Registro, Perfil, acceso a eventos y configuración administrativa con tonos semánticos y roles accesibles |
+| **Gobierno visual** | Checkout y formularios | En progreso | Checkout usa `LoadingState`/`FeedbackMessage`; Perfil y Unirse a un evento heredan el baseline global de inputs y conservan el foco `:focus-visible` |
 | **Gobierno visual** | Shell y overlays | En progreso | Header, menús, modales, confirmaciones y overlays administrativos consumen tokens de superficie, sombra y scrim |
 | **Gobierno visual** | Iconografía administrativa | En progreso | `UiIcon.vue` aporta SVGs lineales para métricas del Panel y herramientas del evento; elimina emojis de indicadores operativos sin modificar contenido editorial |
 | **Recorridos por rol** | Moderador event-scoped | En progreso | El panel detecta eventos asignados aunque el rol global sea `ATTENDEE`; se mantienen ocultas acciones de propietario |
