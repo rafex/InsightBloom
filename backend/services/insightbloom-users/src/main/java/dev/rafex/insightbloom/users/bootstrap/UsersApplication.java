@@ -51,6 +51,11 @@ public class UsersApplication {
         final String zohoPassword = System.getenv().getOrDefault("ZOHO_SMTP_PASSWORD", "");
         final String zohoFromAddress = System.getenv().getOrDefault("ZOHO_FROM_ADDRESS", zohoUsername);
 
+        // Admin user auto-seeded on startup if not present in the DB (ver AdminSeeder.java).
+        // Credenciales inyectadas desde el secreto SOPS insightbloom-admin-auth via env vars.
+        final String adminUsername = System.getenv("ADMIN_USERNAME");
+        final String adminPassword = System.getenv("ADMIN_PASSWORD");
+
         final String frontendBaseUrl = System.getenv().getOrDefault("FRONTEND_BASE_URL", "https://insightbloom.v1.rafex.cloud");
         final var contactInfo = new NotifyDoubtAnsweredUseCase.ContactInfo(
                 System.getenv().getOrDefault("CONTACT_NAME", "Raúl González (rafex)"),
@@ -114,6 +119,9 @@ public class UsersApplication {
         final var platformDeviceGuard = new PlatformDeviceGuard(tokenRepo, userRepo, platformDeviceBlockRepo);
         final var deviceFingerprintAuditor = new dev.rafex.insightbloom.users.domain.services.DeviceFingerprintAuditor(deviceFingerprintFlagRepo);
         final var passwordService = new PasswordService();
+        // Admin user: crea el admin desde el secreto SOPS si no existe en la BD (idempotente).
+        dev.rafex.insightbloom.users.domain.services.AdminSeeder.seedIfNeeded(
+                userRepo, passwordService, adminUsername, adminPassword);
         final var friendlyIdService = new FriendlyIdService(conferenceRepo);
         final var cascadeDeletePort = new HttpCascadeDeleteClient(
                 ingestUrl, queryUrl, moderationUrl, presentationsUrl, surveyUrl, internalApiKey);
