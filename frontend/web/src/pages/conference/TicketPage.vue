@@ -41,10 +41,10 @@
               strong.t-admit-num(:class="{ checked: ticket.status === 'CHECKED_IN' }") {{ ticketStatusLabel }}
               span.t-admit-hint(v-if="ticket.status === 'CHECKED_IN'") Acceso registrado
               span.t-admit-hint(v-else) Presenta este boleto en la entrada
-      .ticket-manual
-        span Código manual / UUID del boleto
-        code {{ ticket.ticketCode }}
-        small Si el escaneo falla, proporciona este código al personal de acceso.
+          .ticket-manual
+            span Código manual / UUID del boleto
+            code {{ ticket.ticketCode }}
+            small Si el escaneo falla, proporciona este código al personal de acceso.
     p.ticket-status(:class="{ checked: ticket.status === 'CHECKED_IN' }")
       span(v-if="ticket.status === 'CHECKED_IN'") ✅ Ya ingresaste al evento
       span(v-else) 🎫 Boleto reservado — muestra este QR en la entrada
@@ -246,7 +246,7 @@ export default {
 <style scoped>
 .ticket-page { padding: 32px 24px 48px; max-width: 820px; margin: 0 auto; }
 .ticket-loading, .ticket-empty { text-align: center; color: var(--color-text-muted); padding: 60px 24px; }
-.ticket-status { font-size: 0.95rem; font-weight: 600; color: var(--color-primary); text-align: center; }
+.ticket-status { width: min(100%, 720px); box-sizing: border-box; margin: 14px auto 0; font-size: 0.95rem; font-weight: 600; color: var(--color-primary); text-align: center; }
 .ticket-status.checked { color: var(--color-success); }
 .ticket-canvas { display: flex; align-items: center; justify-content: center; padding: 8px; }
 .ticket-wrapper {
@@ -298,7 +298,7 @@ export default {
 .t-admit-num { display: block; font-size: clamp(1.35rem, 3vw, 2.1rem); font-weight: 900; line-height: 1.15; color: var(--ticket-number); text-shadow: 0 0 15px var(--t-accent-glow); }
 .t-admit-num.checked { color: var(--ticket-success); text-shadow: none; }
 .t-admit-hint { display: block; margin-top: 8px; color: var(--t-text-muted); font-size: .72rem; }
-.ticket-manual { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 16px 0; text-align: center; }
+.ticket-manual { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 24px 18px; background: var(--t-bg-light); border-top: 1px dashed rgba(255,255,255,.25); text-align: center; }
 .ticket-manual span { color: var(--ticket-manual); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .ticket-manual code { color: var(--ticket-manual-code); font: 700 .84rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
 .ticket-manual small { color: var(--color-text-muted); font-size: .78rem; }

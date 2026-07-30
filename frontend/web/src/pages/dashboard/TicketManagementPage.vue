@@ -278,12 +278,19 @@ export default {
     }
 
     const statusLabel = (status: TicketStatus) => ({
-      ISSUED: 'ISSUED · emitido, sin reclamar',
-      CLAIMED: 'CLAIMED · reclamado',
-      CHECKED_IN: 'CHECKED_IN · registrado en check-in',
-      REVOKED: 'REVOKED · revocado',
-      EXPIRED: 'EXPIRED · expirado'
-    }[status] || status)
+      ISSUED: 'Emitido · sin reclamar',
+      CLAIMED: 'Reclamado',
+      CHECKED_IN: 'Registrado en check-in',
+      REVOKED: 'Revocado',
+      EXPIRED: 'Expirado'
+    }[status] || humanizeStatus(status))
+
+    function humanizeStatus(status: string): string {
+      return status
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/^./, (character) => character.toUpperCase())
+    }
 
     const claimantLabel = (ticket: Ticket) => {
       const user = summary.value?.claimedUsers?.[ticket.claimedByUserUuid || '']
@@ -295,19 +302,19 @@ export default {
     const operationalTickets = computed(() => tickets.value.filter(ticket => Boolean(ticket.operational)))
     const statusMetrics = computed(() => [
       { key: 'operational', label: 'Operativos', description: 'Creador y personal asignado; no revocables.', count: operationalTickets.value.length },
-      { key: 'issued', label: 'ISSUED', description: 'Emitidos y todavía sin reclamar.', count: normalTickets('ISSUED').length },
-      { key: 'claimed', label: 'CLAIMED', description: 'Reclamados por un usuario.', count: normalTickets('CLAIMED').length },
-      { key: 'checked-in', label: 'CHECKED_IN', description: 'Usuarios registrados en check-in.', count: normalTickets('CHECKED_IN').length },
-      { key: 'revoked', label: 'REVOKED', description: 'Revocados; liberan una plaza.', count: normalTickets('REVOKED').length },
-      { key: 'expired', label: 'EXPIRED', description: 'Expirados por fecha del evento.', count: normalTickets('EXPIRED').length }
+      { key: 'issued', label: 'Emitidos', description: 'Emitidos y todavía sin reclamar.', count: normalTickets('ISSUED').length },
+      { key: 'claimed', label: 'Reclamados', description: 'Reclamados por un usuario.', count: normalTickets('CLAIMED').length },
+      { key: 'checked-in', label: 'Registrados en check-in', description: 'Usuarios registrados en check-in.', count: normalTickets('CHECKED_IN').length },
+      { key: 'revoked', label: 'Revocados', description: 'Revocados; liberan una plaza.', count: normalTickets('REVOKED').length },
+      { key: 'expired', label: 'Expirados', description: 'Expirados por fecha del evento.', count: normalTickets('EXPIRED').length }
     ])
     const ticketGroups = computed(() => [
       { key: 'operational', label: 'Boletos operativos', tickets: operationalTickets.value },
-      { key: 'ISSUED', label: 'ISSUED · sin reclamar', tickets: normalTickets('ISSUED') },
-      { key: 'CLAIMED', label: 'CLAIMED · reclamados', tickets: normalTickets('CLAIMED') },
-      { key: 'CHECKED_IN', label: 'CHECKED_IN · registrados', tickets: normalTickets('CHECKED_IN') },
-      { key: 'REVOKED', label: 'REVOKED · revocados', tickets: normalTickets('REVOKED') },
-      { key: 'EXPIRED', label: 'EXPIRED · expirados', tickets: normalTickets('EXPIRED') }
+      { key: 'ISSUED', label: 'Emitidos · sin reclamar', tickets: normalTickets('ISSUED') },
+      { key: 'CLAIMED', label: 'Reclamados', tickets: normalTickets('CLAIMED') },
+      { key: 'CHECKED_IN', label: 'Registrados en check-in', tickets: normalTickets('CHECKED_IN') },
+      { key: 'REVOKED', label: 'Revocados', tickets: normalTickets('REVOKED') },
+      { key: 'EXPIRED', label: 'Expirados', tickets: normalTickets('EXPIRED') }
     ])
 
     const breadcrumbItems = computed(() => [
