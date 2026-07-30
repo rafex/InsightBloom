@@ -218,13 +218,13 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .permissions-editor input { width: auto; margin: 0; }
 
 .actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
-.actions textarea { padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.82rem; min-height: 50px; }
+.actions textarea { font-size: 0.82rem; min-height: 50px; }
 .actions-row { display: flex; gap: 6px; }
 .new-role-form { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); }
 .new-role-form h3 { margin: 0 0 14px; color: var(--color-heading); font-size: 1rem; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
-.form-row input, .form-row select { flex: 1; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
-.new-role-form textarea { width: 100%; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
+.form-row input, .form-row select { flex: 1; font-size: 0.9rem; }
+.new-role-form textarea { width: 100%; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
 .confirm-overlay { position: fixed; inset: 0; background: var(--color-overlay); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .confirm-dialog { background: var(--color-surface); border-radius: 16px; padding: 28px 32px; max-width: 420px; width: 90%; box-shadow: var(--shadow-overlay); }
 .confirm-dialog h4 { margin: 0 0 12px; color: var(--color-heading); font-size: 1.1rem; }

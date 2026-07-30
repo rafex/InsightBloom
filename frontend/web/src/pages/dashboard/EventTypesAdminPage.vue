@@ -38,9 +38,9 @@
                 BaseButton(size="sm" :disabled="saving" @click="saveEdit(t)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
-              button.btn-sm.btn-edit(@click="startEdit(t)") Editar
-              button.btn-sm.btn-warning(v-if="t.active" @click="toggleActive(t, false)") Desactivar
-              button.btn-sm.btn-success(v-else @click="toggleActive(t, true)") Activar
+              BaseButton(variant="secondary" size="sm" @click="startEdit(t)") Editar
+              BaseButton(variant="secondary" size="sm" v-if="t.active" @click="toggleActive(t, false)") Desactivar
+              BaseButton(variant="success" size="sm" v-else @click="toggleActive(t, true)") Activar
 
   .new-type-form
     h3 Nuevo tipo de evento
@@ -185,18 +185,14 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .status-badge.active { background: var(--color-success-soft); color: var(--color-success); }
 
 .actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
-.actions textarea { padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.82rem; min-height: 50px; }
+.actions textarea { font-size: 0.82rem; min-height: 50px; }
 .actions-row { display: flex; gap: 6px; }
-.btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-.btn-edit { background: var(--color-primary-soft); color: var(--color-primary-dark); }
-.btn-warning { background: var(--color-warning-soft); color: var(--color-warning); }
-.btn-success { background: var(--color-success-soft); color: var(--color-success); }
 
 .new-type-form { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); }
 .new-type-form h3 { margin: 0 0 14px; color: var(--color-heading); font-size: 1rem; }
 .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
-.form-row input { flex: 1; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
-.new-type-form textarea { width: 100%; padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
+.form-row input { flex: 1; font-size: 0.9rem; }
+.new-type-form textarea { width: 100%; font-size: 0.9rem; margin-bottom: 10px; min-height: 60px; box-sizing: border-box; }
 @media (max-width: 900px) {
   .event-types-page { padding: 14px; }
   .types-table thead { display: none; }

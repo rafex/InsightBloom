@@ -47,7 +47,9 @@
         span.status(:class="item.unblockedAt ? 'status-unblocked' : 'status-blocked'")
           | {{ item.unblockedAt ? 'Desbloqueado' : 'Bloqueado' }}
       td.actions
-        button.btn-sm.btn-success(
+        BaseButton(
+          variant="success"
+          size="sm"
           v-if="!item.unblockedAt"
           @click="unblock(item)"
           :disabled="item._loading"
@@ -80,7 +82,9 @@
         span.status(:class="item.reviewedAt ? 'status-unblocked' : 'status-blocked'")
           | {{ item.reviewedAt ? 'Revisado' : 'Pendiente' }}
       td.actions
-        button.btn-sm.btn-success(
+        BaseButton(
+          variant="success"
+          size="sm"
           v-if="!item.reviewedAt"
           @click="review(item)"
           :disabled="item._loading"
@@ -211,15 +215,11 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .field-hint { margin: 0 0 12px; font-size: 0.85rem; }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
-.form-group input { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
+.form-group input { font-size: 0.9rem; }
 .blocks-title { color: var(--color-heading); font-size: 1rem; margin-bottom: 8px; }
 .fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
 .status { font-size: 0.82rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
 .status-blocked { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 .status-unblocked { background: var(--color-success-soft); color: var(--color-success); }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.82rem; }
-.btn-success { background: var(--color-success-soft); color: var(--color-success); }
-.btn-success:hover { background: var(--color-success-soft); }
-.btn-sm:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

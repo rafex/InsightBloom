@@ -16,7 +16,7 @@ button.base-btn(
 export default {
   name: 'BaseButton',
   props: {
-    variant: { type: String, default: 'primary' }, // primary | secondary | danger | ghost
+    variant: { type: String, default: 'primary' }, // primary | secondary | success | danger | ghost
     size: { type: String, default: 'md' },         // sm | md | lg
     type: { type: String, default: 'button' },
     disabled: { type: Boolean, default: false },
@@ -53,6 +53,9 @@ export default {
   border-color: var(--color-primary-border);
 }
 .v-secondary:hover:not(:disabled) { background: var(--color-primary-soft); }
+
+.v-success { background: var(--color-success-soft); color: var(--color-success); }
+.v-success:hover:not(:disabled) { filter: brightness(0.96); }
 
 .v-danger { background: var(--color-danger); color: var(--color-on-danger); }
 .v-danger:hover:not(:disabled) { background: var(--color-danger-dark); }

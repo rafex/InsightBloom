@@ -4,7 +4,7 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `main`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-29 (checkout público y foco de formularios)
+> **Último checkpoint**: 2026-07-29 (controles canónicos en formularios administrativos)
 
 ## Estado
 
@@ -27,6 +27,7 @@
 | **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
 | **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 79 estilos scoped, fija las 80 excepciones hex en 6 superficies y ya no permite redefiniciones legacy de selectores canónicos |
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
+| **Gobierno de componentes** | Formularios y acciones administrativas | Completado | Los inputs, selects y textareas de IA, egresos, dispositivos, roles y tipos de evento heredan el baseline global; acciones locales migradas a `BaseButton`, incluida la variante semántica `success` |
 | **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
 | **Gobierno de componentes** | Estados semánticos | En progreso | `StatusBadge.vue` centraliza estados de usuarios, roles, detalle de usuario, eventos e historial con tonos semánticos reutilizables |
 | **Gobierno de componentes** | Estados vacíos | En progreso | `EmptyState.vue` centraliza mensajes y acciones de ausencia de datos en usuarios, roles, tipos de evento, eventos, dispositivos y reservas |

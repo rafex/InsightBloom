@@ -231,9 +231,8 @@ h2 { color: var(--color-heading); margin-bottom: 6px; }
 .clear-key input { width: auto; }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: .9rem; color: var(--color-text-secondary); }
-.form-group input[type="url"], .form-group input[type="text"], .form-group input[type="password"] { padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: .9rem; }
-.prompt-input { padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: .9rem; font-family: inherit; resize: vertical; }
-.prompt-input:focus, .form-group input:focus { outline: none; border-color: var(--color-primary); }
+.form-group input[type="url"], .form-group input[type="text"], .form-group input[type="password"] { font-size: .9rem; }
+.prompt-input { font-size: .9rem; font-family: inherit; resize: vertical; }
 .clear-key { display: flex; gap: 8px; align-items: center; font-size: .85rem; color: var(--color-danger-dark); font-weight: 400 !important; margin-top: 4px; }
 .temperature-slider { width: 100%; margin-top: 4px; }
 .variables-toggle { align-self: flex-start; background: none; border: 1px solid var(--color-border); border-radius: 8px; padding: 6px 12px; font-size: .82rem; color: var(--color-primary); cursor: pointer; }

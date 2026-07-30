@@ -90,7 +90,7 @@ h2 { color: var(--color-heading); margin-bottom: 8px; }
 .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
 .form-group label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
 .form-group textarea {
-  padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.85rem;
+  font-size: 0.85rem;
   font-family: monospace; resize: vertical;
 }
 </style>
