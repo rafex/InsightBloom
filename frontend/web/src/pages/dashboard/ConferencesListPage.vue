@@ -11,6 +11,8 @@
   .section(v-if="loading")
     LoadingState(message="Cargando eventos…")
 
+  FeedbackMessage(v-else-if="error" :message="error" tone="error")
+
   .section(v-else-if="conferences.length === 0")
     EmptyState(:message="isOrganizer ? 'Aún no tienes eventos.' : 'No tienes eventos asignados.'")
       BaseLink(v-if="isOrganizer" to="/dashboard/conferences/new") Crear el primero
@@ -32,16 +34,16 @@
       tbody
         tr(v-for="c in conferences" :key="c.uuid || c.conferenceId")
           td.qr-col(data-label="QR")
-              button.btn-icon(@click="qrTarget = c" title="Ver código QR" aria-label="Ver código QR")
-                svg(xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round")
-                  rect(x="3" y="3" width="7" height="7")
-                  rect(x="14" y="3" width="7" height="7")
-                  rect(x="3" y="14" width="7" height="7")
-                  line(x1="14" y1="14" x2="14" y2="17")
-                  line(x1="14" y1="14" x2="17" y2="14")
-                  line(x1="17" y1="17" x2="21" y2="17")
-                  line(x1="21" y1="14" x2="21" y2="21")
-                  line(x1="14" y1="21" x2="17" y2="21")
+            BaseButton.qr-button(variant="ghost" size="sm" @click="qrTarget = c" title="Ver código QR" aria-label="Ver código QR")
+              svg(xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true")
+                rect(x="3" y="3" width="7" height="7")
+                rect(x="14" y="3" width="7" height="7")
+                rect(x="3" y="14" width="7" height="7")
+                line(x1="14" y1="14" x2="14" y2="17")
+                line(x1="14" y1="14" x2="17" y2="14")
+                line(x1="17" y1="17" x2="21" y2="17")
+                line(x1="21" y1="14" x2="21" y2="21")
+                line(x1="14" y1="21" x2="17" y2="21")
           td(data-label="Nombre") {{ c.name }}
           td(data-label="Tipo")
             span.type-badge {{ eventTypeName(c.eventTypeKey) }}
@@ -110,6 +112,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { isExpired } from '@/utils/dates'
@@ -124,10 +127,11 @@ interface ConferenceRow extends Conference {
 
 export default {
   name: 'ConferencesListPage',
-  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, BaseLink, BaseModal, EmptyState, LoadingState, StatusBadge },
+  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
   setup() {
     const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)
+    const error = ref('')
     const deleteTarget = ref<ConferenceRow | null>(null)
     const qrTarget = ref<ConferenceRow | null>(null)
     const downloadCounts = ref<Record<string, DownloadCounts>>({})
@@ -143,7 +147,7 @@ export default {
           loadDownloadCounts()
         }
       } catch (e: any) {
-        console.error('Error cargando conferencias', e)
+        error.value = 'No fue posible cargar los eventos. Inténtalo nuevamente.'
       } finally {
         loading.value = false
       }
@@ -193,7 +197,7 @@ export default {
         const updated = await setConferenceActive((c.uuid || c.conferenceId) as string, nextActive, auth.state.token as string)
         c.status = updated.status
       } catch (e: any) {
-        console.error('Error activando/desactivando conferencia', e)
+        error.value = 'No fue posible actualizar el estado del evento. Inténtalo nuevamente.'
       } finally {
         c._togglingActive = false
       }
@@ -220,13 +224,13 @@ export default {
         await deleteConference((c.uuid || c.conferenceId) as string, auth.state.token as string)
         conferences.value = conferences.value.filter((x) => (x.uuid || x.conferenceId) !== (c.uuid || c.conferenceId))
       } catch (e: any) {
-        console.error('Error eliminando conferencia', e)
         c._deleting = false
+        error.value = 'No fue posible eliminar el evento. Inténtalo nuevamente.'
       }
     }
 
     return {
-      conferences, loading, deleteTarget, qrTarget, downloadCounts, isAdmin, isOrganizer,
+      conferences, loading, error, deleteTarget, qrTarget, downloadCounts, isAdmin, isOrganizer,
       isExpired, formatRelative, confirmDelete, doDelete, eventTypeName, hasCapability, toggleActive, openPublic, ticketUrl
     }
   }
@@ -250,14 +254,7 @@ h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
 
 .qr-col { width: 40px; text-align: center; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-.btn-icon {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px;
-  background: transparent; color: var(--color-primary);
-  border: 1px solid var(--color-border-subtle); border-radius: 8px;
-  cursor: pointer; transition: all 0.15s;
-}
-.btn-icon:hover { background: var(--color-primary-soft); border-color: var(--color-primary-border); }
+.qr-button { width: 30px; height: 30px; padding: 4px; border: 1px solid var(--color-border-subtle); color: var(--color-primary); }
 .friendly-id { font-size: 0.82rem; color: var(--color-text-muted); font-family: monospace; }
 .expiry-text { color: var(--color-text-muted); font-size: 0.85rem; }
 .expiry-text.expired { color: var(--color-danger); font-weight: 600; }
