@@ -61,15 +61,15 @@
           BaseButton(variant="secondary" @click="publishApp" :disabled="publishingApp")
             span(v-if="!publishingApp") 🔌 Publicar backend/API
             span(v-else) Publicando...
-          button.btn-tertiary(@click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
+          BaseButton(variant="secondary" @click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
             span {{ urlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
-          button.btn-tertiary(@click="switchVariant")
+          BaseButton(variant="secondary" @click="switchVariant")
             span 🔀 Cambiar de modo
         .preview-result(v-if="preview")
           strong Página publicada temporalmente
           p Esta URL contiene solo una copia estática validada del workspace y vence el {{ formatPreviewExpiry }}.
           .preview-actions
-            a.btn-tertiary(:href="preview.url" target="_blank" rel="noopener noreferrer") Abrir página
+            a.link-btn.link-btn-secondary(:href="preview.url" target="_blank" rel="noopener noreferrer") Abrir página
             BaseButton(variant="secondary" @click="copyPreviewUrl") {{ previewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
             BaseButton(variant="danger" @click="revokePreview") Revocar
         .preview-result(v-if="appPreview")
@@ -78,7 +78,7 @@
             |  Requiere el header "X-Preview-Token" con el token de abajo — cualquiera que lo
             |  tenga puede usar la API mientras esté vigente.
           .preview-actions
-            a.btn-tertiary(:href="appPreview.url" target="_blank" rel="noopener noreferrer") Abrir URL
+            a.link-btn.link-btn-secondary(:href="appPreview.url" target="_blank" rel="noopener noreferrer") Abrir URL
             BaseButton(variant="secondary" @click="copyAppPreviewUrl") {{ appPreviewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
             BaseButton(variant="secondary" @click="copyAppPreviewToken") {{ appPreviewTokenCopied ? '✓ Copiado' : '🔑 Copiar token' }}
             BaseButton(variant="danger" @click="revokeApp") Revocar
@@ -600,25 +600,6 @@ export default {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-a.btn-tertiary {
-  padding: 10px 20px;
-  border: 1.5px solid var(--color-primary-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  color: var(--color-primary);
-  font-size: 0.95rem;
-  font-weight: 600;
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-a.btn-tertiary:hover {
-  background: var(--color-primary-soft);
-  border-color: var(--color-primary-border);
 }
 
 .no-sandbox {
