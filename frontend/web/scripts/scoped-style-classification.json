@@ -28,6 +28,7 @@
   "src/components/ui/EmptyState.vue": "canonical-component",
   "src/components/ui/FeedbackMessage.vue": "canonical-component",
   "src/components/ui/LoadingState.vue": "canonical-component",
+  "src/components/ui/NoticeState.vue": "canonical-component",
   "src/components/ui/FormField.vue": "canonical-component",
   "src/components/ui/SaveState.vue": "canonical-component",
   "src/components/ui/StatusBadge.vue": "canonical-component",

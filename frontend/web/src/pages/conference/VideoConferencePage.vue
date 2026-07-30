@@ -6,15 +6,9 @@
     p.takeover-hint.takeover-warning(v-else) Esta sesión fue reemplazada por otro dispositivo.
     FeedbackMessage(v-if="takeoverError" :message="takeoverError" tone="error")
   LoadingState(v-if="loading" message="Cargando videollamada...")
-  .unavailable(v-else-if="!conferenceId")
-    p ⚠️ La videollamada no está disponible en este momento.
-    p.hint Intenta más tarde o contacta al organizador.
-  .unavailable(v-else-if="deviceBlocked")
-    p 🚫 Este dispositivo fue bloqueado por uso con múltiples cuentas.
-    p.hint Contacta al organizador si crees que esto es un error.
-  .unavailable(v-else-if="accessDenied")
-    p 🔒 Esta videollamada requiere acceso al evento.
-    p.hint {{ accessDeniedMessage }}
+  NoticeState(v-else-if="!conferenceId" title="Videollamada no disponible" message="Intenta más tarde o contacta al organizador." tone="warning")
+  NoticeState(v-else-if="deviceBlocked" title="Dispositivo bloqueado" message="Este dispositivo fue bloqueado por uso con múltiples cuentas. Contacta al organizador si crees que esto es un error." tone="danger")
+  NoticeState(v-else-if="accessDenied" title="Acceso requerido" :message="accessDeniedMessage" tone="warning")
   #jitsi-container(v-else)
 </template>
 
@@ -31,6 +25,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import NoticeState from '@/components/ui/NoticeState.vue'
 
 declare global {
   interface Window {
@@ -57,7 +52,7 @@ function loadJitsiScript(scriptUrl: string): Promise<void> {
 
 export default {
   name: 'VideoConferencePage',
-  components: { BaseButton, FeedbackMessage, LoadingState },
+  components: { BaseButton, FeedbackMessage, LoadingState, NoticeState },
   props: {
     conferenceId: { type: String, default: '' },
     ticketed: { type: Boolean, default: false },
@@ -206,6 +201,4 @@ export default {
 .takeover-hint { margin: 0; font-size: .75rem; color: var(--color-text-muted); text-align: right; }
 .takeover-warning { color: var(--color-warning); }
 #jitsi-container { flex: 1; width: 100%; }
-.unavailable { margin: 40px auto; text-align: center; color: var(--color-warning); background: var(--color-warning-soft); border: 1px solid var(--color-warning); border-radius: 12px; padding: 24px; max-width: 420px; }
-.unavailable .hint { color: var(--color-warning); font-size: 0.85rem; margin-top: 6px; }
 </style>
