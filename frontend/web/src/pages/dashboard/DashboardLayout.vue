@@ -2,8 +2,8 @@
 .dashboard-layout
   AppHeader
   .dashboard-body
-    button.sidebar-toggle(type="button" @click="sidebarOpen = !sidebarOpen" :aria-expanded="sidebarOpen") ☰
-    .sidebar-backdrop(v-if="sidebarOpen" @click="sidebarOpen = false")
+    BaseButton.sidebar-toggle(variant="secondary" size="sm" type="button" @click="sidebarOpen = !sidebarOpen" :aria-expanded="sidebarOpen" :aria-label="sidebarOpen ? 'Cerrar navegación' : 'Abrir navegación'") ☰
+    .sidebar-backdrop(v-if="sidebarOpen" aria-hidden="true" @click="sidebarOpen = false")
     aside.sidebar(:class="{ open: sidebarOpen }")
       nav(aria-label="Navegación principal")
         router-link(to="/dashboard" active-class="" exact-active-class="router-link-active" @click="sidebarOpen = false") Panel
@@ -31,11 +31,12 @@
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import AppHeader from '@/app/layout/AppHeader.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { useAuthStore } from '@/features/auth/authStore'
 import { getConferences } from '@/services/api/usersApi'
 export default {
   name: 'DashboardLayout',
-  components: { AppHeader },
+  components: { AppHeader, BaseButton },
   setup() {
     const auth = useAuthStore()
     const sidebarOpen = ref(false)
@@ -82,9 +83,9 @@ export default {
 
 @media (max-width: 768px) {
   .sidebar-toggle {
-    display: block; position: fixed; top: 64px; left: 12px; z-index: 60;
-    width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--color-border-subtle);
-    background: var(--color-surface); color: var(--color-primary); font-size: 1.1rem; cursor: pointer;
+    display: inline-flex; position: fixed; top: 64px; left: 12px; z-index: 60;
+    width: 40px; height: 40px; padding: 0; border-radius: var(--radius-md);
+    font-size: 1.1rem;
     box-shadow: var(--shadow-dropdown);
   }
   .sidebar-backdrop {
