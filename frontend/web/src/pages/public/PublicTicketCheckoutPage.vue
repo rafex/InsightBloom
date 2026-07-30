@@ -2,7 +2,7 @@
 .checkout-page
   AppHeader
   main.checkout-main(v-if="event")
-    router-link.back(:to="`/events/${event.friendlyId}`") ← Volver al detalle
+    BaseLink.back(size="sm" variant="ghost" :to="`/events/${event.friendlyId}`") ← Volver al detalle
     .checkout-layout
       .master-container
         section.card.cart
@@ -126,7 +126,7 @@ export default {
 <style scoped>
 .checkout-page { min-height: 100vh; background: var(--color-primary-soft); }
 .checkout-main { max-width: 980px; margin: 0 auto; padding: 42px 24px 76px; }
-.back { color: var(--color-primary); font-weight: 700; text-decoration: none; }
+.back { margin-left: -12px; }
 .checkout-layout { display: grid; grid-template-columns: minmax(360px, 420px) minmax(300px, 1fr); gap: 28px; margin-top: 25px; align-items: start; }
 .master-container { display: grid; gap: 5px; }
 .card, .payment-modal, .free-panel { background: var(--color-surface); box-shadow: 0 22px 34px rgba(30, 27, 75, .09), 0 4px 12px rgba(30, 27, 75, .07); }
