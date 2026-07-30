@@ -117,8 +117,8 @@ export default {
   margin-bottom: 6px;
 }
 .result-body {
-  background: #fff; border-radius: 8px; padding: 12px; font-size: .88rem;
-  line-height: 1.6; color: #1f2937; max-height: 160px; overflow-y: auto;
+  background: var(--color-surface); border-radius: 8px; padding: 12px; font-size: .88rem;
+  line-height: 1.6; color: var(--color-text); max-height: 160px; overflow-y: auto;
 }
 .result-body :deep(h3) { margin: 0 0 4px; font-size: 1rem; }
 .result-body :deep(p) { margin: 0 0 6px; }

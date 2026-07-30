@@ -4,6 +4,8 @@
   "src/components/CookieConsentBanner.vue": "shared-component",
   "src/components/DashboardBreadcrumb.vue": "shared-component",
   "src/components/DropdownMenu.vue": "shared-component",
+  "src/components/AiEmailAssistant.vue": "shared-component",
+  "src/components/EmailComposeEditor.vue": "shared-component",
   "src/components/IdeHelpPanel.vue": "embedded-tool",
   "src/components/OnboardingTour.vue": "shared-component",
   "src/components/QrCodeModal.vue": "shared-component",

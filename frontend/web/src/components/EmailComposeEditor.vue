@@ -147,14 +147,14 @@ textarea {
 }
 .preview-pane {
   border: 1px solid var(--color-border-subtle); border-radius: 8px;
-  background: #fff; padding: 12px; max-height: 240px; overflow-y: auto;
+  background: var(--color-surface); padding: 12px; max-height: 240px; overflow-y: auto;
 }
 .preview-header {
   font-size: .7rem; text-transform: uppercase; letter-spacing: .04em;
   color: var(--color-text-muted); margin-bottom: 8px;
 }
 .preview-body {
-  font-size: .88rem; line-height: 1.6; color: #1f2937;
+  font-size: .88rem; line-height: 1.6; color: var(--color-text);
 }
 .preview-body :deep(h3) { margin: 0 0 4px; font-size: 1rem; }
 .preview-body :deep(p) { margin: 0 0 6px; }
