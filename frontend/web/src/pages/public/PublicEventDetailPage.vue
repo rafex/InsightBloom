@@ -2,7 +2,7 @@
   .public-event-page(:class="`theme-${(event?.publicTheme || 'CLASSIC').toLowerCase()}`")
     AppHeader
     main.public-detail(v-if="event")
-      router-link.back(to="/events") ← Volver a la cartelera
+      BaseLink.back(size="sm" variant="ghost" to="/events") ← Volver a la cartelera
       .detail-hero(:class="{ reverse: event.scheduleLayout === 'LEFT' }")
         .detail-copy
           .badges
@@ -88,7 +88,7 @@ export default {
 <style scoped>
 .public-event-page { min-height: 100vh; background: var(--color-bg); }
 .public-detail { max-width: 1050px; margin: 0 auto; padding: 42px 24px 70px; }
-.back { color: var(--color-primary); text-decoration: none; font-weight: 700; }
+.back { margin-left: -12px; color: var(--color-primary); }
 .detail-hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 34px; align-items: center; margin-top: 26px; }
 .detail-hero.reverse { direction: rtl; }.detail-hero.reverse > * { direction: ltr; }
 .detail-copy { background: var(--color-surface); padding: 28px; border-radius: 18px; box-shadow: var(--shadow-card); }
