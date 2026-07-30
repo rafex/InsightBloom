@@ -85,9 +85,9 @@
       p.success(v-if="ticketSalesSaved") Disponibilidad de boletos actualizada.
       p.error(v-if="ticketSalesError") {{ ticketSalesError }}
       .ticket-links(v-if="seatingMode !== 'NONE' || eventTypes.find(t => t.key === eventTypeKey)?.capabilities.some(c => c.startsWith('TICKETING_'))")
-        router-link.link-btn.link-btn-secondary(:to="`/dashboard/conferences/${conferenceId}/tickets`") Administrar boletos
-        router-link.link-btn.link-btn-secondary(:to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
-        router-link.link-btn.link-btn-secondary(v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
+        BaseLink(variant="secondary" :to="`/dashboard/conferences/${conferenceId}/tickets`") Administrar boletos
+        BaseLink(variant="secondary" :to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
+        BaseLink(variant="secondary" v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
 
     .form-group.sandbox-group(v-show="activeTab === 'sandbox'")
       label IDE de código
@@ -314,13 +314,14 @@ import { capacityWarning, RECOMMENDED_MAX_CAPACITY } from '@/utils/capacityWarni
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseLink from '@/components/ui/BaseLink.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import SaveState from '@/components/ui/SaveState.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseModal, ToggleSwitch, SaveState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, ToggleSwitch, SaveState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
