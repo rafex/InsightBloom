@@ -42,7 +42,7 @@ class SendAttendeeEmailUseCaseTest {
 
         final var useCase = new SendAttendeeEmailUseCase(conferences, reservations, users, emailPort);
         final var summary = useCase.execute(conference.getUuid(),
-                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Hola a todos", null));
+                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Hola a todos", "text", null));
 
         assertEquals(2, summary.sent());
         assertEquals(0, summary.skipped());
@@ -69,7 +69,7 @@ class SendAttendeeEmailUseCaseTest {
 
         final var useCase = new SendAttendeeEmailUseCase(conferences, reservations, users, emailPort);
         final var summary = useCase.execute(conference.getUuid(),
-                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Solo para vos", List.of("user-b")));
+                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Solo para vos", "text", List.of("user-b")));
 
         assertEquals(1, summary.sent());
         verify(emailPort, never()).sendHtml(eq("a@x.com"), anyString(), anyString());
@@ -89,7 +89,7 @@ class SendAttendeeEmailUseCaseTest {
 
         final var useCase = new SendAttendeeEmailUseCase(conferences, reservations, users, emailPort);
         assertThrows(IllegalStateException.class, () -> useCase.execute(conference.getUuid(),
-                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Hola", null)));
+                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Hola", "text", null)));
     }
 
     @Test
@@ -106,7 +106,7 @@ class SendAttendeeEmailUseCaseTest {
 
         final var useCase = new SendAttendeeEmailUseCase(conferences, reservations, users, emailPort);
         assertThrows(IllegalArgumentException.class, () -> useCase.execute(conference.getUuid(),
-                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Hola", null)));
+                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Hola", "text", null)));
     }
 
     @Test
@@ -118,9 +118,68 @@ class SendAttendeeEmailUseCaseTest {
         final var useCase = new SendAttendeeEmailUseCase(conferences, reservations, users, emailPort);
 
         assertThrows(IllegalArgumentException.class, () -> useCase.execute("conf",
-                new SendAttendeeEmailUseCase.SendRequest("", "Hola", null)));
+                new SendAttendeeEmailUseCase.SendRequest("", "Hola", "text", null)));
         assertThrows(IllegalArgumentException.class, () -> useCase.execute("conf",
-                new SendAttendeeEmailUseCase.SendRequest("Aviso", "  ", null)));
+                new SendAttendeeEmailUseCase.SendRequest("Aviso", "  ", "text", null)));
+    }
+
+    @Test
+    void sendsWithHtmlFormat() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final ReservationRepository reservations = mock(ReservationRepository.class);
+        final UserRepository users = mock(UserRepository.class);
+        final EmailPort emailPort = mock(EmailPort.class);
+
+        final var conference = new Conference("event", "Evento", "owner");
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(emailPort.isEnabled()).thenReturn(true);
+        when(reservations.findByConference(conference.getUuid())).thenReturn(List.of(
+                reservationOf(conference.getUuid(), "user-a")));
+        when(users.findByUuid("user-a")).thenReturn(Optional.of(userWithEmail("user-a", "a@x.com")));
+
+        final var useCase = new SendAttendeeEmailUseCase(conferences, reservations, users, emailPort);
+        final var summary = useCase.execute(conference.getUuid(),
+                new SendAttendeeEmailUseCase.SendRequest("Aviso", "<p>HTML</p>", "html", null));
+
+        assertEquals(1, summary.sent());
+        verify(emailPort).sendHtml(eq("a@x.com"), eq("Aviso"), contains("<p>HTML</p>"));
+    }
+
+    @Test
+    void rejectsInvalidFormat() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final ReservationRepository reservations = mock(ReservationRepository.class);
+        final UserRepository users = mock(UserRepository.class);
+        final EmailPort emailPort = mock(EmailPort.class);
+
+        final var conference = new Conference("event", "Evento", "owner");
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(emailPort.isEnabled()).thenReturn(true);
+
+        final var useCase = new SendAttendeeEmailUseCase(conferences, reservations, users, emailPort);
+        assertThrows(IllegalArgumentException.class, () -> useCase.execute(conference.getUuid(),
+                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Hola", "pdf", null)));
+    }
+
+    @Test
+    void defaultsToTextWhenFormatIsNull() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final ReservationRepository reservations = mock(ReservationRepository.class);
+        final UserRepository users = mock(UserRepository.class);
+        final EmailPort emailPort = mock(EmailPort.class);
+
+        final var conference = new Conference("event", "Evento", "owner");
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(emailPort.isEnabled()).thenReturn(true);
+        when(reservations.findByConference(conference.getUuid())).thenReturn(List.of(
+                reservationOf(conference.getUuid(), "user-a")));
+        when(users.findByUuid("user-a")).thenReturn(Optional.of(userWithEmail("user-a", "a@x.com")));
+
+        final var useCase = new SendAttendeeEmailUseCase(conferences, reservations, users, emailPort);
+        final var summary = useCase.execute(conference.getUuid(),
+                new SendAttendeeEmailUseCase.SendRequest("Aviso", "Hola", null, null));
+
+        assertEquals(1, summary.sent());
     }
 
     private static User userWithEmail(final String uuid, final String email) {

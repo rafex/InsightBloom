@@ -41,6 +41,7 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             s.setTutorAi(readProvider(rs, "tutor", chat));
             s.setSurveyAi(readProvider(rs, "survey", chat));
             s.setSeatLayoutAi(readProvider(rs, "seat_layout", chat));
+            s.setEmailAi(readProvider(rs, "email", chat));
             final int maxAccountsPerDevice = rs.getInt("max_accounts_per_device");
             s.setMaxAccountsPerDevice(rs.wasNull() ? null : maxAccountsPerDevice);
             final int maxSessionsPerUser = rs.getInt("max_sessions_per_user");
@@ -104,6 +105,7 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             saveProvider(c, "tutor", s.getTutorAi());
             saveProvider(c, "survey", s.getSurveyAi());
             saveProvider(c, "seat_layout", s.getSeatLayoutAi());
+            saveProvider(c, "email", s.getEmailAi());
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to save platform settings", e);
         }

@@ -84,7 +84,7 @@ import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 
-type Capability = 'chat' | 'tutor' | 'survey' | 'seat-layout'
+type Capability = 'chat' | 'tutor' | 'survey' | 'seat-layout' | 'email'
 
 interface ProviderForm extends Omit<AiProviderSettings, 'systemPrompt' | 'guardrails'> {
   systemPrompt: string
@@ -101,7 +101,8 @@ const tabs: Array<{ id: Capability, icon: string, label: string, summary: string
   { id: 'chat', icon: '💬', label: 'Chat / Roberto', summary: 'Chat grupal', description: 'Proveedor para Roberto, el asistente conversacional del chat del evento.', promptPlaceholder: 'Eres Roberto, un participante humano...' },
   { id: 'tutor', icon: '🧭', label: 'Tutor IA', summary: 'Ayuda pedagógica', description: 'Tutor que orienta a los asistentes usando el objetivo y la presentación del evento, sin resolverles directamente el ejercicio.', promptPlaceholder: 'Ayuda al asistente a razonar y descubrir la respuesta...' },
   { id: 'survey', icon: '📝', label: 'Encuestas', summary: 'Sugerir y calificar', description: 'Sugerencias, mejora de preguntas y calificación de respuestas abiertas.', promptPlaceholder: 'Genera contenido de encuesta claro, evaluable y relacionado con el evento...' },
-  { id: 'seat-layout', icon: '💺', label: 'Mapas de asientos', summary: 'Generación de layouts', description: 'Genera la distribución inicial de asientos cuando el organizador describe el recinto.', promptPlaceholder: 'Devuelve únicamente un layout de asientos válido según la descripción...' }
+  { id: 'seat-layout', icon: '💺', label: 'Mapas de asientos', summary: 'Generación de layouts', description: 'Genera la distribución inicial de asientos cuando el organizador describe el recinto.', promptPlaceholder: 'Devuelve únicamente un layout de asientos válido según la descripción...' },
+  { id: 'email', icon: '✉️', label: 'Correos a inscritos', summary: 'Redacción de emails', description: 'Ayuda al organizador a redactar correos profesionales para los inscritos de cada evento.', promptPlaceholder: 'Sos un asistente de redacción profesional para comunicaciones de eventos...' }
 ]
 
 function emptyProvider(): ProviderForm {
@@ -125,7 +126,7 @@ export default {
     const error = ref('')
     const activeCapability = ref<Capability>('chat')
     const providers = reactive<Record<Capability, ProviderForm>>({
-      chat: emptyProvider(), tutor: emptyProvider(), survey: emptyProvider(), 'seat-layout': emptyProvider()
+      chat: emptyProvider(), tutor: emptyProvider(), survey: emptyProvider(), 'seat-layout': emptyProvider(), email: emptyProvider()
     })
     const showVariables = ref(false)
     const promptVariables = ref<AiPromptVariable[]>([])
@@ -172,6 +173,7 @@ export default {
       Object.assign(providers.tutor, mapProvider(incoming.tutor))
       Object.assign(providers.survey, mapProvider(incoming.survey))
       Object.assign(providers['seat-layout'], mapProvider(incoming.seatLayout))
+      Object.assign(providers.email, mapProvider(incoming.email))
     }
 
     onMounted(async () => {

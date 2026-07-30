@@ -12,6 +12,7 @@ import dev.rafex.insightbloom.users.adapters.outbound.surveyclient.HttpSurveyCli
 import dev.rafex.insightbloom.users.adapters.outbound.telegramclient.HttpTelegramNotifyClient;
 import dev.rafex.insightbloom.users.adapters.outbound.twilio.TwilioSmsClient;
 import dev.rafex.insightbloom.users.adapters.outbound.zoho.ZohoEmailClient;
+import dev.rafex.insightbloom.users.adapters.outbound.llm.EmailLlmClient;
 import dev.rafex.insightbloom.users.application.usecases.*;
 import dev.rafex.insightbloom.users.domain.services.*;
 
@@ -214,6 +215,8 @@ public class UsersApplication {
                 conferenceRepo, reservationRepo, userRepo, emailPort);
         final var notifyConferenceUpdatedUseCase = new dev.rafex.insightbloom.users.application.usecases.NotifyConferenceUpdatedUseCase(
                 reservationRepo, userRepo, emailPort, eventTypeRepo);
+        final var emailLlmClient = new EmailLlmClient(platformSettingsRepo, JacksonJsonCodec.defaultCodec());
+        final var generateEmailDraftUseCase = new GenerateEmailDraftUseCase(conferenceRepo, emailLlmClient);
         final var getOrCreateEventPadUseCase = new GetOrCreateEventPadUseCase(
                 conferenceRepo, etherpadPort, etherpadPrivatePadSecret);
         final var exportEventNotesUseCase = new ExportEventNotesUseCase(getOrCreateEventPadUseCase, etherpadPort);
@@ -442,7 +445,7 @@ public class UsersApplication {
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
                 setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,
                 sandboxHandler, sandboxFilesHandler, userRepo, deviceAccessGuard, getJaasUsageUseCase,
-                toolAccessUseCase, sendAttendeeEmailUseCase, notifyConferenceUpdatedUseCase);
+                toolAccessUseCase, sendAttendeeEmailUseCase, generateEmailDraftUseCase, notifyConferenceUpdatedUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase, setAuthMethodUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

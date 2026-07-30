@@ -5,6 +5,7 @@ public class PlatformSettings {
     private AiProviderSettings tutorAi = AiProviderSettings.defaults(false);
     private AiProviderSettings surveyAi = AiProviderSettings.defaults(false);
     private AiProviderSettings seatLayoutAi = AiProviderSettings.defaults(false);
+    private AiProviderSettings emailAi = AiProviderSettings.defaults(false);
     // Umbrales de PlatformDeviceGuard -- nullable, defaults efectivos en el guard si el admin de
     // plataforma no los configuro todavia (ver DEFAULT_* en PlatformDeviceGuard).
     private Integer maxAccountsPerDevice;
@@ -29,6 +30,8 @@ public class PlatformSettings {
     public void setSurveyAi(final AiProviderSettings value) { this.surveyAi = value; }
     public AiProviderSettings getSeatLayoutAi() { return seatLayoutAi; }
     public void setSeatLayoutAi(final AiProviderSettings value) { this.seatLayoutAi = value; }
+    public AiProviderSettings getEmailAi() { return emailAi; }
+    public void setEmailAi(final AiProviderSettings value) { this.emailAi = value; }
 
     // Compatibilidad con los casos de uso y endpoints de Chat existentes.
     public boolean isChatAiEnabled() { return chatAi.isEnabled(); }

@@ -373,7 +373,8 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 "chat", providerView(s.getChatAi()),
                 "tutor", providerView(s.getTutorAi()),
                 "survey", providerView(s.getSurveyAi()),
-                "seatLayout", providerView(s.getSeatLayoutAi())));
+                "seatLayout", providerView(s.getSeatLayoutAi()),
+                "email", providerView(s.getEmailAi())));
         // Campos legacy para clientes antiguos; el dashboard nuevo usa providers.
         view.put("chatAiEnabled", s.getChatAi().isEnabled());
         view.put("chatSystemPrompt", s.getChatAi().getSystemPrompt());
@@ -392,7 +393,8 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 "chat", internalProviderView(s.getChatAi()),
                 "tutor", internalProviderView(s.getTutorAi()),
                 "survey", internalProviderView(s.getSurveyAi()),
-                "seatLayout", internalProviderView(s.getSeatLayoutAi())));
+                "seatLayout", internalProviderView(s.getSeatLayoutAi()),
+                "email", internalProviderView(s.getEmailAi())));
         return view;
     }
 

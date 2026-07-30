@@ -21,9 +21,10 @@
     p.helper(v-if="!composeTarget") Para: todos los inscritos
     p.helper(v-else) Para: {{ composeTarget.label }} #[a.link-inline(href="#" @click.prevent="clearComposeTarget") (enviar a todos en su lugar)]
     input(v-model="composeSubject" type="text" placeholder="Asunto")
-    textarea(v-model="composeMessage" rows="4" placeholder="Escribí el mensaje para los inscritos...")
+    AiEmailAssistant(:conference-id="conferenceId" :visible="showAiAssistant" @close="showAiAssistant = false" @use-draft="draft => composeMessage = draft")
+    EmailComposeEditor(v-model="composeMessage" v-model:format="composeFormat" v-model:show-ai-assistant="showAiAssistant")
     BaseButton(variant="primary" type="button" :loading="sendingEmail" :disabled="!composeSubject.trim() || !composeMessage.trim()" @click="sendEmail") {{ sendingEmail ? 'Enviando...' : 'Enviar' }}
-    p.feedback(v-if="emailFeedback" :class="{ error: emailFeedbackError }") {{ emailFeedback }}
+    FeedbackMessage(v-if="emailFeedback" :message="emailFeedback" :tone="emailFeedbackError ? 'error' : 'success'")
   .metrics-grid(v-if="summary")
     .metric-card.metric-capacity
       strong {{ summary.remainingToIssue == null ? '∞' : summary.remainingToIssue }}
@@ -63,17 +64,22 @@
 
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Marked } from 'marked'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import TicketQr from '@/components/TicketQr.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import EmailComposeEditor from '@/components/EmailComposeEditor.vue'
+import AiEmailAssistant from '@/components/AiEmailAssistant.vue'
 import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets, sendAttendeeEmail } from '@/services/api/usersApi'
 import type { Ticket, TicketManagementSummary, TicketStatus } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 
+const sendMarked = new Marked()
+
 export default {
   name: 'TicketManagementPage',
-  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState },
+  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, EmailComposeEditor, AiEmailAssistant },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -95,6 +101,8 @@ export default {
     const resendingAll = ref(false)
     const composeSubject = ref('')
     const composeMessage = ref('')
+    const composeFormat = ref<'markdown' | 'html' | 'text'>('markdown')
+    const showAiAssistant = ref(false)
     const composeTarget = ref<{ uuid: string, label: string } | null>(null)
     const sendingEmail = ref(false)
     const emailFeedback = ref('')
@@ -236,15 +244,21 @@ export default {
       if (!props.conferenceId || !auth.state.token) return
       sendingEmail.value = true
       try {
+        let processedMessage = composeMessage.value.trim()
+        if (composeFormat.value === 'markdown') {
+          processedMessage = sendMarked.parse(processedMessage, { async: false }) as string
+        }
         const result = await sendAttendeeEmail(props.conferenceId, {
           subject: composeSubject.value.trim(),
-          message: composeMessage.value.trim(),
+          message: processedMessage,
+          format: 'html',
           recipientUuids: composeTarget.value ? [composeTarget.value.uuid] : undefined
         }, auth.state.token)
         emailFeedback.value = `${result.sent} correo(s) enviado(s)${result.skipped ? `, ${result.skipped} sin entregar` : ''}.`
         emailFeedbackError.value = false
         composeSubject.value = ''
         composeMessage.value = ''
+        composeFormat.value = 'markdown'
       } catch (e: any) {
         emailFeedbackError.value = true
         const apiError = e.response?.data?.error || {}
@@ -305,7 +319,8 @@ export default {
     onMounted(load)
     return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, statusLabel, claimantLabel, breadcrumbItems,
       batchQuantity, issuingBatch, canIssueBatch, issueBatch, resendingUuid, resendingAll, resendOne, resendAll,
-      composeSubject, composeMessage, composeTarget, sendingEmail, emailFeedback, emailFeedbackError, sendEmail, writeToAttendee, clearComposeTarget }
+      composeSubject, composeMessage, composeFormat, showAiAssistant,
+      composeTarget, sendingEmail, emailFeedback, emailFeedbackError, sendEmail, writeToAttendee, clearComposeTarget }
   }
 }
 </script>

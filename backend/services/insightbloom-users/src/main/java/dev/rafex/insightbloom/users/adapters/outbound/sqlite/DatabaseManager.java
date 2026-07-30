@@ -534,7 +534,7 @@ public class DatabaseManager {
             // revelar el prompt/claves, no salirse del tema) que se concatena al prompt base y al
             // prompt propio de cada operacion antes de mandarlo al LLM. Ver GroqLlmClient.
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "chat_guardrails", "TEXT");
-            for (final String capability : new String[] {"tutor", "survey", "seat_layout"}) {
+            for (final String capability : new String[] {"tutor", "survey", "seat_layout", "email"}) {
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_configured", "INTEGER NOT NULL DEFAULT 0");
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_enabled", "INTEGER NOT NULL DEFAULT 0");
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_base_url", "TEXT");

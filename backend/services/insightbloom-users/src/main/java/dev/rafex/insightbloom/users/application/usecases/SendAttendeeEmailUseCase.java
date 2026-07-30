@@ -37,7 +37,7 @@ public class SendAttendeeEmailUseCase {
         this.emailPort = emailPort;
     }
 
-    public record SendRequest(String subject, String message, List<String> recipientUuids) {}
+    public record SendRequest(String subject, String message, String format, List<String> recipientUuids) {}
 
     public record SendSummary(int sent, int skipped) {}
 
@@ -49,6 +49,10 @@ public class SendAttendeeEmailUseCase {
         }
         if (message == null || message.length() > MAX_MESSAGE_LENGTH) {
             throw new IllegalArgumentException("message_invalid");
+        }
+        final String format = formatOrDefault(request.format());
+        if (!Set.of("text", "html", "markdown").contains(format)) {
+            throw new IllegalArgumentException("format_invalid");
         }
         final Conference conference = conferenceRepository.findByUuid(conferenceUuid)
                 .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
@@ -69,7 +73,7 @@ public class SendAttendeeEmailUseCase {
         }
         if (emailByUserUuid.isEmpty()) throw new IllegalArgumentException("no_recipients");
 
-        final String html = AttendeeEmailTemplate.render(conference.getName(), subject, message);
+        final String html = AttendeeEmailTemplate.render(conference.getName(), subject, message, format);
         int sent = 0;
         int skipped = 0;
         for (final String email : Set.copyOf(emailByUserUuid.values())) {
@@ -85,5 +89,9 @@ public class SendAttendeeEmailUseCase {
 
     private static String blankToNull(final String value) {
         return (value == null || value.isBlank()) ? null : value.trim();
+    }
+
+    private static String formatOrDefault(final String format) {
+        return (format == null || format.isBlank()) ? "text" : format.trim().toLowerCase();
     }
 }
