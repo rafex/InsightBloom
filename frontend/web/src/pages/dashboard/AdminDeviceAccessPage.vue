@@ -2,26 +2,23 @@
 .device-access-page
   h2 Acceso por dispositivo
 
-  .loading-text(v-if="loading") Cargando...
+  LoadingState(v-if="loading" message="Cargando configuración de dispositivos…")
   .settings-card(v-else)
     h3 Umbrales a nivel plataforma
     p.field-hint Estos límites aplican a TODA la plataforma (no a un evento puntual) — se calculan
       |  sobre la huella real del dispositivo (ThumbmarkJS), capturada desde el login.
 
-    .form-group
-      label Máx. sesiones simultáneas por usuario
-      p.field-hint Al superar el límite, se cierra automáticamente la sesión más vieja de ese usuario.
-      input(v-model.number="maxSessionsPerUser" type="number" min="1" max="20" placeholder="3 (por defecto)")
+    FormField(label="Máx. sesiones simultáneas por usuario" hint="Al superar el límite, se cierra automáticamente la sesión más vieja de ese usuario.")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model.number="maxSessionsPerUser" type="number" min="1" max="20" placeholder="3 (por defecto)")
 
-    .form-group
-      label Máx. cuentas distintas por dispositivo
-      p.field-hint Si un mismo dispositivo acumula más cuentas activas que este número, se bloquea el login desde ese dispositivo.
-      input(v-model.number="maxAccountsPerDevice" type="number" min="1" max="50" placeholder="5 (por defecto)")
+    FormField(label="Máx. cuentas distintas por dispositivo" hint="Si un mismo dispositivo acumula más cuentas activas que este número, se bloquea el login desde ese dispositivo.")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model.number="maxAccountsPerDevice" type="number" min="1" max="50" placeholder="5 (por defecto)")
 
-    .form-group
-      label Máx. registros por dispositivo por día
-      p.field-hint Frena el spam de creación de cuentas nuevas desde el mismo dispositivo en 24h.
-      input(v-model.number="maxRegistrationsPerDevicePerDay" type="number" min="1" max="50" placeholder="3 (por defecto)")
+    FormField(label="Máx. registros por dispositivo por día" hint="Frena el spam de creación de cuentas nuevas desde el mismo dispositivo en 24h.")
+      template(#default="{ id, describedBy }")
+        input(:id="id" :aria-describedby="describedBy" v-model.number="maxRegistrationsPerDevicePerDay" type="number" min="1" max="50" placeholder="3 (por defecto)")
 
     BaseButton(:loading="saving" @click="save") Guardar cambios
     FeedbackMessage(v-if="saved" message="Cambios guardados." tone="success")
@@ -94,6 +91,8 @@ import ModerationTable from '@/components/tables/ModerationTable.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import FormField from '@/components/ui/FormField.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { ref, onMounted } from 'vue'
 import {
@@ -108,7 +107,7 @@ type DeviceFingerprintFlagRow = DeviceFingerprintFlag & { _loading: boolean }
 
 export default {
   name: 'AdminDeviceAccessPage',
-  components: { ModerationTable, BaseButton, EmptyState, FeedbackMessage, StatusBadge },
+  components: { ModerationTable, BaseButton, EmptyState, FeedbackMessage, FormField, LoadingState, StatusBadge },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -147,6 +146,8 @@ export default {
         maxAccountsPerDevice.value = settings.maxAccountsPerDevice
         maxSessionsPerUser.value = settings.maxSessionsPerUser
         maxRegistrationsPerDevicePerDay.value = settings.maxRegistrationsPerDevicePerDay
+      } catch (e: any) {
+        error.value = 'No fue posible cargar la configuración de dispositivos.'
       } finally {
         loading.value = false
       }
@@ -212,9 +213,6 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .settings-card { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); margin-bottom: 32px; }
 .settings-card h3 { margin: 0 0 8px; color: var(--color-heading); font-size: 1rem; }
 .field-hint { margin: 0 0 12px; font-size: 0.85rem; }
-.form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
-.form-group label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
-.form-group input { font-size: 0.9rem; }
 .blocks-title { color: var(--color-heading); font-size: 1rem; margin-bottom: 8px; }
 .fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }

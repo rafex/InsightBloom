@@ -6,17 +6,15 @@
     |  siempre gana, tanto la global como la del evento — un evento no puede "desbloquear" un
     |  dominio que la plataforma prohíbe.
 
-  .loading-text(v-if="loading") Cargando...
+  LoadingState(v-if="loading" message="Cargando política de red…")
   .settings-card(v-else)
-    .form-group
-      label Lista blanca (permitidos)
-      p.field-hint Un dominio por línea o separados por coma. Usa {{ '*.dominio.com' }} para incluir subdominios.
-      textarea(v-model="allowedHosts" rows="8" placeholder="github.com&#10;*.npmjs.org")
+    FormField(label="Lista blanca (permitidos)" hint="Un dominio por línea o separados por coma. Usa *.dominio.com para incluir subdominios.")
+      template(#default="{ id, describedBy }")
+        textarea(:id="id" :aria-describedby="describedBy" v-model="allowedHosts" rows="8" placeholder="github.com&#10;*.npmjs.org")
 
-    .form-group
-      label Lista negra (bloqueados)
-      p.field-hint Siempre gana sobre la lista blanca, aquí y en cada evento.
-      textarea(v-model="blockedHosts" rows="4" placeholder="localhost&#10;169.254.169.254")
+    FormField(label="Lista negra (bloqueados)" hint="Siempre gana sobre la lista blanca, aquí y en cada evento.")
+      template(#default="{ id, describedBy }")
+        textarea(:id="id" :aria-describedby="describedBy" v-model="blockedHosts" rows="4" placeholder="localhost&#10;169.254.169.254")
 
     BaseButton(:loading="saving" @click="save") Guardar cambios
     FeedbackMessage(v-if="saved" message="Cambios guardados." tone="success")
@@ -27,12 +25,14 @@
 import { ref, onMounted } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import FormField from '@/components/ui/FormField.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import { getGlobalEgressPolicy, setGlobalEgressPolicy } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'AdminEgressPolicyPage',
-  components: { BaseButton, FeedbackMessage },
+  components: { BaseButton, FeedbackMessage, FormField, LoadingState },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -47,6 +47,8 @@ export default {
         const policy = await getGlobalEgressPolicy(auth.state.token as string)
         allowedHosts.value = toLines(policy.allowedHosts)
         blockedHosts.value = toLines(policy.blockedHosts)
+      } catch (err: any) {
+        error.value = 'No fue posible cargar la política de red.'
       } finally {
         loading.value = false
       }
@@ -87,9 +89,7 @@ export default {
 h2 { color: var(--color-heading); margin-bottom: 8px; }
 .field-hint { margin: 0 0 16px; font-size: 0.85rem; }
 .settings-card { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); }
-.form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; }
-.form-group label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
-.form-group textarea {
+textarea {
   font-size: 0.85rem;
   font-family: monospace; resize: vertical;
 }
