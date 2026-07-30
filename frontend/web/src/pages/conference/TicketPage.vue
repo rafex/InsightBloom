@@ -300,7 +300,7 @@ export default {
 .t-admit-hint { display: block; margin-top: 8px; color: var(--t-text-muted); font-size: .72rem; }
 .ticket-manual { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 24px 18px; background: var(--t-bg-light); border-top: 1px dashed rgba(255,255,255,.25); text-align: center; }
 .ticket-manual span { color: var(--ticket-manual); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
-.ticket-manual code { color: var(--ticket-manual-code); font: 700 .84rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.ticket-manual code { color: var(--t-text-main); font: 700 .98rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .02em; overflow-wrap: anywhere; }
 .ticket-manual small { color: var(--color-text-muted); font-size: .78rem; }
 .ticket-general-cta { text-align: center; padding: 40px 24px; }
 .claim-scanner { margin: 14px auto; max-width: 320px; }
