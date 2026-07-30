@@ -22,7 +22,7 @@
         .social-editor
           label.options-label Redes sociales (opcional)
           .social-row(v-for="(link, idx) in form.socialLinks" :key="idx")
-            select(v-model="link.platform")
+            select(v-model="link.platform" aria-label="Plataforma de red social")
               option(value="twitter") Twitter/X
               option(value="instagram") Instagram
               option(value="linkedin") LinkedIn
@@ -30,9 +30,9 @@
               option(value="facebook") Facebook
               option(value="tiktok") TikTok
               option(value="web") Sitio web
-            input(v-model="link.url" placeholder="https://...")
-            button.btn-icon(type="button" @click="removeLink(idx)" title="Quitar") ✕
-          button.btn-add(type="button" @click="addLink") + Agregar red social
+            input(v-model="link.url" :aria-label="`URL de ${link.platform}`" placeholder="https://...")
+            BaseButton.btn-icon(variant="ghost" size="sm" type="button" :aria-label="`Quitar ${link.platform}`" @click="removeLink(idx)" title="Quitar") ✕
+          BaseButton.btn-add(variant="secondary" size="sm" type="button" @click="addLink") + Agregar red social
 
         FeedbackMessage(v-if="error" :message="error" tone="error")
         BaseButton(size="lg" @click="submitRegister" :disabled="loading" :loading="loading") Crear cuenta
@@ -181,14 +181,8 @@ h2 { margin: 0 0 8px; color: var(--color-heading); }
 .social-row select { flex: 0 0 130px; }
 .social-row input { flex: 1; }
 .btn-icon {
-  flex-shrink: 0; width: 38px; border: 1px solid var(--color-border-subtle); border-radius: 8px;
-  background: var(--color-surface-muted); color: var(--color-text-muted); cursor: pointer;
+  flex-shrink: 0; width: 38px; padding: 0;
 }
-.btn-add {
-  padding: 6px 14px; border: 1px dashed var(--color-primary-border); border-radius: 8px; background: var(--color-bg); color: var(--color-primary-dark);
-  cursor: pointer; font-size: 0.82rem; font-weight: 500;
-}
-.btn-add:hover { background: var(--color-primary-soft); }
 
 @media (max-width: 480px) {
   .register-main { padding: 24px 16px; }
