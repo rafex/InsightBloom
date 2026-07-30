@@ -23,7 +23,7 @@
       BaseButton(variant="secondary" type="button" @click="generateWithAi" :disabled="generatingAi || !aiDescription.trim()")
         span(v-if="generatingAi") Generando...
         span(v-else) ✨ Generar con IA
-      p.error(v-if="aiError") {{ aiError }}
+      FeedbackMessage(v-if="aiError" :message="aiError" tone="error")
 
     .form-group(v-show="activeTab === 'canvas'")
       VenueMapCanvasEditor(v-if="showingCanvasEditor" @save="applyCanvasSeats" @cancel="showingCanvasEditor = false")
@@ -37,8 +37,8 @@
         input.seat-label(v-model="seat.label" type="text" placeholder="Etiqueta, ej. A1")
         BaseButton(variant="danger" size="sm" type="button" @click="removeSeat(seat)") Quitar
       BaseButton(:loading="savingSeats" @click="saveSeats") Guardar asientos
-    p.success(v-if="seatsSaved") Asientos guardados.
-    p.error(v-if="seatsError") {{ seatsError }}
+    FeedbackMessage(v-if="seatsSaved" message="Asientos guardados." tone="success")
+    FeedbackMessage(v-if="seatsError" :message="seatsError" tone="error")
 </template>
 
 <script lang="ts">
@@ -50,12 +50,13 @@ import { getConference, setVenueMap, getConferenceSeatMap, defineVenueSeats, gen
 import type { VenueSeat } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 
 interface EditableSeat { uuid: string | null, label: string, x: number, y: number, occupied: boolean }
 
 export default {
   name: 'VenueMapEditorPage',
-  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor, BaseButton },
+  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor, BaseButton, FeedbackMessage },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
