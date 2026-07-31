@@ -2,34 +2,34 @@
 .dashboard-layout
   AppHeader
   .dashboard-body
-    BaseButton.sidebar-toggle(variant="secondary" size="sm" type="button" @click="sidebarOpen = !sidebarOpen" :aria-expanded="sidebarOpen" :aria-label="sidebarOpen ? 'Cerrar navegación' : 'Abrir navegación'") ☰
-    .sidebar-backdrop(v-if="sidebarOpen" aria-hidden="true" @click="sidebarOpen = false")
-    aside.sidebar(:class="{ open: sidebarOpen }")
+    BaseButton#dashboard-sidebar-toggle.sidebar-toggle(ref="toggleButton" variant="secondary" size="sm" type="button" @click="toggleSidebar" :aria-expanded="sidebarOpen" aria-controls="dashboard-sidebar" :aria-label="sidebarOpen ? 'Cerrar navegación' : 'Abrir navegación'") ☰
+    .sidebar-backdrop(v-if="sidebarOpen" aria-hidden="true" @click="closeSidebar")
+    aside#dashboard-sidebar.sidebar(ref="sidebarRef" :class="{ open: sidebarOpen }" aria-label="Navegación del panel" :aria-hidden="sidebarHidden ? 'true' : undefined" :inert="sidebarHidden || undefined")
       nav(aria-label="Navegación principal")
-        router-link(to="/dashboard" active-class="" exact-active-class="router-link-active" @click="sidebarOpen = false") Panel
+        router-link(to="/dashboard" active-class="" exact-active-class="router-link-active" @click="closeSidebar") Panel
         .nav-section
           h2.nav-section-title Eventos
-          router-link(v-if="isModerator" to="/dashboard/conferences" @click="sidebarOpen = false") Mis eventos
-          router-link(to="/events" @click="sidebarOpen = false") Cartelera pública
-          router-link(v-if="!isOrganizer" to="/dashboard/join" @click="sidebarOpen = false") Unirse a un evento
+          router-link(v-if="isModerator" to="/dashboard/conferences" @click="closeSidebar") Mis eventos
+          router-link(to="/events" @click="closeSidebar") Cartelera pública
+          router-link(v-if="!isOrganizer" to="/dashboard/join" @click="closeSidebar") Unirse a un evento
         .nav-section(v-if="isOrganizer || isAdmin")
           h2.nav-section-title Plataforma
-          router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="sidebarOpen = false") Usuarios
-          router-link(v-if="isAdmin" to="/dashboard/admin/roles" @click="sidebarOpen = false") Roles
-          router-link(v-if="isAdmin" to="/dashboard/admin/event-types" @click="sidebarOpen = false") Tipos de evento
-          router-link(v-if="isAdmin" to="/dashboard/admin/ai" @click="sidebarOpen = false") IA
-          router-link(v-if="isAdmin" to="/dashboard/admin/device-access" @click="sidebarOpen = false") Acceso por dispositivo
-          router-link(v-if="isAdmin" to="/dashboard/admin/egress-policy" @click="sidebarOpen = false") Control de red
-          router-link(v-if="isOrganizer" to="/dashboard/certificate-settings" @click="sidebarOpen = false") Plantilla global
+          router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="closeSidebar") Usuarios
+          router-link(v-if="isAdmin" to="/dashboard/admin/roles" @click="closeSidebar") Roles
+          router-link(v-if="isAdmin" to="/dashboard/admin/event-types" @click="closeSidebar") Tipos de evento
+          router-link(v-if="isAdmin" to="/dashboard/admin/ai" @click="closeSidebar") IA
+          router-link(v-if="isAdmin" to="/dashboard/admin/device-access" @click="closeSidebar") Acceso por dispositivo
+          router-link(v-if="isAdmin" to="/dashboard/admin/egress-policy" @click="closeSidebar") Control de red
+          router-link(v-if="isOrganizer" to="/dashboard/certificate-settings" @click="closeSidebar") Plantilla global
         .nav-section
           h2.nav-section-title Cuenta
-          router-link(to="/profile" @click="sidebarOpen = false") Mi perfil
+          router-link(to="/profile" @click="closeSidebar") Mi perfil
     main.dashboard-main
       router-view
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import AppHeader from '@/app/layout/AppHeader.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -40,8 +40,43 @@ export default {
   setup() {
     const auth = useAuthStore()
     const sidebarOpen = ref(false)
+    const sidebarRef = ref<HTMLElement | null>(null)
+    const toggleButton = ref<{ $el?: HTMLElement } | null>(null)
+    const mobileQuery = window.matchMedia('(max-width: 768px)')
+    const isMobile = ref(mobileQuery.matches)
     const isModerator = ref(auth.isModerator())
+    const sidebarHidden = computed(() => isMobile.value && !sidebarOpen.value)
+
+    function focusToggle() {
+      const element = toggleButton.value?.$el
+      element?.focus()
+    }
+
+    function closeSidebar() {
+      if (!sidebarOpen.value) return
+      sidebarOpen.value = false
+      if (isMobile.value) nextTick(focusToggle)
+    }
+
+    function toggleSidebar() {
+      sidebarOpen.value = !sidebarOpen.value
+      if (sidebarOpen.value && isMobile.value) {
+        nextTick(() => sidebarRef.value?.querySelector<HTMLElement>('a')?.focus())
+      }
+    }
+
+    function handleKeydown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && sidebarOpen.value && isMobile.value) closeSidebar()
+    }
+
+    function updateViewport() {
+      isMobile.value = mobileQuery.matches
+      if (!isMobile.value) sidebarOpen.value = false
+    }
+
     onMounted(async () => {
+      window.addEventListener('keydown', handleKeydown)
+      mobileQuery.addEventListener('change', updateViewport)
       // Los moderadores asignados por evento pueden tener solo el rol global ATTENDEE.
       // La lista de conferencias ya está limitada por el backend a eventos propios/asignados.
       if (isModerator.value || !auth.state.token) return
@@ -51,11 +86,20 @@ export default {
         // La navegación base sigue disponible aunque falle la detección opcional.
       }
     })
+    onBeforeUnmount(() => {
+      window.removeEventListener('keydown', handleKeydown)
+      mobileQuery.removeEventListener('change', updateViewport)
+    })
     return {
       isOrganizer: auth.isOrganizer(),
       isModerator,
       isAdmin: auth.isAdmin(),
-      sidebarOpen
+      sidebarOpen,
+      sidebarRef,
+      toggleButton,
+      sidebarHidden,
+      toggleSidebar,
+      closeSidebar
     }
   }
 }
@@ -79,6 +123,7 @@ export default {
 }
 .sidebar nav a { padding: 8px 12px; border-radius: 6px; text-decoration: none; color: var(--color-text-secondary); font-size: 0.95rem; }
 .sidebar nav a:hover, .sidebar nav a.router-link-active { background: var(--color-primary-soft); color: var(--color-primary); }
+.sidebar nav a:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 .dashboard-main { flex: 1; padding: 32px; min-width: 0; }
 
 @media (max-width: 768px) {
