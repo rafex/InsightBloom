@@ -46,7 +46,7 @@
       .ticket-row(v-for="ticket in group.tickets" :key="ticket.uuid")
         .ticket-main
           strong {{ ticket.ticketCode }}
-          StatusBadge(v-if="!ticket.operational" :status="ticket.status" :label="statusLabel(ticket.status)")
+          StatusBadge(v-if="!ticket.operational" :status="ticket.status" :label="formatTicketStatusLabel(ticket.status)")
           span.status-line(v-else) Operativo · no revocable
           span.claimant(v-if="ticket.claimedByUserUuid") Reclamado por: {{ claimantLabel(ticket) }}
           span.status-line(v-else) Sin reclamar
@@ -77,6 +77,7 @@ import AiEmailAssistant from '@/components/AiEmailAssistant.vue'
 import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets, sendAttendeeEmail } from '@/services/api/usersApi'
 import type { Ticket, TicketManagementSummary, TicketStatus } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
+import { formatTicketStatusLabel } from '@/utils/status'
 
 const sendMarked = new Marked()
 
@@ -280,21 +281,6 @@ export default {
       return new Date(value).toLocaleString()
     }
 
-    const statusLabel = (status: TicketStatus) => ({
-      ISSUED: 'Emitido · sin reclamar',
-      CLAIMED: 'Reclamado',
-      CHECKED_IN: 'Registrado en check-in',
-      REVOKED: 'Revocado',
-      EXPIRED: 'Expirado'
-    }[status] || humanizeStatus(status))
-
-    function humanizeStatus(status: string): string {
-      return status
-        .replace(/_/g, ' ')
-        .toLowerCase()
-        .replace(/^./, (character) => character.toUpperCase())
-    }
-
     const claimantLabel = (ticket: Ticket) => {
       const user = summary.value?.claimedUsers?.[ticket.claimedByUserUuid || '']
       if (!user) return ticket.claimedByUserUuid || 'usuario no disponible'
@@ -327,7 +313,7 @@ export default {
     ])
 
     onMounted(load)
-    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, statusLabel, claimantLabel, breadcrumbItems,
+    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, formatTicketStatusLabel, claimantLabel, breadcrumbItems,
       batchQuantity, issuingBatch, canIssueBatch, issueBatch, resendingUuid, resendingAll, resendOne, resendAll,
       composeSubject, composeMessage, composeFormat, showAiAssistant,
       composeTarget, sendingEmail, emailFeedback, emailFeedbackError, sendEmail, writeToAttendee, clearComposeTarget }
