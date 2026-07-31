@@ -84,7 +84,7 @@
     .surveyjs-submission(v-for="submission in surveyJsSubmissions" :key="submission.uuid")
       strong {{ submission.submittedAt }}
       pre {{ JSON.stringify(submission.data, null, 2) }}
-    p.no-responses(v-if="!surveyJsSubmissions.length") Sin respuestas todavía
+    EmptyState(v-if="!surveyJsSubmissions.length" message="Sin respuestas todavía.")
 
   .access-card(v-if="!loading" v-show="activeTab === 'release'")
     h3 Liberar encuesta
@@ -300,7 +300,7 @@
           .answer-grade(v-if="a.gradeScore != null")
             strong {{ a.gradeScore.toFixed(0) }}/100
             span(v-if="a.gradeFeedback") – {{ a.gradeFeedback }}
-      p.no-responses(v-if="!r.responseCount") Sin respuestas todavía
+      EmptyState.no-responses(v-if="!r.responseCount" message="Sin respuestas todavía.")
 </template>
 
 <script lang="ts">
@@ -1121,7 +1121,7 @@ input, select, textarea {
 .summary-line { color: var(--color-text-secondary); margin: 4px 0; }
 .summary-counts { margin: 4px 0 0 16px; padding: 0; color: var(--color-text-secondary); }
 .chart-wrap { margin-top: 10px; max-width: 360px; }
-.no-responses { color: var(--color-text-muted); font-size: 0.85rem; font-style: italic; margin: 4px 0 0; }
+.no-responses { min-height: 0; padding: 4px 0; align-items: flex-start; color: var(--color-text-muted); font-size: 0.85rem; font-style: italic; margin: 4px 0 0; }
 .result-actions { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
 .btn-toggle {
   padding: 4px 0; border: none; background: none; color: var(--color-primary);
