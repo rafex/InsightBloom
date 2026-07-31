@@ -4,6 +4,7 @@
 
   LoadingState(v-if="loading" message="Cargando configuración de dispositivos…")
   .settings-card(v-else)
+    SaveState(:state="saveState")
     h3 Umbrales a nivel plataforma
     p.field-hint Estos límites aplican a TODA la plataforma (no a un evento puntual) — se calculan
       |  sobre la huella real del dispositivo (ThumbmarkJS), capturada desde el login.
@@ -20,7 +21,7 @@
       template(#default="{ id, describedBy }")
         input(:id="id" :aria-describedby="describedBy" v-model.number="maxRegistrationsPerDevicePerDay" type="number" min="1" max="50" placeholder="3 (por defecto)")
 
-    BaseButton(:loading="saving" @click="save") Guardar cambios
+    BaseButton(:loading="saving" :disabled="saving || saveState === 'clean' || saveState === 'saved'" @click="save") Guardar cambios
     FeedbackMessage(v-if="saved" message="Cambios guardados." tone="success")
     FeedbackMessage(v-if="error" :message="error" tone="error")
   FeedbackMessage(v-if="copyFeedback" :message="copyFeedback" tone="success")
@@ -50,6 +51,7 @@
           v-if="!item.unblockedAt"
           @click="unblock(item)"
           :disabled="item._loading"
+          :loading="item._loading"
         ) Desbloquear
 
   h3.blocks-title Discrepancias de huella detectadas
@@ -94,6 +96,7 @@
           v-if="!item.reviewedAt"
           @click="review(item)"
           :disabled="item._loading"
+          :loading="item._loading"
         ) Marcar revisado
 </template>
 
@@ -105,8 +108,9 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import FormField from '@/components/ui/FormField.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   getDeviceAccessSettings, setDeviceAccessSettings, listPlatformDeviceBlocks, unblockPlatformDevice,
   listDeviceFingerprintFlags, reviewDeviceFingerprintFlag
@@ -119,7 +123,7 @@ type DeviceFingerprintFlagRow = DeviceFingerprintFlag & { _loading: boolean }
 
 export default {
   name: 'AdminDeviceAccessPage',
-  components: { ModerationTable, BaseButton, EmptyState, FeedbackMessage, FormField, LoadingState, StatusBadge },
+  components: { ModerationTable, BaseButton, EmptyState, FeedbackMessage, FormField, LoadingState, SaveState, StatusBadge },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -129,7 +133,20 @@ export default {
     const saving = ref(false)
     const saved = ref(false)
     const error = ref('')
+    const initialSettings = ref('')
     const copyFeedback = ref('')
+
+    const saveState = computed(() => {
+      if (saving.value) return 'saving'
+      const current = JSON.stringify({
+        maxAccountsPerDevice: maxAccountsPerDevice.value,
+        maxSessionsPerUser: maxSessionsPerUser.value,
+        maxRegistrationsPerDevicePerDay: maxRegistrationsPerDevicePerDay.value
+      })
+      if (current !== initialSettings.value) return 'dirty'
+      if (saved.value) return 'saved'
+      return 'clean'
+    })
 
     const blocks = ref<PlatformDeviceBlockRow[]>([])
     const loadingBlocks = ref(true)
@@ -170,6 +187,11 @@ export default {
         maxAccountsPerDevice.value = settings.maxAccountsPerDevice
         maxSessionsPerUser.value = settings.maxSessionsPerUser
         maxRegistrationsPerDevicePerDay.value = settings.maxRegistrationsPerDevicePerDay
+        initialSettings.value = JSON.stringify({
+          maxAccountsPerDevice: maxAccountsPerDevice.value,
+          maxSessionsPerUser: maxSessionsPerUser.value,
+          maxRegistrationsPerDevicePerDay: maxRegistrationsPerDevicePerDay.value
+        })
       } catch (e: any) {
         error.value = 'No fue posible cargar la configuración de dispositivos.'
       } finally {
@@ -189,6 +211,11 @@ export default {
         maxAccountsPerDevice.value = settings.maxAccountsPerDevice
         maxSessionsPerUser.value = settings.maxSessionsPerUser
         maxRegistrationsPerDevicePerDay.value = settings.maxRegistrationsPerDevicePerDay
+        initialSettings.value = JSON.stringify({
+          maxAccountsPerDevice: maxAccountsPerDevice.value,
+          maxSessionsPerUser: maxSessionsPerUser.value,
+          maxRegistrationsPerDevicePerDay: maxRegistrationsPerDevicePerDay.value
+        })
         saved.value = true
       } catch (err: any) {
         error.value = err.response?.data?.error?.message || 'No se pudo guardar el cambio'
@@ -237,7 +264,7 @@ export default {
 
     return {
       loading, maxAccountsPerDevice, maxSessionsPerUser, maxRegistrationsPerDevicePerDay,
-      saving, saved, error, save,
+      saving, saved, error, saveState, save,
       blocks, loadingBlocks, unblock, shortFingerprint, reasonLabel, formatDate,
       flags, loadingFlags, review, copyFeedback, subjectLabel, shortUuid, copyUuid
     }

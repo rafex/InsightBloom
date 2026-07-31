@@ -8,6 +8,7 @@
 
   LoadingState(v-if="loading" message="Cargando política de red…")
   .settings-card(v-else)
+    SaveState(:state="saveState")
     FormField(label="Lista blanca (permitidos)" hint="Un dominio por línea o separados por coma. Usa *.dominio.com para incluir subdominios.")
       template(#default="{ id, describedBy }")
         textarea(:id="id" :aria-describedby="describedBy" v-model="allowedHosts" rows="8" placeholder="github.com&#10;*.npmjs.org")
@@ -16,23 +17,24 @@
       template(#default="{ id, describedBy }")
         textarea(:id="id" :aria-describedby="describedBy" v-model="blockedHosts" rows="4" placeholder="localhost&#10;169.254.169.254")
 
-    BaseButton(:loading="saving" @click="save") Guardar cambios
+    BaseButton(:loading="saving" :disabled="saving || saveState === 'clean' || saveState === 'saved'" @click="save") Guardar cambios
     FeedbackMessage(v-if="saved" message="Cambios guardados." tone="success")
     FeedbackMessage(v-if="error" :message="error" tone="error")
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import FormField from '@/components/ui/FormField.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 import { getGlobalEgressPolicy, setGlobalEgressPolicy } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'AdminEgressPolicyPage',
-  components: { BaseButton, FeedbackMessage, FormField, LoadingState },
+  components: { BaseButton, FeedbackMessage, FormField, LoadingState, SaveState },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
@@ -41,12 +43,21 @@ export default {
     const saving = ref(false)
     const saved = ref(false)
     const error = ref('')
+    const initialPolicy = ref('')
+
+    const saveState = computed(() => {
+      if (saving.value) return 'saving'
+      if (JSON.stringify({ allowedHosts: allowedHosts.value, blockedHosts: blockedHosts.value }) !== initialPolicy.value) return 'dirty'
+      if (saved.value) return 'saved'
+      return 'clean'
+    })
 
     onMounted(async () => {
       try {
         const policy = await getGlobalEgressPolicy(auth.state.token as string)
         allowedHosts.value = toLines(policy.allowedHosts)
         blockedHosts.value = toLines(policy.blockedHosts)
+        initialPolicy.value = JSON.stringify({ allowedHosts: allowedHosts.value, blockedHosts: blockedHosts.value })
       } catch (err: any) {
         error.value = 'No fue posible cargar la política de red.'
       } finally {
@@ -71,6 +82,7 @@ export default {
         )
         allowedHosts.value = toLines(policy.allowedHosts)
         blockedHosts.value = toLines(policy.blockedHosts)
+        initialPolicy.value = JSON.stringify({ allowedHosts: allowedHosts.value, blockedHosts: blockedHosts.value })
         saved.value = true
       } catch (err: any) {
         error.value = err.response?.data?.error?.message || 'No se pudo guardar el cambio'
@@ -79,7 +91,7 @@ export default {
       }
     }
 
-    return { loading, allowedHosts, blockedHosts, saving, saved, error, save }
+    return { loading, allowedHosts, blockedHosts, saving, saved, error, saveState, save }
   }
 }
 </script>
