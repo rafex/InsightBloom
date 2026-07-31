@@ -4,7 +4,7 @@ nav.tools-nav(v-if="conferenceId")
     router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/presentation`") Gestionar presentación
     router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/speaker`") Presentar en vivo
     router-link(v-if="hasCapability('SURVEY')" :to="`/dashboard/conferences/${conferenceId}/survey`") Encuesta
-    a(v-if="hasCapability('PRESENTATION') && friendlyId" :href="`/c/${friendlyId}/presentation`" @click.prevent="openPublic") Ver vista pública
+    BaseAnchor.menu-public-link(v-if="hasCapability('PRESENTATION') && friendlyId" variant="ghost" size="sm" :href="`/c/${friendlyId}/presentation`" @click.prevent="openPublic") Ver vista pública
   DropdownMenu(label="Moderación")
     router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Mensajes
     router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/conferences/${conferenceId}/moderation/words`") Palabras/Nube
@@ -24,6 +24,7 @@ nav.tools-nav(v-if="conferenceId")
 <script lang="ts">
 import { ref, onMounted } from 'vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
+import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import { getConference, getActiveEventTypes } from '@/services/api/usersApi'
 import type { Conference, EventCapability, EventType } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -39,7 +40,7 @@ import { eventTypeHasCapability } from '@/features/conferences/capabilities'
  */
 export default {
   name: 'ConferenceToolsNav',
-  components: { DropdownMenu },
+  components: { BaseAnchor, DropdownMenu },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()

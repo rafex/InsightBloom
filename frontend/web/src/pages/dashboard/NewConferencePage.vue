@@ -165,7 +165,7 @@
       span.coords-display {{ created.latitude.toFixed(4) }}, {{ created.longitude.toFixed(4) }}
     .info-row
       span Link público:
-      a(:href="`/c/${created.friendlyId}/doubts`" target="_blank") /c/{{ created.friendlyId }}
+      BaseLink(variant="ghost" size="sm" :to="`/c/${created.friendlyId}/doubts`" target="_blank") /c/{{ created.friendlyId }}
     .map-created(v-if="created.latitude != null")
       ConferenceMap(:latitude="created.latitude" :longitude="created.longitude" :label="created.name")
     .actions

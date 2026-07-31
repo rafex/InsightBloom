@@ -33,7 +33,7 @@
           .calendar-dropdown(v-if="isUpcoming")
             button.btn-calendar(type="button" @click="showCalendarMenu = !showCalendarMenu") 📅 Agregar a mi calendario
             .calendar-menu(v-if="showCalendarMenu")
-              a(:href="googleCalendarUrl" target="_blank" rel="noopener" @click="showCalendarMenu = false") Google Calendar
+              BaseAnchor(variant="ghost" size="sm" :href="googleCalendarUrl" target="_blank" rel="noopener" @click="showCalendarMenu = false") Google Calendar
               button(type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
       .conf-toolbar-wrap(:class="{ 'fade-left': toolbarFadeLeft, 'fade-right': toolbarFadeRight }")
         nav.conf-toolbar(ref="toolbarRef" aria-label="Herramientas del evento" @scroll.passive="updateToolbarFades")
@@ -96,6 +96,7 @@
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
+import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
@@ -125,7 +126,7 @@ const ATTENDEE_TOUR_STEPS = [
 
 export default {
   name: 'ConferencePage',
-  components: { AppHeader, BaseLink, ConferenceIntroMap, EmptyState, FeedbackMessage, LoadingState, OnboardingTour, UiIcon },
+  components: { AppHeader, BaseAnchor, BaseLink, ConferenceIntroMap, EmptyState, FeedbackMessage, LoadingState, OnboardingTour, UiIcon },
   setup() {
     const route      = useRoute()
     const friendlyId = route.params.friendlyId as string
