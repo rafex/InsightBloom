@@ -46,6 +46,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/conference/JitsiInvitePage.vue')
   },
   {
+    // La videollamada vive fuera de ConferencePage para no montar AppHeader, mapa de inicio
+    // ni la barra de herramientas del evento en la pestaña dedicada de Jitsi.
+    path: '/c/:friendlyId/video',
+    component: () => import('@/pages/conference/VideoConferenceEntryPage.vue')
+  },
+  {
     path: '/c/:friendlyId',
     component: () => import('@/pages/conference/ConferencePage.vue'),
     children: [
@@ -65,7 +71,6 @@ const routes: RouteRecordRaw[] = [
       { path: 'ide', component: () => import('@/pages/conference/IdePage.vue') },
       { path: 'diagrams', component: () => import('@/pages/conference/DiagrammingPage.vue') },
       { path: 'notes', component: () => import('@/pages/conference/CollabNotesPage.vue') },
-      { path: 'video', component: () => import('@/pages/conference/VideoConferencePage.vue') },
       { path: 'whiteboard', component: () => import('@/pages/conference/WhiteboardPage.vue') }
     ]
   },

@@ -22,10 +22,18 @@ public class SqliteToolDeviceSessionRepository implements ToolDeviceSessionRepos
 
     @Override
     public void save(final ToolDeviceSession session) {
+        // A takeover revokes the current row instead of deleting it. Reopening the call from the
+        // same browser must therefore reactivate that row, otherwise SQLite rejects the insert
+        // because the historical row still owns the identity UNIQUE constraint.
         final String sql = """
             INSERT INTO tool_device_sessions
                 (uuid, conference_uuid, user_uuid, tool, device_fingerprint, first_seen_at, last_seen_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(conference_uuid, user_uuid, tool, device_fingerprint) DO UPDATE SET
+                uuid = excluded.uuid,
+                first_seen_at = excluded.first_seen_at,
+                last_seen_at = excluded.last_seen_at,
+                revoked_at = NULL
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, session.getUuid());

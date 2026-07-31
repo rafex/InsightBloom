@@ -49,6 +49,7 @@
   "src/pages/conference/SurveyPage.vue": "domain-screen",
   "src/pages/conference/TicketPage.vue": "domain-screen",
   "src/pages/conference/VideoConferencePage.vue": "embedded-tool",
+  "src/pages/conference/VideoConferenceEntryPage.vue": "embedded-tool",
   "src/pages/conference/WhiteboardPage.vue": "embedded-tool",
   "src/pages/conference/WordTimelinePage.vue": "visualization",
   "src/pages/dashboard/AdminAiSettingsPage.vue": "domain-screen",

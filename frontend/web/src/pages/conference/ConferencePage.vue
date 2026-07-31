@@ -79,7 +79,7 @@
             size="sm"
             :href="`/c/${friendlyId}/video`"
             target="_blank"
-            rel="noopener"
+            rel="opener"
             title="Abrir videollamada en una pestaña nueva"
             aria-label="Videollamada (abre en una pestaña nueva)"
           )
