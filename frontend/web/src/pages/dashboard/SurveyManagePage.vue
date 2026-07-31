@@ -42,7 +42,7 @@
       BaseButton(variant="primary" size="sm" type="button" @click="addSurveyElement()") Agregar
     .ai-suggest-row
       BaseButton(variant="secondary" type="button" :loading="suggesting" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
-      span.ai-error(v-if="suggestError") {{ suggestError }}
+      FeedbackMessage.inline-feedback(v-if="suggestError" :message="suggestError" tone="error")
     .suggestions(v-if="suggestions.length")
       h4 Sugerencias compatibles
       .suggestion-row(v-for="(s, i) in suggestions" :key="i")
@@ -72,7 +72,7 @@
     .surveyjs-actions
       BaseButton(variant="secondary" type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(false)") {{ surveyJsSaving ? 'Guardando...' : 'Guardar borrador' }}
       BaseButton(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(true)") Publicar encuesta
-    p.ai-error(v-if="surveyJsError") {{ surveyJsError }}
+    FeedbackMessage.form-feedback(v-if="surveyJsError" :message="surveyJsError" tone="error")
     .surveyjs-preview(v-if="surveyPreviewModel")
       h3 Vista previa
       SurveyComponent(:model="surveyPreviewModel")
@@ -104,13 +104,13 @@
         span.attendee-status(:class="{ released: attendee.released, responded: attendee.responded }")
           | {{ attendee.responded ? 'Respondida' : attendee.released ? 'Liberada' : 'Bloqueada' }}
     EmptyState(v-else message="Aún no hay asistentes registrados en el evento.")
-    p.access-error(v-if="accessError") {{ accessError }}
+    FeedbackMessage.form-feedback(v-if="accessError" :message="accessError" tone="error")
 
   .add-card(v-if="engine === 'NATIVE'" v-show="activeTab === 'create'")
     h3 {{ editingId ? 'Editar pregunta' : 'Agregar pregunta' }}
     .ai-suggest-row(v-if="!editingId")
       BaseButton(variant="secondary" type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
-      span.ai-error(v-if="suggestError") {{ suggestError }}
+      FeedbackMessage.inline-feedback(v-if="suggestError" :message="suggestError" tone="error")
 
     .suggestions(v-if="suggestions.length && !editingId")
       h4 Sugerencias (selecciona las que quieras agregar)
@@ -129,7 +129,7 @@
     .text-row
       input(v-model="form.text" placeholder="¿Qué tan útil fue la charla?")
       button.btn-wand(type="button" :disabled="!form.text || improving" @click="improve" title="Mejorar con IA") {{ improving ? '✨...' : '🪄' }}
-    span.ai-error(v-if="improveError") {{ improveError }}
+    FeedbackMessage.form-feedback(v-if="improveError" :message="improveError" tone="error")
 
     .suggestions.improve-suggestions(v-if="improvements.length")
       h4 Alternativas mejoradas por IA
@@ -302,6 +302,7 @@ import { SurveyComponent } from 'survey-vue3-ui'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, getSurveyAccessManagement, releaseSurveyAccess, type SurveyEngine, type SurveyAttendee } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -378,7 +379,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, BaseModal, EmptyState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, BaseModal, EmptyState, FeedbackMessage },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -943,7 +944,6 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .attendee-status { justify-self: end; color: var(--color-warning); font-size: 0.78rem; white-space: nowrap; text-align: right; }
 .attendee-status.released { color: var(--color-success); }
 .attendee-status.responded { color: var(--color-info); }
-.access-error { color: var(--color-danger); font-size: 0.85rem; margin-top: 12px; }
 .engine-help, .editor-help, .ai-shared { color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.45; }
 .engine-row, .surveyjs-add-row, .surveyjs-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .engine-row select { flex: 1; min-width: 220px; margin-bottom: 0; }
@@ -985,7 +985,8 @@ input, select, textarea {
 .q-required { color: var(--color-danger); font-weight: 700; }
 .form-actions { display: flex; gap: 10px; align-items: center; }
 .ai-suggest-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.ai-error { color: var(--color-danger); font-size: 0.82rem; }
+.inline-feedback { margin: 0; }
+.form-feedback { margin-top: 12px; }
 .text-row { display: flex; gap: 8px; align-items: flex-start; }
 .text-row input { flex: 1; }
 .btn-wand {
