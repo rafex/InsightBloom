@@ -91,8 +91,8 @@ h1 { color: var(--color-heading); margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3
 .event-flyer { width: 100%; height: 170px; object-fit: cover; display: block; background: var(--color-primary-soft); }
 .placeholder { display: grid; place-items: center; font-size: 3rem; }
 .event-card-body { padding: 20px; }
-.badges { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
-.badge { border-radius: 999px; padding: 4px 9px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: .75rem; font-weight: 700; }
+.badges { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 12px; }
+.badge { display: inline-flex; align-items: center; justify-content: center; min-height: 28px; box-sizing: border-box; border-radius: 999px; padding: 4px 9px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: .75rem; font-weight: 700; line-height: 1.2; }
 .badge-ticket { background: var(--color-warning-soft); color: var(--color-warning); }
 .badge-free { background: var(--color-success-soft); color: var(--color-success); }
 .badge-price { background: var(--color-primary-soft); color: var(--color-primary-dark); }
