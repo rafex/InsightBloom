@@ -46,7 +46,8 @@
       .ticket-row(v-for="ticket in group.tickets" :key="ticket.uuid")
         .ticket-main
           strong {{ ticket.ticketCode }}
-          span.status-line {{ ticket.operational ? 'Operativo · no revocable' : statusLabel(ticket.status) }}
+          StatusBadge(v-if="!ticket.operational" :status="ticket.status" :label="statusLabel(ticket.status)")
+          span.status-line(v-else) Operativo · no revocable
           span.claimant(v-if="ticket.claimedByUserUuid") Reclamado por: {{ claimantLabel(ticket) }}
           span.status-line(v-else) Sin reclamar
           span.audit-line(v-if="ticket.status === 'REVOKED'") Revocado por: {{ ticket.revokedByUserUuid || 'desconocido' }} · {{ formatAuditDate(ticket.revokedAt) }}
@@ -70,6 +71,7 @@ import TicketQr from '@/components/TicketQr.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmailComposeEditor from '@/components/EmailComposeEditor.vue'
 import AiEmailAssistant from '@/components/AiEmailAssistant.vue'
 import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets, sendAttendeeEmail } from '@/services/api/usersApi'
@@ -80,7 +82,7 @@ const sendMarked = new Marked()
 
 export default {
   name: 'TicketManagementPage',
-  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, FeedbackMessage, EmailComposeEditor, AiEmailAssistant },
+  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, FeedbackMessage, StatusBadge, EmailComposeEditor, AiEmailAssistant },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
