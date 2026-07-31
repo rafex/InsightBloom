@@ -37,6 +37,7 @@
           v-if="!item.detailStatus || item.detailStatus === 'VISIBLE' || item.detailStatus === 'PENDIENTE_REVISION'"
           @click="censorDetail(item)"
           :disabled="item._loading"
+          :loading="item._loading"
         ) Censurar detalle
         BaseButton(
           variant="success"
@@ -44,6 +45,7 @@
           v-if="item.detailStatus && item.detailStatus !== 'VISIBLE' && item.detailStatus !== 'DELETED'"
           @click="restore(item)"
           :disabled="item._loading"
+          :loading="item._loading"
         ) Restaurar
         BaseButton(
           variant="danger"
@@ -51,6 +53,7 @@
           v-if="!item.detailStatus || item.detailStatus !== 'DELETED'"
           @click="deleteItem(item)"
           :disabled="item._loading"
+          :loading="item._loading"
         ) Eliminar
         BaseButton(
           variant="secondary"
