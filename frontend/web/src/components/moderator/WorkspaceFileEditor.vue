@@ -3,7 +3,7 @@
   .wfe-dialog
     .wfe-header
       h3 Archivos del workspace
-      button.wfe-close(type="button" @click="close" title="Cerrar") ✕
+      button.wfe-close(type="button" @click="close" title="Cerrar" aria-label="Cerrar editor de workspace") ✕
     .wfe-body
       .wfe-sidebar
         p.wfe-hint(v-if="loadingFiles") Cargando árbol de archivos...

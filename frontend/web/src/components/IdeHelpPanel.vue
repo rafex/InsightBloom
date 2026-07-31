@@ -1,19 +1,20 @@
 <template lang="pug">
 .ide-help
-  button.help-fab(type="button" @click="open = !open" :aria-expanded="open" title="Ayuda de Neovim")
+  button#ide-help-toggle.help-fab(type="button" @click="open = !open" :aria-expanded="open" aria-controls="ide-help-panel" :aria-label="open ? 'Cerrar ayuda de Neovim' : 'Abrir ayuda de Neovim'" title="Ayuda de Neovim")
     span(v-if="!open") 📖
     span(v-else) ✕
 
   transition(name="slide")
-    aside.help-panel(v-if="open" :style="{ width: panelWidth + 'px' }")
+    aside#ide-help-panel.help-panel(v-if="open" role="complementary" aria-label="Ayuda de Neovim" :style="{ width: panelWidth + 'px' }")
       .help-resize-handle(@pointerdown="startResize" title="Arrastrá para cambiar el ancho")
-      nav.help-nav
+      nav.help-nav(aria-label="Temas de ayuda")
         h3 Ayuda
         button.help-nav-item(
           v-for="topic in availableTopics"
           :key="topic.id"
           type="button"
           :class="{ active: topic.id === activeId }"
+          :aria-pressed="topic.id === activeId"
           @click="activeId = topic.id"
         ) {{ topic.title }}
       .help-content(v-if="activeId !== 'mentor'" v-html="renderedActive" @click="onHelpContentClick")
@@ -76,7 +77,7 @@ const helpMarked = new Marked({
     code(token: { text: string, lang?: string }) {
       const lang = (token.lang || '').trim().split(/\s+/)[0]
       const langClass = lang ? ` class="language-${escapeHtml(lang)}"` : ''
-      return `<div class="code-block"><button type="button" class="copy-code-btn">Copiar</button>`
+      return `<div class="code-block"><button type="button" class="copy-code-btn" aria-label="Copiar bloque de código">Copiar</button>`
         + `<pre><code${langClass}>${escapeHtml(token.text)}</code></pre></div>`
     }
   }
