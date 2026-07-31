@@ -1255,6 +1255,27 @@ app.use('/api/v1/conferences/:id/presentation/moderator', async (req, res, next)
   });
 });
 
+// Compatibilidad para presentaciones generadas durante la primera separación del
+// build con notas. Esos index.html todavía apuntan sus assets a
+// "presentation/presenter-assets/"; mantener este prefijo evita que una presentación
+// existente quede en blanco hasta que se vuelva a generar o subir.
+app.use('/api/v1/conferences/:id/presentation/presenter-assets', async (req, res, next) => {
+  if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
+  const manifest = readManifest(req.params.id);
+  const presenterRoot = presentationPresenterRoot(req.params.id, manifest);
+  const presenterIndex = presentationPresenterIndexFile(req.params.id, manifest);
+  if (!presenterRoot || !presenterIndex || !fs.existsSync(presenterIndex)) {
+    return res.status(404).json({ error: 'not_found' });
+  }
+  if (!(await hasPresentationManagementAccess(req.params.id, requestToken(req)))) {
+    return res.status(403).json({ error: 'presentation_management_required' });
+  }
+  res.setHeader('Content-Security-Policy', SLIDEV_CSP);
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  setPresentationAccessCookie(req, res, req.params.id);
+  express.static(presenterRoot, { index: false, redirect: false })(req, res, next);
+});
+
 app.get('/api/v1/conferences/:id/presentation/slides/preview', async (req, res) => {
   if (!validConferenceId(req.params.id)) return res.status(400).json({ error: 'invalid_conference_id' });
   if (!await requireConferenceAccess(req, res)) return;
