@@ -69,6 +69,16 @@
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/messages`") Mensajes
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Palabras/Nube
                 router-link(v-if="hasCapability(c, 'CODE_IDE')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/ide`") Editor Monaco
+                BaseAnchor.menu-video-link(
+                  v-if="hasCapability(c, 'VIDEO_CONFERENCE')"
+                  variant="ghost"
+                  size="sm"
+                  :href="`/c/${c.friendlyId}/video`"
+                  target="_blank"
+                  rel="noopener"
+                  title="Abrir la videollamada en una pestaña nueva"
+                  aria-label="Entrar a la videollamada (abre en una pestaña nueva)"
+                ) Videollamada ↗
                 router-link(v-if="isOrganizer && (hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE'))" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/device-blocks`") Bloqueos
           td.actions-cell(data-label="Acciones")
             .conf-actions

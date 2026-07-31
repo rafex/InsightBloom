@@ -4,7 +4,7 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `main`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-30 (modales canónicos en usuarios y roles)
+> **Último checkpoint**: 2026-07-30 (videollamada en pestaña nueva desde evento y moderación)
 
 ## Estado
 
@@ -39,6 +39,7 @@
 | **Gobierno visual** | Iconografía administrativa | En progreso | `UiIcon.vue` aporta SVGs lineales para métricas del Panel y herramientas del evento; elimina emojis de indicadores operativos sin modificar contenido editorial |
 | **Recorridos por rol** | Moderador event-scoped | En progreso | El panel detecta eventos asignados aunque el rol global sea `ATTENDEE`; se mantienen ocultas acciones de propietario |
 | **UX evento** | QR, herramientas y cabecera | Completado | El QR del listado apunta siempre a `/c/{friendlyId}/ticket`; se retiraron botones internos de QR; se agregó Cronograma y se ordenaron las herramientas; la cabecera inicia compacta y se mantiene así al cambiar de ruta |
+| **UX evento** | Videollamada | Completado | Participantes y moderadores abren la llamada en una pestaña nueva; el acceso de moderación está disponible tanto en el listado de eventos como en el menú contextual del panel, donde JaaS conserva el rol de moderador y el takeover de sesión |
 
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
 
