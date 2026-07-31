@@ -58,7 +58,7 @@ git stash list  # debería mostrar "pre-design-system-migration"
 
 La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue. Las tandas del 2026-07-29 y 2026-07-30 añadieron el estado de guardado canónico, el baseline global de tablas, tokens de overlays, detección de asignaciones event-scoped para moderadores, iconografía SVG reutilizable para el Panel y las herramientas del evento, y la migración de confirmaciones de Usuarios/Roles a `BaseModal`.
 
-La migración de colores continúa: el gate mide 80 literales hex locales (baseline histórico
+La migración de colores continúa: el gate mide 73 literales hex locales (baseline histórico
 1,278), todos fijados en excepciones documentadas de mapas, ilustraciones y certificados. Las nuevas
 pantallas deben usar tokens y componentes canónicos; el gate ya no permite redefiniciones legacy.
 

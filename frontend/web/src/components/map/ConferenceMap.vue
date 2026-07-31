@@ -103,7 +103,7 @@ export default {
   position: absolute;
   top: 0; left: 0;
   width: 44px; height: 44px;
-  border: 2px solid #4f46e5;
+  border: 2px solid var(--color-primary);
   border-radius: 50%;
   animation: cm-pulse 2s ease-out infinite;
 }
@@ -122,7 +122,7 @@ export default {
   width: 0; height: 0;
   border-left: 7px solid transparent;
   border-right: 7px solid transparent;
-  border-top: 14px solid #4f46e5;
+  border-top: 14px solid var(--color-primary);
   margin-top: -1px;
   filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
 }

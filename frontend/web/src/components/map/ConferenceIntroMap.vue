@@ -131,7 +131,7 @@ export default {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #0f172a;
+  background: var(--color-map-overlay);
   transition: opacity 0.6s ease;
 }
 .intro-overlay.intro-out { opacity: 0; pointer-events: none; }
@@ -156,7 +156,7 @@ export default {
   margin-top: 4px;
   font-size: 0.85rem;
   font-family: monospace;
-  color: #a5b4fc;
+  color: var(--color-header-link-muted);
 }
 
 .intro-flyer {
@@ -202,7 +202,7 @@ export default {
 .hint-arrow {
   margin-top: 8px;
   font-size: 1.3rem;
-  color: #4f46e5;
+  color: var(--color-primary);
   animation: bounce-arr 1s ease-in-out infinite;
 }
 
@@ -229,7 +229,7 @@ export default {
 .ilp-ring {
   position: absolute;
   border-radius: 50%;
-  border: 2.5px solid #4f46e5;
+  border: 2.5px solid var(--color-primary);
   top: 0; left: 0;
   width: 72px; height: 72px;
   animation: ilp-pulse 2.2s ease-out infinite;
@@ -257,7 +257,7 @@ export default {
   width: 0; height: 0;
   border-left: 11px solid transparent;
   border-right: 11px solid transparent;
-  border-top: 22px solid #4f46e5;
+  border-top: 22px solid var(--color-primary);
   margin-top: -2px;
   filter: drop-shadow(0 3px 4px rgba(0,0,0,0.3));
 }

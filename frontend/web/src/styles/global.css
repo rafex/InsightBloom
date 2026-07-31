@@ -69,6 +69,9 @@
   --color-cloud-lime: #84cc16;
   --color-cloud-pink: #ec4899;
 
+  /* Superficie de presentación del mapa introductorio; compartida por sus overlays. */
+  --color-map-overlay: #0f172a;
+
   --ticket-bg: #1e1e24;
   --ticket-bg-light: #2b2b36;
   --ticket-accent: #7c3aed;

@@ -19,7 +19,9 @@
 ## UX/UI
 
 - [ ] Migrar estilos `scoped` genéricos elegibles a tokens y componentes canónicos.
-- [ ] Revisar los 80 colores hex documentados para detectar tokens reutilizables.
+- [x] Revisar los 80 colores hex documentados para detectar tokens reutilizables.
+  Se migraron 7 literales reutilizables de mapas a tokens; permanecen 73 literales
+  intencionales en ilustraciones, lienzos de mapa y certificados.
 - [ ] Completar recorridos responsive, teclado, lector de pantalla y autenticados
   por rol.
 - [ ] Verificar que el commit validado sea el que está desplegado en producción.
