@@ -68,9 +68,9 @@
             input(type="checkbox" :checked="!!element.isRequired" @change="toggleSurveyElementRequired(index)")
             span Obligatoria
           .option-arrows
-            button.btn-icon(type="button" @click="moveSurveyElement(index, -1)" :disabled="index === 0" title="Subir") ↑
-            button.btn-icon(type="button" @click="moveSurveyElement(index, 1)" :disabled="index === surveyElements.length - 1" title="Bajar") ↓
-          button.btn-icon(type="button" @click="removeSurveyElement(index)" title="Quitar") ✕
+            button.btn-icon(type="button" @click="moveSurveyElement(index, -1)" :disabled="index === 0" title="Subir" :aria-label="`Subir elemento ${index + 1}`") ↑
+            button.btn-icon(type="button" @click="moveSurveyElement(index, 1)" :disabled="index === surveyElements.length - 1" title="Bajar" :aria-label="`Bajar elemento ${index + 1}`") ↓
+          button.btn-icon(type="button" @click="removeSurveyElement(index)" title="Quitar" :aria-label="`Quitar elemento ${index + 1}`") ✕
     .surveyjs-actions
       BaseButton(variant="secondary" type="button" :disabled="surveyJsSaving || !surveyElements.length || surveyJsSaveState === 'clean'" @click="saveSurveyJs(false)") {{ surveyJsSaving ? 'Guardando...' : 'Guardar borrador' }}
       BaseButton(type="button" :disabled="surveyJsSaving || !surveyElements.length || surveyJsSaveState === 'clean'" @click="saveSurveyJs(true)") Publicar encuesta
@@ -137,7 +137,7 @@
 
     .text-row
       input(v-model="form.text" placeholder="¿Qué tan útil fue la charla?")
-      button.btn-wand(type="button" :disabled="!form.text || improving" @click="improve" title="Mejorar con IA") {{ improving ? '✨...' : '🪄' }}
+      button.btn-wand(type="button" :disabled="!form.text || improving" @click="improve" title="Mejorar con IA" aria-label="Mejorar pregunta con IA") {{ improving ? '✨...' : '🪄' }}
     FeedbackMessage.form-feedback(v-if="improveError" :message="improveError" tone="error")
 
     .suggestions.improve-suggestions(v-if="improvements.length")
@@ -171,9 +171,9 @@
       label.options-label Opciones que verá el asistente · marca cuáles son correctas
       .option-row(v-for="(opt, idx) in form.options" :key="idx")
         label.option-correct(:title="'Marcar como correcta'")
-          input(type="checkbox" v-model="form.optionsCorrect[idx]")
+          input(type="checkbox" v-model="form.optionsCorrect[idx]" :aria-label="`Marcar opción ${idx + 1} como correcta`")
         input(v-model="form.options[idx]" :placeholder="'Opción ' + (idx + 1)")
-        button.btn-icon(type="button" @click="removeOption(idx)" :disabled="form.options.length <= 2" title="Quitar") ✕
+        button.btn-icon(type="button" @click="removeOption(idx)" :disabled="form.options.length <= 2" title="Quitar" :aria-label="`Quitar opción ${idx + 1}`") ✕
       button.btn-add(type="button" @click="addOption") + Agregar opción
       p.options-hint(v-if="!form.optionsCorrect.some(Boolean)") ⚠️ Marca al menos una opción correcta para poder calificar esta pregunta automáticamente.
 
@@ -183,9 +183,9 @@
         span.option-order {{ idx + 1 }}
         input(v-model="form.options[idx]" :placeholder="'Elemento ' + (idx + 1)")
         .option-arrows
-          button.btn-icon(type="button" @click="moveOption(idx, -1)" :disabled="idx === 0" title="Subir") ↑
-          button.btn-icon(type="button" @click="moveOption(idx, 1)" :disabled="idx === form.options.length - 1" title="Bajar") ↓
-        button.btn-icon(type="button" @click="removeOption(idx)" :disabled="form.options.length <= 2" title="Quitar") ✕
+          button.btn-icon(type="button" @click="moveOption(idx, -1)" :disabled="idx === 0" title="Subir" :aria-label="`Subir elemento ${idx + 1}`") ↑
+          button.btn-icon(type="button" @click="moveOption(idx, 1)" :disabled="idx === form.options.length - 1" title="Bajar" :aria-label="`Bajar elemento ${idx + 1}`") ↓
+        button.btn-icon(type="button" @click="removeOption(idx)" :disabled="form.options.length <= 2" title="Quitar" :aria-label="`Quitar elemento ${idx + 1}`") ✕
       button.btn-add(type="button" @click="addOption") + Agregar elemento
 
     textarea(
