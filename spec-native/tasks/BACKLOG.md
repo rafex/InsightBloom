@@ -33,6 +33,8 @@
   Avance: las pestañas de configuración del evento ya tienen semántica `tab`/`tabpanel`,
   navegación con flechas/Home/End y foco visible; sus controles tienen `label`/`for`, y
   las asignaciones y tablas se adaptan mejor a móvil. Las tablas de usuarios, tipos y roles
-  tienen acciones y campos inline navegables con nombres accesibles. Falta recorrer el
-  dashboard completo por rol en móvil y con lector de pantalla.
+  tienen acciones y campos inline navegables con nombres accesibles. Las superficies de
+  configuración, presentación, mapas, nubes y tutor IA conservan ahora el foco visible
+  con `:focus-visible`. Falta recorrer el dashboard completo por rol en móvil y con lector
+  de pantalla.
 - [ ] Verificar que el commit validado sea el que está desplegado en producción.

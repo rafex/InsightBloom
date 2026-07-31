@@ -1014,8 +1014,8 @@ textarea {
   width: 100%; box-sizing: border-box; padding: 10px 14px; border: 1.5px solid var(--color-border);
   border-radius: 8px; font: inherit; resize: vertical; min-height: 80px;
 }
-input:focus { outline: none; border-color: var(--color-primary); }
-textarea:focus { outline: none; border-color: var(--color-primary); }
+input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-color: var(--color-primary); }
+textarea:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-color: var(--color-primary); }
 
 .scope-badge { align-self: flex-start; display: inline-flex; padding: 3px 9px; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: 0.72rem; font-weight: 700; }
 .tickets-group select, .canvas-group select { padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 1rem; margin-bottom: 10px; }

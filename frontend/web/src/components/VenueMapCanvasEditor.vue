@@ -335,10 +335,10 @@ export default {
   font-size: 0.9rem;
 }
 
-.input-field:focus {
-  outline: none;
+.input-field:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 .info-text {

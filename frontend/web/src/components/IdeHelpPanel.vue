@@ -400,7 +400,7 @@ export default {
 .mentor-intro { color: var(--color-text-secondary); line-height: 1.5; }
 .mentor-content label { display: block; margin: 16px 0 6px; font-size: 0.85rem; font-weight: 600; color: var(--color-text-secondary); }
 .mentor-content textarea { width: 100%; box-sizing: border-box; resize: vertical; padding: 9px 10px; border: 1px solid var(--color-border); border-radius: 7px; font: inherit; }
-.mentor-content textarea:focus { outline: none; border-color: var(--color-primary); }
+.mentor-content textarea:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-color: var(--color-primary); }
 .mentor-messages { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
 .mentor-message { padding: 10px 12px; border-radius: 9px; background: var(--color-surface-muted); white-space: pre-wrap; }
 .mentor-message.user { background: var(--color-primary-soft); }

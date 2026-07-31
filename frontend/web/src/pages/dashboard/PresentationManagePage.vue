@@ -184,7 +184,7 @@ input[type="file"] { display: block; margin-bottom: 12px; }
   width: 100%; padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px;
   font-size: 0.95rem; box-sizing: border-box; background: var(--color-surface);
 }
-.source-input:focus { outline: none; border-color: var(--color-primary); }
+.source-input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-color: var(--color-primary); }
 .field-hint { margin: 6px 0 0; font-size: 0.8rem; }
 .preview-actions { margin-top: 8px; }
 
