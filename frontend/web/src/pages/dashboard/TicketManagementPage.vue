@@ -49,9 +49,14 @@
           strong {{ ticket.ticketCode }}
           StatusBadge(v-if="!ticket.operational" :status="ticket.status" :label="formatTicketStatusLabel(ticket.status)")
           StatusBadge(v-if="ticket.operational" status="ACTIVE" label="Operativo · no revocable")
-          span.claimant(v-if="!ticket.operational && ticket.claimedByUserUuid") Reclamado por: {{ claimantLabel(ticket) }}
+          span.claimant(v-if="!ticket.operational && ticket.claimedByUserUuid")
+            | Reclamado por:
+            span.audit-actor(:title="actorUuid(ticket.claimedByUserUuid)") {{ claimantLabel(ticket) }}
           StatusBadge(v-if="!ticket.operational && !ticket.claimedByUserUuid" status="PENDING" label="Sin reclamar")
-          span.audit-line(v-if="ticket.status === 'REVOKED'") Revocado por: {{ ticket.revokedByUserUuid || 'desconocido' }} · {{ formatAuditDate(ticket.revokedAt) }}
+          span.audit-line(v-if="ticket.status === 'REVOKED'")
+            | Revocado por:
+            span.audit-actor(:title="actorUuid(ticket.revokedByUserUuid)") {{ actorLabel(ticket.revokedByUserUuid) }}
+            |  · {{ formatAuditDate(ticket.revokedAt) }}
         .row-actions
           BaseButton(variant="ghost" size="sm" type="button" @click="showQr(ticket)") QR
           BaseButton(variant="ghost" size="sm" type="button" @click="copy(ticket.ticketCode)") Copiar UUID
@@ -283,11 +288,15 @@ export default {
       return new Date(value).toLocaleString()
     }
 
-    const claimantLabel = (ticket: Ticket) => {
-      const user = summary.value?.claimedUsers?.[ticket.claimedByUserUuid || '']
-      if (!user) return ticket.claimedByUserUuid || 'usuario no disponible'
+    const actorLabel = (uuid?: string | null) => {
+      if (!uuid) return 'usuario no disponible'
+      const user = summary.value?.ticketActors?.[uuid]
+      if (!user) return 'usuario no disponible'
       return user.displayName || user.username || user.email || user.uuid
     }
+
+    const actorUuid = (uuid?: string | null) => uuid ? `UUID: ${uuid}` : 'UUID no disponible'
+    const claimantLabel = (ticket: Ticket) => actorLabel(ticket.claimedByUserUuid)
 
     const normalTickets = (status: TicketStatus) => tickets.value.filter(ticket => !ticket.operational && ticket.status === status)
     const operationalTickets = computed(() => tickets.value.filter(ticket => Boolean(ticket.operational)))
@@ -315,7 +324,7 @@ export default {
     ])
 
     onMounted(load)
-    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, formatTicketStatusLabel, claimantLabel, breadcrumbItems,
+    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, formatTicketStatusLabel, claimantLabel, actorLabel, actorUuid, breadcrumbItems,
       batchQuantity, issuingBatch, canIssueBatch, issueBatch, resendingUuid, resendingAll, resendOne, resendAll,
       composeSubject, composeMessage, composeFormat, showAiAssistant,
       composeTarget, sendingEmail, emailFeedback, emailFeedbackError, sendEmail, writeToAttendee, clearComposeTarget }
@@ -351,6 +360,7 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--color-
 .ticket-group h4 { margin: 0 0 8px; color: var(--color-primary-dark); }
 .claimant { color: var(--color-success) !important; overflow-wrap: anywhere; }
 .audit-line { color: var(--color-danger-dark) !important; overflow-wrap: anywhere; }
+.audit-actor { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
 .feedback { margin: 12px 0 0; color: var(--color-success); }
 .feedback.error { color: var(--color-danger-dark); }
 </style>

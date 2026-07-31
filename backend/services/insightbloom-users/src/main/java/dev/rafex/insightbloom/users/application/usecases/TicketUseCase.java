@@ -248,26 +248,34 @@ public class TicketUseCase {
 
     /**
      * Datos de gestión protegidos para el dashboard. Mantiene el ticket completo para no romper
-     * QR/copia/revocación y agrega únicamente métricas de aforo y perfiles mínimos de quienes
-     * reclamaron un boleto. Nunca expone credenciales ni datos sensibles del usuario.
+     * QR/copia/revocación y agrega únicamente métricas de aforo y perfiles mínimos de los
+     * usuarios que participan en la auditoría del boleto. Nunca expone credenciales ni datos
+     * sensibles del usuario.
      */
     public TicketManagementSummary listManagement(final String conferenceUuid) {
         final Conference conference = conference(conferenceUuid);
         expireIfNeeded(conference);
         final List<Ticket> tickets = ticketRepository.findByConference(conferenceUuid);
         final Map<String, UserSummary> claimedUsers = new LinkedHashMap<>();
+        final Map<String, UserSummary> ticketActors = new LinkedHashMap<>();
         if (userRepository != null) {
             tickets.stream()
                     .map(Ticket::getClaimedByUserUuid)
                     .filter(uuid -> uuid != null && !claimedUsers.containsKey(uuid))
                     .forEach(uuid -> userRepository.findByUuid(uuid).ifPresent(user ->
                             claimedUsers.put(uuid, UserSummary.from(user))));
+            tickets.stream()
+                    .flatMap(ticket -> java.util.stream.Stream.of(
+                            ticket.getClaimedByUserUuid(), ticket.getRevokedByUserUuid()))
+                    .filter(uuid -> uuid != null && !ticketActors.containsKey(uuid))
+                    .forEach(uuid -> userRepository.findByUuid(uuid).ifPresent(user ->
+                            ticketActors.put(uuid, UserSummary.from(user))));
         }
         final Integer remaining = conference.getCapacity() == null
                 ? null
                 : Math.max(0, conference.getCapacity() - conference.getReservedCount());
         return new TicketManagementSummary(conference.getCapacity(), conference.getReservedCount(),
-                remaining, tickets, claimedUsers);
+                remaining, tickets, claimedUsers, ticketActors);
     }
 
     public record UserSummary(String uuid, String displayName, String username, String email) {
@@ -277,7 +285,8 @@ public class TicketUseCase {
     }
 
     public record TicketManagementSummary(Integer capacity, int reservedCount, Integer remainingToIssue,
-                                           List<Ticket> tickets, Map<String, UserSummary> claimedUsers) {}
+                                           List<Ticket> tickets, Map<String, UserSummary> claimedUsers,
+                                           Map<String, UserSummary> ticketActors) {}
 
     public Ticket checkIn(final String conferenceUuid, final String qrOrUuid) {
         final Conference conference = conference(conferenceUuid);

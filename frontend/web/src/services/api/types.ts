@@ -285,6 +285,7 @@ export interface TicketManagementSummary {
   remainingToIssue?: number | null
   tickets: Ticket[]
   claimedUsers: Record<string, TicketClaimedUser>
+  ticketActors: Record<string, TicketClaimedUser>
 }
 
 export interface VenueSeat {

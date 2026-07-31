@@ -235,6 +235,34 @@ class TicketUseCaseTest {
         assertEquals(2, summary.remainingToIssue());
         assertEquals(1, summary.tickets().size());
         assertEquals("Moderador", summary.claimedUsers().get("moderator").displayName());
+        assertEquals("Moderador", summary.ticketActors().get("moderator").displayName());
+    }
+
+    @Test
+    void managementSummaryIncludesRevokingUserInTicketActors() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final UserRepository users = mock(UserRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        final var revoked = new Ticket("ticket", conference.getUuid(), "code", "owner", null, null,
+                dev.rafex.insightbloom.users.domain.model.TicketStatus.REVOKED, null,
+                Instant.now(), null, null, "moderator", Instant.now());
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByConference(conference.getUuid())).thenReturn(java.util.List.of(revoked));
+        when(users.findByUuid("moderator")).thenReturn(Optional.of(
+                new dev.rafex.insightbloom.users.domain.model.User("moderator", "mod", "Moderador", "mod@example.test", UserRole.MODERATOR)));
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "",
+                mock(ReservationRepository.class), null, users);
+
+        final var summary = useCase.listManagement(conference.getUuid());
+
+        assertEquals("Moderador", summary.ticketActors().get("moderator").displayName());
+        assertTrue(summary.claimedUsers().isEmpty());
     }
 
     @Test
