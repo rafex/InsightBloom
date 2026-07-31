@@ -55,10 +55,19 @@
           router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION') && toolReleased('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
             UiIcon.tool-icon(name="presentation" size="18")
             span.tool-label Presentación
-          a#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && toolReleased('CHAT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
+          span#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && toolReleased('CHAT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
             UiIcon.tool-icon(name="chat" size="18")
             span.tool-label Chat
-          a#onboarding-tab-chat.tool-btn.tab-secondary(v-else-if="privateAllowed('CHAT_BOT') && toolReleased('CHAT')" :href="chatUrl" target="_blank" rel="noopener" title="Chat en vivo" @click="openChat")
+          BaseAnchor#onboarding-tab-chat.tool-btn.tab-secondary(
+            v-else-if="privateAllowed('CHAT_BOT') && toolReleased('CHAT')"
+            variant="ghost"
+            size="sm"
+            :href="chatUrl"
+            target="_blank"
+            rel="noopener"
+            title="Chat en vivo"
+            @click="openChat"
+          )
             UiIcon.tool-icon(name="chat" size="18")
             span.tool-label Chat
           router-link#onboarding-tab-survey.tool-btn(v-if="privateAllowed('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
