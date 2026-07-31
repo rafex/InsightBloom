@@ -33,7 +33,9 @@ const ICON_PATHS: Record<string, string[]> = {
   diagram: ['M6 4h4v4H6z', 'M14 16h4v4h-4z', 'M14 4h4v4h-4z', 'M6 16h4v4H6z', 'M10 6h4', 'M8 8v8', 'M10 18h4'],
   whiteboard: ['M4 4h16v13H4z', 'M8 21l3-4', 'M13 21l-3-4', 'M8 9h8', 'M8 12h5'],
   notes: ['M5 3h14v18H5z', 'M8 7h8', 'M8 11h8', 'M8 15h5'],
-  code: ['M9 6L3 12l6 6', 'M15 6l6 6-6 6', 'M13 4l-2 16']
+  code: ['M9 6L3 12l6 6', 'M15 6l6 6-6 6', 'M13 4l-2 16'],
+  trash: ['M4 7h16', 'M10 11v6', 'M14 11v6', 'M6 7l1 14h10l1-14', 'M9 7V4h6v3'],
+  refresh: ['M20 11a8 8 0 0 0-14.7-4L3 10', 'M3 5v5h5', 'M4 13a8 8 0 0 0 14.7 4L21 14', 'M21 19v-5h-5']
 }
 
 export default {

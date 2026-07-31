@@ -160,9 +160,11 @@
                     span.seat-user(v-if="seat.userUuid" :title="seat.userUuid") Asiento {{ seat.seatIndex + 1 }}: {{ seat.userUuid.slice(0, 8) }}…
                     span.seat-empty(v-else) Asiento {{ seat.seatIndex + 1 }}: libre
                 td.sandbox-actions
-                  BaseButton(variant="danger" size="sm" type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName") Eliminar
+                  BaseButton.icon-action(variant="danger" size="sm" type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName" :aria-label="`Eliminar sandbox ${pod.podName}`" :title="`Eliminar sandbox ${pod.podName}`")
+                    UiIcon(v-if="sandboxActionBusy !== pod.podName" name="trash" size="18" aria-hidden="true")
                   template(v-if="sandboxIsFree(pod)")
-                    BaseButton(variant="secondary" size="sm" type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName") Recrear
+                    BaseButton.icon-action(variant="secondary" size="sm" type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName" :aria-label="`Recrear sandbox ${pod.podName}`" :title="`Recrear sandbox ${pod.podName}`")
+                      UiIcon(v-if="sandboxActionBusy !== pod.podName" name="refresh" size="18" aria-hidden="true")
                   span.action-note(v-else) Ocupado: eliminación forzada
         FeedbackMessage(v-if="sandboxActionError" :message="sandboxActionError" tone="error")
 
@@ -328,10 +330,11 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import SaveState from '@/components/ui/SaveState.vue'
+import UiIcon from '@/components/ui/UiIcon.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, FeedbackMessage, ToggleSwitch, SaveState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, FeedbackMessage, ToggleSwitch, SaveState, UiIcon },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -1005,7 +1008,9 @@ textarea:focus { outline: none; border-color: var(--color-primary); }
 .incidents-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
 .incidents-table th { text-align: left; padding: 6px 10px; background: var(--color-surface-muted); color: var(--color-text-muted); font-weight: 600; }
 .incidents-table td { padding: 6px 10px; border-top: 1px solid var(--color-surface-muted); color: var(--color-text-secondary); }
-.sandbox-actions { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.incidents-table th:last-child, .incidents-table td:last-child { min-width: 92px; }
+.sandbox-actions { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 92px; white-space: nowrap; }
+.icon-action { width: 34px; height: 34px; padding: 0; }
 .action-note { color: var(--color-text-muted); font-size: 0.75rem; }
 
 .seats-cell { display: flex; flex-wrap: wrap; gap: 6px; }
