@@ -22,8 +22,10 @@
           strong
             UiIcon(:name="tool.icon" size="18" aria-hidden="true")
             | {{ tool.label }}
-          span.tool-status(:class="{ on: matrix[tool.key]?.releasedForAll }")
-            | {{ matrix[tool.key]?.releasedForAll ? 'Liberado para todos' : 'Bloqueado' }}
+          StatusBadge(
+            :status="matrix[tool.key]?.releasedForAll ? 'ACTIVE' : 'INACTIVE'"
+            :label="matrix[tool.key]?.releasedForAll ? 'Liberado para todos' : 'Bloqueado'"
+          )
         ToggleSwitch(
           :model-value="!!matrix[tool.key]?.releasedForAll"
           :disabled="busyTool === tool.key"
@@ -54,6 +56,7 @@ import UiIcon from '@/components/ui/UiIcon.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { getToolAccessManagement, releaseTool, lockTool, releaseAllTools as releaseAllToolsApi } from '@/services/api/usersApi'
 import type { ToolKeyName, ToolManagementEntry } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -72,7 +75,7 @@ const TOOLS: { key: ToolKeyName, label: string, icon: string }[] = [
 
 export default {
   name: 'ModerationToolsPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, ToggleSwitch, UiIcon, EmptyState, FeedbackMessage, LoadingState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, ToggleSwitch, UiIcon, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -170,11 +173,6 @@ export default {
 }
 .tool-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .tool-card-header strong { display: inline-flex; align-items: center; gap: 8px; }
-.tool-status {
-  display: block; font-size: 0.8rem; margin-top: 2px; color: var(--color-text-muted);
-}
-.tool-status.on { color: var(--color-success); font-weight: 600; }
-
 .toggle-attendees { margin-top: var(--space-2); padding-left: 0; text-decoration: underline; }
 
 .attendee-list { margin-top: 10px; border-top: 1px solid var(--color-surface-muted); padding-top: 10px; }
