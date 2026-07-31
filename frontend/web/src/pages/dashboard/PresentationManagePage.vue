@@ -5,8 +5,12 @@
   h2 Presentación
 
   .status-card(v-if="checkedStatus")
-    p(v-if="ready") ✅ Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }}{{ presentationFormat === 'fat' ? ' FAT precompilada' : '' }} generada para esta conferencia.
-    p(v-else) Aún no se ha subido una presentación.
+    StatusBadge.presentation-status(
+      :status="ready ? 'ACTIVE' : 'INACTIVE'"
+      :label="ready ? 'Presentación disponible' : 'Sin presentación'"
+    )
+    p.status-help(v-if="ready") Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }}{{ presentationFormat === 'fat' ? ' FAT precompilada' : '' }} generada para esta conferencia.
+    p.status-help(v-else) Aún no se ha subido una presentación.
     .preview-actions(v-if="ready")
       BaseAnchor(variant="secondary" :href="publicSlidesUrl || slidesUrl" target="_blank" rel="noopener") Ver slides
       BaseAnchor(variant="secondary" :href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
@@ -43,10 +47,11 @@ import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 export default {
   name: 'PresentationManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseAnchor, BaseButton, FeedbackMessage },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseAnchor, BaseButton, FeedbackMessage, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -161,6 +166,8 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .status-card, .upload-card {
   background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; margin-bottom: 20px;
 }
+.presentation-status { margin-bottom: 6px; }
+.status-help { color: var(--color-text-muted); margin: 0 0 8px; }
 h3 { margin: 0 0 8px; color: var(--color-heading); }
 .hint { color: var(--color-text-muted); font-size: 0.88rem; margin-bottom: 12px; }
 input[type="file"] { display: block; margin-bottom: 12px; }
