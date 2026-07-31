@@ -10,16 +10,19 @@ interface AuthState {
   expiresAt: string | null
 }
 
-// Access tokens are session material, not application preferences. Keep them
-// out of persistent localStorage so a shared browser profile or an old
-// persisted XSS payload cannot recover a token after the tab/session ends.
-// The backend also issues a scoped HttpOnly cookie for presentation assets.
-const tokenStorage = sessionStorage
+// La sesión se comparte entre pestañas para que el usuario pueda abrir las
+// herramientas del evento sin volver a autenticarse. La duración efectiva la
+// controla el backend (una hora) y useSessionManager sólo la renueva cuando
+// detecta actividad reciente.
+const tokenStorage = localStorage
 
 function migrateLegacyToken(): void {
-  const legacyToken = localStorage.getItem('ib_token')
-  if (legacyToken && !sessionStorage.getItem('ib_token')) sessionStorage.setItem('ib_token', legacyToken)
-  if (legacyToken) localStorage.removeItem('ib_token')
+  // Las versiones anteriores guardaban el token únicamente por pestaña. Lo
+  // promovemos una vez a localStorage para no cerrar sesiones durante el
+  // despliegue del cambio.
+  const tabToken = sessionStorage.getItem('ib_token')
+  if (!tokenStorage.getItem('ib_token') && tabToken) tokenStorage.setItem('ib_token', tabToken)
+  if (tabToken) sessionStorage.removeItem('ib_token')
 }
 
 migrateLegacyToken()
@@ -44,6 +47,82 @@ function persistExpiresAt(expiresAt?: string | null) {
   state.expiresAt = expiresAt || null
   if (expiresAt) localStorage.setItem('ib_expires_at', expiresAt)
   else localStorage.removeItem('ib_expires_at')
+}
+
+const REFRESH_LOCK_KEY = 'ib_session_refresh_lock'
+const REFRESH_LOCK_TTL_MS = 15_000
+const REFRESH_WAIT_MS = 250
+const REFRESH_WAIT_ATTEMPTS = 20
+const tabId = randomTabId()
+
+function randomTabId(): string {
+  try {
+    return crypto.randomUUID()
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  }
+}
+
+function acquireRefreshLock(): boolean {
+  const now = Date.now()
+  try {
+    const current = localStorage.getItem(REFRESH_LOCK_KEY)
+    if (current) {
+      const lock = JSON.parse(current) as { owner?: string, expiresAt?: number }
+      if (lock.owner && lock.owner !== tabId && Number(lock.expiresAt) > now) return false
+    }
+    localStorage.setItem(REFRESH_LOCK_KEY, JSON.stringify({ owner: tabId, expiresAt: now + REFRESH_LOCK_TTL_MS }))
+    const stored = localStorage.getItem(REFRESH_LOCK_KEY)
+    if (!stored) return true
+    const acquired = JSON.parse(stored) as { owner?: string }
+    return acquired.owner === tabId
+  } catch {
+    // Si el navegador bloquea localStorage, no impedimos que la sesión funcione.
+    return true
+  }
+}
+
+function releaseRefreshLock(): void {
+  try {
+    const current = JSON.parse(localStorage.getItem(REFRESH_LOCK_KEY) || '{}') as { owner?: string }
+    if (current.owner === tabId) localStorage.removeItem(REFRESH_LOCK_KEY)
+  } catch {
+    // best-effort
+  }
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+function syncFromStorage(): void {
+  const token = localStorage.getItem('ib_token')
+  if (!token) {
+    clearInMemorySession()
+    return
+  }
+  state.token = token
+  state.role = localStorage.getItem('ib_role')
+  state.userUuid = localStorage.getItem('ib_user_uuid')
+  state.expiresAt = localStorage.getItem('ib_expires_at')
+}
+
+async function waitForRefreshFromAnotherTab(previousToken: string): Promise<boolean> {
+  for (let attempt = 0; attempt < REFRESH_WAIT_ATTEMPTS; attempt += 1) {
+    await wait(REFRESH_WAIT_MS)
+    const sharedToken = localStorage.getItem('ib_token')
+    if (sharedToken && sharedToken !== previousToken) {
+      syncFromStorage()
+      return true
+    }
+    try {
+      const lock = JSON.parse(localStorage.getItem(REFRESH_LOCK_KEY) || '{}') as { expiresAt?: number }
+      if (!lock.expiresAt || Number(lock.expiresAt) <= Date.now()) break
+    } catch {
+      break
+    }
+  }
+  return false
 }
 
 export interface SessionInfo {
@@ -94,8 +173,8 @@ function handleSessionBridgeMessage(event: MessageEvent) {
   const message = event.data
   if (!message || typeof message.type !== 'string') return
 
-  // A newly opened same-origin tab asks its opener for the current session.
-  // The token never travels through the URL or persistent storage.
+  // Compatibilidad con pestañas abiertas desde versiones anteriores, antes de
+  // que la sesión se compartiera mediante localStorage.
   if (message.type === SESSION_BRIDGE_REQUEST && event.source && event.source !== window) {
     if (!state.token || typeof (event.source as WindowProxy).postMessage !== 'function') return
     ;(event.source as WindowProxy).postMessage({
@@ -123,6 +202,11 @@ function handleSessionBridgeMessage(event: MessageEvent) {
 }
 
 if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'ib_token' || event.key === 'ib_role' || event.key === 'ib_user_uuid' || event.key === 'ib_expires_at') {
+      syncFromStorage()
+    }
+  })
   window.addEventListener('message', handleSessionBridgeMessage)
   if (window.opener && window.opener !== window) {
     window.opener.postMessage({
@@ -182,9 +266,14 @@ export function useAuthStore() {
   /** Renueva el token actual de forma silenciosa; no lanza si falla (llamada best-effort). */
   async function refresh(): Promise<boolean> {
     if (!state.token) return false
+    const previousToken = state.token
+    // Sólo una pestaña rota el token vigente. Sin este lock, dos pestañas que
+    // llegan juntas al umbral de renovación podrían revocar mutuamente sus
+    // tokens y expulsar al usuario aunque siga activo.
+    if (!acquireRefreshLock()) return waitForRefreshFromAnotherTab(previousToken)
     try {
       const res = await axios.post('/api/users/api/v1/auth/refresh', {}, {
-        headers: { Authorization: `Bearer ${state.token}` }
+        headers: { Authorization: `Bearer ${previousToken}` }
       })
       const { token, role, expiresAt } = res.data.data
       state.token = token
@@ -195,6 +284,8 @@ export function useAuthStore() {
       return true
     } catch {
       return false
+    } finally {
+      releaseRefreshLock()
     }
   }
 

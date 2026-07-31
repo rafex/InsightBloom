@@ -12,17 +12,18 @@ export function registerSessionInvalidationHandler(handler: () => void): void {
 }
 
 export function hasStoredSession(): boolean {
-  return typeof sessionStorage !== 'undefined' && Boolean(sessionStorage.getItem(SESSION_TOKEN_KEY))
+  return typeof localStorage !== 'undefined' && Boolean(localStorage.getItem(SESSION_TOKEN_KEY))
 }
 
 export function clearStoredSession(): void {
-  if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(SESSION_TOKEN_KEY)
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('ib_token')
     localStorage.removeItem('ib_role')
     localStorage.removeItem('ib_user_uuid')
     localStorage.removeItem('ib_expires_at')
   }
+  // Limpia también el almacenamiento de pestaña usado por versiones previas.
+  if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem(SESSION_TOKEN_KEY)
   invalidateInMemory?.()
 }
 

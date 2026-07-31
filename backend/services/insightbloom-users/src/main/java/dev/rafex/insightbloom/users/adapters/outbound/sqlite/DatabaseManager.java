@@ -91,7 +91,7 @@ public class DatabaseManager {
                 )
             """);
             // Huella de dispositivo capturada en el login (real o guest) -- ver PlatformDeviceGuard.
-            // Como el token ya expira solo (24h usuario / 8h guest), contar "sesiones activas de
+            // Como el token ya expira solo (1h usuario / 1h guest), contar "sesiones activas de
             // este fingerprint" contra esta tabla se auto-limpia sin necesidad de una tabla de
             // sesiones aparte.
             ColumnMigrationHelper.addColumnIfMissing(conn, "tokens", "device_fingerprint", "TEXT");

@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * dispositivo, y cuantas cuentas nuevas puede crear un mismo dispositivo en un dia.
  *
  * Reusa la tabla {@code tokens} (ya tiene {@code device_fingerprint} desde el login/guest-login)
- * en vez de una tabla de sesiones nueva -- como los tokens expiran solos (24h usuario / 8h
+ * en vez de una tabla de sesiones nueva -- como los tokens expiran solos (1h usuario / 1h
  * invitado), "cuantas sesiones activas comparten este fingerprint" se auto-limpia sin trabajo
  * extra.
  *

@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class TokenService {
+    private static final long SESSION_TOKEN_TTL_HOURS = 1;
     private final TokenRepository tokenRepository;
 
     public TokenService(TokenRepository tokenRepository) {
@@ -22,7 +23,7 @@ public class TokenService {
 
     public Token issueUserToken(String userUuid, TokenKind kind, String deviceFingerprint) {
         String value = generateTokenValue();
-        Instant expiresAt = Instant.now().plus(24, ChronoUnit.HOURS);
+        Instant expiresAt = Instant.now().plus(SESSION_TOKEN_TTL_HOURS, ChronoUnit.HOURS);
         Token token = new Token(userUuid, null, kind, value, expiresAt, deviceFingerprint);
         tokenRepository.save(token);
         return token;
@@ -34,7 +35,7 @@ public class TokenService {
 
     public Token issueGuestToken(String guestUserUuid, String deviceFingerprint) {
         String value = generateTokenValue();
-        Instant expiresAt = Instant.now().plus(8, ChronoUnit.HOURS);
+        Instant expiresAt = Instant.now().plus(SESSION_TOKEN_TTL_HOURS, ChronoUnit.HOURS);
         Token token = new Token(null, guestUserUuid, TokenKind.GUEST, value, expiresAt, deviceFingerprint);
         tokenRepository.save(token);
         return token;

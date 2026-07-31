@@ -197,7 +197,12 @@ Habilitado con `networkPolicy.enabled: true` en `values.yaml`.
 - `backend/services/insightbloom-users/.../adapters/inbound/http/handlers/AuthHandler.java`
 - `frontend/web/src/features/auth/authStore.js`
 
-No existía forma de invalidar un token de sesión activo. Un token robado era válido durante 24h.
+No existía forma de invalidar un token de sesión activo. Un token robado podía ser válido durante
+24h.
+
+La vigencia de los nuevos tokens es de una hora. El frontend comparte la sesión entre pestañas en
+`localStorage` y sólo la renueva cerca del vencimiento cuando detecta actividad reciente; una
+sesión inactiva no se prolonga.
 
 **Corrección**: Nuevo endpoint `POST /api/v1/auth/logout`:
 

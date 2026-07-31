@@ -337,9 +337,8 @@ export default {
 
     onMounted(async () => {
       try {
-        // sessionStorage is intentionally tab-scoped. If this page was opened
-        // from the dashboard, wait for the same-origin opener to hand off the
-        // existing session before evaluating ticket/presentation access.
+        // La sesión vive en localStorage y se comparte entre pestañas. Conservamos
+        // el bridge como compatibilidad para pestañas abiertas desde versiones previas.
         await auth.waitForSessionBridge()
         const [conf, tzList, eventTypes] = await Promise.all([
           getConferenceByFriendlyId(friendlyId),

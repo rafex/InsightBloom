@@ -188,7 +188,7 @@ router.beforeEach(async (to) => {
   // A dashboard tab opened from the public presentation receives its token
   // through the same-origin opener bridge. Wait before enforcing requiresAuth.
   await useAuthStore().waitForSessionBridge()
-  const token = sessionStorage.getItem('ib_token')
+  const token = localStorage.getItem('ib_token')
 
   const expiresAt = localStorage.getItem('ib_expires_at')
   if (token && expiresAt && Number.isFinite(Date.parse(expiresAt)) && Date.parse(expiresAt) <= Date.now()) {

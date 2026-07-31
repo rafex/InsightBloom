@@ -1462,3 +1462,30 @@ Registrar una decision cuando cambie:
   administrador y la estabilidad de `INTERNAL_API_KEY`; si `users` no responde,
   las funciones de IA se deshabilitan temporalmente (fail-closed).
 - Reemplaza: `DEC-0014` en lo relativo a la configuración del proveedor.
+
+### DEC-0033 - Sesión compartida entre pestañas con expiración de una hora
+
+- Fecha: 2026-07-31
+- Estado: accepted
+- Contexto:
+  La sesión almacenada por pestaña obligaba a autenticarse de nuevo al abrir una
+  herramienta en otra pestaña. Para permitir el flujo natural de un evento, la sesión
+  debe compartirse, pero una credencial persistida no debe conservar la vigencia anterior
+  de 24 horas para usuarios o 8 horas para invitados.
+- Decision:
+  - Los tokens de usuario e invitado expiran una hora después de emitirse o renovarse.
+  - El frontend guarda el token y sus metadatos en `localStorage`, migra una sesión antigua
+    de `sessionStorage` una sola vez y sincroniza login, logout, expiración y rotación entre
+    pestañas mediante el evento `storage`.
+  - La renovación es deslizante y best-effort: `useSessionManager` solo renueva cerca del
+    vencimiento cuando detecta actividad reciente; sin actividad la sesión caduca.
+  - Las pestañas coordinan la rotación con un lock efímero en `localStorage` para evitar que
+    dos refresh simultáneos revoquen mutuamente el token vigente.
+- Consecuencias:
+  - Abrir varias pestañas del mismo perfil no requiere volver a iniciar sesión.
+  - Un token inactivo queda inutilizable como máximo una hora después de su última emisión
+    o renovación; logout y revocación siguen limpiando todas las pestañas.
+  - `localStorage` aumenta la superficie de exposición frente a XSS, por lo que el TTL corto,
+    la revocación del backend y el fingerprint de dispositivo siguen siendo controles
+    obligatorios.
+- Reemplaza: la decisión previa de mantener `ib_token` exclusivamente en `sessionStorage`.
