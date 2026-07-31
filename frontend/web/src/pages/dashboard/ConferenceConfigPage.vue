@@ -32,7 +32,7 @@
   .form(v-else id="config-tabpanel" role="tabpanel" :aria-labelledby="`config-tab-${activeTab}`" tabindex="0" @input.capture="markFormDirty" @change.capture="markFormDirty")
     .form-group.general-group(v-if="eventTypes.length" v-show="activeTab === 'general'")
       label Tipo de evento
-      select(v-model="eventTypeKey")
+      select#config-event-type(v-model="eventTypeKey")
         option(v-for="t in eventTypes" :key="t.key" :value="t.key") {{ t.name }}
       p.field-hint Determina qué herramientas están disponibles (boletos, encuestas, videollamada...).
       BaseButton(variant="secondary" type="button" @click="saveEventType" :disabled="savingEventType")
@@ -43,7 +43,7 @@
 
     .form-group.certificate-engine-group(v-show="activeTab === 'tools'")
       label Motor de certificado
-      select(v-model="certificateEngine")
+      select#config-certificate-engine(v-model="certificateEngine")
         option(value="INHOUSE") Clásico (editor simple)
         option(value="HTML_CHROME") Visual (editor de diseños)
       p.field-hint El motor Clásico usa el editor simple y la configuración global como respaldo. El Visual usa el editor de diseños del evento y su catálogo de plantillas.
@@ -61,8 +61,8 @@
           input(type="checkbox" :value="tool.value" v-model="canvasTools")
           span {{ tool.label }}
       .event-canvas-mode-row(v-for="tool in canvasTools" :key="tool")
-        span.event-canvas-mode-label {{ canvasToolLabel(tool) }}
-        select(v-model="canvasModes[tool]")
+        label.event-canvas-mode-label(:for="`config-canvas-mode-${tool}`") {{ canvasToolLabel(tool) }}
+        select(:id="`config-canvas-mode-${tool}`" v-model="canvasModes[tool]")
           option(v-for="option in canvasModeOptions(tool)" :key="option.value" :value="option.value") {{ option.label }}
       p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
       BaseButton(variant="secondary" type="button" @click="saveCanvasConfig" :disabled="savingCanvasConfig")
@@ -74,13 +74,13 @@
     .form-group.tickets-group(v-show="activeTab === 'access'")
       label Boletos y aforo
       p.field-hint Elige cómo se registran los asistentes: sin control (solo unirse), con aforo, o con mapa de asientos.
-      select(v-model="seatingMode")
+      select#config-seating-mode(v-model="seatingMode")
         option(value="NONE") Ninguno (solo unirse)
         option(value="GENERAL") Aforo (cupo limitado, sin asiento)
         option(value="SEATED") Con asientos (mapa del recinto)
       .coord-field
-        span.coord-label Aforo máximo
-        input(v-model.number="capacity" type="number" min="2" placeholder="10")
+        label.coord-label(for="config-capacity") Aforo máximo
+        input#config-capacity(v-model.number="capacity" type="number" min="2" placeholder="10")
       p.field-hint Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), sin importar el modo de boletos elegido — la infraestructura tiene recursos limitados. El mínimo es 2 porque el creador ocupa un boleto operativo contado. Cada moderador adicional ocupa otra plaza. Recomendado hasta {{ recommendedMaxCapacity }}.
       p.capacity-alert(v-if="capacityAlert" :class="capacityAlert.level") {{ capacityAlert.text }}
       BaseButton(variant="secondary" type="button" @click="saveSeating" :disabled="savingSeating")
@@ -104,22 +104,22 @@
       label IDE de código
       p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE". El ambiente incluye Java, Node.js y Python en el mismo sandbox — no hace falta elegir un lenguaje. Los alumnos eligen ellos mismos entre Web (editor en el navegador, un sandbox por alumno) y CLI (terminal con Neovim, se comparte entre alumnos) — abajo se configura cuántos de cada tipo puede haber a la vez.
       .coord-field
-        span.coord-label Sandboxes Web concurrentes (editor en el navegador)
-        input(v-model.number="sandboxPoolSize" type="number" min="1" placeholder="1")
+        label.coord-label(for="config-sandbox-web-pool") Sandboxes Web concurrentes (editor en el navegador)
+        input#config-sandbox-web-pool(v-model.number="sandboxPoolSize" type="number" min="1" placeholder="1")
       .coord-field
-        span.coord-label Sandboxes CLI concurrentes (Neovim)
-        input(v-model.number="sandboxCliPoolSize" type="number" min="1" placeholder="1")
+        label.coord-label(for="config-sandbox-cli-pool") Sandboxes CLI concurrentes (Neovim)
+        input#config-sandbox-cli-pool(v-model.number="sandboxCliPoolSize" type="number" min="1" placeholder="1")
       .coord-field(v-if="cliEnabled")
-        span.coord-label Alumnos por sandbox CLI
-        input(v-model.number="sandboxSeatsPerPod" type="number" min="1" max="10" placeholder="4 (por defecto)")
+        label.coord-label(for="config-sandbox-cli-seats") Alumnos por sandbox CLI
+        input#config-sandbox-cli-seats(v-model.number="sandboxSeatsPerPod" type="number" min="1" max="10" placeholder="4 (por defecto)")
       p.field-hint(v-if="cliEnabled") En modo CLI, varios alumnos pueden compartir el mismo sandbox — cada uno con su propio usuario y espacio de trabajo aislado. El modo Web no admite esto: siempre es un sandbox por alumno.
       .coord-field
-        span.coord-label Repositorio git remoto (opcional)
-        input(v-model="sandboxRemoteGitUrl" type="text" placeholder="https://github.com/...")
+        label.coord-label(for="config-sandbox-git") Repositorio git remoto (opcional)
+        input#config-sandbox-git(v-model="sandboxRemoteGitUrl" type="text" placeholder="https://github.com/...")
       p.field-hint Si lo indicás, se clona automáticamente en el workspace de cada alumno al arrancar su sandbox (solo si el workspace está vacío — no pisa trabajo ya en progreso).
       .coord-field
-        span.coord-label Memoria máxima de Java por sandbox (MB, opcional)
-        input(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="70 (por defecto)")
+        label.coord-label(for="config-sandbox-jvm-heap") Memoria máxima de Java por sandbox (MB, opcional)
+        input#config-sandbox-jvm-heap(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="70 (por defecto)")
       p.field-hint Cuánta memoria puede usar cada programa de Java que corran los asistentes (incluido el autocompletado del editor). El valor por defecto (70 MB) está pensado para cursos: alcanza para ejercicios y no acapara el sandbox. Si ponés un valor mayor al que soporta la infraestructura, el servidor rechaza el guardado y te lo indica.
       BaseButton(variant="secondary" type="button" @click="saveSandboxConfig" :disabled="savingSandboxConfig")
         span(v-if="savingSandboxConfig") Guardando...
@@ -204,11 +204,11 @@
       label Acceso por dispositivo
       p.field-hint Controla cuántos dispositivos puede usar a la vez un mismo asistente en Videollamada e IDE, y bloquea automáticamente un dispositivo que se loguea con demasiadas cuentas distintas (podés revisar y desbloquear desde "Bloqueos", en Moderación).
       .coord-field
-        span.coord-label Máx. dispositivos activos por usuario
-        input(v-model.number="maxDevicesPerUser" type="number" min="1" max="10" placeholder="2 (por defecto)")
+        label.coord-label(for="config-max-devices") Máx. dispositivos activos por usuario
+        input#config-max-devices(v-model.number="maxDevicesPerUser" type="number" min="1" max="10" placeholder="2 (por defecto)")
       .coord-field
-        span.coord-label Máx. cuentas distintas por dispositivo antes de bloquear
-        input(v-model.number="maxAccountsPerDevice" type="number" min="1" max="50" placeholder="3 (por defecto)")
+        label.coord-label(for="config-max-accounts") Máx. cuentas distintas por dispositivo antes de bloquear
+        input#config-max-accounts(v-model.number="maxAccountsPerDevice" type="number" min="1" max="50" placeholder="3 (por defecto)")
       BaseButton(variant="secondary" type="button" @click="saveDeviceAccessConfig" :disabled="savingDeviceAccessConfig")
         span(v-if="savingDeviceAccessConfig") Guardando...
         span(v-else) Guardar acceso por dispositivo
@@ -224,8 +224,8 @@
           span.role-badge {{ roleName(r.roleKey) }}
           BaseButton(variant="danger" size="sm" type="button" @click="removeRole(r.userUuid)") Quitar
       .assign-row
-        input(v-model="assignIdentifier" type="text" placeholder="Email o usuario")
-        select(v-model="assignRoleKey")
+        input#config-role-identifier(v-model="assignIdentifier" type="text" aria-label="Email o usuario" placeholder="Email o usuario")
+        select#config-role-key(v-model="assignRoleKey" aria-label="Rol a asignar")
           option(v-for="role in assignableRoles" :key="role.key" :value="role.key") {{ role.name }}
         BaseButton(variant="secondary" size="sm" type="button" @click="assignRole" :disabled="assigning") Asignar
       FeedbackMessage(v-if="roleAssigned" message="Rol asignado." tone="success")
@@ -238,16 +238,16 @@
       ToggleSwitch(v-model="mentorEnabled" :disabled="savingMentor")
         | {{ mentorEnabled ? 'Tutor habilitado para los asistentes' : 'Tutor deshabilitado para los asistentes' }}
       .coord-field
-        span.coord-label Objetivo pedagógico del taller
-        textarea(v-model="mentorObjective" rows="4" maxlength="2000" placeholder="Qué deben aprender o construir los asistentes")
+        label.coord-label(for="config-mentor-objective") Objetivo pedagógico del taller
+        textarea#config-mentor-objective(v-model="mentorObjective" rows="4" maxlength="2000" placeholder="Qué deben aprender o construir los asistentes")
       .coord-field
-        span.coord-label Instrucciones adicionales y límites
-        textarea(v-model="mentorPrompt" rows="5" maxlength="8000" placeholder="Por ejemplo: pedir primero qué intentaron y dar una pista a la vez")
+        label.coord-label(for="config-mentor-prompt") Instrucciones adicionales y límites
+        textarea#config-mentor-prompt(v-model="mentorPrompt" rows="5" maxlength="8000" placeholder="Por ejemplo: pedir primero qué intentaron y dar una pista a la vez")
       ToggleSwitch(v-model="mentorIncludePresentation" :disabled="savingMentor") Leer la presentación como contexto de consulta
       p.field-hint 🧭 Modo socrático activo: el tutor hará preguntas y dará pistas graduales; no entregará la solución completa.
       .coord-field
-        span.coord-label Máximo de consultas por usuario/minuto
-        input(v-model.number="mentorMaxRequests" type="number" min="1" max="30" :disabled="savingMentor")
+        label.coord-label(for="config-mentor-rate") Máximo de consultas por usuario/minuto
+        input#config-mentor-rate(v-model.number="mentorMaxRequests" type="number" min="1" max="30" :disabled="savingMentor")
       BaseButton(variant="secondary" type="button" @click="saveMentor" :disabled="savingMentor")
         span(v-if="savingMentor") Guardando...
         span(v-else) Guardar configuración pedagógica del evento
@@ -258,8 +258,8 @@
       label Encuesta IA del evento
       p.field-hint Al sugerir preguntas, la IA siempre usa el contenido de la presentación del evento (comportamiento global, no configurable aquí). Este campo es solo texto adicional que quieras que también considere y que puede no estar explícito en las diapositivas: objetivos del examen, temas a enfatizar, terminología esperada.
       .coord-field
-        span.coord-label Contexto adicional para sugerir preguntas
-        textarea(v-model="surveyExtraContext" rows="5" maxlength="4000" placeholder="Por ejemplo: enfatizar seguridad y buenas prácticas, o los temas del capítulo 3 del material del curso")
+        label.coord-label(for="config-survey-context") Contexto adicional para sugerir preguntas
+        textarea#config-survey-context(v-model="surveyExtraContext" rows="5" maxlength="4000" placeholder="Por ejemplo: enfatizar seguridad y buenas prácticas, o los temas del capítulo 3 del material del curso")
       BaseButton(variant="secondary" type="button" @click="saveSurveyAiConfig" :disabled="savingSurveyAiConfig")
         span(v-if="savingSurveyAiConfig") Guardando...
         span(v-else) Guardar contexto de Encuesta IA
@@ -272,11 +272,11 @@
         |  lista global de la plataforma (se suman, nunca la reemplazan). La lista negra, tanto la
         |  global como la de aquí, siempre gana sobre cualquier lista blanca.
       .coord-field
-        span.coord-label Lista blanca adicional (permitidos)
-        textarea(v-model="egressAllowedHosts" rows="5" placeholder="un-dominio-extra.com\n*.otro-dominio.org")
+        label.coord-label(for="config-egress-allowed") Lista blanca adicional (permitidos)
+        textarea#config-egress-allowed(v-model="egressAllowedHosts" rows="5" placeholder="un-dominio-extra.com\n*.otro-dominio.org")
       .coord-field
-        span.coord-label Lista negra adicional (bloqueados)
-        textarea(v-model="egressBlockedHosts" rows="3" placeholder="dominio-a-bloquear.com")
+        label.coord-label(for="config-egress-blocked") Lista negra adicional (bloqueados)
+        textarea#config-egress-blocked(v-model="egressBlockedHosts" rows="3" placeholder="dominio-a-bloquear.com")
       BaseButton(variant="secondary" type="button" @click="saveEgressPolicy" :disabled="savingEgressPolicy")
         span(v-if="savingEgressPolicy") Guardando...
         span(v-else) Guardar control de red
@@ -1051,4 +1051,14 @@ textarea:focus { outline: none; border-color: var(--color-primary); }
 .assign-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .assign-row input, .assign-row select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
 .assign-row input { flex: 1; min-width: 160px; }
+
+@media (max-width: 640px) {
+  .config-tabs { flex-wrap: nowrap; overflow-x: auto; margin-inline: -4px; padding-inline: 4px 2px; scrollbar-width: thin; }
+  .config-tab { flex: 0 0 auto; }
+  .role-row { align-items: flex-start; flex-wrap: wrap; }
+  .role-person { flex-basis: 100%; }
+  .assign-row { flex-direction: column; }
+  .assign-row input, .assign-row select { width: 100%; box-sizing: border-box; }
+  .sandbox-actions { justify-content: flex-start; }
+}
 </style>
