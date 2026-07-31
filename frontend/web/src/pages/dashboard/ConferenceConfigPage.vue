@@ -982,7 +982,6 @@ textarea {
 input:focus { outline: none; border-color: var(--color-primary); }
 textarea:focus { outline: none; border-color: var(--color-primary); }
 
-.field-hint { margin: 4px 0 0; font-size: 0.8rem; }
 .scope-badge { align-self: flex-start; display: inline-flex; padding: 3px 9px; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: 0.72rem; font-weight: 700; }
 .canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
 .canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }

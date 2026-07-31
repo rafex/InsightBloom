@@ -346,7 +346,6 @@ h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
   padding: 10px 14px; border: 1.5px solid var(--color-border-subtle); border-radius: 8px;
   background: var(--color-surface-muted); color: var(--color-text-muted); font-family: monospace; font-size: 0.9rem;
 }
-.field-hint { margin: 4px 0 0; font-size: 0.8rem; }
 
 .schedule-help { margin-top: 4px; border: 1px solid var(--color-border-subtle); border-radius: 8px; padding: 8px 12px; background: var(--color-surface-muted); }
 .schedule-help summary { cursor: pointer; color: var(--color-primary); font-size: 0.85rem; font-weight: 600; }
