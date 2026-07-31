@@ -12,7 +12,7 @@
     .event-grid(v-else)
       article.event-card(v-for="event in events" :key="event.friendlyId" :class="`theme-${(event.publicTheme || 'CLASSIC').toLowerCase()}`")
         router-link.event-card-main(:to="`/events/${event.friendlyId}`")
-          img.event-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" alt="Flyer del evento")
+          img.event-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" :alt="`Flyer de ${event.name}`" loading="lazy")
           .event-flyer.placeholder(v-else aria-hidden="true") 🎟️
           .event-card-body
             .badges
@@ -85,9 +85,9 @@ export default {
 h1 { color: var(--color-heading); margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3.2rem); }
 .hero p:last-child { margin: 0; font-size: 1.1rem; }
 .event-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 22px; }
-.event-card { color: inherit; text-decoration: none; background: var(--color-surface); border-radius: 18px; overflow: hidden; box-shadow: 0 8px 28px rgba(30,27,75,.1); transition: transform .18s, box-shadow .18s; }
+.event-card { display: flex; flex-direction: column; min-height: 100%; color: inherit; text-decoration: none; background: var(--color-surface); border-radius: 18px; overflow: hidden; box-shadow: 0 8px 28px rgba(30,27,75,.1); transition: transform .18s, box-shadow .18s; }
 .event-card:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(30,27,75,.16); }
-.event-card-main { display: block; color: inherit; text-decoration: none; }
+.event-card-main { display: flex; flex: 1; flex-direction: column; color: inherit; text-decoration: none; }
 .event-flyer { width: 100%; height: 170px; object-fit: cover; display: block; background: var(--color-primary-soft); }
 .placeholder { display: grid; place-items: center; font-size: 3rem; }
 .event-card-body { padding: 20px; }

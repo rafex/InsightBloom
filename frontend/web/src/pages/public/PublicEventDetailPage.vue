@@ -32,7 +32,7 @@
             BaseLink(v-if="event.hasTicket || !event.ticketRequired" :to="`/c/${event.friendlyId}`") Entrar
             BaseLink(v-else-if="event.ticketPurchaseEnabled" :to="`/events/${event.friendlyId}/checkout`") Adquirir boleto
             StatusBadge(v-else status="INACTIVE" label="Boletos no disponibles")
-        img.detail-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" alt="Flyer del evento")
+        img.detail-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" :alt="`Flyer de ${event.name}`")
         .detail-flyer.placeholder(v-else aria-hidden="true") 🎟️
       section.schedule(v-if="renderedSchedule")
         h2 Cronograma
