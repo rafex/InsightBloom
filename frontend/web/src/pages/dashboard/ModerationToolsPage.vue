@@ -28,6 +28,7 @@
           )
         ToggleSwitch(
           :model-value="!!matrix[tool.key]?.releasedForAll"
+          :aria-label="`${tool.label}: ${matrix[tool.key]?.releasedForAll ? 'liberado para todos' : 'bloqueado'}`"
           :disabled="busyTool === tool.key"
           :loading="busyTool === tool.key"
           @update:modelValue="(v: boolean) => toggleAll(tool.key, v)"
@@ -42,6 +43,7 @@
             span {{ a.email }}
           ToggleSwitch(
             :model-value="a.released"
+            :aria-label="`${tool.label} para ${a.displayName || a.email || 'asistente'}: ${a.released ? 'liberado' : 'bloqueado'}`"
             :disabled="matrix[tool.key]?.releasedForAll || busyTool === tool.key"
             :loading="busyTool === tool.key"
             @update:modelValue="(v: boolean) => toggleUser(tool.key, a.uuid, v)"

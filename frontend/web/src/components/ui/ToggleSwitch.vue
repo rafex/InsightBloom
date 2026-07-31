@@ -6,6 +6,7 @@ label.toggle-switch(:class="{ disabled, loading }" :aria-busy="loading || undefi
     :checked="modelValue"
     :disabled="disabled || loading"
     :aria-checked="modelValue"
+    :aria-label="ariaLabel || undefined"
     @change="onChange"
   )
   span.track
@@ -26,7 +27,8 @@ export default {
   props: {
     modelValue: { type: Boolean, default: false },
     disabled: { type: Boolean, default: false },
-    loading: { type: Boolean, default: false }
+    loading: { type: Boolean, default: false },
+    ariaLabel: { type: String, default: '' }
   },
   emits: ['update:modelValue'],
   methods: {
