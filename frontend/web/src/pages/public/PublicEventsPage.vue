@@ -20,19 +20,22 @@
                 :status="event.visibility === 'HYBRID' ? 'HYBRID' : 'PUBLIC'"
                 :label="event.visibility === 'HYBRID' ? 'Híbrido' : 'Público'"
                 tone="info"
+                pill
               )
               StatusBadge.event-badge(
                 v-if="event.ticketRequired"
                 status="TICKET_REQUIRED"
                 label="🎟️ Boleto requerido"
                 tone="warning"
+                pill
               )
-              StatusBadge.event-badge(v-else status="FREE" label="Acceso libre" tone="success")
+              StatusBadge.event-badge(v-else status="FREE" label="Acceso libre" tone="success" pill)
               StatusBadge.event-badge(
                 v-if="event.ticketRequired"
                 status="PRICE"
                 :label="Number(event.ticketPrice || 0) > 0 ? `${event.ticketPrice} ${event.ticketCurrency || 'MXN'}` : 'Gratis'"
                 tone="info"
+                pill
               )
             h2 {{ event.name }}
             p.description(v-if="event.description") {{ event.description }}
@@ -107,7 +110,6 @@ h1 { color: var(--color-heading); margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3
 .placeholder { display: grid; place-items: center; font-size: 3rem; }
 .event-card-body { padding: 20px; }
 .badges { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 12px; }
-.event-badge { min-height: 28px; box-sizing: border-box; border-radius: 999px; padding: 4px 9px; font-size: .75rem; font-weight: 700; line-height: 1.2; }
 h2 { color: var(--color-heading); margin: 0 0 8px; font-size: 1.3rem; }
 .description { color: var(--color-text-muted); line-height: 1.5; margin: 0 0 16px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .event-facts { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; margin: 0; font-size: .88rem; }

@@ -1,5 +1,5 @@
 <template lang="pug">
-span.status-badge(:class="`tone-${resolvedTone}`") {{ resolvedLabel }}
+span.status-badge(:class="[`tone-${resolvedTone}`, { 'is-pill': pillValue }]") {{ resolvedLabel }}
 </template>
 
 <script lang="ts">
@@ -25,9 +25,10 @@ export default {
   props: {
     status: { type: String, required: true },
     label: { type: String, default: '' },
-    tone: { type: String, default: '' }
+    tone: { type: String, default: '' },
+    pill: { type: Boolean, default: false }
   },
-  setup(props: { status: string, label: string, tone: string }) {
+  setup(props: { status: string, label: string, tone: string, pill: boolean }) {
     const resolvedLabel = computed(() => props.label || formatStatusLabel(props.status))
     const resolvedTone = computed<StatusTone>(() => {
       if (props.tone && props.tone in { success: true, warning: true, danger: true, neutral: true, info: true }) {
@@ -35,7 +36,7 @@ export default {
       }
       return STATUS_TONES[props.status] || 'neutral'
     })
-    return { resolvedLabel, resolvedTone }
+    return { resolvedLabel, resolvedTone, pillValue: props.pill }
   }
 }
 </script>
@@ -44,10 +45,19 @@ export default {
 .status-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 28px;
   font-size: 0.78rem;
   font-weight: 600;
   padding: 2px 10px;
   border-radius: 10px;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+.status-badge.is-pill {
+  border-radius: 999px;
+  white-space: nowrap;
 }
 .tone-success { background: var(--color-success-soft); color: var(--color-success); }
 .tone-warning { background: var(--color-warning-soft); color: var(--color-warning); }
