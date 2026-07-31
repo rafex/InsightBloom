@@ -129,11 +129,10 @@
             span(v-if="prewarmingSandboxPool") Preparando...
             span(v-else) Preparar sandboxes antes del evento
           p.field-hint Crea por adelantado los sandboxes Web y CLI configurados, pero no los asigna a ningún alumno. Quedan listos para reclamarse cuando entren los asistentes.
-        p.success(v-if="sandboxPrewarmResult")
-          | Pool solicitado: Web {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'web')?.desiredPods || 0 }}; CLI {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.createdPods || 0 }} nuevos de {{ sandboxPrewarmResult.variants.find(v => v.variant === 'cli')?.desiredPods || 0 }}.
-        p.error(v-if="sandboxPrewarmError") {{ sandboxPrewarmError }}
+        FeedbackMessage(v-if="sandboxPrewarmResult" :message="sandboxPrewarmMessage" tone="success")
+        FeedbackMessage(v-if="sandboxPrewarmError" :message="sandboxPrewarmError" tone="error")
         p.field-hint Sandboxes: {{ sandboxStatus.filter(p => p.ready).length }} listos, {{ sandboxStatus.filter(p => !p.ready).length }} pendientes, {{ sandboxStatus.filter(p => !p.seats.some(s => s.userUuid)).length }} libres. Para revisar y editar los archivos de un alumno, usá el "Editor de código" en Moderación.
-        p.error(v-if="sandboxStatusError") {{ sandboxStatusError }}
+        FeedbackMessage(v-if="sandboxStatusError" :message="sandboxStatusError" tone="error")
         .table-scroll(v-if="sandboxStatusLoaded")
           table.incidents-table
             thead
@@ -165,7 +164,7 @@
                   template(v-if="sandboxIsFree(pod)")
                     BaseButton(variant="secondary" size="sm" type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName") Recrear
                   span.action-note(v-else) Ocupado: eliminación forzada
-        p.error(v-if="sandboxActionError") {{ sandboxActionError }}
+        FeedbackMessage(v-if="sandboxActionError" :message="sandboxActionError" tone="error")
 
       .sandbox-incidents(v-if="cliEnabled")
         .coord-field
@@ -174,7 +173,7 @@
             span(v-if="loadingSandboxIncidents") Cargando...
             span(v-else) Ver incidentes
         p.field-hint Cuando un sandbox compartido detecta que un alumno acapara CPU/memoria (por error o a propósito), lo reinicia automáticamente y lo registra acá — para que sepas quién está causando problemas.
-        p.error(v-if="sandboxIncidentsError") {{ sandboxIncidentsError }}
+        FeedbackMessage(v-if="sandboxIncidentsError" :message="sandboxIncidentsError" tone="error")
         .table-scroll(v-if="sandboxIncidentsLoaded")
           table.incidents-table
             thead
@@ -375,6 +374,11 @@ export default {
     const sandboxStatusError = ref('')
     const prewarmingSandboxPool = ref(false)
     const sandboxPrewarmResult = ref<SandboxPrewarmResult | null>(null)
+    const sandboxPrewarmMessage = computed(() => {
+      const web = sandboxPrewarmResult.value?.variants.find((variant) => variant.variant === 'web')
+      const cli = sandboxPrewarmResult.value?.variants.find((variant) => variant.variant === 'cli')
+      return `Pool solicitado: Web ${web?.createdPods || 0} nuevos de ${web?.desiredPods || 0}; CLI ${cli?.createdPods || 0} nuevos de ${cli?.desiredPods || 0}.`
+    })
     const sandboxPrewarmError = ref('')
     const sandboxActionBusy = ref<string | null>(null)
     const sandboxActionError = ref('')
@@ -912,7 +916,7 @@ export default {
              sandboxIncidents, sandboxIncidentsLoaded, loadingSandboxIncidents, sandboxIncidentsError,
              loadSandboxIncidents, incidentTypeLabel,
              sandboxStatus, sandboxStatusLoaded, loadingSandboxStatus, sandboxStatusError, loadSandboxStatus,
-             prewarmingSandboxPool, sandboxPrewarmResult, sandboxPrewarmError, prewarmSandboxPool,
+             prewarmingSandboxPool, sandboxPrewarmResult, sandboxPrewarmMessage, sandboxPrewarmError, prewarmSandboxPool,
              sandboxActionBusy, sandboxActionError, sandboxIsFree, deleteSandbox, recreateSandbox,
              sandboxConfirm, performSandboxAction, markFormDirty,
              maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
@@ -995,6 +999,4 @@ textarea:focus { outline: none; border-color: var(--color-primary); }
 .assign-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .assign-row input, .assign-row select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; }
 .assign-row input { flex: 1; min-width: 160px; }
-.error { color: var(--color-danger); font-size: 0.9rem; margin-bottom: 12px; }
-.success { color: var(--color-success); font-size: 0.9rem; margin-bottom: 12px; }
 </style>
