@@ -23,6 +23,7 @@
 
         h3 Nombre para tu certificado
         p.hint Completa tu nombre y apellido para personalizar tu certificado de asistencia.
+        SaveState(:state="saveState")
         FormField(label="Nombre")
           template(#default="{ id, describedBy }")
             input(:id="id" :aria-describedby="describedBy" v-model="firstName" placeholder="Tu nombre")
@@ -35,12 +36,12 @@
           img.profile-photo(v-if="profilePhoto" :src="profilePhoto" alt="Vista previa de tu foto pública")
           .profile-photo.placeholder(v-else aria-hidden="true") 👤
           .photo-actions
-            label.btn-secondary(for="profile-photo-input") Seleccionar foto
+            label.link-btn.link-btn-secondary.link-btn-sm(for="profile-photo-input") Seleccionar foto
             input#profile-photo-input.hidden-input(type="file" accept="image/png,image/jpeg" @change="onPhotoSelected")
             BaseButton(variant="ghost" size="sm" v-if="profilePhoto" type="button" @click="profilePhoto = ''") Quitar foto
         FeedbackMessage(v-if="error" :message="error" tone="error")
         FeedbackMessage(v-if="success" message="¡Perfil actualizado!" tone="success")
-        BaseButton(size="lg" :loading="saving" @click="save") Guardar
+        BaseButton(size="lg" :loading="saving" :disabled="saving || saveState === 'clean' || saveState === 'saved'" @click="save") Guardar
 
         h3.password-title Cambiar contraseña
         FormField(v-if="hasPassword" label="Contraseña actual")
@@ -71,7 +72,7 @@
 
 <script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getUserProfile, updateUserProfile, changePassword, setAuthMethod } from '@/services/api/usersApi'
 import type { AuthMethod } from '@/services/api/usersApi'
 import type { UserProfile } from '@/services/api/types'
@@ -80,16 +81,18 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import FormField from '@/components/ui/FormField.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 
 export default {
   name: 'ProfilePage',
-  components: { AppHeader, BaseButton, FeedbackMessage, FormField, LoadingState },
+  components: { AppHeader, BaseButton, FeedbackMessage, FormField, LoadingState, SaveState },
   setup() {
     const auth = useAuthStore()
     const loading = ref(true)
     const saving = ref(false)
     const error = ref('')
     const success = ref(false)
+    const initialProfile = ref('')
     const firstName = ref('')
     const lastName = ref('')
     const profileData = ref<UserProfile>({ uuid: '' })
@@ -107,6 +110,18 @@ export default {
     const authMethodError = ref('')
     const authMethodSuccess = ref(false)
 
+    const profileSnapshot = () => JSON.stringify({
+      firstName: firstName.value,
+      lastName: lastName.value,
+      profilePhoto: profilePhoto.value
+    })
+    const saveState = computed(() => {
+      if (saving.value) return 'saving'
+      if (profileSnapshot() !== initialProfile.value) return 'dirty'
+      if (success.value) return 'saved'
+      return 'clean'
+    })
+
     onMounted(async () => {
       try {
         const profile = await getUserProfile(auth.state.userUuid as string, auth.state.token as string)
@@ -114,6 +129,7 @@ export default {
         firstName.value = profile.firstName || ''
         lastName.value = profile.lastName || ''
         profilePhoto.value = profile.publicProfilePhotoBase64 || ''
+        initialProfile.value = profileSnapshot()
       } catch (e: any) {
         error.value = 'No se pudo cargar tu perfil.'
       } finally {
@@ -131,6 +147,7 @@ export default {
           publicProfilePhotoBase64: profilePhoto.value || null
         }, auth.state.token as string)
         profileData.value = updated
+        initialProfile.value = profileSnapshot()
         success.value = true
       } catch (e: any) {
         error.value = 'No se pudo guardar tu perfil.'
@@ -207,7 +224,7 @@ export default {
     }
 
     return {
-      loading, saving, error, success, firstName, lastName, save, profileData, profilePhoto, onPhotoSelected, hasPassword,
+      loading, saving, error, success, saveState, firstName, lastName, save, profileData, profilePhoto, onPhotoSelected, hasPassword,
       currentPassword, newPassword, changingPassword, passwordError, passwordSuccess,
       changePassword: changePasswordHandler,
       authMethodPassword, changingAuthMethod, authMethodError, authMethodSuccess, toggleAuthMethod
