@@ -20,7 +20,7 @@
   .invite-card(v-else)
     .icon(aria-hidden="true") 🚫
     h1 No se pudo abrir la videollamada
-    p {{ errorMessage }}
+    FeedbackMessage.invite-feedback(:message="errorMessage" tone="error")
     .actions
       BaseLink(variant="secondary" :to="`/c/${friendlyId}/presentation`") Volver al evento
 </template>
@@ -31,11 +31,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/authStore'
 import { getJitsiInviteAccess } from '@/services/api/usersApi'
 import BaseLink from '@/components/ui/BaseLink.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 
 export default {
   name: 'JitsiInvitePage',
-  components: { BaseLink, LoadingState },
+  components: { BaseLink, FeedbackMessage, LoadingState },
   setup() {
     const route = useRoute()
     const router = useRouter()
