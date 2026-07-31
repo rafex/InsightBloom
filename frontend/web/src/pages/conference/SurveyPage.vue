@@ -21,23 +21,23 @@
         p.contact-name {{ contact.name }}
         ul.contact-links
           li
-            a(:href="`mailto:${contact.email}`") ✉️ {{ contact.email }}
+            BaseAnchor(variant="ghost" size="sm" :href="`mailto:${contact.email}`") ✉️ {{ contact.email }}
           li
-            a(:href="contact.website" target="_blank" rel="noopener") 🌐 {{ contact.website }}
+            BaseAnchor(variant="ghost" size="sm" :href="contact.website" target="_blank" rel="noopener") 🌐 {{ contact.website }}
           li
-            a(:href="contact.linkedin" target="_blank" rel="noopener") 🔗 LinkedIn
+            BaseAnchor(variant="ghost" size="sm" :href="contact.linkedin" target="_blank" rel="noopener") 🔗 LinkedIn
           li
-            a(:href="contact.linkedinNewsletter" target="_blank" rel="noopener") 📰 Newsletter en LinkedIn
+            BaseAnchor(variant="ghost" size="sm" :href="contact.linkedinNewsletter" target="_blank" rel="noopener") 📰 Newsletter en LinkedIn
           li
-            a(:href="contact.github" target="_blank" rel="noopener") 🐙 GitHub
+            BaseAnchor(variant="ghost" size="sm" :href="contact.github" target="_blank" rel="noopener") 🐙 GitHub
           li
-            a(:href="contact.devto" target="_blank" rel="noopener") 👨‍💻 Dev.to
+            BaseAnchor(variant="ghost" size="sm" :href="contact.devto" target="_blank" rel="noopener") 👨‍💻 Dev.to
           li
-            a(:href="contact.blog" target="_blank" rel="noopener") 📝 Blog
+            BaseAnchor(variant="ghost" size="sm" :href="contact.blog" target="_blank" rel="noopener") 📝 Blog
           li
-            a(:href="telegramUrl" target="_blank" rel="noopener") 💬 Telegram {{ contact.telegram }}
+            BaseAnchor(variant="ghost" size="sm" :href="telegramUrl" target="_blank" rel="noopener") 💬 Telegram {{ contact.telegram }}
           li
-            a(:href="contact.telegramGroup" target="_blank" rel="noopener") 👥 Grupo de Telegram
+            BaseAnchor(variant="ghost" size="sm" :href="contact.telegramGroup" target="_blank" rel="noopener") 👥 Grupo de Telegram
       .download-actions
         BaseAnchor(v-if="pdfReady" :href="pdfUrl" target="_blank" rel="noopener") Descargar presentación (PDF)
         BaseButton(type="button" v-if="isGroupNotes" :loading="materialsDownloading" @click="downloadMaterials") Descargar materiales ZIP
