@@ -29,6 +29,7 @@
         ToggleSwitch(
           :model-value="!!matrix[tool.key]?.releasedForAll"
           :disabled="busyTool === tool.key"
+          :loading="busyTool === tool.key"
           @update:modelValue="(v: boolean) => toggleAll(tool.key, v)"
         )
       BaseButton.toggle-attendees(variant="ghost" size="sm" type="button" @click="expanded[tool.key] = !expanded[tool.key]")
@@ -42,6 +43,7 @@
           ToggleSwitch(
             :model-value="a.released"
             :disabled="matrix[tool.key]?.releasedForAll || busyTool === tool.key"
+            :loading="busyTool === tool.key"
             @update:modelValue="(v: boolean) => toggleUser(tool.key, a.uuid, v)"
           )
 </template>

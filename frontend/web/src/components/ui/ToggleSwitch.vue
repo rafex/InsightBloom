@@ -1,10 +1,10 @@
 <template lang="pug">
-label.toggle-switch(:class="{ disabled }")
+label.toggle-switch(:class="{ disabled, loading }" :aria-busy="loading || undefined")
   input(
     type="checkbox"
     role="switch"
     :checked="modelValue"
-    :disabled="disabled"
+    :disabled="disabled || loading"
     :aria-checked="modelValue"
     @change="onChange"
   )
@@ -12,6 +12,7 @@ label.toggle-switch(:class="{ disabled }")
     span.thumb
   span.toggle-label(v-if="$slots.default")
     slot
+  span.toggle-loading(v-if="loading" aria-hidden="true")
 </template>
 
 <script lang="ts">
@@ -24,7 +25,8 @@ export default {
   name: 'ToggleSwitch',
   props: {
     modelValue: { type: Boolean, default: false },
-    disabled: { type: Boolean, default: false }
+    disabled: { type: Boolean, default: false },
+    loading: { type: Boolean, default: false }
   },
   emits: ['update:modelValue'],
   methods: {
@@ -44,6 +46,7 @@ export default {
   user-select: none;
 }
 .toggle-switch.disabled { cursor: not-allowed; opacity: 0.6; }
+.toggle-switch.loading { cursor: wait; }
 
 .toggle-switch input {
   position: absolute;
@@ -88,4 +91,13 @@ export default {
 }
 
 .toggle-label { font-size: 0.9rem; font-weight: 500; color: var(--color-text); }
+.toggle-loading {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--color-primary-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: toggle-spin 0.7s linear infinite;
+}
+@keyframes toggle-spin { to { transform: rotate(360deg); } }
 </style>
