@@ -121,9 +121,7 @@
       .sandbox-status
         .coord-field
           span.coord-label Estado de las máquinas
-          BaseButton(variant="secondary" size="sm" type="button" @click="loadSandboxStatus" :disabled="loadingSandboxStatus")
-            span(v-if="loadingSandboxStatus") Cargando...
-            span(v-else) Ver estado de sandboxes
+          BaseButton(variant="secondary" size="sm" type="button" @click="loadSandboxStatus" :disabled="loadingSandboxStatus" :loading="loadingSandboxStatus") Ver estado de sandboxes
         .prewarm-control
           BaseButton(variant="secondary" size="sm" type="button" @click="prewarmSandboxPool" :disabled="prewarmingSandboxPool")
             span(v-if="prewarmingSandboxPool") Preparando...
@@ -133,7 +131,9 @@
         FeedbackMessage(v-if="sandboxPrewarmError" :message="sandboxPrewarmError" tone="error")
         p.field-hint Sandboxes: {{ sandboxStatus.filter(p => p.ready).length }} listos, {{ sandboxStatus.filter(p => !p.ready).length }} pendientes, {{ sandboxStatus.filter(p => !p.seats.some(s => s.userUuid)).length }} libres. Para revisar y editar los archivos de un alumno, usá el "Editor de código" en Moderación.
         FeedbackMessage(v-if="sandboxStatusError" :message="sandboxStatusError" tone="error")
-        .table-scroll(v-if="sandboxStatusLoaded")
+        LoadingState(v-if="loadingSandboxStatus" message="Cargando estado de los sandboxes…")
+        EmptyState(v-else-if="sandboxStatusLoaded && !sandboxStatus.length" message="No hay sandboxes activos.")
+        .table-scroll(v-else-if="sandboxStatusLoaded")
           table.incidents-table
             thead
               tr
@@ -145,8 +145,6 @@
                 th Asientos
                 th Acciones
             tbody
-              tr(v-if="!sandboxStatus.length")
-                td(colspan="7") No hay sandboxes activos.
               tr(v-for="pod in sandboxStatus" :key="pod.podName")
                 td {{ pod.podName }}
                 td {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
@@ -171,12 +169,12 @@
       .sandbox-incidents(v-if="cliEnabled")
         .coord-field
           span.coord-label Incidentes de recursos
-          BaseButton(variant="secondary" size="sm" type="button" @click="loadSandboxIncidents" :disabled="loadingSandboxIncidents")
-            span(v-if="loadingSandboxIncidents") Cargando...
-            span(v-else) Ver incidentes
+          BaseButton(variant="secondary" size="sm" type="button" @click="loadSandboxIncidents" :disabled="loadingSandboxIncidents" :loading="loadingSandboxIncidents") Ver incidentes
         p.field-hint Cuando un sandbox compartido detecta que un alumno acapara CPU/memoria (por error o a propósito), lo reinicia automáticamente y lo registra acá — para que sepas quién está causando problemas.
         FeedbackMessage(v-if="sandboxIncidentsError" :message="sandboxIncidentsError" tone="error")
-        .table-scroll(v-if="sandboxIncidentsLoaded")
+        LoadingState(v-if="loadingSandboxIncidents" message="Cargando incidentes…")
+        EmptyState(v-else-if="sandboxIncidentsLoaded && !sandboxIncidents.length" message="Sin incidentes registrados.")
+        .table-scroll(v-else-if="sandboxIncidentsLoaded")
           table.incidents-table
             thead
               tr
@@ -185,8 +183,6 @@
                 th Tipo
                 th Detalle
             tbody
-              tr(v-if="!sandboxIncidents.length")
-                td(colspan="4") Sin incidentes registrados.
               tr(v-for="incident in sandboxIncidents" :key="incident.uuid")
                 td {{ new Date(incident.occurredAt).toLocaleString() }}
                 td {{ incident.userUuid || '(desconocido)' }}
@@ -327,6 +323,7 @@ import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
@@ -335,7 +332,7 @@ import UiIcon from '@/components/ui/UiIcon.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, FeedbackMessage, LoadingState, ToggleSwitch, SaveState, UiIcon },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, ToggleSwitch, SaveState, UiIcon },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
