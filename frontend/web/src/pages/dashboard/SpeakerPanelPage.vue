@@ -8,6 +8,7 @@
       span.live-dot(:class="{ connected: wsConnected || offlineMode }")
       span(v-if="wsConnected") 👀 {{ audienceCount }} viendo la presentación ahora
       span(v-else-if="offlineMode") 🔒 Modo offline del moderador
+      span(v-else-if="!checkedStatus") Cargando presentación…
       span(v-else) Conectando...
       span.registered-count(v-if="registeredCount !== null") · 👥 {{ registeredCount }} registrados al evento
     .speaker-header-actions
@@ -23,7 +24,8 @@
         BaseButton.speaker-nav-button(variant="secondary" type="button" @click="navigate('prev')") ← Anterior
         BaseButton.speaker-nav-button(variant="secondary" type="button" @click="navigate('next')") Siguiente →
 
-  EmptyState.presentation-empty(v-if="checkedStatus && !ready" message="Aún no hay una presentación subida para esta conferencia.")
+  LoadingState(v-if="!checkedStatus" message="Cargando presentación…")
+  EmptyState.presentation-empty(v-else-if="!ready" message="Aún no hay una presentación subida para esta conferencia.")
     BaseLink(:to="`/dashboard/conferences/${conferenceId}/presentation`") Subir presentación
 
   template(v-else)
@@ -49,6 +51,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 type NavDirection = 'next' | 'prev'
 
@@ -59,7 +62,7 @@ const NAV_KEYS: Record<NavDirection, { key: string, keyCode: number }> = {
 
 export default {
   name: 'SpeakerPanelPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal, BaseAnchor, BaseButton, BaseLink, EmptyState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal, BaseAnchor, BaseButton, BaseLink, EmptyState, LoadingState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
