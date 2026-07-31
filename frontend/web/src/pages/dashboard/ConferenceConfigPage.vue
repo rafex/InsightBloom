@@ -294,6 +294,16 @@
       p El sandbox #[strong {{ sandboxConfirm.pod.podName }}] está libre. Se podrá crear nuevamente después.
     template(v-else)
       p Se recreará #[strong {{ sandboxConfirm.pod.podName }}] aplicando la imagen y configuración actuales.
+
+  BaseModal(
+    v-if="pendingTab"
+    title="¿Cambiar de sección?"
+    confirmLabel="Descartar cambios"
+    confirmVariant="danger"
+    @confirm="confirmTabChange"
+    @close="pendingTab = null"
+  )
+    p Hay cambios sin guardar en esta sección. Si continúas, se descartarán.
 </template>
 
 <script lang="ts">
@@ -534,6 +544,7 @@ export default {
     // dialogo nativo: es el unico mecanismo que el navegador permite en beforeunload, y usar el
     // mismo en ambos mantiene el comportamiento identico.
     const formDirty = ref(false)
+    const pendingTab = ref<string | null>(null)
     const markFormDirty = () => { formDirty.value = true }
     const savedFlags = [eventTypeSaved, certificateEngineSaved, canvasConfigSaved, seatingSaved,
       ticketSalesSaved, sandboxConfigSaved, deviceAccessConfigSaved, egressPolicySaved,
@@ -551,8 +562,18 @@ export default {
     })
     function selectTab(tab: typeof activeTab.value) {
       if (tab === activeTab.value) return
-      if (formDirty.value && !window.confirm('Hay cambios sin guardar en esta sección. ¿Cambiar de pestaña de todos modos?')) return
+      if (formDirty.value) {
+        pendingTab.value = tab
+        return
+      }
       activeTab.value = tab
+      formDirty.value = false
+    }
+
+    function confirmTabChange() {
+      if (!pendingTab.value) return
+      activeTab.value = pendingTab.value as typeof activeTab.value
+      pendingTab.value = null
       formDirty.value = false
     }
 
@@ -905,7 +926,7 @@ export default {
       return mode === 'MODERATOR_ONLY' ? 'MODERATOR_ONLY' : 'INDEPENDENT'
     }
 
-    return { conference, loading, error, activeTab, selectTab, saveState,
+    return { conference, loading, error, activeTab, selectTab, pendingTab, confirmTabChange, saveState,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              ticketSalesEnabled, savingTicketSales, ticketSalesSaved, ticketSalesError, saveTicketSales,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
