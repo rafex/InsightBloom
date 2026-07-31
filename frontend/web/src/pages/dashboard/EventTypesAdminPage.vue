@@ -35,17 +35,19 @@
             StatusBadge(:status="t.active ? 'ACTIVE' : 'INACTIVE'" :label="t.active ? 'Activo' : 'Inactivo'")
           td.actions(data-label="Acciones")
             template(v-if="editing === t.uuid")
+              SaveState(:state="editSaveState")
               textarea(v-model="editForm.description" placeholder="Descripción")
               .actions-row
-                BaseButton(size="sm" :disabled="saving" @click="saveEdit(t)") Guardar
+                BaseButton(size="sm" :loading="saving" :disabled="saving || editSaveState === 'clean'" @click="saveEdit(t)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
               BaseButton(variant="secondary" size="sm" @click="startEdit(t)") Editar
-              BaseButton(variant="secondary" size="sm" v-if="t.active" @click="toggleActive(t, false)") Desactivar
-              BaseButton(variant="success" size="sm" v-else @click="toggleActive(t, true)") Activar
+              BaseButton(variant="secondary" size="sm" v-if="t.active" :loading="actionLoadingUuid === t.uuid" :disabled="actionLoadingUuid === t.uuid" @click="toggleActive(t, false)") Desactivar
+              BaseButton(variant="success" size="sm" v-else :loading="actionLoadingUuid === t.uuid" :disabled="actionLoadingUuid === t.uuid" @click="toggleActive(t, true)") Activar
 
   .new-type-form
     h3 Nuevo tipo de evento
+    SaveState(:state="newTypeSaveState")
     .form-row
       input(v-model="newType.key" placeholder="Clave única, ej. standup")
       input(v-model="newType.name" placeholder="Nombre visible")
@@ -54,12 +56,12 @@
       label(v-for="c in allCapabilities" :key="c")
         input(type="checkbox" :value="c" v-model="newType.capabilities")
         span {{ capabilityLabel(c) }}
-    BaseButton(type="button" :disabled="creating" @click="createNew") Crear tipo de evento
+    BaseButton(type="button" :loading="creating" :disabled="creating || newTypeSaveState === 'clean'" @click="createNew") Crear tipo de evento
     FeedbackMessage(v-if="createError" :message="createError" tone="error")
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   getAllEventTypes, getEventCapabilities, createEventType, updateEventType, setEventTypeActive
 } from '@/services/api/usersApi'
@@ -69,6 +71,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const CAPABILITY_LABELS: Record<string, string> = {
@@ -87,7 +90,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 export default {
   name: 'EventTypesAdminPage',
-  components: { BaseButton, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
+  components: { BaseButton, EmptyState, FeedbackMessage, LoadingState, SaveState, StatusBadge },
   setup() {
     const auth = useAuthStore()
     const eventTypes = ref<EventType[]>([])
@@ -97,11 +100,42 @@ export default {
     const editing = ref<string | null>(null)
     const editForm = ref<{ name: string, description: string, capabilities: EventCapability[] }>(
       { name: '', description: '', capabilities: [] })
+    const initialEditSnapshot = ref('')
     const saving = ref(false)
     const newType = ref<{ key: string, name: string, description: string, capabilities: EventCapability[] }>(
       { key: '', name: '', description: '', capabilities: [] })
     const creating = ref(false)
     const createError = ref('')
+    const initialNewTypeSnapshot = ref('')
+    const actionLoadingUuid = ref<string | null>(null)
+
+    function editSnapshot(): string {
+      return JSON.stringify({
+        name: editForm.value.name,
+        description: editForm.value.description,
+        capabilities: editForm.value.capabilities
+      })
+    }
+
+    function newTypeSnapshot(): string {
+      return JSON.stringify({
+        key: newType.value.key,
+        name: newType.value.name,
+        description: newType.value.description,
+        capabilities: newType.value.capabilities
+      })
+    }
+
+    const editSaveState = computed(() => {
+      if (saving.value) return 'saving'
+      return editSnapshot() === initialEditSnapshot.value ? 'clean' : 'dirty'
+    })
+    const newTypeSaveState = computed(() => {
+      if (creating.value) return 'saving'
+      return newTypeSnapshot() === initialNewTypeSnapshot.value ? 'clean' : 'dirty'
+    })
+
+    initialNewTypeSnapshot.value = newTypeSnapshot()
 
     function capabilityLabel(c: string): string {
       return CAPABILITY_LABELS[c] || c
@@ -127,6 +161,7 @@ export default {
     function startEdit(t: EventType) {
       editing.value = t.uuid
       editForm.value = { name: t.name, description: t.description || '', capabilities: [...t.capabilities] }
+      initialEditSnapshot.value = editSnapshot()
     }
 
     async function saveEdit(t: EventType) {
@@ -137,6 +172,7 @@ export default {
           t.uuid, editForm.value.name, editForm.value.description || null,
           editForm.value.capabilities, auth.state.token as string)
         Object.assign(t, updated)
+        initialEditSnapshot.value = editSnapshot()
         editing.value = null
       } catch (e: any) {
         error.value = 'No fue posible guardar el tipo de evento. Inténtalo nuevamente.'
@@ -146,12 +182,16 @@ export default {
     }
 
     async function toggleActive(t: EventType, active: boolean) {
+      if (actionLoadingUuid.value) return
+      actionLoadingUuid.value = t.uuid
       try {
         error.value = ''
         const updated = await setEventTypeActive(t.uuid, active, auth.state.token as string)
         Object.assign(t, updated)
       } catch (e: any) {
         error.value = 'No fue posible actualizar el estado del tipo de evento. Inténtalo nuevamente.'
+      } finally {
+        actionLoadingUuid.value = null
       }
     }
 
@@ -164,6 +204,7 @@ export default {
           newType.value.capabilities, auth.state.token as string)
         eventTypes.value.push(created)
         newType.value = { key: '', name: '', description: '', capabilities: [] }
+        initialNewTypeSnapshot.value = newTypeSnapshot()
       } catch (e: any) {
         createError.value = e.response?.data?.error?.message || 'No se pudo crear el tipo de evento'
       } finally {
@@ -174,7 +215,7 @@ export default {
     onMounted(load)
 
     return {
-      eventTypes, allCapabilities, loading, error, editing, editForm, saving, newType, creating, createError,
+      eventTypes, allCapabilities, loading, error, editing, editForm, saving, editSaveState, newType, creating, createError, newTypeSaveState, actionLoadingUuid,
       capabilityLabel, startEdit, saveEdit, toggleActive, createNew
     }
   }
