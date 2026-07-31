@@ -22,6 +22,7 @@
 
   .surveyjs-editor(v-if="engine === 'SURVEYJS'" v-show="activeTab === 'create'")
     h3 Editor SurveyJS controlado
+    SaveState(:state="surveyJsSaveState")
     p.editor-help Solo se guardan tipos compatibles con SurveyJS Form Library. No se incluye Survey Creator ni componentes comerciales.
     input(v-model="surveyJsTitle" placeholder="Título de la encuesta")
     .surveyjs-add-row
@@ -70,8 +71,8 @@
             button.btn-icon(type="button" @click="moveSurveyElement(index, 1)" :disabled="index === surveyElements.length - 1" title="Bajar") ↓
           button.btn-icon(type="button" @click="removeSurveyElement(index)" title="Quitar") ✕
     .surveyjs-actions
-      BaseButton(variant="secondary" type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(false)") {{ surveyJsSaving ? 'Guardando...' : 'Guardar borrador' }}
-      BaseButton(type="button" :disabled="surveyJsSaving || !surveyElements.length" @click="saveSurveyJs(true)") Publicar encuesta
+      BaseButton(variant="secondary" type="button" :disabled="surveyJsSaving || !surveyElements.length || surveyJsSaveState === 'clean'" @click="saveSurveyJs(false)") {{ surveyJsSaving ? 'Guardando...' : 'Guardar borrador' }}
+      BaseButton(type="button" :disabled="surveyJsSaving || !surveyElements.length || surveyJsSaveState === 'clean'" @click="saveSurveyJs(true)") Publicar encuesta
     FeedbackMessage.form-feedback(v-if="surveyJsError" :message="surveyJsError" tone="error")
     .surveyjs-preview(v-if="surveyPreviewModel")
       h3 Vista previa
@@ -114,6 +115,7 @@
 
   .add-card(v-if="engine === 'NATIVE'" v-show="activeTab === 'create'")
     h3 {{ editingId ? 'Editar pregunta' : 'Agregar pregunta' }}
+    SaveState(:state="nativeSaveState")
     .ai-suggest-row(v-if="!editingId")
       BaseButton(variant="secondary" type="button" :disabled="suggesting" @click="suggest") {{ suggesting ? 'Pensando...' : '✨ Sugerir preguntas con IA' }}
       FeedbackMessage.inline-feedback(v-if="suggestError" :message="suggestError" tone="error")
@@ -201,7 +203,7 @@
       input(type="checkbox" v-model="form.required")
       span Obligatoria (el asistente debe responderla para poder enviar la encuesta)
     .form-actions
-      BaseButton(:disabled="!form.text || saving" @click="save") {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Agregar') }}
+      BaseButton(:disabled="!form.text || saving || nativeSaveState === 'clean'" @click="save") {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Agregar') }}
       BaseButton(variant="ghost" size="sm" v-if="editingId" type="button" @click="cancelEdit") Cancelar
 
   .questions-card(v-if="engine === 'NATIVE' && questions.length" v-show="activeTab === 'create'")
@@ -309,6 +311,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, getSurveyAccessManagement, releaseSurveyAccess, type SurveyEngine, type SurveyAttendee } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
@@ -386,7 +389,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, BaseModal, EmptyState, FeedbackMessage, StatusBadge },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, BaseModal, EmptyState, FeedbackMessage, SaveState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -418,6 +421,8 @@ export default {
     const improvements = ref<SuggestedQuestion[]>([])
     const editingId = ref<string | null>(null)
     const form = ref<SurveyForm>(emptyForm())
+    const initialNativeSnapshot = ref('')
+    const initialSurveyJsSnapshot = ref('')
     const deleteTarget = ref<SurveyQuestionRow | null>(null)
     const purgeTarget = ref<SurveyResult | null>(null)
     const openDetail = ref<Record<string, boolean>>({})
@@ -431,6 +436,34 @@ export default {
     const releasedForAll = ref(false)
     const releaseSaving = ref(false)
     const accessError = ref('')
+
+    function nativeSnapshot(): string {
+      return JSON.stringify(form.value)
+    }
+
+    function surveyJsSnapshot(): string {
+      return JSON.stringify({
+        title: surveyJsTitle.value,
+        type: surveyJsType.value,
+        question: surveyJsQuestion.value,
+        choices: surveyJsChoices.value,
+        required: surveyJsRequired.value,
+        schema: surveySchema.value
+      })
+    }
+
+    const nativeSaveState = computed(() => {
+      if (saving.value) return 'saving'
+      return nativeSnapshot() === initialNativeSnapshot.value ? 'clean' : 'dirty'
+    })
+
+    const surveyJsSaveState = computed(() => {
+      if (surveyJsSaving.value) return 'saving'
+      return surveyJsSnapshot() === initialSurveyJsSnapshot.value ? 'clean' : 'dirty'
+    })
+
+    initialNativeSnapshot.value = nativeSnapshot()
+    initialSurveyJsSnapshot.value = surveyJsSnapshot()
 
     const surveyElements = computed<any[]>(() => {
       const pages = Array.isArray(surveySchema.value.pages) ? surveySchema.value.pages : []
@@ -583,6 +616,7 @@ export default {
         if (engine.value === 'SURVEYJS') {
           surveySchema.value = emptySurveySchema()
           refreshSurveyPreview()
+          initialSurveyJsSnapshot.value = surveyJsSnapshot()
         } else {
           await load()
         }
@@ -681,6 +715,9 @@ export default {
         if (definition.engine === 'SURVEYJS') {
           surveySchema.value = (definition.schema as Record<string, any>) || emptySurveySchema()
           surveyJsTitle.value = String(surveySchema.value.title || 'Encuesta')
+          surveyJsQuestion.value = ''
+          surveyJsChoices.value = ''
+          initialSurveyJsSnapshot.value = surveyJsSnapshot()
           refreshSurveyPreview()
           try {
             const submissions = await getSurveyJsSubmissions(props.conferenceId, auth.state.token as string)
@@ -812,6 +849,7 @@ export default {
         required: q.required !== false
       }
       onTypeChange()
+      initialNativeSnapshot.value = nativeSnapshot()
       suggestions.value = []
       improvements.value = []
     }
@@ -819,6 +857,7 @@ export default {
     function cancelEdit() {
       editingId.value = null
       form.value = emptyForm()
+      initialNativeSnapshot.value = nativeSnapshot()
       improvements.value = []
     }
 
@@ -853,6 +892,7 @@ export default {
         }
         editingId.value = null
         form.value = emptyForm()
+        initialNativeSnapshot.value = nativeSnapshot()
         suggestions.value = []
         improvements.value = []
         await load()
@@ -897,9 +937,9 @@ export default {
     ])
 
     return {
-      activeTab, questions, results, saving, suggesting, suggestError, suggestions, form, editingId,
+      activeTab, questions, results, saving, nativeSaveState, suggesting, suggestError, suggestions, form, editingId,
       engine, selectedEngine, engineSaving, chooseEngine, surveyJsTitle, surveyJsType, surveyJsQuestion,
-      surveyJsChoices, surveyJsRequired, surveyJsSaving, surveyJsError, surveyJsSubmissions,
+      surveyJsChoices, surveyJsRequired, surveyJsSaving, surveyJsSaveState, surveyJsError, surveyJsSubmissions,
       surveyElements, surveyPreviewModel, addSurveyElement, removeSurveyElement, moveSurveyElement, toggleSurveyElementRequired, saveSurveyJs,
       selectedSuggestions, addingSuggestions,
       deleteTarget, purgeTarget, openDetail, improving, improveError, improvements,

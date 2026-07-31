@@ -4,7 +4,7 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `main`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-30 (videollamada en pestaña nueva desde evento y moderación)
+> **Último checkpoint**: 2026-07-31 (SaveState en editores de encuesta)
 
 ## Estado
 
@@ -28,7 +28,7 @@
 | **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 83 estilos scoped, fija las 80 excepciones hex en 6 superficies y ya no permite redefiniciones legacy de selectores canónicos |
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 | **Gobierno de componentes** | Formularios y acciones administrativas | Completado | Los inputs, selects y textareas de IA, egresos, dispositivos, roles y tipos de evento heredan el baseline global; acciones locales migradas a `BaseButton`, incluida la variante semántica `success` |
-| **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
+| **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; SurveyManagePage ya refleja cambios pendientes por editor; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
 | **Gobierno de componentes** | Estados semánticos | En progreso | `StatusBadge.vue` centraliza estados de usuarios, roles, detalle de usuario, eventos e historial con tonos semánticos reutilizables |
 | **Gobierno de componentes** | Estados vacíos | En progreso | `EmptyState.vue` centraliza mensajes y acciones de ausencia de datos en usuarios, roles, tipos de evento, eventos, dispositivos y reservas |
 | **Gobierno visual** | Utilidades transversales | En progreso | `.loading-text` y el color base de `.field-hint` viven en `global.css`; las pantallas conservan solo sus márgenes y tamaños específicos |
@@ -61,6 +61,8 @@ La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La
 La migración de colores continúa: el gate mide 73 literales hex locales (baseline histórico
 1,278), todos fijados en excepciones documentadas de mapas, ilustraciones y certificados. Las nuevas
 pantallas deben usar tokens y componentes canónicos; el gate ya no permite redefiniciones legacy.
+El inventario actual clasifica 87 estilos `scoped`; la siguiente reducción debe centrarse en los
+genéricos elegibles, no en superficies de mapas, editores o herramientas embebidas.
 
 ### Fase 4.2 — Alto tráfico
 
