@@ -3,8 +3,8 @@
   LoadingState(v-if="loading" message="Cargando pizarra de diagramas...")
   template(v-else-if="isModeratorOnlyViewer")
     .published-banner
-      span 🔒 Vista publicada por el moderador
-      span.update-state(v-if="streamConnected") ● SSE en vivo
+      StatusBadge(status="VISIBLE" label="Vista publicada")
+      StatusBadge(v-if="streamConnected" status="ACTIVE" label="Actualización en vivo")
       span.update-state Actualización automática en {{ refreshCountdown }}s
       span.update-state(v-if="publishedUpdatedAt") Publicado {{ publishedUpdatedAt }}
     .published-content
@@ -23,9 +23,9 @@
     ) ↻
   NoticeState(v-else-if="!drawioUrl" title="Diagramas no disponibles" message="Intenta más tarde o contacta al organizador." tone="warning")
   template(v-else)
-    .save-banner(v-if="!canPersist" class="save-banner-info") ℹ️ Tu edición es local y no se conservará; solo el material del moderador se persiste.
-    FeedbackMessage.save-banner(v-if="saveError" :message="`⚠️ No se pudo publicar el diagrama: ${saveError}`" tone="error")
-    FeedbackMessage.save-banner(v-else-if="saveStatus === 'saved'" message="✓ Diagrama publicado" tone="success")
+    .save-banner(v-if="!canPersist" class="save-banner-info") Tu edición es local y no se conservará; solo el material del moderador se persiste.
+    FeedbackMessage.save-banner(v-if="saveError" :message="`No se pudo publicar el diagrama: ${saveError}`" tone="error")
+    FeedbackMessage.save-banner(v-else-if="saveStatus === 'saved'" message="Diagrama publicado" tone="success")
     iframe.drawio-frame(ref="frameRef" :src="drawioUrl" title="Diagramas" allow="clipboard-write" @load="stripSessionToken")
 </template>
 
@@ -37,12 +37,13 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import NoticeState from '@/components/ui/NoticeState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'DiagrammingPage',
-  components: { BaseButton, FeedbackMessage, LoadingState, NoticeState },
+  components: { BaseButton, FeedbackMessage, LoadingState, NoticeState, StatusBadge },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
