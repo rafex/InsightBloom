@@ -24,8 +24,8 @@
   NoticeState(v-else-if="!drawioUrl" title="Diagramas no disponibles" message="Intenta más tarde o contacta al organizador." tone="warning")
   template(v-else)
     .save-banner(v-if="!canPersist" class="save-banner-info") ℹ️ Tu edición es local y no se conservará; solo el material del moderador se persiste.
-    .save-banner(v-if="saveError" class="save-banner-error") ⚠️ No se pudo publicar el diagrama: {{ saveError }}
-    .save-banner(v-else-if="saveStatus === 'saved'" class="save-banner-ok") ✓ Diagrama publicado
+    FeedbackMessage.save-banner(v-if="saveError" :message="`⚠️ No se pudo publicar el diagrama: ${saveError}`" tone="error")
+    FeedbackMessage.save-banner(v-else-if="saveStatus === 'saved'" message="✓ Diagrama publicado" tone="success")
     iframe.drawio-frame(ref="frameRef" :src="drawioUrl" title="Diagramas" allow="clipboard-write" @load="stripSessionToken")
 </template>
 
@@ -34,6 +34,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getIntegrationConfig, getEventDiagram, saveEventDiagram, streamEventDiagram, AuthenticatedEventStream } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import NoticeState from '@/components/ui/NoticeState.vue'
 
@@ -41,7 +42,7 @@ const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'DiagrammingPage',
-  components: { BaseButton, LoadingState, NoticeState },
+  components: { BaseButton, FeedbackMessage, LoadingState, NoticeState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -266,8 +267,8 @@ export default {
 .drawio-frame { flex: 1; border: none; width: 100%; }
 .save-banner { flex: 0 0 auto; padding: 8px 16px; font-size: 0.85rem; text-align: center; }
 .save-banner-info { background: var(--color-info-soft); color: var(--color-info); }
-.save-banner-ok { background: var(--color-success-soft); color: var(--color-success); }
-.save-banner-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.save-banner.tone-success { background: var(--color-success-soft); }
+.save-banner.tone-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 .published-banner { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 10px 16px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: 0.88rem; }
 .update-state { color: var(--color-text-muted); font-size: 0.8rem; }
 .published-content { flex: 1; min-height: 420px; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--color-surface-muted); overflow: auto; }

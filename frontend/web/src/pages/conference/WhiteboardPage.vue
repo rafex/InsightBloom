@@ -24,8 +24,8 @@
   NoticeState(v-else-if="!available" title="Pizarra no disponible" message="Intenta más tarde o contacta al organizador." tone="warning")
   template(v-else)
     .save-banner(v-if="!canPersist" class="save-banner-info") ℹ️ Tu edición es local y no se conservará; solo el material del moderador se persiste.
-    .save-banner(v-if="saveError" class="save-banner-error") ⚠️ No se pudo publicar la pizarra: {{ saveError }}
-    .save-banner(v-else-if="saveStatus === 'saved'" class="save-banner-ok") ✓ Pizarra publicada
+    FeedbackMessage.save-banner(v-if="saveError" :message="`⚠️ No se pudo publicar la pizarra: ${saveError}`" tone="error")
+    FeedbackMessage.save-banner(v-else-if="saveStatus === 'saved'" message="✓ Pizarra publicada" tone="success")
     .editor-shell(ref="editorRef")
 </template>
 
@@ -40,6 +40,7 @@ import {
 import { useAuthStore } from '@/features/auth/authStore'
 import { mountExcalidrawEditor } from '@/components/ExcalidrawEditor'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import NoticeState from '@/components/ui/NoticeState.vue'
 
@@ -47,7 +48,7 @@ const REFRESH_INTERVAL_SECONDS = 30
 
 export default {
   name: 'WhiteboardPage',
-  components: { BaseButton, LoadingState, NoticeState },
+  components: { BaseButton, FeedbackMessage, LoadingState, NoticeState },
   props: {
     conferenceId: { type: String, default: '' },
     canvasAudienceMode: { type: String, default: '' },
@@ -215,8 +216,8 @@ export default {
 .published-empty { text-align: center; color: var(--color-text-secondary); border: 1px dashed var(--color-border); border-radius: 12px; padding: 28px; background: var(--color-surface); }
 .published-empty .hint { color: var(--color-text-muted); font-size: .86rem; }
 .save-banner-info { background: var(--color-primary-soft); color: var(--color-primary-dark); }
-.save-banner-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
-.save-banner-ok { background: var(--color-success-soft); color: var(--color-success); }
+.save-banner.tone-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.save-banner.tone-success { background: var(--color-success-soft); }
 .refresh-floating { position: fixed; right: 24px; bottom: 24px; width: 44px; height: 44px; padding: 0; border-radius: 999px; font-size: 1.45rem; box-shadow: 0 8px 18px rgba(79, 70, 229, .3); }
 .refresh-floating.has-update { background: var(--color-success); }
 .refresh-floating:disabled { opacity: .65; cursor: wait; }
