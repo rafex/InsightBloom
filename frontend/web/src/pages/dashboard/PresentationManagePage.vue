@@ -4,35 +4,37 @@
   ConferenceToolsNav(:conferenceId="conferenceId")
   h2 Presentación
 
-  .status-card(v-if="checkedStatus")
-    StatusBadge.presentation-status(
-      :status="ready ? 'ACTIVE' : 'INACTIVE'"
-      :label="ready ? 'Presentación disponible' : 'Sin presentación'"
-    )
-    p.status-help(v-if="ready") Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }}{{ presentationFormat === 'fat' ? ' FAT precompilada' : '' }} generada para esta conferencia.
-    p.status-help(v-else) Aún no se ha subido una presentación.
-    .preview-actions(v-if="ready")
-      BaseAnchor(variant="secondary" :href="publicSlidesUrl || slidesUrl" target="_blank" rel="noopener") Ver slides
-      BaseAnchor(variant="secondary" :href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
+  LoadingState(v-if="!checkedStatus" message="Consultando el estado de la presentación…")
+  .presentation-content(v-else)
+    .status-card
+      StatusBadge.presentation-status(
+        :status="ready ? 'ACTIVE' : 'INACTIVE'"
+        :label="ready ? 'Presentación disponible' : 'Sin presentación'"
+      )
+      p.status-help(v-if="ready") Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }}{{ presentationFormat === 'fat' ? ' FAT precompilada' : '' }} generada para esta conferencia.
+      p.status-help(v-else) Aún no se ha subido una presentación.
+      .preview-actions(v-if="ready")
+        BaseAnchor(variant="secondary" :href="publicSlidesUrl || slidesUrl" target="_blank" rel="noopener") Ver slides
+        BaseAnchor(variant="secondary" :href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
 
-  .upload-card
-    h3 Subir presentación (.zip)
-    .form-group
-      label Engine de la presentación
-      select.provider-select(v-model="provider")
-        option(value="MARP") Marp
-        option(value="SLIDEV") Slidev
-      p.field-hint(v-if="provider === 'MARP'") ZIP con el Markdown de Marp y sus assets locales (CSS, imágenes y fuentes).
-      p.field-hint(v-else) ZIP fuente con slides.md y assets locales, o ZIP FAT con slidev-artifact.json y dist/ precompilado. El FAT se detecta automáticamente y sólo se acepta si la auditoría está habilitada.
-    p.hint El engine seleccionado se usará para generar la vista pública, el modo Presentar y las exportaciones.
-    input(type="file" accept=".zip" @change="onFileChange" ref="fileInput")
-    .form-group
-      label URL del repositorio o descarga (opcional)
-      input.source-input(v-model="sourceUrl" type="url" placeholder="https://github.com/usuario/repo")
-      p.field-hint Si la agregas, la audiencia verá un botón para ir al sitio de origen de la presentación.
-    BaseButton(:disabled="!file || uploading" @click="upload") {{ uploading ? 'Procesando (puede tardar)...' : 'Subir y generar' }}
-    FeedbackMessage(v-if="error" :message="error" tone="error")
-    FeedbackMessage(v-if="success" message="¡Presentación generada correctamente!" tone="success")
+    .upload-card
+      h3 Subir presentación (.zip)
+      .form-group
+        label Engine de la presentación
+        select.provider-select(v-model="provider")
+          option(value="MARP") Marp
+          option(value="SLIDEV") Slidev
+        p.field-hint(v-if="provider === 'MARP'") ZIP con el Markdown de Marp y sus assets locales (CSS, imágenes y fuentes).
+        p.field-hint(v-else) ZIP fuente con slides.md y assets locales, o ZIP FAT con slidev-artifact.json y dist/ precompilado. El FAT se detecta automáticamente y sólo se acepta si la auditoría está habilitada.
+      p.hint El engine seleccionado se usará para generar la vista pública, el modo Presentar y las exportaciones.
+      input(type="file" accept=".zip" @change="onFileChange" ref="fileInput")
+      .form-group
+        label URL del repositorio o descarga (opcional)
+        input.source-input(v-model="sourceUrl" type="url" placeholder="https://github.com/usuario/repo")
+        p.field-hint Si la agregas, la audiencia verá un botón para ir al sitio de origen de la presentación.
+      BaseButton(:disabled="!file || uploading" :loading="uploading" @click="upload") Subir y generar
+      FeedbackMessage(v-if="error" :message="error" tone="error")
+      FeedbackMessage(v-if="success" message="¡Presentación generada correctamente!" tone="success")
 </template>
 
 <script lang="ts">
@@ -47,11 +49,12 @@ import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 export default {
   name: 'PresentationManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseAnchor, BaseButton, FeedbackMessage, StatusBadge },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseAnchor, BaseButton, FeedbackMessage, LoadingState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()

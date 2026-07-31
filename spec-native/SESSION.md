@@ -4,7 +4,7 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `main`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-31 (SaveState en editores de encuesta)
+> **Último checkpoint**: 2026-07-31 (estados canónicos en encuesta y presentación)
 
 ## Estado
 
@@ -32,7 +32,7 @@
 | **Gobierno de componentes** | Estados semánticos | En progreso | `StatusBadge.vue` centraliza estados de usuarios, roles, detalle de usuario, eventos e historial con tonos semánticos reutilizables |
 | **Gobierno de componentes** | Estados vacíos | En progreso | `EmptyState.vue` centraliza mensajes y acciones de ausencia de datos en usuarios, roles, tipos de evento, eventos, dispositivos y reservas |
 | **Gobierno visual** | Utilidades transversales | En progreso | `.loading-text` y el color base de `.field-hint` viven en `global.css`; las pantallas conservan solo sus márgenes y tamaños específicos |
-| **Gobierno de componentes** | Estados de carga | En progreso | `LoadingState.vue` unifica la espera de Diagramas, Notas colaborativas, Videollamada y Pizarra con semántica `status` y `aria-live` |
+| **Gobierno de componentes** | Estados de carga | En progreso | `LoadingState.vue` unifica la espera de Diagramas, Notas colaborativas, Videollamada, Pizarra y ahora la consulta inicial de Presentación con semántica `status` y `aria-live` |
 | **Gobierno de componentes** | Feedback de operaciones | En progreso | `FeedbackMessage.vue` centraliza errores y confirmaciones de Login, Registro, Perfil, acceso a eventos y configuración administrativa con tonos semánticos y roles accesibles |
 | **Gobierno visual** | Checkout y formularios | En progreso | Checkout usa `LoadingState`/`FeedbackMessage`; Perfil y Unirse a un evento heredan el baseline global de inputs y conservan el foco `:focus-visible` |
 | **Gobierno visual** | Shell y overlays | En progreso | Header, menús y overlays administrativos consumen tokens de superficie, sombra y scrim; Usuarios y Roles ya usan `BaseModal` con foco, Escape y focus-trap |
