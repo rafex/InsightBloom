@@ -33,6 +33,7 @@
           v-if="!item.unblockedAt"
           @click="unblock(item)"
           :disabled="item._loading"
+          :loading="item._loading"
         ) Desbloquear
 </template>
 
