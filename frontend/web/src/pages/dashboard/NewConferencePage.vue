@@ -1,6 +1,7 @@
 <template lang="pug">
 .new-conf-page
   h2 Nuevo evento
+  SaveState(v-if="!created" :state="saveState")
   .form(v-if="!created")
     FormField(label="Nombre para compartir el evento" hint="Se usa para generar el enlace público (ID amigable). No se podrá cambiar después.")
       template(#default="{ id, describedBy }")
@@ -138,7 +139,7 @@
       ConferenceMap(:latitude="latitude" :longitude="longitude" :label="name || 'Evento'")
 
     FeedbackMessage(v-if="error" :message="error" tone="error")
-    BaseButton(:loading="loading" :disabled="loading || !name.trim()" @click="create") Crear evento
+    BaseButton(:loading="loading" :disabled="loading || !name.trim() || saveState === 'clean'" @click="create") Crear evento
 
   .created-info.animate__animated.animate__fadeIn(v-else)
     h3 ¡Evento creado!
@@ -181,6 +182,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import FormField from '@/components/ui/FormField.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 import { createConference, getTimezones, getActiveEventTypes } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventType, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -200,7 +202,7 @@ const EXPIRY_OPTIONS = [
 
 export default {
   name: 'NewConferencePage',
-  components: { ConferenceMap, BaseButton, BaseLink, FormField, FeedbackMessage },
+  components: { ConferenceMap, BaseButton, BaseLink, FormField, FeedbackMessage, SaveState },
   setup() {
     const name       = ref('')
     const displayName = ref('')
@@ -237,6 +239,42 @@ export default {
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
     const capacityAlert = computed(() => capacityWarning(capacity.value))
     const auth       = useAuthStore()
+    const initialSnapshot = ref('')
+
+    function formSnapshot(): string {
+      return JSON.stringify({
+        name: name.value,
+        displayName: displayName.value,
+        description: description.value,
+        visibility: visibility.value,
+        ticketPrice: ticketPrice.value,
+        ticketCurrency: ticketCurrency.value,
+        scheduleMarkdown: scheduleMarkdown.value,
+        scheduleLayout: scheduleLayout.value,
+        publicTheme: publicTheme.value,
+        expiryMode: expiryMode.value,
+        customDate: customDate.value,
+        latitude: latitude.value,
+        longitude: longitude.value,
+        mapUrl: mapUrl.value,
+        eventDate: eventDate.value,
+        venue: venue.value,
+        startTime: startTime.value,
+        endTime: endTime.value,
+        timezoneId: timezoneId.value,
+        eventTypeKey: eventTypeKey.value,
+        certificateEngine: certificateEngine.value,
+        canvasTools: canvasTools.value,
+        canvasModes: { ...canvasModes },
+        capacity: capacity.value
+      })
+    }
+
+    const saveState = computed(() => {
+      if (loading.value) return 'saving'
+      return formSnapshot() === initialSnapshot.value ? 'clean' : 'dirty'
+    })
+    initialSnapshot.value = formSnapshot()
 
     onMounted(async () => {
       try {
@@ -247,6 +285,7 @@ export default {
       try {
         eventTypes.value = await getActiveEventTypes()
       } catch (e: any) { /* selector queda vacío, el backend igual usa su propio default "conference" */ }
+      initialSnapshot.value = formSnapshot()
     })
 
     const minDate = computed(() => new Date().toISOString().slice(0, 16))
@@ -308,6 +347,7 @@ export default {
       canvasModes.DRAWIO = 'INDEPENDENT'; canvasModes.EXCALIDRAW = 'INDEPENDENT'; canvasModes.ETHERPAD = 'COLLABORATIVE'
       capacity.value = DEFAULT_CAPACITY; certificateEngine.value = 'INHOUSE'
       ticketPrice.value = '0.00'; ticketCurrency.value = 'MXN'
+      initialSnapshot.value = formSnapshot()
     }
 
     function canvasToolLabel(tool: CanvasTool): string {
@@ -327,7 +367,7 @@ export default {
       ]
     }
 
-    return { name, displayName, description, visibility, ticketPrice, ticketCurrency, scheduleMarkdown, scheduleLayout, publicTheme, error, loading, created, expiryMode, customDate, minDate, latitude, longitude, mapUrl, locationError, extractMapCoordinates,
+    return { name, displayName, description, visibility, ticketPrice, ticketCurrency, scheduleMarkdown, scheduleLayout, publicTheme, error, loading, created, saveState, expiryMode, customDate, minDate, latitude, longitude, mapUrl, locationError, extractMapCoordinates,
              eventDate, venue, startTime, endTime, timezones, timezoneId, eventTypes, eventTypeKey, certificateEngine,
              canvasTools, canvasModes, canvasToolLabel, canvasModeOptions,
              canvasToolOptions: [
