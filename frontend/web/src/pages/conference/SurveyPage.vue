@@ -11,7 +11,7 @@
         LoadingState(v-if="certLoading" message="Generando certificado…")
         template(v-else-if="certUrl")
           iframe.cert-preview(:src="certUrl")
-          a.link-btn.link-btn-primary(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
+          BaseAnchor(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
         template(v-else-if="certError")
           p.cert-error {{ certError }}
           BaseLink(v-if="certNeedsLogin" variant="secondary" :to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
@@ -39,7 +39,7 @@
           li
             a(:href="contact.telegramGroup" target="_blank" rel="noopener") 👥 Grupo de Telegram
       .download-actions
-        a.link-btn.link-btn-primary(:href="pdfUrl" target="_blank" rel="noopener" v-if="pdfReady") Descargar presentación (PDF)
+        BaseAnchor(v-if="pdfReady" :href="pdfUrl" target="_blank" rel="noopener") Descargar presentación (PDF)
         BaseButton(type="button" v-if="isGroupNotes" :loading="materialsDownloading" @click="downloadMaterials") Descargar materiales ZIP
       FeedbackMessage(v-if="materialsError" :message="materialsError" tone="error")
 
@@ -135,6 +135,7 @@ import { Model } from 'survey-core'
 import 'survey-core/i18n/spanish'
 import { SurveyComponent } from 'survey-vue3-ui'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
@@ -161,7 +162,7 @@ type PointerLikeEvent = MouseEvent | TouchEvent
 
 export default {
   name: 'SurveyPage',
-  components: { SurveyComponent, BaseButton, BaseLink, EmptyState, FeedbackMessage, LoadingState },
+  components: { SurveyComponent, BaseAnchor, BaseButton, BaseLink, EmptyState, FeedbackMessage, LoadingState },
   props: {
     conferenceId: { type: String as PropType<string | undefined>, default: undefined },
     canvasAudienceMode: { type: String, default: '' }

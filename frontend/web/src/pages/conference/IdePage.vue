@@ -53,7 +53,7 @@
             .value {{ formattedExpiry }}
 
         .ide-actions
-          a.link-btn.link-btn-primary(v-if="fullGatewayUrl" :href="ideSessionUrl" target="_blank" rel="noopener")
+          BaseAnchor(v-if="fullGatewayUrl" :href="ideSessionUrl" target="_blank" rel="noopener")
             span 🚀 Abrir IDE en navegador
           BaseButton(variant="secondary" @click="downloadWorkspace" :disabled="downloadingWorkspace")
             span(v-if="!downloadingWorkspace") 📥 Descargar workspace
@@ -72,7 +72,7 @@
           strong Página publicada temporalmente
           p Esta URL contiene solo una copia estática validada del workspace y vence el {{ formatPreviewExpiry }}.
           .preview-actions
-            a.link-btn.link-btn-secondary(:href="preview.url" target="_blank" rel="noopener noreferrer") Abrir página
+            BaseAnchor(variant="secondary" :href="preview.url" target="_blank" rel="noopener noreferrer") Abrir página
             BaseButton(variant="secondary" @click="copyPreviewUrl") {{ previewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
             BaseButton(variant="danger" @click="revokePreview") Revocar
         .preview-result(v-if="appPreview")
@@ -81,7 +81,7 @@
             |  Requiere el header "X-Preview-Token" con el token de abajo — cualquiera que lo
             |  tenga puede usar la API mientras esté vigente.
           .preview-actions
-            a.link-btn.link-btn-secondary(:href="appPreview.url" target="_blank" rel="noopener noreferrer") Abrir URL
+            BaseAnchor(variant="secondary" :href="appPreview.url" target="_blank" rel="noopener noreferrer") Abrir URL
             BaseButton(variant="secondary" @click="copyAppPreviewUrl") {{ appPreviewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
             BaseButton(variant="secondary" @click="copyAppPreviewToken") {{ appPreviewTokenCopied ? '✓ Copiado' : '🔑 Copiar token' }}
             BaseButton(variant="danger" @click="revokeApp") Revocar
@@ -107,6 +107,7 @@ import {
 import type { SandboxInfo, SandboxAvailability, SandboxVariant, WorkspacePreviewInfo, AppPreviewInfo } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import SandboxLoadingAnimation from '@/components/SandboxLoadingAnimation.vue'
+import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 
 // El endpoint devuelve una instantánea; mientras el Pod/seat-agent se prepara
@@ -119,7 +120,7 @@ const POLL_TIMEOUT_MS = 5 * 60_000
 
 export default {
   name: 'IdePage',
-  components: { SandboxLoadingAnimation, BaseButton },
+  components: { SandboxLoadingAnimation, BaseAnchor, BaseButton },
   props: {
     conferenceId: {
       type: String,

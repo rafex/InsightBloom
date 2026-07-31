@@ -23,6 +23,7 @@
   "src/components/timeline/TimelineItem.vue": "shared-component",
   "src/components/ui/AppToast.vue": "canonical-component",
   "src/components/ui/BaseButton.vue": "canonical-component",
+  "src/components/ui/BaseAnchor.vue": "canonical-component",
   "src/components/ui/BaseLink.vue": "canonical-component",
   "src/components/ui/BaseModal.vue": "canonical-component",
   "src/components/ui/EmptyState.vue": "canonical-component",

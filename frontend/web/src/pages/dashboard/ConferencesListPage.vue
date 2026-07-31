@@ -64,7 +64,7 @@
               DropdownMenu(v-if="hasCapability(c, 'PRESENTATION') || hasCapability(c, 'SURVEY')" label="Presentador")
                 router-link(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/speaker`") Presentar
                 router-link(v-if="hasCapability(c, 'SURVEY')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/survey`") Encuesta
-              a.link-btn.link-btn-ghost(v-if="hasCapability(c, 'PRESENTATION')" :href="`/c/${c.friendlyId}/presentation`" @click.prevent="openPublic(c)") 📺 Público
+              BaseAnchor(v-if="hasCapability(c, 'PRESENTATION')" variant="ghost" :href="`/c/${c.friendlyId}/presentation`" @click.prevent="openPublic(c)") 📺 Público
               DropdownMenu(v-if="hasCapability(c, 'WORD_CLOUD') || hasCapability(c, 'VIDEO_CONFERENCE') || hasCapability(c, 'CODE_IDE')" label="Moderación")
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/messages`") Mensajes
                 router-link(v-if="hasCapability(c, 'WORD_CLOUD')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/words`") Palabras/Nube
@@ -109,6 +109,7 @@ import QrCodeModal from '@/components/QrCodeModal.vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -127,7 +128,7 @@ interface ConferenceRow extends Conference {
 
 export default {
   name: 'ConferencesListPage',
-  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
+  components: { QrCodeModal, DropdownMenu, DashboardBreadcrumb, BaseAnchor, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
   setup() {
     const conferences = ref<ConferenceRow[]>([])
     const loading = ref(true)
@@ -304,7 +305,7 @@ h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
   }
   .conferences-table td.actions-cell::before { margin-bottom: 8px; }
   .conf-actions, .conf-modes { gap: 7px; }
-  .conf-actions .link-btn, .conf-actions :deep(.dropdown-trigger),
+  .conf-actions .base-anchor, .conf-actions :deep(.dropdown-trigger),
   .conf-modes :deep(.dropdown-trigger) {
     min-height: 36px; padding: 7px 10px; font-size: 0.76rem;
   }
@@ -315,7 +316,7 @@ h1 { color: var(--color-heading); margin: 0; font-size: 1.8rem; }
     .header-actions { flex-direction: column; }
     .header-actions > * { flex-basis: auto; width: 100%; }
     .conferences-table td { grid-template-columns: 78px minmax(0, 1fr); gap: 8px; }
-    .conf-actions .link-btn, .conf-actions :deep(.dropdown-trigger),
+    .conf-actions .base-anchor, .conf-actions :deep(.dropdown-trigger),
     .conf-modes :deep(.dropdown-trigger) { padding-left: 8px; padding-right: 8px; }
   }
 }

@@ -20,7 +20,7 @@
     // the access guard, and the deck stays blank with a CORS/MIME error.
     iframe.slides-frame(ref="slidesFrame" :src="slidesUrl" title="Slides" :sandbox="iframeSandbox")
     .presentation-actions
-      a.link-btn.link-btn-secondary(v-if="canParticipate && presentationSourceUrl" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
+      BaseAnchor(v-if="canParticipate && presentationSourceUrl" variant="secondary" :href="presentationSourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
       BaseLink(v-if="canParticipate" :to="`/c/${friendlyId}/survey`") Dar mi opinión sobre la charla →
 </template>
 
@@ -31,6 +31,7 @@ import { getPresentationStatus, getSlidesUrl, getPresentationRootUrl, getSlidesP
 import type { PresentationProvider } from '@/services/api/presentationsApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
@@ -39,7 +40,7 @@ const PREVIEW_SLIDE_LIMIT = 5
 
 export default {
   name: 'PresentationPage',
-  components: { BaseButton, BaseLink, EmptyState, LoadingState },
+  components: { BaseAnchor, BaseButton, BaseLink, EmptyState, LoadingState },
   props: {
     conferenceId: String,
     presentationSourceUrl: String,

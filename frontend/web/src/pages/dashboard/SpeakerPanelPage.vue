@@ -12,7 +12,7 @@
       span.registered-count(v-if="registeredCount !== null") · 👥 {{ registeredCount }} registrados al evento
     .speaker-header-actions
       .utility-controls
-        a.link-btn.link-btn-secondary(v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
+        BaseAnchor(v-if="sourceUrl" variant="secondary" :href="sourceUrl" target="_blank" rel="noopener") Ir al sitio de origen ↗
         BaseButton(variant="secondary" @click="shareRemoteControl") Compartir control remoto
         BaseButton(variant="secondary" v-if="ready && !offlineMode && !offlinePreparing" @click="prepareOffline") Preparar offline
         BaseButton(variant="secondary" v-if="offlinePackage && !offlineMode" @click="openOfflineCached") Abrir offline
@@ -46,6 +46,7 @@ import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import QrCodeModal from '@/components/QrCodeModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 
@@ -58,7 +59,7 @@ const NAV_KEYS: Record<NavDirection, { key: string, keyCode: number }> = {
 
 export default {
   name: 'SpeakerPanelPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal, BaseButton, BaseLink, EmptyState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal, BaseAnchor, BaseButton, BaseLink, EmptyState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -416,7 +417,7 @@ h2 { margin: 0; color: var(--color-heading); }
   .speaker-header { flex-direction: column; align-items: stretch; }
   .speaker-header-actions { flex-direction: column; align-items: stretch; margin-left: 0; }
   .utility-controls { justify-content: stretch; }
-  .utility-controls .link-btn-secondary, .utility-controls .base-btn { flex: 1; }
+  .utility-controls .base-anchor, .utility-controls .base-btn { flex: 1; }
   .nav-controls .speaker-nav-button { flex: 1; }
   .slides-frame { height: 45vh; }
   .nav-controls { gap: 8px; }

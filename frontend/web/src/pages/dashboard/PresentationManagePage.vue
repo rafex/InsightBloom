@@ -8,8 +8,8 @@
     p(v-if="ready") ✅ Ya hay una presentación {{ provider === 'SLIDEV' ? 'Slidev' : 'Marp' }}{{ presentationFormat === 'fat' ? ' FAT precompilada' : '' }} generada para esta conferencia.
     p(v-else) Aún no se ha subido una presentación.
     .preview-actions(v-if="ready")
-      a.link-btn.link-btn-secondary(:href="publicSlidesUrl || slidesUrl" target="_blank" rel="noopener") Ver slides
-      a.link-btn.link-btn-secondary(:href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
+      BaseAnchor(variant="secondary" :href="publicSlidesUrl || slidesUrl" target="_blank" rel="noopener") Ver slides
+      BaseAnchor(variant="secondary" :href="pdfUrl" target="_blank" rel="noopener") Descargar PDF
 
   .upload-card
     h3 Subir presentación (.zip)
@@ -41,10 +41,11 @@ import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 
 export default {
   name: 'PresentationManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseAnchor, BaseButton },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -181,6 +182,6 @@ input[type="file"] { display: block; margin-bottom: 12px; }
 @media (max-width: 480px) {
   .presentation-manage-page { padding: 14px; }
   .preview-actions { display: flex; flex-direction: column; gap: 8px; }
-  .preview-actions > :where(.link-btn-secondary) { text-align: center; }
+  .preview-actions > :where(.base-anchor) { text-align: center; }
 }
 </style>
