@@ -1,7 +1,7 @@
 <template lang="pug">
 .ide-session-page
   .unavailable(v-if="!targetUrl")
-    p ⚠️ No se especificó un IDE para abrir.
+    FeedbackMessage(:message="'No se especificó un IDE para abrir.'" tone="error")
     p.hint Volvé a la página del evento y abrí el IDE desde ahí.
   template(v-else)
     iframe.ide-frame(:src="targetUrl" title="IDE" allow="clipboard-write")
@@ -11,6 +11,7 @@
 <script lang="ts">
 import { useRoute } from 'vue-router'
 import IdeHelpPanel from '@/components/IdeHelpPanel.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import { useAuthStore } from '@/features/auth/authStore'
 
 // Pagina propia (no navegacion directa al gateway) para poder superponer el boton/panel de
@@ -20,7 +21,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 // que bloqueen esto (2026-07-19).
 export default {
   name: 'IdeSessionPage',
-  components: { IdeHelpPanel },
+  components: { FeedbackMessage, IdeHelpPanel },
   setup() {
     const route = useRoute()
     const auth = useAuthStore()
