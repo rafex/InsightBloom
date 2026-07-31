@@ -38,9 +38,10 @@
             StatusBadge(:status="r.active ? 'ACTIVE' : 'INACTIVE'" :label="r.active ? 'Activo' : 'Inactivo'")
           td.actions(data-label="Acciones")
             template(v-if="editing === r.uuid")
+              SaveState(:state="editSaveState")
               textarea(v-model="editForm.description" placeholder="Descripción")
               .actions-row
-                BaseButton(size="sm" :disabled="saving" @click="saveEdit(r)") Guardar
+                BaseButton(size="sm" :loading="saving" :disabled="saving || editSaveState === 'clean'" @click="saveEdit(r)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
               BaseButton(variant="secondary" size="sm" @click="startEdit(r)") Editar
@@ -49,6 +50,7 @@
 
   .new-role-form
     h3 Nuevo rol
+    SaveState(:state="newRoleSaveState")
     .form-row
       input(v-model="newRole.key" placeholder="Clave única, ej. staff_coordinator")
       input(v-model="newRole.name" placeholder="Nombre visible")
@@ -61,12 +63,14 @@
       label(v-for="p in allPermissions" :key="p")
         input(type="checkbox" :value="p" v-model="newRole.permissions")
         span {{ permissionLabel(p) }}
-    BaseButton(type="button" :disabled="creating" @click="createNew") Crear rol
+    BaseButton(type="button" :loading="creating" :disabled="creating || newRoleSaveState === 'clean'" @click="createNew") Crear rol
     FeedbackMessage(v-if="createError" :message="createError" tone="error")
 
   BaseModal(
     v-if="pendingRole"
     :title="pendingRoleActive ? '¿Activar rol?' : '¿Desactivar rol?'"
+    :loading="actionLoading"
+    :persistent="actionLoading"
     @close="pendingRole = null"
     @confirm="runToggleActive"
   )
@@ -74,7 +78,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   getAllRoles, getPermissionsCatalog, createRole, updateRole, setRoleActive
 } from '@/services/api/usersApi'
@@ -86,6 +90,7 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 
 const PERMISSION_LABELS: Record<string, string> = {
   MANAGE_USERS: 'Gestionar usuarios',
@@ -104,7 +109,7 @@ const PERMISSION_LABELS: Record<string, string> = {
 
 export default {
   name: 'RolesAdminPage',
-  components: { BaseButton, BaseModal, StatusBadge, EmptyState, FeedbackMessage, LoadingState },
+  components: { BaseButton, BaseModal, StatusBadge, EmptyState, FeedbackMessage, LoadingState, SaveState },
   setup() {
     const auth = useAuthStore()
     const roles = ref<Role[]>([])
@@ -114,13 +119,45 @@ export default {
     const editing = ref<string | null>(null)
     const editForm = ref<{ name: string, description: string, permissions: PermissionValue[] }>(
       { name: '', description: '', permissions: [] })
+    const initialEditSnapshot = ref('')
     const saving = ref(false)
     const newRole = ref<{ key: string, name: string, description: string, scope: RoleScopeValue, permissions: PermissionValue[] }>(
       { key: '', name: '', description: '', scope: 'EVENT', permissions: [] })
     const creating = ref(false)
     const createError = ref('')
+    const initialNewRoleSnapshot = ref('')
     const pendingRole = ref<Role | null>(null)
     const pendingRoleActive = ref(false)
+    const actionLoading = ref(false)
+
+    function editSnapshot(): string {
+      return JSON.stringify({
+        name: editForm.value.name,
+        description: editForm.value.description,
+        permissions: editForm.value.permissions
+      })
+    }
+
+    function newRoleSnapshot(): string {
+      return JSON.stringify({
+        key: newRole.value.key,
+        name: newRole.value.name,
+        description: newRole.value.description,
+        scope: newRole.value.scope,
+        permissions: newRole.value.permissions
+      })
+    }
+
+    const editSaveState = computed(() => {
+      if (saving.value) return 'saving'
+      return editSnapshot() === initialEditSnapshot.value ? 'clean' : 'dirty'
+    })
+    const newRoleSaveState = computed(() => {
+      if (creating.value) return 'saving'
+      return newRoleSnapshot() === initialNewRoleSnapshot.value ? 'clean' : 'dirty'
+    })
+
+    initialNewRoleSnapshot.value = newRoleSnapshot()
 
     function permissionLabel(p: string): string {
       return PERMISSION_LABELS[p] || p
@@ -146,6 +183,7 @@ export default {
     function startEdit(r: Role) {
       editing.value = r.uuid
       editForm.value = { name: r.name, description: r.description || '', permissions: [...r.permissions] }
+      initialEditSnapshot.value = editSnapshot()
     }
 
     async function saveEdit(r: Role) {
@@ -156,6 +194,7 @@ export default {
           r.uuid, editForm.value.name, editForm.value.description || null,
           editForm.value.permissions, auth.state.token as string)
         Object.assign(r, updated)
+        initialEditSnapshot.value = editSnapshot()
         editing.value = null
       } catch (e: any) {
         error.value = 'No fue posible guardar el rol. Inténtalo nuevamente.'
@@ -180,10 +219,16 @@ export default {
     }
 
     async function runToggleActive() {
+      if (actionLoading.value) return
       const role = pendingRole.value
       const active = pendingRoleActive.value
-      pendingRole.value = null
-      if (role) await toggleActive(role, active)
+      if (!role) return
+      actionLoading.value = true
+      try { await toggleActive(role, active) }
+      finally {
+        actionLoading.value = false
+        pendingRole.value = null
+      }
     }
 
     async function createNew() {
@@ -195,6 +240,7 @@ export default {
           newRole.value.scope, newRole.value.permissions, auth.state.token as string)
         roles.value.push(created)
         newRole.value = { key: '', name: '', description: '', scope: 'EVENT', permissions: [] }
+        initialNewRoleSnapshot.value = newRoleSnapshot()
       } catch (e: any) {
         createError.value = e.response?.data?.error?.message || 'No se pudo crear el rol'
       } finally {
@@ -205,8 +251,8 @@ export default {
     onMounted(load)
 
     return {
-      roles, allPermissions, loading, error, editing, editForm, saving, newRole, creating, createError,
-      pendingRole, pendingRoleActive,
+      roles, allPermissions, loading, error, editing, editForm, saving, editSaveState, newRole, creating, createError, newRoleSaveState,
+      pendingRole, pendingRoleActive, actionLoading,
       permissionLabel, startEdit, saveEdit, toggleActive, confirmToggleActive, runToggleActive, createNew
     }
   }
