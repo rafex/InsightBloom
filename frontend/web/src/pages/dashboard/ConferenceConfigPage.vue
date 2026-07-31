@@ -16,7 +16,7 @@
     button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'ai'" :class="{ active: activeTab === 'ai' }" @click="selectTab('ai')") IA
     button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="selectTab('network')") Red
 
-  .loading-text(v-if="loading") Cargando conferencia...
+  LoadingState(v-if="loading" message="Cargando conferencia…")
   FeedbackMessage(v-else-if="error" :message="error" tone="error")
   .form(v-else @input.capture="markFormDirty" @change.capture="markFormDirty")
     .form-group.general-group(v-if="eventTypes.length" v-show="activeTab === 'general'")
@@ -328,13 +328,14 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import SaveState from '@/components/ui/SaveState.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, FeedbackMessage, ToggleSwitch, SaveState, UiIcon },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, FeedbackMessage, LoadingState, ToggleSwitch, SaveState, UiIcon },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
