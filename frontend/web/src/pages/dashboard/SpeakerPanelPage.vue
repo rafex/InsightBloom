@@ -18,8 +18,8 @@
         BaseButton(variant="secondary" v-if="ready && !offlineMode && !offlinePreparing" @click="prepareOffline") Preparar offline
         BaseButton(variant="secondary" v-if="offlinePackage && !offlineMode" @click="openOfflineCached") Abrir offline
         BaseButton(variant="secondary" v-if="offlineMode" @click="openOnlinePresentation") Volver online
-        span.offline-preparing(v-if="offlinePreparing") Cifrando paquete…
-        span.offline-error(v-if="offlineError") {{ offlineError }}
+        FeedbackMessage.offline-feedback(v-if="offlinePreparing" message="Cifrando paquete…" tone="info")
+        FeedbackMessage.offline-feedback(v-if="offlineError" :message="offlineError" tone="error")
       .nav-controls(v-if="ready")
         BaseButton.speaker-nav-button(variant="secondary" type="button" @click="navigate('prev')") ← Anterior
         BaseButton.speaker-nav-button(variant="secondary" type="button" @click="navigate('next')") Siguiente →
@@ -51,6 +51,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 
 type NavDirection = 'next' | 'prev'
@@ -62,7 +63,7 @@ const NAV_KEYS: Record<NavDirection, { key: string, keyCode: number }> = {
 
 export default {
   name: 'SpeakerPanelPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal, BaseAnchor, BaseButton, BaseLink, EmptyState, LoadingState },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, QrCodeModal, BaseAnchor, BaseButton, BaseLink, EmptyState, FeedbackMessage, LoadingState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -412,9 +413,6 @@ h2 { margin: 0; color: var(--color-heading); }
 .slides-frame { width: 100%; height: 82vh; border: 1px solid var(--color-border-subtle); border-radius: 12px; background: var(--color-surface); }
 .nav-controls { display: flex; gap: 8px; }
 .speaker-nav-button { flex: 0 0 auto; padding: 10px 18px; border-width: 2px; border-radius: 10px; font-size: 0.95rem; white-space: nowrap; }
-.offline-preparing { color: var(--color-primary); font-weight: 600; font-size: 0.85rem; }
-.offline-error { color: var(--color-danger-dark); font-size: 0.85rem; font-weight: 600; }
-
 @media (max-width: 640px) {
   .speaker-panel-page { padding: 14px; }
   .speaker-header { flex-direction: column; align-items: stretch; }
