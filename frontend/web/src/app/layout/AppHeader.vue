@@ -1,5 +1,6 @@
 <template lang="pug">
 header.app-header
+  a.skip-link(href="#main-content") Saltar al contenido principal
   .offline-banner(v-if="!online") 📡 Sin conexión · viendo contenido guardado
   .header-row
     .header-brand
@@ -45,6 +46,20 @@ export default {
   background: var(--color-heading); color: var(--color-text-inverse);
   position: sticky; top: 0; z-index: 100;
 }
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 12px;
+  z-index: 110;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-primary-dark);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: var(--shadow-dropdown);
+}
+.skip-link:focus { top: 8px; }
 .offline-banner {
   background: var(--color-warning-dark); color: var(--color-text-inverse); text-align: center;
   font-size: 0.78rem; padding: 4px 8px;

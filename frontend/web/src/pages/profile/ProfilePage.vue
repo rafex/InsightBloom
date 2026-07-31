@@ -1,7 +1,7 @@
 <template lang="pug">
 .profile-page
   AppHeader
-  main.profile-main
+  main#main-content.profile-main(tabindex="-1")
     .profile-card
       h2 Mi perfil
       LoadingState(v-if="loading" message="Cargando perfil…")

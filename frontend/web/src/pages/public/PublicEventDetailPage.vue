@@ -1,7 +1,7 @@
 <template lang="pug">
   .public-event-page(:class="`theme-${(event?.publicTheme || 'CLASSIC').toLowerCase()}`")
     AppHeader
-    main.public-detail(v-if="event")
+    main#main-content.public-detail(v-if="event" tabindex="-1")
       BaseLink.back(size="sm" variant="ghost" to="/events") ← Volver a la cartelera
       .detail-hero(:class="{ reverse: event.scheduleLayout === 'LEFT' }")
         .detail-copy

@@ -1,7 +1,7 @@
 <template lang="pug">
 .public-events-page
   AppHeader
-  main.public-main
+  main#main-content.public-main(tabindex="-1")
     .hero
       p.eyebrow InsightBloom
       h1 Cartelera de eventos

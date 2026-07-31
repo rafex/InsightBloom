@@ -1,7 +1,7 @@
 <template lang="pug">
 .checkout-page
   AppHeader
-  main.checkout-main(v-if="event")
+  main#main-content.checkout-main(v-if="event" tabindex="-1")
     BaseLink.back(size="sm" variant="ghost" :to="`/events/${event.friendlyId}`") ← Volver al detalle
     .checkout-layout
       .master-container

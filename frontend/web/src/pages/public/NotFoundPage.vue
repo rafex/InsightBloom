@@ -1,7 +1,7 @@
 <template lang="pug">
 .not-found-page
   AppHeader
-  .nf-body
+  .nf-body#main-content(tabindex="-1")
     h1 404
     h2 Esta página no existe
     p La dirección puede estar mal escrita o el contenido ya no está disponible.

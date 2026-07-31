@@ -24,7 +24,7 @@
         .nav-section
           h2.nav-section-title Cuenta
           router-link(to="/profile" @click="closeSidebar") Mi perfil
-    main.dashboard-main
+    main#main-content.dashboard-main(tabindex="-1")
       router-view
 </template>
 

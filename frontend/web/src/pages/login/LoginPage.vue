@@ -1,7 +1,7 @@
 <template lang="pug">
 .login-page
   AppHeader
-  main.login-main
+  main#main-content.login-main(tabindex="-1")
     .login-card.animate__animated.animate__fadeIn
       h2 Iniciar sesión
       nav.login-mode-tabs

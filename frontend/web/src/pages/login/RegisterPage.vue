@@ -1,7 +1,7 @@
 <template lang="pug">
 .register-page
   AppHeader
-  main.register-main
+  main#main-content.register-main(tabindex="-1")
     .register-card
       template(v-if="step === 'form'")
         h2 Crear cuenta

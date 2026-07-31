@@ -1,5 +1,5 @@
 <template lang="pug">
-.conference-page
+.conference-page#main-content(role="main" tabindex="-1")
   AppHeader(v-if="!headerCollapsed")
   LoadingState(v-if="loading" message="Cargando conferencia…")
   FeedbackMessage(v-else-if="error" :message="error" tone="error")
