@@ -2,9 +2,14 @@
 
 ## Presentaciones
 
-- [ ] **Reactivar gzip en `/api/presentations` después de validar el presenter.**
-  Mantenerlo desactivado mientras se confirma que los assets JavaScript/CSS no
-  vuelven a producir `NS_ERROR_CORRUPTED_CONTENT` en Firefox.
+- [x] **Reactivar gzip en `/api/presentations` después de validar el presenter.**
+  Implementado en `container/frontend/nginx.conf`: el upstream entrega los
+  assets sin comprimir y Nginx comprime solo respuestas textuales proxificadas,
+  conservando la CSP específica de Slidev y el fallback legacy `presenter-assets`.
+
+- [ ] **Validar gzip de presentaciones después del despliegue.**
+  Comprobar con una presentación nueva y otra existente, en Firefox y Chromium,
+  que `Content-Encoding`, `Content-Length` y el cuerpo coinciden para JS y CSS.
 
   Criterios de cierre:
   - desplegar una versión con la CSP específica de Slidev y `Accept-Encoding`
@@ -12,8 +17,8 @@
   - validar con una presentación nueva y otra generada antes del cambio;
   - comprobar en Network que `Content-Encoding`, `Content-Length` y el cuerpo
     coinciden para JS y CSS;
-  - reactivar gzip solo para respuestas textuales y repetir la prueba en Firefox
-    y Chromium;
+  - confirmar que el navegador carga todos los imports del presenter sin
+    `NS_ERROR_CORRUPTED_CONTENT`;
   - conservar el fallback legacy `presenter-assets` durante la transición.
 
 ## UX/UI
