@@ -1,10 +1,27 @@
 <template lang="pug">
-.video-conference-page
-  .takeover-toolbar(v-if="jaasEnabled")
+.video-conference-page(ref="pageRoot")
+  .takeover-toolbar(
+    v-if="jaasEnabled && takeoverPanelOpen"
+    ref="takeoverPanel"
+    :class="{ 'is-dragging': dragging }"
+    :style="panelStyle"
+  )
+    .takeover-header(@pointerdown="startDrag")
+      span.takeover-drag-handle(title="Arrastra para mover este panel") ⋮⋮ Control de videollamada
+      BaseButton.takeover-close(variant="ghost" size="sm" type="button" aria-label="Ocultar controles de videollamada" title="Ocultar controles" @pointerdown.stop @click="closeTakeoverPanel") ×
     BaseButton(variant="secondary" size="sm" type="button" :loading="takingControl" @click="takeControl") 🎥 Tomar control de la videollamada
     p.takeover-hint(v-if="!sessionTakenOver") Si abriste la llamada en otro dispositivo, este botón cierra la sesión anterior.
     p.takeover-hint.takeover-warning(v-else) Esta sesión fue reemplazada por otro dispositivo.
     FeedbackMessage(v-if="takeoverError" :message="takeoverError" tone="error")
+  BaseButton.takeover-reopen(
+    v-if="jaasEnabled && !takeoverPanelOpen"
+    variant="secondary"
+    size="sm"
+    type="button"
+    aria-label="Mostrar controles de videollamada"
+    title="Mostrar controles de videollamada"
+    @click="openTakeoverPanel"
+  ) 🎥
   LoadingState(v-if="loading" message="Cargando videollamada...")
   NoticeState(v-else-if="!conferenceId" title="Videollamada no disponible" message="Intenta más tarde o contacta al organizador." tone="warning")
   NoticeState(v-else-if="deviceBlocked" title="Dispositivo bloqueado" message="Este dispositivo fue bloqueado por uso con múltiples cuentas. Contacta al organizador si crees que esto es un error." tone="danger")
@@ -13,7 +30,7 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import {
   AuthenticatedEventStream,
   getIntegrationConfig,
@@ -68,8 +85,55 @@ export default {
     const sessionTakenOver = ref(false)
     const takingControl = ref(false)
     const takeoverError = ref('')
+    const takeoverPanelOpen = ref(true)
+    const dragging = ref(false)
+    const pageRoot = ref<HTMLElement | null>(null)
+    const takeoverPanel = ref<HTMLElement | null>(null)
+    const dragPosition = ref<{ x: number; y: number } | null>(null)
+    const dragOffset = ref({ x: 0, y: 0 })
+    const panelStyle = computed(() => dragPosition.value
+      ? { left: `${dragPosition.value.x}px`, top: `${dragPosition.value.y}px`, right: 'auto' }
+      : {})
     let api: { dispose: () => void } | null = null
     let sessionStream: AuthenticatedEventStream | null = null
+
+    function startDrag(event: PointerEvent) {
+      if (event.button !== 0 || !pageRoot.value || !takeoverPanel.value) return
+      const panelRect = takeoverPanel.value.getBoundingClientRect()
+      const rootRect = pageRoot.value.getBoundingClientRect()
+      dragPosition.value = { x: panelRect.left - rootRect.left, y: panelRect.top - rootRect.top }
+      dragOffset.value = { x: event.clientX - panelRect.left, y: event.clientY - panelRect.top }
+      dragging.value = true
+      window.addEventListener('pointermove', moveDrag)
+      window.addEventListener('pointerup', stopDrag)
+    }
+
+    function moveDrag(event: PointerEvent) {
+      if (!dragging.value || !pageRoot.value || !takeoverPanel.value) return
+      const rootRect = pageRoot.value.getBoundingClientRect()
+      const panel = takeoverPanel.value
+      const maxX = Math.max(8, rootRect.width - panel.offsetWidth - 8)
+      const maxY = Math.max(8, rootRect.height - panel.offsetHeight - 8)
+      dragPosition.value = {
+        x: Math.min(maxX, Math.max(8, event.clientX - rootRect.left - dragOffset.value.x)),
+        y: Math.min(maxY, Math.max(8, event.clientY - rootRect.top - dragOffset.value.y))
+      }
+    }
+
+    function stopDrag() {
+      dragging.value = false
+      window.removeEventListener('pointermove', moveDrag)
+      window.removeEventListener('pointerup', stopDrag)
+    }
+
+    function closeTakeoverPanel() {
+      stopDrag()
+      takeoverPanelOpen.value = false
+    }
+
+    function openTakeoverPanel() {
+      takeoverPanelOpen.value = true
+    }
 
     function handleSessionRevoked() {
       api?.dispose()
@@ -183,13 +247,16 @@ export default {
     onMounted(() => { void initialize() })
 
     onBeforeUnmount(() => {
+      stopDrag()
       api?.dispose()
       sessionStream?.close()
     })
 
     return {
+      pageRoot, takeoverPanel, panelStyle, dragging, takeoverPanelOpen,
       loading, deviceBlocked, accessDenied, accessDeniedMessage, jaasEnabled,
-      sessionTakenOver, takingControl, takeoverError, takeControl
+      sessionTakenOver, takingControl, takeoverError, takeControl,
+      startDrag, closeTakeoverPanel, openTakeoverPanel
     }
   }
 }
@@ -197,8 +264,14 @@ export default {
 
 <style scoped>
 .video-conference-page { position: relative; flex: 1; min-height: 480px; display: flex; }
-.takeover-toolbar { position: absolute; z-index: 2; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; max-width: min(420px, calc(100% - 32px)); }
+.takeover-toolbar { position: absolute; z-index: 2; top: 12px; right: 16px; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 10px; max-width: min(420px, calc(100% - 32px)); background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: var(--radius-md); box-shadow: var(--shadow-overlay); }
+.takeover-toolbar.is-dragging { user-select: none; }
+.takeover-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: grab; touch-action: none; }
+.is-dragging .takeover-header { cursor: grabbing; }
+.takeover-drag-handle { color: var(--color-text-secondary); font-size: .78rem; font-weight: 700; letter-spacing: .02em; }
+.takeover-close { width: 30px; height: 30px; padding: 0; font-size: 1.15rem; line-height: 1; }
 .takeover-hint { margin: 0; font-size: .75rem; color: var(--color-text-muted); text-align: right; }
 .takeover-warning { color: var(--color-warning); }
+.takeover-reopen { position: absolute; z-index: 2; top: 12px; right: 16px; min-width: 40px; padding-inline: 10px; }
 #jitsi-container { flex: 1; width: 100%; }
 </style>
