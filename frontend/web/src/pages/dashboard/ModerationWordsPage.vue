@@ -41,6 +41,7 @@
           v-if="item.contentStatus === 'VISIBLE' || item.contentStatus === 'PENDIENTE_REVISION'"
           @click="censor(item)"
           :disabled="item._loading"
+          :loading="item._loading"
         ) Censurar
         BaseButton(
           variant="success"
@@ -48,6 +49,7 @@
           v-if="item.contentStatus !== 'VISIBLE' && item.contentStatus !== 'DELETED'"
           @click="restore(item)"
           :disabled="item._loading"
+          :loading="item._loading"
         ) Restaurar
         BaseButton(
           variant="danger"
@@ -55,6 +57,7 @@
           v-if="item.contentStatus !== 'DELETED'"
           @click="deleteItem(item)"
           :disabled="item._loading"
+          :loading="item._loading"
         ) Eliminar
         BaseButton(size="sm" variant="secondary" @click="verMensajes(item)") Ver mensajes
 </template>
