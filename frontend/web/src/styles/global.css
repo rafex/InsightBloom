@@ -71,6 +71,21 @@
 
   /* Superficie de presentación del mapa introductorio; compartida por sus overlays. */
   --color-map-overlay: #0f172a;
+  --color-map-bloom-mid: #6366f1;
+
+  /* Paletas de ilustraciones aprobadas. Se mantienen como tokens para que los componentes
+   * puedan compartir la intención visual sin repetir hex locales en cada SVG/CSS. */
+  --color-sandbox-loading-text: #4b5563;
+  --color-sandbox-suit-shadow: #e3e8eb;
+  --color-sandbox-suit: #fbfdfa;
+  --color-sandbox-logo-light: #15aece;
+  --color-sandbox-logo-dark: #0391bf;
+  --color-sandbox-suit-dark: #618095;
+  --color-sandbox-panel: #b7cceb;
+  --color-sandbox-arm-left: #6e91a4;
+  --color-sandbox-arm-right: #b6d2e0;
+  --color-sandbox-boot-left: #6d96ac;
+  --color-sandbox-boot-right: #b0cfe4;
 
   --ticket-bg: #1e1e24;
   --ticket-bg-light: #2b2b36;

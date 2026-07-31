@@ -1,19 +1,7 @@
 {
-  "src/components/SandboxLoadingAnimation.vue": {
-    "count": 33,
-    "reason": "Paleta propia de ilustraciones de carga del sandbox"
-  },
   "src/components/VenueMapCanvasEditor.vue": {
     "count": 3,
     "reason": "Colores de renderizado del lienzo de mapa"
-  },
-  "src/components/map/ConferenceIntroMap.vue": {
-    "count": 16,
-    "reason": "Paleta SVG de la ilustración del mapa introductorio; overlays migrados a tokens"
-  },
-  "src/components/map/ConferenceMap.vue": {
-    "count": 16,
-    "reason": "Paleta SVG de la visualización del mapa del evento; pin migrado a tokens"
   },
   "src/pages/dashboard/CertificateEditorPage.vue": {
     "count": 4,

@@ -27,23 +27,23 @@ const MX_ZOOM = 5
 
 const BLOOM_SVG = `<svg viewBox='0 0 72 72' xmlns='http://www.w3.org/2000/svg' fill='none'>
   <g transform='translate(8,8)'>
-    <circle cx='24' cy='6'  r='6'   fill='#c7d2fe' opacity='0.9'/>
-    <circle cx='42' cy='6'  r='5'   fill='#a5b4fc' opacity='0.9'/>
-    <circle cx='6'  cy='20' r='5'   fill='#a5b4fc' opacity='0.9'/>
-    <circle cx='54' cy='18' r='7'   fill='#818cf8' opacity='0.9'/>
-    <circle cx='6'  cy='36' r='7'   fill='#818cf8' opacity='0.9'/>
-    <circle cx='54' cy='36' r='5'   fill='#a5b4fc' opacity='0.9'/>
-    <circle cx='14' cy='48' r='6'   fill='#a5b4fc' opacity='0.9'/>
-    <circle cx='46' cy='48' r='6'   fill='#c7d2fe' opacity='0.9'/>
-    <circle cx='30' cy='54' r='5'   fill='#c7d2fe' opacity='0.9'/>
-    <circle cx='18' cy='14' r='8'   fill='#818cf8' opacity='0.95'/>
-    <circle cx='42' cy='16' r='9'   fill='#6366f1' opacity='0.95'/>
-    <circle cx='12' cy='36' r='9'   fill='#6366f1' opacity='0.95'/>
-    <circle cx='48' cy='38' r='8'   fill='#818cf8' opacity='0.95'/>
-    <circle cx='30' cy='46' r='9'   fill='#6366f1' opacity='0.95'/>
-    <circle cx='30' cy='28' r='16'  fill='#4f46e5'/>
-    <circle cx='25' cy='23' r='5'   fill='#818cf8' opacity='0.35'/>
-    <circle cx='35' cy='22' r='2.5' fill='white'   opacity='0.7'/>
+    <circle cx='24' cy='6'  r='6'   fill='var(--color-primary-border)' opacity='0.9'/>
+    <circle cx='42' cy='6'  r='5'   fill='var(--color-header-link-muted)' opacity='0.9'/>
+    <circle cx='6'  cy='20' r='5'   fill='var(--color-header-link-muted)' opacity='0.9'/>
+    <circle cx='54' cy='18' r='7'   fill='var(--color-focus)' opacity='0.9'/>
+    <circle cx='6'  cy='36' r='7'   fill='var(--color-focus)' opacity='0.9'/>
+    <circle cx='54' cy='36' r='5'   fill='var(--color-header-link-muted)' opacity='0.9'/>
+    <circle cx='14' cy='48' r='6'   fill='var(--color-header-link-muted)' opacity='0.9'/>
+    <circle cx='46' cy='48' r='6'   fill='var(--color-primary-border)' opacity='0.9'/>
+    <circle cx='30' cy='54' r='5'   fill='var(--color-primary-border)' opacity='0.9'/>
+    <circle cx='18' cy='14' r='8'   fill='var(--color-focus)' opacity='0.95'/>
+    <circle cx='42' cy='16' r='9'   fill='var(--color-map-bloom-mid)' opacity='0.95'/>
+    <circle cx='12' cy='36' r='9'   fill='var(--color-map-bloom-mid)' opacity='0.95'/>
+    <circle cx='48' cy='38' r='8'   fill='var(--color-focus)' opacity='0.95'/>
+    <circle cx='30' cy='46' r='9'   fill='var(--color-map-bloom-mid)' opacity='0.95'/>
+    <circle cx='30' cy='28' r='16'  fill='var(--color-primary)'/>
+    <circle cx='25' cy='23' r='5'   fill='var(--color-focus)' opacity='0.35'/>
+    <circle cx='35' cy='22' r='2.5' fill='var(--color-on-primary)' opacity='0.7'/>
   </g>
 </svg>`
 

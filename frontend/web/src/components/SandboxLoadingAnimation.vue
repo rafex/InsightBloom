@@ -77,7 +77,7 @@ export default {
   right: 0;
   z-index: 12;
   text-align: center;
-  color: #4b5563;
+  color: var(--color-sandbox-loading-text);
   font-size: 0.95rem;
   margin: 0;
 }
@@ -141,7 +141,7 @@ export default {
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background-color: #4f46e5;
+  background-color: var(--color-primary);
   position: absolute;
   z-index: 10;
   opacity: 0.5;
@@ -199,7 +199,7 @@ export default {
   z-index: 1;
   top: calc(50% - 54px);
   left: calc(50% - 36px);
-  background-color: #c7d2fe;
+  background-color: var(--color-primary-border);
   border-radius: 36px 36px 0 0 / 22px 22px 0 0;
 }
 
@@ -208,7 +208,7 @@ export default {
   height: 58px;
   position: absolute;
   z-index: 3;
-  background: linear-gradient(to right, #e3e8eb 0%, #e3e8eb 50%, #fbfdfa 50%, #fbfdfa 100%);
+  background: linear-gradient(to right, var(--color-sandbox-suit-shadow) 0%, var(--color-sandbox-suit-shadow) 50%, var(--color-sandbox-suit) 50%, var(--color-sandbox-suit) 100%);
   border-radius: 50%;
   top: 24px;
   left: calc(50% - 35px);
@@ -221,7 +221,7 @@ export default {
   top: calc(50% - 18px);
   left: calc(50% - 21px);
   border-radius: 11px;
-  background: linear-gradient(135deg, #15aece 0%, #0391bf 100%);
+  background: linear-gradient(135deg, var(--color-sandbox-logo-light) 0%, var(--color-sandbox-logo-dark) 100%);
   padding: 5px;
   box-sizing: border-box;
   object-fit: contain;
@@ -234,9 +234,9 @@ export default {
   position: absolute;
   top: calc(50% - 9px);
   left: -3px;
-  background-color: #618095;
+  background-color: var(--color-sandbox-suit-dark);
   border-radius: 4px;
-  box-shadow: 66px 0px 0px #618095;
+  box-shadow: 66px 0px 0px var(--color-sandbox-suit-dark);
 }
 
 .body {
@@ -247,7 +247,7 @@ export default {
   border-radius: 30px / 15px;
   top: 76px;
   left: calc(50% - 30px);
-  background: linear-gradient(to right, #e3e8eb 0%, #e3e8eb 50%, #fbfdfa 50%, #fbfdfa 100%);
+  background: linear-gradient(to right, var(--color-sandbox-suit-shadow) 0%, var(--color-sandbox-suit-shadow) 50%, var(--color-sandbox-suit) 50%, var(--color-sandbox-suit) 100%);
 }
 
 .panel {
@@ -256,7 +256,7 @@ export default {
   position: absolute;
   top: 14px;
   left: calc(50% - 21px);
-  background-color: #b7cceb;
+  background-color: var(--color-sandbox-panel);
 }
 
 .panel:before {
@@ -266,8 +266,8 @@ export default {
   position: absolute;
   top: 6px;
   left: 5px;
-  background-color: #fbfdfa;
-  box-shadow: 0px 6px 0px #fbfdfa, 0px 13px 0px #fbfdfa;
+  background-color: var(--color-sandbox-suit);
+  box-shadow: 0px 6px 0px var(--color-sandbox-suit), 0px 13px 0px var(--color-sandbox-suit);
 }
 
 .panel:after {
@@ -277,9 +277,9 @@ export default {
   position: absolute;
   top: 6px;
   right: 5px;
-  background-color: #fbfdfa;
+  background-color: var(--color-sandbox-suit);
   border-radius: 50%;
-  box-shadow: 0px 10px 0px 1px #fbfdfa;
+  box-shadow: 0px 10px 0px 1px var(--color-sandbox-suit);
 }
 
 .arm {
@@ -292,13 +292,13 @@ export default {
 
 .arm-left {
   left: 22px;
-  background-color: #e3e8eb;
+  background-color: var(--color-sandbox-suit-shadow);
   border-radius: 0 0 0 28px;
 }
 
 .arm-right {
   right: 22px;
-  background-color: #fbfdfa;
+  background-color: var(--color-sandbox-suit);
   border-radius: 0 0 28px 0;
 }
 
@@ -314,13 +314,13 @@ export default {
 .arm-left:before {
   border-radius: 36px 36px 0px 86px / 36px 36px 0 79px;
   left: 0;
-  background-color: #e3e8eb;
+  background-color: var(--color-sandbox-suit-shadow);
 }
 
 .arm-right:before {
   border-radius: 36px 36px 86px 0 / 36px 36px 79px 0;
   right: 0;
-  background-color: #fbfdfa;
+  background-color: var(--color-sandbox-suit);
 }
 
 .arm-left:after,
@@ -333,13 +333,13 @@ export default {
 }
 
 .arm-left:after {
-  background-color: #6e91a4;
+  background-color: var(--color-sandbox-arm-left);
   left: 0;
 }
 
 .arm-right:after {
   right: 0;
-  background-color: #b6d2e0;
+  background-color: var(--color-sandbox-arm-right);
 }
 
 .leg {
@@ -352,13 +352,13 @@ export default {
 
 .leg-left {
   left: 55px;
-  background-color: #e3e8eb;
+  background-color: var(--color-sandbox-suit-shadow);
   transform: rotate(20deg);
 }
 
 .leg-right {
   right: 53px;
-  background-color: #fbfdfa;
+  background-color: var(--color-sandbox-suit);
   transform: rotate(-20deg);
 }
 
@@ -373,15 +373,15 @@ export default {
 
 .leg-left:before {
   left: -14px;
-  background-color: #e3e8eb;
+  background-color: var(--color-sandbox-suit-shadow);
   border-radius: 22px 0 0 0;
-  border-bottom: 7px solid #6d96ac;
+  border-bottom: 7px solid var(--color-sandbox-boot-left);
 }
 
 .leg-right:before {
   right: -14px;
-  background-color: #fbfdfa;
+  background-color: var(--color-sandbox-suit);
   border-radius: 0 22px 0 0;
-  border-bottom: 7px solid #b0cfe4;
+  border-bottom: 7px solid var(--color-sandbox-boot-right);
 }
 </style>

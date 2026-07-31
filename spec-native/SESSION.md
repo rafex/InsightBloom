@@ -25,7 +25,7 @@
 | **4.2** | Dashboard/config | 12/12 | Páginas administrativas y de configuración migradas a `BaseButton` y `link-btn-*` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
 | **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
-| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 83 estilos scoped, fija las 80 excepciones hex en 6 superficies y ya no permite redefiniciones legacy de selectores canónicos |
+| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 87 estilos scoped, fija 8 excepciones hex en 3 superficies y ya no permite redefiniciones legacy de selectores canónicos |
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 | **Gobierno de componentes** | Formularios y acciones administrativas | Completado | Los inputs, selects y textareas de IA, egresos, dispositivos, roles y tipos de evento heredan el baseline global; acciones locales migradas a `BaseButton`, incluida la variante semántica `success` |
 | **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; SurveyManagePage ya refleja cambios pendientes por editor; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
@@ -58,9 +58,10 @@ git stash list  # debería mostrar "pre-design-system-migration"
 
 La iteración UI/UX 2026-07-28 dejó implementados UX-TASK-001 a UX-TASK-019. La validación local comprobó overflow y focus/labels en superficies públicas; siguen pendientes la prueba autenticada completa del dashboard, recorridos funcionales con backend y verificación post-despliegue. Las tandas del 2026-07-29 y 2026-07-30 añadieron el estado de guardado canónico, el baseline global de tablas, tokens de overlays, detección de asignaciones event-scoped para moderadores, iconografía SVG reutilizable para el Panel y las herramientas del evento, y la migración de confirmaciones de Usuarios/Roles a `BaseModal`.
 
-La migración de colores continúa: el gate mide 73 literales hex locales (baseline histórico
-1,278), todos fijados en excepciones documentadas de mapas, ilustraciones y certificados. Las nuevas
-pantallas deben usar tokens y componentes canónicos; el gate ya no permite redefiniciones legacy.
+La migración de colores avanzó: el gate mide 8 literales hex locales (baseline histórico
+1,278), reducidos desde 73 mediante tokens para los pines SVG de mapas y la ilustración de carga
+del sandbox. Permanecen solo 3 colores del lienzo de mapa y 5 valores propios de certificados.
+Las nuevas pantallas deben usar tokens y componentes canónicos; el gate ya no permite redefiniciones legacy.
 El inventario actual clasifica 87 estilos `scoped`; la siguiente reducción debe centrarse en los
 genéricos elegibles, no en superficies de mapas, editores o herramientas embebidas.
 
