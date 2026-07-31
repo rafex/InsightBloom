@@ -1,10 +1,10 @@
 <template lang="pug">
 .email-compose-editor
   .format-toolbar
-    .format-tabs
-      button.format-tab(v-for="option in formatOptions" :key="option.value" type="button" :class="{ active: format === option.value }" @click="selectFormat(option.value)")
+    .format-tabs(role="group" aria-label="Formato del mensaje")
+      button.format-tab(v-for="option in formatOptions" :key="option.value" type="button" :class="{ active: format === option.value }" :aria-pressed="format === option.value" @click="selectFormat(option.value)")
         | {{ option.label }}
-      button.ai-toggle(type="button" :class="{ active: showAiAssistant }" @click="toggleAi")
+      button.ai-toggle(type="button" :class="{ active: showAiAssistant }" :aria-pressed="showAiAssistant" @click="toggleAi")
         | ✨ Asistente IA
     .preview-toggle
       label
