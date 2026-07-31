@@ -66,7 +66,24 @@ export default {
     }
 
     function handleKeydown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && sidebarOpen.value && isMobile.value) closeSidebar()
+      if (!sidebarOpen.value || !isMobile.value) return
+      if (event.key === 'Escape') {
+        closeSidebar()
+        return
+      }
+      if (event.key !== 'Tab') return
+
+      const links = Array.from(sidebarRef.value?.querySelectorAll<HTMLElement>('a') || [])
+      if (!links.length) return
+      const first = links[0]
+      const last = links[links.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
 
     function updateViewport() {
