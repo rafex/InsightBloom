@@ -77,7 +77,7 @@ export default {
 </script>
 
 <style scoped>
-.jitsi-invite-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--color-bg); color: var(--color-heading); font-family: system-ui, sans-serif; }
+.jitsi-invite-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--color-bg); color: var(--color-heading); }
 .invite-card { width: min(100%, 460px); padding: 36px 28px; text-align: center; background: var(--color-surface); border: 1px solid var(--color-primary-border); border-radius: 18px; box-shadow: 0 12px 32px rgba(49, 46, 129, .12); }
 .invite-card h1 { margin: 12px 0 8px; font-size: 1.45rem; }
 .invite-card p { margin: 0; color: var(--color-text-muted); line-height: 1.55; }
