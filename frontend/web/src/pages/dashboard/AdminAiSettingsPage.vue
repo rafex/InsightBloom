@@ -16,6 +16,7 @@
           small {{ tab.summary }}
 
     .settings-card#ai-settings-panel(role="tabpanel")
+      SaveState(:state="saveState")
       .capability-heading
         div
           h3 {{ activeTab.label }}
@@ -66,7 +67,7 @@
         label(for="ai-temperature") Temperatura ({{ activeProvider.temperature.toFixed(2) }})
         input#ai-temperature.temperature-slider(type="range" v-model.number="activeProvider.temperature" min="0" max="2" step="0.01")
 
-      BaseButton(:loading="saving" type="button" @click="save") Guardar configuración de {{ activeTab.label }}
+      BaseButton(:loading="saving" :disabled="saving || saveState === 'clean' || saveState === 'saved'" type="button" @click="save") Guardar configuración de {{ activeTab.label }}
       FeedbackMessage(v-if="saved" message="Configuración guardada." tone="success")
       FeedbackMessage(v-if="error" :message="error" tone="error")
 
@@ -83,6 +84,7 @@ import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 
 type Capability = 'chat' | 'tutor' | 'survey' | 'seat-layout' | 'email'
 
@@ -115,7 +117,7 @@ function emptyProvider(): ProviderForm {
 
 export default {
   name: 'AdminAiSettingsPage',
-  components: { ToggleSwitch, BaseButton, FeedbackMessage, LoadingState },
+  components: { ToggleSwitch, BaseButton, FeedbackMessage, LoadingState, SaveState },
   setup() {
     const auth = useAuthStore()
     const route = useRoute()
@@ -124,6 +126,9 @@ export default {
     const saving = ref(false)
     const saved = ref(false)
     const error = ref('')
+    const initialProviders = reactive<Record<Capability, string>>({
+      chat: '', tutor: '', survey: '', 'seat-layout': '', email: ''
+    })
     const activeCapability = ref<Capability>('chat')
     const providers = reactive<Record<Capability, ProviderForm>>({
       chat: emptyProvider(), tutor: emptyProvider(), survey: emptyProvider(), 'seat-layout': emptyProvider(), email: emptyProvider()
@@ -136,6 +141,33 @@ export default {
     const activeTab = computed(() => tabs.find(tab => tab.id === activeCapability.value) || tabs[0])
     const activeProvider = computed(() => providers[activeCapability.value])
 
+    function providerSnapshot(provider: ProviderForm): string {
+      return JSON.stringify({
+        configured: provider.configured,
+        enabled: provider.enabled,
+        baseUrl: provider.baseUrl,
+        model: provider.model,
+        systemPrompt: provider.systemPrompt,
+        guardrails: provider.guardrails,
+        temperature: provider.temperature,
+        apiKeyConfigured: provider.apiKeyConfigured,
+        apiKeyHint: provider.apiKeyHint,
+        apiKey: provider.apiKey,
+        clearApiKey: provider.clearApiKey
+      })
+    }
+
+    function captureInitialProviders() {
+      tabs.forEach((tab) => { initialProviders[tab.id] = providerSnapshot(providers[tab.id]) })
+    }
+
+    const saveState = computed(() => {
+      if (saving.value) return 'saving'
+      if (providerSnapshot(activeProvider.value) !== initialProviders[activeCapability.value]) return 'dirty'
+      if (saved.value) return 'saved'
+      return 'clean'
+    })
+
     function capabilityFromRoute(value: unknown): Capability {
       const candidate = Array.isArray(value) ? value[0] : value
       return tabs.some(tab => tab.id === candidate) ? candidate as Capability : 'chat'
@@ -143,6 +175,7 @@ export default {
 
     function selectCapability(capability: Capability) {
       activeCapability.value = capability
+      saved.value = false
       router.push({ path: `/dashboard/admin/ai/${capability}`, query: route.query })
     }
 
@@ -179,6 +212,7 @@ export default {
     onMounted(async () => {
       try {
         applySettings(await getAiSettings(auth.state.token as string))
+        captureInitialProviders()
       } catch (err: any) {
         error.value = err.response?.data?.error?.message || 'No se pudo cargar la configuración de IA'
       } finally {
@@ -199,6 +233,7 @@ export default {
           provider.systemPrompt.trim() || null, provider.guardrails.trim() || null, provider.temperature,
           auth.state.token as string
         ))
+        captureInitialProviders()
         saved.value = true
       } catch (err: any) {
         error.value = err.response?.data?.error?.message || `No se pudo guardar la configuración de ${activeTab.value.label}`
@@ -207,7 +242,7 @@ export default {
       }
     }
 
-    return { tabs, activeCapability, activeTab, activeProvider, loading, saving, saved, error, save, selectCapability,
+    return { tabs, activeCapability, activeTab, activeProvider, loading, saving, saved, error, saveState, save, selectCapability,
       showVariables, promptVariables, variableToken }
   }
 }
