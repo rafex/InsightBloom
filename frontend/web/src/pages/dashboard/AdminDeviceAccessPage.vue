@@ -23,6 +23,7 @@
     BaseButton(:loading="saving" @click="save") Guardar cambios
     FeedbackMessage(v-if="saved" message="Cambios guardados." tone="success")
     FeedbackMessage(v-if="error" :message="error" tone="error")
+  FeedbackMessage(v-if="copyFeedback" :message="copyFeedback" tone="success")
 
   h3.blocks-title Dispositivos bloqueados
   EmptyState(v-if="!loadingBlocks && blocks.length === 0" message="No hay dispositivos bloqueados a nivel plataforma.")
@@ -66,7 +67,17 @@
       th Estado
       th Acciones
     template(#row="{ item }")
-      td {{ item.subjectKind === 'guest' ? 'Invitado' : 'Usuario' }} · {{ shortFingerprint(item.subjectUuid) }}
+      td
+        .subject-cell
+          span.subject-name {{ subjectLabel(item) }}
+          BaseButton.uuid-copy(
+            variant="ghost"
+            size="sm"
+            type="button"
+            :title="`Copiar UUID: ${item.subjectUuid}`"
+            :aria-label="`Copiar UUID de ${subjectLabel(item)}`"
+            @click="copyUuid(item.subjectUuid)"
+          ) · {{ shortUuid(item.subjectUuid) }}
       td
         span.fingerprint {{ shortFingerprint(item.loginFingerprint) }}
       td
@@ -88,6 +99,7 @@
 
 <script lang="ts">
 import ModerationTable from '@/components/tables/ModerationTable.vue'
+import { getUser } from '@/services/api/adminApi'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
@@ -117,12 +129,14 @@ export default {
     const saving = ref(false)
     const saved = ref(false)
     const error = ref('')
+    const copyFeedback = ref('')
 
     const blocks = ref<PlatformDeviceBlockRow[]>([])
     const loadingBlocks = ref(true)
 
     const flags = ref<DeviceFingerprintFlagRow[]>([])
     const loadingFlags = ref(true)
+    const subjectNames = ref<Record<string, string>>({})
 
     async function loadBlocks() {
       loadingBlocks.value = true
@@ -137,6 +151,16 @@ export default {
       try {
         const res = await listDeviceFingerprintFlags(auth.state.token as string)
         flags.value = res.map((f) => ({ ...f, _loading: false }))
+        const userUuids = [...new Set(flags.value.filter((flag) => flag.subjectKind === 'user').map((flag) => flag.subjectUuid))]
+        const profiles = await Promise.all(userUuids.map(async (uuid) => {
+          try {
+            const user = await getUser(uuid, auth.state.token as string)
+            return [uuid, user.displayName || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email || 'Usuario'] as const
+          } catch {
+            return [uuid, 'Usuario'] as const
+          }
+        }))
+        subjectNames.value = Object.fromEntries(profiles)
       } catch (e: any) { /* deja la tabla vacia */ } finally { loadingFlags.value = false }
     }
 
@@ -189,6 +213,20 @@ export default {
       return fp.length > 16 ? `${fp.slice(0, 8)}…${fp.slice(-6)}` : fp
     }
 
+    function shortUuid(uuid: string): string {
+      return uuid.length > 18 ? `${uuid.slice(0, 8)}…${uuid.slice(-6)}` : uuid
+    }
+
+    function subjectLabel(item: DeviceFingerprintFlagRow): string {
+      return item.subjectKind === 'guest' ? 'Invitado' : subjectNames.value[item.subjectUuid] || 'Usuario'
+    }
+
+    async function copyUuid(uuid: string) {
+      await navigator.clipboard?.writeText(uuid)
+      copyFeedback.value = 'UUID copiado. Puedes buscarlo en Usuarios.'
+      window.setTimeout(() => { copyFeedback.value = '' }, 3000)
+    }
+
     function reasonLabel(reason: string): string {
       return reason === 'REGISTRATION_SPAM' ? 'Spam de registro' : 'Multicuenta'
     }
@@ -201,7 +239,7 @@ export default {
       loading, maxAccountsPerDevice, maxSessionsPerUser, maxRegistrationsPerDevicePerDay,
       saving, saved, error, save,
       blocks, loadingBlocks, unblock, shortFingerprint, reasonLabel, formatDate,
-      flags, loadingFlags, review
+      flags, loadingFlags, review, copyFeedback, subjectLabel, shortUuid, copyUuid
     }
   }
 }
@@ -215,5 +253,8 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .field-hint { margin: 0 0 12px; font-size: 0.85rem; }
 .blocks-title { color: var(--color-heading); font-size: 1rem; margin-bottom: 8px; }
 .fingerprint { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); }
+.subject-cell { display: flex; align-items: center; gap: 4px; min-width: 170px; }
+.subject-name { color: var(--color-text-secondary); }
+.uuid-copy { padding: 2px 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; }
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 </style>
