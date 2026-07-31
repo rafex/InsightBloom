@@ -8,13 +8,13 @@
     .issue-row
       input(v-model="recipientEmail" type="email" aria-label="Correo del destinatario" placeholder="Correo (opcional)")
       input(v-model="seatUuid" type="text" aria-label="UUID del asiento" placeholder="UUID de asiento (opcional)")
-      BaseButton(variant="primary" type="button" :loading="issuing" @click="issue") {{ issuing ? 'Emitiendo...' : 'Emitir boleto' }}
+      BaseButton(variant="primary" type="button" :loading="issuing" @click="issue") Emitir boleto
     FeedbackMessage(v-if="feedback" :message="feedback" :tone="feedbackError ? 'error' : 'success'")
     template(v-if="canIssueBatch")
       .issue-divider o
       .issue-row
         input(v-model.number="batchQuantity" type="number" min="2" max="200" aria-label="Cantidad de boletos anónimos" placeholder="Cantidad")
-        BaseButton(variant="secondary" type="button" :disabled="issuingBatch || !batchQuantity || batchQuantity < 2" @click="issueBatch") {{ issuingBatch ? 'Emitiendo...' : `Emitir ${batchQuantity || ''} boletos anónimos` }}
+        BaseButton(variant="secondary" type="button" :loading="issuingBatch" :disabled="!batchQuantity || batchQuantity < 2" @click="issueBatch") Emitir {{ batchQuantity || '' }} boletos anónimos
       p.field-hint Genera varios boletos sin destinatario de una sola vez. Podés compartir el QR/UUID de cada uno a mano con invitados puntuales; los que no repartas quedan disponibles igual para que cualquiera los reclame solo desde la cartelera pública (botón "Adquirir boleto"), hasta agotarse. No exceden el aforo restante: si pedís más de lo que queda, no se emite ninguno.
   .compose-card#compose-card
     h3 Comunicarse con inscritos
@@ -23,7 +23,7 @@
     input(v-model="composeSubject" type="text" aria-label="Asunto" placeholder="Asunto")
     AiEmailAssistant(:conference-id="conferenceId" :visible="showAiAssistant" @close="showAiAssistant = false" @use-draft="draft => composeMessage = draft")
     EmailComposeEditor(v-model="composeMessage" v-model:format="composeFormat" v-model:show-ai-assistant="showAiAssistant")
-    BaseButton(variant="primary" type="button" :loading="sendingEmail" :disabled="!composeSubject.trim() || !composeMessage.trim()" @click="sendEmail") {{ sendingEmail ? 'Enviando...' : 'Enviar' }}
+    BaseButton(variant="primary" type="button" :loading="sendingEmail" :disabled="!composeSubject.trim() || !composeMessage.trim()" @click="sendEmail") Enviar
     FeedbackMessage(v-if="emailFeedback" :message="emailFeedback" :tone="emailFeedbackError ? 'error' : 'success'")
   .metrics-grid(v-if="summary")
     .metric-card.metric-capacity
@@ -35,10 +35,11 @@
       strong {{ metric.count }}
       span {{ metric.label }}
       small {{ metric.description }}
-  .tickets-list
+  LoadingState(v-if="loading" message="Cargando boletos…")
+  .tickets-list(v-else)
     .list-header
       h3 Boletos emitidos ({{ tickets.length }})
-      BaseButton(variant="secondary" type="button" :loading="resendingAll" :disabled="!tickets.length" @click="resendAll") {{ resendingAll ? 'Reenviando...' : 'Reenviar todos por correo' }}
+      BaseButton(variant="secondary" type="button" :loading="resendingAll" :disabled="!tickets.length" @click="resendAll") Reenviar todos por correo
     p.helper Los boletos operativos pertenecen al creador y al personal asignado al evento. Consumen aforo y no se pueden revocar.
     p.helper Reenviar por correo busca primero el destinatario con el que se emitió el boleto y, si no hay, el correo de la cuenta que lo reclamó. Boletos sin ningún correo asociado no se pueden reenviar.
     .ticket-group(v-for="group in ticketGroups" :key="group.key" v-show="group.tickets.length")
@@ -47,14 +48,14 @@
         .ticket-main
           strong {{ ticket.ticketCode }}
           StatusBadge(v-if="!ticket.operational" :status="ticket.status" :label="formatTicketStatusLabel(ticket.status)")
-          span.status-line(v-else) Operativo · no revocable
-          span.claimant(v-if="ticket.claimedByUserUuid") Reclamado por: {{ claimantLabel(ticket) }}
-          span.status-line(v-else) Sin reclamar
+          StatusBadge(v-if="ticket.operational" status="ACTIVE" label="Operativo · no revocable")
+          span.claimant(v-if="!ticket.operational && ticket.claimedByUserUuid") Reclamado por: {{ claimantLabel(ticket) }}
+          StatusBadge(v-if="!ticket.operational && !ticket.claimedByUserUuid" status="PENDING" label="Sin reclamar")
           span.audit-line(v-if="ticket.status === 'REVOKED'") Revocado por: {{ ticket.revokedByUserUuid || 'desconocido' }} · {{ formatAuditDate(ticket.revokedAt) }}
         .row-actions
           BaseButton(variant="ghost" size="sm" type="button" @click="showQr(ticket)") QR
           BaseButton(variant="ghost" size="sm" type="button" @click="copy(ticket.ticketCode)") Copiar UUID
-          BaseButton(variant="ghost" size="sm" type="button" :loading="resendingUuid === ticket.uuid" :disabled="resendingUuid === ticket.uuid" @click="resendOne(ticket)") {{ resendingUuid === ticket.uuid ? 'Enviando...' : 'Reenviar' }}
+          BaseButton(variant="ghost" size="sm" type="button" :loading="resendingUuid === ticket.uuid" :disabled="resendingUuid === ticket.uuid" @click="resendOne(ticket)") Reenviar
           BaseButton(variant="ghost" size="sm" type="button" v-if="ticket.claimedByUserUuid" @click="writeToAttendee(ticket)") Escribir
           BaseButton(variant="danger" size="sm" type="button" @click="revoke(ticket.uuid)") Revocar
     .qr-preview(v-if="selectedTicket")
@@ -71,6 +72,7 @@ import TicketQr from '@/components/TicketQr.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmailComposeEditor from '@/components/EmailComposeEditor.vue'
 import AiEmailAssistant from '@/components/AiEmailAssistant.vue'
@@ -83,7 +85,7 @@ const sendMarked = new Marked()
 
 export default {
   name: 'TicketManagementPage',
-  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, FeedbackMessage, StatusBadge, EmailComposeEditor, AiEmailAssistant },
+  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, FeedbackMessage, LoadingState, StatusBadge, EmailComposeEditor, AiEmailAssistant },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -342,7 +344,7 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--color-
 .ticket-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-surface-muted); }
 .ticket-main { display: flex; flex-direction: column; gap: 2px; }
 .ticket-main strong { font: 0.8rem monospace; overflow-wrap: anywhere; }
-.ticket-main span, .issue-card p { color: var(--color-text-muted); font-size: 0.9rem; }
+.ticket-main > span:not(.status-badge), .issue-card p { color: var(--color-text-muted); font-size: 0.9rem; }
 .list-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .list-header h3 { margin: 0; }
 .ticket-group { margin-top: 18px; }
