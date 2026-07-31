@@ -2162,7 +2162,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
-    /** Botón de recuperación de un clic: libera las 9 herramientas para todos de una vez. */
+    /** Botón de recuperación de un clic: libera todas las herramientas y acciones para todos. */
     private boolean handleReleaseAllTools(final JettyHttpExchange jx, final String id) {
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }

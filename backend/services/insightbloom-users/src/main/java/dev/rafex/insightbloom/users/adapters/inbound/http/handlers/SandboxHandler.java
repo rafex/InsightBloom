@@ -18,6 +18,8 @@ import dev.rafex.insightbloom.users.application.usecases.PublishAppPreviewUseCas
 import dev.rafex.insightbloom.users.application.usecases.RevokeAppPreviewUseCase;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
+import dev.rafex.insightbloom.users.domain.model.ToolKey;
+import dev.rafex.insightbloom.users.application.usecases.ToolAccessUseCase;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 import dev.rafex.insightbloom.users.domain.services.DeviceBlockedException;
@@ -46,6 +48,7 @@ public class SandboxHandler extends BaseResourceHandler {
     private final SandboxOrchestrator sandboxOrchestrator;
     private final ConferenceRepository conferenceRepository;
     private final EventCapabilityGuard eventCapabilityGuard;
+    private final ToolAccessUseCase toolAccessUseCase;
     private final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase;
     private final PublishWorkspacePreviewUseCase publishWorkspacePreviewUseCase;
     private final RevokeWorkspacePreviewUseCase revokeWorkspacePreviewUseCase;
@@ -69,6 +72,7 @@ public class SandboxHandler extends BaseResourceHandler {
                          final SandboxOrchestrator sandboxOrchestrator,
                          final ConferenceRepository conferenceRepository,
                          final EventCapabilityGuard eventCapabilityGuard,
+                         final ToolAccessUseCase toolAccessUseCase,
                          final EnsureUnassignedSandboxUseCase ensureUnassignedSandboxUseCase,
                          final String gatewayBaseUrl,
                          final PublishWorkspacePreviewUseCase publishWorkspacePreviewUseCase,
@@ -86,6 +90,7 @@ public class SandboxHandler extends BaseResourceHandler {
         this.sandboxOrchestrator = sandboxOrchestrator;
         this.conferenceRepository = conferenceRepository;
         this.eventCapabilityGuard = eventCapabilityGuard;
+        this.toolAccessUseCase = toolAccessUseCase;
         this.ensureUnassignedSandboxUseCase = ensureUnassignedSandboxUseCase;
         this.gatewayBaseUrl = gatewayBaseUrl;
         this.publishWorkspacePreviewUseCase = publishWorkspacePreviewUseCase;
@@ -432,6 +437,22 @@ public class SandboxHandler extends BaseResourceHandler {
         return jx.request().getHeaders().get("X-Device-Fingerprint");
     }
 
+    /**
+     * Las acciones de entrega del IDE se controlan por separado de la entrada al IDE. La
+     * validación vive en backend para que un asistente no pueda saltarse el botón deshabilitado
+     * llamando directamente al endpoint.
+     */
+    private boolean rejectIfToolNotReleased(final JettyHttpExchange jx,
+                                             final String conferenceId,
+                                             final String userUuid,
+                                             final ToolKey toolKey) {
+        if (!toolAccessUseCase.resolveForUser(conferenceId, userUuid).contains(toolKey)) {
+            sendError(jx, 403, "tool_locked", "El moderador aún no habilitó esta acción del IDE");
+            return true;
+        }
+        return false;
+    }
+
     private boolean handleDownloadRequest(final JettyHttpExchange jx, final String conferenceId) {
         final String token = extractToken(jx);
         if (token == null) {
@@ -444,6 +465,7 @@ public class SandboxHandler extends BaseResourceHandler {
                 sendError(jx, 401, "token_invalid", "Invalid token");
                 return true;
             }
+            if (rejectIfToolNotReleased(jx, conferenceId, v.subjectUuid(), ToolKey.IDE_DOWNLOAD)) return true;
 
             final var downloadInfo = generateWorkspaceDownloadUrlUseCase.execute(conferenceId, v.subjectUuid());
 
@@ -523,6 +545,7 @@ public class SandboxHandler extends BaseResourceHandler {
                 return true;
             }
             if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return true;
+            if (rejectIfToolNotReleased(jx, conferenceId, validation.subjectUuid(), ToolKey.IDE_PUBLISH_PAGE)) return true;
             final var publication = publishWorkspacePreviewUseCase.execute(
                     conferenceId, validation.subjectUuid(), previewTtlSeconds);
             sendOk(jx, 201, Map.of(
@@ -590,6 +613,7 @@ public class SandboxHandler extends BaseResourceHandler {
                 return true;
             }
             if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return true;
+            if (rejectIfToolNotReleased(jx, conferenceId, validation.subjectUuid(), ToolKey.IDE_PUBLISH_API)) return true;
             final var preview = publishAppPreviewUseCase.execute(
                     conferenceId, validation.subjectUuid(), appPreviewTtlSeconds);
             sendOk(jx, 201, Map.of(

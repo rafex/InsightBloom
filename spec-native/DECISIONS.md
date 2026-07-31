@@ -1489,3 +1489,26 @@ Registrar una decision cuando cambie:
     la revocación del backend y el fingerprint de dispositivo siguen siendo controles
     obligatorios.
 - Reemplaza: la decisión previa de mantener `ib_token` exclusivamente en `sessionStorage`.
+
+### DEC-0034 - Acciones de entrega del IDE con permisos independientes
+
+- Fecha: 2026-07-31
+- Estado: accepted
+- Contexto:
+  El moderador debe decidir cuándo los asistentes pueden llevarse o publicar el trabajo del
+  sandbox. Entrar al IDE no implica que puedan descargar el workspace, publicar una página
+  temporal o exponer un backend/API.
+- Decision:
+  - `IDE_DOWNLOAD`, `IDE_PUBLISH_PAGE` e `IDE_PUBLISH_API` son claves independientes dentro del
+    candado existente de herramientas.
+  - Las tres acciones arrancan bloqueadas y el moderador puede liberarlas para todo el evento o
+    para asistentes concretos desde `Moderación → Herramientas`.
+  - La interfaz mantiene los botones visibles y deshabilitados con una explicación; abrir el IDE,
+    copiar su URL y cambiar de modo permanecen disponibles.
+  - `insightbloom-users` valida las tres claves en backend antes de ejecutar cada operación. Las
+    revocaciones no se bloquean para que una publicación ya activa pueda retirarse.
+- Consecuencias:
+  - El control de cuándo se entrega o publica código queda explícito y auditable por asistente.
+  - La matriz y la acción global existente pasan a gestionar 12 claves; no se crea otro sistema
+    paralelo de permisos.
+- Reemplaza: `none`.

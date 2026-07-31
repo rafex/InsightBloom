@@ -26,6 +26,6 @@ public interface ToolAccessRepository {
 
     void lockUsers(String conferenceUuid, ToolKey toolKey, List<String> userUuids);
 
-    /** Libera las 9 herramientas para todos de un solo golpe (botón de recuperación). */
+    /** Libera todas las herramientas y acciones para todos de un solo golpe (botón de recuperación). */
     void releaseAllTools(String conferenceUuid, List<ToolKey> toolKeys);
 }

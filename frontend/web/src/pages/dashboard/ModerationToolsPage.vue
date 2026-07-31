@@ -4,12 +4,12 @@
   ConferenceToolsNav(:conferenceId="conferenceId")
 
   h2 Candado por herramienta
-  p.page-intro Dudas, Temas, Presentación, Chat, Videollamada, Diagramas, Pizarra, Notas e IDE arrancan #[strong bloqueados] para los asistentes hasta que las liberás acá. "Mi boleto" y "Flyer" siempre están visibles. Encuesta tiene su propio candado en la sección Encuesta.
+  p.page-intro Las herramientas del evento y las acciones de entrega del IDE arrancan #[strong bloqueadas] para los asistentes hasta que las liberás acá. "Mi boleto" y "Flyer" siempre están visibles. Encuesta tiene su propio candado en la sección Encuesta.
 
   .release-all-card
     div
       strong ¿Todo bloqueado por error?
-      p Libera las 9 herramientas para todos los asistentes de una sola vez.
+      p Libera todas las herramientas y acciones para todos los asistentes de una sola vez.
     BaseButton(variant="primary" :loading="releasingAll" @click="releaseAllTools") Liberar todo el evento
 
   LoadingState(v-if="loading" message="Cargando acceso de herramientas...")
@@ -72,7 +72,10 @@ const TOOLS: { key: ToolKeyName, label: string, icon: string }[] = [
   { key: 'DIAGRAMS', label: 'Diagramas', icon: 'diagram' },
   { key: 'WHITEBOARD', label: 'Pizarra', icon: 'whiteboard' },
   { key: 'NOTES', label: 'Notas', icon: 'notes' },
-  { key: 'IDE', label: 'IDE de código', icon: 'code' }
+  { key: 'IDE', label: 'IDE de código', icon: 'code' },
+  { key: 'IDE_DOWNLOAD', label: 'Descargar workspace', icon: 'download' },
+  { key: 'IDE_PUBLISH_PAGE', label: 'Publicar página temporal', icon: 'globe' },
+  { key: 'IDE_PUBLISH_API', label: 'Publicar backend/API', icon: 'api' }
 ]
 
 export default {

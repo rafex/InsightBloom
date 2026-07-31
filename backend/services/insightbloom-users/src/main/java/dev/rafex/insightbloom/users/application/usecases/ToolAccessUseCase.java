@@ -46,7 +46,7 @@ public class ToolAccessUseCase {
         }
     }
 
-    /** Botón de recuperación de un clic: libera las 9 herramientas para todos. */
+    /** Botón de recuperación de un clic: libera todas las herramientas y acciones para todos. */
     public void releaseAll(final String conferenceUuid) {
         repository.releaseAllTools(conferenceUuid, List.of(ToolKey.values()));
     }

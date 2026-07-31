@@ -55,19 +55,36 @@
         .ide-actions
           BaseAnchor(v-if="fullGatewayUrl" :href="ideSessionUrl" target="_blank" rel="noopener")
             span 🚀 Abrir IDE en navegador
-          BaseButton(variant="secondary" @click="downloadWorkspace" :disabled="downloadingWorkspace")
+          BaseButton(
+            variant="secondary"
+            @click="downloadWorkspace"
+            :disabled="downloadingWorkspace || !ideActionsLoaded || !isToolReleased('IDE_DOWNLOAD')"
+            :title="actionTitle('IDE_DOWNLOAD', 'Descargar workspace')"
+          )
             span(v-if="!downloadingWorkspace") 📥 Descargar workspace
             span(v-else) Descargando...
-          BaseButton(variant="secondary" @click="publishPreview" :disabled="publishingPreview")
+          BaseButton(
+            variant="secondary"
+            @click="publishPreview"
+            :disabled="publishingPreview || !ideActionsLoaded || !isToolReleased('IDE_PUBLISH_PAGE')"
+            :title="actionTitle('IDE_PUBLISH_PAGE', 'Publicar página temporal')"
+          )
             span(v-if="!publishingPreview") 🌐 Publicar página temporal
             span(v-else) Validando y publicando...
-          BaseButton(variant="secondary" @click="publishApp" :disabled="publishingApp")
+          BaseButton(
+            variant="secondary"
+            @click="publishApp"
+            :disabled="publishingApp || !ideActionsLoaded || !isToolReleased('IDE_PUBLISH_API')"
+            :title="actionTitle('IDE_PUBLISH_API', 'Publicar backend/API')"
+          )
             span(v-if="!publishingApp") 🔌 Publicar backend/API
             span(v-else) Publicando...
           BaseButton(variant="secondary" @click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
             span {{ urlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
           BaseButton(variant="secondary" @click="switchVariant")
             span 🔀 Cambiar de modo
+        p.ide-actions-hint(v-if="ideActionsLoaded && !allIdeActionsReleased")
+          | 🔒 Algunas acciones de entrega están deshabilitadas. El moderador puede habilitarlas para todo el evento o solo para ti.
         .preview-result(v-if="preview")
           strong Página publicada temporalmente
           p Esta URL contiene solo una copia estática validada del workspace y vence el {{ formatPreviewExpiry }}.
@@ -96,6 +113,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import {
   getSandbox,
   getSandboxAvailability,
+  getToolAccess,
   generateWorkspaceDownloadUrl,
   publishWorkspacePreview,
   revokeWorkspacePreview,
@@ -105,6 +123,7 @@ import {
   AuthenticatedEventStream
 } from '@/services/api/usersApi'
 import type { SandboxInfo, SandboxAvailability, SandboxVariant, WorkspacePreviewInfo, AppPreviewInfo } from '@/services/api/types'
+import type { ToolKeyName } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import SandboxLoadingAnimation from '@/components/SandboxLoadingAnimation.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
@@ -146,10 +165,40 @@ export default {
     const availability = ref<SandboxAvailability | null>(null)
     const loadingAvailability = ref(true)
     const chosenVariant = ref<SandboxVariant | null>(null)
+    const toolAccess = ref<Partial<Record<ToolKeyName, boolean>>>({})
+    const ideActionsLoaded = ref(false)
     let pollTimer: ReturnType<typeof setTimeout> | null = null
     let pollDeadline = 0
     let pollDelayMs = POLL_INITIAL_DELAY_MS
     let sandboxStream: AuthenticatedEventStream | null = null
+
+    const IDE_ACTION_KEYS: ToolKeyName[] = ['IDE_DOWNLOAD', 'IDE_PUBLISH_PAGE', 'IDE_PUBLISH_API']
+
+    function isToolReleased(key: ToolKeyName): boolean {
+      return toolAccess.value[key] === true
+    }
+
+    const allIdeActionsReleased = computed(() =>
+      ideActionsLoaded.value && IDE_ACTION_KEYS.every((key) => isToolReleased(key))
+    )
+
+    function actionTitle(key: ToolKeyName, label: string): string {
+      if (!ideActionsLoaded.value) return `Cargando permiso para ${label}`
+      if (!isToolReleased(key)) return `${label}: el moderador aún no habilitó esta acción`
+      return label
+    }
+
+    async function loadToolAccess() {
+      try {
+        if (!auth.state.token) return
+        toolAccess.value = await getToolAccess(props.conferenceId, auth.state.token)
+      } catch {
+        // Fail closed: si no se puede consultar el permiso, las acciones permanecen deshabilitadas.
+        toolAccess.value = {}
+      } finally {
+        ideActionsLoaded.value = true
+      }
+    }
 
     function stopPolling() {
       if (pollTimer) clearTimeout(pollTimer)
@@ -331,7 +380,7 @@ export default {
     }
 
     async function downloadWorkspace() {
-      if (!sandbox.value) return
+      if (!sandbox.value || !isToolReleased('IDE_DOWNLOAD')) return
 
       try {
         downloadingWorkspace.value = true
@@ -347,7 +396,7 @@ export default {
     }
 
     async function publishPreview() {
-      if (!auth.state.token || !sandbox.value) return
+      if (!auth.state.token || !sandbox.value || !isToolReleased('IDE_PUBLISH_PAGE')) return
       try {
         publishingPreview.value = true
         preview.value = await publishWorkspacePreview(props.conferenceId, auth.state.token)
@@ -376,7 +425,7 @@ export default {
     }
 
     async function publishApp() {
-      if (!auth.state.token || !sandbox.value) return
+      if (!auth.state.token || !sandbox.value || !isToolReleased('IDE_PUBLISH_API')) return
       try {
         publishingApp.value = true
         appPreview.value = await publishAppPreview(props.conferenceId, auth.state.token)
@@ -420,6 +469,7 @@ export default {
 
     onMounted(() => {
       loadAvailability()
+      loadToolAccess()
     })
 
     onBeforeUnmount(() => {
@@ -431,6 +481,7 @@ export default {
       sandbox, loading, error, downloadingWorkspace, urlCopied,
       availability, loadingAvailability, chosenVariant, chooseVariant, switchVariant,
       formattedExpiry, fullGatewayUrl, ideSessionUrl, downloadWorkspace, copyGatewayUrl,
+      ideActionsLoaded, allIdeActionsReleased, isToolReleased, actionTitle,
       pendingMessage, publishingPreview, preview, formatPreviewExpiry, publishPreview,
       revokePreview, copyPreviewUrl, previewUrlCopied,
       publishingApp, appPreview, formatAppPreviewExpiry, publishApp, revokeApp,
@@ -575,6 +626,12 @@ export default {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.ide-actions-hint {
+  margin: 10px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 
 .preview-result {

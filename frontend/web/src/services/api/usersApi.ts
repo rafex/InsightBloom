@@ -1084,10 +1084,11 @@ export async function revokeAppPreview(conferenceId: string, publicationId: stri
 }
 
 // ── Candado por herramienta (2026-07-27) ──────────────────────────────────────────────────
-// Mismo concepto que el candado de Encuesta (surveyApi.ts) pero para Dudas/Temas/Presentación/
-// Chat/Video/Diagramas/Pizarra/Notas/IDE -- ver TicketKey en el backend.
+// Mismo concepto que el candado de Encuesta (surveyApi.ts) pero para herramientas del evento y
+// acciones independientes del IDE -- ver ToolKey en el backend.
 export type ToolKeyName = 'DOUBTS' | 'TOPICS' | 'PRESENTATION' | 'CHAT' | 'VIDEO'
-  | 'DIAGRAMS' | 'WHITEBOARD' | 'NOTES' | 'IDE'
+  | 'DIAGRAMS' | 'WHITEBOARD' | 'NOTES' | 'IDE' | 'IDE_DOWNLOAD'
+  | 'IDE_PUBLISH_PAGE' | 'IDE_PUBLISH_API'
 
 export interface ToolAccessAttendee {
   uuid: string
@@ -1128,7 +1129,7 @@ export async function lockTool(
     { all, userUuids }, authHeader(token))
 }
 
-/** Botón de recuperación de un clic: libera las 9 herramientas para todos. */
+/** Botón de recuperación de un clic: libera todas las herramientas y acciones para todos. */
 export async function releaseAllTools(conferenceId: string, token: string): Promise<void> {
   await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tool-access/release-all`, {}, authHeader(token))
 }

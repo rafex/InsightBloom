@@ -429,7 +429,7 @@ public class UsersApplication {
         final var sandboxHandler = new SandboxHandler(
                 assignSandboxUseCase, getSandboxAvailabilityUseCase, validateTokenUseCase,
                 generateWorkspaceDownloadUrlUseCase, setSandboxConfigUseCase, sandboxOrchestrator,
-                conferenceRepo, eventCapabilityGuard, ensureUnassignedSandboxUseCase, gatewayBaseUrl,
+                conferenceRepo, eventCapabilityGuard, toolAccessUseCase, ensureUnassignedSandboxUseCase, gatewayBaseUrl,
                 publishWorkspacePreviewUseCase, revokeWorkspacePreviewUseCase, workspacePreviewTtlSeconds,
                 publishAppPreviewUseCase, revokeAppPreviewUseCase, appPreviewTtlSeconds, appPreviewBaseUrl);
         final var sandboxFilesHandler = new SandboxFilesHandler(

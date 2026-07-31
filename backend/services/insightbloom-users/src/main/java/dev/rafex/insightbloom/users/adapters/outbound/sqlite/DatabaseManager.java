@@ -723,8 +723,9 @@ public class DatabaseManager {
             // que survey_access_releases (insightbloom-survey) pero con tool_key extra --
             // user_uuid = '*' significa "liberado para todos". A proposito arranca vacia para
             // TODO evento, nuevo o ya corriendo: es la decision explicita del organizador de que
-            // las 9 herramientas (Dudas, Temas, Presentacion, Chat, Video, Diagramas, Pizarra,
-            // Notas, IDE) empiecen bloqueadas hasta que el moderador las libere.
+            // las 12 herramientas/acciones (Dudas, Temas, Presentacion, Chat, Video, Diagramas,
+            // Pizarra, Notas, IDE y sus tres acciones de entrega) empiecen bloqueadas hasta que
+            // el moderador las libere.
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS tool_access_releases (
                     conference_uuid TEXT NOT NULL,
