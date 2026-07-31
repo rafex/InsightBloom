@@ -19,7 +19,9 @@
     p Si la cámara en vivo no lo detecta, toma una foto o selecciona una captura del QR.
     BaseButton(variant="secondary" size="sm" type="button" :disabled="!scannerReady || imageProcessing || processing" :loading="imageProcessing" @click="takePhotoAndScan")
       span(v-if="imageProcessing") Procesando foto...
-      span(v-else) 📸 Tomar foto y leer QR
+      span(v-else)
+        UiIcon(name="camera" size="16" aria-hidden="true")
+        |  Tomar foto y leer QR
     span.image-or O selecciona una imagen:
     label.link-btn.link-btn-secondary.link-btn-sm.image-picker(
       :for="'qr-image-input'"
@@ -30,7 +32,8 @@
       @keydown.enter.prevent="$event.currentTarget.click()"
       @keydown.space.prevent="$event.currentTarget.click()"
     )
-      | 📷 Leer QR desde imagen
+      UiIcon(name="image" size="16" aria-hidden="true")
+      |  Leer QR desde imagen
     input#qr-image-input(type="file" accept="image/*" capture="environment" @change="scanQrImage")
 
   FeedbackMessage.scan-feedback(
@@ -41,7 +44,9 @@
 
   .recent-list(v-if="recent.length")
     h3 Últimos check-ins
-    .recent-item(v-for="r in recent" :key="r.uuid") {{ r.ticketCode }} — {{ formatStatusLabel(r.status) }}
+    .recent-item(v-for="r in recent" :key="r.uuid")
+      code {{ r.ticketCode }}
+      StatusBadge(:status="r.status" :label="formatStatusLabel(r.status)")
 </template>
 
 <script lang="ts">
@@ -51,6 +56,8 @@ import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import FormField from '@/components/ui/FormField.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
+import UiIcon from '@/components/ui/UiIcon.vue'
 import { checkInIssuedTicket, checkInTicket, getConference } from '@/services/api/usersApi'
 import type { Ticket, Reservation } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -58,7 +65,7 @@ import { formatStatusLabel } from '@/utils/status'
 
 export default {
   name: 'CheckInScannerPage',
-  components: { DashboardBreadcrumb, BaseButton, FeedbackMessage, FormField },
+  components: { DashboardBreadcrumb, BaseButton, FeedbackMessage, FormField, StatusBadge, UiIcon },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -103,14 +110,14 @@ export default {
     function errorMessage(error: any): string {
       const code = error.response?.data?.error?.code
       switch (code) {
-        case 'already_checked_in': return '⚠️ Este boleto ya fue registrado'
-        case 'ticket_not_claimed': return '⚠️ El boleto aún no ha sido reclamado por un asistente'
-        case 'ticket_expired': return '❌ El boleto ya expiró'
-        case 'ticket_revoked': return '❌ El boleto fue revocado'
-        case 'forbidden': return '❌ No tienes permiso para hacer check-in en este evento'
-        case 'ticket_not_found': return '❌ El boleto no pertenece a esta conferencia'
-        case 'ticket_invalid_format': return '❌ El UUID del boleto no tiene un formato válido'
-        default: return '❌ No se pudo registrar el boleto'
+        case 'already_checked_in': return 'Este boleto ya fue registrado'
+        case 'ticket_not_claimed': return 'El boleto aún no ha sido reclamado por un asistente'
+        case 'ticket_expired': return 'El boleto ya expiró'
+        case 'ticket_revoked': return 'El boleto fue revocado'
+        case 'forbidden': return 'No tienes permiso para hacer check-in en este evento'
+        case 'ticket_not_found': return 'El boleto no pertenece a esta conferencia'
+        case 'ticket_invalid_format': return 'El UUID del boleto no tiene un formato válido'
+        default: return 'No se pudo registrar el boleto'
       }
     }
 
@@ -131,7 +138,7 @@ export default {
           if (status !== 404 && code !== 'ticket_not_found') throw ticketError
           reservation = await checkInTicket(props.conferenceId, ticketCode, auth.state.token as string)
         }
-        lastResult.value = { ok: true, message: '✅ Ingreso registrado' }
+        lastResult.value = { ok: true, message: 'Ingreso registrado' }
         recent.value = [reservation, ...recent.value].slice(0, 10)
       } catch (e: any) {
         lastResult.value = { ok: false, message: errorMessage(e) }
@@ -167,7 +174,7 @@ export default {
       } catch (_error) {
         lastResult.value = {
           ok: false,
-          message: '❌ No se encontró un QR legible en la imagen. Usa una foto más nítida o el UUID manual.'
+          message: 'No se encontró un QR legible en la imagen. Usa una foto más nítida o el UUID manual.'
         }
       } finally {
         imageProcessing.value = false
@@ -198,7 +205,7 @@ export default {
       } catch (_error) {
         lastResult.value = {
           ok: false,
-          message: '❌ La foto no contiene un QR legible. Acerca el boleto, mejora el enfoque y vuelve a intentarlo.'
+          message: 'La foto no contiene un QR legible. Acerca el boleto, mejora el enfoque y vuelve a intentarlo.'
         }
       } finally {
         imageProcessing.value = false
@@ -284,5 +291,6 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .scan-feedback.tone-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 .recent-list { margin-top: 24px; }
 .recent-list h3 { color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
-.recent-item { font-family: monospace; font-size: 0.8rem; color: var(--color-text-muted); padding: 4px 0; border-bottom: 1px solid var(--color-surface-muted); }
+.recent-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--color-surface-muted); }
+.recent-item code { min-width: 0; overflow-wrap: anywhere; font-size: 0.8rem; color: var(--color-text-muted); }
 </style>

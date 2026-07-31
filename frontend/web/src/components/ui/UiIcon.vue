@@ -23,6 +23,8 @@ const ICON_PATHS: Record<string, string[]> = {
   users: ['M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2', 'M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8', 'M22 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'],
   check: ['M5 12l4 4L19 6'],
   video: ['M15 10l4.5-3v10L15 14', 'M3 6h12v12H3z'],
+  camera: ['M4 7h3l2-2h6l2 2h3v12H4z', 'M12 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6'],
+  image: ['M4 5h16v14H4z', 'M7 15l3-3 2 2 2-2 3 3', 'M8 9h.01'],
   ticket: ['M3 7h18v10H3z', 'M7 7v10', 'M17 7v10'],
   flyer: ['M4 4h16v16H4z', 'M8 8h8', 'M8 12h8', 'M8 16h5'],
   calendar: ['M4 5h16v15H4z', 'M8 3v4', 'M16 3v4', 'M4 10h16'],
