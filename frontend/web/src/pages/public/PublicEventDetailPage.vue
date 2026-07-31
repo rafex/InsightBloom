@@ -40,7 +40,7 @@
       section.map-section(v-if="event.latitude != null && event.longitude != null")
         h2 Ubicación
         ConferenceMap(:latitude="event.latitude" :longitude="event.longitude" :label="event.venue || event.name")
-        a.map-link(:href="osmUrl" target="_blank" rel="noopener noreferrer") Abrir en OpenStreetMap ↗
+        BaseAnchor.map-link(variant="ghost" size="sm" :href="osmUrl" target="_blank" rel="noopener noreferrer") Abrir en OpenStreetMap ↗
     LoadingState.state(v-else-if="loading" message="Cargando evento…")
     FeedbackMessage.state(v-else :message="error" tone="error")
 </template>
@@ -50,6 +50,7 @@ import { computed, onMounted, ref } from 'vue'
 import { marked, Renderer } from 'marked'
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceMap from '@/components/map/ConferenceMap.vue'
+import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
@@ -61,7 +62,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 
 export default {
   name: 'PublicEventDetailPage',
-  components: { AppHeader, BaseLink, ConferenceMap, FeedbackMessage, LoadingState, StatusBadge },
+  components: { AppHeader, BaseAnchor, BaseLink, ConferenceMap, FeedbackMessage, LoadingState, StatusBadge },
   setup() {
     const route = useRoute()
     const auth = useAuthStore()
@@ -98,7 +99,7 @@ h1 { color: var(--color-heading); font-size: clamp(2rem, 5vw, 3.4rem); margin: 1
 .event-facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin: 22px 0; }.event-facts dt { color: var(--color-text-muted); font-weight: 700; }.event-facts dd { margin: 0; color: var(--color-text-secondary); }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; }.action-message { color: var(--color-success); }.action-error { color: var(--color-danger-dark); }
 .schedule, .map-section { margin-top: 28px; background: var(--color-surface); padding: 28px; border-radius: 18px; }.schedule h2, .map-section h2 { color: var(--color-heading); }.markdown-body :deep(h2) { color: var(--color-warning); border-bottom: 2px dotted var(--color-border); padding-bottom: 8px; }.markdown-body :deep(p) { color: var(--color-text-secondary); line-height: 1.6; }.markdown-body :deep(a) { color: var(--color-primary); }
-.map-section :deep(.conference-map) { min-height: 360px; }.map-link { display: inline-block; margin-top: 10px; color: var(--color-primary); font-weight: 700; }.state { max-width: 1050px; margin: 50px auto; padding: 30px; }
+.map-section :deep(.conference-map) { min-height: 360px; }.map-link { justify-content: flex-start; padding: 0; border-radius: 0; margin-top: 10px; color: var(--color-primary); font-weight: 700; }.state { max-width: 1050px; margin: 50px auto; padding: 30px; }
 .public-event-page.theme-editorial { background: var(--color-editorial-page); color: var(--color-editorial-text); }.theme-editorial .back { color: var(--color-editorial-accent); }.theme-editorial .detail-copy, .theme-editorial .schedule, .theme-editorial .map-section { background: var(--color-editorial-surface); box-shadow: none; }.theme-editorial h1, .theme-editorial .schedule h2, .theme-editorial .map-section h2 { color: var(--color-editorial-heading); font-family: Georgia, serif; }.theme-editorial .description, .theme-editorial .event-facts dd, .theme-editorial .organizer { color: var(--color-editorial-muted); }.theme-editorial .event-facts dt, .theme-editorial .organizer-label { color: var(--color-editorial-accent); }.theme-editorial .detail-flyer { border-radius: 4px; }
 .public-event-page.theme-minimal { background: var(--color-surface); }.theme-minimal .detail-copy, .theme-minimal .schedule, .theme-minimal .map-section { border-radius: 4px; box-shadow: none; border: 1px solid var(--color-border-subtle); }.theme-minimal .detail-flyer { border-radius: 4px; }
 @media (max-width: 720px) { .public-detail { padding: 28px 16px 50px; }.detail-hero { grid-template-columns: 1fr; }.detail-hero.reverse { direction: ltr; } }
