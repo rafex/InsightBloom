@@ -10,6 +10,16 @@ nav.tools-nav(v-if="conferenceId")
     router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/conferences/${conferenceId}/moderation/words`") Palabras/Nube
     router-link(v-if="hasCapability('CODE_IDE')" :to="`/dashboard/conferences/${conferenceId}/moderation/ide`") Editor Monaco
     router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/tools`") Herramientas
+    BaseAnchor.menu-video-link(
+      v-if="hasCapability('VIDEO_CONFERENCE') && friendlyId"
+      variant="ghost"
+      size="sm"
+      :href="`/c/${friendlyId}/video`"
+      target="_blank"
+      rel="noopener"
+      title="Abrir la videollamada en una pestaña nueva"
+      aria-label="Entrar a la videollamada (abre en una pestaña nueva)"
+    ) Videollamada ↗
     router-link(v-if="isOrganizer && (hasCapability('VIDEO_CONFERENCE') || hasCapability('CODE_IDE'))" :to="`/dashboard/conferences/${conferenceId}/device-blocks`") Bloqueos
   DropdownMenu(v-if="hasTicketing() || hasSeating()" label="Acceso")
     router-link(v-if="hasTicketing()" :to="`/dashboard/conferences/${conferenceId}/tickets`") Boletos

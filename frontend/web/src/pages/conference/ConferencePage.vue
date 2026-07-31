@@ -73,7 +73,16 @@
           router-link#onboarding-tab-survey.tool-btn(v-if="privateAllowed('SURVEY')" :to="`/c/${friendlyId}/survey`" active-class="active-tab" title="Encuesta")
             UiIcon.tool-icon(name="survey" size="18")
             span.tool-label Encuesta
-          router-link#onboarding-tab-video.tool-btn(v-if="privateAllowed('VIDEO_CONFERENCE') && toolReleased('VIDEO')" :to="`/c/${friendlyId}/video`" active-class="active-tab" title="Videollamada")
+          BaseAnchor#onboarding-tab-video.tool-btn(
+            v-if="privateAllowed('VIDEO_CONFERENCE') && toolReleased('VIDEO')"
+            variant="ghost"
+            size="sm"
+            :href="`/c/${friendlyId}/video`"
+            target="_blank"
+            rel="noopener"
+            title="Abrir videollamada en una pestaña nueva"
+            aria-label="Videollamada (abre en una pestaña nueva)"
+          )
             UiIcon.tool-icon(name="video" size="18")
             span.tool-label Videollamada
           router-link#onboarding-tab-diagrams.tool-btn(v-if="canvasAllowed('DRAWIO', 'DIAGRAMMING') && toolReleased('DIAGRAMS')" :to="`/c/${friendlyId}/diagrams`" active-class="active-tab" title="Diagramas")
