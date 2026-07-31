@@ -3,7 +3,7 @@
   DashboardBreadcrumb(:items="breadcrumbItems")
   h2 Mapa de asientos
 
-  .loading-text(v-if="loading") Cargando...
+  LoadingState(v-if="loading" message="Cargando mapa de asientos…")
   template(v-else)
     .tabs-selector
       button.tab-btn(:class="{active: activeTab === 'image'}" @click="activeTab = 'image'") 📷 Subir imagen
@@ -51,12 +51,13 @@ import type { VenueSeat } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 interface EditableSeat { uuid: string | null, label: string, x: number, y: number, occupied: boolean }
 
 export default {
   name: 'VenueMapEditorPage',
-  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor, BaseButton, FeedbackMessage },
+  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor, BaseButton, FeedbackMessage, LoadingState },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -183,6 +184,4 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .seat-list { margin: 16px 0; display: flex; flex-direction: column; gap: 6px; }
 .seat-row { display: flex; gap: 8px; align-items: center; }
 .seat-label { flex: 1; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.85rem; }
-.error { color: var(--color-danger); font-size: 0.9rem; }
-.success { color: var(--color-success); font-size: 0.9rem; }
 </style>
