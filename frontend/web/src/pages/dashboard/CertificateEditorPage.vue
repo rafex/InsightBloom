@@ -5,6 +5,7 @@
     div
       h1 Certificado del evento
       p Elige un diseño base y enriquécelo con los datos disponibles del participante, evento y plataforma.
+      SaveState(:state="saveState")
     FeedbackMessage(v-if="saved" message="Guardado" tone="success")
   .editor-grid(v-if="loaded")
     .panel.catalog-panel
@@ -18,7 +19,7 @@
         button.variable(v-for="variable in catalog.variables" :key="variable.key" type="button" @click="insertVariable(variable.key)")
           code {{ '{' + '{' + variable.key + '}' + '}' }}
           span {{ variable.label }}
-      BaseButton(:loading="saving" type="button" @click="save") Guardar certificado
+      BaseButton(:loading="saving" :disabled="saving || saveState === 'clean' || saveState === 'saved'" type="button" @click="save") Guardar certificado
       FeedbackMessage(v-if="error" :message="error" tone="error")
     .panel.workspace
       .workspace-toolbar
@@ -74,6 +75,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 import { getCertificateTemplateCatalog, getEventCertificateTemplate, saveEventCertificateTemplate, setCertificateEngine } from '@/services/api/usersApi'
 import type { CertificateEngine, CertificateTemplateCatalog, CertificateTemplateCatalogItem } from '@/services/api/types'
 
@@ -94,7 +96,7 @@ const sampleData: Record<string, string> = {
 
 export default {
   name: 'CertificateEditorPage',
-  components: { DashboardBreadcrumb, BaseButton, FeedbackMessage, LoadingState },
+  components: { DashboardBreadcrumb, BaseButton, FeedbackMessage, LoadingState, SaveState },
   props: { conferenceId: { type: String, required: true } },
   setup(props: { conferenceId: string }) {
     const auth = useAuthStore()
@@ -104,12 +106,29 @@ export default {
       templateKey: 'classic', templateName: 'Clásico', engine: 'HTML_CHROME'
     })
     const document = reactive<DocumentModel>({ page: {}, blocks: [] })
+    const initialSnapshot = ref('')
     const selectedIndex = ref(0)
     const selectedBlock = computed(() => document.blocks[selectedIndex.value] || null)
     const logoBlock = computed(() => document.blocks.find(block => block.type === 'image' && (block as any).role === 'logo') || null)
     const previewHost = ref<HTMLElement | null>(null)
     const previewScale = ref(1)
     let previewObserver: ResizeObserver | null = null
+
+    function editorSnapshot(): string {
+      return JSON.stringify({
+        templateKey: form.templateKey,
+        templateName: form.templateName,
+        engine: form.engine,
+        document
+      })
+    }
+
+    const saveState = computed(() => {
+      if (saving.value) return 'saving'
+      if (editorSnapshot() !== initialSnapshot.value) return 'dirty'
+      if (saved.value) return 'saved'
+      return 'clean'
+    })
 
     function updatePreviewScale() {
       const width = previewHost.value?.clientWidth || 1056
@@ -198,6 +217,7 @@ export default {
         // de guardar el JSON evita que una plantilla HTML quede asociada a un evento INHOUSE.
         await setCertificateEngine(props.conferenceId, form.engine, auth.state.token)
         await saveEventCertificateTemplate(props.conferenceId, { templateKey: form.templateKey, templateName: form.templateName, engine: form.engine, documentJson: JSON.stringify(document) }, auth.state.token)
+        initialSnapshot.value = editorSnapshot()
         saved.value = true
       } catch (e: any) { error.value = e?.response?.data?.error?.message || 'No se pudo guardar la plantilla' }
       finally { saving.value = false }
@@ -208,6 +228,7 @@ export default {
         const [items, current] = await Promise.all([getCertificateTemplateCatalog(auth.state.token), getEventCertificateTemplate(props.conferenceId, auth.state.token)])
         catalog.templates = items.templates; catalog.variables = items.variables
         form.templateKey = current.templateKey; form.templateName = current.templateName; form.engine = current.engine; loadDocument(current.documentJson)
+        initialSnapshot.value = editorSnapshot()
       } catch (e: any) { error.value = 'No se pudo cargar el editor' }
       finally {
         loaded.value = true
@@ -221,7 +242,7 @@ export default {
     })
     watch(loaded, async (value) => { if (value) { await nextTick(); updatePreviewScale() } })
     onBeforeUnmount(() => { previewObserver?.disconnect() })
-    return { loaded, saving, saved, error, catalog, form, document, selectedIndex, selectedBlock, logoBlock, previewHost, previewScale, applyTemplate, interpolate, blockStyle, pageStyle, insertVariable, addTextBlock, addShapeBlock, handleLogoUpload, handleBackgroundUpload, removeLogo, removeBackground, removeSelected, save }
+    return { loaded, saving, saved, error, saveState, catalog, form, document, selectedIndex, selectedBlock, logoBlock, previewHost, previewScale, applyTemplate, interpolate, blockStyle, pageStyle, insertVariable, addTextBlock, addShapeBlock, handleLogoUpload, handleBackgroundUpload, removeLogo, removeBackground, removeSelected, save }
   }
 }
 </script>
