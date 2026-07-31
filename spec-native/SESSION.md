@@ -39,6 +39,7 @@
 | **Gobierno visual** | Shell y overlays | En progreso | Header, menús y overlays administrativos consumen tokens de superficie, sombra y scrim; Usuarios y Roles ya usan `BaseModal` con foco, Escape y focus-trap |
 | **Gobierno visual** | Iconografía administrativa | En progreso | `UiIcon.vue` aporta SVGs lineales para métricas del Panel y herramientas del evento; elimina emojis de indicadores operativos sin modificar contenido editorial |
 | **Recorridos por rol** | Moderador event-scoped | En progreso | El panel detecta eventos asignados aunque el rol global sea `ATTENDEE`; se mantienen ocultas acciones de propietario |
+| **Accesibilidad dashboard** | Teclado y nombres accesibles | En progreso | `ConferenceConfigPage` usa tabs navegables con flechas/Home/End y panel semántico; tablas administrativas exponen acciones y campos inline operables por teclado |
 | **UX evento** | QR, herramientas y cabecera | Completado | El QR del listado apunta siempre a `/c/{friendlyId}/ticket`; se retiraron botones internos de QR; se agregó Cronograma y se ordenaron las herramientas; la cabecera inicia compacta y se mantiene así al cambiar de ruta |
 | **UX evento** | Videollamada | Completado | Participantes y moderadores abren la llamada en una pestaña nueva; el acceso de moderación está disponible tanto en el listado de eventos como en el menú contextual del panel, donde JaaS conserva el rol de moderador y el takeover de sesión |
 

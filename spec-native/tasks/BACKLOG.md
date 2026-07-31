@@ -30,4 +30,8 @@
   y certificados.
 - [ ] Completar recorridos responsive, teclado, lector de pantalla y autenticados
   por rol.
+  Avance: las pestañas de configuración del evento ya tienen semántica `tab`/`tabpanel`,
+  navegación con flechas/Home/End y foco visible; las tablas de usuarios, tipos y roles
+  tienen acciones y campos inline navegables con nombres accesibles. Falta recorrer el
+  dashboard completo por rol en móvil y con lector de pantalla.
 - [ ] Verificar que el commit validado sea el que está desplegado en producción.

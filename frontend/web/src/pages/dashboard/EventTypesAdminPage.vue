@@ -19,7 +19,7 @@
         tr(v-for="t in eventTypes" :key="t.uuid")
           td(data-label="Nombre")
             template(v-if="editing === t.uuid")
-              input(v-model="editForm.name" placeholder="Nombre")
+              input(v-model="editForm.name" aria-label="Nombre del tipo de evento" placeholder="Nombre")
             template(v-else)
               strong {{ t.name }}
               .sub(v-if="t.description") {{ t.description }}
@@ -36,7 +36,7 @@
           td.admin-actions(data-label="Acciones")
             template(v-if="editing === t.uuid")
               SaveState(:state="editSaveState")
-              textarea(v-model="editForm.description" placeholder="Descripción")
+              textarea(v-model="editForm.description" aria-label="Descripción del tipo de evento" placeholder="Descripción")
               .admin-actions-row
                 BaseButton(size="sm" :loading="saving" :disabled="saving || editSaveState === 'clean'" @click="saveEdit(t)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
@@ -49,9 +49,9 @@
     h3 Nuevo tipo de evento
     SaveState(:state="newTypeSaveState")
     .form-row
-      input(v-model="newType.key" placeholder="Clave única, ej. standup")
-      input(v-model="newType.name" placeholder="Nombre visible")
-    textarea(v-model="newType.description" placeholder="Descripción (opcional)")
+      input(v-model="newType.key" aria-label="Clave única del tipo de evento" placeholder="Clave única, ej. standup")
+      input(v-model="newType.name" aria-label="Nombre visible del tipo de evento" placeholder="Nombre visible")
+    textarea(v-model="newType.description" aria-label="Descripción del nuevo tipo de evento" placeholder="Descripción (opcional)")
     .capabilities-editor
       label(v-for="c in allCapabilities" :key="c")
         input(type="checkbox" :value="c" v-model="newType.capabilities")

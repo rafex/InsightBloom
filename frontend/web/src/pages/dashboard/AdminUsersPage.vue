@@ -35,19 +35,21 @@
           th Acciones
       tbody
         tr(v-for="u in users" :key="u.uuid")
-          td.clickable(data-label="ID usuario" @click="goToDetail(u)")
-            span.uuid-text {{ u.uuid }}
-          td.clickable(data-label="Usuario" @click="goToDetail(u)")
-            strong {{ u.displayName || u.username }}
-            .sub {{ u.username }}
+          td(data-label="ID usuario")
+            button.table-cell-action(type="button" :aria-label="`Abrir usuario ${u.displayName || u.username}`" @click="goToDetail(u)")
+              span.uuid-text {{ u.uuid }}
+          td(data-label="Usuario")
+            button.table-cell-action(type="button" :aria-label="`Abrir usuario ${u.displayName || u.username}`" @click="goToDetail(u)")
+              strong {{ u.displayName || u.username }}
+              .sub {{ u.username }}
           td(data-label="Estado")
             StatusBadge(:status="u.status" :label="formatStatusLabel(u.status)")
           td.admin-actions(data-label="Acciones")
             template(v-if="editing === u.uuid")
               SaveState(:state="editSaveState")
-              input(v-model="editForm.displayName" placeholder="Nombre visible")
-              input(v-model="editForm.email" placeholder="Email")
-              input(v-model="editForm.phone" placeholder="Teléfono")
+              input(v-model="editForm.displayName" aria-label="Nombre visible" placeholder="Nombre visible")
+              input(v-model="editForm.email" aria-label="Email" placeholder="Email")
+              input(v-model="editForm.phone" aria-label="Teléfono" placeholder="Teléfono")
               .roles-editor
                 label(v-for="r in availableRoles" :key="r")
                   input(type="checkbox" :value="r" v-model="editForm.roles")
@@ -263,8 +265,9 @@ select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radi
 .users-table td { padding: 10px 12px; border-top: 1px solid var(--color-surface-muted); vertical-align: top; font-size: 0.88rem; }
 .sub { font-size: 0.78rem; color: var(--color-text-muted); }
 .uuid-text { font-family: monospace; font-size: 0.8rem; color: var(--color-text-muted); }
-.clickable { cursor: pointer; }
-.clickable:hover { background: var(--color-surface-muted); }
+.table-cell-action { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.table-cell-action:hover { color: var(--color-primary); }
+.table-cell-action:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 4px; }
 
 .roles-editor { display: flex; flex-direction: column; gap: 4px; margin: 4px 0; }
 .roles-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }

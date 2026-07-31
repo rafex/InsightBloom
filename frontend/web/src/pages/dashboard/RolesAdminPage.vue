@@ -20,7 +20,7 @@
         tr(v-for="r in roles" :key="r.uuid")
           td(data-label="Nombre")
             template(v-if="editing === r.uuid")
-              input(v-model="editForm.name" placeholder="Nombre")
+              input(v-model="editForm.name" aria-label="Nombre del rol" placeholder="Nombre")
             template(v-else)
               strong {{ r.name }}
               .sub(v-if="r.description") {{ r.description }}
@@ -39,7 +39,7 @@
           td.admin-actions(data-label="Acciones")
             template(v-if="editing === r.uuid")
               SaveState(:state="editSaveState")
-              textarea(v-model="editForm.description" placeholder="Descripción")
+              textarea(v-model="editForm.description" aria-label="Descripción del rol" placeholder="Descripción")
               .admin-actions-row
                 BaseButton(size="sm" :loading="saving" :disabled="saving || editSaveState === 'clean'" @click="saveEdit(r)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
@@ -52,13 +52,13 @@
     h3 Nuevo rol
     SaveState(:state="newRoleSaveState")
     .form-row
-      input(v-model="newRole.key" placeholder="Clave única, ej. staff_coordinator")
-      input(v-model="newRole.name" placeholder="Nombre visible")
+      input(v-model="newRole.key" aria-label="Clave única del rol" placeholder="Clave única, ej. staff_coordinator")
+      input(v-model="newRole.name" aria-label="Nombre visible del rol" placeholder="Nombre visible")
     .form-row
-      select(v-model="newRole.scope")
+      select(v-model="newRole.scope" aria-label="Alcance del nuevo rol")
         option(value="EVENT") Alcance: Evento
         option(value="PLATFORM") Alcance: Plataforma
-    textarea(v-model="newRole.description" placeholder="Descripción (opcional)")
+    textarea(v-model="newRole.description" aria-label="Descripción del nuevo rol" placeholder="Descripción (opcional)")
     .permissions-editor
       label(v-for="p in allPermissions" :key="p")
         input(type="checkbox" :value="p" v-model="newRole.permissions")

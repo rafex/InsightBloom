@@ -8,17 +8,28 @@
   ConferenceToolsNav(:conferenceId="conferenceId")
 
   nav.config-tabs(v-if="!loading && !error" role="tablist" aria-label="Secciones de configuración")
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'general'" :class="{ active: activeTab === 'general' }" @click="selectTab('general')") General
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'tools'" :class="{ active: activeTab === 'tools' }" @click="selectTab('tools')") Contenido y herramientas
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'sandbox'" :class="{ active: activeTab === 'sandbox' }" @click="selectTab('sandbox')") IDE y sandboxes
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'access'" :class="{ active: activeTab === 'access' }" @click="selectTab('access')") Acceso y boletos
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'roles'" :class="{ active: activeTab === 'roles' }" @click="selectTab('roles')") Roles y moderación
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'ai'" :class="{ active: activeTab === 'ai' }" @click="selectTab('ai')") IA
-    button.config-tab(type="button" role="tab" :aria-selected="activeTab === 'network'" :class="{ active: activeTab === 'network' }" @click="selectTab('network')") Red
+    button.config-tab(
+      v-for="tab in configTabs"
+      :id="`config-tab-${tab.id}`"
+      :key="tab.id"
+      type="button"
+      role="tab"
+      :aria-selected="activeTab === tab.id"
+      aria-controls="config-tabpanel"
+      :tabindex="activeTab === tab.id ? 0 : -1"
+      :class="{ active: activeTab === tab.id }"
+      @click="selectTab(tab.id)"
+      @keydown.left.prevent="focusTab(-1)"
+      @keydown.up.prevent="focusTab(-1)"
+      @keydown.right.prevent="focusTab(1)"
+      @keydown.down.prevent="focusTab(1)"
+      @keydown.home.prevent="focusTab(-999)"
+      @keydown.end.prevent="focusTab(999)"
+    ) {{ tab.label }}
 
   LoadingState(v-if="loading" message="Cargando conferencia…")
   FeedbackMessage(v-else-if="error" :message="error" tone="error")
-  .form(v-else @input.capture="markFormDirty" @change.capture="markFormDirty")
+  .form(v-else id="config-tabpanel" role="tabpanel" :aria-labelledby="`config-tab-${activeTab}`" tabindex="0" @input.capture="markFormDirty" @change.capture="markFormDirty")
     .form-group.general-group(v-if="eventTypes.length" v-show="activeTab === 'general'")
       label Tipo de evento
       select(v-model="eventTypeKey")
@@ -341,6 +352,15 @@ export default {
     const error        = ref('')
 
     const activeTab = ref<'general' | 'tools' | 'sandbox' | 'access' | 'roles' | 'ai' | 'network'>('general')
+    const configTabs = [
+      { id: 'general', label: 'General' },
+      { id: 'tools', label: 'Contenido y herramientas' },
+      { id: 'sandbox', label: 'IDE y sandboxes' },
+      { id: 'access', label: 'Acceso y boletos' },
+      { id: 'roles', label: 'Roles y moderación' },
+      { id: 'ai', label: 'IA' },
+      { id: 'network', label: 'Red' }
+    ] as const
     const seatingMode  = ref<SeatingMode>('NONE')
     const capacity     = ref<number | null>(null)
     const recommendedMaxCapacity = RECOMMENDED_MAX_CAPACITY
@@ -569,6 +589,20 @@ export default {
       }
       activeTab.value = tab
       formDirty.value = false
+    }
+
+    function focusTab(direction: number) {
+      const currentIndex = configTabs.findIndex((tab) => tab.id === activeTab.value)
+      const nextIndex = direction < -1
+        ? 0
+        : direction > 1
+          ? configTabs.length - 1
+          : (currentIndex + direction + configTabs.length) % configTabs.length
+      const nextTab = configTabs[nextIndex]
+      const wasDirty = formDirty.value
+      selectTab(nextTab.id)
+      if (wasDirty && nextTab.id !== activeTab.value) return
+      window.requestAnimationFrame(() => document.getElementById(`config-tab-${nextTab.id}`)?.focus())
     }
 
     function confirmTabChange() {
@@ -927,7 +961,7 @@ export default {
       return mode === 'MODERATOR_ONLY' ? 'MODERATOR_ONLY' : 'INDEPENDENT'
     }
 
-    return { conference, loading, error, activeTab, selectTab, pendingTab, confirmTabChange, saveState,
+    return { conference, loading, error, activeTab, configTabs, selectTab, focusTab, pendingTab, confirmTabChange, saveState,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              ticketSalesEnabled, savingTicketSales, ticketSalesSaved, ticketSalesError, saveTicketSales,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
@@ -969,6 +1003,7 @@ h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
 .config-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 20px; padding-bottom: 10px; border-bottom: 1px solid var(--color-border-subtle); }
 .config-tab { padding: 8px 14px; border: 1.5px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; font-size: 0.88rem; font-weight: 600; }
 .config-tab:hover { border-color: var(--color-focus); color: var(--color-primary); }
+.config-tab:focus-visible { outline: none; border-color: var(--color-focus); box-shadow: 0 0 0 3px var(--color-primary-soft); }
 .config-tab.active { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
 .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
 label { font-weight: 600; font-size: 0.9rem; color: var(--color-text-secondary); }
