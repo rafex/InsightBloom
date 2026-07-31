@@ -35,6 +35,7 @@
   las asignaciones y tablas se adaptan mejor a móvil. Las tablas de usuarios, tipos y roles
   tienen acciones y campos inline navegables con nombres accesibles. Las superficies de
   configuración, presentación, mapas, nubes y tutor IA conservan ahora el foco visible
-  con `:focus-visible`. Falta recorrer el dashboard completo por rol en móvil y con lector
-  de pantalla.
+  con `:focus-visible`; los menús desplegables compartidos soportan flechas, Home/End,
+  Escape y retorno de foco. Falta recorrer el dashboard completo por rol en móvil y con
+  lector de pantalla.
 - [ ] Verificar que el commit validado sea el que está desplegado en producción.
