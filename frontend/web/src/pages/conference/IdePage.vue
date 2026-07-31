@@ -6,7 +6,7 @@
       p.subtitle Accede a tu ambiente de desarrollo asignado para este evento.
 
     .ide-status
-      div(v-if="loadingAvailability" class="loading-spinner") Cargando opciones...
+      LoadingState(v-if="loadingAvailability" message="Cargando opciones…")
       template(v-else-if="!chosenVariant && !sandbox")
         p.subtitle ¿Cómo querés trabajar en este evento?
         .variant-picker
@@ -29,8 +29,8 @@
             span.variant-desc Terminal con vim/neovim, se reutiliza entre alumnos
             span.variant-slots(v-if="availability") {{ availability.cli.activeCount }}/{{ availability.cli.capacity }} ocupados
         p.hint(v-if="availability && !availability.web.available") Web está lleno -- solo queda disponible CLI.
-      div(v-else-if="loading" class="loading-spinner") Cargando sandbox...
-      div(v-else-if="error" class="error-message") {{ error }}
+      LoadingState(v-else-if="loading" message="Cargando sandbox…")
+      FeedbackMessage(v-else-if="error" :message="error" tone="error")
       .pending-sandbox(v-else-if="sandbox && sandbox.status === 'PENDING'")
         sandbox-loading-animation(:message="pendingMessage")
         p.hint Esto puede tardar hasta un par de minutos la primera vez.
@@ -109,6 +109,8 @@ import { useAuthStore } from '@/features/auth/authStore'
 import SandboxLoadingAnimation from '@/components/SandboxLoadingAnimation.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 
 // El endpoint devuelve una instantánea; mientras el Pod/seat-agent se prepara
 // usamos backoff para no golpear la API cada pocos segundos durante un cold start.
@@ -120,7 +122,7 @@ const POLL_TIMEOUT_MS = 5 * 60_000
 
 export default {
   name: 'IdePage',
-  components: { SandboxLoadingAnimation, BaseAnchor, BaseButton },
+  components: { SandboxLoadingAnimation, BaseAnchor, BaseButton, FeedbackMessage, LoadingState },
   props: {
     conferenceId: {
       type: String,
@@ -536,22 +538,6 @@ export default {
 
 .pending-sandbox .hint {
   margin-top: 4px;
-}
-
-.loading-spinner {
-  text-align: center;
-  padding: 40px;
-  color: var(--color-text-muted);
-  font-size: 1.1rem;
-}
-
-.error-message {
-  background: var(--color-danger-soft);
-  color: var(--color-danger-dark);
-  padding: 16px;
-  border-radius: 8px;
-  border-left: 4px solid var(--color-danger);
-  margin-bottom: 16px;
 }
 
 .sandbox-info {
