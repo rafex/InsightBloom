@@ -21,11 +21,23 @@
       span(v-if="imageProcessing") Procesando foto...
       span(v-else) 📸 Tomar foto y leer QR
     span.image-or O selecciona una imagen:
-    label.link-btn.link-btn-secondary.link-btn-sm.image-picker(:for="'qr-image-input'")
+    label.link-btn.link-btn-secondary.link-btn-sm.image-picker(
+      :for="'qr-image-input'"
+      role="button"
+      tabindex="0"
+      aria-label="Leer código QR desde una imagen"
+      title="Leer código QR desde una imagen"
+      @keydown.enter.prevent="$event.currentTarget.click()"
+      @keydown.space.prevent="$event.currentTarget.click()"
+    )
       | 📷 Leer QR desde imagen
     input#qr-image-input(type="file" accept="image/*" capture="environment" @change="scanQrImage")
 
-  p.scan-result(v-if="lastResult" :class="lastResult.ok ? 'ok' : 'error'") {{ lastResult.message }}
+  FeedbackMessage.scan-feedback(
+    v-if="lastResult"
+    :message="lastResult.message"
+    :tone="lastResult.ok ? 'success' : 'error'"
+  )
 
   .recent-list(v-if="recent.length")
     h3 Últimos check-ins
@@ -37,6 +49,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import QrScanner from 'qr-scanner'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import FormField from '@/components/ui/FormField.vue'
 import { checkInIssuedTicket, checkInTicket, getConference } from '@/services/api/usersApi'
 import type { Ticket, Reservation } from '@/services/api/types'
@@ -45,7 +58,7 @@ import { formatStatusLabel } from '@/utils/status'
 
 export default {
   name: 'CheckInScannerPage',
-  components: { DashboardBreadcrumb, BaseButton, FormField },
+  components: { DashboardBreadcrumb, BaseButton, FeedbackMessage, FormField },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -266,9 +279,9 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .image-picker:disabled { cursor: not-allowed; opacity: .55; }
 .image-or { display: inline-block; margin: 0 8px; color: var(--color-text-muted); font-size: 0.75rem; }
 .image-checkin input[type="file"] { display: none; }
-.scan-result { text-align: center; font-weight: 600; margin-top: 16px; padding: 10px; border-radius: 8px; }
-.scan-result.ok { background: var(--color-success-soft); color: var(--color-success); }
-.scan-result.error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
+.scan-feedback { text-align: center; font-weight: 600; margin-top: 16px; padding: 10px; border-radius: 8px; }
+.scan-feedback.tone-success { background: var(--color-success-soft); }
+.scan-feedback.tone-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }
 .recent-list { margin-top: 24px; }
 .recent-list h3 { color: var(--color-text-secondary); font-size: 0.9rem; margin-bottom: 8px; }
 .recent-item { font-family: monospace; font-size: 0.8rem; color: var(--color-text-muted); padding: 4px 0; border-bottom: 1px solid var(--color-surface-muted); }
