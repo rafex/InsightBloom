@@ -42,7 +42,7 @@
             .sub {{ u.username }}
           td(data-label="Estado")
             StatusBadge(:status="u.status" :label="formatStatusLabel(u.status)")
-          td.actions(data-label="Acciones")
+          td.admin-actions(data-label="Acciones")
             template(v-if="editing === u.uuid")
               SaveState(:state="editSaveState")
               input(v-model="editForm.displayName" placeholder="Nombre visible")
@@ -52,7 +52,7 @@
                 label(v-for="r in availableRoles" :key="r")
                   input(type="checkbox" :value="r" v-model="editForm.roles")
                   span {{ formatRoleLabel(r) }}
-              .actions-row
+              .admin-actions-row
                 BaseButton(size="sm" :loading="saving" :disabled="saving || editSaveState === 'clean'" @click="saveEdit(u)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
@@ -270,9 +270,7 @@ select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radi
 .roles-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
 .roles-editor input { width: auto; margin: 0; }
 
-.actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
-.actions input { padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.82rem; }
-.actions-row { display: flex; gap: 6px; }
+.admin-actions input { padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.82rem; }
 .pagination { display: flex; align-items: center; gap: 12px; margin-top: 20px; justify-content: center; font-size: 0.9rem; color: var(--color-text-secondary); }
 @media (max-width: 900px) {
   .admin-users-page { padding: 14px; }
@@ -293,6 +291,6 @@ select { padding: 8px 12px; border: 1.5px solid var(--color-border); border-radi
     content: attr(data-label); display: block; font-size: 0.7rem; font-weight: 600;
     text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 4px;
   }
-  .actions { min-width: 0; }
+  .admin-actions { min-width: 0; }
 }
 </style>

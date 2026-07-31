@@ -294,6 +294,24 @@ crear en `global.css` (o en un nuevo `src/styles/link-buttons.css` importado des
 `BaseButton` (mismos paddings/font-size/radius por tamaño), y migrar esas páginas a
 usar esas clases compartidas en vez de sus `.btn-primary`/`.btn-outline` locales.
 
+### Fase 4.5 — Consolidación de `scoped` genéricos (completada)
+
+Se revisaron los 87 archivos con estilos `scoped` clasificados por el gate. Se migraron a
+`global.css` los patrones reutilizables identificados:
+
+- controles de tema y lienzo compartidos por alta y edición/configuración de eventos;
+- layout y formulario común de las nubes de dudas y temas;
+- columna y grupos de acciones de las tablas administrativas de usuarios, tipos y roles.
+
+Las clases globales usan nombres semánticos (`event-theme-*`, `event-canvas-*`, `cloud-*` y
+`admin-actions-*`) para evitar colisiones. Las páginas de nubes ya no necesitan `scoped`; el
+inventario queda en 85 archivos. Los restantes están clasificados como `canonical-component`,
+`domain-screen`, `embedded-tool`, `shared-component`, `shell` o `visualization` y conservan
+aislamiento por contener reglas propias de la superficie.
+
+El cierre se valida con `npm run lint:ui-governance`, que exige clasificación completa, evita
+redefiniciones legacy de acciones canónicas y reporta el inventario vigente.
+
 ## 5. Riesgos y cosas a verificar con cuidado
 
 - **`disabled` en botones de submit**: `BaseButton` ya deshabilita automáticamente

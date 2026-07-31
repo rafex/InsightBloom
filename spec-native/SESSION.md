@@ -25,7 +25,8 @@
 | **4.2** | Dashboard/config | 12/12 | Páginas administrativas y de configuración migradas a `BaseButton` y `link-btn-*` |
 | | | | `SurveyManagePage.vue` — 3 botones (`variant="primary"`, `size="sm"`, `variant="secondary"`), import y registro |
 | **Fundación** | Tipografía y gobierno | Completado | `@font-face` local para Assistant, tokens semánticos ampliados, catálogo de componentes y gate `lint:ui-governance` en CI |
-| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 87 estilos scoped, fija 8 excepciones hex en 3 superficies y ya no permite redefiniciones legacy de selectores canónicos |
+| **Gobierno visual** | Inventario de scoped y excepciones de color | Completado | El gate clasifica 85 estilos scoped, fija 8 excepciones hex en 3 superficies y ya no permite redefiniciones legacy de selectores canónicos |
+| **Gobierno visual** | Migración de scoped genéricos elegibles | Completado | Se consolidaron controles de tema/lienzo de eventos, layout de nubes y acciones de tablas administrativas en `global.css`; los 85 restantes tienen justificación por superficie |
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 | **Gobierno de componentes** | Formularios y acciones administrativas | Completado | Los inputs, selects y textareas de IA, egresos, dispositivos, roles y tipos de evento heredan el baseline global; acciones locales migradas a `BaseButton`, incluida la variante semántica `success` |
 | **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; SurveyManagePage ya refleja cambios pendientes por editor; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
@@ -62,8 +63,10 @@ La migración de colores avanzó: el gate mide 8 literales hex locales (baseline
 1,278), reducidos desde 73 mediante tokens para los pines SVG de mapas y la ilustración de carga
 del sandbox. Permanecen solo 3 colores del lienzo de mapa y 5 valores propios de certificados.
 Las nuevas pantallas deben usar tokens y componentes canónicos; el gate ya no permite redefiniciones legacy.
-El inventario actual clasifica 87 estilos `scoped`; la siguiente reducción debe centrarse en los
-genéricos elegibles, no en superficies de mapas, editores o herramientas embebidas.
+La auditoría de estilos `scoped` quedó cerrada: el inventario actual clasifica 85 archivos. Los
+genéricos elegibles se movieron a `global.css` con nombres semánticos aislados; lo restante pertenece
+a pantallas de dominio, shell, visualizaciones, herramientas embebidas o componentes cuyo aislamiento
+evita colisiones.
 
 ### Fase 4.2 — Alto tráfico
 

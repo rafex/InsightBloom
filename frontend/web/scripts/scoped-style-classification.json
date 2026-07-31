@@ -34,8 +34,6 @@
   "src/components/ui/SaveState.vue": "canonical-component",
   "src/components/ui/StatusBadge.vue": "canonical-component",
   "src/components/ui/ToggleSwitch.vue": "canonical-component",
-  "src/pages/conference/CloudDoubtsPage.vue": "visualization",
-  "src/pages/conference/CloudTopicsPage.vue": "visualization",
   "src/pages/conference/CollabNotesPage.vue": "embedded-tool",
   "src/pages/conference/ConferencePage.vue": "shell",
   "src/pages/conference/ConferenceSchedulePage.vue": "domain-screen",

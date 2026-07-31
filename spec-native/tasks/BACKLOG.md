@@ -18,7 +18,12 @@
 
 ## UX/UI
 
-- [ ] Migrar estilos `scoped` genéricos elegibles a tokens y componentes canónicos.
+- [x] Migrar estilos `scoped` genéricos elegibles a tokens y componentes canónicos.
+  Auditoría cerrada: los controles reutilizables de tema y lienzo de creación/edición/configuración,
+  el layout de nubes de dudas/temas y las acciones de tablas administrativas ahora viven en estilos
+  compartidos. El inventario pasó de 87 a 85 archivos `scoped`; los restantes están clasificados como
+  componentes canónicos, pantallas de dominio, shell, visualización, herramientas embebidas o
+  componentes compartidos y no contienen candidatos genéricos pendientes identificados por la revisión.
 - [x] Revisar los 80 colores hex documentados para detectar tokens reutilizables.
   Se migraron 65 literales de los pines SVG de mapas y de la ilustración de carga del
   sandbox a tokens globales; permanecen 8 literales intencionales en el lienzo de mapa

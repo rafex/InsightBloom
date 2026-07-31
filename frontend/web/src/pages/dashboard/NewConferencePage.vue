@@ -42,14 +42,14 @@
           select(v-model="scheduleLayout")
             option(value="RIGHT") A la derecha del flyer
             option(value="LEFT") A la izquierda del flyer
-    .form-group.public-theme-group
+    .form-group.event-theme-group
       label Diseño de la cartelera pública
       p.field-hint Elige una presentación base. Solo cambia la apariencia; el contenido siempre usa los datos de este evento.
-      .theme-options
-        label.theme-option(v-for="theme in publicThemeOptions" :key="theme.value" :class="{ selected: publicTheme === theme.value }")
+      .event-theme-options
+        label.event-theme-option(v-for="theme in publicThemeOptions" :key="theme.value" :class="{ selected: publicTheme === theme.value }")
           input(type="radio" name="publicTheme" :value="theme.value" v-model="publicTheme")
-          span.theme-preview(:class="`theme-preview-${theme.value.toLowerCase()}`")
-          span.theme-copy
+          span.event-theme-preview(:class="`event-theme-preview-${theme.value.toLowerCase()}`")
+          span.event-theme-copy
             strong {{ theme.label }}
             small {{ theme.description }}
 
@@ -99,12 +99,12 @@
     .form-group
       label Lienzo del evento (opcional)
       p.field-hint Selecciona una o varias herramientas. Si no eliges ninguna, se usarán las herramientas del tipo de evento.
-      .canvas-tools
-        label.canvas-tool-option(v-for="tool in canvasToolOptions" :key="tool.value")
+      .event-canvas-tools
+        label.event-canvas-tool-option(v-for="tool in canvasToolOptions" :key="tool.value")
           input(type="checkbox" :value="tool.value" v-model="canvasTools")
           span {{ tool.label }}
-      .canvas-mode-row(v-for="tool in canvasTools" :key="tool")
-        span.canvas-mode-label {{ canvasToolLabel(tool) }}
+      .event-canvas-mode-row(v-for="tool in canvasTools" :key="tool")
+        span.event-canvas-mode-label {{ canvasToolLabel(tool) }}
         select(v-model="canvasModes[tool]")
           option(v-for="option in canvasModeOptions(tool)" :key="option.value" :value="option.value") {{ option.label }}
       p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
@@ -387,18 +387,6 @@ export default {
 </script>
 
 <style scoped>
-.public-theme-group { border-top: 1px solid var(--color-border-subtle); padding-top: 18px; }
-.theme-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.theme-option { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1.5px solid var(--color-border-subtle); border-radius: 12px; background: var(--color-surface); cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-.theme-option.selected { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-soft); }
-.theme-option input { position: absolute; opacity: 0; pointer-events: none; }
-.theme-preview { height: 48px; border-radius: 8px; display: block; background: var(--color-primary-soft); position: relative; overflow: hidden; }
-.theme-preview::after { content: ''; position: absolute; left: 15%; right: 15%; top: 12px; height: 5px; border-radius: 4px; background: currentColor; box-shadow: 0 12px 0 currentColor, 0 24px 0 currentColor; opacity: .65; }
-.theme-preview-classic { color: var(--color-primary); background: linear-gradient(135deg, var(--color-primary-soft), var(--color-surface)); border: 1px solid var(--color-primary-border); }
-.theme-preview-editorial { color: var(--color-text-inverse); background: linear-gradient(135deg, var(--color-primary-dark) 0 42%, var(--color-warning) 42%); }
-.theme-preview-minimal { color: var(--color-text-secondary); background: var(--color-surface-muted); border: 1px solid var(--color-border); }
-.theme-copy { display: flex; flex-direction: column; gap: 2px; color: var(--color-heading); }.theme-copy small { color: var(--color-text-muted); line-height: 1.3; }
-@media (max-width: 580px) { .theme-options { grid-template-columns: 1fr; } .theme-option { display: grid; grid-template-columns: 72px 1fr; align-items: center; }.theme-preview { grid-row: span 2; } }
 .new-conf-page { max-width: 680px; }
 h2 { color: var(--color-heading); margin-bottom: 24px; margin-top: 0; }
 .expiry-options { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -411,11 +399,6 @@ h2 { color: var(--color-heading); margin-bottom: 24px; margin-top: 0; }
 .coord-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
 .map-url-row { display: flex; gap: 8px; align-items: center; }
 .map-url-input { flex: 1; min-width: 0; }
-.canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
-.canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
-.canvas-tool-option input { width: auto; }
-.canvas-mode-row { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
-.canvas-mode-label { font-size: 0.8rem; color: var(--color-text-muted); font-weight: 600; }
 .map-preview { margin-bottom: 20px; border-radius: 12px; overflow: hidden; }
 
 .capacity-alert { margin: 6px 0 0; font-size: 0.82rem; font-weight: 600; padding: 6px 10px; border-radius: 6px; }

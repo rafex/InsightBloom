@@ -45,12 +45,12 @@
     .form-group.canvas-group(v-show="activeTab === 'tools'")
       label Lienzo del evento
       p.field-hint Selecciona una o varias herramientas y define el modo de cada una. Si no seleccionas ninguna, se mantiene el modo legado del tipo de evento.
-      .canvas-tools
-        label.canvas-tool-option(v-for="tool in canvasToolOptions" :key="tool.value")
+      .event-canvas-tools
+        label.event-canvas-tool-option(v-for="tool in canvasToolOptions" :key="tool.value")
           input(type="checkbox" :value="tool.value" v-model="canvasTools")
           span {{ tool.label }}
-      .canvas-mode-row(v-for="tool in canvasTools" :key="tool")
-        span.canvas-mode-label {{ canvasToolLabel(tool) }}
+      .event-canvas-mode-row(v-for="tool in canvasTools" :key="tool")
+        span.event-canvas-mode-label {{ canvasToolLabel(tool) }}
         select(v-model="canvasModes[tool]")
           option(v-for="option in canvasModeOptions(tool)" :key="option.value" :value="option.value") {{ option.label }}
       p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
@@ -983,12 +983,6 @@ input:focus { outline: none; border-color: var(--color-primary); }
 textarea:focus { outline: none; border-color: var(--color-primary); }
 
 .scope-badge { align-self: flex-start; display: inline-flex; padding: 3px 9px; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: 0.72rem; font-weight: 700; }
-.canvas-tools { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
-.canvas-tool-option { display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
-.canvas-tool-option input { width: auto; }
-.canvas-mode-row { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
-.canvas-mode-label { font-size: 0.8rem; color: var(--color-text-muted); font-weight: 600; }
-
 .tickets-group select, .canvas-group select { padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 1rem; margin-bottom: 10px; }
 .coord-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .coord-label { font-size: 0.8rem; color: var(--color-text-muted); font-weight: 500; }

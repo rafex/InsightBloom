@@ -1,14 +1,14 @@
 <template lang="pug">
-.cloud-page
+.cloud-page.cloud-page-topics
   .cloud-header
     h2 Temas
     span.count(v-if="words.length") {{ words.length }} palabras
 
-  .submit-box(v-if="canSubmit")
-    input.submit-input(v-model="word" type="text" aria-label="Tema" placeholder="Escribe el tema en una palabra o frase corta" maxlength="80" @keyup.enter="submit")
-    input.submit-input(v-model="detail" type="text" aria-label="Detalle del tema" placeholder="Detalle (opcional)" maxlength="240" @keyup.enter="submit")
+  .cloud-submit-box(v-if="canSubmit")
+    input.cloud-submit-input(v-model="word" type="text" aria-label="Tema" placeholder="Escribe el tema en una palabra o frase corta" maxlength="80" @keyup.enter="submit")
+    input.cloud-submit-input(v-model="detail" type="text" aria-label="Detalle del tema" placeholder="Detalle (opcional)" maxlength="240" @keyup.enter="submit")
     BaseButton(type="button" :disabled="!word.trim()" :loading="sending" @click="submit") Enviar
-  .submit-anon(v-else)
+  .cloud-submit-anon(v-else)
     span ⚠️ #[router-link(:to="{ path: '/login', query: { redirect: $route.fullPath } }") Inicia sesión] para enviar tu tema directamente aquí.
   FeedbackMessage(v-if="feedback" :message="feedback" :tone="feedbackTone")
 
@@ -110,26 +110,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.cloud-page { padding: 24px; }
-.cloud-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
-h2 { margin: 0; color: var(--color-heading); }
-.count { color: var(--color-text-muted); font-size: 0.9rem; }
-
-.submit-box { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.submit-input {
-  flex: 1; min-width: 180px; padding: 10px 14px; border: 1.5px solid var(--color-border);
-  border-radius: 8px; font-size: 0.95rem;
-}
-.submit-input:focus { outline: none; border-color: var(--color-info); }
-.submit-anon {
-  margin-bottom: 12px; padding: 10px 16px; background: var(--color-warning-soft); color: var(--color-warning);
-  border: 1px solid var(--color-warning); border-radius: 8px; font-size: 0.85rem;
-}
-.submit-anon :deep(a) { color: var(--color-info); font-weight: 600; text-decoration: none; }
-@media (max-width: 640px) {
-  .cloud-page { padding: 14px; }
-  .submit-box { flex-direction: column; }
-}
-</style>

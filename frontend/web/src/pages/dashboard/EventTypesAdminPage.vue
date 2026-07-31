@@ -33,11 +33,11 @@
               span.capability-chip(v-for="c in t.capabilities" :key="c") {{ capabilityLabel(c) }}
           td(data-label="Estado")
             StatusBadge(:status="t.active ? 'ACTIVE' : 'INACTIVE'" :label="t.active ? 'Activo' : 'Inactivo'")
-          td.actions(data-label="Acciones")
+          td.admin-actions(data-label="Acciones")
             template(v-if="editing === t.uuid")
               SaveState(:state="editSaveState")
               textarea(v-model="editForm.description" placeholder="Descripción")
-              .actions-row
+              .admin-actions-row
                 BaseButton(size="sm" :loading="saving" :disabled="saving || editSaveState === 'clean'" @click="saveEdit(t)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
@@ -238,9 +238,7 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .capabilities-editor label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; }
 .capabilities-editor input { width: auto; margin: 0; }
 
-.actions { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
-.actions textarea { font-size: 0.82rem; min-height: 50px; }
-.actions-row { display: flex; gap: 6px; }
+.admin-actions textarea { font-size: 0.82rem; min-height: 50px; }
 
 .new-type-form { background: var(--color-surface); border-radius: 12px; padding: 20px; border: 1px solid var(--color-border-subtle); }
 .new-type-form h3 { margin: 0 0 14px; color: var(--color-heading); font-size: 1rem; }
@@ -257,7 +255,7 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
     content: attr(data-label); display: block; font-size: 0.7rem; font-weight: 600;
     text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 4px;
   }
-  .actions { min-width: 0; }
+  .admin-actions { min-width: 0; }
   .form-row { flex-direction: column; }
 }
 </style>
