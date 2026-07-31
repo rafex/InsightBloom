@@ -31,10 +31,10 @@
           span(v-if="conference.startTime") &nbsp;· {{ conference.startTime }}{{ conference.endTime ? ` - ${conference.endTime}` : '' }}
           span(v-if="conference.venue") &nbsp;· {{ conference.venue }}
           .calendar-dropdown(v-if="isUpcoming")
-            button.btn-calendar(type="button" @click="showCalendarMenu = !showCalendarMenu") 📅 Agregar a mi calendario
+            BaseButton(variant="secondary" size="sm" type="button" @click="showCalendarMenu = !showCalendarMenu") 📅 Agregar a mi calendario
             .calendar-menu(v-if="showCalendarMenu")
               BaseAnchor(variant="ghost" size="sm" :href="googleCalendarUrl" target="_blank" rel="noopener" @click="showCalendarMenu = false") Google Calendar
-              button(type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
+              BaseButton.calendar-download(variant="ghost" size="sm" type="button" @click="downloadCalendarFile(); showCalendarMenu = false") Descargar .ics (Outlook, Apple)
       .conf-toolbar-wrap(:class="{ 'fade-left': toolbarFadeLeft, 'fade-right': toolbarFadeRight }")
         nav.conf-toolbar(ref="toolbarRef" aria-label="Herramientas del evento" @scroll.passive="updateToolbarFades")
           router-link#onboarding-tab-flyer.tool-btn(:to="`/c/${friendlyId}/flyer`" active-class="active-tab" title="Flyer")
@@ -115,6 +115,7 @@ import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
@@ -144,7 +145,7 @@ const ATTENDEE_TOUR_STEPS = [
 
 export default {
   name: 'ConferencePage',
-  components: { AppHeader, BaseAnchor, BaseLink, ConferenceIntroMap, EmptyState, FeedbackMessage, LoadingState, OnboardingTour, UiIcon },
+  components: { AppHeader, BaseAnchor, BaseButton, BaseLink, ConferenceIntroMap, EmptyState, FeedbackMessage, LoadingState, OnboardingTour, UiIcon },
   setup() {
     const route      = useRoute()
     const friendlyId = route.params.friendlyId as string
@@ -419,17 +420,13 @@ h1 { margin: 0; color: var(--color-heading); }
 }
 .schedule-icon { margin-right: 2px; }
 .calendar-dropdown { position: relative; margin-left: 12px; }
-.btn-calendar {
-  padding: 6px 14px; border-radius: 8px; border: 1.5px solid var(--color-primary);
-  background: var(--color-surface); color: var(--color-primary); font-weight: 600; font-size: 0.8rem; cursor: pointer;
-}
-.btn-calendar:hover { background: var(--color-primary-soft); }
 .calendar-menu {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 20;
   background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden; min-width: 200px;
   display: flex; flex-direction: column;
 }
+.calendar-download { width: 100%; justify-content: flex-start; }
 .calendar-menu a, .calendar-menu button {
   padding: 10px 16px; text-align: left; font-size: 0.85rem; color: var(--color-text-secondary);
   text-decoration: none; background: none; border: none; cursor: pointer; font-family: inherit;
