@@ -1,5 +1,5 @@
 <template lang="pug">
-.dashboard-home(v-if="isEventManager" id="onboarding-dashboard-home")
+.dashboard-home(v-if="showManagerDashboard" id="onboarding-dashboard-home")
   .dashboard-header
     h1 Panel
 
@@ -60,6 +60,23 @@
   .section(v-else-if="conferences.length === 0")
     EmptyState(message="Aún no tienes conferencias.")
       BaseLink(to="/dashboard/conferences/new") Crear la primera
+
+  .section(v-if="!loadingHistory && attendeeHistory.length" id="onboarding-attendee-events")
+    h2 Eventos a los que asistes
+    p.section-hint Estos eventos aparecen aunque también administres o moderes otros eventos.
+    .conference-grid
+      .conf-card(v-for="h in attendeeHistory" :key="h.conferenceUuid" :class="{ unavailable: !h.available }")
+        .conf-card-header
+          span.friendly-id {{ h.friendlyId || h.conferenceUuid }}
+          StatusBadge(:status="h.available ? 'ACTIVE' : 'UNAVAILABLE'" :label="h.available ? 'Disponible' : 'No disponible'" :tone="h.available ? 'success' : 'neutral'")
+        h3.conf-name {{ h.name || '(sin nombre)' }}
+        p.joined-at Te uniste {{ formatDate(h.joinedAt) }}
+        .conf-actions(v-if="h.available")
+          BaseLink(variant="secondary" :to="`/c/${h.friendlyId}/doubts`") Entrar
+          BaseLink(variant="secondary" v-if="h.seatingMode && h.seatingMode !== 'NONE'" :to="`/c/${h.friendlyId}/ticket`")
+            UiIcon(name="ticket" size="16" aria-hidden="true")
+            | Mi boleto
+        p.unavailable-note(v-else) Este evento ya no se encuentra disponible.
 
   OnboardingTour(storage-key="ib_onboarding_dashboard" :steps="organizerTourSteps")
 
@@ -124,6 +141,18 @@ export default {
     const jaasUsage = ref<JaasUsage | null>(null)
     const organizerTourSteps = ORGANIZER_TOUR_STEPS
 
+    // Un moderador global puede no tener todavía eventos administrables, pero sí
+    // puede asistir a eventos como cualquier otro usuario. Los organizadores y
+    // administradores conservan el panel aunque su lista esté vacía.
+    const showManagerDashboard = computed(() =>
+      isEventManager.value && (auth.isOrganizer() || conferences.value.length > 0)
+    )
+
+    const attendeeHistory = computed(() => {
+      const managedConferenceUuids = new Set(conferences.value.map((conference) => conference.uuid))
+      return history.value.filter((entry) => !managedConferenceUuids.has(entry.conferenceUuid))
+    })
+
     const eventStats = computed(() => ({
       registered: conferences.value.length,
       active: conferences.value.filter((c) => c.status === 'ACTIVE').length,
@@ -152,27 +181,31 @@ export default {
         loadingHistory.value = false
         return
       }
-      try {
-        // También resolvemos asignaciones event-scoped: un moderador operativo puede
-        // conservar ATTENDEE como rol global y aun así administrar sus eventos asignados.
-        conferences.value = await getConferences(token)
-        if (isEventManager.value || conferences.value.length > 0) {
-          isEventManager.value = true
-          void loadSummary(token)
-          return
-        }
-      } catch (e: any) {
-        console.error('Error cargando conferencias', e)
-      } finally {
-        loading.value = false
-      }
-      try {
-        history.value = await getConferenceHistory(token)
-      } catch (e: any) {
-        console.error('Error cargando historial', e)
-      } finally {
-        loadingHistory.value = false
-      }
+      await Promise.all([
+        (async () => {
+          try {
+            // También resolvemos asignaciones event-scoped: un moderador operativo puede
+            // conservar ATTENDEE como rol global y aun así administrar sus eventos asignados.
+            conferences.value = await getConferences(token)
+            if (conferences.value.length > 0) isEventManager.value = true
+          } catch (e: any) {
+            console.error('Error cargando conferencias', e)
+          } finally {
+            loading.value = false
+          }
+        })(),
+        (async () => {
+          try {
+            history.value = await getConferenceHistory(token)
+          } catch (e: any) {
+            console.error('Error cargando historial', e)
+          } finally {
+            loadingHistory.value = false
+          }
+        })()
+      ])
+
+      if (showManagerDashboard.value) void loadSummary(token)
     })
 
     function formatDate(iso: string | null | undefined) {
@@ -181,7 +214,7 @@ export default {
     }
 
     return {
-      conferences, loading, isEventManager, history, loadingHistory,
+      conferences, loading, showManagerDashboard, history, attendeeHistory, loadingHistory,
       summary, summaryLoading, eventStats, formatDate, organizerTourSteps, jaasUsage
     }
   }
