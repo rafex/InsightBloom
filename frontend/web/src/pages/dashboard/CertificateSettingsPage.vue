@@ -8,6 +8,7 @@
   template(v-else)
     .layout
       .form-col
+        SaveState(:state="saveState")
         .form-group
           label Logotipo (opcional)
           input(type="file" accept="image/png,image/jpeg" @change="onLogoChange")
@@ -46,7 +47,7 @@
 
         FeedbackMessage(v-if="error" :message="error" tone="error")
         FeedbackMessage(v-if="success" message="¡Configuración guardada!" tone="success")
-        BaseButton(:loading="saving" @click="save") Guardar configuración
+        BaseButton(:loading="saving" :disabled="saving || saveState === 'clean' || saveState === 'saved'" @click="save") Guardar configuración
 
       .preview-col
         h3 Vista previa
@@ -69,12 +70,13 @@ import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 
 const FONT_MAP: Record<string, string> = { HELVETICA: 'Helvetica, Arial, sans-serif', TIMES_ROMAN: '"Times New Roman", serif', COURIER: '"Courier New", monospace' }
 
 export default {
   name: 'CertificateSettingsPage',
-  components: { BaseButton, FeedbackMessage, LoadingState },
+  components: { BaseButton, FeedbackMessage, LoadingState, SaveState },
   props: { conferenceId: { type: String, required: false } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -82,6 +84,7 @@ export default {
     const saving = ref(false)
     const error = ref('')
     const success = ref(false)
+    const initialForm = ref('')
     const form = ref({
       logoBase64: '', fontFamily: 'HELVETICA', titleFontSize: 28, bodyFontSize: 14,
       primaryColorHex: '#1e1b4b', showVenue: true, showSchedule: true, showIssuedDate: true
@@ -89,6 +92,12 @@ export default {
     const isEvent = computed(() => Boolean(props.conferenceId))
 
     const previewFontFamily = computed(() => FONT_MAP[form.value.fontFamily] || FONT_MAP.HELVETICA)
+    const saveState = computed(() => {
+      if (saving.value) return 'saving'
+      if (JSON.stringify(form.value) !== initialForm.value) return 'dirty'
+      if (success.value) return 'saved'
+      return 'clean'
+    })
 
     onMounted(async () => {
       try {
@@ -96,6 +105,7 @@ export default {
           ? await getEventLegacyCertificateSettings(props.conferenceId, auth.state.token as string)
           : await getCertificateSettings(auth.state.token as string)
         form.value = { ...form.value, ...settings, logoBase64: settings.logoBase64 || '' }
+        initialForm.value = JSON.stringify(form.value)
       } catch (e: any) {
         error.value = 'No se pudo cargar la configuración.'
       } finally {
@@ -121,6 +131,7 @@ export default {
         } else {
           await saveCertificateSettings(form.value, auth.state.token as string)
         }
+        initialForm.value = JSON.stringify(form.value)
         success.value = true
       } catch (e: any) {
         error.value = 'No se pudo guardar la configuración.'
@@ -129,7 +140,7 @@ export default {
       }
     }
 
-    return { loading, saving, error, success, form, isEvent, previewFontFamily, onLogoChange, save }
+    return { loading, saving, error, success, form, isEvent, previewFontFamily, saveState, onLogoChange, save }
   }
 }
 </script>
