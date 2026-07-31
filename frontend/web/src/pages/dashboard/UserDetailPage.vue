@@ -25,7 +25,7 @@
           dt Teléfono
           dd {{ user.phone || '—' }}
           dt Rol
-          dd {{ user.roles || '—' }}
+          dd {{ formatRoleList(user.roles) || '—' }}
           dt Última conexión
           dd {{ user.lastLoginAt ? formatDate(user.lastLoginAt) : 'Nunca' }}
 
@@ -66,6 +66,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import { formatStatusLabel } from '@/utils/status'
+import { formatRoleList } from '@/utils/roles'
 
 export default {
   name: 'UserDetailPage',
@@ -124,7 +125,7 @@ export default {
       { label: user.value?.displayName || user.value?.username || '', loading: loading.value }
     ])
 
-    return { user, loading, error, reservations, loadingReservations, reservationsError, surveyStatus, formatDate, formatStatusLabel, breadcrumbItems }
+    return { user, loading, error, reservations, loadingReservations, reservationsError, surveyStatus, formatDate, formatStatusLabel, formatRoleList, breadcrumbItems }
   }
 }
 </script>

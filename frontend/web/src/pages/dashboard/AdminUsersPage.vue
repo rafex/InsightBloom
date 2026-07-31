@@ -17,7 +17,7 @@
       span Rol
       select(v-model="roleFilter" @change="reload")
         option(value="") Todos los roles
-        option(v-for="r in availableRoles" :key="r" :value="r") {{ r }}
+        option(v-for="r in availableRoles" :key="r" :value="r") {{ formatRoleLabel(r) }}
     BaseButton(variant="secondary" size="sm" type="button" @click="toggleSort")
       | Orden alfabético {{ sort === 'username' ? '✓' : '' }}
 
@@ -50,7 +50,7 @@
               .roles-editor
                 label(v-for="r in availableRoles" :key="r")
                   input(type="checkbox" :value="r" v-model="editForm.roles")
-                  span {{ r }}
+                  span {{ formatRoleLabel(r) }}
               .actions-row
                 BaseButton(size="sm" :loading="saving" @click="saveEdit(u)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
@@ -88,6 +88,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import { formatStatusLabel } from '@/utils/status'
+import { formatRoleLabel } from '@/utils/roles'
 
 type ConfirmActionType = 'ban' | 'unban' | 'delete'
 
@@ -214,7 +215,7 @@ export default {
     onMounted(load)
 
     return {
-      users, loading, error, page, totalPages, statusFilter, roleFilter, sort, availableRoles,
+      users, loading, error, page, totalPages, statusFilter, roleFilter, sort, availableRoles, formatRoleLabel,
       editing, editForm, saving,
       confirmTarget, confirmTitle, confirmMessage,
       confirmAction_,
