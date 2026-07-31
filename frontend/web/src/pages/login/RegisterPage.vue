@@ -5,7 +5,7 @@
     .register-card
       template(v-if="step === 'form'")
         h2 Crear cuenta
-        p.hint Necesitas correo o teléfono (al menos uno) para verificar tu identidad
+        p.page-hint Necesitas correo o teléfono (al menos uno) para verificar tu identidad
         FormField(label="Nombre de usuario")
           template(#default="{ id, describedBy }")
             input(:id="id" :aria-describedby="describedBy" v-model="form.displayName" placeholder="Tu nombre de usuario")
@@ -40,7 +40,7 @@
 
       template(v-else-if="step === 'verify'")
         h2 Verifica tu cuenta
-        p.hint Enviamos un código a {{ verifyChannel === 'EMAIL' ? form.email : form.phone }}
+        p.page-hint Enviamos un código a {{ verifyChannel === 'EMAIL' ? form.email : form.phone }}
         FormField(label="Código de verificación")
           template(#default="{ id, describedBy }")
             input(:id="id" :aria-describedby="describedBy" v-model="code" placeholder="123456" maxlength="6" @keyup.enter="submitVerify")
@@ -50,7 +50,7 @@
 
       template(v-else-if="step === 'done'")
         h2 ¡Cuenta verificada! 🎉
-        p.hint Ya puedes participar en las conferencias.
+        p.page-hint Ya puedes participar en las conferencias.
         BaseLink(to="/") Ir al inicio
 </template>
 
@@ -170,7 +170,6 @@ export default {
 .register-main { display: flex; justify-content: center; padding: 60px 24px; }
 .register-card { background: var(--color-surface); border-radius: 16px; padding: 40px; box-shadow: var(--shadow-card); max-width: 460px; width: 100%; }
 h2 { margin: 0 0 8px; color: var(--color-heading); }
-.hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; }
 .register-hint { text-align: center; margin: 8px 0 0; font-size: 0.85rem; color: var(--color-text-muted); }
 .register-hint a { color: var(--color-primary); font-weight: 600; text-decoration: none; }
 .register-hint a:hover { text-decoration: underline; }

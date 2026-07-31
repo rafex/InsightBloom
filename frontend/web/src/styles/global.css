@@ -240,6 +240,7 @@ input:disabled, select:disabled, textarea:disabled {
 /* Estados de carga y ayudas de formulario compartidos por pantallas autenticadas. */
 .loading-text { color: var(--color-text-muted); }
 .field-hint { margin: 4px 0 0; color: var(--color-text-muted); font-size: 0.8rem; }
+.page-hint { margin-bottom: 24px; color: var(--color-text-muted); font-size: 0.85rem; }
 
 .ui-icon {
   display: inline-block;

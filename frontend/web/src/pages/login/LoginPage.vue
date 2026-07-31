@@ -9,7 +9,7 @@
         button.mode-tab(type="button" :class="{ active: mode === 'otp' }" @click="switchMode('otp')") Código por correo
 
       template(v-if="mode === 'password'")
-        p.hint Inicia sesión con tu correo electrónico verificado
+        p.page-hint Inicia sesión con tu correo electrónico verificado
         FormField(label="Correo electrónico")
           template(#default="{ id, describedBy }")
             input(:id="id" :aria-describedby="describedBy" v-model="username" type="email" autocomplete="username" placeholder="tu@correo.com" @keyup.enter="doLogin")
@@ -22,7 +22,7 @@
 
       template(v-else)
         template(v-if="otpStep === 'request'")
-          p.hint Te mandamos un código de 6 dígitos a tu correo registrado. Válido solo para cuentas que activaron este método en su perfil.
+          p.page-hint Te mandamos un código de 6 dígitos a tu correo registrado. Válido solo para cuentas que activaron este método en su perfil.
           FormField(label="Correo electrónico o usuario")
             template(#default="{ id, describedBy }")
               input(:id="id" :aria-describedby="describedBy" v-model="otpIdentifier" type="text" autocomplete="username" placeholder="tu@correo.com" @keyup.enter="doRequestOtp")
@@ -30,7 +30,7 @@
           .login-actions
             BaseButton(size="lg" @click="doRequestOtp" :disabled="loading" :loading="loading") Enviar código
         template(v-else)
-          p.hint Ingresá el código de 6 dígitos que te llegó a tu correo. Vence en 10 minutos.
+          p.page-hint Ingresá el código de 6 dígitos que te llegó a tu correo. Vence en 10 minutos.
           FormField(label="Código")
             template(#default="{ id, describedBy }")
               input(:id="id" :aria-describedby="describedBy" v-model="otpCode" type="text" inputmode="numeric" maxlength="6" placeholder="123456" @keyup.enter="doVerifyOtp")
@@ -173,7 +173,6 @@ h2 { margin: 0 0 8px; color: var(--color-heading); }
 }
 .mode-tab:hover { color: var(--color-primary); }
 .mode-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
-.hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 24px; }
 .login-actions { display: flex; justify-content: center; margin-top: var(--space-2); }
 .guest-block { margin-top: 14px; text-align: center; }
 .divider { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 10px; }
