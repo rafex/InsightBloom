@@ -44,6 +44,7 @@
             StatusBadge(:status="u.status" :label="formatStatusLabel(u.status)")
           td.actions(data-label="Acciones")
             template(v-if="editing === u.uuid")
+              SaveState(:state="editSaveState")
               input(v-model="editForm.displayName" placeholder="Nombre visible")
               input(v-model="editForm.email" placeholder="Email")
               input(v-model="editForm.phone" placeholder="Teléfono")
@@ -52,7 +53,7 @@
                   input(type="checkbox" :value="r" v-model="editForm.roles")
                   span {{ formatRoleLabel(r) }}
               .actions-row
-                BaseButton(size="sm" :loading="saving" @click="saveEdit(u)") Guardar
+                BaseButton(size="sm" :loading="saving" :disabled="saving || editSaveState === 'clean'" @click="saveEdit(u)") Guardar
                 BaseButton(variant="ghost" size="sm" @click="editing = null") Cancelar
             template(v-else)
               BaseButton(variant="secondary" size="sm" @click="startEdit(u)") Editar
@@ -69,6 +70,8 @@
     v-if="confirmTarget"
     :title="confirmTitle"
     :confirm-variant="confirmAction_ === 'delete' ? 'danger' : 'primary'"
+    :loading="actionLoading"
+    :persistent="actionLoading"
     @close="confirmTarget = null"
     @confirm="runConfirmedAction"
   )
@@ -87,6 +90,7 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 import { formatStatusLabel } from '@/utils/status'
 import { formatRoleLabel } from '@/utils/roles'
 
@@ -105,7 +109,7 @@ interface AdminUserRow {
 
 export default {
   name: 'AdminUsersPage',
-  components: { DashboardBreadcrumb, BaseButton, BaseModal, StatusBadge, EmptyState, FeedbackMessage, LoadingState },
+  components: { DashboardBreadcrumb, BaseButton, BaseModal, StatusBadge, EmptyState, FeedbackMessage, LoadingState, SaveState },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
@@ -119,10 +123,26 @@ export default {
     const sort = ref<'' | 'username'>('')
     const editing = ref<string | null>(null)
     const editForm = ref<{ displayName?: string, email?: string, phone?: string, roles: string[] }>({ roles: [] })
+    const initialEditSnapshot = ref('')
     const saving = ref(false)
+    const actionLoading = ref(false)
     const confirmTarget = ref<AdminUserRow | null>(null)
     const confirmAction_ = ref<ConfirmActionType | null>(null)
     const availableRoles = ['ATTENDEE', 'GUEST', 'MODERATOR', 'ORGANIZER', 'ADMIN']
+
+    function editSnapshot(): string {
+      return JSON.stringify({
+        displayName: editForm.value.displayName || '',
+        email: editForm.value.email || '',
+        phone: editForm.value.phone || '',
+        roles: editForm.value.roles
+      })
+    }
+
+    const editSaveState = computed(() => {
+      if (saving.value) return 'saving'
+      return editSnapshot() === initialEditSnapshot.value ? 'clean' : 'dirty'
+    })
 
     async function load() {
       loading.value = true
@@ -159,6 +179,7 @@ export default {
         phone: u.phone || '',
         roles: (u.roles || '').split(',').map((r) => r.trim()).filter(Boolean)
       }
+      initialEditSnapshot.value = editSnapshot()
     }
 
     async function saveEdit(u: AdminUserRow) {
@@ -168,6 +189,7 @@ export default {
         const payload = { ...editForm.value, roles: editForm.value.roles.join(',') }
         const updated = await updateUser(u.uuid, payload, auth.state.token as string)
         Object.assign(u, updated)
+        initialEditSnapshot.value = editSnapshot()
         editing.value = null
       } catch (e: any) {
         error.value = 'No fue posible guardar los cambios del usuario. Inténtalo nuevamente.'
@@ -198,17 +220,22 @@ export default {
     }
 
     async function runConfirmedAction() {
+      if (actionLoading.value) return
       const u = confirmTarget.value
       const action = confirmAction_.value
-      confirmTarget.value = null
       if (!u || !action) return
       const fn = { ban: banUser, unban: unbanUser, delete: deleteUserLogical }[action]
+      actionLoading.value = true
       try {
         error.value = ''
         const updated = await fn(u.uuid, auth.state.token as string)
         Object.assign(u, updated)
       } catch (e: any) {
         error.value = 'No fue posible actualizar el estado del usuario. Inténtalo nuevamente.'
+      } finally {
+        actionLoading.value = false
+        confirmTarget.value = null
+        confirmAction_.value = null
       }
     }
 
@@ -216,7 +243,7 @@ export default {
 
     return {
       users, loading, error, page, totalPages, statusFilter, roleFilter, sort, availableRoles, formatRoleLabel,
-      editing, editForm, saving,
+      editing, editForm, saving, editSaveState, actionLoading,
       confirmTarget, confirmTitle, confirmMessage,
       confirmAction_,
       reload, toggleSort, goToPage, goToDetail, formatStatusLabel, startEdit, saveEdit, confirmAction, runConfirmedAction
