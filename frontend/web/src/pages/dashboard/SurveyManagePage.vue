@@ -3,8 +3,9 @@
   DashboardBreadcrumb(:items="breadcrumbItems")
   ConferenceToolsNav(:conferenceId="conferenceId")
   h2 Encuesta de la conferencia
+  LoadingState(v-if="loading" message="Cargando configuración de encuesta…")
 
-  .engine-card
+  .engine-card(v-if="!loading")
     h3 Motor de encuesta
     p.engine-help El motor se elige una sola vez para este evento. SurveyJS usa la librería Form Library; la autoría se controla desde esta pantalla.
     .engine-row(v-if="!engine")
@@ -15,12 +16,12 @@
     p.engine-current(v-else) Motor activo: <strong>{{ engine === 'SURVEYJS' ? 'SurveyJS Form Library' : 'Nativo de InsightBloom' }}</strong>
     p.ai-shared La sugerencia de preguntas con IA sigue disponible para ambos motores.
 
-  nav.tabs(v-if="engine")
+  nav.tabs(v-if="engine && !loading")
     button.tab-btn(type="button" :class="{ active: activeTab === 'create' }" @click="activeTab = 'create'") ➕ Crear
     button.tab-btn(type="button" :class="{ active: activeTab === 'results' }" @click="activeTab = 'results'") 📊 Resultados
     button.tab-btn(type="button" :class="{ active: activeTab === 'release' }" @click="activeTab = 'release'") 🔓 Liberar
 
-  .surveyjs-editor(v-if="engine === 'SURVEYJS'" v-show="activeTab === 'create'")
+  .surveyjs-editor(v-if="engine === 'SURVEYJS' && !loading" v-show="activeTab === 'create'")
     h3 Editor SurveyJS controlado
     SaveState(:state="surveyJsSaveState")
     p.editor-help Solo se guardan tipos compatibles con SurveyJS Form Library. No se incluye Survey Creator ni componentes comerciales.
@@ -78,14 +79,14 @@
       h3 Vista previa
       SurveyComponent(:model="surveyPreviewModel")
 
-  .surveyjs-results(v-if="engine === 'SURVEYJS'" v-show="activeTab === 'results'")
+  .surveyjs-results(v-if="engine === 'SURVEYJS' && !loading" v-show="activeTab === 'results'")
     h3 Respuestas recibidas
     .surveyjs-submission(v-for="submission in surveyJsSubmissions" :key="submission.uuid")
       strong {{ submission.submittedAt }}
       pre {{ JSON.stringify(submission.data, null, 2) }}
     p.no-responses(v-if="!surveyJsSubmissions.length") Sin respuestas todavía
 
-  .access-card(v-show="activeTab === 'release'")
+  .access-card(v-if="!loading" v-show="activeTab === 'release'")
     h3 Liberar encuesta
     p.access-help La encuesta permanece bloqueada hasta que el moderador la libere. Puedes abrirla para todos los asistentes registrados o solo para los seleccionados.
     StatusBadge.access-state(
@@ -113,7 +114,7 @@
     EmptyState(v-else message="Aún no hay asistentes registrados en el evento.")
     FeedbackMessage.form-feedback(v-if="accessError" :message="accessError" tone="error")
 
-  .add-card(v-if="engine === 'NATIVE'" v-show="activeTab === 'create'")
+  .add-card(v-if="engine === 'NATIVE' && !loading" v-show="activeTab === 'create'")
     h3 {{ editingId ? 'Editar pregunta' : 'Agregar pregunta' }}
     SaveState(:state="nativeSaveState")
     .ai-suggest-row(v-if="!editingId")
@@ -206,7 +207,7 @@
       BaseButton(:disabled="!form.text || saving || nativeSaveState === 'clean'" @click="save") {{ saving ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Agregar') }}
       BaseButton(variant="ghost" size="sm" v-if="editingId" type="button" @click="cancelEdit") Cancelar
 
-  .questions-card(v-if="engine === 'NATIVE' && questions.length" v-show="activeTab === 'create'")
+  .questions-card(v-if="engine === 'NATIVE' && questions.length && !loading" v-show="activeTab === 'create'")
     h3 Preguntas activas
     .question-item(v-for="q in questions" :key="q.uuid" :class="{ editing: editingId === q.uuid }")
       .question-item-header
@@ -228,7 +229,7 @@
         BaseButton(variant="danger" size="sm" type="button" @click="confirmDelete(q)") 🗑 Eliminar
 
   BaseModal(
-    v-if="engine === 'NATIVE' && deleteTarget"
+    v-if="engine === 'NATIVE' && deleteTarget && !loading"
     title="¿Eliminar pregunta?"
     confirm-label="Eliminar"
     confirm-variant="danger"
@@ -238,7 +239,7 @@
     p Esto quitará <strong>"{{ deleteTarget.text }}"</strong> de la encuesta de forma permanente. Las respuestas ya recibidas se conservan en los resultados.
 
   BaseModal(
-    v-if="engine === 'NATIVE' && purgeTarget"
+    v-if="engine === 'NATIVE' && purgeTarget && !loading"
     title="¿Purgar respuestas?"
     confirm-label="Purgar"
     confirm-variant="danger"
@@ -247,7 +248,7 @@
   )
     p Esto eliminará permanentemente las <strong>{{ purgeTarget.responseCount }} respuestas</strong> recibidas para "{{ purgeTarget.text }}". La pregunta se conserva, solo se borran las respuestas.
 
-  .results-card(v-if="engine === 'NATIVE' && results.length" v-show="activeTab === 'results'")
+  .results-card(v-if="engine === 'NATIVE' && results.length && !loading" v-show="activeTab === 'results'")
     h3 Resultados
 
     .grading-toolbar(v-if="gradeableQuestions.length")
@@ -408,6 +409,7 @@ export default {
     const surveyJsError = ref('')
     const surveyJsSubmissions = ref<any[]>([])
     const activeTab = ref('create')
+    const loading = ref(true)
     const questions = ref<SurveyQuestionRow[]>([])
     const results = ref<SurveyResult[]>([])
     const saving = ref(false)
@@ -921,7 +923,9 @@ export default {
       await load()
     }
 
-    onMounted(load)
+    onMounted(async () => {
+      try { await load() } finally { loading.value = false }
+    })
     onMounted(async () => {
       if (!props.conferenceId) return
       try {
@@ -937,7 +941,7 @@ export default {
     ])
 
     return {
-      activeTab, questions, results, saving, nativeSaveState, suggesting, suggestError, suggestions, form, editingId,
+      activeTab, loading, questions, results, saving, nativeSaveState, suggesting, suggestError, suggestions, form, editingId,
       engine, selectedEngine, engineSaving, chooseEngine, surveyJsTitle, surveyJsType, surveyJsQuestion,
       surveyJsChoices, surveyJsRequired, surveyJsSaving, surveyJsSaveState, surveyJsError, surveyJsSubmissions,
       surveyElements, surveyPreviewModel, addSurveyElement, removeSurveyElement, moveSurveyElement, toggleSurveyElementRequired, saveSurveyJs,
