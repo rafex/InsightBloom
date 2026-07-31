@@ -27,8 +27,8 @@
       input.source-input(v-model="sourceUrl" type="url" placeholder="https://github.com/usuario/repo")
       p.field-hint Si la agregas, la audiencia verá un botón para ir al sitio de origen de la presentación.
     BaseButton(:disabled="!file || uploading" @click="upload") {{ uploading ? 'Procesando (puede tardar)...' : 'Subir y generar' }}
-    p.upload-error(v-if="error") {{ error }}
-    p.upload-success(v-if="success") ¡Presentación generada correctamente!
+    FeedbackMessage(v-if="error" :message="error" tone="error")
+    FeedbackMessage(v-if="success" message="¡Presentación generada correctamente!" tone="success")
 </template>
 
 <script lang="ts">
@@ -42,10 +42,11 @@ import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 
 export default {
   name: 'PresentationManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseAnchor, BaseButton },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseAnchor, BaseButton, FeedbackMessage },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -176,8 +177,6 @@ input[type="file"] { display: block; margin-bottom: 12px; }
 .source-input:focus { outline: none; border-color: var(--color-primary); }
 .field-hint { margin: 6px 0 0; font-size: 0.8rem; }
 .preview-actions { margin-top: 8px; }
-.upload-error { color: var(--color-danger); margin-top: 10px; }
-.upload-success { color: var(--color-success); margin-top: 10px; }
 
 @media (max-width: 480px) {
   .presentation-manage-page { padding: 14px; }
