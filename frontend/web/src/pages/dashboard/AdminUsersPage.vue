@@ -41,7 +41,7 @@
             strong {{ u.displayName || u.username }}
             .sub {{ u.username }}
           td(data-label="Estado")
-            StatusBadge(:status="u.status" :label="statusLabel(u.status)")
+            StatusBadge(:status="u.status" :label="formatStatusLabel(u.status)")
           td.actions(data-label="Acciones")
             template(v-if="editing === u.uuid")
               input(v-model="editForm.displayName" placeholder="Nombre visible")
@@ -87,6 +87,7 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import { formatStatusLabel } from '@/utils/status'
 
 type ConfirmActionType = 'ban' | 'unban' | 'delete'
 
@@ -148,10 +149,6 @@ export default {
     function goToPage(p: number) { page.value = p; load() }
 
     function goToDetail(u: AdminUserRow) { router.push(`/dashboard/admin/users/${u.uuid}`) }
-
-    function statusLabel(s: string): string {
-      return ({ ACTIVE: 'Activo', BANNED: 'Baneado', DELETED: 'Eliminado', INACTIVE: 'Inactivo' } as Record<string, string>)[s] || s
-    }
 
     function startEdit(u: AdminUserRow) {
       editing.value = u.uuid
@@ -221,7 +218,7 @@ export default {
       editing, editForm, saving,
       confirmTarget, confirmTitle, confirmMessage,
       confirmAction_,
-      reload, toggleSort, goToPage, goToDetail, statusLabel, startEdit, saveEdit, confirmAction, runConfirmedAction
+      reload, toggleSort, goToPage, goToDetail, formatStatusLabel, startEdit, saveEdit, confirmAction, runConfirmedAction
     }
   }
 }

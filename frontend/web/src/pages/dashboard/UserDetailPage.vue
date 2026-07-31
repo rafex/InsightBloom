@@ -8,7 +8,7 @@
   template(v-else-if="user")
     .header
       h2 {{ user.displayName || user.username }}
-      StatusBadge(:status="user.status" :label="statusLabel(user.status)")
+      StatusBadge(:status="user.status" :label="formatStatusLabel(user.status)")
 
     .detail-grid
       .detail-card
@@ -81,10 +81,6 @@ export default {
     const reservationsError = ref('')
     const surveyStatus = ref<Record<string, boolean>>({})
 
-    function statusLabel(s: string): string {
-      return ({ ACTIVE: 'Activo', BANNED: 'Baneado', DELETED: 'Eliminado', INACTIVE: 'Inactivo' } as Record<string, string>)[s] || s
-    }
-
     function formatDate(iso: string): string {
       return new Date(iso).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     }
@@ -128,7 +124,7 @@ export default {
       { label: user.value?.displayName || user.value?.username || '', loading: loading.value }
     ])
 
-    return { user, loading, error, reservations, loadingReservations, reservationsError, surveyStatus, statusLabel, formatDate, formatStatusLabel, breadcrumbItems }
+    return { user, loading, error, reservations, loadingReservations, reservationsError, surveyStatus, formatDate, formatStatusLabel, breadcrumbItems }
   }
 }
 </script>
