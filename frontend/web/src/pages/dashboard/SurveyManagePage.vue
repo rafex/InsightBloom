@@ -87,7 +87,11 @@
   .access-card(v-show="activeTab === 'release'")
     h3 Liberar encuesta
     p.access-help La encuesta permanece bloqueada hasta que el moderador la libere. Puedes abrirla para todos los asistentes registrados o solo para los seleccionados.
-    .access-state(:class="{ released: releasedForAll }") {{ releasedForAll ? 'Liberada para todos los asistentes, incluidos los que se registren después.' : 'Bloqueada para los asistentes.' }}
+    StatusBadge.access-state(
+      :status="releasedForAll ? 'ACTIVE' : 'INACTIVE'"
+      :label="releasedForAll ? 'Liberada para todos' : 'Bloqueada'"
+    )
+    p.access-state-help {{ releasedForAll ? 'Los asistentes actuales y los que se registren después pueden responder.' : 'El moderador debe liberarla para permitir respuestas.' }}
     .access-actions
       BaseButton(type="button" :disabled="releaseSaving || releasedForAll" @click="releaseAll") 🔓 Liberar para todos
       BaseButton(variant="secondary" type="button" :disabled="releaseSaving || !selectedAttendees.length" @click="releaseSelected") 🔓 Liberar seleccionados ({{ selectedAttendees.length }})
@@ -101,8 +105,10 @@
         .attendee-info
           strong {{ attendee.displayName || 'Sin nombre' }}
           span {{ attendee.email || attendee.uuid }}
-        span.attendee-status(:class="{ released: attendee.released, responded: attendee.responded }")
-          | {{ attendee.responded ? 'Respondida' : attendee.released ? 'Liberada' : 'Bloqueada' }}
+        StatusBadge(
+          :status="attendee.responded ? 'VISIBLE' : attendee.released ? 'ACTIVE' : 'INACTIVE'"
+          :label="attendee.responded ? 'Respondida' : attendee.released ? 'Liberada' : 'Bloqueada'"
+        )
     EmptyState(v-else message="Aún no hay asistentes registrados en el evento.")
     FeedbackMessage.form-feedback(v-if="accessError" :message="accessError" tone="error")
 
@@ -303,6 +309,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, getSurveyAccessManagement, releaseSurveyAccess, type SurveyEngine, type SurveyAttendee } from '@/services/api/surveyApi'
 import { getConference } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -379,7 +386,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, BaseModal, EmptyState, FeedbackMessage },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, BaseModal, EmptyState, FeedbackMessage, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -917,8 +924,8 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
   background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; margin-bottom: 20px;
 }
 .access-help { color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.45; }
-.access-state { display: inline-block; padding: 6px 10px; border-radius: 999px; background: var(--color-warning-soft); color: var(--color-warning); font-size: 0.82rem; margin: 4px 0 14px; }
-.access-state.released { background: var(--color-success-soft); color: var(--color-success); }
+.access-state { margin: 4px 0 6px; }
+.access-state-help { color: var(--color-text-muted); font-size: 0.82rem; margin: 0 0 14px; }
 .access-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
 .attendee-list { border-top: 1px solid var(--color-surface-muted); }
 .attendee-header, .attendee-row {
@@ -941,9 +948,6 @@ h2 { color: var(--color-heading); margin-bottom: 20px; }
 .attendee-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .attendee-info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attendee-info span { color: var(--color-text-muted); font-size: 0.78rem; overflow-wrap: anywhere; word-break: break-word; line-height: 1.3; }
-.attendee-status { justify-self: end; color: var(--color-warning); font-size: 0.78rem; white-space: nowrap; text-align: right; }
-.attendee-status.released { color: var(--color-success); }
-.attendee-status.responded { color: var(--color-info); }
 .engine-help, .editor-help, .ai-shared { color: var(--color-text-muted); font-size: 0.85rem; line-height: 1.45; }
 .engine-row, .surveyjs-add-row, .surveyjs-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .engine-row select { flex: 1; min-width: 220px; margin-bottom: 0; }
