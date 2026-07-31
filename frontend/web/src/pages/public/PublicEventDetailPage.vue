@@ -6,8 +6,12 @@
       .detail-hero(:class="{ reverse: event.scheduleLayout === 'LEFT' }")
         .detail-copy
           .badges
-            span.badge {{ event.visibility === 'HYBRID' ? 'Evento híbrido' : 'Evento público' }}
-            span.badge.badge-ticket(v-if="event.ticketRequired") 🎟️ Boleto requerido
+            StatusBadge.event-badge(
+              :status="event.visibility === 'HYBRID' ? 'HYBRID' : 'PUBLIC'"
+              :label="event.visibility === 'HYBRID' ? 'Evento híbrido' : 'Evento público'"
+              tone="info"
+            )
+            StatusBadge.event-badge(v-if="event.ticketRequired" status="TICKET_REQUIRED" label="🎟️ Boleto requerido" tone="warning")
           h1 {{ event.name }}
           .organizer-card
             img.organizer-avatar(v-if="event.organizerPhotoBase64" :src="event.organizerPhotoBase64" alt="")
@@ -95,7 +99,7 @@ export default {
 .detail-copy { background: var(--color-surface); padding: 28px; border-radius: 18px; box-shadow: var(--shadow-card); }
 h1 { color: var(--color-heading); font-size: clamp(2rem, 5vw, 3.4rem); margin: 12px 0 8px; }.organizer-card { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }.organizer-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }.organizer-copy { display: flex; flex-direction: column; gap: 2px; }.organizer-label { color: var(--color-text-muted); font-size: .78rem; }.organizer { color: var(--color-text-muted); font-weight: 700; }
 .description { color: var(--color-text-secondary); line-height: 1.65; white-space: pre-wrap; }.detail-flyer { width: 100%; max-height: 440px; object-fit: cover; border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }.placeholder { display: grid; place-items: center; min-height: 300px; background: var(--color-primary-soft); font-size: 5rem; }
-.badges { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }.badge { display: inline-flex; align-items: center; justify-content: center; min-height: 28px; box-sizing: border-box; border-radius: 999px; padding: 5px 10px; background: var(--color-primary-soft); color: var(--color-primary-dark); font-size: .8rem; font-weight: 700; line-height: 1.2; }.badge-ticket { background: var(--color-warning-soft); color: var(--color-warning); }
+.badges { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }.event-badge { min-height: 28px; box-sizing: border-box; border-radius: 999px; padding: 5px 10px; font-size: .8rem; font-weight: 700; line-height: 1.2; }
 .event-facts { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin: 22px 0; }.event-facts dt { color: var(--color-text-muted); font-weight: 700; }.event-facts dd { margin: 0; color: var(--color-text-secondary); }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; }.action-message { color: var(--color-success); }.action-error { color: var(--color-danger-dark); }
 .schedule, .map-section { margin-top: 28px; background: var(--color-surface); padding: 28px; border-radius: 18px; }.schedule h2, .map-section h2 { color: var(--color-heading); }.markdown-body :deep(h2) { color: var(--color-warning); border-bottom: 2px dotted var(--color-border); padding-bottom: 8px; }.markdown-body :deep(p) { color: var(--color-text-secondary); line-height: 1.6; }.markdown-body :deep(a) { color: var(--color-primary); }
