@@ -4,9 +4,9 @@
   h2 Check-in
 
   .scanner-wrap
-    video(ref="videoEl")
-  p.scan-hint Apunta la cámara al código QR del boleto del asistente.
-  p.scanner-status(:class="{ ready: scannerReady, error: scannerError }") {{ scannerStatus }}
+    video(ref="videoEl" aria-label="Vista previa de la cámara para escanear el código QR" aria-describedby="scan-hint")
+  p#scan-hint.scan-hint Apunta la cámara al código QR del boleto del asistente.
+  p.scanner-status(role="status" aria-live="polite" :class="{ ready: scannerReady, error: scannerError }") {{ scannerStatus }}
 
   .manual-checkin
     FormField(label="Si la cámara no puede leerlo, captura el UUID del boleto")
