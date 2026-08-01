@@ -13,7 +13,7 @@
           iframe.cert-preview(:src="certUrl")
           BaseAnchor(:href="certUrl" :download="certFileName") Descargar certificado (PDF)
         template(v-else-if="certError")
-          p.cert-error {{ certError }}
+          FeedbackMessage.cert-error(:message="certError" tone="error")
           BaseLink(v-if="certNeedsLogin" variant="secondary" :to="{ path: '/login', query: { redirect: $route.fullPath } }") Iniciar sesión
 
       .contact-card
@@ -534,7 +534,6 @@ textarea {
 .certificate-card h3 { margin: 0 0 8px; color: var(--color-heading); }
 .cert-hint { color: var(--color-text-muted); font-size: 0.85rem; margin: 0 0 16px; }
 .cert-loading { color: var(--color-text-muted); padding: 20px; }
-.cert-error { color: var(--color-danger); font-size: 0.9rem; }
 .cert-preview { width: 100%; height: 360px; border: 1px solid var(--color-border-subtle); border-radius: 8px; margin-bottom: 16px; }
 .contact-card {
   background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 24px; margin: 24px 0;

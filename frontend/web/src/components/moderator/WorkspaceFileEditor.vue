@@ -6,10 +6,10 @@
       button.wfe-close(type="button" @click="close" title="Cerrar" aria-label="Cerrar editor de workspace") ✕
     .wfe-body
       .wfe-sidebar
-        p.wfe-hint(v-if="loadingFiles") Cargando árbol de archivos...
-        p.wfe-error(v-if="filesError") {{ filesError }}
-        ul.wfe-file-list(v-if="!loadingFiles && !filesError")
-          li(v-if="!files.length") Sin archivos.
+        LoadingState(v-if="loadingFiles" message="Cargando árbol de archivos…")
+        FeedbackMessage(v-else-if="filesError" :message="filesError" tone="error")
+        EmptyState(v-else-if="!files.length" message="El workspace no contiene archivos.")
+        ul.wfe-file-list(v-else)
           li.wfe-file-entry(
             v-for="entry in sortedFiles"
             :key="entry.path"
@@ -23,13 +23,13 @@
         template(v-else)
           .wfe-toolbar
             span.wfe-filename {{ selectedPath }}
-            span.wfe-loading(v-if="loadingFile") Cargando...
+            LoadingState.wfe-file-loading(v-if="loadingFile" message="Cargando archivo…")
             SaveState.wfe-save-state(:state="saveState")
             BaseButton(type="button" @click="save" :disabled="savingFile || loadingFile || saveState === 'clean' || saveState === 'saved'" :loading="savingFile") Guardar
           p.wfe-conflict(v-if="conflict")
             | Este archivo cambió desde que se abrió (¿el alumno lo está editando?).
             BaseButton(variant="secondary" type="button" @click="forceSave") Guardar de todas formas
-          p.wfe-error(v-if="saveError") {{ saveError }}
+          FeedbackMessage(v-if="saveError" :message="saveError" tone="error")
           .wfe-editor(ref="editorContainer")
 </template>
 
@@ -39,6 +39,9 @@ import { listWorkspaceFiles, readWorkspaceFile, writeWorkspaceFile } from '@/ser
 import type { WorkspaceFileEntry } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import SaveState from '@/components/ui/SaveState.vue'
 
 // Extension -> id de lenguaje de Monaco. Autocompletado basico (resaltado + sugerencias por
@@ -58,7 +61,7 @@ function languageForPath(path: string): string {
 
 export default {
   name: 'WorkspaceFileEditor',
-  components: { BaseButton, SaveState },
+  components: { BaseButton, EmptyState, FeedbackMessage, LoadingState, SaveState },
   props: {
     conferenceId: { type: String, required: true },
     userUuid: { type: String, required: true }
@@ -250,13 +253,12 @@ export default {
 }
 
 .wfe-filename { font-family: var(--font-family-mono); font-size: 0.85rem; color: var(--color-text-secondary); flex: 1; }
-.wfe-loading { font-size: 0.8rem; color: var(--color-text-muted); }
+.wfe-file-loading { padding: 0; font-size: 0.8rem; color: var(--color-text-muted); }
 .wfe-save-state { margin: 0; }
 
 .wfe-editor { flex: 1; min-height: 0; }
 
 .wfe-hint { padding: 16px; color: var(--color-text-muted); font-size: 0.9rem; }
-.wfe-error { padding: 8px 16px; color: var(--color-danger-dark); font-size: 0.85rem; }
 
 .wfe-conflict {
   margin: 0; padding: 10px 16px; background: var(--color-warning-soft); color: var(--color-warning); font-size: 0.85rem;

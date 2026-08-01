@@ -25,7 +25,7 @@
           .mentor-message(v-for="(item, index) in mentorMessages" :key="index" :class="item.role")
             strong {{ item.role === 'user' ? 'Tú' : 'Tutor' }}
             p {{ item.content }}
-        p.mentor-error(v-if="mentorError") {{ mentorError }}
+        FeedbackMessage.mentor-error(v-if="mentorError" :message="mentorError" tone="error")
         template(v-if="mentorEnabled")
           label Código o selección (opcional)
           textarea(v-model="mentorCodeContext" rows="5" placeholder="Pega aquí el fragmento que quieres revisar")
@@ -39,6 +39,7 @@
 <script lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { Marked } from 'marked'
+import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import neovimBasico from '@/assets/ide-help/00-neovim-basico.md?raw'
 import helloJava from '@/assets/ide-help/10-hello-world-java.md?raw'
 import helloPython from '@/assets/ide-help/11-hello-world-python.md?raw'
@@ -89,6 +90,7 @@ const HELP_PANEL_RIGHT_MARGIN = 40
 
 export default {
   name: 'IdeHelpPanel',
+  components: { FeedbackMessage },
   props: {
     conferenceId: { type: String, default: '' },
     token: { type: String, default: '' }
@@ -406,7 +408,6 @@ export default {
 .mentor-message { padding: 10px 12px; border-radius: 9px; background: var(--color-surface-muted); white-space: pre-wrap; }
 .mentor-message.user { background: var(--color-primary-soft); }
 .mentor-message p { margin: 4px 0 0; line-height: 1.45; }
-.mentor-error { color: var(--color-danger-dark); font-size: 0.85rem; }
 .mentor-send { margin-top: 10px; width: 100%; padding: 10px 14px; border: 0; border-radius: 7px; background: var(--color-primary); color: var(--color-text-inverse); cursor: pointer; font-weight: 600; }
 .mentor-send:disabled { opacity: 0.6; cursor: wait; }
 

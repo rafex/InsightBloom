@@ -37,6 +37,10 @@
   Se migraron 65 literales de los pines SVG de mapas y de la ilustración de carga del
   sandbox a tokens globales; permanecen 8 literales intencionales en el lienzo de mapa
   y certificados.
+- [x] Extender la adopción de estados canónicos a superficies de moderación y soporte.
+  `WorkspaceFileEditor` usa `LoadingState`, `EmptyState` y `FeedbackMessage`; el tutor IA
+  y el certificado de encuesta usan `FeedbackMessage`, eliminando los mensajes de error
+  locales equivalentes.
 - [ ] Completar recorridos responsive, teclado, lector de pantalla y autenticados
   por rol.
   Avance: las pestañas de configuración del evento ya tienen semántica `tab`/`tabpanel`,
