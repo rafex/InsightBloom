@@ -1,6 +1,11 @@
-# MCP.md — SpecNative MCP Server v0.7
+# MCP.md — SpecNative MCP Server v0.9
 
-Configuración del servidor MCP para InsightBloom.
+Configuración del servidor MCP v0.9 para InsightBloom. La fuente de verdad de
+los comandos por agente es `.specnative/commands.json`; el servidor MCP y los
+adaptadores de Codex/OpenCode deben mantenerse sincronizados con ese manifiesto.
+
+La actualización incorpora tablero derivado (`board()`), captura de backlog e
+ideas, y artefactos canónicos para decisiones, arquitectura y convenciones.
 
 ## Instalación
 

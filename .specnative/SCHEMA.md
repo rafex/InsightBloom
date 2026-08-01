@@ -1,6 +1,6 @@
 # SCHEMA.md
 
-Contrato mínimo del framework SpecNative Development v0.7.
+Contrato mínimo del framework SpecNative Development v0.9.
 
 ## Objetivo
 
@@ -17,6 +17,7 @@ qué estados o campos mínimos deben existir para reducir ambigüedad.
 - `spec-native/CONVENTIONS.md`
 - `spec-native/COMMANDS.md`
 - `spec-native/DECISIONS.md`
+- `spec-native/decisions/` (índice y artefactos de decisión)
 - `spec-native/ROADMAP.md`
 - `spec-native/TRACEABILITY.md`
 - `spec-native/SESSION.md`
@@ -28,6 +29,8 @@ qué estados o campos mínimos deben existir para reducir ambigüedad.
 ## Documentos opcionales
 
 - `spec-native/tasks/<iniciativa>/TASKS.md`
+- `spec-native/intake/IDEAS.md`
+- `spec-native/backlog/README.md`
 - `spec-native/workflows/PLANNING.md`
 - `spec-native/workflows/REVIEW.md`
 - specs separadas por iniciativa en `spec-native/specs/`
@@ -37,7 +40,7 @@ qué estados o campos mínimos deben existir para reducir ambigüedad.
 
 - `SCHEMA.md` — este archivo; contrato del framework
 - `CLI.md` — referencia del CLI (`specnative.py`) y el servidor MCP
-- `MCP.md` — configuración del servidor MCP por agente (v0.5+)
+- `MCP.md` — configuración del servidor MCP por agente (v0.9)
 
 ## Ownership documental
 

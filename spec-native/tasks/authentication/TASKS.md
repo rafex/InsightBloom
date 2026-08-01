@@ -32,6 +32,7 @@ dependencies = []
 expected_files = ["src/auth/session.*"]
 close_criteria = "Existe contrato de sesion y validacion unitaria"
 validation = ["tests unitarios de creacion y expiracion"]
+completion_evidence = ["TokenServiceTest y LoginUseCaseTest cubren la creación y validación de sesiones en insightbloom-users."]
 ```
 
 Implementa el contrato base de sesion sobre el que dependen las

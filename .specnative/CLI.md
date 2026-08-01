@@ -57,6 +57,20 @@ python3 specnative.py export-traceability --output exports/traceability.json
 Genera un JSON de relaciones entre specs y tareas.
 Los archivos de salida no deben commitearse como parte de la plantilla.
 
+### Tablero derivado y exportación a GitHub Projects
+
+```bash
+python3 /path/to/SpecNative-Development/tools/specnative.py board \
+  --target /Users/rafex/repository/github/rafex/InsightBloom
+python3 /path/to/SpecNative-Development/tools/specnative.py board \
+  --target /Users/rafex/repository/github/rafex/InsightBloom --format mermaid
+```
+
+El tablero se deriva de `spec-native/tasks/**/TASKS.md`; no se edita directamente.
+Para preparar una exportación de GitHub Projects, copia
+`.specnative/integrations/github-project.toml.example` a un archivo local y usa
+`github-project plan` como dry run.
+
 ### Instalar en otro repositorio
 
 ```bash

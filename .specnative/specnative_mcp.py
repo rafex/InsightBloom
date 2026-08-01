@@ -29,7 +29,7 @@ Usage:
     SPECNATIVE_REPO=/path/to/project python3 specnative_mcp.py
 
 Requirements:
-    pip install mcp
+    pip install "mcp>=1.0,<2.0"
 """
 
 from __future__ import annotations
@@ -52,11 +52,11 @@ try:
 except ImportError:
     sys.exit(
         "mcp package not found.\n"
-        "Install with:  pip install mcp\n"
+        "Install with:  pip install \"mcp>=1.0,<2.0\"\n"
         "Then retry:    python3 specnative_mcp.py --repo /path/to/project\n"
     )
 
-VERSION = "v0.7.0"  # replaced by CI on release
+VERSION = "v0.9.0"  # replaced by CI on release
 
 # ---------------------------------------------------------------------------
 # Configuration — resolved before FastMCP initialises
@@ -173,8 +173,242 @@ def _task_state_summary(task_file: Path) -> str:
     return "  ".join(f"{s}:{n}" for s, n in sorted(counts.items()))
 
 
+def _task_records() -> list[dict[str, Any]]:
+    """Normalize task metadata for read-only backlog and board projections."""
+    records: list[dict[str, Any]] = []
+    for task_file in _find_task_files():
+        text = task_file.read_text(encoding="utf-8")
+        file_meta = _toml_loads(text)
+        initiative = file_meta.get("initiative") or task_file.parent.name
+        for section in re.split(r"(?=^###\s+)", text, flags=re.MULTILINE):
+            heading = re.search(r"^###\s+([A-Z0-9-]+)\s+-\s+(.+)$", section, re.MULTILINE)
+            if not heading:
+                continue
+            meta = _toml_loads(section)
+            if not meta:
+                continue
+            meta.setdefault("id", heading.group(1))
+            meta.setdefault("title", heading.group(2))
+            if not meta.get("id"):
+                continue
+            meta["initiative"] = initiative
+            meta["source"] = str(task_file.relative_to(REPO))
+            records.append(meta)
+    return records
+
+
+def _delivery_board() -> dict[str, list[dict[str, Any]]]:
+    columns: dict[str, list[dict[str, Any]]] = {
+        "ready": [], "in_progress": [], "blocked": [], "waiting": [], "done": []
+    }
+    tasks = _task_records()
+    by_id = {task["id"]: task for task in tasks}
+    for task in tasks:
+        state = task.get("state", "todo")
+        if state == "todo":
+            column = "ready" if all(
+                by_id.get(dep, {}).get("state") == "done"
+                for dep in task.get("dependencies", [])
+            ) else "waiting"
+        else:
+            column = state if state in columns else "waiting"
+        task["board_column"] = column
+        columns[column].append(task)
+    priority_order = {"p0": 0, "p1": 1, "p2": 2, "p3": 3}
+    for tasks_in_column in columns.values():
+        tasks_in_column.sort(key=lambda task: (priority_order.get(task.get("priority", "p2"), 99), task["id"]))
+    return columns
+
+
+def _next_identifier(prefix: str, existing_ids: list[str]) -> str:
+    numbers = [
+        int(match.group(1))
+        for identifier in existing_ids
+        if (match := re.fullmatch(re.escape(prefix) + r"-(\d{4})", identifier))
+    ]
+    return f"{prefix}-{max(numbers, default=0) + 1:04d}"
+
+
+def _task_prefix(initiative: str) -> str:
+    normalized = re.sub(r"[^A-Z0-9]+", "-", initiative.upper()).strip("-")
+    return f"TASK-{(normalized or 'WORK')[:16]}"
+
+
+def _append_intake_item(title: str, description: str, priority: str, owner: str) -> tuple[str, Path]:
+    intake_path = SN / "intake" / "IDEAS.md"
+    intake_path.parent.mkdir(parents=True, exist_ok=True)
+    existing = intake_path.read_text(encoding="utf-8") if intake_path.exists() else "# Intake\n\nIdeas pendientes de triage. No son tareas ejecutables.\n"
+    idea_id = _next_identifier("IDEA", re.findall(r"\bid\s*=\s*\"(IDEA-\d{4})\"", existing))
+    entry = f"""
+
+### {idea_id} - {title}
+
+```toml
+id = {json.dumps(idea_id, ensure_ascii=False)}
+title = {json.dumps(title, ensure_ascii=False)}
+state = "triaged"
+priority = {json.dumps(priority, ensure_ascii=False)}
+owner = {json.dumps(owner or "unassigned", ensure_ascii=False)}
+created_at = {_now_iso()!r}
+```
+
+{description.strip()}
+"""
+    intake_path.write_text(existing.rstrip() + entry + "\n", encoding="utf-8")
+    return idea_id, intake_path
+
+
+def _append_task(
+    initiative: str,
+    title: str,
+    description: str,
+    priority: str,
+    owner: str,
+    close_criteria: str,
+    validation: list[str],
+    dependencies: list[str],
+) -> tuple[str, Path]:
+    spec_path = SN / "specs" / initiative / "SPEC.md"
+    spec_meta = _toml_loads(spec_path.read_text(encoding="utf-8"))
+    task_path = SN / "tasks" / initiative / "TASKS.md"
+    existing = task_path.read_text(encoding="utf-8") if task_path.exists() else ""
+    task_id = _next_identifier(_task_prefix(initiative), [task["id"] for task in _task_records()])
+    task_owner = owner or spec_meta.get("owner") or "unassigned"
+
+    if not existing:
+        existing = f"""# TASKS.md
+
+```toml
+artifact_type = "task_file"
+initiative = {json.dumps(initiative, ensure_ascii=False)}
+spec_id = {json.dumps(spec_meta.get("id", ""), ensure_ascii=False)}
+owner = {json.dumps(task_owner, ensure_ascii=False)}
+state = "todo"
+```
+
+## Tareas
+"""
+
+    entry = f"""
+
+### {task_id} - {title}
+
+```toml
+id = {json.dumps(task_id, ensure_ascii=False)}
+title = {json.dumps(title, ensure_ascii=False)}
+state = "todo"
+priority = {json.dumps(priority, ensure_ascii=False)}
+owner = {json.dumps(task_owner, ensure_ascii=False)}
+labels = []
+dependencies = {json.dumps(dependencies, ensure_ascii=False)}
+expected_files = []
+close_criteria = {json.dumps(close_criteria, ensure_ascii=False)}
+validation = {json.dumps(validation, ensure_ascii=False)}
+```
+
+{description.strip()}
+"""
+    task_path.parent.mkdir(parents=True, exist_ok=True)
+    task_path.write_text(existing.rstrip() + entry + "\n", encoding="utf-8")
+    return task_id, task_path
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _decision_files() -> list[Path]:
+    directory = SN / "decisions"
+    return sorted(path for path in directory.glob("DEC-*.md") if path.is_file()) if directory.exists() else []
+
+
+def _context_artifact_files(directory: str, prefix: str) -> list[Path]:
+    root = SN / directory
+    return sorted(path for path in root.glob(f"{prefix}-*.md") if path.is_file()) if root.exists() else []
+
+
+def _next_artifact_id(directory: str, prefix: str) -> str:
+    numbers = []
+    for path in _context_artifact_files(directory, prefix):
+        match = re.search(rf"{re.escape(prefix)}-(\d+)", path.name)
+        if match:
+            numbers.append(int(match.group(1)))
+    return f"{prefix}-{(max(numbers) + 1) if numbers else 1:04d}"
+
+
+def _refresh_context_index(
+    directory: str,
+    prefix: str,
+    index_name: str,
+    section: str,
+    title_label: str,
+) -> None:
+    """Regenerate only an index table, preserving the human-written guidance."""
+    rows = []
+    for path in _context_artifact_files(directory, prefix):
+        meta = _toml_loads(path.read_text(encoding="utf-8"))
+        rows.append(
+            f"| [{meta.get('id', path.stem)}](./{directory}/{path.name}) | {meta.get('status', '-')} | "
+            f"{meta.get('title', '-')} | {', '.join(meta.get('tags', [])) or '-'} |"
+        )
+    table = (
+        f"| ID | Estado | {title_label} | Tags |\n"
+        "| --- | --- | --- | --- |\n"
+        + ("\n".join(rows) + "\n" if rows else "")
+    )
+    index_path = SN / index_name
+    existing = index_path.read_text(encoding="utf-8") if index_path.exists() else f"# {index_name}\n\n## {section}\n\n"
+    heading = f"## {section}"
+    if heading not in existing:
+        existing = existing.rstrip() + f"\n\n{heading}\n\n"
+    pattern = re.compile(
+        rf"(## {re.escape(section)}\s*\n\s*)\| ID \| Estado \| [^\n]+\|\n\| --- \| --- \| --- \| --- \|\n(?:\|[^\n]*\|\n)*"
+    )
+    if pattern.search(existing):
+        updated = pattern.sub(lambda match: match.group(1) + table, existing, count=1)
+    else:
+        updated = existing.rstrip() + "\n\n" + table
+    index_path.write_text(updated, encoding="utf-8")
+
+
+def _refresh_decisions_index() -> None:
+    _refresh_context_index("decisions", "DEC", "DECISIONS.md", "Decisiones", "Título")
+
+
+def _refresh_architecture_index() -> None:
+    _refresh_context_index("architecture", "ARCH", "ARCHITECTURE.md", "Componentes", "Componente")
+
+
+def _refresh_conventions_index() -> None:
+    _refresh_context_index("conventions", "CONV", "CONVENTIONS.md", "Reglas", "Regla")
+
+
+def _write_context_artifact(
+    directory: str,
+    prefix: str,
+    doctype: str,
+    title: str,
+    fields: dict[str, Any],
+    body: str,
+) -> tuple[str, Path]:
+    artifact_id = _next_artifact_id(directory, prefix)
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:48] or doctype
+    path = SN / directory / f"{artifact_id}-{slug}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "doctype": doctype,
+        "id": artifact_id,
+        "title": title,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        **fields,
+    }
+    toml_lines = [f"{key} = {json.dumps(value, ensure_ascii=False)}" for key, value in metadata.items()]
+    path.write_text(
+        "+++\n" + "\n".join(toml_lines) + f"\n+++\n\n# {artifact_id} - {title}\n\n" + body.strip() + "\n",
+        encoding="utf-8",
+    )
+    return artifact_id, path
 
 
 def _update_session(fields: dict[str, str], sections: dict[str, str]) -> None:
@@ -358,10 +592,50 @@ def validate() -> str:
         "spec-native/pipelines/README.md",
         ".specnative/SCHEMA.md",
     ]
-    missing = [r for r in required if not (REPO / r).exists()]
-    if missing:
-        return "Validation failed. Missing files:\n" + "\n".join(f"  - {m}" for m in missing)
-    return f"Validation passed. All {len(required)} required files present."
+    issues = [f"missing file: {r}" for r in required if not (REPO / r).exists()]
+    valid_spec_states = {"draft", "active", "blocked", "done", "superseded"}
+    valid_task_states = {"todo", "in_progress", "blocked", "done"}
+    spec_ids: set[str] = set()
+
+    for spec_path in _find_specs():
+        metadata = _toml_loads(spec_path.read_text(encoding="utf-8"))
+        if metadata.get("artifact_type") != "spec":
+            continue
+        spec_id = metadata.get("id")
+        if not spec_id:
+            issues.append(f"{spec_path.relative_to(REPO)}: missing spec id")
+        else:
+            spec_ids.add(spec_id)
+        if metadata.get("state") not in valid_spec_states:
+            issues.append(f"{spec_path.relative_to(REPO)}: invalid spec state")
+
+    for task_path in _find_task_files():
+        text = task_path.read_text(encoding="utf-8")
+        metadata = _toml_loads(text)
+        if metadata.get("artifact_type") != "task_file":
+            continue
+        spec_id = metadata.get("spec_id")
+        if spec_id not in spec_ids:
+            issues.append(f"{task_path.relative_to(REPO)}: spec_id does not reference an existing spec")
+        if metadata.get("state") not in valid_task_states:
+            issues.append(f"{task_path.relative_to(REPO)}: invalid task file state")
+
+        tasks = [_toml_loads(f"```toml\n{block}\n```") for block in re.findall(r"```toml\s*\n(.*?)\n```", text, re.DOTALL)][1:]
+        task_ids = {task.get("id") for task in tasks if task.get("id")}
+        for task in tasks:
+            task_id = task.get("id", "<unknown>")
+            for field in ("id", "title", "state", "owner", "close_criteria", "validation"):
+                if field not in task:
+                    issues.append(f"{task_path.relative_to(REPO)}: task {task_id} missing {field}")
+            if task.get("state") not in valid_task_states:
+                issues.append(f"{task_path.relative_to(REPO)}: task {task_id} has invalid state")
+            for dependency in task.get("dependencies", []):
+                if dependency not in task_ids:
+                    issues.append(f"{task_path.relative_to(REPO)}: task {task_id} depends on missing {dependency}")
+
+    if issues:
+        return "Validation failed:\n" + "\n".join(f"  - {issue}" for issue in issues)
+    return f"Validation passed. All {len(required)} required files and references are valid."
 
 
 @mcp.tool()
@@ -420,6 +694,108 @@ def list_tasks(initiative: str) -> str:
 
     header = f"  {'ID':<12} {'state':<14} {'owner':<16} title\n  " + "─" * 60
     return header + "\n" + "\n".join(rows)
+
+
+@mcp.tool()
+def board(format: str = "markdown") -> str:
+    """
+    Return a read-only delivery board derived from canonical task metadata.
+    A todo task is ready only when all dependencies are done. Valid formats:
+    markdown or json. Update TASKS.md through update_task(), never this view.
+    """
+    columns = _delivery_board()
+    if format == "json":
+        return json.dumps({"source_of_truth": "spec-native/tasks/**/TASKS.md", "columns": columns}, indent=2, ensure_ascii=False)
+    if format != "markdown":
+        return "Invalid format. Use 'markdown' or 'json'."
+
+    names = {
+        "ready": "Ready", "in_progress": "In progress", "blocked": "Blocked",
+        "waiting": "Waiting for dependencies", "done": "Done",
+    }
+    lines = ["# SpecNative Delivery Board", "", "> Derived view. Update task metadata, never this board."]
+    for column in ("ready", "in_progress", "blocked", "waiting", "done"):
+        lines.extend(["", f"## {names[column]} ({len(columns[column])})", ""])
+        if not columns[column]:
+            lines.append("No tasks.")
+            continue
+        lines.extend(["| Priority | Task | Initiative | Owner |", "|---|---|---|---|"])
+        for task in columns[column]:
+            lines.append(
+                f"| {task.get('priority', 'p2')} | {task['id']} - {task.get('title', '')} | "
+                f"{task['initiative']} | {task.get('owner', '-') or '-'} |"
+            )
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def capture_backlog_item(
+    title: str,
+    description: str,
+    initiative: str = "",
+    priority: str = "p2",
+    owner: str = "",
+    close_criteria: str = "",
+    validation: list[str] | None = None,
+    dependencies: list[str] | None = None,
+) -> str:
+    """
+    Capture a requested backlog item without editing a generated board.
+
+    If initiative identifies an existing spec and close_criteria plus validation
+    are supplied, creates a canonical todo task in that initiative. Otherwise,
+    records a triaged idea in spec-native/intake/IDEAS.md. Use the latter for
+    underspecified requests; refine or promote it into a spec before execution.
+    """
+    title = title.strip()
+    description = description.strip()
+    validation = validation or []
+    dependencies = dependencies or []
+    if not title or not description:
+        return "title and description are required."
+    if priority not in {"p0", "p1", "p2", "p3"}:
+        return "Invalid priority. Use p0, p1, p2, or p3."
+    if not all(isinstance(item, str) and item.strip() for item in validation + dependencies):
+        return "validation and dependencies must contain non-empty strings."
+
+    spec_path = SN / "specs" / initiative / "SPEC.md" if initiative else None
+    if spec_path and spec_path.exists():
+        spec_meta = _toml_loads(spec_path.read_text(encoding="utf-8"))
+        if not spec_meta.get("id"):
+            return (
+                "The initiative spec has no parseable TOML id. Add spec metadata before creating "
+                "an executable task, or capture this as intake without initiative."
+            )
+        if not close_criteria.strip() or not validation:
+            return (
+                "The initiative exists, but close_criteria and at least one validation are required "
+                "to create an executable task. Ask for those details, or call without initiative to capture an intake idea."
+            )
+        existing_ids = {task["id"] for task in _task_records()}
+        missing_dependencies = [dependency for dependency in dependencies if dependency not in existing_ids]
+        if missing_dependencies:
+            return f"Cannot create task: dependencies do not exist: {', '.join(missing_dependencies)}"
+        task_id, task_path = _append_task(
+            initiative=initiative,
+            title=title,
+            description=description,
+            priority=priority,
+            owner=owner,
+            close_criteria=close_criteria.strip(),
+            validation=validation,
+            dependencies=dependencies,
+        )
+        return (
+            f"Created canonical task {task_id} in {task_path.relative_to(REPO)}. "
+            "It will appear in board() as ready or waiting based on its dependencies."
+        )
+
+    idea_id, intake_path = _append_intake_item(title, description, priority, owner)
+    target = f"initiative '{initiative}' has no spec" if initiative else "no initiative was supplied"
+    return (
+        f"Captured {idea_id} in {intake_path.relative_to(REPO)} because {target}. "
+        "It is triaged intake, not an executable task; create or select a spec before promotion."
+    )
 
 
 @mcp.tool()
@@ -601,7 +977,13 @@ def checkpoint(
 
 
 @mcp.tool()
-def update_task(initiative: str, task_id: str, state: str, notes: str = "") -> str:
+def update_task(
+    initiative: str,
+    task_id: str,
+    state: str,
+    notes: str = "",
+    completion_evidence: str = "",
+) -> str:
     """
     Update the state of a task in spec-native/tasks/{initiative}/TASKS.md.
     Valid states: todo, in_progress, blocked, done.
@@ -611,10 +993,14 @@ def update_task(initiative: str, task_id: str, state: str, notes: str = "") -> s
         task_id:    Task ID to update (e.g. 'TASK-AUTH-0002')
         state:      New state: todo | in_progress | blocked | done
         notes:      Optional note appended below the task heading
+        completion_evidence: Required when state is done. Records the observed
+                             validation result, not only the planned validation.
     """
     valid_states = {"todo", "in_progress", "blocked", "done"}
     if state not in valid_states:
         return f"Invalid state '{state}'. Must be one of: {', '.join(sorted(valid_states))}"
+    if state == "done" and not completion_evidence.strip():
+        return "completion_evidence is required when moving a task to 'done'."
 
     tf = SN / "tasks" / initiative / "TASKS.md"
     if not tf.exists():
@@ -632,6 +1018,30 @@ def update_task(initiative: str, task_id: str, state: str, notes: str = "") -> s
 
     if count == 0:
         return f"Task '{task_id}' not found or has no TOML state field in spec-native/tasks/{initiative}/TASKS.md"
+
+    if state == "done":
+        evidence_value = json.dumps([completion_evidence.strip()], ensure_ascii=False)
+        task_block_pattern = re.compile(
+            r'(```toml\s*\n(?:(?!```).)*?\bid\s*=\s*"' + re.escape(task_id) +
+            r'"(?:(?!```).)*?)(```)',
+            re.DOTALL,
+        )
+
+        def add_evidence(match: re.Match[str]) -> str:
+            block = match.group(1)
+            if re.search(r'\bcompletion_evidence\s*=', block):
+                block = re.sub(
+                    r'\bcompletion_evidence\s*=\s*\[[^\]]*\]',
+                    f"completion_evidence = {evidence_value}",
+                    block,
+                )
+            else:
+                block = block.rstrip() + f"\ncompletion_evidence = {evidence_value}\n"
+            return block + match.group(2)
+
+        new_text, evidence_count = task_block_pattern.subn(add_evidence, new_text, count=1)
+        if evidence_count == 0:
+            return f"Task '{task_id}' could not record completion evidence."
 
     if notes:
         # Append note after the task heading
@@ -654,9 +1064,13 @@ def log_decision(
     context: str,
     decision: str,
     consequences: str,
+    tags: list[str] | None = None,
+    related_specs: list[str] | None = None,
+    related_tasks: list[str] | None = None,
+    related_architecture: list[str] | None = None,
 ) -> str:
     """
-    Append a new persistent decision to spec-native/DECISIONS.md.
+    Create a persistent decision file and refresh spec-native/DECISIONS.md.
     Use this for trade-offs that future initiatives must respect.
 
     Args:
@@ -665,29 +1079,122 @@ def log_decision(
         decision:     What was decided exactly
         consequences: Costs, benefits, and limits future work must respect
     """
-    decisions_path = SN / "DECISIONS.md"
-    existing = decisions_path.read_text(encoding="utf-8") if decisions_path.exists() else ""
+    dec_id, path = _write_context_artifact(
+        "decisions",
+        "DEC",
+        "decision",
+        title,
+        {
+            "status": "accepted",
+            "owners": [],
+            "related_specs": related_specs or [],
+            "related_tasks": related_tasks or [],
+            "related_architecture": related_architecture or [],
+            "supersedes": [],
+            "tags": tags or [],
+        },
+        f"## Contexto\n\n{context}\n\n## Decisión\n\n{decision}\n\n## Consecuencias\n\n{consequences}",
+    )
+    _refresh_decisions_index()
+    return f"Decision {dec_id} created at {path.relative_to(REPO)} and DECISIONS.md was refreshed."
 
-    # Determine next DEC number
-    ids = re.findall(r"DEC-(\d+)", existing)
-    next_num = (max(int(i) for i in ids) + 1) if ids else 1
-    dec_id = f"DEC-{next_num:04d}"
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    entry = f"""
-### {dec_id} — {title}
+@mcp.tool()
+def log_architecture(
+    title: str,
+    context: str,
+    design: str,
+    consequences: str,
+    tags: list[str] | None = None,
+    related_decisions: list[str] | None = None,
+    related_specs: list[str] | None = None,
+) -> str:
+    """Create an ARCH artifact and refresh the ARCHITECTURE.md index."""
+    artifact_id, path = _write_context_artifact(
+        "architecture",
+        "ARCH",
+        "architecture",
+        title,
+        {
+            "related_decisions": related_decisions or [],
+            "related_specs": related_specs or [],
+            "tags": tags or [],
+        },
+        f"## Contexto\n\n{context}\n\n## Diseño\n\n{design}\n\n## Restricciones y consecuencias\n\n{consequences}",
+    )
+    _refresh_architecture_index()
+    return f"Architecture artifact {artifact_id} created at {path.relative_to(REPO)} and ARCHITECTURE.md was refreshed."
 
-- Fecha: {today}
-- Estado: `accepted`
-- Relacionado con specs:
-- Contexto: {context}
-- Decisión: {decision}
-- Consecuencias: {consequences}
-- Reemplaza: none
-"""
 
-    decisions_path.write_text(existing.rstrip() + "\n" + entry, encoding="utf-8")
-    return f"Decision {dec_id} appended to spec-native/DECISIONS.md."
+@mcp.tool()
+def log_convention(
+    title: str,
+    rationale: str,
+    rule: str,
+    consequences: str,
+    tags: list[str] | None = None,
+    related_architecture: list[str] | None = None,
+    related_decisions: list[str] | None = None,
+) -> str:
+    """Create a CONV artifact and refresh the CONVENTIONS.md index."""
+    artifact_id, path = _write_context_artifact(
+        "conventions",
+        "CONV",
+        "convention",
+        title,
+        {
+            "related_architecture": related_architecture or [],
+            "related_decisions": related_decisions or [],
+            "tags": tags or [],
+        },
+        f"## Justificación\n\n{rationale}\n\n## Regla\n\n{rule}\n\n## Consecuencias\n\n{consequences}",
+    )
+    _refresh_conventions_index()
+    return f"Convention artifact {artifact_id} created at {path.relative_to(REPO)} and CONVENTIONS.md was refreshed."
+
+
+@mcp.tool()
+def list_decisions(tag: str = "") -> str:
+    """List indexed decisions, optionally filtered by one tag."""
+    rows = []
+    for path in _decision_files():
+        meta = _toml_loads(path.read_text(encoding="utf-8"))
+        if tag and tag not in meta.get("tags", []):
+            continue
+        rows.append(f"{meta.get('id', path.stem)} [{meta.get('status', '-')}] {meta.get('title', path.stem)}")
+    return "\n".join(rows) if rows else "No matching decision files found."
+
+
+@mcp.tool()
+def list_architecture(tag: str = "") -> str:
+    """List architecture artifacts; filter by tag to minimize loaded context."""
+    rows = []
+    for path in _context_artifact_files("architecture", "ARCH"):
+        meta = _toml_loads(path.read_text(encoding="utf-8"))
+        if not tag or tag in meta.get("tags", []):
+            rows.append(f"{meta.get('id', path.stem)} [{meta.get('status', '-')}] {meta.get('title', path.stem)}")
+    return "\n".join(rows) if rows else "No matching architecture artifacts found."
+
+
+@mcp.tool()
+def list_conventions(tag: str = "") -> str:
+    """List convention artifacts; filter by tag to minimize loaded context."""
+    rows = []
+    for path in _context_artifact_files("conventions", "CONV"):
+        meta = _toml_loads(path.read_text(encoding="utf-8"))
+        if not tag or tag in meta.get("tags", []):
+            rows.append(f"{meta.get('id', path.stem)} [{meta.get('status', '-')}] {meta.get('title', path.stem)}")
+    return "\n".join(rows) if rows else "No matching convention artifacts found."
+
+
+@mcp.tool()
+def read_context_artifact(artifact_id: str) -> str:
+    """Read one DEC, ARCH, or CONV artifact by stable ID."""
+    for directory, prefix in (("decisions", "DEC"), ("architecture", "ARCH"), ("conventions", "CONV")):
+        for path in _context_artifact_files(directory, prefix):
+            if _toml_loads(path.read_text(encoding="utf-8")).get("id") == artifact_id:
+                return _read(path)
+    return f"Context artifact not found: {artifact_id}"
 
 
 @mcp.tool()
@@ -732,6 +1239,19 @@ def context_snapshot(initiative: str = "") -> str:
 # ---------------------------------------------------------------------------
 # Prompts — structured workflow starters
 # ---------------------------------------------------------------------------
+
+@mcp.prompt()
+def specnative(request: str) -> str:
+    """Short universal SpecNative entry point that routes one user request."""
+    return f"""Use the SpecNative MCP for this request: {request}
+
+Read `spec://agents`, call `resume()` and `status()`, then choose the smallest
+correct workflow: start_initiative, capture_backlog, plan_tasks, implement_task,
+record_decision, record_architecture, record_convention, review_against_spec,
+checkpoint, or close_initiative. Do not edit generated indexes or boards;
+update canonical artifacts only.
+"""
+
 
 @mcp.prompt()
 def start_initiative(initiative_name: str, problem_description: str) -> str:
@@ -788,6 +1308,35 @@ Document ownership rule:
 - Spec scope disappears when the initiative closes → SPEC.md only
 - Persistent trade-offs → DECISIONS.md (or use log_decision tool)
 - Product goals → PRODUCT.md
+"""
+
+
+@mcp.prompt()
+def capture_backlog(
+    title: str,
+    description: str,
+    initiative: str = "",
+    priority: str = "p2",
+) -> str:
+    """Classify and capture a requested backlog item without creating parallel state."""
+    return f"""Capture this backlog request using the SpecNative MCP.
+
+Title: {title}
+Description: {description}
+Initiative hint: {initiative or "none"}
+Priority: {priority}
+
+1. Read `spec://agents`, then call `list_specs()` and `board()` to find a
+   matching initiative and avoid duplicate work.
+2. If an existing spec applies, obtain or confirm a close criterion and at
+   least one validation. Do not invent either.
+3. Call `capture_backlog_item()` with the initiative only after those execution
+   details are known. It will create canonical task metadata in TASKS.md.
+4. If the request has no suitable spec or is underspecified, call
+   `capture_backlog_item()` without initiative. It will record a triaged idea
+   in spec-native/intake/IDEAS.md.
+5. Report whether the result is an executable task (visible in `board()`) or
+   a non-executable intake item, and state the next required action.
 """
 
 
@@ -884,7 +1433,8 @@ def implement_task(initiative_name: str, task_id: str) -> str:
    - Run the validation command from the task TOML
 
 7. After validation:
-   - If passes → update_task('{initiative_name}', '{task_id}', 'done')
+   - If passes → update_task('{initiative_name}', '{task_id}', 'done',
+     completion_evidence='<command executed and observed result>')
    - If blocked → update_task('{initiative_name}', '{task_id}', 'blocked', notes='reason')
 
 8. If a persistent trade-off emerged:
@@ -1024,6 +1574,58 @@ Consequences: {consequences}
 
 4. Only record decisions that future initiatives must respect.
    Implementation details or spec-specific choices belong in the spec, not here.
+"""
+
+
+@mcp.prompt()
+def record_architecture(
+    title: str,
+    context: str,
+    design: str,
+    consequences: str,
+) -> str:
+    """Prepare an architecture artifact for review before it is persisted."""
+    return f"""You are recording a persistent architecture artifact.
+
+Title: {title}
+Context: {context}
+Design: {design}
+Consequences: {consequences}
+
+## Steps
+
+1. Call list_architecture() and list_decisions() to detect overlap or conflict.
+2. Identify related DEC, SPEC and tags; do not invent relationships.
+3. Present the artifact draft for developer confirmation.
+4. After confirmation, call log_architecture(title, context, design, consequences,
+   tags, related_decisions, related_specs).
+5. Do not edit ARCHITECTURE.md directly: it is a generated index.
+"""
+
+
+@mcp.prompt()
+def record_convention(
+    title: str,
+    rationale: str,
+    rule: str,
+    consequences: str,
+) -> str:
+    """Prepare a persistent convention artifact for review before it is persisted."""
+    return f"""You are recording a persistent convention artifact.
+
+Title: {title}
+Rationale: {rationale}
+Rule: {rule}
+Consequences: {consequences}
+
+## Steps
+
+1. Call list_conventions() and load related ARCH or DEC artifacts to avoid conflict.
+2. Identify related artifact IDs and tags; do not invent relationships.
+3. Present the rule draft for developer confirmation.
+4. After confirmation, call log_convention(title, rationale, rule, consequences,
+   tags, related_architecture, related_decisions).
+5. Do not edit CONVENTIONS.md directly: it is a generated index.
 """
 
 

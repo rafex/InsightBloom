@@ -37,7 +37,7 @@ spec-native/
 └── pipelines/        ← contexto de CI/CD
 ```
 
-Además:
+El repositorio usa SpecNative Development v0.9. Además:
 - `agents/` — artefactos operativos (SECURITY.md, DIAGNOSE.md)
 - `docs/` — legacy (deprecado, migrado a spec-native/)
 - `container/` — Docker Compose + Dockerfiles
