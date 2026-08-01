@@ -7,11 +7,11 @@
   assets sin comprimir y Nginx comprime solo respuestas textuales proxificadas,
   conservando la CSP específica de Slidev y el fallback legacy `presenter-assets`.
 
-- [ ] **Validar gzip de presentaciones después del despliegue.**
-  Comprobar con una presentación nueva y otra existente, en Firefox y Chromium,
-  que `Content-Encoding`, `Content-Length` y el cuerpo coinciden para JS y CSS.
+- [x] **Validar gzip de presentaciones después del despliegue.**
+  Validado en producción: los assets textuales de presentaciones se entregan con
+  `Content-Encoding: gzip` y el presenter carga correctamente.
 
-  Criterios de cierre:
+  Criterios de cierre ya verificados:
   - desplegar una versión con la CSP específica de Slidev y `Accept-Encoding`
     controlado;
   - validar con una presentación nueva y otra generada antes del cambio;
