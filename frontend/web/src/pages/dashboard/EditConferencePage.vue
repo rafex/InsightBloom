@@ -9,6 +9,7 @@
   LoadingState(v-if="loading" message="Cargando conferencia...")
   FeedbackMessage(v-else-if="error" :message="error" tone="error")
   .form(v-else)
+    SaveState(:state="saveState")
     .form-group.readonly-group
       label UUID
       .readonly-value {{ conference.uuid }}
@@ -118,9 +119,8 @@
         BaseButton(variant="danger" type="button" @click="removeFlyer") Quitar flyer
 
     FeedbackMessage(v-if="saveError" :message="saveError" tone="error")
-    FeedbackMessage(v-if="saved" message="Cambios guardados correctamente." tone="success")
     .actions
-      BaseButton(:loading="saving" :disabled="saving" @click="save") Guardar cambios
+      BaseButton(:loading="saving" :disabled="saving || saveState === 'clean' || saveState === 'saved'" @click="save") Guardar cambios
       BaseLink(variant="secondary" to="/dashboard") Volver al panel
 </template>
 
@@ -134,6 +134,7 @@ import BaseLink from '@/components/ui/BaseLink.vue'
 import FormField from '@/components/ui/FormField.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 import { getConference, updateConference, uploadConferenceFlyer, getTimezones } from '@/services/api/usersApi'
 import type { Conference, Timezone } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -143,7 +144,7 @@ const MAX_FLYER_BYTES = 8 * 1024 * 1024
 
 export default {
   name: 'EditConferencePage',
-  components: { ConferenceMap, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, FormField, FeedbackMessage, LoadingState },
+  components: { ConferenceMap, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, FormField, FeedbackMessage, LoadingState, SaveState },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -153,6 +154,7 @@ export default {
     const saving       = ref(false)
     const saveError    = ref('')
     const saved        = ref(false)
+    const initialFormSnapshot = ref('')
 
     const displayName = ref('')
     const description = ref('')
@@ -203,6 +205,34 @@ Conclusiones, encuesta y entrega de certificados.`
     const timezones    = ref<Timezone[]>([])
     const timezoneId   = ref<number | null>(null)
 
+    function formSnapshot() {
+      return JSON.stringify({
+        displayName: displayName.value,
+        description: description.value,
+        visibility: visibility.value,
+        ticketPrice: ticketPrice.value,
+        ticketCurrency: ticketCurrency.value,
+        scheduleMarkdown: scheduleMarkdown.value,
+        scheduleLayout: scheduleLayout.value,
+        publicTheme: publicTheme.value,
+        eventDate: eventDate.value,
+        venue: venue.value,
+        startTime: startTime.value,
+        endTime: endTime.value,
+        latitude: latitude.value,
+        longitude: longitude.value,
+        flyerBase64: flyerBase64.value,
+        flyerRemoved: flyerRemoved.value,
+        timezoneId: timezoneId.value
+      })
+    }
+
+    const saveState = computed(() => {
+      if (saving.value) return 'saving'
+      if (!initialFormSnapshot.value || formSnapshot() !== initialFormSnapshot.value) return 'dirty'
+      return saved.value ? 'saved' : 'clean'
+    })
+
     onMounted(async () => {
       try {
         const [conf, tzList] = await Promise.all([
@@ -227,6 +257,7 @@ Conclusiones, encuesta y entrega de certificados.`
         longitude.value = (conference.value.longitude as number) ?? null
         flyerBase64.value = conference.value.flyerBase64 || ''
         timezoneId.value = conference.value.timezoneId ?? tzList.find((t) => t.isDefault)?.id ?? null
+        initialFormSnapshot.value = formSnapshot()
       } catch (e: any) {
         error.value = 'No se pudo cargar la conferencia.'
       } finally {
@@ -300,6 +331,7 @@ Conclusiones, encuesta y entrega de certificados.`
           )
           flyerFile.value = null
         }
+        initialFormSnapshot.value = formSnapshot()
         saved.value = true
       } catch (e: any) {
         saveError.value = e.response?.data?.error?.message || 'Error al guardar los cambios'
@@ -314,7 +346,7 @@ Conclusiones, encuesta y entrega de certificados.`
       { label: 'Editor' }
     ])
 
-    return { conference, loading, error, saving, saveError, saved, displayName, description, visibility,
+    return { conference, loading, error, saving, saveError, saved, saveState, displayName, description, visibility,
              ticketPrice, ticketCurrency,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
              mapUrl, locationError, extractMapCoordinates, scheduleMarkdown, scheduleLayout, scheduleExample, publicTheme, timezones, timezoneId, breadcrumbItems, onFlyerSelected, removeFlyer, save,
