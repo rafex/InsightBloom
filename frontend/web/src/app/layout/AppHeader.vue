@@ -1,7 +1,7 @@
 <template lang="pug">
 header.app-header
   a.skip-link(href="#main-content") Saltar al contenido principal
-  .offline-banner(v-if="!online") 📡 Sin conexión · viendo contenido guardado
+  .offline-banner(v-if="!online" role="status" aria-live="polite") 📡 Sin conexión · viendo contenido guardado
   .header-row
     .header-brand
       router-link(to="/")
@@ -9,7 +9,7 @@ header.app-header
     nav.header-nav(aria-label="Acciones de sesión")
       span.version-tag(v-if="version") v{{ version }}{{ gitSha ? ' \u00b7 ' + gitSha : '' }}
       router-link(v-if="auth.state.token && auth.state.role !== 'guest'" to="/dashboard") Panel
-      a(v-if="auth.state.token" href="#" @click.prevent="logout") Salir
+      button.header-logout(v-if="auth.state.token" type="button" @click="logout") Salir
       router-link(v-else to="/login") Entrar
 </template>
 
@@ -71,8 +71,16 @@ export default {
 .header-brand a { text-decoration: none; display: flex; align-items: center; }
 .brand-logo { height: 36px; width: auto; }
 .header-nav { display: flex; gap: 16px; }
-.header-nav a { color: var(--color-header-link); text-decoration: none; font-size: 0.9rem; }
-.header-nav a:hover { color: var(--color-text-inverse); }
+.header-nav a, .header-logout {
+  color: var(--color-header-link); text-decoration: none; font-size: 0.9rem;
+}
+.header-logout {
+  border: 0; padding: 0; background: transparent; font-family: inherit; cursor: pointer;
+}
+.header-nav a:hover, .header-logout:hover { color: var(--color-text-inverse); }
+.header-nav a:focus-visible, .header-logout:focus-visible {
+  outline: 2px solid var(--color-focus); outline-offset: 4px; border-radius: 3px;
+}
 .version-tag {
   font-size: 0.7rem; color: var(--color-header-link-muted);
   background: rgba(255,255,255,0.08); padding: 2px 8px;
@@ -83,7 +91,7 @@ export default {
 @media (max-width: 480px) {
   .header-row { padding: 10px 14px; }
   .header-nav { gap: 10px; }
-  .header-nav a { font-size: 0.82rem; }
+  .header-nav a, .header-logout { font-size: 0.82rem; }
   .brand-logo { height: 28px; }
 }
 </style>
