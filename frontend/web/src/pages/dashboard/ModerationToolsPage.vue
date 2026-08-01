@@ -189,4 +189,17 @@ export default {
 }
 .attendee-row div { display: flex; flex-direction: column; }
 .attendee-row span { font-size: 0.8rem; color: var(--color-text-muted); }
+
+@media (max-width: 640px) {
+  .mod-tools-page { padding: 14px; }
+  .release-all-card { flex-direction: column; align-items: stretch; gap: 12px; }
+  .release-all-card :deep(.base-btn) { width: 100%; }
+  .tool-card { padding: 14px; }
+  .tool-card-header { align-items: flex-start; }
+  .tool-card-header > div { min-width: 0; }
+  .tool-card-header strong { flex-wrap: wrap; }
+  .attendee-row { align-items: flex-start; }
+  .attendee-row > div { min-width: 0; overflow-wrap: anywhere; }
+  .attendee-row :deep(.toggle-switch) { flex-shrink: 0; }
+}
 </style>
