@@ -125,10 +125,11 @@ workspace al iniciar cada sandbox.
 
 Ambas imágenes instalan la configuración común en `/etc/tmux.conf`, junto con TPM,
 `tmux-sensible`, `tmux-resurrect`, `tmux-continuum` y `vim-tmux-navigator`. Los plugins quedan
-vendorizados durante el build para que tmux funcione sin red en runtime. La combinación `v`/`y`
-del modo copy usa el buffer nativo de tmux y mantiene la selección visible. No se envían secuencias
-OSC 52 ni se abre un portal de portapapeles del navegador: el texto se copia manualmente desde la
-terminal web. Dentro de tmux se puede pegar con `Prefix` + `P`.
+vendorizados durante el build para que tmux funcione sin red en runtime. El modo mouse de tmux
+está desactivado deliberadamente: así el navegador puede seleccionar texto con el arrastre normal
+del ratón y copiarlo manualmente. La combinación `v`/`y` del modo copy sigue disponible para quien
+prefiera seleccionar dentro de tmux y mantiene la selección visible. No se envían secuencias OSC 52
+ni se abre un portal de portapapeles del navegador. Dentro de tmux se puede pegar con `Prefix` + `P`.
 
 ## Estructura de las imagenes
 
