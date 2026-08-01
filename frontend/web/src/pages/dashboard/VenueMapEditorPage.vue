@@ -14,7 +14,10 @@
       label Imagen del recinto
       p.field-hint Sube una foto o plano del lugar; luego haz clic sobre ella para colocar cada asiento.
       input(type="file" accept="image/*" @change="onImageSelected")
-      BaseButton(variant="secondary" v-if="imageBase64" type="button" :disabled="savingMap" @click="saveMap") Guardar imagen
+      .save-action(v-if="imageBase64")
+        SaveState(:state="mapSaveState")
+        BaseButton(variant="secondary" type="button" :disabled="savingMap || mapSaveState === 'clean' || mapSaveState === 'saved'" @click="saveMap") Guardar imagen
+      FeedbackMessage(v-if="mapError" :message="mapError" tone="error")
 
     .form-group(v-show="activeTab === 'ai'")
       label Generar asientos con IA
@@ -36,7 +39,9 @@
       .seat-row(v-for="seat in seats" :key="seat.uuid || seat.label")
         input.seat-label(v-model="seat.label" type="text" placeholder="Etiqueta, ej. A1")
         BaseButton(variant="danger" size="sm" type="button" @click="removeSeat(seat)") Quitar
-      BaseButton(:loading="savingSeats" @click="saveSeats") Guardar asientos
+      .save-action
+        SaveState(:state="seatsSaveState")
+        BaseButton(:loading="savingSeats" :disabled="seatsSaveState === 'clean' || seatsSaveState === 'saved'" @click="saveSeats") Guardar asientos
     FeedbackMessage(v-if="seatsSaved" message="Asientos guardados." tone="success")
     FeedbackMessage(v-if="seatsError" :message="seatsError" tone="error")
 </template>
@@ -52,12 +57,13 @@ import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 
 interface EditableSeat { uuid: string | null, label: string, x: number, y: number, occupied: boolean }
 
 export default {
   name: 'VenueMapEditorPage',
-  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor, BaseButton, FeedbackMessage, LoadingState },
+  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor, BaseButton, FeedbackMessage, LoadingState, SaveState },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -65,9 +71,13 @@ export default {
     const imageBase64 = ref('')
     const seats = ref<EditableSeat[]>([])
     const savingMap = ref(false)
+    const initialImageBase64 = ref('')
+    const mapSaved = ref(false)
+    const mapError = ref('')
     const savingSeats = ref(false)
     const seatsSaved = ref(false)
     const seatsError = ref('')
+    const initialSeatsSnapshot = ref('')
     const aiDescription = ref('')
     const generatingAi = ref(false)
     const aiError = ref('')
@@ -84,6 +94,8 @@ export default {
         ])
         imageBase64.value = conf.venueMapBase64 || ''
         seats.value = seatMap.map((s: VenueSeat) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: s.occupied }))
+        initialImageBase64.value = imageBase64.value
+        initialSeatsSnapshot.value = seatsSnapshot(seats.value)
         conferenceName.value = conf.name || ''
       } finally {
         loading.value = false
@@ -94,14 +106,18 @@ export default {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
       const reader = new FileReader()
-      reader.onload = () => { imageBase64.value = reader.result as string }
+      reader.onload = () => { imageBase64.value = reader.result as string; mapSaved.value = false; mapError.value = '' }
       reader.readAsDataURL(file)
     }
 
     async function saveMap() {
-      savingMap.value = true
+      savingMap.value = true; mapError.value = ''; mapSaved.value = false
       try {
         await setVenueMap(props.conferenceId as string, imageBase64.value, auth.state.token as string)
+        initialImageBase64.value = imageBase64.value
+        mapSaved.value = true
+      } catch (e: any) {
+        mapError.value = e.response?.data?.error?.message || 'No se pudo guardar la imagen del recinto'
       } finally {
         savingMap.value = false
       }
@@ -137,6 +153,7 @@ export default {
         const payload = seats.value.map((s) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y }))
         const saved = await defineVenueSeats(props.conferenceId as string, payload, auth.state.token as string)
         seats.value = saved.map((s) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: false }))
+        initialSeatsSnapshot.value = seatsSnapshot(seats.value)
         seatsSaved.value = true
       } catch (e: any) {
         seatsError.value = e.response?.data?.error?.message || 'No se pudieron guardar los asientos'
@@ -156,6 +173,22 @@ export default {
       showingCanvasEditor.value = true
     }
 
+    function seatsSnapshot(value: EditableSeat[]) {
+      return JSON.stringify(value.map(({ uuid, label, x, y }) => ({ uuid, label, x, y })))
+    }
+
+    const mapSaveState = computed(() => {
+      if (savingMap.value) return 'saving'
+      if (imageBase64.value !== initialImageBase64.value) return 'dirty'
+      return mapSaved.value ? 'saved' : 'clean'
+    })
+
+    const seatsSaveState = computed(() => {
+      if (savingSeats.value) return 'saving'
+      if (seatsSnapshot(seats.value) !== initialSeatsSnapshot.value) return 'dirty'
+      return seatsSaved.value ? 'saved' : 'clean'
+    })
+
     const breadcrumbItems = computed(() => [
       { label: 'Eventos', to: '/dashboard/conferences' },
       { label: conferenceName.value || props.conferenceId || '', loading: loading.value && !conferenceName.value },
@@ -163,7 +196,7 @@ export default {
     ])
 
     return {
-      loading, imageBase64, seats, savingMap, savingSeats, seatsSaved, seatsError,
+      loading, imageBase64, seats, savingMap, mapSaveState, mapError, savingSeats, seatsSaved, seatsSaveState, seatsError,
       aiDescription, generatingAi, aiError, activeTab, showingCanvasEditor,
       onImageSelected, saveMap, addSeat, removeSeat, saveSeats, generateWithAi, applyCanvasSeats, breadcrumbItems
     }

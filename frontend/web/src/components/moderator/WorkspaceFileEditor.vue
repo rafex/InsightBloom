@@ -24,9 +24,8 @@
           .wfe-toolbar
             span.wfe-filename {{ selectedPath }}
             span.wfe-loading(v-if="loadingFile") Cargando...
-            BaseButton(type="button" @click="save" :disabled="savingFile || loadingFile")
-              span(v-if="savingFile") Guardando...
-              span(v-else) Guardar
+            SaveState.wfe-save-state(:state="saveState")
+            BaseButton(type="button" @click="save" :disabled="savingFile || loadingFile || saveState === 'clean' || saveState === 'saved'" :loading="savingFile") Guardar
           p.wfe-conflict(v-if="conflict")
             | Este archivo cambió desde que se abrió (¿el alumno lo está editando?).
             BaseButton(variant="secondary" type="button" @click="forceSave") Guardar de todas formas
@@ -40,6 +39,7 @@ import { listWorkspaceFiles, readWorkspaceFile, writeWorkspaceFile } from '@/ser
 import type { WorkspaceFileEntry } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import SaveState from '@/components/ui/SaveState.vue'
 
 // Extension -> id de lenguaje de Monaco. Autocompletado basico (resaltado + sugerencias por
 // indentacion/llaves) viene incluido gratis en las "basic-languages" de monaco-editor para
@@ -58,7 +58,7 @@ function languageForPath(path: string): string {
 
 export default {
   name: 'WorkspaceFileEditor',
-  components: { BaseButton },
+  components: { BaseButton, SaveState },
   props: {
     conferenceId: { type: String, required: true },
     userUuid: { type: String, required: true }
@@ -76,6 +76,9 @@ export default {
     const saveError = ref('')
     const conflict = ref(false)
     const editorContainer = ref<HTMLElement | null>(null)
+    const initialContent = ref('')
+    const fileSaved = ref(false)
+    const editorRevision = ref(0)
 
     const sortedFiles = computed(() =>
       [...files.value].sort((a, b) => a.path.localeCompare(b.path)))
@@ -86,6 +89,7 @@ export default {
     // router para todas las rutas), nunca al nivel de modulo/mount del componente.
     let monacoModule: typeof import('monaco-editor') | null = null
     let editorInstance: import('monaco-editor').editor.IStandaloneCodeEditor | null = null
+    let editorChangeListener: { dispose: () => void } | null = null
 
     async function ensureMonacoLoaded() {
       if (!monacoModule) {
@@ -107,6 +111,7 @@ export default {
 
     async function openFile(path: string) {
       loadingFile.value = true; saveError.value = ''; conflict.value = false
+      fileSaved.value = false; initialContent.value = ''; editorRevision.value += 1
       try {
         const result = await readWorkspaceFile(props.conferenceId, props.userUuid, path, auth.state.token as string)
         selectedPath.value = path
@@ -121,6 +126,10 @@ export default {
             automaticLayout: true,
             minimap: { enabled: false }
           })
+          editorChangeListener = editorInstance.onDidChangeModelContent(() => {
+            editorRevision.value += 1
+            fileSaved.value = false
+          })
         } else {
           const model = editorInstance.getModel()
           if (model) {
@@ -128,6 +137,7 @@ export default {
             model.setValue(result.content)
           }
         }
+        initialContent.value = result.content
       } catch (e: any) {
         saveError.value = e.response?.data?.error?.message || 'No se pudo abrir el archivo'
       } finally {
@@ -145,6 +155,9 @@ export default {
           force ? null : fileMtime.value, force, auth.state.token as string
         )
         fileMtime.value = result.mtime
+        initialContent.value = content
+        fileSaved.value = true
+        editorRevision.value += 1
         conflict.value = false
       } catch (e: any) {
         if (e.response?.status === 409) {
@@ -160,6 +173,14 @@ export default {
     function save() { doSave(false) }
     function forceSave() { doSave(true) }
 
+    const saveState = computed(() => {
+      void editorRevision.value
+      if (!selectedPath.value || loadingFile.value) return 'clean'
+      if (savingFile.value) return 'saving'
+      if (!editorInstance || editorInstance.getValue() !== initialContent.value) return 'dirty'
+      return fileSaved.value ? 'saved' : 'clean'
+    })
+
     function close() {
       emit('close')
     }
@@ -169,13 +190,14 @@ export default {
     })
 
     onBeforeUnmount(() => {
+      editorChangeListener?.dispose()
       editorInstance?.dispose()
       editorInstance = null
     })
 
     return {
       files, loadingFiles, filesError, sortedFiles, selectedPath, loadingFile, savingFile,
-      saveError, conflict, editorContainer, openFile, save, forceSave, close
+      saveError, conflict, editorContainer, saveState, openFile, save, forceSave, close
     }
   }
 }
@@ -229,6 +251,7 @@ export default {
 
 .wfe-filename { font-family: var(--font-family-mono); font-size: 0.85rem; color: var(--color-text-secondary); flex: 1; }
 .wfe-loading { font-size: 0.8rem; color: var(--color-text-muted); }
+.wfe-save-state { margin: 0; }
 
 .wfe-editor { flex: 1; min-height: 0; }
 
