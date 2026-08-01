@@ -163,18 +163,22 @@
                 td {{ pod.ready ? '✓' : '—' }}
                 td {{ pod.reason || '—' }}{{ pod.restartCount ? ` (${pod.restartCount} reinicios)` : '' }}
                 td.seats-cell
-                  //- El backend solo expone el UUID del ocupante; se muestra "Asiento N" + UUID
-                  //- corto (el completo queda en el tooltip) en vez del UUID crudo de 36 chars.
                   span.seat-badge(v-for="seat in pod.seats" :key="seat.seatIndex")
-                    span.seat-user(v-if="seat.userUuid" :title="seat.userUuid") Asiento {{ seat.seatIndex + 1 }}: {{ seat.userUuid.slice(0, 8) }}…
+                    span.seat-user(
+                      v-if="seat.userUuid"
+                      :title="`UUID: ${seat.userUuid}`"
+                      :aria-label="`Asiento ${seat.seatIndex + 1}: ${seat.userDisplayName || 'Usuario'}. UUID ${seat.userUuid}`"
+                    ) Asiento {{ seat.seatIndex + 1 }}: {{ seat.userDisplayName || 'Usuario' }}
                     span.seat-empty(v-else) Asiento {{ seat.seatIndex + 1 }}: libre
                 td.sandbox-actions
-                  BaseButton.icon-action(variant="danger" size="sm" type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName" :aria-label="`Eliminar sandbox ${pod.podName}`" :title="`Eliminar sandbox ${pod.podName}`")
-                    UiIcon(v-if="sandboxActionBusy !== pod.podName" name="trash" size="18" aria-hidden="true")
-                  template(v-if="sandboxIsFree(pod)")
-                    BaseButton.icon-action(variant="secondary" size="sm" type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName" :aria-label="`Recrear sandbox ${pod.podName}`" :title="`Recrear sandbox ${pod.podName}`")
-                      UiIcon(v-if="sandboxActionBusy !== pod.podName" name="refresh" size="18" aria-hidden="true")
-                  span.action-note(v-else) Ocupado: eliminación forzada
+                  .sandbox-actions-group
+                    BaseButton.icon-action(variant="danger" size="sm" type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName" :aria-label="`Eliminar sandbox ${pod.podName}`" :title="`Eliminar sandbox ${pod.podName}`")
+                      UiIcon(v-if="sandboxActionBusy !== pod.podName" name="trash" size="18" aria-hidden="true")
+                    template(v-if="sandboxIsFree(pod)")
+                      BaseButton.icon-action(variant="secondary" size="sm" type="button" @click="recreateSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName" :aria-label="`Recrear sandbox ${pod.podName}`" :title="`Recrear sandbox ${pod.podName}`")
+                        UiIcon(v-if="sandboxActionBusy !== pod.podName" name="refresh" size="18" aria-hidden="true")
+                    span.action-note(v-else) Ocupado: eliminación forzada
+        FeedbackMessage(v-if="sandboxActionSuccess" :message="sandboxActionSuccess" tone="success")
         FeedbackMessage(v-if="sandboxActionError" :message="sandboxActionError" tone="error")
 
       .sandbox-incidents(v-if="cliEnabled")
@@ -412,6 +416,7 @@ export default {
     })
     const sandboxPrewarmError = ref('')
     const sandboxActionBusy = ref<string | null>(null)
+    const sandboxActionSuccess = ref('')
     const sandboxActionError = ref('')
     const maxDevicesPerUser = ref<number | null>(null)
     const maxAccountsPerDevice = ref<number | null>(null)
@@ -856,6 +861,7 @@ export default {
       if (!confirm) return
       const { action, pod } = confirm
       sandboxActionBusy.value = pod.podName
+      sandboxActionSuccess.value = ''
       sandboxActionError.value = ''
       try {
         if (action === 'delete') {
@@ -864,6 +870,9 @@ export default {
           await recreateSandboxApi(props.conferenceId as string, pod.sandboxUuid, auth.state.token as string)
         }
         await loadSandboxStatus()
+        sandboxActionSuccess.value = action === 'delete'
+          ? `Sandbox ${pod.podName} eliminado.`
+          : `Sandbox ${pod.podName} recreado. Se está preparando la nueva instancia.`
         sandboxConfirm.value = null
       } catch (e: any) {
         sandboxActionError.value = e.response?.data?.error?.message ||
@@ -973,7 +982,7 @@ export default {
              loadSandboxIncidents, incidentTypeLabel,
              sandboxStatus, sandboxStatusLoaded, loadingSandboxStatus, sandboxStatusError, loadSandboxStatus,
              prewarmingSandboxPool, sandboxPrewarmResult, sandboxPrewarmMessage, sandboxPrewarmError, prewarmSandboxPool,
-             sandboxActionBusy, sandboxActionError, sandboxIsFree, deleteSandbox, recreateSandbox,
+             sandboxActionBusy, sandboxActionSuccess, sandboxActionError, sandboxIsFree, deleteSandbox, recreateSandbox,
              sandboxConfirm, performSandboxAction, markFormDirty,
              maxDevicesPerUser, maxAccountsPerDevice, savingDeviceAccessConfig,
              deviceAccessConfigSaved, deviceAccessConfigError, saveDeviceAccessConfig,
@@ -1035,7 +1044,8 @@ textarea:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 
 .incidents-table th { text-align: left; padding: 6px 10px; background: var(--color-surface-muted); color: var(--color-text-muted); font-weight: 600; }
 .incidents-table td { padding: 6px 10px; border-top: 1px solid var(--color-surface-muted); color: var(--color-text-secondary); }
 .incidents-table th:last-child, .incidents-table td:last-child { min-width: 92px; }
-.sandbox-actions { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 92px; white-space: nowrap; }
+.sandbox-actions { min-width: 92px; vertical-align: middle; white-space: nowrap; }
+.sandbox-actions-group { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .icon-action { width: 34px; height: 34px; padding: 0; }
 .action-note { color: var(--color-text-muted); font-size: 0.75rem; }
 
@@ -1059,6 +1069,6 @@ textarea:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 
   .role-person { flex-basis: 100%; }
   .assign-row { flex-direction: column; }
   .assign-row input, .assign-row select { width: 100%; box-sizing: border-box; }
-  .sandbox-actions { justify-content: flex-start; }
+  .sandbox-actions-group { justify-content: flex-start; }
 }
 </style>

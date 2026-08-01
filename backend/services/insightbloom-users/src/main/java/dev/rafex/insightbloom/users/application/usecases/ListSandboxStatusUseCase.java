@@ -3,6 +3,7 @@ package dev.rafex.insightbloom.users.application.usecases;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
+import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,14 +24,22 @@ import java.util.Map;
 public class ListSandboxStatusUseCase {
     private final SandboxRepository sandboxRepository;
     private final SandboxOrchestrator sandboxOrchestrator;
+    private final UserRepository userRepository;
 
     public ListSandboxStatusUseCase(final SandboxRepository sandboxRepository,
                                      final SandboxOrchestrator sandboxOrchestrator) {
-        this.sandboxRepository = sandboxRepository;
-        this.sandboxOrchestrator = sandboxOrchestrator;
+        this(sandboxRepository, sandboxOrchestrator, null);
     }
 
-    public record Seat(int seatIndex, String userUuid, Instant assignedAt) {
+    public ListSandboxStatusUseCase(final SandboxRepository sandboxRepository,
+                                     final SandboxOrchestrator sandboxOrchestrator,
+                                     final UserRepository userRepository) {
+        this.sandboxRepository = sandboxRepository;
+        this.sandboxOrchestrator = sandboxOrchestrator;
+        this.userRepository = userRepository;
+    }
+
+    public record Seat(int seatIndex, String userUuid, String userDisplayName, Instant assignedAt) {
     }
 
     public record PodStatus(String sandboxUuid, String podName, String variant, String phase,
@@ -64,7 +73,7 @@ public class ListSandboxStatusUseCase {
 
             final List<Seat> seats = new ArrayList<>();
             for (final Sandbox s : seatsInPod) {
-                seats.add(new Seat(s.getSeatIndex(), s.getUserUuid(), s.getAssignedAt()));
+                seats.add(new Seat(s.getSeatIndex(), s.getUserUuid(), resolveDisplayName(s.getUserUuid()), s.getAssignedAt()));
             }
             // "NotFound" (no confundir con el "Unknown" que puede devolver getPhase para un Pod
             // que si existe pero sin status.phase todavia) -- el Pod no existe en Kubernetes (ej.
@@ -74,5 +83,20 @@ public class ListSandboxStatusUseCase {
                 runtimeStatus.restartCount(), seats));
         }
         return result;
+    }
+
+    private String resolveDisplayName(final String userUuid) {
+        if (userUuid == null || userUuid.isBlank() || userRepository == null) return null;
+        return userRepository.findByUuid(userUuid)
+                .map(user -> {
+                    if (user.getDisplayName() != null && !user.getDisplayName().isBlank()) return user.getDisplayName();
+                    final String first = user.getFirstName() == null ? "" : user.getFirstName().trim();
+                    final String last = user.getLastName() == null ? "" : user.getLastName().trim();
+                    final String fullName = (first + " " + last).trim();
+                    if (!fullName.isBlank()) return fullName;
+                    if (user.getUsername() != null && !user.getUsername().isBlank()) return user.getUsername();
+                    return "Usuario";
+                })
+                .orElse("Usuario");
     }
 }

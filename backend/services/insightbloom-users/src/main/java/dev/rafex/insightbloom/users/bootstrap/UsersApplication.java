@@ -383,7 +383,7 @@ public class UsersApplication {
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PORT", "8080")));
         final var recordSandboxIncidentUseCase = new dev.rafex.insightbloom.users.application.usecases.RecordSandboxIncidentUseCase(sandboxIncidentRepo);
         final var listSandboxIncidentsUseCase = new dev.rafex.insightbloom.users.application.usecases.ListSandboxIncidentsUseCase(sandboxIncidentRepo);
-        final var listSandboxStatusUseCase = new ListSandboxStatusUseCase(sandboxRepo, sandboxOrchestrator);
+        final var listSandboxStatusUseCase = new ListSandboxStatusUseCase(sandboxRepo, sandboxOrchestrator, userRepo);
         final var listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(sandboxRepo, sandboxOrchestrator);
         final var readWorkspaceFileUseCase = new ReadWorkspaceFileUseCase(sandboxRepo, sandboxOrchestrator);
         final var writeWorkspaceFileUseCase = new WriteWorkspaceFileUseCase(sandboxRepo, sandboxOrchestrator);

@@ -411,6 +411,7 @@ export interface SandboxAvailability {
 export interface SandboxStatusSeat {
   seatIndex: number
   userUuid: string | null
+  userDisplayName?: string | null
   assignedAt: string | null
 }
 

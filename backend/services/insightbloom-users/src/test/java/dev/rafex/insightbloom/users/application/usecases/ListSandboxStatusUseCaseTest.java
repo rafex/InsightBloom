@@ -1,8 +1,11 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
+import dev.rafex.insightbloom.users.domain.model.User;
+import dev.rafex.insightbloom.users.domain.model.UserRole;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
+import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -15,13 +18,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class ListSandboxStatusUseCaseTest {
     private SandboxRepository sandboxRepoMock;
     private SandboxOrchestrator orchestratorMock;
+    private UserRepository userRepoMock;
     private ListSandboxStatusUseCase useCase;
 
     @BeforeEach
     void setup() {
         sandboxRepoMock = Mockito.mock(SandboxRepository.class);
         orchestratorMock = Mockito.mock(SandboxOrchestrator.class);
-        useCase = new ListSandboxStatusUseCase(sandboxRepoMock, orchestratorMock);
+        userRepoMock = Mockito.mock(UserRepository.class);
+        useCase = new ListSandboxStatusUseCase(sandboxRepoMock, orchestratorMock, userRepoMock);
     }
 
     @Test
@@ -59,5 +64,20 @@ class ListSandboxStatusUseCaseTest {
 
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(s -> "NotFound".equals(s.phase()) && !s.ready()));
+    }
+
+    @Test
+    void includesDisplayNameForOccupiedSeatsWithoutExposingItAsTheIdentifier() {
+        final Instant expiresAt = Instant.now().plusSeconds(3600);
+        final var seat = new Sandbox("conf-1", 0, "user-a", expiresAt);
+        final var user = new User("user-a", "alice", "Alice Example", "alice@example.com", UserRole.ATTENDEE);
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(seat));
+        Mockito.when(userRepoMock.findByUuid("user-a")).thenReturn(java.util.Optional.of(user));
+        Mockito.when(orchestratorMock.getRuntimeStatus(seat.podName())).thenReturn(null);
+
+        final var result = useCase.execute("conf-1");
+
+        assertEquals("Alice Example", result.get(0).seats().get(0).userDisplayName());
+        assertEquals("user-a", result.get(0).seats().get(0).userUuid());
     }
 }
