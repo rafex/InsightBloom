@@ -363,4 +363,17 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--color-
 .audit-actor { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
 .feedback { margin: 12px 0 0; color: var(--color-success); }
 .feedback.error { color: var(--color-danger-dark); }
+
+@media (max-width: 640px) {
+  .tickets-page { padding: 14px; }
+  .issue-card, .tickets-list, .compose-card { padding: 14px; }
+  .issue-row { flex-direction: column; align-items: stretch; }
+  .issue-row input { width: 100%; min-width: 0; }
+  .issue-row :deep(.base-btn) { width: 100%; }
+  .ticket-row { flex-direction: column; align-items: stretch; }
+  .ticket-main { width: 100%; min-width: 0; }
+  .row-actions { width: 100%; justify-content: flex-start; gap: 6px; }
+  .row-actions :deep(.base-btn) { flex: 1 1 calc(50% - 6px); min-width: 0; }
+  .list-header :deep(.base-btn) { width: 100%; }
+}
 </style>
