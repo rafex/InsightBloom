@@ -1,6 +1,6 @@
 # spec-native/ — Contexto del proyecto
 
-Índice de navegación del contexto SpecNative Development v0.7.
+Índice de navegación del contexto SpecNative Development v0.9.
 
 ## Documentos core
 
