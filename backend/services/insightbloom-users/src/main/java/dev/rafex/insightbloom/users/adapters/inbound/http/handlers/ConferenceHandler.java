@@ -807,7 +807,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                                         String organizer, String eventDate, String startTime,
                                         String endTime, String venue, Double latitude, Double longitude,
                                         Integer capacity, Integer remainingSeats, boolean ticketRequired,
-                                        boolean ticketPurchaseEnabled, boolean ticketSoldOut, String visibility, String flyerBase64,
+                                        boolean ticketPurchaseEnabled, boolean ticketSoldOut, boolean ticketSalesClosed,
+                                        String visibility, String flyerBase64,
                                         String scheduleMarkdown, String scheduleLayout,
                                         String publicTheme, String organizerPhotoBase64,
                                         String ticketPrice, String ticketCurrency,
@@ -834,6 +835,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         final Integer remaining = conference.getCapacity() == null ? null
                 : Math.max(0, conference.getCapacity() - occupied);
         final boolean ticketSoldOut = ticketRequired && ticketUseCase.isPublicTicketSoldOut(conference);
+        final boolean ticketSalesClosed = ticketRequired
+                && ("PUBLIC".equals(conference.getVisibility()) || "HYBRID".equals(conference.getVisibility()))
+                && !conference.isTicketSalesEnabled();
         final boolean hasTicket = userUuid != null && ticketUseCase != null
                 && ticketUseCase.myTicket(conference.getUuid(), userUuid).isPresent();
         final String organizer = userRepository.findByUuid(conference.getCreatedByUserUuid())
@@ -846,7 +850,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 conference.getLatitude(), conference.getLongitude(), conference.getCapacity(), remaining,
                 ticketRequired, ticketRequired && ("PUBLIC".equals(conference.getVisibility())
                         || "HYBRID".equals(conference.getVisibility())) && conference.isTicketSalesEnabled()
-                        && !ticketSoldOut, ticketSoldOut, conference.getVisibility(),
+                        && !ticketSoldOut, ticketSoldOut, ticketSalesClosed, conference.getVisibility(),
                 conference.getFlyerBase64(), conference.getScheduleMarkdown(), conference.getScheduleLayout(),
                 conference.getPublicTheme(),
                 userRepository.findByUuid(conference.getCreatedByUserUuid())
@@ -946,7 +950,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             if (!conference.isTicketSalesEnabled()) {
-                sendError(jx, 409, "ticket_sales_closed", "La emisión de boletos está cerrada para este evento");
+                sendError(jx, 409, "ticket_sales_closed",
+                        "La adquisición pública de boletos fue cerrada por el organizador");
                 return true;
             }
             if (!conference.isFreeTicket()) {
@@ -2208,10 +2213,6 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid() || !canManageTickets(id, v)) { sendError(jx, 403, "forbidden", "No tienes permiso para emitir boletos"); return true; }
             final var conference = getConferenceUseCase.byId(id).orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
-            if (!conference.isTicketSalesEnabled()) {
-                sendError(jx, 409, "ticket_sales_closed", "La emisión de boletos está cerrada para este evento");
-                return true;
-            }
             final var body = parseBody(jx);
             final String recipientEmail = (String) body.get("recipientEmail");
             final String seatUuid = (String) body.get("seatUuid");
@@ -2239,7 +2240,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 case "seat_required" -> "Debes seleccionar un asiento para este evento.";
                 case "seat_not_allowed" -> "Este evento no utiliza asientos; elimina el UUID de asiento.";
                 case "conference_expired" -> "El evento ya terminó y no admite nuevos boletos.";
-                case "ticket_sales_closed" -> "La emisión de boletos está cerrada para este evento.";
+                case "ticket_sales_closed" -> "La adquisición pública de boletos está cerrada para este evento.";
                 default -> "No fue posible emitir el boleto. Revisa la configuración y el aforo del evento.";
             };
             sendError(jx, 409, code, detail);

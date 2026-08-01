@@ -37,6 +37,7 @@
             BaseLink(v-if="event.hasTicket || !event.ticketRequired" :to="`/c/${event.friendlyId}`") Entrar
             BaseLink(v-else-if="event.ticketPurchaseEnabled" :to="`/events/${event.friendlyId}/checkout`") Adquirir boleto
             StatusBadge(v-else-if="event.ticketSoldOut" status="SOLD_OUT" label="Boletos agotados" tone="danger" pill)
+            StatusBadge(v-else-if="event.ticketSalesClosed" status="TICKET_SALES_CLOSED" label="Adquisición cerrada por el organizador" tone="warning" pill)
             StatusBadge(v-else status="INACTIVE" label="Boletos no disponibles" tone="neutral" pill)
         img.detail-flyer(v-if="event.flyerBase64" :src="event.flyerBase64" :alt="`Flyer de ${event.name}`")
         .detail-flyer.placeholder(v-else aria-hidden="true") 🎟️

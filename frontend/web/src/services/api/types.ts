@@ -157,6 +157,7 @@ export interface PublicConference {
   ticketRequired: boolean
   ticketPurchaseEnabled: boolean
   ticketSoldOut: boolean
+  ticketSalesClosed: boolean
   visibility: EventVisibility
   flyerBase64?: string | null
   scheduleMarkdown?: string | null

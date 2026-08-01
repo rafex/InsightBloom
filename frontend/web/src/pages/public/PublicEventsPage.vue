@@ -78,7 +78,7 @@ export default {
     const auth = useAuthStore()
     const eventActionLabel = (event: PublicConference) =>
       event.ticketRequired && !event.hasTicket
-        ? (event.ticketSoldOut ? 'Boletos agotados' : event.ticketPurchaseEnabled ? 'Adquirir boleto' : 'Boletos no disponibles')
+        ? (event.ticketSoldOut ? 'Boletos agotados' : event.ticketSalesClosed ? 'Adquisición cerrada' : 'Adquirir boleto')
         : 'Entrar'
     const eventActionPath = (event: PublicConference) =>
       event.ticketRequired && !event.hasTicket && event.ticketPurchaseEnabled

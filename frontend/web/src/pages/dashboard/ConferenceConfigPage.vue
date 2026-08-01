@@ -89,7 +89,7 @@
       FeedbackMessage(v-if="seatingSaved" message="Configuración de boletos guardada." tone="success")
       FeedbackMessage(v-if="seatingError" :message="seatingError" tone="error")
       ToggleSwitch(v-model="ticketSalesEnabled") Permitir adquisición de boletos desde la cartelera pública
-      p.field-hint El evento puede seguir activo aunque cierres la emisión de boletos. Los boletos ya emitidos conservan su acceso.
+      p.field-hint El evento puede seguir activo aunque cierres la adquisición pública. Los boletos ya emitidos conservan su acceso y puedes seguir gestionándolos o emitiéndolos manualmente desde “Administrar boletos”.
       BaseButton(variant="secondary" type="button" @click="saveTicketSales" :disabled="savingTicketSales")
         span(v-if="savingTicketSales") Guardando...
         span(v-else) Guardar disponibilidad de boletos

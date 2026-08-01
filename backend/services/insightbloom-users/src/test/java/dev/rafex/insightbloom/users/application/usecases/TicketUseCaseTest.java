@@ -100,6 +100,25 @@ class TicketUseCaseTest {
     }
 
     @Test
+    void allowsManualIssueWhenPublicTicketSalesAreClosed() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        conference.setTicketSalesEnabled(false);
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "",
+                mock(ReservationRepository.class));
+
+        assertNotNull(useCase.issue(conference.getUuid(), "moderator", "attendee@example.test", null));
+        verify(tickets).insert(any(Ticket.class));
+    }
+
+    @Test
     void claimsOnceAndRegistersMembership() {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EventTypeRepository eventTypes = mock(EventTypeRepository.class);

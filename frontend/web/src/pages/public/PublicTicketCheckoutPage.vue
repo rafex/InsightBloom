@@ -35,10 +35,11 @@
               small Total
               strong {{ isFree ? `0.00 ${event.ticketCurrency || 'MXN'}` : formattedPrice }}
             template(v-if="!success")
-              BaseLink.checkout-action(v-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: `/events/${event.friendlyId}/checkout` } }") Inicia sesión
+              span.checkout-closed(v-if="event.ticketSoldOut") Los boletos de este evento están agotados.
+              span.checkout-closed(v-else-if="event.ticketSalesClosed") La adquisición pública fue cerrada por el organizador. Solicita tu boleto directamente al organizador.
+              BaseLink.checkout-action(v-else-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: `/events/${event.friendlyId}/checkout` } }") Inicia sesión
               BaseButton.checkout-action(v-else-if="isFree && event.ticketPurchaseEnabled" type="button" :loading="submitting" @click="confirmFreeTicket") Confirmar boleto
-              span.checkout-closed(v-else-if="event.ticketSoldOut") Los boletos de este evento están agotados.
-              span.checkout-closed(v-else-if="!event.ticketPurchaseEnabled") La emisión de boletos está cerrada para este evento.
+              span.checkout-closed(v-else-if="!event.ticketPurchaseEnabled") La adquisición de boletos no está disponible para este evento.
               BaseButton.checkout-action(v-else type="button" disabled) Pago próximamente
             BaseLink.checkout-action(v-else variant="success" :to="`/c/${event.friendlyId}`") Entrar al evento
           FeedbackMessage.checkout-feedback(v-if="actionError" :message="actionError" tone="error")
