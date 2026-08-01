@@ -126,7 +126,8 @@ export default {
       if (auth.state.role === 'guest') return 'Invitado'
       return 'Asistente registrado'
     })
-    const ticketStatusLabel = computed(() => ticket.value?.status === 'CHECKED_IN' ? 'LISTO' : 'RESERVADO')
+    // El backend conserva CHECKED_IN/ISSUED; la tarjeta usa etiquetas de UI legibles.
+    const ticketStatusLabel = computed(() => ticket.value?.status === 'CHECKED_IN' ? 'Listo' : 'Reservado')
 
     async function load() {
       if (!props.conferenceId || !props.ticketed) {

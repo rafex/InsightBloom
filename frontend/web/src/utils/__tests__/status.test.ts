@@ -15,4 +15,8 @@ describe('status labels', () => {
     expect(formatTicketStatusLabel('CHECKED_IN')).toBe('Registrado en check-in')
     expect(formatTicketStatusLabel('NEW_TICKET_STATE')).toBe('New ticket state')
   })
+
+  it('formats unknown enum words in title case for visible UI', () => {
+    expect(formatStatusLabel('SANDBOX_RESTARTING')).toBe('Sandbox restarting')
+  })
 })

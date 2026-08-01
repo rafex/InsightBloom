@@ -23,6 +23,8 @@
 
 ## UX/UI
 
+- [x] Normalizar los estados visibles del boleto para que la UI no exponga enums en mayúsculas;
+  el código del backend sigue intacto y la tarjeta usa etiquetas legibles (`Listo`/`Reservado`).
 - [x] Migrar estilos `scoped` genéricos elegibles a tokens y componentes canónicos.
   Auditoría cerrada: los controles reutilizables de tema y lienzo de creación/edición/configuración,
   el layout de nubes de dudas/temas y las acciones de tablas administrativas ahora viven en estilos
