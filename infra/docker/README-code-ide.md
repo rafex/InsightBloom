@@ -96,7 +96,8 @@ assets locales. El backend crea un snapshot temporal, excluye metadatos de build
 auditar el contenido antes de servirlo desde un origen aislado.
 
 En el Web IDE se usa el botón **Publicar página temporal**. En el CLI la primera vez se inicia
-sesión de forma interactiva; el token queda fuera del workspace, nunca la contraseña:
+sesión de forma interactiva; las cuentas con OTP reciben un código por correo y el token queda
+fuera del workspace, nunca la contraseña ni el código:
 
 ```bash
 insightbloom login
@@ -125,9 +126,9 @@ workspace al iniciar cada sandbox.
 Ambas imágenes instalan la configuración común en `/etc/tmux.conf`, junto con TPM,
 `tmux-sensible`, `tmux-resurrect`, `tmux-continuum` y `vim-tmux-navigator`. Los plugins quedan
 vendorizados durante el build para que tmux funcione sin red en runtime. La combinación `v`/`y`
-del modo copy usa el buffer nativo de tmux. No se envían secuencias OSC 52 ni se abre un portal de
-portapapeles del navegador: el texto puede pegarse dentro de tmux con `Prefix` + `P` y copiarse
-con la selección nativa del terminal web cuando el navegador lo permita.
+del modo copy usa el buffer nativo de tmux y mantiene la selección visible. No se envían secuencias
+OSC 52 ni se abre un portal de portapapeles del navegador: el texto se copia manualmente desde la
+terminal web. Dentro de tmux se puede pegar con `Prefix` + `P`.
 
 ## Estructura de las imagenes
 

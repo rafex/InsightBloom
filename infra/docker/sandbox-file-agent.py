@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""File agent para Pods "debian" (code-server, Fase 4 -- dashboard de moderador). Version
-minima del control-port de sandbox-agent.py (imagen neovim): esta imagen siempre es UN solo
-asiento/UN solo usuario ("coder", no-root, sin privilegios especiales), asi que no hace falta
+"""Agente de archivos para Pods de un solo asiento (Web o CLI, Fase 4 -- dashboard de
+moderador). Es la versión mínima del control-port de sandbox-agent.py: esta imagen siempre es UN
+solo asiento/UN solo usuario ("coder", no-root, sin privilegios especiales), así que no hace falta
 nada de aprovisionamiento de cuentas ni watchdog de recursos -- solo listar/leer/escribir
 archivos del workspace de este alumno, mismo protocolo HTTP que sandbox-agent.py (mismo
 seatIndex=0 fijo en la URL, para que el lado Java trate ambas variantes de forma uniforme, ver
@@ -12,9 +12,9 @@ puerto de control = basePort-1) que ya cubre TODOS los Pods de sandbox por igual
 (KubernetesPodClient.ensureIngressPolicy), sea cual sea la imagen. Antes de esta Fase 4 nada
 escuchaba en ese puerto en la imagen debian -- ahora si.
 
-Lanzado en background por code-ide-entrypoint.sh, ANTES del "exec code-server" (que reemplaza
-el proceso del script) -- queda re-parentado a dumb-init (PID 1) cuando eso pasa, dumb-init
-reapea sus zombies igual que los de cualquier otro huerfano.
+En las imágenes Web se lanza en background por code-ide-entrypoint.sh, ANTES del "exec
+code-server"; en las imágenes CLI se lanza antes de ttyd. En ambos casos queda re-parentado a
+dumb-init (PID 1), que reapea sus zombies igual que los de cualquier otro huérfano.
 """
 import http.server
 import re

@@ -363,7 +363,12 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
-            return send(request).statusCode() < 300;
+            final int status = send(request).statusCode();
+            // Los Pods CLI de un solo asiento levantan sandbox-file-agent en el puerto de
+            // control, no sandbox-agent.py. El endpoint /seats no existe allí (404), pero el
+            // workspace ya está disponible en /workspace/0/zip; tratarlo como listo evita que
+            // la publicación estática falle con workspace_not_found.
+            return status < 300 || status == 404;
         } catch (final IllegalStateException e) {
             // send() envuelve IOException aca -- esperado mientras el Pod/seat-agent todavia no
             // esta listo (cold start en curso), no un error real: el proximo poll reintenta.

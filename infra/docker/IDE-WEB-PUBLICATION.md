@@ -29,7 +29,8 @@ publicación. No necesitas habilitar Internet ni copiar `INSIGHTBLOOM_API_BASE_U
 
 ```bash
 # Dentro del sandbox, el evento se detecta automáticamente desde CONFERENCE_UUID.
-# En el primer uso solicita usuario y contraseña de forma oculta.
+# En el primer uso solicita usuario y contraseña de forma oculta. Si la cuenta tiene OTP,
+# también solicita el código enviado por correo.
 insightbloom login
 insightbloom publish
 ```
@@ -63,8 +64,8 @@ insightbloom publish --root dist --token-prompt
 El UUID del evento ya no se considera una credencial manual dentro del sandbox: la plataforma lo
 inyecta como `CONFERENCE_UUID`. La sesión del CLI se guarda fuera del workspace en
 `~/.config/insightbloom/session.json` con permisos restrictivos; solo contiene el token y su fecha
-de expiración. La contraseña nunca se guarda. Si el token caduca, `publish` y `revoke` solicitan
-login nuevamente y repiten la solicitud una sola vez.
+de expiración. La contraseña y el código OTP nunca se guardan. Si el token caduca, `publish` y
+`revoke` solicitan login nuevamente y repiten la solicitud una sola vez.
 
 ## Configuración opcional
 

@@ -44,7 +44,6 @@ RUN apk add --no-cache \
     fzf \
     jq \
     tmux \
-    xclip \
     tree \
     bat \
     eza \
@@ -303,6 +302,7 @@ COPY Makefile Justfile /usr/local/share/insightbloom/
 COPY infra/docker/seed-node-types.sh /usr/local/bin/seed-node-types.sh
 COPY infra/docker/sandbox-agent.py /usr/local/bin/sandbox-agent.py
 COPY infra/docker/sandbox_file_api.py /usr/local/bin/sandbox_file_api.py
+COPY infra/docker/sandbox-file-agent.py /usr/local/bin/sandbox-file-agent.py
 COPY infra/docker/insightbloom-publish.py /usr/local/bin/insightbloom-publish.py
 COPY infra/docker/insightbloom-mentor.py /usr/local/bin/insightbloom-mentor.py
 COPY infra/docker/insightbloom /usr/local/bin/insightbloom
@@ -319,7 +319,7 @@ RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     test -x /opt/insightbloom/node-global/bin/pyright-langserver && \
     test -x /opt/insightbloom/node-global/bin/vscode-html-language-server && \
     test -x /opt/insightbloom/node-global/bin/vscode-css-language-server && \
-    chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py \
+    chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py /usr/local/bin/sandbox-file-agent.py \
     /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py /usr/local/bin/insightbloom \
     /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh
 
@@ -334,4 +334,4 @@ USER coder
 EXPOSE 8079-8089
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "/usr/local/bin/seed-remote-git.sh /home/coder/workspace; /usr/local/bin/seed-node-types.sh /home/coder/workspace; /usr/local/bin/seed-ide-docs.sh /home/coder/workspace; tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]
+CMD ["sh", "-c", "/usr/local/bin/seed-remote-git.sh /home/coder/workspace; /usr/local/bin/seed-node-types.sh /home/coder/workspace; /usr/local/bin/seed-ide-docs.sh /home/coder/workspace; python3 /usr/local/bin/sandbox-file-agent.py --control-port 8079 & tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]

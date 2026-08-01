@@ -1,5 +1,5 @@
 """API de archivos del workspace, compartida por sandbox-agent.py (imagen neovim/CLI, multi-
-asiento) y sandbox-file-agent.py (imagen debian/Web, un solo asiento) -- Fase 4 del dashboard de
+asiento) y sandbox-file-agent.py (imagen Web o CLI, un solo asiento) -- Fase 4 del dashboard de
 moderador (DEC-0025 area): listar/leer/escribir archivos dentro del workspace de UN alumno, para
 el visor Monaco liviano del organizador (ver ListWorkspaceFilesUseCase/ReadWorkspaceFileUseCase/
 WriteWorkspaceFileUseCase en insightbloom-users).

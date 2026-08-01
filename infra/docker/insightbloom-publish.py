@@ -19,7 +19,7 @@ import zipfile
 
 DEFAULT_API_BASE = "https://insightbloom.v1.rafex.cloud/api/users/api/v1"
 DEFAULT_SESSION_FILE = Path("~/.config/insightbloom/session.json").expanduser()
-CLI_VERSION = "2026.07-login-session"
+CLI_VERSION = "2026.08-login-session-otp"
 MAX_FILES = 1000
 MAX_BYTES = 250 * 1024 * 1024
 EXCLUDED_DIRS = {".git", ".hg", ".svn", "node_modules", ".venv", "__pycache__", ".insightbloom"}
@@ -79,10 +79,11 @@ def fail(message: str, code: int = 2) -> None:
 class ApiError(Exception):
     """Error HTTP conservando el código para poder renovar una sesión una sola vez."""
 
-    def __init__(self, status: int, message: str):
+    def __init__(self, status: int, message: str, code: str = ""):
         super().__init__(message)
         self.status = status
         self.message = message
+        self.code = code
 
 
 def read_config(root: Path) -> tuple[Path, str | None]:
@@ -222,8 +223,17 @@ def response_error(exc: urllib.error.HTTPError) -> ApiError:
         detail = json.loads(raw)
     except json.JSONDecodeError:
         detail = {"error": raw or exc.reason}
-    message = detail.get("message") or detail.get("error") or str(exc.reason)
-    return ApiError(exc.code, str(message))
+    nested = detail.get("error") if isinstance(detail, dict) else None
+    if isinstance(nested, dict):
+        code = str(nested.get("code") or "")
+        message = nested.get("message") or code or str(exc.reason)
+    elif isinstance(detail, dict):
+        code = str(detail.get("code") or "")
+        message = detail.get("message") or nested or str(exc.reason)
+    else:
+        code = ""
+        message = str(exc.reason)
+    return ApiError(exc.code, str(message), code)
 
 
 def request_json(method: str, url: str, token: str | None = None, body: bytes | None = None) -> dict:
@@ -266,7 +276,28 @@ def login_session(api: str, username: str | None = None) -> str:
     try:
         result = request_json("POST", f"{api}/auth/login", body=payload)
     except ApiError as exc:
-        fail(f"no se pudo iniciar sesión ({exc.status or 'red'}): {exc.message}", 1)
+        if exc.code != "otp_login_required":
+            fail(f"no se pudo iniciar sesión ({exc.status or 'red'}): {exc.message}", 1)
+        print("Esta cuenta usa código de acceso por correo; se solicitará un código OTP.", file=sys.stderr)
+        try:
+            request_json(
+                "POST",
+                f"{api}/auth/login/otp/request",
+                body=json.dumps({"identifier": login_name}).encode("utf-8"),
+            )
+            otp_code = getpass.getpass("Código de acceso (oculto): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            fail("inicio de sesión cancelado")
+        if not otp_code:
+            fail("el código de acceso no puede estar vacío")
+        try:
+            result = request_json(
+                "POST",
+                f"{api}/auth/login/otp/verify",
+                body=json.dumps({"identifier": login_name, "code": otp_code}).encode("utf-8"),
+            )
+        except ApiError as otp_exc:
+            fail(f"no se pudo verificar el código ({otp_exc.status or 'red'}): {otp_exc.message}", 1)
     data = result.get("data", result) if isinstance(result, dict) else {}
     token = data.get("token") if isinstance(data, dict) else None
     if not isinstance(token, str) or not token.strip():
