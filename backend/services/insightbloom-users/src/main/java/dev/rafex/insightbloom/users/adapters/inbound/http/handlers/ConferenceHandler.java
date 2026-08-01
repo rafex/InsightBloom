@@ -807,7 +807,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                                         String organizer, String eventDate, String startTime,
                                         String endTime, String venue, Double latitude, Double longitude,
                                         Integer capacity, Integer remainingSeats, boolean ticketRequired,
-                                        boolean ticketPurchaseEnabled, String visibility, String flyerBase64,
+                                        boolean ticketPurchaseEnabled, boolean ticketSoldOut, String visibility, String flyerBase64,
                                         String scheduleMarkdown, String scheduleLayout,
                                         String publicTheme, String organizerPhotoBase64,
                                         String ticketPrice, String ticketCurrency,
@@ -833,6 +833,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 : conference.getReservedCount();
         final Integer remaining = conference.getCapacity() == null ? null
                 : Math.max(0, conference.getCapacity() - occupied);
+        final boolean ticketSoldOut = ticketRequired && ticketUseCase.isPublicTicketSoldOut(conference);
         final boolean hasTicket = userUuid != null && ticketUseCase != null
                 && ticketUseCase.myTicket(conference.getUuid(), userUuid).isPresent();
         final String organizer = userRepository.findByUuid(conference.getCreatedByUserUuid())
@@ -844,7 +845,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 conference.getStartTime(), conference.getEndTime(), conference.getVenue(),
                 conference.getLatitude(), conference.getLongitude(), conference.getCapacity(), remaining,
                 ticketRequired, ticketRequired && ("PUBLIC".equals(conference.getVisibility())
-                        || "HYBRID".equals(conference.getVisibility())) && conference.isTicketSalesEnabled(), conference.getVisibility(),
+                        || "HYBRID".equals(conference.getVisibility())) && conference.isTicketSalesEnabled()
+                        && !ticketSoldOut, ticketSoldOut, conference.getVisibility(),
                 conference.getFlyerBase64(), conference.getScheduleMarkdown(), conference.getScheduleLayout(),
                 conference.getPublicTheme(),
                 userRepository.findByUuid(conference.getCreatedByUserUuid())
@@ -939,6 +941,10 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 409, "ticket_not_required", "Este evento no requiere boleto");
                 return true;
             }
+            if (ticketUseCase.isPublicTicketSoldOut(conference)) {
+                sendError(jx, 409, "ticket_sold_out", "Los boletos de este evento se agotaron");
+                return true;
+            }
             if (!conference.isTicketSalesEnabled()) {
                 sendError(jx, 409, "ticket_sales_closed", "La emisión de boletos está cerrada para este evento");
                 return true;
@@ -960,8 +966,10 @@ public class ConferenceHandler extends BaseResourceHandler {
                     }));
             sendOk(jx, 201, ticket);
         } catch (final IllegalStateException e) {
-            final int status = "capacity_exceeded".equals(e.getMessage()) ? 409 : 400;
-            sendError(jx, status, e.getMessage(), e.getMessage());
+            final boolean soldOut = "capacity_exceeded".equals(e.getMessage());
+            final int status = soldOut ? 409 : 400;
+            sendError(jx, status, soldOut ? "ticket_sold_out" : e.getMessage(),
+                    soldOut ? "Los boletos de este evento se agotaron" : e.getMessage());
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final Exception e) {

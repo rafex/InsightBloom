@@ -344,6 +344,21 @@ public class TicketUseCase {
     }
 
     /**
+     * Indica si el autoservicio público ya no puede adquirir un boleto nuevo.
+     * Un boleto anónimo preemitido sigue siendo reclamable aunque el contador reservado
+     * haya llegado al aforo, por eso se busca ese caso antes de declarar agotado el evento.
+     */
+    public boolean isPublicTicketSoldOut(final Conference conference) {
+        if (!isTicketed(conference) || conference.getCapacity() == null) return false;
+        final boolean hasUnclaimedPublicTicket = ticketRepository.findByConference(conference.getUuid()).stream()
+                .anyMatch(ticket -> !ticket.isOperational()
+                        && ticket.getStatus() == TicketStatus.ISSUED
+                        && ticket.getClaimedByUserUuid() == null
+                        && ticket.getRecipientEmail() == null);
+        return !hasUnclaimedPublicTicket && conference.getReservedCount() >= conference.getCapacity();
+    }
+
+    /**
      * Asientos realmente ocupados para la vista pública de aforo -- NO es lo mismo que
      * {@code Conference.reservedCount}: ese contador sube apenas se EMITE un boleto (incluidos
      * los lotes de {@link #issueBatch} que nadie reclamó todavía) porque sirve para bloquear

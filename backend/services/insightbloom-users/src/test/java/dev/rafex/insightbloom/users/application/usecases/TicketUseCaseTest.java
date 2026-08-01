@@ -61,6 +61,45 @@ class TicketUseCaseTest {
     }
 
     @Test
+    void marksPublicTicketSalesSoldOutWhenCapacityIsReserved() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        conference.setCapacity(2);
+        conference.setReservedCount(2);
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByConference(conference.getUuid())).thenReturn(java.util.List.of());
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "",
+                mock(ReservationRepository.class));
+
+        assertTrue(useCase.isPublicTicketSoldOut(conference));
+    }
+
+    @Test
+    void keepsPublicSalesAvailableForAnUnclaimedAnonymousTicket() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        conference.setCapacity(1);
+        conference.setReservedCount(1);
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByConference(conference.getUuid())).thenReturn(java.util.List.of(
+                new Ticket(conference.getUuid(), "owner", null, null)));
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "",
+                mock(ReservationRepository.class));
+
+        assertFalse(useCase.isPublicTicketSoldOut(conference));
+    }
+
+    @Test
     void claimsOnceAndRegistersMembership() {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EventTypeRepository eventTypes = mock(EventTypeRepository.class);

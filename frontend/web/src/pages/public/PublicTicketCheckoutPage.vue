@@ -37,6 +37,7 @@
             template(v-if="!success")
               BaseLink.checkout-action(v-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: `/events/${event.friendlyId}/checkout` } }") Inicia sesión
               BaseButton.checkout-action(v-else-if="isFree && event.ticketPurchaseEnabled" type="button" :loading="submitting" @click="confirmFreeTicket") Confirmar boleto
+              span.checkout-closed(v-else-if="event.ticketSoldOut") Los boletos de este evento están agotados.
               span.checkout-closed(v-else-if="!event.ticketPurchaseEnabled") La emisión de boletos está cerrada para este evento.
               BaseButton.checkout-action(v-else type="button" disabled) Pago próximamente
             BaseLink.checkout-action(v-else variant="success" :to="`/c/${event.friendlyId}`") Entrar al evento
@@ -107,7 +108,11 @@ export default {
         success.value = true
       } catch (e: any) {
         const code = e.response?.data?.error?.code
-        if (code === 'capacity_exceeded') actionError.value = 'Ya no quedan lugares disponibles para este evento.'
+        if (code === 'capacity_exceeded' || code === 'ticket_sold_out') {
+          actionError.value = 'Los boletos de este evento se agotaron.'
+          event.value.ticketSoldOut = true
+          event.value.ticketPurchaseEnabled = false
+        }
         else if (code === 'payment_required') actionError.value = 'Este evento requiere pago y todavía no hay un proveedor habilitado.'
         else if (code === 'login_required' || code === 'token_missing') {
           await router.push({ path: '/login', query: { redirect: `/events/${event.value.friendlyId}/checkout` } })

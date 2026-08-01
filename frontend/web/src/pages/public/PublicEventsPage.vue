@@ -78,12 +78,12 @@ export default {
     const auth = useAuthStore()
     const eventActionLabel = (event: PublicConference) =>
       event.ticketRequired && !event.hasTicket
-        ? (event.ticketPurchaseEnabled ? 'Adquirir boleto' : 'Boletos no disponibles')
+        ? (event.ticketSoldOut ? 'Boletos agotados' : event.ticketPurchaseEnabled ? 'Adquirir boleto' : 'Boletos no disponibles')
         : 'Entrar'
     const eventActionPath = (event: PublicConference) =>
       event.ticketRequired && !event.hasTicket && event.ticketPurchaseEnabled
         ? `/events/${event.friendlyId}/checkout`
-        : `/c/${event.friendlyId}`
+        : `/events/${event.friendlyId}`
     onMounted(async () => {
       const token = auth.isAuthenticated() && auth.state.role !== 'guest' ? auth.state.token : null
       try { events.value = await getPublicConferences(token) }
