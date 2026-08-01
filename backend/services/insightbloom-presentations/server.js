@@ -360,6 +360,19 @@ function requireInternalApiKey(req, res) {
 // Preview content is served from a separate origin and is never put below the
 // main application origin. There is no build step and no arbitrary filesystem
 // path in this route.
+// A static site's relative assets are resolved against the last path segment. Keep
+// the publication URL directory-like even when an older client or copied link
+// omits the trailing slash; otherwise `styles.css` becomes `/p/styles.css` and
+// the preview ingress returns its JSON error response with the wrong MIME type.
+app.get('/p/:publicationId', (req, res, next) => {
+  const pathWithoutQuery = String(req.originalUrl || '').split('?')[0];
+  if (pathWithoutQuery.endsWith('/')) return next();
+  const publicationId = req.params.publicationId;
+  if (!UUID_RE.test(publicationId)) return next();
+  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  return res.redirect(308, `/p/${publicationId}/${query}`);
+});
+
 app.use('/p/:publicationId', (req, res, next) => {
   const publicationId = req.params.publicationId;
   const manifest = readPreviewManifest(publicationId);

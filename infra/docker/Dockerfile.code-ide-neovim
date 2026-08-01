@@ -261,7 +261,6 @@ USER root
 RUN mkdir -p /etc/insightbloom /usr/local/share/doc/insightbloom /usr/local/share/insightbloom
 COPY infra/docker/nvim-init.lua /etc/insightbloom/nvim-init.lua
 COPY infra/docker/insightbloom-bash-completion.sh /usr/share/bash-completion/completions/insightbloom
-COPY infra/docker/insightbloom-tmux-clipboard /usr/local/bin/insightbloom-tmux-clipboard
 COPY infra/docker/tmux.conf /etc/tmux.conf
 COPY Makefile Justfile /usr/local/share/insightbloom/
 COPY infra/docker/seed-node-types.sh /usr/local/bin/seed-node-types.sh
@@ -285,8 +284,7 @@ RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     test -x /opt/insightbloom/node-global/bin/vscode-css-language-server && \
     chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py \
     /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py /usr/local/bin/insightbloom \
-    /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh \
-    /usr/local/bin/insightbloom-tmux-clipboard
+    /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh
 
 # La consulta distribuida por Alpine usa #is-not?, un predicado de nvim-treesitter que no
 # existe en Neovim 0.10.4. Se conserva el resaltado JavaScript con una variante compatible

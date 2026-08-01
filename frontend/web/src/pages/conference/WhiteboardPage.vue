@@ -23,9 +23,11 @@
     ) ↻
   NoticeState(v-else-if="!available" title="Pizarra no disponible" message="Intenta más tarde o contacta al organizador." tone="warning")
   template(v-else)
-    .save-banner(v-if="!canPersist" class="save-banner-info") Tu edición es local y no se conservará; solo el material del moderador se persiste.
-    FeedbackMessage.save-banner(v-if="saveError" :message="`No se pudo publicar la pizarra: ${saveError}`" tone="error")
-    FeedbackMessage.save-banner(v-else-if="saveStatus === 'saved'" message="Pizarra publicada" tone="success")
+    .save-feedback-slot(aria-live="polite")
+      .save-banner.save-banner-info(v-if="!canPersist") Tu edición es local y no se conservará; solo el material del moderador se persiste.
+      FeedbackMessage.save-banner(v-else-if="saveError" :message="`No se pudo publicar la pizarra: ${saveError}`" tone="error")
+      FeedbackMessage.save-banner(v-else-if="saveStatus === 'saved'" message="Pizarra publicada" tone="success")
+      span.save-feedback-placeholder(v-else aria-hidden="true")
     .editor-shell(ref="editorRef")
 </template>
 
@@ -209,7 +211,10 @@ export default {
 .whiteboard-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; position: relative; }
 .editor-shell { flex: 1 1 auto; height: calc(100vh - 112px); min-height: 480px; width: 100%; overflow: hidden; }
 .editor-shell :deep(.excalidraw) { width: 100%; height: 100%; min-height: 480px; }
-.published-banner, .save-banner { padding: 10px 16px; font-size: 0.86rem; }
+.published-banner { padding: 10px 16px; font-size: 0.86rem; }
+.save-feedback-slot { flex: 0 0 40px; min-height: 40px; display: flex; align-items: stretch; justify-content: stretch; }
+.save-feedback-placeholder { display: block; width: 100%; }
+.save-banner { flex: 1 1 auto; min-height: 40px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 10px 16px; font-size: 0.86rem; }
 .published-banner { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; background: var(--color-primary-soft); color: var(--color-primary-dark); }
 .update-state { color: var(--color-text-secondary); }
 .published-content { flex: 1; min-height: 480px; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--color-surface-muted); }

@@ -23,9 +23,11 @@
     ) ↻
   NoticeState(v-else-if="!drawioUrl" title="Diagramas no disponibles" message="Intenta más tarde o contacta al organizador." tone="warning")
   template(v-else)
-    .save-banner(v-if="!canPersist" class="save-banner-info") Tu edición es local y no se conservará; solo el material del moderador se persiste.
-    FeedbackMessage.save-banner(v-if="saveError" :message="`No se pudo publicar el diagrama: ${saveError}`" tone="error")
-    FeedbackMessage.save-banner(v-else-if="saveStatus === 'saved'" message="Diagrama publicado" tone="success")
+    .save-feedback-slot(aria-live="polite")
+      .save-banner.save-banner-info(v-if="!canPersist") Tu edición es local y no se conservará; solo el material del moderador se persiste.
+      FeedbackMessage.save-banner(v-else-if="saveError" :message="`No se pudo publicar el diagrama: ${saveError}`" tone="error")
+      FeedbackMessage.save-banner(v-else-if="saveStatus === 'saved'" message="Diagrama publicado" tone="success")
+      span.save-feedback-placeholder(v-else aria-hidden="true")
     iframe.drawio-frame(ref="frameRef" :src="drawioUrl" title="Diagramas" allow="clipboard-write" @load="stripSessionToken")
 </template>
 
@@ -266,7 +268,9 @@ export default {
 <style scoped>
 .diagramming-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; position: relative; }
 .drawio-frame { flex: 1; border: none; width: 100%; }
-.save-banner { flex: 0 0 auto; padding: 8px 16px; font-size: 0.85rem; text-align: center; }
+.save-feedback-slot { flex: 0 0 40px; min-height: 40px; display: flex; align-items: stretch; justify-content: stretch; }
+.save-feedback-placeholder { display: block; width: 100%; }
+.save-banner { flex: 1 1 auto; min-height: 40px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 8px 16px; font-size: 0.85rem; text-align: center; }
 .save-banner-info { background: var(--color-info-soft); color: var(--color-info); }
 .save-banner.tone-success { background: var(--color-success-soft); }
 .save-banner.tone-error { background: var(--color-danger-soft); color: var(--color-danger-dark); }

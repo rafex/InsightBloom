@@ -28,6 +28,14 @@ public final class PublishWorkspacePreviewUseCase {
         if (sandbox.getExpiresAt() != null && !sandbox.getExpiresAt().isAfter(Instant.now())) {
             throw new IllegalArgumentException("sandbox_expired");
         }
+        // En CLI multi-asiento el proceso de sandbox-agent mantiene la sesión de los asientos
+        // en memoria. Después de un reinicio del Pod la fila de SQLite sigue asignada, pero el
+        // agente todavía no conoce el asiento y devolvía workspace_not_found. Reaprovisiónalo
+        // idempotentemente antes de leer el workspace; en IDE Web el adaptador no tiene seat
+        // agent y este intento best-effort no cambia el flujo existente.
+        if (Sandbox.VARIANT_CLI.equals(sandbox.getVariant())) {
+            sandboxOrchestrator.ensureSeatReady(sandbox.podName(), sandbox.getSeatIndex(), userUuid);
+        }
         final byte[] zip = sandboxOrchestrator.downloadWorkspaceZip(sandbox.podName(), sandbox.getSeatIndex());
         if (zip.length == 0) throw new IllegalArgumentException("workspace_empty");
         return publisher.publish(conferenceUuid, userUuid, zip, ttlSeconds);
