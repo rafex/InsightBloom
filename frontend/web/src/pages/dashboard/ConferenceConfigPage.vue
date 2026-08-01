@@ -145,7 +145,7 @@
         LoadingState(v-if="loadingSandboxStatus" message="Cargando estado de los sandboxes…")
         EmptyState(v-else-if="sandboxStatusLoaded && !sandboxStatus.length" message="No hay sandboxes activos.")
         .table-scroll(v-else-if="sandboxStatusLoaded")
-          table.incidents-table
+          table.incidents-table.sandbox-status-table
             thead
               tr
                 th Pod
@@ -157,14 +157,14 @@
                 th Acciones
             tbody
               tr(v-for="pod in sandboxStatus" :key="pod.podName")
-                td {{ pod.podName }}
-                td {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
-                td
+                td(data-label="Pod") {{ pod.podName }}
+                td(data-label="Modo") {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
+                td(data-label="Fase")
                   StatusBadge(:status="pod.phase" pill)
-                td
+                td(data-label="Listo")
                   StatusBadge(:status="pod.ready ? 'READY' : 'NOT_READY'" pill)
-                td {{ pod.reason || '—' }}{{ pod.restartCount ? ` (${pod.restartCount} reinicios)` : '' }}
-                td.seats-cell
+                td(data-label="Diagnóstico") {{ pod.reason || '—' }}{{ pod.restartCount ? ` (${pod.restartCount} reinicios)` : '' }}
+                td.seats-cell(data-label="Asientos")
                   span.seat-badge(v-for="seat in pod.seats" :key="seat.seatIndex")
                     span.seat-user(
                       v-if="seat.userUuid"
@@ -172,7 +172,7 @@
                       :aria-label="`Asiento ${seat.seatIndex + 1}: ${seat.userDisplayName || 'Usuario'}. UUID ${seat.userUuid}`"
                     ) Asiento {{ seat.seatIndex + 1 }}: {{ seat.userDisplayName || 'Usuario' }}
                     span.seat-empty(v-else) Asiento {{ seat.seatIndex + 1 }}: libre
-                td.sandbox-actions
+                td.sandbox-actions(data-label="Acciones")
                   .sandbox-actions-group
                     BaseButton.icon-action(variant="danger" size="sm" type="button" @click="deleteSandbox(pod)" :disabled="sandboxActionBusy === pod.podName" :loading="sandboxActionBusy === pod.podName" :aria-label="`Eliminar sandbox ${pod.podName}`" :title="`Eliminar sandbox ${pod.podName}`")
                       UiIcon(v-if="sandboxActionBusy !== pod.podName" name="trash" size="18" aria-hidden="true")
@@ -1057,6 +1057,8 @@ textarea:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 
 .seat-user { background: var(--color-primary-soft); color: var(--color-primary); border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-family: var(--font-family-mono); }
 .seat-empty { font-size: 0.78rem; color: var(--color-text-muted); }
 
+.sandbox-status-table td::before { display: none; }
+
 .roles-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .role-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: var(--color-surface-muted); border-radius: 8px; }
 .role-person { flex: 1; font-size: 0.85rem; color: var(--color-text-secondary); }
@@ -1073,5 +1075,40 @@ textarea:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 
   .assign-row { flex-direction: column; }
   .assign-row input, .assign-row select { width: 100%; box-sizing: border-box; }
   .sandbox-actions-group { justify-content: flex-start; }
+  .sandbox-status-table,
+  .sandbox-status-table tbody,
+  .sandbox-status-table tr,
+  .sandbox-status-table td { display: block; width: 100%; box-sizing: border-box; }
+  .sandbox-status-table thead { display: none; }
+  .sandbox-status-table tbody tr {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
+  }
+  .sandbox-status-table td {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-top: 0;
+  }
+  .sandbox-status-table td::before {
+    display: block;
+    content: attr(data-label);
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+  .sandbox-status-table td > .status-badge,
+  .sandbox-status-table .seat-badge,
+  .sandbox-status-table .sandbox-actions-group,
+  .sandbox-status-table .action-note { grid-column: 2; justify-self: start; }
+  .sandbox-status-table .seats-cell,
+  .sandbox-status-table .sandbox-actions { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); }
+  .sandbox-status-table .seat-badge { width: fit-content; max-width: 100%; }
 }
 </style>
