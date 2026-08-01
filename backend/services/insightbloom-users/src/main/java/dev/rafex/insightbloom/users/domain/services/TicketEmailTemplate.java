@@ -3,7 +3,9 @@ package dev.rafex.insightbloom.users.domain.services;
 /**
  * Email HTML del boleto (2026-07-27), inspirado en la tarjeta de TicketPage.vue pero
  * simplificado a lo que los clientes de correo soportan de verdad: tabla + estilos inline
- * (nada de CSS custom properties, gradiente radial ni transform 3D). Sin plantillas: es más
+ * (nada de CSS custom properties, gradiente radial ni transform 3D). El QR llega como
+ * recurso MIME inline mediante {@code cid:ticket-qr}, no como una imagen {@code data:}
+ * que algunos clientes eliminan al reenviar. Sin plantillas: es más
  * simple mantener un único método que concatenar fragmentos, dado que todo el resto de los
  * emails de esta app también arma el cuerpo a mano (ver TicketUseCase, JoinConferenceUseCase).
  */
@@ -16,7 +18,7 @@ public final class TicketEmailTemplate {
     private TicketEmailTemplate() { }
 
     public static String render(final String eventName, final String ticketUrl,
-                                 final String qrDataUri, final String ticketCode) {
+                                 final String qrSource, final String ticketCode) {
         final String safeEventName = escapeHtml(eventName);
         final String safeUrl = escapeHtml(ticketUrl);
         final String safeCode = escapeHtml(ticketCode);
@@ -28,7 +30,7 @@ public final class TicketEmailTemplate {
                 + "◈ InsightBloom — Boleto de acceso</div>"
                 + "<h1 style=\"color:" + TEXT_MAIN + ";font-size:22px;margin:8px 0 20px;line-height:1.3;\">" + safeEventName + "</h1>"
                 + "<div style=\"background:#fff;border-radius:12px;padding:16px;display:inline-block;\">"
-                + "<img src=\"" + qrDataUri + "\" width=\"220\" height=\"220\" alt=\"Código QR del boleto\" style=\"display:block;\">"
+                + "<img src=\"" + escapeHtml(qrSource) + "\" width=\"220\" height=\"220\" alt=\"Código QR del boleto\" style=\"display:block;\">"
                 + "</div>"
                 + "<p style=\"color:" + TEXT_MUTED + ";font-size:12px;margin:16px 0 4px;\">Código manual / UUID del boleto</p>"
                 + "<code style=\"color:" + TEXT_MAIN + ";font-size:13px;word-break:break-all;\">" + safeCode + "</code>"

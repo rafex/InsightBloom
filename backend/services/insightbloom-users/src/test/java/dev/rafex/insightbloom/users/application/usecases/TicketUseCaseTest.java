@@ -5,12 +5,14 @@ import dev.rafex.insightbloom.users.domain.model.EventType;
 import dev.rafex.insightbloom.users.domain.model.Ticket;
 import dev.rafex.insightbloom.users.domain.model.UserRole;
 import dev.rafex.insightbloom.users.domain.ports.*;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -116,6 +118,36 @@ class TicketUseCaseTest {
 
         assertNotNull(useCase.issue(conference.getUuid(), "moderator", "attendee@example.test", null));
         verify(tickets).insert(any(Ticket.class));
+    }
+
+    @Test
+    void sendsTicketQrAsInlineMimeAttachment() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final EmailPort email = mock(EmailPort.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        when(email.isEnabled()).thenReturn(true);
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), email, "https://frontend.test",
+                mock(ReservationRepository.class));
+
+        useCase.issue(conference.getUuid(), "moderator", "attendee@example.test", null);
+
+        final ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
+        final ArgumentCaptor<List<EmailPort.EmailAttachment>> attachments = ArgumentCaptor.forClass(List.class);
+        verify(email).sendHtml(eq("attendee@example.test"), eq("Tu boleto para Evento"), html.capture(), attachments.capture());
+        assertTrue(html.getValue().contains("cid:ticket-qr"));
+        assertEquals(1, attachments.getValue().size());
+        final EmailPort.EmailAttachment qr = attachments.getValue().getFirst();
+        assertEquals("ticket-qr.png", qr.fileName());
+        assertEquals("image/png", qr.contentType());
+        assertEquals("ticket-qr", qr.contentId());
+        assertTrue(qr.content().length > 100);
     }
 
     @Test

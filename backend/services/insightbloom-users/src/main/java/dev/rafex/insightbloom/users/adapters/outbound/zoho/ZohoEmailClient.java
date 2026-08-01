@@ -2,12 +2,18 @@ package dev.rafex.insightbloom.users.adapters.outbound.zoho;
 
 import dev.rafex.insightbloom.users.domain.ports.EmailPort;
 
+import javax.activation.DataHandler;
+import javax.mail.Part;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Session;
 import javax.mail.Transport;
+import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
+import javax.mail.util.ByteArrayDataSource;
+import java.util.List;
 import java.util.Properties;
 
 public class ZohoEmailClient implements EmailPort {
@@ -41,6 +47,36 @@ public class ZohoEmailClient implements EmailPort {
     @Override
     public void sendHtml(final String toEmail, final String subject, final String htmlBody) {
         sendInternal(toEmail, subject, mimeMessage -> mimeMessage.setContent(htmlBody, "text/html; charset=UTF-8"));
+    }
+
+    @Override
+    public void sendHtml(final String toEmail, final String subject, final String htmlBody,
+                         final List<EmailAttachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
+            sendHtml(toEmail, subject, htmlBody);
+            return;
+        }
+        sendInternal(toEmail, subject, mimeMessage -> {
+            final MimeMultipart multipart = new MimeMultipart("mixed");
+            final MimeBodyPart htmlPart = new MimeBodyPart();
+            htmlPart.setContent(htmlBody, "text/html; charset=UTF-8");
+            multipart.addBodyPart(htmlPart);
+
+            for (final EmailAttachment attachment : attachments) {
+                final MimeBodyPart attachmentPart = new MimeBodyPart();
+                attachmentPart.setDataHandler(new DataHandler(
+                        new ByteArrayDataSource(attachment.content(), attachment.contentType())));
+                attachmentPart.setFileName(attachment.fileName());
+                if (attachment.contentId() != null && !attachment.contentId().isBlank()) {
+                    attachmentPart.setHeader("Content-ID", "<" + attachment.contentId() + ">");
+                    attachmentPart.setDisposition(Part.INLINE);
+                } else {
+                    attachmentPart.setDisposition(Part.ATTACHMENT);
+                }
+                multipart.addBodyPart(attachmentPart);
+            }
+            mimeMessage.setContent(multipart);
+        });
     }
 
     private interface BodySetter {

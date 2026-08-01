@@ -506,9 +506,10 @@ public class TicketUseCase {
         try {
             final String ticketUrl = frontendBaseUrl + "/c/" + conference.getFriendlyId()
                     + "/ticket?ticket=" + ticket.getTicketCode();
-            final String qrDataUri = TicketQrGenerator.toPngDataUri(ticketUrl);
-            final String html = TicketEmailTemplate.render(conference.getName(), ticketUrl, qrDataUri, ticket.getTicketCode());
-            emailPort.sendHtml(email, "Tu boleto para " + conference.getName(), html);
+            final byte[] qrPng = TicketQrGenerator.toPngBytes(ticketUrl);
+            final String html = TicketEmailTemplate.render(conference.getName(), ticketUrl, "cid:ticket-qr", ticket.getTicketCode());
+            emailPort.sendHtml(email, "Tu boleto para " + conference.getName(), html,
+                    List.of(new EmailPort.EmailAttachment("ticket-qr.png", "image/png", qrPng, "ticket-qr")));
         } catch (Exception ignored) { }
     }
 
