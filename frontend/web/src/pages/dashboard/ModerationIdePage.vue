@@ -135,4 +135,16 @@ h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
 .seat-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; background: var(--color-surface-muted); border-radius: 8px; }
 .seat-user { font-family: monospace; font-size: 0.8rem; color: var(--color-text-secondary); }
 .seat-empty { font-size: 0.8rem; color: var(--color-text-muted); font-style: italic; }
+
+@media (max-width: 640px) {
+  .mod-ide-page { padding: 14px; }
+  .toolbar { flex-direction: column; }
+  .toolbar :deep(.base-btn) { width: 100%; }
+  .pod-card { padding: 14px; }
+  .pod-header { align-items: flex-start; }
+  .pod-name { min-width: 0; overflow-wrap: anywhere; }
+  .seat-row { align-items: stretch; flex-wrap: wrap; }
+  .seat-user, .seat-empty { min-width: 0; flex: 1 1 160px; overflow-wrap: anywhere; }
+  .seat-row :deep(.base-btn) { flex: 0 0 auto; }
+}
 </style>
