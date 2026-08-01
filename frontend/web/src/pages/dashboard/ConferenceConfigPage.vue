@@ -159,8 +159,10 @@
               tr(v-for="pod in sandboxStatus" :key="pod.podName")
                 td {{ pod.podName }}
                 td {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
-                td {{ pod.phase }}
-                td {{ pod.ready ? '✓' : '—' }}
+                td
+                  StatusBadge(:status="pod.phase" pill)
+                td
+                  StatusBadge(:status="pod.ready ? 'READY' : 'NOT_READY'" pill)
                 td {{ pod.reason || '—' }}{{ pod.restartCount ? ` (${pod.restartCount} reinicios)` : '' }}
                 td.seats-cell
                   span.seat-badge(v-for="seat in pod.seats" :key="seat.seatIndex")
@@ -343,11 +345,12 @@ import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import SaveState from '@/components/ui/SaveState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, ToggleSwitch, SaveState, UiIcon },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, ToggleSwitch, SaveState, StatusBadge, UiIcon },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()

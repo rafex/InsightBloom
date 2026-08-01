@@ -10,14 +10,23 @@ type StatusTone = 'success' | 'warning' | 'danger' | 'neutral' | 'info'
 
 const STATUS_TONES: Record<string, StatusTone> = {
   ACTIVE: 'success',
+  READY: 'success',
+  RUNNING: 'success',
+  SUCCEEDED: 'success',
   VISIBLE: 'success',
   BANNED: 'danger',
+  FAILED: 'danger',
+  NOTFOUND: 'danger',
   DELETED: 'neutral',
   INACTIVE: 'warning',
   PENDING: 'warning',
+  CONTAINERCREATING: 'warning',
+  TERMINATING: 'warning',
+  NOT_READY: 'warning',
   PENDIENTE_REVISION: 'warning',
   CENSURADO_AUTO: 'danger',
-  CENSURADO_MANUAL: 'danger'
+  CENSURADO_MANUAL: 'danger',
+  UNKNOWN: 'neutral'
 }
 
 export default {
@@ -30,11 +39,12 @@ export default {
   },
   setup(props: { status: string, label: string, tone: string, pill: boolean }) {
     const resolvedLabel = computed(() => props.label || formatStatusLabel(props.status))
+    const normalizedStatus = computed(() => props.status.trim().toUpperCase())
     const resolvedTone = computed<StatusTone>(() => {
       if (props.tone && props.tone in { success: true, warning: true, danger: true, neutral: true, info: true }) {
         return props.tone as StatusTone
       }
-      return STATUS_TONES[props.status] || 'neutral'
+      return STATUS_TONES[normalizedStatus.value] || 'neutral'
     })
     return { resolvedLabel, resolvedTone, pillValue: props.pill }
   }

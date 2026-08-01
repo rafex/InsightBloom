@@ -4,13 +4,13 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `main`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-07-31 (estados canónicos en encuesta, presentación e IDE)
+> **Último checkpoint**: 2026-08-01 (estados semánticos y nombres de ocupantes en sandboxes)
 
 ## Estado
 
 | State    | Bloqueante | Próximo paso |
 |----------|------------|-------------|
-| `in_progress` | No | Continuar migración de superficies elegibles y validar recorridos autenticados responsive por rol |
+| `in_progress` | No | Completar validación autenticada responsive por rol y verificar el commit desplegado |
 
 ## Resumen de avance
 
@@ -30,7 +30,7 @@
 | **Gobierno de componentes** | Acciones administrativas restantes | Completado | `ConferenceConfigPage` usa `BaseButton` para eliminar/recrear sandboxes y quitar roles; `SurveyManagePage` usa variantes canónicas para editar/eliminar preguntas y confirmar/purgar respuestas |
 | **Gobierno de componentes** | Formularios y acciones administrativas | Completado | Los inputs, selects y textareas de IA, egresos, dispositivos, roles y tipos de evento heredan el baseline global; acciones locales migradas a `BaseButton`, incluida la variante semántica `success` |
 | **Gobierno de componentes** | Estado de guardado y tablas | En progreso | `SaveState.vue` centraliza `Sin cambios`/`Cambios pendientes`/`Guardando`/`Guardado`; SurveyManagePage ya refleja cambios pendientes por editor; `.table-scroll` tiene baseline global y las tablas administrativas conservan tarjetas responsive |
-| **Gobierno de componentes** | Estados semánticos | En progreso | `StatusBadge.vue` centraliza estados de usuarios, roles, detalle de usuario, eventos e historial con tonos semánticos reutilizables; la cartelera pública usa su variante `pill` para mantener altura, alineación y forma consistentes |
+| **Gobierno de componentes** | Estados semánticos | En progreso | `StatusBadge.vue` centraliza estados de usuarios, roles, detalle de usuario, eventos, historial y sandboxes con tonos semánticos reutilizables; la cartelera pública usa su variante `pill` para mantener altura, alineación y forma consistentes |
 | **Gobierno de componentes** | Estados vacíos | En progreso | `EmptyState.vue` centraliza mensajes y acciones de ausencia de datos en usuarios, roles, tipos de evento, eventos, dispositivos, reservas y resultados de encuestas |
 | **Gobierno visual** | Utilidades transversales | En progreso | `.loading-text`, `.field-hint` y `.page-hint` viven en `global.css`; las pantallas conservan solo ajustes contextuales específicos |
 | **Gobierno de componentes** | Estados de carga | En progreso | `LoadingState.vue` unifica la espera de Diagramas, Notas colaborativas, Videollamada, Pizarra, Presentación, IDE, Encuesta y ahora Presentar con semántica `status` y `aria-live`; `FeedbackMessage` reemplaza el error local del IDE |

@@ -23,10 +23,14 @@
       .pod-header
         span.pod-name {{ pod.podName }}
         span.pod-variant {{ pod.variant === 'cli' ? 'CLI (Neovim)' : 'Web (code-server)' }}
-        span.pod-ready(:class="{ ready: pod.ready }") {{ pod.ready ? 'Listo' : pod.phase }}
+        StatusBadge(:status="pod.ready ? 'READY' : pod.phase" pill)
       .seats-list
         .seat-row(v-for="seat in pod.seats" :key="seat.seatIndex")
-          span.seat-user(v-if="seat.userUuid") {{ seat.userUuid }}
+          span.seat-user(
+            v-if="seat.userUuid"
+            :title="`UUID: ${seat.userUuid}`"
+            :aria-label="`${seat.userDisplayName || 'Usuario'}. UUID ${seat.userUuid}`"
+          ) {{ seat.userDisplayName || 'Usuario' }}
           span.seat-empty(v-else) (asiento libre)
           BaseButton(variant="primary" size="sm" v-if="seat.userUuid" @click="openEditor(seat.userUuid)") Ver archivos
 
@@ -49,11 +53,12 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 import type { SandboxStatusEntry } from '@/services/api/types'
 
 export default {
   name: 'ModerationIdePage',
-  components: { WorkspaceFileEditor, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, FeedbackMessage, LoadingState },
+  components: { WorkspaceFileEditor, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -128,12 +133,9 @@ h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
 .pod-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .pod-name { font-family: monospace; font-size: 0.85rem; color: var(--color-heading); font-weight: 600; }
 .pod-variant { font-size: 0.75rem; background: var(--color-primary-soft); color: var(--color-primary-dark); padding: 2px 10px; border-radius: 10px; font-weight: 600; }
-.pod-ready { font-size: 0.75rem; color: var(--color-text-muted); }
-.pod-ready.ready { color: var(--color-success); font-weight: 600; }
-
 .seats-list { display: flex; flex-direction: column; gap: 6px; }
 .seat-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; background: var(--color-surface-muted); border-radius: 8px; }
-.seat-user { font-family: monospace; font-size: 0.8rem; color: var(--color-text-secondary); }
+.seat-user { min-width: 0; overflow-wrap: anywhere; font-size: 0.85rem; color: var(--color-text-secondary); }
 .seat-empty { font-size: 0.8rem; color: var(--color-text-muted); font-style: italic; }
 
 @media (max-width: 640px) {

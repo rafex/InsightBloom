@@ -42,5 +42,9 @@
   configuración, presentación, mapas, nubes y tutor IA conservan ahora el foco visible
   con `:focus-visible`; los menús desplegables compartidos soportan flechas, Home/End,
   Escape y retorno de foco. Falta recorrer el dashboard completo por rol en móvil y con
-  lector de pantalla.
+    lector de pantalla.
+- [x] Adoptar `StatusBadge` en los estados operativos de sandboxes.
+  La configuración del evento y el editor de moderación traducen las fases de Kubernetes
+  (`Running`, `ContainerCreating`, `NotFound`, etc.) a etiquetas en español con tonos
+  semánticos; los nombres de los ocupantes son visibles y el UUID queda en tooltip.
 - [ ] Verificar que el commit validado sea el que está desplegado en producción.

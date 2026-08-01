@@ -4,6 +4,9 @@ import { formatStatusLabel, formatTicketStatusLabel } from '../status'
 describe('status labels', () => {
   it('translates shared statuses for the UI', () => {
     expect(formatStatusLabel('CHECKED_IN')).toBe('Registrado en check-in')
+    expect(formatStatusLabel('Running')).toBe('En ejecución')
+    expect(formatStatusLabel('ContainerCreating')).toBe('Preparando contenedor')
+    expect(formatStatusLabel('NotFound')).toBe('No encontrado')
     expect(formatStatusLabel('UNKNOWN_STATUS')).toBe('Unknown status')
   })
 
