@@ -9,6 +9,8 @@
   "java.jdt.ls.java.home": "/usr/local/lib/jvm/temurin-25",
   "editor.tabFocusMode": false,
   "workbench.panel.defaultLocation": "bottom",
+  "workbench.secondarySideBar.defaultVisibility": "hidden",
+  "workbench.panel.opensMaximized": false,
   "terminal.integrated.hideOnStartup": "never",
   "terminal.integrated.defaultProfile.linux": "bash (login)",
   "terminal.integrated.profiles.linux": {

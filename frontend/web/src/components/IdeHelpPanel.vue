@@ -1,14 +1,24 @@
 <template lang="pug">
 .ide-help
-  button#ide-help-toggle.help-fab(type="button" @click="open = !open" :aria-expanded="open" aria-controls="ide-help-panel" :aria-label="open ? 'Cerrar ayuda de Neovim' : 'Abrir ayuda de Neovim'" title="Ayuda de Neovim")
+  button#ide-help-toggle.help-fab(type="button" :style="fabStyle" @pointerdown="startFabDrag" @click="toggleOpen" :aria-expanded="open" aria-controls="ide-help-panel" :aria-label="open ? 'Cerrar ayuda de InsightBloom' : 'Abrir ayuda de InsightBloom'" :title="open ? 'Cerrar ayuda de InsightBloom' : 'Arrastra para mover o abrir la ayuda'")
     span(v-if="!open") 📖
     span(v-else) ✕
 
   transition(name="slide")
-    aside#ide-help-panel.help-panel(v-if="open" role="complementary" aria-label="Ayuda de Neovim" :style="{ width: panelWidth + 'px' }")
+    aside#ide-help-panel.help-panel(v-if="open" :class="`side-${helpSide}`" role="complementary" aria-label="Ayuda de InsightBloom" :style="panelStyle")
       .help-resize-handle(@pointerdown="startResize" title="Arrastrá para cambiar el ancho")
       nav.help-nav(aria-label="Temas de ayuda")
         h3 Ayuda
+        .help-side-picker(role="group" aria-label="Posición del panel de ayuda")
+          span.help-side-label Posición:
+          button.help-side-btn(
+            v-for="side in panelSides"
+            :key="side.id"
+            type="button"
+            :aria-pressed="helpSide === side.id"
+            :class="{ active: helpSide === side.id }"
+            @click="setHelpSide(side.id)"
+          ) {{ side.label }}
         button.help-nav-item(
           v-for="topic in availableTopics"
           :key="topic.id"
@@ -37,7 +47,7 @@
 </template>
 
 <script lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Marked } from 'marked'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import neovimBasico from '@/assets/ide-help/00-neovim-basico.md?raw'
@@ -85,8 +95,44 @@ const helpMarked = new Marked({
 })
 
 const HELP_WIDTH_STORAGE_KEY = 'insightbloom-ide-help-width'
+const HELP_FAB_POSITION_STORAGE_KEY = 'insightbloom-ide-help-fab-position'
+const HELP_PANEL_SIDE_STORAGE_KEY = 'insightbloom-ide-help-side'
 const HELP_PANEL_MIN_WIDTH = 320
 const HELP_PANEL_RIGHT_MARGIN = 40
+const HELP_FAB_SIZE = 52
+const HELP_FAB_MARGIN = 16
+
+type HelpSide = 'left' | 'right' | 'top' | 'bottom'
+type FabPosition = { left: number, top: number }
+
+const PANEL_SIDES: Array<{ id: HelpSide, label: string }> = [
+  { id: 'left', label: 'Izquierda' },
+  { id: 'right', label: 'Derecha' },
+  { id: 'top', label: 'Arriba' },
+  { id: 'bottom', label: 'Abajo' }
+]
+
+function readStoredFabPosition(): FabPosition | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(HELP_FAB_POSITION_STORAGE_KEY) || 'null')
+    if (value && Number.isFinite(value.left) && Number.isFinite(value.top)) {
+      return { left: value.left, top: value.top }
+    }
+  } catch {
+    // El almacenamiento puede estar deshabilitado en una ventana privada.
+  }
+  return null
+}
+
+function readStoredHelpSide(): HelpSide {
+  try {
+    const value = localStorage.getItem(HELP_PANEL_SIDE_STORAGE_KEY)
+    if (PANEL_SIDES.some(side => side.id === value)) return value as HelpSide
+  } catch {
+    // El almacenamiento puede estar deshabilitado en una ventana privada.
+  }
+  return 'right'
+}
 
 export default {
   name: 'IdeHelpPanel',
@@ -97,6 +143,8 @@ export default {
   },
   setup(props: { conferenceId: string, token: string }) {
     const open = ref(false)
+    const helpSide = ref<HelpSide>(readStoredHelpSide())
+    const panelSides = PANEL_SIDES
     const activeId = ref(TOPICS[0].id)
     const mentorEnabled = ref(false)
     const mentorInput = ref('')
@@ -130,6 +178,93 @@ export default {
     // reajustarlo cada vez que abre la ayuda.
     const panelWidth = ref(Number(localStorage.getItem(HELP_WIDTH_STORAGE_KEY)) || 480)
 
+    function clampFabPosition(position: FabPosition): FabPosition {
+      const maxLeft = Math.max(HELP_FAB_MARGIN, window.innerWidth - HELP_FAB_SIZE - HELP_FAB_MARGIN)
+      const maxTop = Math.max(HELP_FAB_MARGIN, window.innerHeight - HELP_FAB_SIZE - HELP_FAB_MARGIN)
+      return {
+        left: Math.min(maxLeft, Math.max(HELP_FAB_MARGIN, position.left)),
+        top: Math.min(maxTop, Math.max(HELP_FAB_MARGIN, position.top))
+      }
+    }
+
+    const defaultFabPosition: FabPosition = {
+      left: typeof window === 'undefined' ? HELP_FAB_MARGIN : window.innerWidth - HELP_FAB_SIZE - HELP_FAB_MARGIN,
+      top: typeof window === 'undefined' ? HELP_FAB_MARGIN : window.innerHeight - HELP_FAB_SIZE - HELP_FAB_MARGIN
+    }
+    const fabPosition = ref<FabPosition>(readStoredFabPosition() || defaultFabPosition)
+    const suppressNextClick = ref(false)
+    const fabStyle = computed(() => ({
+      left: `${fabPosition.value.left}px`,
+      top: `${fabPosition.value.top}px`
+    }))
+    const panelStyle = computed(() => {
+      if (helpSide.value === 'left' || helpSide.value === 'right') {
+        return { width: `${panelWidth.value}px` }
+      }
+      return { width: '100%' }
+    })
+
+    function persistFabPosition() {
+      try {
+        localStorage.setItem(HELP_FAB_POSITION_STORAGE_KEY, JSON.stringify(fabPosition.value))
+      } catch {
+        // La ayuda sigue funcionando aunque el almacenamiento no esté disponible.
+      }
+    }
+
+    function keepFabInViewport() {
+      const next = clampFabPosition(fabPosition.value)
+      if (next.left !== fabPosition.value.left || next.top !== fabPosition.value.top) {
+        fabPosition.value = next
+        persistFabPosition()
+      }
+    }
+
+    function startFabDrag(event: PointerEvent) {
+      const start = { x: event.clientX, y: event.clientY }
+      const origin = { ...fabPosition.value }
+      let moved = false
+
+      const onMove = (moveEvent: PointerEvent) => {
+        const next = clampFabPosition({
+          left: origin.left + moveEvent.clientX - start.x,
+          top: origin.top + moveEvent.clientY - start.y
+        })
+        moved = moved || Math.abs(moveEvent.clientX - start.x) > 4 || Math.abs(moveEvent.clientY - start.y) > 4
+        fabPosition.value = next
+      }
+
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        if (moved) {
+          suppressNextClick.value = true
+          persistFabPosition()
+        }
+      }
+
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+    }
+
+    function toggleOpen() {
+      if (suppressNextClick.value) {
+        suppressNextClick.value = false
+        return
+      }
+      open.value = !open.value
+    }
+
+    function setHelpSide(side: HelpSide) {
+      if (!PANEL_SIDES.some(item => item.id === side)) return
+      helpSide.value = side
+      try {
+        localStorage.setItem(HELP_PANEL_SIDE_STORAGE_KEY, side)
+      } catch {
+        // La posición solo deja de persistir; el cambio actual sí se aplica.
+      }
+    }
+
     function clampPanelWidth(width: number): number {
       const max = Math.max(HELP_PANEL_MIN_WIDTH, window.innerWidth - HELP_PANEL_RIGHT_MARGIN)
       return Math.min(max, Math.max(HELP_PANEL_MIN_WIDTH, width))
@@ -140,7 +275,10 @@ export default {
       let resizing = true
       const onMove = (moveEvent: PointerEvent) => {
         if (!resizing) return
-        panelWidth.value = clampPanelWidth(window.innerWidth - moveEvent.clientX)
+        const width = helpSide.value === 'left'
+          ? moveEvent.clientX
+          : window.innerWidth - moveEvent.clientX
+        panelWidth.value = clampPanelWidth(width)
       }
       const onUp = () => {
         resizing = false
@@ -191,13 +329,19 @@ export default {
       }
     }
 
-    onMounted(loadMentorConfig)
+    onMounted(() => {
+      fabPosition.value = clampFabPosition(fabPosition.value)
+      window.addEventListener('resize', keepFabInViewport)
+      void loadMentorConfig()
+    })
+    onBeforeUnmount(() => window.removeEventListener('resize', keepFabInViewport))
     watch(open, value => { if (value) void loadMentorConfig() })
 
     return {
       open, activeId, availableTopics, renderedActive, mentorEnabled, mentorInput,
       mentorCodeContext, mentorMessages, mentorSending, mentorError, sendMentorMessage,
-      onHelpContentClick, panelWidth, startResize
+      onHelpContentClick, panelWidth, startResize, helpSide, panelSides, setHelpSide,
+      panelStyle, fabStyle, startFabDrag, toggleOpen
     }
   }
 }
@@ -206,18 +350,18 @@ export default {
 <style scoped>
 .help-fab {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
   z-index: 2000;
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: none;
-  background: var(--color-primary);
+  border: 2px solid var(--color-warning);
+  background: var(--color-heading);
   color: var(--color-text-inverse);
-  font-size: 1.4rem;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.45);
+  font-size: 1.5rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  box-shadow: 0 0 0 3px var(--color-primary), 0 8px 24px rgba(15, 23, 42, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -229,29 +373,76 @@ export default {
   transform: scale(1.06);
 }
 
+.help-fab:active {
+  cursor: grabbing;
+}
+
+.help-fab:focus-visible {
+  outline: 3px solid var(--color-warning);
+  outline-offset: 4px;
+}
+
 .help-panel {
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
   max-width: 100vw;
   z-index: 1900;
   background: var(--color-surface);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
+.help-panel.side-right {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.18);
+}
+
+.help-panel.side-left {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+}
+
+.help-panel.side-top {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: min(70vh, calc(100vh - 24px));
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+}
+
+.help-panel.side-bottom {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: min(70vh, calc(100vh - 24px));
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
+}
+
 .help-resize-handle {
   position: absolute;
   top: 0;
-  left: -4px;
   width: 8px;
   height: 100%;
   cursor: col-resize;
   z-index: 10;
   touch-action: none;
+}
+
+.help-panel.side-right .help-resize-handle {
+  left: -4px;
+}
+
+.help-panel.side-left .help-resize-handle {
+  right: -4px;
+}
+
+.help-panel.side-top .help-resize-handle,
+.help-panel.side-bottom .help-resize-handle {
+  display: none;
 }
 
 .help-resize-handle:hover,
@@ -273,6 +464,45 @@ export default {
   margin: 0 0 8px;
   font-size: 0.95rem;
   color: var(--color-heading);
+}
+
+.help-side-picker {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+.help-side-label {
+  margin-right: 2px;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.help-side-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.help-side-btn:hover,
+.help-side-btn:focus-visible {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+}
+
+.help-side-btn.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-weight: 700;
 }
 
 .help-nav-item {
@@ -416,17 +646,38 @@ export default {
   transition: transform 0.2s ease;
 }
 
-.slide-enter-from,
-.slide-leave-to {
+.slide-enter-from.side-right,
+.slide-leave-to.side-right {
   transform: translateX(100%);
 }
 
+.slide-enter-from.side-left,
+.slide-leave-to.side-left {
+  transform: translateX(-100%);
+}
+
+.slide-enter-from.side-top,
+.slide-leave-to.side-top {
+  transform: translateY(-100%);
+}
+
+.slide-enter-from.side-bottom,
+.slide-leave-to.side-bottom {
+  transform: translateY(100%);
+}
+
 @media (max-width: 600px) {
-  .help-panel {
+  .help-panel.side-left,
+  .help-panel.side-right {
     width: 100vw !important;
   }
 
-  .help-resize-handle {
+  .help-panel.side-top,
+  .help-panel.side-bottom {
+    height: min(80vh, calc(100vh - 24px));
+  }
+
+  .help-panel .help-resize-handle {
     display: none;
   }
 }

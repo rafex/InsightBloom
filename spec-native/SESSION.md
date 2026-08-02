@@ -4,7 +4,7 @@
 > **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
 > **Branch**: `main`
 > **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-08-02 (estado semántico canónico en el boleto del asistente)
+> **Último checkpoint**: 2026-08-02 (shell de IDE y ayuda flotante configurable)
 
 ## Estado
 
@@ -42,6 +42,7 @@
 | **Accesibilidad dashboard** | Teclado, labels, foco y responsive | En progreso | `ConferenceConfigPage` usa tabs navegables con flechas/Home/End, panel semántico, controles asociados por `label`/`for` y layout móvil; tablas administrativas exponen acciones y campos inline operables por teclado; `ToggleSwitch` acepta `aria-label`, la moderación de herramientas nombra los interruptores globales e individuales y adapta sus tarjetas a móvil, gestión de boletos apila acciones en pantallas estrechas, moderación IDE adapta toolbar/pods/asientos y Check-in anuncia el estado de cámara por `aria-live`; configuración, presentación, mapas, nubes, tutor IA y menús compartidos usan foco y navegación por teclado |
 | **UX evento** | QR, herramientas y cabecera | Completado | El QR del listado apunta siempre a `/c/{friendlyId}/ticket`; se retiraron botones internos de QR; se agregó Cronograma y se ordenaron las herramientas; la cabecera inicia compacta y se mantiene así al cambiar de ruta |
 | **UX evento** | Videollamada | Completado | Participantes y moderadores abren la llamada en una pestaña nueva; el acceso de moderación está disponible tanto en el listado de eventos como en el menú contextual del panel, donde JaaS conserva el rol de moderador y el takeover de sesión; Chrome cámara/micrófono validado |
+| **UX IDE** | Shell y ayuda contextual | Completado | VS Code inicia con la barra lateral secundaria oculta y la terminal inferior visible/enfocada; la ayuda de InsightBloom usa contraste reforzado, botón flotante arrastrable y panel configurable a izquierda, derecha, arriba o abajo, con preferencias persistidas para IDE Web y CLI |
 | **Entrega de presentaciones** | Compresión HTTP | Completado | Gzip reactivado y validado en producción para respuestas textuales proxificadas de `/api/presentations`; el presenter carga correctamente |
 
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
@@ -69,6 +70,11 @@ La auditoría de estilos `scoped` quedó cerrada: el inventario actual clasifica
 genéricos elegibles se movieron a `global.css` con nombres semánticos aislados; lo restante pertenece
 a pantallas de dominio, shell, visualizaciones, herramientas embebidas o componentes cuyo aislamiento
 evita colisiones.
+La experiencia de los IDE queda pendiente de validar en el despliegue real con una sesión nueva de
+code-server: la configuración oculta la barra lateral secundaria de VS Code, mientras `tasks.json`
+reclama el foco de la terminal inferior al abrir el workspace. La ayuda compartida conserva sus
+preferencias en `localStorage` por navegador, por lo que debe comprobarse el arrastre y el cambio de
+lado en IDE Web y CLI en escritorio y móvil.
 
 ### Fase 4.2 — Alto tráfico
 
