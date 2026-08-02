@@ -389,7 +389,10 @@ export default {
     const sandboxPoolSize = ref<number | null>(1)
     // Pool "cli" (Neovim, reusable/multi-alumno) -- independiente del pool "web" de arriba.
     const sandboxCliPoolSize = ref<number | null>(1)
-    const sandboxCliLazyVimPoolSize = ref<number | null>(1)
+    // null means that the conference has not opted into the LazyVim pool yet. Do not display
+    // a fabricated 1 here: availability correctly treats null as 0/0, and showing 1 made the
+    // configuration look enabled while the attendee picker remained disabled.
+    const sandboxCliLazyVimPoolSize = ref<number | null>(null)
     const cliEnabled = computed(() => (sandboxCliPoolSize.value ?? 0) > 0
       || (sandboxCliLazyVimPoolSize.value ?? 0) > 0)
     const sandboxRemoteGitUrl = ref('')
@@ -653,7 +656,7 @@ export default {
         sandboxVariant.value = conference.value.sandboxVariant === 'terminal-nvim' ? 'terminal-nvim' : ''
         sandboxPoolSize.value = conference.value.sandboxPoolSize ?? 1
         sandboxCliPoolSize.value = conference.value.sandboxCliPoolSize ?? 1
-        sandboxCliLazyVimPoolSize.value = conference.value.sandboxCliLazyVimPoolSize ?? 1
+        sandboxCliLazyVimPoolSize.value = conference.value.sandboxCliLazyVimPoolSize ?? null
         sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''
         sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? 70
         sandboxSeatsPerPod.value = conference.value.sandboxSeatsPerPod ?? null

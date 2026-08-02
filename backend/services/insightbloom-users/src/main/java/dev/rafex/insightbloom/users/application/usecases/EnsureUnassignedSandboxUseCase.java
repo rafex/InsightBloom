@@ -51,6 +51,13 @@ public class EnsureUnassignedSandboxUseCase {
     public void execute(final String conferenceUuid) {
         ensurePool(conferenceUuid, Sandbox.VARIANT_WEB, 1);
         ensurePool(conferenceUuid, Sandbox.VARIANT_CLI, 1);
+        final Conference conference = conferenceRepository.findByUuid(conferenceUuid)
+            .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+        if (conference.getSandboxCliLazyVimPoolSize() != null
+                && conference.getSandboxCliLazyVimPoolSize() > 0) {
+            ensurePool(conferenceUuid, Sandbox.VARIANT_CLI_LAZYVIM,
+                conference.getSandboxCliLazyVimPoolSize());
+        }
     }
 
     /**
