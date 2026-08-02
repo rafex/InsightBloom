@@ -1,10 +1,10 @@
 <template lang="pug">
 .dropdown-menu(ref="rootEl")
-  button.dropdown-trigger(ref="triggerEl" type="button" @click="toggle" @keydown="handleTriggerKeydown" :aria-expanded="open" aria-haspopup="menu")
+  button.dropdown-trigger(ref="triggerEl" :id="triggerId" type="button" @click="toggle" @keydown="handleTriggerKeydown" :aria-expanded="open" :aria-controls="open ? panelId : undefined" aria-haspopup="menu")
     | {{ label }}
     span.dropdown-caret ▾
   Teleport(to="body")
-    .dropdown-panel.dropdown-panel-fixed(v-if="open" ref="panelEl" role="menu" :aria-label="label" :style="panelStyle" @keydown="handlePanelKeydown" @click="closeMenu()")
+    .dropdown-panel.dropdown-panel-fixed(v-if="open" :id="panelId" ref="panelEl" role="menu" :aria-labelledby="triggerId" :aria-label="label" :style="panelStyle" @keydown="handlePanelKeydown" @click="closeMenu()")
       slot
 </template>
 
@@ -18,6 +18,9 @@ export default {
   },
   setup() {
     const open = ref(false)
+    const instanceId = Math.random().toString(36).slice(2, 10)
+    const triggerId = `dropdown-trigger-${instanceId}`
+    const panelId = `dropdown-panel-${instanceId}`
     const rootEl = ref<HTMLElement | null>(null)
     const triggerEl = ref<HTMLButtonElement | null>(null)
     const panelEl = ref<HTMLElement | null>(null)
@@ -78,7 +81,7 @@ export default {
 
     function toggle() {
       if (open.value) closeMenu(true)
-      else openMenu()
+      else openMenu(0)
     }
 
     function handleTriggerKeydown(event: KeyboardEvent) {
@@ -130,7 +133,7 @@ export default {
       window.removeEventListener('scroll', positionPanel, true)
     })
 
-    return { open, rootEl, triggerEl, panelEl, panelStyle, toggle, closeMenu, handleTriggerKeydown, handlePanelKeydown }
+    return { open, triggerId, panelId, rootEl, triggerEl, panelEl, panelStyle, toggle, closeMenu, handleTriggerKeydown, handlePanelKeydown }
   }
 }
 </script>

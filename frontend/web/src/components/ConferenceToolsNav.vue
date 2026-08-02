@@ -1,5 +1,5 @@
 <template lang="pug">
-nav.tools-nav(v-if="conferenceId")
+nav.tools-nav(v-if="conferenceId" aria-label="Herramientas del evento")
   DropdownMenu(v-if="hasCapability('PRESENTATION') || hasCapability('SURVEY')" label="Contenido")
     router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/presentation`") Gestionar presentación
     router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/speaker`") Presentar en vivo
@@ -104,5 +104,17 @@ export default {
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 20px;
+}
+
+@media (max-width: 560px) {
+  .tools-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .tools-nav :deep(.dropdown-menu) {
+    flex: 0 0 auto;
+  }
 }
 </style>
