@@ -85,12 +85,12 @@ multi-asiento. El script no ejecuta `npm install`, no usa Mason/Lazy y no requie
 ## Distribución en K3s
 
 InsightBloom-gitops configura `SANDBOX_DEBIAN_IMAGE`, `SANDBOX_NEOVIM_IMAGE` y
-`SANDBOX_IMAGE_PULL_POLICY=Never` con builds inmutables precargados en cada nodo. Así, crear un
-sandbox no consulta GHCR ni puede cambiar de imagen durante una sesión. Si la imagen no fue
-precargada en el nodo donde agenda Kubernetes, el Pod queda en `ErrImageNeverPull`; GitOps debe
-corregir la distribución antes de habilitar esa versión. Fuera de GitOps, el fallback conserva
-`ghcr.io/...:latest` con `IfNotPresent`: usa primero cualquier copia local y consulta GHCR sólo
-cuando no exista.
+`SANDBOX_IMAGE_PULL_POLICY=IfNotPresent` con builds inmutables precargados en cada nodo. Así,
+crear un sandbox usa primero la copia local y no descarga repetidamente desde GHCR. Si la imagen
+no fue precargada en el nodo donde agenda Kubernetes, el Pod puede recuperar esa misma referencia
+inmutable como fallback, en vez de quedar en `ErrImageNeverPull`. Fuera de GitOps, el fallback
+conserva `ghcr.io/...:latest` con `IfNotPresent`: usa primero cualquier copia local y consulta
+GHCR sólo cuando no exista.
 
 ## Publicación de páginas web
 

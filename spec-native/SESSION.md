@@ -50,7 +50,8 @@
 Se agregaron pools independientes para `CLI · Neovim` (`cli`) y `CLI · LazyVim`
 (`cli-lazyvim`). El asistente elige una variante en `IdePage.vue`; la configuración del evento
 expone los tres pools y GitOps precarga las dos variantes CLI; los Pods dinámicos usan
-`imagePullPolicy: Never`. Las conferencias antiguas conservan el pool Neovim hasta que el organizador
+`imagePullPolicy: IfNotPresent`: el nodo usa primero la imagen precargada y conserva GHCR solo como
+fallback si la precarga aún no terminó. Las conferencias antiguas conservan el pool Neovim hasta que el organizador
 guarda la configuración con el pool LazyVim habilitado.
 
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
