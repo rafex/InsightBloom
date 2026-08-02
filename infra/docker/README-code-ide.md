@@ -142,6 +142,10 @@ ni se abre un portal de portapapeles del navegador. Dentro de tmux se puede pega
 
 Ninguna de las 2 imágenes depende de otra vía `FROM` ni se ejecutan juntas en un mismo Pod — se
 construyen en paralelo (así lo hace el workflow de CI, `build-and-push-code-ide`, como matriz).
+El workflow se ejecuta en cada push a `main`, no solo cuando cambia un Dockerfile. Esto mantiene
+el SHA de la imagen y el estado de Flux alineados con la última versión del repositorio. El tag
+inmutable `build-<run_id>` permite que ImagePolicy seleccione la versión más reciente y evita
+depender de la resolución de `latest` en los Pods.
 
 ## Build y push
 

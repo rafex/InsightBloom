@@ -1,13 +1,16 @@
 ---
 # Imagenes de sandbox del IDE (TASK-0010/0011, Fase 3; Fase 4: split ide/runtime).
 # Este workflow es solo CI (build + push a GHCR) -- no despliega a k3s, eso se hace
-# aparte y manualmente contra el cluster. Deliberadamente independiente de los demas
-# publish-*.yml: nada depende de el via `needs:`, y el tampoco es needs de nadie. Un
-# fallo aca no debe impedir que las imagenes de los servicios de la aplicacion real
-# queden publicadas en GHCR. Postmortem 2026-07-13: en un momento en que este pipeline
-# si encadenaba un job de deploy, agregar este job al `needs:` de ese deploy hizo que
-# se saltara entero (incluyendo web/users ya compilados y listos) porque este job
-# fallo -- el precedente se mantiene como recordatorio de no volver a acoplarlo.
+# aparte mediante FluxCD/ImageUpdateAutomation. Se ejecuta en cada push a main para
+# que la imagen del IDE no quede anclada a un commit antiguo cuando cambia el codigo
+# que la usa (por ejemplo, el flujo de publicacion o el contrato de sandbox). Flux
+# selecciona despues el tag build-* mas alto y lo fija en InsightBloom-gitops.
+#
+# Deliberadamente sigue independiente de los demas publish-*.yml: nada depende de el
+# via `needs:`, y el tampoco es needs de nadie. Un fallo aca no debe impedir que las
+# imagenes de los servicios de la aplicacion real queden publicadas en GHCR.
+# Postmortem 2026-07-13: agregar este job al `needs:` de un deploy hizo que se saltara
+# entero (incluyendo web/users ya compilados y listos) cuando el job fallo.
 name: Publish code-ide images
 
 on:
@@ -16,31 +19,6 @@ on:
       - main
     tags:
       - 'v*.*'
-    paths:
-      - 'infra/docker/Dockerfile.code-ide-debian'
-      - 'infra/docker/Dockerfile.code-ide-neovim'
-      - 'infra/docker/Dockerfile.code-ide-neovim-lazyvim'
-      - 'infra/docker/code-ide-settings.json'
-      - 'infra/docker/code-ide-launch.json'
-      - 'infra/docker/code-ide-entrypoint.sh'
-      - 'infra/docker/runtime-*.sh'
-      - 'infra/docker/tmux.conf'
-      - 'infra/docker/insightbloom-bash-completion.sh'
-      - 'infra/docker/insightbloom-tmux-clipboard'
-      - 'infra/docker/install-just.sh'
-      - 'infra/docker/install-tmux-plugins.sh'
-      - 'infra/docker/nvim-init.lua'
-      - 'infra/docker/nvim-init-lazyvim.lua'
-      - 'infra/docker/lazyvim-config/**'
-      - 'infra/docker/seed-node-types.sh'
-      - 'infra/docker/sandbox-agent.py'
-      - 'infra/docker/sandbox-file-agent.py'
-      - 'infra/docker/sandbox_file_api.py'
-      - 'infra/docker/IDE-*.md'
-      - 'infra/docker/seed-ide-docs.sh'
-      - 'Makefile'
-      - 'Justfile'
-      - '.github/workflows/publish-code-ide.yml'
   workflow_dispatch: {}
 
 permissions:
@@ -90,6 +68,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve build metadata
+        id: metadata
+        shell: bash
+        run: echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
@@ -101,7 +84,7 @@ jobs:
           platforms: linux/amd64
           build-args: |
             RUNTIME_GIT_SHA=${{ github.sha }}
-            RUNTIME_BUILD_DATE=${{ github.event.head_commit.timestamp || github.run_started_at }}
+            RUNTIME_BUILD_DATE=${{ steps.metadata.outputs.build_date }}
           tags: |
             ${{ matrix.image }}:${{ matrix.variantTag }}
             ${{ matrix.image }}:build-${{ github.run_id }}

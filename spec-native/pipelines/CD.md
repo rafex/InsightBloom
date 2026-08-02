@@ -36,9 +36,11 @@ parte del flujo normal.
 
 ## Workflows de CI (build + publish a GHCR)
 
-Cada imagen tiene su propio workflow bajo `.github/workflows/publish-*.yml`, disparado
-solo cuando cambian los archivos de ese servicio (`paths:` filter) — así los 12 servicios
-crecen de forma independiente sin reconstruirse entre sí en cada push. Dos workflows con
+Cada imagen tiene su propio workflow bajo `.github/workflows/publish-*.yml`. Los servicios
+de aplicación usan un `paths:` filter para crecer de forma independiente sin reconstruirse
+entre sí en cada push. Las imágenes del IDE son la excepción: se reconstruyen en cada push a
+`main` para que su SHA embebido y su tag inmutable no queden atrasados respecto al código que
+las consume. Dos workflows con
 prefijo `_` son reusable workflows (`workflow_call`, no se disparan solos) que concentran
 la lógica compartida de resolución/validación de tag, login a GHCR y setup de Buildx.
 
@@ -64,7 +66,7 @@ la lógica compartida de resolución/validación de tag, login a GHCR y setup de
 | `publish-chat.yml` | chat (Python/FastAPI) | — | `chat/Dockerfile` | `insightbloom-chat` |
 | `publish-telegram.yml` | telegram (Python/FastAPI) | — | `telegram/Dockerfile` | `insightbloom-telegram` |
 | `publish-web.yml` | frontend (Vue) | — | `container/frontend/Dockerfile` | `insightbloom-web` |
-| `publish-code-ide.yml` | sandbox IDE (4 imágenes vía matriz) | — | `infra/docker/Dockerfile.code-ide-*` | `insightbloom-code-ide-server` / `insightbloom-code-ide-runtime` |
+| `publish-code-ide.yml` | sandbox IDE (3 imágenes vía matriz) | — | `infra/docker/Dockerfile.code-ide-*` | `insightbloom-code-ide-debian` / `insightbloom-code-ide-neovim*` |
 
 Los 7 workflows Java disparan además si cambia `backend/common/**`, `backend/contracts/**`
 o `pom.xml` (dependencias reales del reactor Maven), no solo su propio directorio.
@@ -73,11 +75,12 @@ o `pom.xml` (dependencias reales del reactor Maven), no solo su propio directori
 de nadie — ver comentario en el propio archivo (postmortem 2026-07-13: acoplarlo a un job
 de deploy hizo que un fallo ahí frenara imágenes ya listas de la aplicación real).
 
-**Trigger de cada workflow**: `push` a `main` (con `paths:` filter propio) + `push` de tag
-`v*.*` (mismo `paths:` filter — un tag no reconstruye un servicio si no cambió desde el
-último tag) + `workflow_dispatch` manual con input `version_tag` (formato `vN.YYYYmmDD[-N]`).
-`publish-code-ide.yml` es la excepción: su `workflow_dispatch` no pide `version_tag` (usa
-tags fijos `latest`/`python`/`java`/`web` + `build-${{ github.run_number }}`).
+**Trigger de cada workflow**: los servicios de aplicación usan `push` a `main` y `push` de
+tag `v*.*` con su `paths:` filter propio, más `workflow_dispatch` manual con input
+`version_tag` (formato `vN.YYYYmmDD[-N]`). `publish-code-ide.yml` es la excepción: corre en
+cualquier `push` a `main` o tag `v*.*`, no pide `version_tag` en `workflow_dispatch` y publica
+`latest` más `build-${{ github.run_id }}`. Ese tag inmutable es el que ImagePolicy de
+InsightBloom-gitops promueve al HelmRelease; los sandboxes dinámicos no resuelven `latest`.
 
 **Versionado de tags** (igual en los 14 workflows):
 - Tag semántico (`v1.20260424`) → tag + sha
