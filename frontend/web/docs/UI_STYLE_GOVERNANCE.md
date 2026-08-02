@@ -7,10 +7,10 @@ El gate `npm run lint:ui-governance` mantiene dos inventarios ejecutables:
 
 El gate falla si aparece un estilo scoped sin categoría, una clasificación obsoleta, un literal hex fuera de las excepciones o cambia el conteo de una excepción sin actualizarla deliberadamente.
 
-Estado del baseline en 2026-07-29:
+Estado del baseline en 2026-08-02:
 
-- 83 estilos scoped clasificados: 33 pantallas, 14 herramientas embebidas, 12 componentes compartidos, 10 visualizaciones, 4 shell y 10 componentes canónicos.
-- 80 literales hex fijados en 6 superficies con intención documentada.
+- 85 estilos scoped clasificados: 33 pantallas, 15 herramientas embebidas, 12 componentes compartidos, 8 visualizaciones, 4 shell y 13 componentes canónicos.
+- 8 literales hex fijados en 3 superficies con intención documentada: 3 del lienzo de mapas y 5 de certificados.
 - No quedan redefiniciones legacy de selector canónico.
 
 Las excepciones no autorizan crear nuevos estilos locales: los controles comunes deben usar `BaseButton`, `BaseModal`, `FormField`, `ToggleSwitch`, `StatusBadge` y tokens semánticos.
