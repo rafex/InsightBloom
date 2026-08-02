@@ -287,12 +287,19 @@ RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh
 
 # La consulta distribuida por Alpine usa #is-not?, un predicado de nvim-treesitter que no
-# existe en Neovim 0.10.4. Se conserva el resaltado JavaScript con una variante compatible
-# para evitar que el highlighter falle al encontrar scripts embebidos en HTML.
+# existe en Neovim 0.10.4. No basta con quitar solo esa línea: cada predicado vive dentro de
+# un bloque de query y dejar el bloque abierto provoca "Unexpected EOF" en el highlighter.
+# Se eliminan los dos bloques afectados y se valida la query resultante durante el build.
 RUN mkdir -p /etc/insightbloom/queries/javascript && \
     test -f /usr/share/tree-sitter/queries/javascript/highlights.scm && \
-    sed '/#is-not? local/d' /usr/share/tree-sitter/queries/javascript/highlights.scm \
-      > /etc/insightbloom/queries/javascript/highlights.scm
+    sed \
+      -e '/^((identifier) @variable.builtin$/,/^$/d' \
+      -e '/^((identifier) @function.builtin$/,/^$/d' \
+      /usr/share/tree-sitter/queries/javascript/highlights.scm \
+      > /etc/insightbloom/queries/javascript/highlights.scm && \
+    nvim --headless -u NONE \
+      -c "lua vim.treesitter.language.add('javascript', { path = '/usr/lib/tree-sitter/javascript.so' }); local f=assert(io.open('/etc/insightbloom/queries/javascript/highlights.scm')); local q=f:read('*a'); f:close(); vim.treesitter.query.parse('javascript', q)" \
+      -c 'qa!'
 USER coder
 
 # Puerto ttyd: 8080, mismo puerto publico que usa la imagen Debian (code-server) -- cada
