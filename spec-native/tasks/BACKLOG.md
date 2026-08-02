@@ -41,6 +41,34 @@
   - conservar una estrategia operativa de reintento para indisponibilidades
     transitorias del registro.
 
+## Observabilidad futura
+
+- [ ] **Plataforma central de logs y trazabilidad distribuida.**
+  Iniciativa futura; no iniciar implementación todavía. Debe recibir y
+  consultar logs de los servicios Java, Python y Node.js, generar un
+  `trace_id` capaz de seguir una petición entre APIs, WebSockets, NATS,
+  presentaciones y sandboxes, y ofrecer una exportación NDJSON para consultar
+  los resultados con `lnav`.
+
+  Componentes incluidos en el alcance:
+  - Java: `insightbloom-users`, `ingest`, `query`, `moderation`, `stats`,
+    `survey`, `tools-gateway`, `insightbloom-cli`, `common` y `contracts`.
+  - Python: `chat`, `telegram` y `infra/egress-proxy`.
+  - Node.js: `insightbloom-presentations`.
+
+  La decisión de arquitectura queda abierta entre:
+  1. Vector o Fluent Bit como `DaemonSet` + Loki/Grafana + exportador para
+     `lnav`.
+  2. OpenTelemetry Collector + Tempo/Loki/Grafana, con instrumentación OTLP
+     en Java, Python y Node.js.
+
+  La primera evaluación debe preferir colectores por nodo sobre sidecars en
+  cada Pod; los sidecars solo se justificarían para logs internos escritos en
+  archivos. Antes de convertirlo en una tarea ejecutable hay que definir el
+  esquema JSON, propagación W3C `traceparent`, contexto en NATS/WebSockets,
+  redacción de secretos y código, retención, muestreo, RBAC por conferencia,
+  almacenamiento y pruebas de trazabilidad extremo a extremo.
+
 ## UX/UI
 
 - [x] Normalizar los estados visibles del boleto para que la UI no exponga enums en mayúsculas;

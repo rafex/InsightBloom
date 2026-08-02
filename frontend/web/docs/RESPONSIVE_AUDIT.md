@@ -168,10 +168,9 @@ producto, no una corrección de CSS.
   contenido/diseño de la miniatura, no un bug de responsividad; se anota acá porque se
   observó durante la auditoría, pero no se propone tocar el CSS sin decidir primero si
   se quiere gradiente de desvanecido, otro `object-position`, o dejarlo así.
-- [ ] Confirmar `AppHeader.vue` en 320px (iPhone SE / gama baja) — el `@media` actual
-  corta en 480px; en 320px el badge "vlatest · be0011d" (versión de build, visible en
-  todos los ambientes) puede quedar muy apretado contra "Entrar". Revisar si ese badge
-  debería ocultarse por completo en pantallas angostas.
+- [x] `AppHeader.vue` en 320px — el identificador de versión se trunca hasta 480px y se
+  oculta por debajo de 360px para no competir con `Entrar`, `Panel` o `Salir`. La versión
+  sigue disponible en el pie de la aplicación y en `/version` para diagnóstico.
 
 ## Cómo seguir iterando este documento
 

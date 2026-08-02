@@ -93,5 +93,14 @@ export default {
   .header-nav { gap: 10px; }
   .header-nav a, .header-logout { font-size: 0.82rem; }
   .brand-logo { height: 28px; }
+  .version-tag {
+    max-width: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 360px) {
+  .version-tag { display: none; }
 }
 </style>
