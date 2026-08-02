@@ -51,6 +51,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Marked } from 'marked'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import neovimBasico from '@/assets/ide-help/00-neovim-basico.md?raw'
+import lazyvim from '@/assets/ide-help/01-lazyvim.md?raw'
 import helloJava from '@/assets/ide-help/10-hello-world-java.md?raw'
 import helloPython from '@/assets/ide-help/11-hello-world-python.md?raw'
 import helloJs from '@/assets/ide-help/12-hello-world-javascript-typescript.md?raw'
@@ -67,6 +68,7 @@ import type { AiMentorChatMessage } from '@/services/api/surveyApi'
 // un ejemplo de codigo especifico.
 const TOPICS = [
   { id: 'neovim', title: '⌨️ Neovim básico', markdown: neovimBasico },
+  { id: 'lazyvim', title: '✨ Cómo usar LazyVim', markdown: lazyvim },
   { id: 'java', title: '☕ Hello World: Java', markdown: helloJava },
   { id: 'python', title: '🐍 Hello World: Python', markdown: helloPython },
   { id: 'js', title: '📜 Hello World: JS/TS', markdown: helloJs },

@@ -3,6 +3,10 @@
 Neovim tiene **modos**: en cada momento estás en uno solo, y las mismas teclas hacen cosas
 distintas según el modo. Al entrar siempre estás en modo **Normal**.
 
+Este capítulo explica los controles comunes de Vim/Neovim. Si elegiste **CLI · LazyVim**, revisa
+también **✨ Cómo usar LazyVim**: agrega un explorador, buscador, atajos y ayudas de código sobre
+estas mismas bases.
+
 | Modo | Para qué sirve | Cómo entrar |
 |---|---|---|
 | Normal | Moverte, borrar, copiar, pegar, ejecutar comandos | `Esc` (desde cualquier otro modo) |
@@ -57,9 +61,10 @@ Todo esto se escribe en modo Normal, empezando con `:`, y termina con Enter.
 | `:%s/vieja/nueva/g` | reemplaza todas las ocurrencias en el archivo |
 | `:%s/vieja/nueva/gc` | igual, pero pide confirmar cada una |
 
-## El explorador de archivos (nvim-tree)
+## El explorador de archivos (Neovim estable)
 
-Esta imagen ya trae **nvim-tree** instalado y configurado.
+La imagen CLI de Neovim estable trae **nvim-tree** instalado y configurado. En LazyVim el
+explorador es **neo-tree** y sus atajos están documentados en la sección específica de LazyVim.
 
 | Tecla | Qué hace |
 |---|---|
