@@ -37,7 +37,7 @@
               span.t-qr-caption Escanea para abrir tu acceso
             .t-admit
               span.t-admit-text Estado
-              strong.t-admit-num(:class="{ checked: ticket.status === 'CHECKED_IN' }") {{ ticketStatusLabel }}
+              StatusBadge.t-admit-num(:status="ticket.status" :label="ticketStatusLabel" :tone="ticketStatusTone")
               span.t-admit-hint(v-if="ticket.status === 'CHECKED_IN'") Acceso registrado
               span.t-admit-hint(v-else) Presenta este boleto en la entrada
           .ticket-manual
@@ -83,10 +83,11 @@ import BaseLink from '@/components/ui/BaseLink.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
+import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 export default {
   name: 'TicketPage',
-  components: { TicketQr, BaseButton, BaseLink, EmptyState, FeedbackMessage, LoadingState },
+  components: { TicketQr, BaseButton, BaseLink, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
   props: {
     conferenceId: { type: String, default: '' },
     seatingMode: { type: String as () => SeatingMode | undefined, default: undefined },
@@ -128,6 +129,7 @@ export default {
     })
     // El backend conserva CHECKED_IN/ISSUED; la tarjeta usa etiquetas de UI legibles.
     const ticketStatusLabel = computed(() => ticket.value?.status === 'CHECKED_IN' ? 'Listo' : 'Reservado')
+    const ticketStatusTone = computed(() => ticket.value?.status === 'CHECKED_IN' ? 'success' : 'info')
 
     async function load() {
       if (!props.conferenceId || !props.ticketed) {
@@ -241,7 +243,7 @@ export default {
     return {
       loading, ticket, claiming, ticketInput, guestName, error, claim, claimAsGuest, auth,
       scanning, videoEl, toggleScanner, ticketUrl, eventName, eventSubtitle, eventDateLabel,
-      eventVenueLabel, eventModeLabel, ticketOwnerLabel, ticketStatusLabel
+      eventVenueLabel, eventModeLabel, ticketOwnerLabel, ticketStatusLabel, ticketStatusTone
     }
   }
 }
@@ -299,8 +301,8 @@ export default {
 .t-qr-caption { color: var(--t-text-muted); font-size: .72rem; text-align: center; }
 .t-admit { text-align: right; min-width: 150px; }
 .t-admit-text { display: block; font-size: .7rem; text-transform: uppercase; letter-spacing: .12em; color: var(--t-text-muted); }
-.t-admit-num { display: block; font-size: clamp(1.35rem, 3vw, 2.1rem); font-weight: 900; line-height: 1.15; color: var(--ticket-number); text-shadow: 0 0 15px var(--t-accent-glow); }
-.t-admit-num.checked { color: var(--ticket-success); text-shadow: none; }
+.t-admit-num.status-badge { display: block; min-height: 0; width: fit-content; margin-left: auto; padding: 0; border-radius: 0; background: transparent; font-size: clamp(1.35rem, 3vw, 2.1rem); font-weight: 900; line-height: 1.15; color: var(--ticket-number); text-shadow: 0 0 15px var(--t-accent-glow); }
+.t-admit-num.status-badge.tone-success { color: var(--ticket-success); text-shadow: none; }
 .t-admit-hint { display: block; margin-top: 8px; color: var(--t-text-muted); font-size: .72rem; }
 .ticket-manual { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 24px 18px; background: var(--t-bg-light); border-top: 1px dashed rgba(255,255,255,.25); text-align: center; }
 .ticket-manual span { color: var(--ticket-manual); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
@@ -321,6 +323,6 @@ export default {
   .t-stub { flex-direction: column; align-items: stretch; }
   .t-qr-container { min-width: 0; }
   .t-qr-container :deep(canvas) { width: 190px; }
-  .t-admit { text-align: center; }
+  .t-admit { text-align: center; }.t-admit-num.status-badge { margin-left: auto; margin-right: auto; }
 }
 </style>

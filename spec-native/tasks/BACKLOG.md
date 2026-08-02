@@ -51,8 +51,9 @@
   con `:focus-visible`; los menús desplegables compartidos soportan flechas, Home/End,
   Escape y retorno de foco. Falta recorrer el dashboard completo por rol en móvil y con
     lector de pantalla.
-- [x] Adoptar `StatusBadge` en los estados operativos de sandboxes.
+- [x] Adoptar `StatusBadge` en los estados operativos de sandboxes y boletos.
   La configuración del evento y el editor de moderación traducen las fases de Kubernetes
   (`Running`, `ContainerCreating`, `NotFound`, etc.) a etiquetas en español con tonos
-  semánticos; los nombres de los ocupantes son visibles y el UUID queda en tooltip.
+  semánticos; los nombres de los ocupantes son visibles y el UUID queda en tooltip. El boleto
+  del asistente reutiliza el mismo componente para mostrar `Reservado`/`Listo` sin exponer enums.
 - [ ] Verificar que el commit validado sea el que está desplegado en producción.
