@@ -261,8 +261,10 @@ RUN for ext in \
 # opencode (CLI de agente de codigo IA, https://opencode.ai, de SST) -- instalado
 # incondicionalmente (no atado a internet_enabled), decision aceptada en la auditoria de
 # seguridad 2026-07-17 (costo fijo de superficie instalada que no puede hacer nada util sin
-# red, en vez de condicionar la instalacion por conferencia).
-RUN curl -fsSL https://opencode.ai/install | bash
+# red, en vez de condicionar la instalacion por conferencia). La version se fija para que una
+# caida de la API de releases no rompa el build reproducible.
+ARG OPENCODE_VERSION=1.18.11
+RUN curl -fsSL https://opencode.ai/install | bash -s -- --version "${OPENCODE_VERSION}" --no-modify-path
 
 # opencode/opentui se veia "raro" (secuencias de escape crudas) en la terminal integrada --
 # bug conocido de opentui (query de capacidad propietaria de Ghostty que xterm.js no responde
