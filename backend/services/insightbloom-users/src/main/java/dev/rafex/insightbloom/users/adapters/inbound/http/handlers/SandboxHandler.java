@@ -410,7 +410,11 @@ public class SandboxHandler extends BaseResourceHandler {
                 "cli", Map.of(
                     "available", availability.cli().available(),
                     "activeCount", availability.cli().activeCount(),
-                    "capacity", availability.cli().capacity())
+                    "capacity", availability.cli().capacity()),
+                "cliLazyVim", Map.of(
+                    "available", availability.cliLazyVim().available(),
+                    "activeCount", availability.cliLazyVim().activeCount(),
+                    "capacity", availability.cliLazyVim().capacity())
             );
             sendOk(jx, 200, response);
             return true;
@@ -510,6 +514,7 @@ public class SandboxHandler extends BaseResourceHandler {
             final Integer sandboxJvmHeapMb = (Integer) body.get("sandboxJvmHeapMb");
             final Integer sandboxSeatsPerPod = (Integer) body.get("sandboxSeatsPerPod");
             final Integer sandboxCliPoolSize = (Integer) body.get("sandboxCliPoolSize");
+            final Integer sandboxCliLazyVimPoolSize = (Integer) body.get("sandboxCliLazyVimPoolSize");
 
             final var updated = setSandboxConfigUseCase.execute(
                 conferenceId,
@@ -518,7 +523,8 @@ public class SandboxHandler extends BaseResourceHandler {
                 sandboxRemoteGitUrl,
                 sandboxJvmHeapMb,
                 sandboxSeatsPerPod,
-                sandboxCliPoolSize
+                sandboxCliPoolSize,
+                sandboxCliLazyVimPoolSize
             );
 
             sendOk(jx, 200, updated);

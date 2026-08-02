@@ -134,6 +134,7 @@ export interface Conference {
   sandboxJvmHeapMb?: number | null
   sandboxSeatsPerPod?: number | null
   sandboxCliPoolSize?: number | null
+  sandboxCliLazyVimPoolSize?: number | null
   maxDevicesPerUser?: number | null
   maxAccountsPerDevice?: number | null
   [key: string]: unknown
@@ -386,7 +387,7 @@ export interface UserProfile {
 }
 
 export type SandboxStatus = 'PENDING' | 'READY'
-export type SandboxVariant = 'web' | 'cli'
+export type SandboxVariant = 'web' | 'cli' | 'cli-lazyvim'
 
 export interface SandboxInfo {
   sandboxUuid: string
@@ -408,6 +409,7 @@ export interface SandboxVariantAvailability {
 export interface SandboxAvailability {
   web: SandboxVariantAvailability
   cli: SandboxVariantAvailability
+  cliLazyVim?: SandboxVariantAvailability
 }
 
 export interface SandboxStatusSeat {

@@ -67,6 +67,9 @@ public class Conference {
     // "web" de arriba (ver AssignSandboxUseCase). Nullable, default efectivo 1 si no se
     // configura (mismo patron que sandboxPoolSize).
     private Integer sandboxCliPoolSize;
+    // Tamaño del pool CLI basado en LazyVim. Es independiente del pool CLI estable para que
+    // cada asistente pueda elegir su distribución sin mezclar Pods ni workspaces.
+    private Integer sandboxCliLazyVimPoolSize;
     private Integer sandboxInternetEnabled; // 0|1, por defecto 0
     private String sandboxRemoteGitUrl; // URL de remoto git del profesor, nullable
     // Heap maximo (-Xmx, en MB) de las JVMs dentro del sandbox (jdt.ls, java/mvn que corra el
@@ -288,9 +291,11 @@ public class Conference {
     public Integer getSandboxJvmHeapMb() { return sandboxJvmHeapMb; }
     public Integer getSandboxSeatsPerPod() { return sandboxSeatsPerPod; }
     public Integer getSandboxCliPoolSize() { return sandboxCliPoolSize; }
+    public Integer getSandboxCliLazyVimPoolSize() { return sandboxCliLazyVimPoolSize; }
     public void setSandboxVariant(String sandboxVariant) { this.sandboxVariant = sandboxVariant; }
     public void setSandboxPoolSize(Integer sandboxPoolSize) { this.sandboxPoolSize = sandboxPoolSize; }
     public void setSandboxCliPoolSize(Integer sandboxCliPoolSize) { this.sandboxCliPoolSize = sandboxCliPoolSize; }
+    public void setSandboxCliLazyVimPoolSize(Integer sandboxCliLazyVimPoolSize) { this.sandboxCliLazyVimPoolSize = sandboxCliLazyVimPoolSize; }
     public void setSandboxInternetEnabled(Integer sandboxInternetEnabled) { this.sandboxInternetEnabled = sandboxInternetEnabled; }
     public void setSandboxRemoteGitUrl(String sandboxRemoteGitUrl) { this.sandboxRemoteGitUrl = sandboxRemoteGitUrl; }
     public void setSandboxJvmHeapMb(Integer sandboxJvmHeapMb) { this.sandboxJvmHeapMb = sandboxJvmHeapMb; }

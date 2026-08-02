@@ -2817,9 +2817,10 @@ public class ConferenceHandler extends BaseResourceHandler {
             final Integer sandboxJvmHeapMb = (Integer) body.get("sandboxJvmHeapMb");
             final Integer sandboxSeatsPerPod = (Integer) body.get("sandboxSeatsPerPod");
             final Integer sandboxCliPoolSize = (Integer) body.get("sandboxCliPoolSize");
+            final Integer sandboxCliLazyVimPoolSize = (Integer) body.get("sandboxCliLazyVimPoolSize");
             final var result = setSandboxConfigUseCase.execute(id, sandboxVariant, sandboxPoolSize,
                 sandboxRemoteGitUrl, sandboxJvmHeapMb, sandboxSeatsPerPod,
-                sandboxCliPoolSize);
+                sandboxCliPoolSize, sandboxCliLazyVimPoolSize);
             try {
                 // Best-effort: si falla (ej. Kubernetes no disponible), no debe tumbar el guardado
                 // de la config -- AssignSandboxUseCase sigue creando bajo demanda como fallback.

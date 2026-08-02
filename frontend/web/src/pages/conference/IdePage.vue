@@ -25,23 +25,32 @@
             :disabled="availability ? !availability.cli.available : false"
             @click="chooseVariant('cli')"
           )
-            span.variant-title ⌨️ CLI
-            span.variant-desc Terminal con vim/neovim, se reutiliza entre alumnos
+            span.variant-title ⌨️ CLI · Neovim
+            span.variant-desc Terminal con Neovim estable, se reutiliza entre alumnos
             span.variant-slots(v-if="availability") {{ availability.cli.activeCount }}/{{ availability.cli.capacity }} ocupados
-        p.hint(v-if="availability && !availability.web.available") Web está lleno -- solo queda disponible CLI.
+          button.variant-btn(
+            type="button"
+            :class="{ active: chosenVariant === 'cli-lazyvim' }"
+            :disabled="availability ? !availability.cliLazyVim?.available : false"
+            @click="chooseVariant('cli-lazyvim')"
+          )
+            span.variant-title ⌨️ CLI · LazyVim
+            span.variant-desc Terminal con LazyVim, se reutiliza entre alumnos
+            span.variant-slots(v-if="availability?.cliLazyVim") {{ availability.cliLazyVim.activeCount }}/{{ availability.cliLazyVim.capacity }} ocupados
+        p.hint(v-if="availability && !availability.web.available") Web está lleno -- elige una de las variantes CLI disponibles.
       LoadingState(v-else-if="loading" message="Cargando sandbox…")
       FeedbackMessage(v-else-if="error" :message="error" tone="error")
       .pending-sandbox(v-else-if="sandbox && sandbox.status === 'PENDING'")
         sandbox-loading-animation(:message="pendingMessage")
         p.hint Esto puede tardar hasta un par de minutos la primera vez.
         p.hint(v-if="sandbox.reason") {{ sandbox.reason }}
-        BaseButton(v-if="sandbox.variant === 'web' && availability?.cli?.available" variant="secondary" @click="switchVariant")
-          | Usar CLI mientras tanto
+        BaseButton(v-if="sandbox.variant === 'web' && (availability?.cli?.available || availability?.cliLazyVim?.available)" variant="secondary" @click="switchVariant")
+          | Usar otra variante CLI mientras tanto
       template(v-else-if="sandbox")
         .sandbox-info
           .info-row
             .label Modo:
-            .value {{ sandbox.variant === 'cli' ? '⌨️ CLI' : '🖥️ Web' }}
+            .value {{ sandbox.variant === 'cli-lazyvim' ? '⌨️ CLI · LazyVim' : (sandbox.variant === 'cli' ? '⌨️ CLI · Neovim' : '🖥️ Web') }}
           .info-row
             .label Sandbox UUID:
             .value {{ sandbox.sandboxUuid }}

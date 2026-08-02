@@ -40,7 +40,8 @@ public class SetSandboxConfigUseCase {
         String sandboxRemoteGitUrl,
         Integer sandboxJvmHeapMb,
         Integer sandboxSeatsPerPod,
-        Integer sandboxCliPoolSize
+        Integer sandboxCliPoolSize,
+        Integer sandboxCliLazyVimPoolSize
     ) {
         var conf = conferenceRepository.findByUuid(conferenceUuid)
             .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
@@ -56,6 +57,12 @@ public class SetSandboxConfigUseCase {
         }
         if (sandboxCliPoolSize != null && sandboxCliPoolSize > maxPoolSizePerEvent) {
             throw new IllegalArgumentException("cli_pool_size_exceeds_platform_max");
+        }
+        if (sandboxCliLazyVimPoolSize != null && sandboxCliLazyVimPoolSize <= 0) {
+            throw new IllegalArgumentException("cli_lazyvim_pool_size_must_be_positive");
+        }
+        if (sandboxCliLazyVimPoolSize != null && sandboxCliLazyVimPoolSize > maxPoolSizePerEvent) {
+            throw new IllegalArgumentException("cli_lazyvim_pool_size_exceeds_platform_max");
         }
         if (sandboxJvmHeapMb != null) {
             // Techo real = el limite de memoria del contenedor de sandbox (SANDBOX_DEBIAN_
@@ -87,8 +94,23 @@ public class SetSandboxConfigUseCase {
         conf.setSandboxJvmHeapMb(sandboxJvmHeapMb);
         conf.setSandboxSeatsPerPod(sandboxSeatsPerPod);
         conf.setSandboxCliPoolSize(sandboxCliPoolSize);
+        conf.setSandboxCliLazyVimPoolSize(sandboxCliLazyVimPoolSize);
 
         conferenceRepository.save(conf);
         return conf;
+    }
+
+    /** Compatibilidad con callers/tests del contrato anterior; LazyVim queda deshabilitado. */
+    public Conference execute(
+        String conferenceUuid,
+        String sandboxVariant,
+        Integer sandboxPoolSize,
+        String sandboxRemoteGitUrl,
+        Integer sandboxJvmHeapMb,
+        Integer sandboxSeatsPerPod,
+        Integer sandboxCliPoolSize
+    ) {
+        return execute(conferenceUuid, sandboxVariant, sandboxPoolSize, sandboxRemoteGitUrl,
+                sandboxJvmHeapMb, sandboxSeatsPerPod, sandboxCliPoolSize, null);
     }
 }

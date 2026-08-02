@@ -84,8 +84,10 @@ public class ResetSandboxUseCase {
 
         int recreatedPods = 0;
         if (recreate) {
-            final int desiredPool = requested.getVariant().equals(Sandbox.VARIANT_CLI)
-                ? configuredPool(conference.getSandboxCliPoolSize())
+            final Integer configuredCliPool = Sandbox.VARIANT_CLI_LAZYVIM.equals(requested.getVariant())
+                ? conference.getSandboxCliLazyVimPoolSize() : conference.getSandboxCliPoolSize();
+            final int desiredPool = Sandbox.isCliVariant(requested.getVariant())
+                ? configuredPool(configuredCliPool)
                 : configuredPool(conference.getSandboxPoolSize());
             recreatedPods = ensureUnassignedSandboxUseCase.ensurePool(
                 conferenceUuid, requested.getVariant(), desiredPool);

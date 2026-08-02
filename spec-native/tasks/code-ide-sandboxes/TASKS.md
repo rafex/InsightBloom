@@ -8,6 +8,13 @@ Derivado de `spec-native/specs/code-ide-sandboxes/SPEC.md`.
   de una hora posterior. Debe incluir política de borrado verificable, aviso visible para alumnos
   y no convertir el workspace efímero actual en persistencia indefinida. **No implementar aún.**
 
+## Variantes CLI seleccionables
+
+- [x] Exponer pools independientes `CLI · Neovim` (`cli`) y `CLI · LazyVim` (`cli-lazyvim`); el
+  asistente elige la variante desde la pantalla IDE y GitOps precarga ambas imágenes. Los eventos
+  existentes siguen usando Neovim estable hasta que el organizador habilite el pool LazyVim en
+  Configuración > IDE.
+
 ## Orden recomendado de ejecución
 
 1. **Fase 0** (TASK-0001 a TASK-0003): capacidad `CODE_IDE` + modelo de
@@ -42,7 +49,7 @@ infraestructura, el servicio de usuarios ya permite preparar por adelantado los 
 del pool configurado, sin esperar a que llegue el primer alumno:
 
 - `POST /api/v1/conferences/{id}/sandbox/prewarm` crea de forma idempotente los slots
-  Web y CLI configurados, requiere sesión válida y permisos de propietario/admin o
+  Web y las dos variantes CLI configuradas, requiere sesión válida y permisos de propietario/admin o
   staff operativo (`MODERATE_CONTENT`/`HOST_EVENT`), y devuelve cuántos Pods se
   crearon por variante.
 - La configuración del evento expone **Preparar sandboxes antes del evento** y
@@ -71,7 +78,7 @@ un Pod multi-asiento.
 
 ### Mejora LSP: contrato común de lenguajes (2026-07-23)
 
-Las dos imágenes del IDE deben entregar estos servidores sin descargas durante la sesión:
+Las tres imágenes del IDE deben entregar estos servidores sin descargas durante la sesión:
 
 | Lenguaje | LSP |
 |---|---|

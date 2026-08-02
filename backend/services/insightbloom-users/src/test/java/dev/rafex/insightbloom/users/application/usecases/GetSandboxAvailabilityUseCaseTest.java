@@ -96,6 +96,24 @@ class GetSandboxAvailabilityUseCaseTest {
     }
 
     @Test
+    void testLazyVimHasIndependentCapacityWhenOrganizerEnablesIt() {
+        testConf.setSandboxCliLazyVimPoolSize(1);
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        final var lazyVim = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_CLI_LAZYVIM,
+            "user-a", Instant.now().plusSeconds(3600));
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of(lazyVim));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-b"))
+            .thenReturn(Optional.empty());
+
+        final var availability = useCase.execute("conf-1", "user-b");
+
+        assertEquals(1, availability.cliLazyVim().activeCount());
+        assertEquals(4, availability.cliLazyVim().capacity());
+        assertTrue(availability.cliLazyVim().available());
+        assertEquals(0, availability.cli().activeCount());
+    }
+
+    @Test
     void testConferenceNotFound() {
         Mockito.when(conferenceRepoMock.findByUuid("nonexistent")).thenReturn(Optional.empty());
 

@@ -211,6 +211,9 @@ public class DatabaseManager {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_cli_pool_size INTEGER");
             } catch (SQLException ignored) {}
             try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_cli_lazyvim_pool_size INTEGER");
+            } catch (SQLException ignored) {}
+            try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN max_devices_per_user INTEGER");
             } catch (SQLException ignored) {}
             try {

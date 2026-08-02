@@ -92,6 +92,22 @@ class AssignSandboxUseCaseTest {
     }
 
     @Test
+    void testAssignSandboxCanUseLazyVimPoolWhenEnabled() {
+        testConf.setSandboxCliLazyVimPoolSize(1);
+        Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1"))
+            .thenReturn(Optional.empty());
+        Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
+
+        final var result = useCase.execute("conf-1", "user-student-1", Sandbox.VARIANT_CLI_LAZYVIM);
+
+        assertEquals(Sandbox.VARIANT_CLI_LAZYVIM, result.getVariant());
+        Mockito.verify(orchestratorMock).createSandbox(
+            Mockito.eq(result.podName()), Mockito.eq("conf-1"), Mockito.eq("terminal-nvim-lazyvim"),
+            Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.isNull());
+    }
+
+    @Test
     void testAssignSandboxRecreatesPodWhenExistingAssignmentPointsToDeadPod() {
         // Reproduce el incidente 2026-07-16: la fila sobrevive a un pod borrado a mano/evicted --
         // sin este chequeo, GetSandbox devolveria PENDING para siempre.

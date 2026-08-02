@@ -42,7 +42,7 @@ public class ReconcileSandboxHealthUseCase {
 
             orchestrator.deleteSandbox(s.podName());
             boolean internet=c.getSandboxInternetEnabled()!=null && c.getSandboxInternetEnabled()==1;
-            orchestrator.createSandbox(s.podName(), c.getUuid(), Sandbox.VARIANT_CLI.equals(s.getVariant()) ? "terminal-nvim" : "python",
+            orchestrator.createSandbox(s.podName(), c.getUuid(), toOrchestratorVariant(s.getVariant()),
                 c.getSandboxRemoteGitUrl(), internet, c.getSandboxJvmHeapMb(), c.getSandboxSeatsPerPod());
             recovered++;
             }
@@ -67,9 +67,14 @@ public class ReconcileSandboxHealthUseCase {
         }
         final boolean internet=conference.getSandboxInternetEnabled()!=null && conference.getSandboxInternetEnabled()==1;
         orchestrator.createSandbox(representative.podName(), conference.getUuid(),
-            Sandbox.VARIANT_CLI.equals(representative.getVariant()) ? "terminal-nvim" : "python",
+            toOrchestratorVariant(representative.getVariant()),
             conference.getSandboxRemoteGitUrl(), internet, conference.getSandboxJvmHeapMb(),
             conference.getSandboxSeatsPerPod());
         return true;
+    }
+
+    private static String toOrchestratorVariant(final String variant) {
+        if (Sandbox.VARIANT_CLI_LAZYVIM.equals(variant)) return "terminal-nvim-lazyvim";
+        return Sandbox.isCliVariant(variant) ? "terminal-nvim" : "python";
     }
 }

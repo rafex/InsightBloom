@@ -6,8 +6,9 @@ import java.util.UUID;
 public class Sandbox {
     /**
      * Variantes de IDE (ver DECISIONS.md, pools independientes Web/CLI): un alumno tiene un
-     * solo sandbox activo a la vez, pero cada Pod pertenece a un pool ("web" o "cli") con su
-     * propio tamaño configurable (Conference.sandboxPoolSize / sandboxCliPoolSize) y su propia
+     * solo sandbox activo a la vez, pero cada Pod pertenece a un pool ("web", "cli" o
+     * "cli-lazyvim") con su propio tamaño configurable (Conference.sandboxPoolSize /
+     * sandboxCliPoolSize / sandboxCliLazyVimPoolSize) y su propia
      * numeracion de sandboxSlot -- por eso variant forma parte del nombre del Pod (ver
      * podName()), no solo un dato leido de Conference como antes. Estas constantes son del
      * DOMINIO, deliberadamente distintas del sentinel IDE_MODE_TERMINAL_NVIM de
@@ -17,6 +18,12 @@ public class Sandbox {
      */
     public static final String VARIANT_WEB = "web";
     public static final String VARIANT_CLI = "cli";
+    /** CLI con la distribución LazyVim. Mantiene un pool separado del CLI estable. */
+    public static final String VARIANT_CLI_LAZYVIM = "cli-lazyvim";
+
+    public static boolean isCliVariant(final String variant) {
+        return VARIANT_CLI.equals(variant) || VARIANT_CLI_LAZYVIM.equals(variant);
+    }
 
     private final String uuid;
     private final String conferenceUuid;
@@ -26,7 +33,7 @@ public class Sandbox {
     // asiento). En modo debian, o neovim con seatsPerPod == 1, siempre vale 0 -- comportamiento
     // identico al de antes de este campo (ver seatPort()).
     private final int seatIndex;
-    private final String variant; // VARIANT_WEB o VARIANT_CLI -- ver javadoc de la clase.
+    private final String variant; // VARIANT_WEB, VARIANT_CLI o VARIANT_CLI_LAZYVIM.
     private final String userUuid;
     private final Instant assignedAt;
     private final Instant createdAt;

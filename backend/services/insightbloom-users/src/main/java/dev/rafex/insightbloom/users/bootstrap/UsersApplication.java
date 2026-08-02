@@ -280,6 +280,7 @@ public class UsersApplication {
                 // la cache local (IfNotPresent) y solo entonces consulta GHCR con latest.
                 System.getenv().getOrDefault("SANDBOX_DEBIAN_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-debian:latest"),
                 System.getenv().getOrDefault("SANDBOX_NEOVIM_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-neovim:latest"),
+                System.getenv().getOrDefault("SANDBOX_NEOVIM_LAZYVIM_IMAGE", "ghcr.io/rafex/insightbloom-code-ide-neovim-lazyvim:latest"),
                 System.getenv().getOrDefault("SANDBOX_IMAGE_PULL_POLICY", "IfNotPresent"),
                 System.getenv("SANDBOX_PRIORITY_CLASS"),
                 // Cambio de paradigma 2026-07-17: un solo contenedor por Pod (ver

@@ -1,6 +1,6 @@
 # Code-IDE Sandbox Docker Images
 
-## Dos modos de IDE, dos imagenes autocontenidas
+## Tres variantes de IDE, tres imagenes autocontenidas
 
 Cambio de paradigma 2026-07-17: cada sandbox corre **un unico contenedor**, con el toolchain
 completo (Java 25 Temurin + Python 3.12 + Node 24 LTS + herramientas de curso) instalado
@@ -8,24 +8,28 @@ directamente en la imagen. Ya no existe el split `ide`/`runtime` de la Fase 4 (d
 por Pod, bridge de terminal via `socat` en loopback) — ver DEC-0023 en `spec-native/DECISIONS.md`
 para el porque completo.
 
-Cada conferencia elige un modo de IDE (campo `sandboxVariant`, ver `EditConferencePage.vue`),
-que ahora selecciona directamente la imagen:
+Cada asistente elige su variante de IDE desde `IdePage.vue`. El organizador configura en el
+evento los pools disponibles; `sandboxVariant` conserva compatibilidad con el modo histórico y
+ya no obliga a todos los asistentes a compartir una sola imagen:
 
 - **`code-server`** (default, valor vacío o cualquier valor historico `python`/`java`/`web`):
   `Dockerfile.code-ide-debian` — VS Code completo en el navegador, con extensiones de
   Java/Python/JavaScript/HTML/CSS e idioma español.
-- **`terminal-nvim`**: `Dockerfile.code-ide-neovim` — Neovim configurado como IDE (explorador de
+- **`terminal-nvim`**: `Dockerfile.code-ide-neovim` — Neovim estable configurado como IDE (explorador de
   archivos, autocompletado semántico de JavaScript/TypeScript/Python/HTML/CSS y Java, LSP de
   JavaScript/TypeScript via `typescript-language-server`, Python via `pyright-langserver`, HTML
   via `vscode-html-language-server`, CSS via `vscode-css-language-server` y Java via `jdtls`, servido por `ttyd`
   (terminal web sobre WebSocket). Mas liviano en RAM/CPU y en tiempo de arranque en el navegador
   (sin el JS de VS Code Web que descargar). Ver `nvim-init.lua` para la config completa.
+- **`terminal-nvim-lazyvim`**: `Dockerfile.code-ide-neovim-lazyvim` — distribución LazyVim para
+  asistentes que prefieran una configuración más completa de Neovim. Se ofrece como pool CLI
+  independiente para que el usuario elija sin cambiar la imagen de un workspace ya asignado.
 
-`KubernetesPodClient.buildPodBody` decide que imagen usar segun este valor; el resto del
-pipeline (gateway, `SandboxHandler`, `IdePage.vue`) es agnostico al modo, proxea HTTP/WS al
+`KubernetesPodClient.buildPodBody` decide qué imagen usar según este valor; el resto del
+pipeline (gateway, `SandboxHandler`, `IdePage.vue`) es agnóstico al modo, proxea HTTP/WS al
 Service del Pod sin saber si hay VS Code o una terminal detras.
 
-## Toolchain (identico y version-pinneado en las dos imagenes)
+## Toolchain (identico y version-pinneado en las tres imagenes)
 
 | Componente | Version | Origen |
 |---|---|---|
@@ -38,7 +42,7 @@ Todas las descargas se verifican con `sha256sum -c` contra un hash fijado en el 
 
 ## Herramientas de curso (pedido explicito, ver DEC-0023)
 
-Ademas del toolchain de lenguajes, ambas imagenes incluyen: `git`, `fzf`, `bash-completion`,
+Ademas del toolchain de lenguajes, las tres imagenes incluyen: `git`, `fzf`, `bash-completion`,
 `bat`/`eza`/`fd`/`ripgrep`/`ncdu` (mejoras de cat/ls/find/grep/du), `jq`, `tmux`, `tree`,
 `httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `nano`, `less`+`man`,
 `just` 1.57.0 y `opencode` (CLI de agente de codigo IA). `insightbloom` incluye autocompletado
@@ -53,7 +57,7 @@ contenido base con el repositorio configurado por el evento.
 
 ### LSP y autocompletado semántico en ambos IDE
 
-Los dos modos incluyen el mismo contrato de servidores, aunque cada editor los integra de forma
+Las tres variantes incluyen el mismo contrato de servidores, aunque cada editor los integra de forma
 distinta:
 
 | Lenguaje | Servidor precargado | Web IDE (code-server) | CLI IDE (Neovim) |
@@ -140,7 +144,7 @@ ni se abre un portal de portapapeles del navegador. Dentro de tmux se puede pega
 - **Dockerfile.code-ide-neovim**: Alpine 3.21, `neovim`/`vim`/`lazygit` + toolchain completo +
   `ttyd` (sirve `nvim` sobre `/home/coder/workspace` directo en el puerto público del Service).
 
-Ninguna de las 2 imágenes depende de otra vía `FROM` ni se ejecutan juntas en un mismo Pod — se
+Ninguna de las 3 imágenes depende de otra vía `FROM` ni se ejecutan juntas en un mismo Pod — se
 construyen en paralelo (así lo hace el workflow de CI, `build-and-push-code-ide`, como matriz).
 El workflow se ejecuta en cada push a `main`, no solo cuando cambia un Dockerfile. Esto mantiene
 el SHA de la imagen y el estado de Flux alineados con la última versión del repositorio. El tag
@@ -155,6 +159,9 @@ docker build -f infra/docker/Dockerfile.code-ide-debian -t insightbloom-code-ide
 
 # Imagen "neovim" (terminal 100%, ttyd + nvim)
 docker build -f infra/docker/Dockerfile.code-ide-neovim -t insightbloom-code-ide-neovim:latest .
+
+# Imagen "lazyvim" (terminal 100%, ttyd + LazyVim)
+docker build -f infra/docker/Dockerfile.code-ide-neovim-lazyvim -t insightbloom-code-ide-neovim-lazyvim:latest .
 ```
 
 ## Code-server Configuration

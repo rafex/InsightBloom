@@ -66,6 +66,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private static final Path CA_PATH = Path.of("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt");
     /** Ver javadoc de la clase: valor de "variant" que activa el modo de IDE alternativo (ttyd+nvim). */
     public static final String IDE_MODE_TERMINAL_NVIM = "terminal-nvim";
+    public static final String IDE_MODE_TERMINAL_NVIM_LAZYVIM = "terminal-nvim-lazyvim";
     /**
      * Heap por defecto (-Xmx, en MB) cuando la conferencia no configuro uno propio desde el
      * Dashboard -- pedido explicito del usuario: JVMs chicas, pensadas para cursos, no "libres".
@@ -114,6 +115,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final String namespace;
     private final String debianImage;
     private final String neovimImage;
+    private final String neovimLazyVimImage;
     private final String imagePullPolicy;
     private final String priorityClassName;
     private final ContainerResources debianResources;
@@ -131,7 +133,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final int appBasePort;
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
-                                final String debianImage, final String neovimImage,
+                                final String debianImage, final String neovimImage, final String neovimLazyVimImage,
                                 final String imagePullPolicy, final String priorityClassName,
                                 final ContainerResources debianResources, final ContainerResources neovimResources,
                                 final int port, final int uid, final int gid, final int fsGroup,
@@ -142,6 +144,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         this.namespace = namespace;
         this.debianImage = debianImage;
         this.neovimImage = neovimImage;
+        this.neovimLazyVimImage = neovimLazyVimImage;
         this.imagePullPolicy = imagePullPolicy;
         this.priorityClassName = priorityClassName;
         this.debianResources = debianResources;
@@ -174,7 +177,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                                final String remoteGitUrl, final boolean internetEnabled,
                                final Integer jvmHeapMb, final Integer seatsPerPod) {
         requireEnabled();
-        final boolean terminalMode = IDE_MODE_TERMINAL_NVIM.equals(variant);
+        final boolean terminalMode = isTerminalVariant(variant);
         // seatsPerPod solo importa en modo terminal-nvim -- en cualquier otro modo (o
         // seatsPerPod nulo/<=1) sigue siendo exactamente 1 puerto, el comportamiento de siempre.
         final int effectiveSeats = terminalMode
@@ -549,7 +552,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final var containers = node.path("spec").path("containers");
         if (!containers.isArray() || containers.isEmpty()) return false;
         final String actualImage = containers.get(0).path("image").asText("");
-        final String expectedImage = Sandbox.VARIANT_CLI.equals(variant) ? neovimImage : debianImage;
+        final String expectedImage = isLazyVimVariant(variant)
+                ? neovimLazyVimImage : (isTerminalVariant(variant) ? neovimImage : debianImage);
         return expectedImage.equals(actualImage);
     }
 
@@ -624,6 +628,19 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         return port - 1;
     }
 
+    private static boolean isTerminalVariant(final String variant) {
+        return IDE_MODE_TERMINAL_NVIM.equals(variant) || IDE_MODE_TERMINAL_NVIM_LAZYVIM.equals(variant)
+                || Sandbox.isCliVariant(variant);
+    }
+
+    private static boolean isLazyVimVariant(final String variant) {
+        return IDE_MODE_TERMINAL_NVIM_LAZYVIM.equals(variant) || Sandbox.VARIANT_CLI_LAZYVIM.equals(variant);
+    }
+
+    private String imageForTerminalVariant(final String variant) {
+        return isLazyVimVariant(variant) ? neovimLazyVimImage : neovimImage;
+    }
+
     private Map<String, Object> buildPodBody(final String podName, final String conferenceUuid, final String variant,
                                               final String remoteGitUrl,
                                               final Integer jvmHeapMb,
@@ -635,7 +652,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "sandbox-variant", variant,
                 "sandbox-conference", Sandbox.conferenceLabel(conferenceUuid));
 
-        final boolean terminalMode = IDE_MODE_TERMINAL_NVIM.equals(variant);
+        final boolean terminalMode = isTerminalVariant(variant);
 
         final List<Map<String, Object>> runtimeEnv = new ArrayList<>();
         // El CLI de publicación usa este valor para identificar el evento sin
@@ -744,7 +761,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
 
         final Map<String, Object> sandboxContainer = new LinkedHashMap<>();
         sandboxContainer.put("name", "sandbox");
-        sandboxContainer.put("image", terminalMode ? neovimImage : debianImage);
+        sandboxContainer.put("image", terminalMode ? imageForTerminalVariant(variant) : debianImage);
         // GitOps inyecta "Never" junto con tags inmutables ya precargados. Fuera de GitOps el
         // fallback es IfNotPresent + ghcr.io/...:latest, por lo que la imagen local se intenta
         // primero y GHCR solo se consulta si no existe en el nodo.

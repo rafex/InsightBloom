@@ -890,7 +890,10 @@ Registrar una decision cuando cambie:
     - `Dockerfile.code-ide-neovim` (Alpine 3.21): `neovim`/`vim`/`lazygit`, servido por
       `ttyd` — el modo "100% terminal" que antes vivia dentro de la imagen `runtime`
       (sentinel `variant == "terminal-nvim"`, sin cambios en ese contrato).
-    - Ambas imagenes traen el MISMO toolchain version-pinneado (pedido explicito): Java 25
+    - `Dockerfile.code-ide-neovim-lazyvim` (Alpine 3.23): LazyVim servido por `ttyd`,
+      disponible como variante CLI opt-in (`cli-lazyvim`) con pool independiente para que
+      cada asistente elija su experiencia sin cambiar la imagen de un workspace ya asignado.
+    - Las tres imagenes traen el MISMO toolchain version-pinneado (pedido explicito): Java 25
       LTS Temurin `jdk-25.0.3+9` (build `linux`/glibc en Debian, build `alpine-linux`/musl
       en Alpine — Temurin publica los dos; SHA256 de ambos tarballs verificado
       independientemente antes de bakearlos, coincide con el que dio el usuario para el
@@ -1129,7 +1132,7 @@ Registrar una decision cuando cambie:
   incluido el flujo multi-asiento. No se usa Mason, Lazy ni instalación de
   paquetes en runtime: `fs`, `http`, `process`, `Buffer` y los demás tipos de
   Node están disponibles sin Internet.
-- **Contrato LSP común para IDE Web y CLI (2026-07-23):** ambas imágenes
+- **Contrato LSP común para IDE Web y CLI (2026-07-23):** las tres imágenes
   precargan Java con `jdtls`, Python con `pyright-langserver`, JS/TS con
   `typescript-language-server`, HTML con `vscode-html-language-server` y CSS
   con `vscode-css-language-server`. code-server usa sus servicios integrados

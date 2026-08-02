@@ -18,6 +18,7 @@ public class AssignSandboxUseCase {
     private static final long DEFAULT_TTL_SECONDS = 4 * 3600; // sin fecha de evento: 4h desde ahora
     /** Ver KubernetesPodClient.IDE_MODE_TERMINAL_NVIM -- mismo sentinel, mismo significado. */
     private static final String IDE_MODE_TERMINAL_NVIM = "terminal-nvim";
+    private static final String IDE_MODE_TERMINAL_NVIM_LAZYVIM = "terminal-nvim-lazyvim";
     /** Variant que se le pasa al orquestador para el pool "web" -- cualquier valor distinto de
      *  IDE_MODE_TERMINAL_NVIM selecciona la imagen debian/code-server (ver KubernetesPodClient). */
     private static final String ORCHESTRATOR_VARIANT_WEB = "python";
@@ -47,21 +48,29 @@ public class AssignSandboxUseCase {
      * valor distinto de {@code "terminal-nvim"} selecciona la imagen debian/code-server.
      */
     private static String toOrchestratorVariant(final String domainVariant) {
+        if (Sandbox.VARIANT_CLI_LAZYVIM.equals(domainVariant)) return IDE_MODE_TERMINAL_NVIM_LAZYVIM;
         return Sandbox.VARIANT_CLI.equals(domainVariant) ? IDE_MODE_TERMINAL_NVIM : ORCHESTRATOR_VARIANT_WEB;
     }
 
     private static int seatsPerPodFor(final String domainVariant, final Conference conference) {
         // Solo el pool "cli" (terminal-nvim) admite compartir Pod entre alumnos -- "web"
         // (code-server) siempre es 1 asiento por pod, no se puede compartir.
-        if (!Sandbox.VARIANT_CLI.equals(domainVariant)) {
+        if (!Sandbox.isCliVariant(domainVariant)) {
             return 1;
         }
         return conference.getSandboxSeatsPerPod() != null ? conference.getSandboxSeatsPerPod() : DEFAULT_SEATS_PER_POD;
     }
 
     private static int poolSizeFor(final String domainVariant, final Conference conference) {
-        final Integer configured = Sandbox.VARIANT_CLI.equals(domainVariant)
-                ? conference.getSandboxCliPoolSize() : conference.getSandboxPoolSize();
+        final Integer configured = Sandbox.VARIANT_CLI_LAZYVIM.equals(domainVariant)
+                ? conference.getSandboxCliLazyVimPoolSize()
+                : (Sandbox.VARIANT_CLI.equals(domainVariant)
+                    ? conference.getSandboxCliPoolSize() : conference.getSandboxPoolSize());
+        // LazyVim es una variante opt-in: los eventos existentes no tienen todavía
+        // capacidad configurada y no deben poder asignarla accidentalmente.
+        if (Sandbox.VARIANT_CLI_LAZYVIM.equals(domainVariant) && configured == null) {
+            return 0;
+        }
         return configured != null ? configured : DEFAULT_POOL_SIZE;
     }
 
@@ -111,7 +120,9 @@ public class AssignSandboxUseCase {
                 throw new DeviceBlockedException();
             }
         }
-        final String variant = Sandbox.VARIANT_CLI.equals(requestedVariant) ? Sandbox.VARIANT_CLI : Sandbox.VARIANT_WEB;
+        final String variant = Sandbox.VARIANT_CLI_LAZYVIM.equals(requestedVariant)
+                ? Sandbox.VARIANT_CLI_LAZYVIM
+                : (Sandbox.VARIANT_CLI.equals(requestedVariant) ? Sandbox.VARIANT_CLI : Sandbox.VARIANT_WEB);
         final String orchestratorVariant = toOrchestratorVariant(variant);
         final int seatsPerPod = seatsPerPodFor(variant, conference);
 
@@ -154,6 +165,13 @@ public class AssignSandboxUseCase {
                         sandbox.getSeatIndex(), sandbox.getVariant(), sandbox.getUserUuid(), sandbox.getAssignedAt(),
                         sandbox.getCreatedAt(), refreshedExpiresAt);
             }
+        }
+
+        // Un pool LazyVim sin capacidad configurada está deshabilitado para este evento. La
+        // comprobación va después de la reconexión para no expulsar a quien ya tiene workspace,
+        // pero antes de reclamar un Pod libre residual de una configuración anterior.
+        if (Sandbox.VARIANT_CLI_LAZYVIM.equals(variant) && poolSizeFor(variant, conference) == 0) {
+            throw new IllegalArgumentException("sandbox_pool_full");
         }
 
         // El repositorio histórico devuelve el primer sandbox libre de cualquier variante.
@@ -260,11 +278,11 @@ public class AssignSandboxUseCase {
      * rapido) en cada llamada -- ver DEC-0027.
      */
     public boolean isSeatFullyProvisioned(final Sandbox sandbox, final String userUuid) {
-        if (!Sandbox.VARIANT_CLI.equals(sandbox.getVariant())) {
+        if (!Sandbox.isCliVariant(sandbox.getVariant())) {
             return true; // Web: un asiento por Pod, sin seat-agent -- isReady(Pod) alcanza.
         }
         final Conference conference = conferenceRepository.findByUuid(sandbox.getConferenceUuid()).orElse(null);
-        final int seatsPerPod = conference != null ? seatsPerPodFor(Sandbox.VARIANT_CLI, conference) : DEFAULT_SEATS_PER_POD;
+        final int seatsPerPod = conference != null ? seatsPerPodFor(sandbox.getVariant(), conference) : DEFAULT_SEATS_PER_POD;
         if (seatsPerPod <= 1) {
             return true; // Pod terminal-nvim de un solo asiento: mismo caso que Web.
         }

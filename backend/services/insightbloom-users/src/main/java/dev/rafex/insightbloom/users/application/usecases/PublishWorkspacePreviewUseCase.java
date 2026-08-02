@@ -33,7 +33,7 @@ public final class PublishWorkspacePreviewUseCase {
         // agente todavía no conoce el asiento y devolvía workspace_not_found. Reaprovisiónalo
         // idempotentemente antes de leer el workspace; en IDE Web el adaptador no tiene seat
         // agent y este intento best-effort no cambia el flujo existente.
-        if (Sandbox.VARIANT_CLI.equals(sandbox.getVariant())) {
+        if (Sandbox.isCliVariant(sandbox.getVariant())) {
             sandboxOrchestrator.ensureSeatReady(sandbox.podName(), sandbox.getSeatIndex(), userUuid);
         }
         final byte[] zip = sandboxOrchestrator.downloadWorkspaceZip(sandbox.podName(), sandbox.getSeatIndex());

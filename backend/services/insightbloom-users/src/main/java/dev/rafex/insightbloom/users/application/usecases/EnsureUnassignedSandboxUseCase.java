@@ -27,6 +27,7 @@ import java.util.Set;
  */
 public class EnsureUnassignedSandboxUseCase {
     private static final String IDE_MODE_TERMINAL_NVIM = "terminal-nvim";
+    private static final String IDE_MODE_TERMINAL_NVIM_LAZYVIM = "terminal-nvim-lazyvim";
     private static final String ORCHESTRATOR_VARIANT_WEB = "python";
     private static final int DEFAULT_POOL_SIZE = 1;
     private static final int DEFAULT_SEATS_PER_POD = 4;
@@ -72,8 +73,7 @@ public class EnsureUnassignedSandboxUseCase {
         int created = 0;
         for (int slot = 0; slot < target; slot++) {
             if (existingSlots.contains(slot)) continue;
-            if (preWarm(conference, conferenceUuid, variant, slot,
-                    Sandbox.VARIANT_CLI.equals(variant) ? IDE_MODE_TERMINAL_NVIM : ORCHESTRATOR_VARIANT_WEB)) {
+            if (preWarm(conference, conferenceUuid, variant, slot, toOrchestratorVariant(variant))) {
                 existingSlots.add(slot);
                 created++;
             }
@@ -106,19 +106,23 @@ public class EnsureUnassignedSandboxUseCase {
         int nextSlot = 0;
         while (occupiedBySlot.containsKey(nextSlot) && nextSlot < poolSize) nextSlot++;
         if (nextSlot < poolSize) {
-            preWarm(conference, conferenceUuid, variant, nextSlot,
-                Sandbox.VARIANT_CLI.equals(variant) ? IDE_MODE_TERMINAL_NVIM : ORCHESTRATOR_VARIANT_WEB);
+            preWarm(conference, conferenceUuid, variant, nextSlot, toOrchestratorVariant(variant));
         }
     }
 
     private int poolSizeFor(final String variant, final Conference conference) {
-        final Integer configured = Sandbox.VARIANT_CLI.equals(variant)
-            ? conference.getSandboxCliPoolSize() : conference.getSandboxPoolSize();
+        final Integer configured = Sandbox.VARIANT_CLI_LAZYVIM.equals(variant)
+            ? conference.getSandboxCliLazyVimPoolSize()
+            : (Sandbox.VARIANT_CLI.equals(variant)
+                ? conference.getSandboxCliPoolSize() : conference.getSandboxPoolSize());
+        if (Sandbox.VARIANT_CLI_LAZYVIM.equals(variant) && configured == null) {
+            return 0;
+        }
         return configured != null ? configured : DEFAULT_POOL_SIZE;
     }
 
     private int seatsPerPodFor(final String variant, final Conference conference) {
-        if (!Sandbox.VARIANT_CLI.equals(variant)) return 1;
+        if (!Sandbox.isCliVariant(variant)) return 1;
         return conference.getSandboxSeatsPerPod() != null
             ? conference.getSandboxSeatsPerPod() : DEFAULT_SEATS_PER_POD;
     }
@@ -156,5 +160,10 @@ public class EnsureUnassignedSandboxUseCase {
             throw e;
         }
         return true;
+    }
+
+    private static String toOrchestratorVariant(final String variant) {
+        if (Sandbox.VARIANT_CLI_LAZYVIM.equals(variant)) return IDE_MODE_TERMINAL_NVIM_LAZYVIM;
+        return Sandbox.VARIANT_CLI.equals(variant) ? IDE_MODE_TERMINAL_NVIM : ORCHESTRATOR_VARIANT_WEB;
     }
 }

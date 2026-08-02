@@ -102,17 +102,20 @@
 
     .form-group.sandbox-group(v-show="activeTab === 'sandbox'")
       label IDE de código
-      p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE". El ambiente incluye Java, Node.js y Python en el mismo sandbox — no hace falta elegir un lenguaje. Los alumnos eligen ellos mismos entre Web (editor en el navegador, un sandbox por alumno) y CLI (terminal con Neovim, se comparte entre alumnos) — abajo se configura cuántos de cada tipo puede haber a la vez.
+      p.field-hint Configura el ambiente de desarrollo que reciben los asistentes en la pestaña "IDE". El ambiente incluye Java, Node.js y Python en el mismo sandbox. Los alumnos eligen Web, CLI con Neovim estable o CLI con LazyVim; cada opción tiene su propio pool y conserva su workspace separado.
       .coord-field
         label.coord-label(for="config-sandbox-web-pool") Sandboxes Web concurrentes (editor en el navegador)
         input#config-sandbox-web-pool(v-model.number="sandboxPoolSize" type="number" min="1" placeholder="1")
       .coord-field
-        label.coord-label(for="config-sandbox-cli-pool") Sandboxes CLI concurrentes (Neovim)
+        label.coord-label(for="config-sandbox-cli-pool") Sandboxes CLI concurrentes (Neovim estable)
         input#config-sandbox-cli-pool(v-model.number="sandboxCliPoolSize" type="number" min="1" placeholder="1")
+      .coord-field
+        label.coord-label(for="config-sandbox-cli-lazyvim-pool") Sandboxes CLI concurrentes (LazyVim)
+        input#config-sandbox-cli-lazyvim-pool(v-model.number="sandboxCliLazyVimPoolSize" type="number" min="1" placeholder="1")
       .coord-field(v-if="cliEnabled")
         label.coord-label(for="config-sandbox-cli-seats") Alumnos por sandbox CLI
         input#config-sandbox-cli-seats(v-model.number="sandboxSeatsPerPod" type="number" min="1" max="10" placeholder="4 (por defecto)")
-      p.field-hint(v-if="cliEnabled") En modo CLI, varios alumnos pueden compartir el mismo sandbox — cada uno con su propio usuario y espacio de trabajo aislado. El modo Web no admite esto: siempre es un sandbox por alumno.
+      p.field-hint(v-if="cliEnabled") En cada variante CLI, varios alumnos pueden compartir el mismo sandbox — cada uno con su propio usuario y espacio de trabajo aislado. El modo Web no admite esto: siempre es un sandbox por alumno.
       .coord-field
         label.coord-label(for="config-sandbox-git") Repositorio git remoto (opcional)
         input#config-sandbox-git(v-model="sandboxRemoteGitUrl" type="text" placeholder="https://github.com/...")
@@ -158,7 +161,7 @@
             tbody
               tr(v-for="pod in sandboxStatus" :key="pod.podName")
                 td(data-label="Pod") {{ pod.podName }}
-                td(data-label="Modo") {{ pod.variant === 'cli' ? 'CLI' : 'Web' }}
+                td(data-label="Modo") {{ pod.variant === 'cli-lazyvim' ? 'CLI · LazyVim' : (pod.variant === 'cli' ? 'CLI · Neovim' : 'Web') }}
                 td(data-label="Fase")
                   StatusBadge(:status="pod.phase" pill)
                 td(data-label="Listo")
@@ -386,7 +389,9 @@ export default {
     const sandboxPoolSize = ref<number | null>(1)
     // Pool "cli" (Neovim, reusable/multi-alumno) -- independiente del pool "web" de arriba.
     const sandboxCliPoolSize = ref<number | null>(1)
-    const cliEnabled = computed(() => (sandboxCliPoolSize.value ?? 0) > 0)
+    const sandboxCliLazyVimPoolSize = ref<number | null>(1)
+    const cliEnabled = computed(() => (sandboxCliPoolSize.value ?? 0) > 0
+      || (sandboxCliLazyVimPoolSize.value ?? 0) > 0)
     const sandboxRemoteGitUrl = ref('')
     // Heap maximo (-Xmx, en MB) de las JVMs del sandbox -- null = usa el default chico del
     // backend (70Mi, ver KubernetesPodClient). El backend rechaza (400) valores que excedan el
@@ -646,6 +651,7 @@ export default {
         sandboxVariant.value = conference.value.sandboxVariant === 'terminal-nvim' ? 'terminal-nvim' : ''
         sandboxPoolSize.value = conference.value.sandboxPoolSize ?? 1
         sandboxCliPoolSize.value = conference.value.sandboxCliPoolSize ?? 1
+        sandboxCliLazyVimPoolSize.value = conference.value.sandboxCliLazyVimPoolSize ?? 1
         sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''
         sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? 70
         sandboxSeatsPerPod.value = conference.value.sandboxSeatsPerPod ?? null
@@ -756,6 +762,7 @@ export default {
           props.conferenceId as string, sandboxVariant.value, sandboxPoolSize.value,
           sandboxRemoteGitUrl.value.trim() || null,
           sandboxJvmHeapMb.value, sandboxSeatsPerPod.value, sandboxCliPoolSize.value,
+          sandboxCliLazyVimPoolSize.value,
           auth.state.token as string
         )
         sandboxConfigSaved.value = true
@@ -976,7 +983,7 @@ export default {
     return { conference, loading, error, activeTab, configTabs, selectTab, focusTab, pendingTab, confirmTabChange, saveState,
              seatingMode, capacity, recommendedMaxCapacity, capacityAlert, savingSeating, seatingSaved, seatingError, saveSeating,
              ticketSalesEnabled, savingTicketSales, ticketSalesSaved, ticketSalesError, saveTicketSales,
-             sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, cliEnabled,
+             sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, sandboxCliLazyVimPoolSize, cliEnabled,
              sandboxRemoteGitUrl, sandboxJvmHeapMb,
              sandboxSeatsPerPod, sandboxInternetEnabled,
              savingSandboxConfig, sandboxConfigSaved, sandboxConfigError, savingSandboxInternet,

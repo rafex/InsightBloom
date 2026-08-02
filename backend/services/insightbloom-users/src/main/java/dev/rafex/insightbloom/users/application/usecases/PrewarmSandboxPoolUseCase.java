@@ -38,10 +38,20 @@ public class PrewarmSandboxPoolUseCase {
             conferenceUuid, Sandbox.VARIANT_WEB, webPoolSize);
         final int cliCreated = ensureUnassignedSandboxUseCase.ensurePool(
             conferenceUuid, Sandbox.VARIANT_CLI, cliPoolSize);
-        return new Result(conferenceUuid, List.of(
+        final List<VariantResult> variants = new java.util.ArrayList<>(List.of(
             new VariantResult(Sandbox.VARIANT_WEB, webPoolSize, webCreated),
             new VariantResult(Sandbox.VARIANT_CLI, cliPoolSize, cliCreated)
         ));
+        // Las conferencias antiguas no tienen este campo: no se les crea un tercer pool hasta
+        // que el organizador lo habilite explícitamente desde Configuración > IDE.
+        if (conference.getSandboxCliLazyVimPoolSize() != null
+                && conference.getSandboxCliLazyVimPoolSize() > 0) {
+            final int cliLazyVimPoolSize = conference.getSandboxCliLazyVimPoolSize();
+            final int cliLazyVimCreated = ensureUnassignedSandboxUseCase.ensurePool(
+                conferenceUuid, Sandbox.VARIANT_CLI_LAZYVIM, cliLazyVimPoolSize);
+            variants.add(new VariantResult(Sandbox.VARIANT_CLI_LAZYVIM, cliLazyVimPoolSize, cliLazyVimCreated));
+        }
+        return new Result(conferenceUuid, variants);
     }
 
     private static int configuredPoolSize(final Integer configured) {

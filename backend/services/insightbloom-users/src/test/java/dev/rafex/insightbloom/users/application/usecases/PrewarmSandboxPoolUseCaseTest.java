@@ -69,4 +69,17 @@ class PrewarmSandboxPoolUseCaseTest {
             Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.eq(4));
         Mockito.verify(sandboxRepository, Mockito.times(3)).save(Mockito.any(Sandbox.class));
     }
+
+    @Test
+    void prewarmsLazyVimAsAnIndependentOptInPool() {
+        conference.setSandboxCliLazyVimPoolSize(1);
+
+        final var result = useCase.execute("conf-1");
+
+        assertEquals(new PrewarmSandboxPoolUseCase.VariantResult(
+            Sandbox.VARIANT_CLI_LAZYVIM, 1, 1), result.variants().get(2));
+        Mockito.verify(orchestrator, Mockito.times(6)).createSandbox(
+            Mockito.anyString(), Mockito.eq("conf-1"), Mockito.anyString(),
+            Mockito.isNull(), Mockito.eq(false), Mockito.isNull(), Mockito.eq(4));
+    }
 }

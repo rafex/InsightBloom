@@ -38,7 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Cambio de paradigma 2026-07-17: dos imagenes autocontenidas (sin split ide/runtime,
+          # Cambio de paradigma 2026-07-17: tres imagenes autocontenidas (sin split ide/runtime,
           # ver KubernetesPodClient.java) -- cada una trae el toolchain completo (Java 25 Temurin,
           # Python 3.12, Node 24 LTS) adentro.
           - name: debian
@@ -49,8 +49,8 @@ jobs:
             file: infra/docker/Dockerfile.code-ide-neovim
             image: ghcr.io/rafex/insightbloom-code-ide-neovim
             variantTag: latest
-          # Bifurcacion para probar LazyVim (2026-07-26): Dockerfile.code-ide-neovim permanece
-          # intacto y estable; esta es la variante experimental, en su propia imagen/tag.
+          # Variante CLI opt-in (2026-07-26): Dockerfile.code-ide-neovim permanece intacto y
+          # estable; LazyVim se publica en su propia imagen/tag para que el usuario elija.
           - name: neovim-lazyvim
             file: infra/docker/Dockerfile.code-ide-neovim-lazyvim
             image: ghcr.io/rafex/insightbloom-code-ide-neovim-lazyvim

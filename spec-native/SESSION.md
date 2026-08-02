@@ -45,6 +45,14 @@
 | **UX IDE** | Shell y ayuda contextual | Completado | VS Code inicia con la barra lateral secundaria oculta y la terminal inferior visible/enfocada; la ayuda de InsightBloom usa contraste reforzado, botón flotante arrastrable y panel configurable a izquierda, derecha, arriba o abajo, con preferencias persistidas para IDE Web y CLI |
 | **Entrega de presentaciones** | Compresión HTTP | Completado | Gzip reactivado y validado en producción para respuestas textuales proxificadas de `/api/presentations`; el presenter carga correctamente |
 
+### IDE CLI — variantes seleccionables (2026-08-02)
+
+Se agregaron pools independientes para `CLI · Neovim` (`cli`) y `CLI · LazyVim`
+(`cli-lazyvim`). El asistente elige una variante en `IdePage.vue`; la configuración del evento
+expone los tres pools y GitOps precarga las dos variantes CLI; los Pods dinámicos usan
+`imagePullPolicy: Never`. Las conferencias antiguas conservan el pool Neovim hasta que el organizador
+guarda la configuración con el pool LazyVim habilitado.
+
 ### NO migrar aún — solo router-links, se atienden en Fase 4.4
 
 - `DashboardHome.vue` — todos los `.btn-primary`/`.btn-outline` son `<router-link>`, cero `<button>`

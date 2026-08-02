@@ -431,11 +431,12 @@ export async function setSandboxConfig(
   sandboxJvmHeapMb: number | null,
   sandboxSeatsPerPod: number | null,
   sandboxCliPoolSize: number | null,
+  sandboxCliLazyVimPoolSize: number | null,
   token: string
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/sandbox-config`,
     { sandboxVariant, sandboxPoolSize, sandboxRemoteGitUrl, sandboxJvmHeapMb,
-      sandboxSeatsPerPod, sandboxCliPoolSize },
+      sandboxSeatsPerPod, sandboxCliPoolSize, sandboxCliLazyVimPoolSize },
     authHeader(token))
   return res.data.data
 }
