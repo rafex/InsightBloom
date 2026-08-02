@@ -21,6 +21,26 @@
     `NS_ERROR_CORRUPTED_CONTENT`;
   - conservar el fallback legacy `presenter-assets` durante la transición.
 
+## CI/CD y resiliencia de builds
+
+- [ ] **Desacoplar el bootstrap de BuildKit de Docker Hub.**
+  Posible mejora futura para `publish-code-ide.yml`: espejar una versión fijada
+  de `moby/buildkit` en un paquete controlado de GHCR (idealmente por digest) y
+  configurar `docker/setup-buildx-action` con `driver-opts.image` apuntando a
+  ese espejo. La autenticación al GHCR debe ocurrir antes de iniciar Buildx.
+  Esta mejora queda documentada, pero no se implementa todavía: el fallo
+  observado fue una indisponibilidad transitoria de Docker Hub durante el
+  bootstrap, no un error del Dockerfile.
+
+  Criterios para promoverla a tarea ejecutable:
+  - publicar y verificar el espejo de BuildKit con permisos de lectura para
+    GitHub Actions;
+  - fijar la referencia por versión o digest y documentar su renovación;
+  - ejecutar las tres variantes de `code-ide` y comprobar que Buildx arranca
+    sin consultar Docker Hub;
+  - conservar una estrategia operativa de reintento para indisponibilidades
+    transitorias del registro.
+
 ## UX/UI
 
 - [x] Normalizar los estados visibles del boleto para que la UI no exponga enums en mayúsculas;

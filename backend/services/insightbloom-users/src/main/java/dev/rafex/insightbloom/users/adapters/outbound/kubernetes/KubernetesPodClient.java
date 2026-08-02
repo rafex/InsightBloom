@@ -781,13 +781,23 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                     "python3", "/usr/local/bin/sandbox-agent.py",
                     "--base-port", String.valueOf(port), "--max-seats", String.valueOf(effectiveSeats)));
         } else if (terminalMode) {
+            // Kubernetes reemplaza el CMD de la imagen cuando fija args. Por eso el modo
+            // single-seat debe repetir aqui la inicializacion que normalmente vive en el CMD:
+            // sembrar el workspace y arrancar sandbox-file-agent.py. Sin el agente, el terminal
+            // funciona pero la moderacion/editor recibe 404 en /files/{seatIndex}.
+            final String singleSeatCommand = String.join("; ",
+                    "/usr/local/bin/seed-remote-git.sh /home/coder/workspace",
+                    "/usr/local/bin/seed-node-types.sh /home/coder/workspace",
+                    "/usr/local/bin/seed-ide-docs.sh /home/coder/workspace",
+                    "python3 /usr/local/bin/sandbox-file-agent.py --control-port " + controlPort() + " &",
+                    "exec ttyd -p " + port + " -W --ping-interval 15 bash -lc 'cd /home/coder/workspace && exec nvim .'"
+            );
             // --ping-interval 15 (default de ttyd es 5s, se deja explicito por legibilidad):
             // auditoria de seguridad 2026-07-17 -- detecta conexiones muertas mas rapido, para
             // no dejar una sesion de terminal "colgada" alcanzable mas tiempo del necesario si
             // el navegador del alumno se cierra sin un cierre limpio de la conexion WS.
             sandboxContainer.put("args", List.of(
-                    "ttyd", "-p", String.valueOf(port), "-W", "--ping-interval", "15",
-                    "bash", "-lc", "cd /home/coder/workspace && exec nvim ."));
+                    "sh", "-c", singleSeatCommand));
         }
         // El control port (seat-agent) tambien debe responder para que el Pod se considere listo
         // -- corre en el mismo puerto base que el asiento 0 en modo single-seat, pero en modo

@@ -22,7 +22,7 @@
     .pod-card(v-for="pod in pods" :key="pod.podName")
       .pod-header
         span.pod-name {{ pod.podName }}
-        span.pod-variant {{ pod.variant === 'cli' ? 'CLI (Neovim)' : 'Web (code-server)' }}
+        span.pod-variant {{ variantLabel(pod.variant) }}
         StatusBadge(:status="pod.ready ? 'READY' : pod.phase" pill)
       .seats-list
         .seat-row(v-for="seat in pod.seats" :key="seat.seatIndex")
@@ -90,15 +90,22 @@ export default {
       prewarmSummary.value = ''
       try {
         const result = await prewarmSandboxPool(props.conferenceId, auth.state.token as string)
-        const web = result.variants.find(v => v.variant === 'web')
-        const cli = result.variants.find(v => v.variant === 'cli')
-        prewarmSummary.value = `Pool solicitado: Web ${web?.createdPods || 0}/${web?.desiredPods || 0} Pods nuevos; CLI ${cli?.createdPods || 0}/${cli?.desiredPods || 0} Pods nuevos. La fase de arranque continúa en segundo plano.`
+        const variants = result.variants.map((variant) =>
+          `${variantLabel(variant.variant)} ${variant.createdPods || 0}/${variant.desiredPods || 0} Pods nuevos`
+        )
+        prewarmSummary.value = `Pool solicitado: ${variants.join('; ')}. La fase de arranque continúa en segundo plano.`
         await load()
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'No se pudo preparar el pool de sandboxes'
       } finally {
         prewarming.value = false
       }
+    }
+
+    function variantLabel(variant: string) {
+      if (variant === 'cli-lazyvim') return 'CLI (LazyVim)'
+      if (variant === 'cli') return 'CLI (Neovim)'
+      return 'Web (code-server)'
     }
 
     function openEditor(userUuid: string) { editorUserUuid.value = userUuid }
@@ -118,7 +125,7 @@ export default {
       { label: 'Editor Monaco' }
     ])
 
-    return { pods, loading, error, prewarming, prewarmSummary, conferenceName, editorUserUuid, breadcrumbItems, load, prewarm, openEditor }
+    return { pods, loading, error, prewarming, prewarmSummary, conferenceName, editorUserUuid, breadcrumbItems, load, prewarm, openEditor, variantLabel }
   }
 }
 </script>

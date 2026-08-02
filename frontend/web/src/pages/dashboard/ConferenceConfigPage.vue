@@ -418,9 +418,11 @@ export default {
     const prewarmingSandboxPool = ref(false)
     const sandboxPrewarmResult = ref<SandboxPrewarmResult | null>(null)
     const sandboxPrewarmMessage = computed(() => {
-      const web = sandboxPrewarmResult.value?.variants.find((variant) => variant.variant === 'web')
-      const cli = sandboxPrewarmResult.value?.variants.find((variant) => variant.variant === 'cli')
-      return `Pool solicitado: Web ${web?.createdPods || 0} nuevos de ${web?.desiredPods || 0}; CLI ${cli?.createdPods || 0} nuevos de ${cli?.desiredPods || 0}.`
+      const variants = sandboxPrewarmResult.value?.variants || []
+      const details = variants.map((variant) =>
+        `${sandboxVariantLabel(variant.variant)} ${variant.createdPods || 0} nuevos de ${variant.desiredPods || 0}`
+      )
+      return `Pool solicitado: ${details.join('; ')}.`
     })
     const sandboxPrewarmError = ref('')
     const sandboxActionBusy = ref<string | null>(null)
@@ -839,6 +841,12 @@ export default {
       } finally {
         prewarmingSandboxPool.value = false
       }
+    }
+
+    function sandboxVariantLabel(variant: string): string {
+      if (variant === 'cli-lazyvim') return 'CLI · LazyVim'
+      if (variant === 'cli') return 'CLI · Neovim'
+      return 'Web'
     }
 
     function sandboxIsFree(pod: SandboxStatusEntry): boolean {
