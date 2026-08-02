@@ -209,3 +209,48 @@ def build_workspace_zip(root: str) -> bytes:
                 except OSError:
                     continue
     return buffer.getvalue()
+
+
+def build_workspace_zip_as_user(root: str, uid: int, gid: int) -> bytes:
+    """Genera el ZIP en un proceso que corre como el propietario del workspace.
+
+    El seat-agent CLI corre como root con ``CAP_DAC_OVERRIDE`` eliminado. Eso evita que el
+    agente pueda atravesar el home de otro asiento, pero también impide leer el workspace del
+    asiento propio cuando sus directorios están en 0750. No cambiamos permisos ni hacemos
+    ``seteuid`` en el servidor HTTP (sería inseguro con varias solicitudes concurrentes): el
+    trabajo completo se ejecuta en un hijo con el UID/GID del asiento y el ZIP vuelve por stdout.
+    """
+    script = (
+        "import os, sys\n"
+        "import sandbox_file_api\n"
+        "root, uid, gid = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])\n"
+        "try:\n"
+        "    if os.getuid() != uid:\n"
+        "        os.setgid(gid)\n"
+        "        os.setgroups([gid])\n"
+        "        os.setuid(uid)\n"
+        "    sys.stdout.buffer.write(sandbox_file_api.build_workspace_zip(root))\n"
+        "except sandbox_file_api.NotFoundError:\n"
+        "    raise SystemExit(10)\n"
+        "except sandbox_file_api.WorkspaceTooLargeError:\n"
+        "    raise SystemExit(11)\n"
+    )
+    child_env = os.environ.copy()
+    module_dir = os.path.dirname(os.path.abspath(__file__))
+    child_env["PYTHONPATH"] = module_dir + os.pathsep + child_env.get("PYTHONPATH", "")
+    completed = subprocess.run(
+        ["python3", "-c", script, root, str(uid), str(gid)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=90,
+        check=False,
+        env=child_env,
+    )
+    if completed.returncode == 10:
+        raise NotFoundError("workspace no encontrado")
+    if completed.returncode == 11:
+        raise WorkspaceTooLargeError("workspace demasiado grande")
+    if completed.returncode != 0:
+        detail = completed.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"workspace_zip_failed: {detail or completed.returncode}")
+    return completed.stdout

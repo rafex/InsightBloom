@@ -448,11 +448,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         match = re.fullmatch(r"/workspace/(\d+)/zip", parsed.path)
         if match:
-            root = self._seat_workspace_root(int(match.group(1)))
+            index = int(match.group(1))
+            root = self._seat_workspace_root(index)
             if root is None:
                 return
             try:
-                self._send_zip(sandbox_file_api.build_workspace_zip(root))
+                seat = _seats[index]
+                self._send_zip(sandbox_file_api.build_workspace_zip_as_user(
+                    root, seat["uid"], seat["uid"]))
             except sandbox_file_api.NotFoundError:
                 self._send_json(404, {"error": "not_found"})
             except sandbox_file_api.WorkspaceTooLargeError:
