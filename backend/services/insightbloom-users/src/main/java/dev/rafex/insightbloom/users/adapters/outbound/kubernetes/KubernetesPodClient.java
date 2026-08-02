@@ -536,6 +536,24 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     }
 
     @Override
+    public boolean isImageCurrent(final String podName, final String variant) {
+        requireEnabled();
+        final HttpRequest request = authedRequest("/api/v1/namespaces/" + namespace + "/pods/" + podName)
+                .GET().build();
+        final HttpResponse<String> response = send(request);
+        if (response.statusCode() == 404) return false;
+        if (response.statusCode() >= 300) {
+            throw new IllegalStateException("kubernetes_get_pod_failed: " + response.statusCode() + " " + response.body());
+        }
+        final var node = jsonCodec.readTree(response.body());
+        final var containers = node.path("spec").path("containers");
+        if (!containers.isArray() || containers.isEmpty()) return false;
+        final String actualImage = containers.get(0).path("image").asText("");
+        final String expectedImage = Sandbox.VARIANT_CLI.equals(variant) ? neovimImage : debianImage;
+        return expectedImage.equals(actualImage);
+    }
+
+    @Override
     public RuntimeStatus getRuntimeStatus(final String podName) {
         requireEnabled();
         final HttpRequest request = authedRequest("/api/v1/namespaces/" + namespace + "/pods/" + podName).GET().build();

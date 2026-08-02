@@ -66,6 +66,16 @@ public interface SandboxOrchestrator {
     /** "Pending", "Running", "Failed", "Succeeded", "Unknown", o null si el Pod no existe. */
     String getPhase(String podName);
 
+    /**
+     * Indica si el Pod usa la imagen que el deployment actual de {@code insightbloom-users}
+     * tiene configurada para la variante solicitada. Los Pods dinámicos no son administrados por
+     * un Deployment, por lo que esta comprobación permite retirar slots libres que quedaron con
+     * una imagen anterior después de una actualización de GitOps.
+     */
+    default boolean isImageCurrent(String podName, String variant) {
+        return true;
+    }
+
     default RuntimeStatus getRuntimeStatus(String podName) {
         final String phase = getPhase(podName);
         return new RuntimeStatus(phase, phase != null && isReady(podName), null, 0);
