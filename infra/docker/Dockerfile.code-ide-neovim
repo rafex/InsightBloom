@@ -239,9 +239,9 @@ RUN npm install -g npm@latest && \
 
 # opencode (CLI de agente de codigo IA, https://opencode.ai, de SST) -- costo fijo aceptado
 # incondicionalmente (auditoria de seguridad 2026-07-17), igual que en la imagen Debian.
-# La version se fija para que una caida de la API de releases no rompa el build reproducible.
-ARG OPENCODE_VERSION=1.18.11
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --version "${OPENCODE_VERSION}" --no-modify-path
+# Se resuelve la release latest en cada reconstruccion para que una imagen que permanece
+# estatica durante meses no conserve indefinidamente una version antigua.
+RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
 
 # opentui (libreria de TUI de opencode) vs Ghostty CSI ?997n -- mismo bug/mitigacion que la
 # imagen Debian, ver comentario alla.

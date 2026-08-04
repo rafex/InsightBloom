@@ -893,7 +893,7 @@ Registrar una decision cuando cambie:
     - `Dockerfile.code-ide-neovim-lazyvim` (Alpine 3.23): LazyVim servido por `ttyd`,
       disponible como variante CLI opt-in (`cli-lazyvim`) con pool independiente para que
       cada asistente elija su experiencia sin cambiar la imagen de un workspace ya asignado.
-    - Las tres imagenes traen el MISMO toolchain version-pinneado (pedido explicito): Java 25
+    - Las tres imagenes traen el MISMO toolchain base version-pinneado (pedido explicito): Java 25
       LTS Temurin `jdk-25.0.3+9` (build `linux`/glibc en Debian, build `alpine-linux`/musl
       en Alpine — Temurin publica los dos; SHA256 de ambos tarballs verificado
       independientemente antes de bakearlos, coincide con el que dio el usuario para el
@@ -904,7 +904,9 @@ Registrar una decision cuando cambie:
       de Node en `nodejs.org`, se usa `unofficial-builds.nodejs.org`, el proyecto de
       comunidad que la propia documentacion de Node.js referencia para plataformas fuera
       de los builds oficiales). Todas las descargas van con `sha256sum -c` contra un hash
-      fijado en el Dockerfile, no solo "confiar en HTTPS".
+      fijado en el Dockerfile, no solo "confiar en HTTPS". Excepcion deliberada: OpenCode CLI
+      se instala sin `--version`, por lo que cada reconstruccion resuelve la release `latest`;
+      una imagen ya publicada conserva la version que tenia hasta su siguiente reconstruccion.
     - Herramientas de curso agregadas en las dos imagenes (pedido explicito: "sugiereme que
       otros paquetes deberian tener para dar cursos"): `bat`/`eza`/`fd`/`ripgrep`/`ncdu`
       (mejoras de cat/ls/find/grep/du), `jq`, `tmux`, `tree`, `httpie`, `shellcheck`,

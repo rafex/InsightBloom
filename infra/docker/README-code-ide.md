@@ -29,7 +29,7 @@ ya no obliga a todos los asistentes a compartir una sola imagen:
 pipeline (gateway, `SandboxHandler`, `IdePage.vue`) es agnóstico al modo, proxea HTTP/WS al
 Service del Pod sin saber si hay VS Code o una terminal detras.
 
-## Toolchain (identico y version-pinneado en las tres imagenes)
+## Toolchain (versiones controladas; OpenCode CLI se actualiza a latest al construir)
 
 | Componente | Version | Origen |
 |---|---|---|
@@ -45,7 +45,9 @@ Todas las descargas se verifican con `sha256sum -c` contra un hash fijado en el 
 Ademas del toolchain de lenguajes, las tres imagenes incluyen: `git`, `fzf`, `bash-completion`,
 `bat`/`eza`/`fd`/`ripgrep`/`ncdu` (mejoras de cat/ls/find/grep/du), `jq`, `tmux`, `tree`,
 `httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `nano`, `less`+`man`,
-`just` 1.57.0 y `opencode` (CLI de agente de codigo IA). `insightbloom` incluye autocompletado
+`just` 1.57.0 y `opencode` (CLI de agente de codigo IA). OpenCode CLI se instala sin un
+`--version` fijo, por lo que cada reconstruccion consulta la release `latest`; una imagen ya
+construida conserva la version que tenia hasta que se vuelva a construir y publicar. `insightbloom` incluye autocompletado
 de bash para subcomandos, opciones y rutas. El CLI tambien incluye `posting` 2.10.0 para probar REST
 desde terminal. Paquetes globales de Python (`jupyter`, `numpy`,
 `pandas`, `matplotlib`, `flask`, `django`, `fastapi`, `pytest`, `black`, `pylint`, `debugpy`) y
@@ -180,8 +182,10 @@ java` no esta en open-vsx.org), Python (`ms-python.python` + `ms-pyright.pyright
 Pylance, tampoco en open-vsx), el pack web (Prettier/ESLint/Volar/React/Tailwind/HTML-CSS),
 [`humao.rest-client`](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) para
 ejecutar archivos `.http`/`.rest`, el paquete de idioma español
-(`ms-ceintl.vscode-language-pack-es`) y `sst-dev.opencode`. Todas
-fijadas a una version explicita salvo el language pack (ver comentario en el Dockerfile).
+(`ms-ceintl.vscode-language-pack-es`) y `sst-dev.opencode`. Las extensiones, incluida
+`sst-dev.opencode`, siguen fijadas a una version explicita salvo el language pack; ese pin es
+independiente de la version del CLI OpenCode instalada en la imagen (ver comentarios en los
+Dockerfiles).
 
 ## Probar APIs REST
 

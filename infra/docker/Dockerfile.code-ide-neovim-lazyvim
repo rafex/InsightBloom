@@ -278,10 +278,10 @@ RUN npm install -g npm@latest && \
     @typescript-eslint/parser \
     @typescript-eslint/eslint-plugin
 
-# opencode -- identico a Dockerfile.code-ide-neovim. La version se fija para que una caida
-# de la API de releases no rompa el build reproducible.
-ARG OPENCODE_VERSION=1.18.11
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --version "${OPENCODE_VERSION}" --no-modify-path
+# opencode -- identico a Dockerfile.code-ide-neovim. Se resuelve la release latest en cada
+# reconstruccion para que una imagen que permanece estatica durante meses no conserve
+# indefinidamente una version antigua.
+RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
 
 ENV TERM=xterm-256color
 
