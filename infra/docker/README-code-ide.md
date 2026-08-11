@@ -40,6 +40,18 @@ Service del Pod sin saber si hay VS Code o una terminal detras.
 Todas las descargas se verifican con `sha256sum -c` contra un hash fijado en el Dockerfile
 (`ARG *_SHA256`), no solo "confiar en HTTPS".
 
+### Actualizar OpenCode CLI manualmente
+
+El workflow `.github/workflows/publish-code-ide.yml` admite `workflow_dispatch` desde la pestaña
+**Actions** de GitHub. `refresh_opencode` queda activado por defecto; al ejecutarlo, usa el
+`run_id` como cache-bust de la capa de OpenCode y reconstruye las tres variantes (Web, Neovim y
+LazyVim), consultando la release `latest` de OpenCode CLI. Después, InsightBloom-gitops debe
+promover el tag inmutable `build-<run_id>` para que K3s use la nueva imagen.
+
+Una ejecución manual con `refresh_opencode` desactivado conserva la caché de esa capa y sirve
+para reconstruir sin forzar una descarga. La extensión `sst-dev.opencode` del Web IDE no se
+actualiza con este mecanismo: mantiene su versión fijada de forma independiente.
+
 ## Herramientas de curso (pedido explicito, ver DEC-0023)
 
 Ademas del toolchain de lenguajes, las tres imagenes incluyen: `git`, `fzf`, `bash-completion`,

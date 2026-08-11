@@ -264,7 +264,9 @@ RUN for ext in \
 # red, en vez de condicionar la instalacion por conferencia). Se resuelve la release latest
 # en cada reconstruccion: estas imagenes pueden permanecer estaticas durante meses y no deben
 # conservar indefinidamente una version antigua de OpenCode CLI.
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+ARG OPENCODE_CACHE_BUST=default
+RUN echo "OpenCode cache key: ${OPENCODE_CACHE_BUST}" \
+    && curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
 
 # opencode/opentui se veia "raro" (secuencias de escape crudas) en la terminal integrada --
 # bug conocido de opentui (query de capacidad propietaria de Ghostty que xterm.js no responde

@@ -281,7 +281,9 @@ RUN npm install -g npm@latest && \
 # opencode -- identico a Dockerfile.code-ide-neovim. Se resuelve la release latest en cada
 # reconstruccion para que una imagen que permanece estatica durante meses no conserve
 # indefinidamente una version antigua.
-RUN curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+ARG OPENCODE_CACHE_BUST=default
+RUN echo "OpenCode cache key: ${OPENCODE_CACHE_BUST}" \
+    && curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
 
 ENV TERM=xterm-256color
 

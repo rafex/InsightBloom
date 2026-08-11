@@ -3,8 +3,9 @@
 # Este workflow es solo CI (build + push a GHCR) -- no despliega a k3s, eso se hace
 # aparte mediante FluxCD/ImageUpdateAutomation. Se ejecuta en cada push a main para
 # que la imagen del IDE no quede anclada a un commit antiguo cuando cambia el codigo
-# que la usa (por ejemplo, el flujo de publicacion o el contrato de sandbox). Flux
-# selecciona despues el tag build-* mas alto y lo fija en InsightBloom-gitops.
+# que la usa (por ejemplo, el flujo de publicacion o el contrato de sandbox). También se
+# puede lanzar manualmente para refrescar OpenCode CLI aunque no haya cambios de código.
+# Flux selecciona despues el tag build-* mas alto y lo fija en InsightBloom-gitops.
 #
 # Deliberadamente sigue independiente de los demas publish-*.yml: nada depende de el
 # via `needs:`, y el tampoco es needs de nadie. Un fallo aca no debe impedir que las
@@ -19,7 +20,13 @@ on:
       - main
     tags:
       - 'v*.*'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      refresh_opencode:
+        description: 'Descargar la release latest de OpenCode CLI e invalidar su capa de cache'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -71,7 +78,15 @@ jobs:
       - name: Resolve build metadata
         id: metadata
         shell: bash
-        run: echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "${{ inputs.refresh_opencode }}" == "true" ]]; then
+            # Cada dispatch debe atravesar la capa de instalación para consultar latest.
+            echo "opencode_cache_bust=$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+          else
+            # En builds automáticos, un commit nuevo también invalida esa capa.
+            echo "opencode_cache_bust=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -85,6 +100,7 @@ jobs:
           build-args: |
             RUNTIME_GIT_SHA=${{ github.sha }}
             RUNTIME_BUILD_DATE=${{ steps.metadata.outputs.build_date }}
+            OPENCODE_CACHE_BUST=${{ steps.metadata.outputs.opencode_cache_bust }}
           tags: |
             ${{ matrix.image }}:${{ matrix.variantTag }}
             ${{ matrix.image }}:build-${{ github.run_id }}

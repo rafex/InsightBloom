@@ -77,9 +77,11 @@ de deploy hizo que un fallo ahí frenara imágenes ya listas de la aplicación r
 
 **Trigger de cada workflow**: los servicios de aplicación usan `push` a `main` y `push` de
 tag `v*.*` con su `paths:` filter propio, más `workflow_dispatch` manual con input
-`version_tag` (formato `vN.YYYYmmDD[-N]`). `publish-code-ide.yml` es la excepción: corre en
-cualquier `push` a `main` o tag `v*.*`, no pide `version_tag` en `workflow_dispatch` y publica
-`latest` más `build-${{ github.run_id }}`. Ese tag inmutable es el que ImagePolicy de
+`version_tag` (formato `vN.YYYYmmDD[-N]`). `publish-code-ide.yml` corre en cualquier `push` a
+`main` o tag `v*.*`, y también admite `workflow_dispatch` con `refresh_opencode` activado por
+defecto. Ese dispatch usa `github.run_id` como cache-bust para que las tres imágenes consulten
+la release `latest` de OpenCode CLI; los builds automáticos usan el SHA del commit como clave.
+Publica `latest` más `build-${{ github.run_id }}`. Ese tag inmutable es el que ImagePolicy de
 InsightBloom-gitops promueve al HelmRelease; los sandboxes dinámicos no resuelven `latest`.
 
 **Versionado de tags** (igual en los 14 workflows):
