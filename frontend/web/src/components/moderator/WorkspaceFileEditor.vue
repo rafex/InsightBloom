@@ -47,11 +47,12 @@ import SaveState from '@/components/ui/SaveState.vue'
 // Extension -> id de lenguaje de Monaco. Autocompletado basico (resaltado + sugerencias por
 // indentacion/llaves) viene incluido gratis en las "basic-languages" de monaco-editor para
 // estos tres -- sin Language Server, a proposito ("visor super ligero", no pretende igualar
-// la experiencia LSP completa de code-server/redhat.java).
+// la experiencia LSP completa de code-server/redhat.java). Cada id de esta lista tiene que
+// tener su registro correspondiente importado en ensureMonacoLoaded() mas abajo.
 const LANGUAGE_BY_EXTENSION: Record<string, string> = {
   java: 'java', py: 'python', js: 'javascript', jsx: 'javascript',
   ts: 'typescript', tsx: 'typescript', json: 'json', md: 'markdown',
-  html: 'html', css: 'css', sh: 'shell', yml: 'yaml', yaml: 'yaml'
+  html: 'html', css: 'css', sh: 'shell', bash: 'shell', yml: 'yaml', yaml: 'yaml'
 }
 
 function languageForPath(path: string): string {
@@ -86,17 +87,46 @@ export default {
     const sortedFiles = computed(() =>
       [...files.value].sort((a, b) => a.path.localeCompare(b.path)))
 
-    // Carga perezosa a proposito: monaco-editor es pesado (varios cientos de KB), no debe
-    // entrar en el bundle principal -- Vite lo separa en su propio chunk automaticamente al
-    // verlo como un import() dinamico dentro de un handler (mismo mecanismo que ya usa el
-    // router para todas las rutas), nunca al nivel de modulo/mount del componente.
-    let monacoModule: typeof import('monaco-editor') | null = null
+    // Carga perezosa a proposito: monaco-editor es pesado, no debe entrar en el bundle
+    // principal -- Vite lo separa en su propio chunk automaticamente al verlo como un import()
+    // dinamico dentro de un handler (mismo mecanismo que ya usa el router para todas las rutas),
+    // nunca al nivel de modulo/mount del componente.
+    //
+    // 'monaco-editor' a secas trae el paquete completo (~80 lenguajes de fabrica + un cliente
+    // LSP externo que este visor no usa). Import puntual del motor (monaco-editor/editor, sin
+    // lenguajes ni features registradas) + de las features de edicion completas
+    // (features/register.all, para no perder find/multicursor/menu contextual/etc) + solo los
+    // registros de lenguaje que LANGUAGE_BY_EXTENSION realmente usa, todos via
+    // languages/definitions/* (resaltado de sintaxis liviano, sin worker) -- consistente con el
+    // diseno de este visor ("sin Language Server", ver comentario de LANGUAGE_BY_EXTENSION).
+    // OJO: existe tambien languages/features/typescript/register, que registra 'typescript' Y
+    // 'javascript' con autocompletado/chequeo de tipos real -- pero embebe el compilador de
+    // TypeScript completo (~12MB sin comprimir, medido en 0.56.0), el grueso del peso del chunk.
+    // Se descarta a proposito por ese motivo; si en el futuro se quiere IntelliSense real para
+    // JS/TS, hay que sumarlo sabiendo que va a inflar este chunk lazy considerablemente.
+    let monacoModule: typeof import('monaco-editor/editor') | null = null
     let editorInstance: import('monaco-editor').editor.IStandaloneCodeEditor | null = null
     let editorChangeListener: { dispose: () => void } | null = null
 
     async function ensureMonacoLoaded() {
       if (!monacoModule) {
-        monacoModule = await import('monaco-editor')
+        const [core] = await Promise.all([
+          import('monaco-editor/editor'),
+          import('monaco-editor/features/register.all'),
+          import('monaco-editor/languages/definitions/java/register'),
+          import('monaco-editor/languages/definitions/python/register'),
+          import('monaco-editor/languages/definitions/markdown/register'),
+          import('monaco-editor/languages/definitions/shell/register'),
+          import('monaco-editor/languages/definitions/yaml/register'),
+          import('monaco-editor/languages/definitions/html/register'),
+          import('monaco-editor/languages/features/html/register'),
+          import('monaco-editor/languages/definitions/css/register'),
+          import('monaco-editor/languages/features/css/register'),
+          import('monaco-editor/languages/features/json/register'),
+          import('monaco-editor/languages/definitions/javascript/register'),
+          import('monaco-editor/languages/definitions/typescript/register')
+        ])
+        monacoModule = core
       }
       return monacoModule
     }
