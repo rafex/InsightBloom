@@ -60,29 +60,15 @@
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getConference, getActiveEventTypes, setOnDemandVideo } from '@/services/api/usersApi'
-import type { EventType, EventCapability } from '@/services/api/types'
+import type { EventType } from '@/services/api/types'
 import { eventTypeHasCapability } from '@/features/conferences/capabilities'
-import { toEmbedUrl, parseCuePointsMarkdown, type CuePointRow } from '@/features/conferences/onDemandVideo'
+import { toEmbedUrl, parseCuePointsMarkdown, TOOL_CATALOG, type CuePointRow } from '@/features/conferences/onDemandVideo'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
-
-// Catalogo estatico de pestañas publicas a las que puede apuntar una sugerencia -- filtrado por
-// las capabilities habilitadas para el tipo de evento de esta conferencia (misma fuente de
-// verdad que ConferenceToolsNav, ver features/conferences/capabilities.ts).
-const TOOL_CATALOG: Array<{ path: string, label: string, capability: EventCapability }> = [
-  { path: 'doubts', label: 'Nube de dudas', capability: 'WORD_CLOUD' },
-  { path: 'topics', label: 'Nube de temas', capability: 'WORD_CLOUD' },
-  { path: 'presentation', label: 'Presentación', capability: 'PRESENTATION' },
-  { path: 'survey', label: 'Encuesta', capability: 'SURVEY' },
-  { path: 'ide', label: 'IDE', capability: 'CODE_IDE' },
-  { path: 'diagrams', label: 'Diagramas', capability: 'DIAGRAMMING' },
-  { path: 'notes', label: 'Notas colaborativas', capability: 'COLLAB_NOTES' },
-  { path: 'whiteboard', label: 'Pizarra', capability: 'WHITEBOARD' }
-]
 
 export default {
   name: 'OnDemandVideoManagePage',

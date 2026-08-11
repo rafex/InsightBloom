@@ -2,6 +2,49 @@
 // el frontend a proposito: el backend solo guarda la URL tal cual se pego, sin normalizarla (ver
 // SetOnDemandVideoUseCase.java) -- asi un cambio de formato de embed no requiere migracion de
 // datos, solo tocar esta funcion.
+import type { EventCapability, OnDemandCuePoint } from '@/services/api/types'
+
+// Catalogo estatico de pestañas publicas a las que puede apuntar una sugerencia de cue-point --
+// fuente unica para el editor manual/Markdown (OnDemandVideoManagePage.vue) y el panel de
+// notificaciones publico (OnDemandFloatingVideo.vue), que necesita mostrar el nombre en español
+// de la herramienta, no el path tecnico.
+export const TOOL_CATALOG: Array<{ path: string, label: string, capability: EventCapability }> = [
+  { path: 'doubts', label: 'Nube de dudas', capability: 'WORD_CLOUD' },
+  { path: 'topics', label: 'Nube de temas', capability: 'WORD_CLOUD' },
+  { path: 'presentation', label: 'Presentación', capability: 'PRESENTATION' },
+  { path: 'survey', label: 'Encuesta', capability: 'SURVEY' },
+  { path: 'ide', label: 'IDE', capability: 'CODE_IDE' },
+  { path: 'diagrams', label: 'Diagramas', capability: 'DIAGRAMMING' },
+  { path: 'notes', label: 'Notas colaborativas', capability: 'COLLAB_NOTES' },
+  { path: 'whiteboard', label: 'Pizarra', capability: 'WHITEBOARD' }
+]
+
+/** Nombre en español de una herramienta por su path, o el path tal cual si no está en el catálogo. */
+export function toolLabelForPath(path: string): string {
+  return TOOL_CATALOG.find(t => t.path === path)?.label || path
+}
+
+// Ventana de 3s: el poll de OnDemandFloatingVideo.vue corre cada 1s, asi que un cue-point puntual
+// no se pierde entre dos lecturas consecutivas si el timestamp cae justo entre medio.
+const CUE_POINT_TRIGGER_WINDOW_SECONDS = 3
+
+/**
+ * Dado el tiempo actual de reproduccion, devuelve el cue-point que corresponde disparar como
+ * notificacion nueva, o null si ninguno aplica todavia. `alreadyFiredSeconds` son los `atSeconds`
+ * que ya generaron una notificacion en esta sesion (se pasa por fuera para que descartar una
+ * notificacion no la deje disparar de nuevo si el usuario rebobina el video y vuelve a pasar por
+ * ahi -- ver OnDemandFloatingVideo.vue).
+ */
+export function findCuePointToTrigger(
+  cuePoints: OnDemandCuePoint[],
+  currentTime: number,
+  alreadyFiredSeconds: ReadonlySet<number>
+): OnDemandCuePoint | null {
+  return cuePoints.find(cue =>
+    currentTime >= cue.atSeconds
+    && currentTime < cue.atSeconds + CUE_POINT_TRIGGER_WINDOW_SECONDS
+    && !alreadyFiredSeconds.has(cue.atSeconds)) || null
+}
 
 const YOUTUBE_ID_PATTERN = /(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{6,})/i
 

@@ -11,8 +11,11 @@
     #ondemand-full-slot
     .cue-list(v-if="sortedCuePoints.length")
       p.hint Sugerencias por momento del video:
-      router-link.cue-list-item(v-for="cue in sortedCuePoints" :key="cue.atSeconds" :to="`/c/${friendlyId}/${cue.toolPath}`")
+      //- target=_blank a proposito: asi la herramienta se abre en otra pestana sin tocar esta
+      //- (el video sigue reproduciendose aca, sin depender del mecanismo de flotante/Teleport).
+      a.cue-list-item(v-for="cue in sortedCuePoints" :key="cue.atSeconds" :href="`/c/${friendlyId}/${cue.toolPath}`" target="_blank" rel="noopener")
         span.cue-time {{ formatTime(cue.atSeconds) }}
+        span.cue-tool {{ toolLabel(cue.toolPath) }}
         span.cue-label {{ cue.label }}
 </template>
 
@@ -20,7 +23,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import type { OnDemandCuePoint } from '@/services/api/types'
-import { toEmbedUrl } from '@/features/conferences/onDemandVideo'
+import { toEmbedUrl, toolLabelForPath } from '@/features/conferences/onDemandVideo'
 import EmptyState from '@/components/ui/EmptyState.vue'
 
 export default {
@@ -51,7 +54,7 @@ export default {
       return `${minutes}:${String(seconds).padStart(2, '0')}`
     }
 
-    return { friendlyId, embedUrl, sortedCuePoints, formatTime }
+    return { friendlyId, embedUrl, sortedCuePoints, formatTime, toolLabel: toolLabelForPath }
   }
 }
 </script>
@@ -70,6 +73,10 @@ h2 { margin: 0; color: var(--color-heading); }
 }
 .cue-list-item:hover { background: var(--color-surface-muted); color: var(--color-primary); }
 .cue-time { font-family: monospace; color: var(--color-text-muted); flex-shrink: 0; }
+.cue-tool {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;
+  color: var(--color-primary); flex-shrink: 0;
+}
 
 @media (max-width: 640px) {
   .on-demand-page { padding: 14px; }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { toEmbedUrl, parseCuePointsMarkdown, type CuePointToolOption } from '../onDemandVideo'
+import { toEmbedUrl, parseCuePointsMarkdown, findCuePointToTrigger, toolLabelForPath, type CuePointToolOption } from '../onDemandVideo'
+import type { OnDemandCuePoint } from '@/services/api/types'
 
 describe('toEmbedUrl', () => {
   it('returns null when provider or url is missing', () => {
@@ -119,5 +120,45 @@ describe('parseCuePointsMarkdown', () => {
   it('returns an error for empty input', () => {
     const result = parseCuePointsMarkdown('   \n  ', tools)
     expect('errors' in result && result.errors.length).toBeGreaterThan(0)
+  })
+})
+
+describe('findCuePointToTrigger', () => {
+  const cuePoints: OnDemandCuePoint[] = [
+    { atSeconds: 15, label: 'Uno', toolPath: 'survey' },
+    { atSeconds: 90, label: 'Dos', toolPath: 'ide' }
+  ]
+
+  it('returns null when no cue point is within its trigger window', () => {
+    expect(findCuePointToTrigger(cuePoints, 5, new Set())).toBeNull()
+    expect(findCuePointToTrigger(cuePoints, 50, new Set())).toBeNull()
+  })
+
+  it('returns the cue point once its timestamp is reached', () => {
+    expect(findCuePointToTrigger(cuePoints, 15, new Set())).toEqual(cuePoints[0])
+    expect(findCuePointToTrigger(cuePoints, 17, new Set())).toEqual(cuePoints[0])
+  })
+
+  it('stops matching once the 3s trigger window passes', () => {
+    expect(findCuePointToTrigger(cuePoints, 18, new Set())).toBeNull()
+  })
+
+  it('does not re-trigger a cue point already in alreadyFiredSeconds', () => {
+    expect(findCuePointToTrigger(cuePoints, 15, new Set([15]))).toBeNull()
+  })
+
+  it('can match a later cue point independently of an earlier fired one', () => {
+    expect(findCuePointToTrigger(cuePoints, 90, new Set([15]))).toEqual(cuePoints[1])
+  })
+})
+
+describe('toolLabelForPath', () => {
+  it('returns the Spanish label for a known tool path', () => {
+    expect(toolLabelForPath('survey')).toBe('Encuesta')
+    expect(toolLabelForPath('ide')).toBe('IDE')
+  })
+
+  it('falls back to the raw path for an unknown tool', () => {
+    expect(toolLabelForPath('nope')).toBe('nope')
   })
 })

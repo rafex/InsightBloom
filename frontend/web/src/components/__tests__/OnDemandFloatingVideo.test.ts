@@ -94,4 +94,82 @@ describe('OnDemandFloatingVideo', () => {
 
     expect(router.currentRoute.value.fullPath).toBe('/c/evento-demo/on-demand')
   })
+
+  // El disparo real de una notificacion pasa por el polling del YT.Player (requiere mockear el
+  // script externo de la YouTube IFrame API por completo -- fuera de alcance de un test unitario).
+  // En cambio, se puebla `notifications` directamente via wrapper.vm (queda expuesto en el
+  // return() del componente) para probar el renderizado del panel -- paginacion, orden y
+  // descarte -- de forma aislada de esa dependencia externa.
+  describe('notification panel', () => {
+    function seedNotifications(count: number) {
+      return Array.from({ length: count }, (_, i) => ({
+        id: i + 1,
+        cue: { atSeconds: i * 10, label: `Sugerencia ${i + 1}`, toolPath: 'survey' }
+      }))
+    }
+
+    it('shows at most 5 notifications per page, newest first', async () => {
+      const router = makeRouter('/c/evento-demo/survey')
+      await router.isReady()
+      const wrapper = mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+      await flushPromises()
+
+      ;(wrapper.vm as any).notifications = seedNotifications(7)
+      await flushPromises()
+
+      const items = floatingSlot.querySelectorAll('.notification-item')
+      expect(items).toHaveLength(5)
+      expect(floatingSlot.querySelector('.notification-pagination')?.textContent).toContain('1 / 2')
+    })
+
+    it('paginates to older notifications', async () => {
+      const router = makeRouter('/c/evento-demo/survey')
+      await router.isReady()
+      const wrapper = mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+      await flushPromises()
+
+      ;(wrapper.vm as any).notifications = seedNotifications(7)
+      await flushPromises()
+
+      const [, nextButton] = floatingSlot.querySelectorAll<HTMLButtonElement>('.notification-pagination button')
+      nextButton.click()
+      await flushPromises()
+
+      const items = floatingSlot.querySelectorAll('.notification-item')
+      expect(items).toHaveLength(2)
+      expect(floatingSlot.querySelector('.notification-pagination')?.textContent).toContain('2 / 2')
+    })
+
+    it('removes a notification when its dismiss button is clicked, without affecting the others', async () => {
+      const router = makeRouter('/c/evento-demo/survey')
+      await router.isReady()
+      const wrapper = mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+      await flushPromises()
+
+      ;(wrapper.vm as any).notifications = seedNotifications(2)
+      await flushPromises()
+
+      const dismissButtons = floatingSlot.querySelectorAll<HTMLButtonElement>('.notification-dismiss')
+      dismissButtons[0].click()
+      await flushPromises()
+
+      expect((wrapper.vm as any).notifications).toHaveLength(1)
+      expect(floatingSlot.querySelectorAll('.notification-item')).toHaveLength(1)
+    })
+
+    it('opens the suggestion link in a new tab', async () => {
+      const router = makeRouter('/c/evento-demo/survey')
+      await router.isReady()
+      const wrapper = mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+      await flushPromises()
+
+      ;(wrapper.vm as any).notifications = seedNotifications(1)
+      await flushPromises()
+
+      const link = floatingSlot.querySelector<HTMLAnchorElement>('.notification-link')
+      expect(link?.target).toBe('_blank')
+      expect(link?.rel).toBe('noopener')
+      expect(link?.getAttribute('href')).toBe('/c/evento-demo/survey')
+    })
+  })
 })
