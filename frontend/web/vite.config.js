@@ -45,10 +45,8 @@ export default defineConfig({
         // worker forzaria a bajarlo en la instalacion inicial de la app para TODO usuario,
         // exactamente lo que la carga lazy busca evitar (la mayoria nunca abre el editor). Se
         // excluye del precache; sigue funcionando igual via fetch normal (cache HTTP del
-        // navegador) la primera vez que un moderador realmente lo abre. ts.worker (worker
-        // interno de lenguaje TypeScript de monaco-editor, generado automaticamente por el
-        // paquete, no por codigo de esta app) tambien supera el limite -- mismo motivo.
-        globIgnores: ['**/monaco-*.js', '**/ts.worker-*.js'],
+        // navegador) la primera vez que un moderador realmente lo abre.
+        globIgnores: ['**/monaco-*.js'],
         // No agregar runtimeCaching para /api/presentations. Incluye rutas
         // protegidas y públicas cuyo contenido cambia por conferencia/sesión.
         // La reproducción offline no compensa mostrar un JSON ticket_required
@@ -71,8 +69,13 @@ export default defineConfig({
         // WorkspaceFileEditor.vue -- Rollup empezo a fusionar su chunk lazy dentro del bundle
         // principal (index-*.js paso de ~650KB a 4MB). Forzarlo aca recupera el chunk separado
         // de forma determinista, sin depender de como el paquete se organice internamente.
-        manualChunks: {
-          monaco: ['monaco-editor']
+        // Forma funcion (no objeto/array) porque WorkspaceFileEditor.vue importa varios
+        // sub-paths puntuales de monaco-editor (editor, features/register.all,
+        // languages/.../register) para tree-shakear los ~80 lenguajes que no usa -- ninguno de
+        // esos sub-modulos calza con el id exacto 'monaco-editor', asi que hace falta matchear
+        // por substring de ruta para agruparlos todos en el mismo chunk igual.
+        manualChunks(id) {
+          if (id.includes('node_modules/monaco-editor')) return 'monaco'
         }
       }
     }
