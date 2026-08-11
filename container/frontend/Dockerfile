@@ -5,8 +5,11 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Instala dependencias (capa cacheada separada del código fuente)
-COPY frontend/web/package*.json ./
+# Instala dependencias (capa cacheada separada del código fuente). .npmrc trae
+# legacy-peer-deps=true -- vue-router 5 declara vite ^7||^8 como peerOptional
+# (integracion opcional que no usamos, seguimos en vite ^6) y sin el flag
+# `npm ci` falla con ERESOLVE.
+COPY frontend/web/package*.json frontend/web/.npmrc ./
 RUN npm ci --prefer-offline
 
 # Copia fuentes y construye
