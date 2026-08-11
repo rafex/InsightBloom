@@ -8,6 +8,12 @@ export interface Timezone {
 
 export type SeatingMode = 'NONE' | 'GENERAL' | 'SEATED'
 
+export interface OnDemandCuePoint {
+  atSeconds: number
+  label: string
+  toolPath: string
+}
+
 export type CanvasTool = 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD'
 export type CanvasAudienceMode = 'INDEPENDENT' | 'MODERATOR_ONLY' | 'COLLABORATIVE'
 export type CertificateEngine = 'INHOUSE' | 'HTML_CHROME'
@@ -107,6 +113,9 @@ export interface Conference {
   latitude?: number | null
   longitude?: number | null
   presentationSourceUrl?: string | null
+  onDemandVideoProvider?: 'YOUTUBE' | 'PEERTUBE' | null
+  onDemandVideoUrl?: string | null
+  onDemandCuePoints?: OnDemandCuePoint[]
   flyerBase64?: string | null
   description?: string | null
   visibility?: EventVisibility

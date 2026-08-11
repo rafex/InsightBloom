@@ -85,7 +85,8 @@ const CAPABILITY_LABELS: Record<string, string> = {
   WHITEBOARD: 'Pizarra',
   DIAGRAMMING: 'Diagramas',
   COLLAB_NOTES: 'Notas colaborativas',
-  CODE_IDE: 'IDE'
+  CODE_IDE: 'IDE',
+  ON_DEMAND_VIDEO: 'Video on-demand'
 }
 
 export default {

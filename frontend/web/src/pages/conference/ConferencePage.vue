@@ -55,6 +55,9 @@
           router-link#onboarding-tab-presentation.tool-btn(v-if="hasCapability('PRESENTATION') && toolReleased('PRESENTATION')" :to="`/c/${friendlyId}/presentation`" active-class="active-tab" title="Presentación")
             UiIcon.tool-icon(name="presentation" size="18")
             span.tool-label Presentación
+          router-link#onboarding-tab-on-demand.tool-btn(v-if="privateAllowed('ON_DEMAND_VIDEO')" :to="`/c/${friendlyId}/on-demand`" active-class="active-tab" title="Video")
+            UiIcon.tool-icon(name="video" size="18")
+            span.tool-label Video
           span#onboarding-tab-chat.tool-btn.tab-disabled(v-if="privateAllowed('CHAT_BOT') && toolReleased('CHAT') && isAnonymous" title="Regístrate y canjea tu boleto para acceder al chat")
             UiIcon.tool-icon(name="chat" size="18")
             span.tool-label Chat
@@ -104,7 +107,7 @@
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
         BaseLink(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
-      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator" :event-name="conference.name" :event-description="conference.description" :flyer-base64="conference.flyerBase64" :schedule-markdown="conference.scheduleMarkdown")
+      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :on-demand-video-provider="conference.onDemandVideoProvider" :on-demand-video-url="conference.onDemandVideoUrl" :on-demand-cue-points="conference.onDemandCuePoints" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator" :event-name="conference.name" :event-description="conference.description" :flyer-base64="conference.flyerBase64" :schedule-markdown="conference.scheduleMarkdown")
 
     OnboardingTour(storage-key="ib_onboarding_conference_v2" :steps="attendeeTourSteps")
 

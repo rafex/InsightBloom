@@ -225,12 +225,27 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN canvas_audience_mode TEXT");
             } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN on_demand_video_provider TEXT");
+            } catch (SQLException ignored) {}
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN on_demand_video_url TEXT");
+            } catch (SQLException ignored) {}
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS conference_canvas_configs (
                     conference_uuid TEXT NOT NULL,
                     canvas_tool TEXT NOT NULL,
                     audience_mode TEXT NOT NULL,
                     PRIMARY KEY (conference_uuid, canvas_tool)
+                )
+            """);
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS conference_on_demand_cue_points (
+                    conference_uuid TEXT NOT NULL,
+                    at_seconds INTEGER NOT NULL,
+                    label TEXT NOT NULL,
+                    tool_path TEXT NOT NULL,
+                    sort_order INTEGER NOT NULL
                 )
             """);
             // Migra la configuración antigua de una sola herramienta sin duplicarla al
