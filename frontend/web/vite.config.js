@@ -38,14 +38,17 @@ export default defineConfig({
         // rutas no se cachean porque un 403 viejo puede quedar visible después
         // de emitir un boleto o cambiar la presentación.
         cleanupOutdatedCaches: true,
-        // El chunk principal de monaco-editor (visor de archivos del moderador, carga lazy
-        // via import() dinamico -- ver WorkspaceFileEditor.vue) pesa ~3.3MB, por encima del
+        // El chunk "monaco" (visor de archivos del moderador, carga lazy via import()
+        // dinamico -- ver WorkspaceFileEditor.vue -- aislado a proposito en su propio chunk
+        // via build.rollupOptions.output.manualChunks mas abajo) pesa ~4MB, por encima del
         // limite por-archivo de precacheo de workbox (2MiB) -- precachearlo en el service
         // worker forzaria a bajarlo en la instalacion inicial de la app para TODO usuario,
         // exactamente lo que la carga lazy busca evitar (la mayoria nunca abre el editor). Se
         // excluye del precache; sigue funcionando igual via fetch normal (cache HTTP del
-        // navegador) la primera vez que un moderador realmente lo abre.
-        globIgnores: ['**/editor.main-*.js'],
+        // navegador) la primera vez que un moderador realmente lo abre. ts.worker (worker
+        // interno de lenguaje TypeScript de monaco-editor, generado automaticamente por el
+        // paquete, no por codigo de esta app) tambien supera el limite -- mismo motivo.
+        globIgnores: ['**/monaco-*.js', '**/ts.worker-*.js'],
         // No agregar runtimeCaching para /api/presentations. Incluye rutas
         // protegidas y públicas cuyo contenido cambia por conferencia/sesión.
         // La reproducción offline no compensa mostrar un JSON ticket_required
@@ -59,6 +62,19 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src')
+    }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        // monaco-editor 0.56 dejo de aislarse solo via el import() dinamico de
+        // WorkspaceFileEditor.vue -- Rollup empezo a fusionar su chunk lazy dentro del bundle
+        // principal (index-*.js paso de ~650KB a 4MB). Forzarlo aca recupera el chunk separado
+        // de forma determinista, sin depender de como el paquete se organice internamente.
+        manualChunks: {
+          monaco: ['monaco-editor']
+        }
+      }
     }
   },
   server: {
