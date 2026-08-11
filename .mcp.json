@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "specnative": {
+      "type": "stdio",
+      "command": "${CLAUDE_PROJECT_DIR:-.}/.specnative/.venv/bin/python3",
+      "args": [
+        "${CLAUDE_PROJECT_DIR:-.}/.specnative/specnative_mcp.py",
+        "--repo",
+        "${CLAUDE_PROJECT_DIR:-.}"
+      ],
+      "env": {}
+    }
+  }
+}
