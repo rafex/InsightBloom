@@ -65,6 +65,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'topics', component: () => import('@/pages/conference/CloudTopicsPage.vue') },
       { path: 'words/:word', component: () => import('@/pages/conference/WordTimelinePage.vue') },
       { path: 'presentation', component: () => import('@/pages/conference/PresentationPage.vue') },
+      { path: 'on-demand', component: () => import('@/pages/conference/OnDemandVideoPage.vue') },
       { path: 'remote', component: () => import('@/pages/conference/RemoteControlPage.vue') },
       { path: 'survey', component: () => import('@/pages/conference/SurveyPage.vue') },
       { path: 'ticket', component: () => import('@/pages/conference/TicketPage.vue') },
@@ -130,6 +131,11 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'conferences/:conferenceId/presentation',
         component: () => import('@/pages/dashboard/PresentationManagePage.vue'),
+        props: true
+      },
+      {
+        path: 'conferences/:conferenceId/on-demand',
+        component: () => import('@/pages/dashboard/OnDemandVideoManagePage.vue'),
         props: true
       },
       {

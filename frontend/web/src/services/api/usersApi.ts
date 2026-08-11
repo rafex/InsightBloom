@@ -9,7 +9,8 @@ import type {
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
-  TicketManagementSummary, WorkspacePreviewInfo, AppPreviewInfo, PublicConference, JaasUsage
+  TicketManagementSummary, WorkspacePreviewInfo, AppPreviewInfo, PublicConference, JaasUsage,
+  OnDemandCuePoint
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 import { handleSessionResponse } from '@/features/auth/sessionGuard'
@@ -712,6 +713,19 @@ export async function setCanvasConfigs(
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/canvas-config`,
     { canvasConfigs }, authHeader(token))
+  return res.data.data
+}
+
+/** Configura el video on-demand (tier gratuito: YouTube/PeerTube) y sus cue points. */
+export async function setOnDemandVideo(
+  conferenceId: string,
+  provider: 'YOUTUBE' | 'PEERTUBE' | null,
+  url: string | null,
+  cuePoints: OnDemandCuePoint[],
+  token: string
+): Promise<Conference> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/on-demand-video`,
+    { provider, url, cuePoints }, authHeader(token))
   return res.data.data
 }
 

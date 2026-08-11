@@ -223,6 +223,7 @@ public class UsersApplication {
                 conferenceRepo, reservationRepo, userRepo, emailPort);
         final var notifyConferenceUpdatedUseCase = new dev.rafex.insightbloom.users.application.usecases.NotifyConferenceUpdatedUseCase(
                 reservationRepo, userRepo, emailPort, eventTypeRepo);
+        final var setOnDemandVideoUseCase = new dev.rafex.insightbloom.users.application.usecases.SetOnDemandVideoUseCase(conferenceRepo);
         final var emailLlmClient = new EmailLlmClient(platformSettingsRepo, JacksonJsonCodec.defaultCodec());
         final var generateEmailDraftUseCase = new GenerateEmailDraftUseCase(conferenceRepo, emailLlmClient);
         final var getOrCreateEventPadUseCase = new GetOrCreateEventPadUseCase(
@@ -461,7 +462,8 @@ public class UsersApplication {
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
                 setDeviceAccessConfigUseCase, listDeviceBlocksUseCase, unblockDeviceUseCase,
                 sandboxHandler, sandboxFilesHandler, userRepo, deviceAccessGuard, getJaasUsageUseCase,
-                toolAccessUseCase, sendAttendeeEmailUseCase, generateEmailDraftUseCase, notifyConferenceUpdatedUseCase);
+                toolAccessUseCase, sendAttendeeEmailUseCase, generateEmailDraftUseCase, notifyConferenceUpdatedUseCase,
+                setOnDemandVideoUseCase);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase, setAuthMethodUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);

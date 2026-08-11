@@ -2,12 +2,14 @@ package dev.rafex.insightbloom.users.domain.ports;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.OnDemandCuePoint;
 import java.util.List;
 import java.util.Optional;
 
 public interface ConferenceRepository {
     void save(Conference conference);
     void replaceCanvasConfigs(String conferenceUuid, List<CanvasConfig> configs);
+    void replaceOnDemandCuePoints(String conferenceUuid, List<OnDemandCuePoint> cuePoints);
     void delete(String uuid);
     Optional<Conference> findByUuid(String uuid);
     Optional<Conference> findByFriendlyId(String friendlyId);

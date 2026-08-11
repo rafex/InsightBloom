@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.adapters.outbound.sqlite;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.OnDemandCuePoint;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 
@@ -30,13 +31,13 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         // codigo (AssignSandboxUseCase), no algo que un organizador hubiera configurado.
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, description, visibility, schedule_markdown, schedule_layout, public_theme, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, sandbox_cli_lazyvim_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode, ticket_price, ticket_currency, certificate_engine, ticket_sales_enabled)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, description, visibility, schedule_markdown, schedule_layout, public_theme, timezone_id, reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, sandbox_cli_lazyvim_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode, ticket_price, ticket_currency, certificate_engine, ticket_sales_enabled, on_demand_video_provider, on_demand_video_url)
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                , ?, ?
+                , ?, ?, ?, ?
             )
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -111,6 +112,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(53, conference.getTicketCurrency());
             ps.setString(54, conference.getCertificateEngine());
             ps.setInt(55, conference.isTicketSalesEnabled() ? 1 : 0);
+            ps.setString(56, conference.getOnDemandVideoProvider());
+            ps.setString(57, conference.getOnDemandVideoUrl());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -148,6 +151,39 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     }
 
     @Override
+    public void replaceOnDemandCuePoints(final String conferenceUuid, final List<OnDemandCuePoint> cuePoints) {
+        final String deleteSql = "DELETE FROM conference_on_demand_cue_points WHERE conference_uuid = ?";
+        final String insertSql = "INSERT INTO conference_on_demand_cue_points "
+                + "(conference_uuid, at_seconds, label, tool_path, sort_order) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = db.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement delete = conn.prepareStatement(deleteSql);
+                 PreparedStatement insert = conn.prepareStatement(insertSql)) {
+                delete.setString(1, conferenceUuid);
+                delete.executeUpdate();
+                int sortOrder = 0;
+                for (final OnDemandCuePoint cuePoint : cuePoints) {
+                    insert.setString(1, conferenceUuid);
+                    insert.setInt(2, cuePoint.atSeconds());
+                    insert.setString(3, cuePoint.label());
+                    insert.setString(4, cuePoint.toolPath());
+                    insert.setInt(5, sortOrder++);
+                    insert.addBatch();
+                }
+                insert.executeBatch();
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public void delete(String uuid) {
         String sql = "DELETE FROM conferences WHERE uuid = ?";
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -157,6 +193,11 @@ public class SqliteConferenceRepository implements ConferenceRepository {
                     "DELETE FROM conference_canvas_configs WHERE conference_uuid = ?")) {
                 canvas.setString(1, uuid);
                 canvas.executeUpdate();
+            }
+            try (PreparedStatement cuePoints = conn.prepareStatement(
+                    "DELETE FROM conference_on_demand_cue_points WHERE conference_uuid = ?")) {
+                cuePoints.setString(1, uuid);
+                cuePoints.executeUpdate();
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -268,6 +309,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.setTicketCurrency(rs.getString("ticket_currency"));
         conference.setTicketSalesEnabled(rs.getInt("ticket_sales_enabled") != 0);
         conference.setCertificateEngine(rs.getString("certificate_engine"));
+        conference.setOnDemandVideoProvider(rs.getString("on_demand_video_provider"));
+        conference.setOnDemandVideoUrl(rs.getString("on_demand_video_url"));
         final int timezoneId = rs.getInt("timezone_id");
         conference.setTimezoneId(rs.wasNull() ? null : timezoneId);
         conference.setReminderSentAt(parseInstantNullable(rs.getString("reminder_sent_at")));
@@ -323,6 +366,19 @@ public class SqliteConferenceRepository implements ConferenceRepository {
                     normalizeCanvasMode(conference.getCanvasTool(), conference.getCanvasAudienceMode())));
         }
         conference.setCanvasConfigs(configs);
+        final List<OnDemandCuePoint> cuePoints = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT at_seconds, label, tool_path FROM conference_on_demand_cue_points "
+                        + "WHERE conference_uuid = ? ORDER BY sort_order")) {
+            ps.setString(1, conference.getUuid());
+            try (ResultSet cueRs = ps.executeQuery()) {
+                while (cueRs.next()) {
+                    cuePoints.add(new OnDemandCuePoint(cueRs.getInt("at_seconds"),
+                            cueRs.getString("label"), cueRs.getString("tool_path")));
+                }
+            }
+        }
+        conference.setOnDemandCuePoints(cuePoints);
         return conference;
     }
 

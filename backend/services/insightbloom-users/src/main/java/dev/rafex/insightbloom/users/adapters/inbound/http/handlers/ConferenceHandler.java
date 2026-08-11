@@ -64,6 +64,8 @@ import dev.rafex.insightbloom.users.application.usecases.ToolAccessUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SendAttendeeEmailUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateEmailDraftUseCase;
 import dev.rafex.insightbloom.users.application.usecases.NotifyConferenceUpdatedUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetOnDemandVideoUseCase;
+import dev.rafex.insightbloom.users.domain.model.OnDemandCuePoint;
 import dev.rafex.insightbloom.users.domain.model.ToolKey;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
@@ -170,6 +172,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SendAttendeeEmailUseCase sendAttendeeEmailUseCase;
     private final GenerateEmailDraftUseCase generateEmailDraftUseCase;
     private final NotifyConferenceUpdatedUseCase notifyConferenceUpdatedUseCase;
+    private final SetOnDemandVideoUseCase setOnDemandVideoUseCase;
     private final Map<String, CopyOnWriteArrayList<EventStream>> diagramSubscribers = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArrayList<EventStream>> whiteboardSubscribers = new ConcurrentHashMap<>();
     private record VideoSubscriber(EventStream stream, String deviceFingerprint) {}
@@ -242,7 +245,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final ToolAccessUseCase toolAccessUseCase,
                               final SendAttendeeEmailUseCase sendAttendeeEmailUseCase,
                               final GenerateEmailDraftUseCase generateEmailDraftUseCase,
-                              final NotifyConferenceUpdatedUseCase notifyConferenceUpdatedUseCase) {
+                              final NotifyConferenceUpdatedUseCase notifyConferenceUpdatedUseCase,
+                              final SetOnDemandVideoUseCase setOnDemandVideoUseCase) {
         this.createConferenceUseCase = createConferenceUseCase;
         this.getConferenceUseCase = getConferenceUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -306,6 +310,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.sendAttendeeEmailUseCase = sendAttendeeEmailUseCase;
         this.generateEmailDraftUseCase = generateEmailDraftUseCase;
         this.notifyConferenceUpdatedUseCase = notifyConferenceUpdatedUseCase;
+        this.setOnDemandVideoUseCase = setOnDemandVideoUseCase;
     }
 
     @Override
@@ -344,6 +349,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/venue-map", Set.of("PUT")),
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/sandbox-config", Set.of("PUT")),
+                Route.of("/{id}/on-demand-video", Set.of("PUT")),
                 Route.of("/{id}/egress-policy", Set.of("GET", "PUT")),
                 Route.of("/{id}/device-access-config", Set.of("PUT")),
                 Route.of("/{id}/device-blocks", Set.of("GET")),
@@ -657,6 +663,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/canvas-config")) {
             return handleSetCanvasConfig(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/on-demand-video")) {
+            return handleSetOnDemandVideo(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/active")) {
             return handleSetActive(jx, jx.pathParam("id"));
@@ -1919,6 +1928,40 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", e.getMessage());
         }
         return true;
+    }
+
+    private boolean handleSetOnDemandVideo(final JettyHttpExchange jx, final String id) {
+        try {
+            final var v = requireConferenceOwner(jx, id);
+            if (v == null) return true;
+            final var body = parseBody(jx);
+            final String provider = (String) body.get("provider");
+            final String url = (String) body.get("url");
+            final List<SetOnDemandVideoUseCase.CuePointInput> cuePoints = parseCuePoints(body.get("cuePoints"));
+            final var result = setOnDemandVideoUseCase.execute(id, v.subjectUuid(), provider, url, cuePoints);
+            sendOk(jx, 200, result);
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private static List<SetOnDemandVideoUseCase.CuePointInput> parseCuePoints(final Object raw) {
+        if (!(raw instanceof List<?> items)) return List.of();
+        final List<SetOnDemandVideoUseCase.CuePointInput> cuePoints = new ArrayList<>();
+        for (final Object item : items) {
+            if (!(item instanceof Map<?, ?> map)) continue;
+            final Object atSeconds = map.get("atSeconds");
+            final Object label = map.get("label");
+            final Object toolPath = map.get("toolPath");
+            cuePoints.add(new SetOnDemandVideoUseCase.CuePointInput(
+                    atSeconds instanceof Number n ? n.intValue() : -1,
+                    label instanceof String ? (String) label : null,
+                    toolPath instanceof String ? (String) toolPath : null));
+        }
+        return cuePoints;
     }
 
     private boolean handleSetCanvasConfig(final JettyHttpExchange jx, final String id) {

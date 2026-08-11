@@ -16,5 +16,6 @@ public enum EventCapability {
     WHITEBOARD,
     DIAGRAMMING,
     COLLAB_NOTES,
-    CODE_IDE
+    CODE_IDE,
+    ON_DEMAND_VIDEO
 }

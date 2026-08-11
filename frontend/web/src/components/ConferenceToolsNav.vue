@@ -1,9 +1,10 @@
 <template lang="pug">
 nav.tools-nav(v-if="conferenceId" aria-label="Herramientas del evento")
-  DropdownMenu(v-if="hasCapability('PRESENTATION') || hasCapability('SURVEY')" label="Contenido")
+  DropdownMenu(v-if="hasCapability('PRESENTATION') || hasCapability('SURVEY') || hasCapability('ON_DEMAND_VIDEO')" label="Contenido")
     router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/presentation`") Gestionar presentación
     router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/speaker`") Presentar en vivo
     router-link(v-if="hasCapability('SURVEY')" :to="`/dashboard/conferences/${conferenceId}/survey`") Encuesta
+    router-link(v-if="hasCapability('ON_DEMAND_VIDEO')" :to="`/dashboard/conferences/${conferenceId}/on-demand`") Video on-demand
     BaseAnchor.menu-public-link(v-if="hasCapability('PRESENTATION') && friendlyId" variant="ghost" size="sm" :href="`/c/${friendlyId}/presentation`" @click.prevent="openPublic") Ver vista pública
   DropdownMenu(label="Moderación")
     router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Mensajes
