@@ -1,6 +1,6 @@
 FROM node:25-alpine AS builder
 WORKDIR /app
-COPY frontend/web/package*.json ./
+COPY frontend/web/package*.json frontend/web/.npmrc ./
 RUN npm install
 COPY frontend/web/ .
 RUN npm run build
