@@ -1,0 +1,15 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  "high": true,
+  "skip-dev": true,
+  "allowlist": [
+    // image-size: DoS por loop infinito en parsers ICNS/JXL/HEIF. Sin fix publicado aun
+    // (confirmado via GitHub Advisory API: first_patched_version=None incluso en la
+    // ultima version, image-size@2.0.2). Llega transitivamente via pptxgenjs, usado por
+    // @slidev/cli para exportar PPTX. Revisar y quitar del allowlist cuando exista parche.
+    // https://github.com/advisories/GHSA-w3rx-r6r6-pgpr
+    "GHSA-w3rx-r6r6-pgpr",
+    // https://github.com/advisories/GHSA-5p2g-fcmc-qvqq
+    "GHSA-5p2g-fcmc-qvqq"
+  ]
+}
