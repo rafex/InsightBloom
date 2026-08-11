@@ -12,7 +12,7 @@
     "test:audit:slidev": "node --test tools/audit-slidev-artifact.test.js"
   },
   "dependencies": {
-    "@marp-team/marp-cli": "^4.0.3",
+    "@marp-team/marp-cli": "^4.5.0",
     "@slidev/cli": "52.19.0",
     "@slidev/theme-default": "0.25.0",
     "adm-zip": "^0.6.0",
