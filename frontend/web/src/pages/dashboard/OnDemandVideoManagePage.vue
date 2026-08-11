@@ -202,7 +202,7 @@ h3 { margin: 0 0 8px; color: var(--color-heading); }
 }
 .url-input:focus-visible, .provider-select:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-color: var(--color-primary); }
 .field-hint { margin: 6px 0 0; font-size: 0.8rem; color: var(--color-text-muted); }
-.field-hint.error { color: var(--color-danger, #dc2626); }
+.field-hint.error { color: var(--color-danger); }
 .preview { margin-top: 12px; }
 .preview-frame { width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--color-border-subtle); border-radius: 8px; }
 .cue-point-row {
