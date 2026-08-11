@@ -111,12 +111,27 @@
 
     OnboardingTour(storage-key="ib_onboarding_conference_v2" :steps="attendeeTourSteps")
 
+    //- Slot de anclaje para el <Teleport defer> del video flotante cuando NO se esta en la
+    //- pestana on-demand -- ver OnDemandFloatingVideo.vue. Vive fuera del router-view a proposito
+    //- (ConferencePage.vue persiste entre pestanas; el router-view interno no).
+    #ondemand-floating-slot
+    OnDemandFloatingVideo(
+      v-if="privateAllowed('ON_DEMAND_VIDEO') && conference.onDemandVideoUrl && !onDemandVideoClosed"
+      :conference-id="conference.conferenceId || conference.uuid"
+      :friendly-id="friendlyId"
+      :provider="conference.onDemandVideoProvider"
+      :video-url="conference.onDemandVideoUrl"
+      :cue-points="conference.onDemandCuePoints"
+      @closed="onDemandVideoClosed = true"
+    )
+
 </template>
 
 <script lang="ts">
 import AppHeader from '@/app/layout/AppHeader.vue'
 import ConferenceIntroMap from '@/components/map/ConferenceIntroMap.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
+import OnDemandFloatingVideo from '@/components/OnDemandFloatingVideo.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
@@ -148,7 +163,7 @@ const ATTENDEE_TOUR_STEPS = [
 
 export default {
   name: 'ConferencePage',
-  components: { AppHeader, BaseAnchor, BaseButton, BaseLink, ConferenceIntroMap, EmptyState, FeedbackMessage, LoadingState, OnboardingTour, UiIcon },
+  components: { AppHeader, BaseAnchor, BaseButton, BaseLink, ConferenceIntroMap, EmptyState, FeedbackMessage, LoadingState, OnboardingTour, OnDemandFloatingVideo, UiIcon },
   setup() {
     const route      = useRoute()
     const friendlyId = route.params.friendlyId as string
@@ -164,6 +179,10 @@ export default {
     const eventClosed = ref(false)
     const presentationManagementAccess = ref(false)
     const headerCollapsed = ref(true)
+    // El usuario puede cerrar el widget flotante del video (X) mientras navega otra herramienta.
+    // Volver explicitamente a la pestana on-demand siempre reabre/recrea el reproductor -- cerrar
+    // no es un "nunca mas", solo saca la caja flotante de en medio.
+    const onDemandVideoClosed = ref(false)
     const auth = useAuthStore()
     let accessWatchTimer: number | null = null
 
@@ -227,8 +246,9 @@ export default {
     })
     onBeforeUnmount(() => window.removeEventListener('resize', updateToolbarFades))
 
-    watch(() => route.path, () => {
+    watch(() => route.path, (path) => {
       headerCollapsed.value = true
+      if (path.endsWith('/on-demand')) onDemandVideoClosed.value = false
       void refreshEventAccess()
       void nextTick(scrollActiveTabIntoView)
     })
@@ -397,7 +417,8 @@ export default {
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
       privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed,
-      toolbarRef, toolbarFadeLeft, toolbarFadeRight, updateToolbarFades, toolReleased
+      toolbarRef, toolbarFadeLeft, toolbarFadeRight, updateToolbarFades, toolReleased,
+      onDemandVideoClosed
     }
   }
 }

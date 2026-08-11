@@ -37,7 +37,20 @@
         select.cue-tool(v-model="cue.toolPath")
           option(v-for="opt in toolOptions" :key="opt.path" :value="opt.path") {{ opt.label }}
         BaseButton(variant="ghost" size="sm" type="button" @click="removeCuePoint(index)") Quitar
-      BaseButton(variant="secondary" size="sm" type="button" @click="addCuePoint") + Agregar sugerencia
+      .cue-point-actions
+        BaseButton(variant="secondary" size="sm" type="button" @click="addCuePoint") + Agregar sugerencia
+        BaseButton(variant="ghost" size="sm" type="button" @click="showMarkdownLoader = !showMarkdownLoader") {{ showMarkdownLoader ? 'Ocultar carga por Markdown' : 'Cargar como Markdown' }}
+
+      .markdown-loader(v-if="showMarkdownLoader")
+        p.hint Pegá una lista, una sugerencia por línea, formato #[code - M:SS texto → herramienta] (también aceptás #[code ->] en vez de la flecha, y el nombre de la herramienta en vez del identificador).
+        textarea.markdown-textarea(
+          v-model="markdownInput"
+          rows="6"
+          :placeholder="markdownPlaceholder"
+        )
+        BaseButton(variant="secondary" size="sm" type="button" @click="loadFromMarkdown") Cargar y reemplazar sugerencias
+        ul.markdown-errors(v-if="markdownErrors.length")
+          li(v-for="(err, i) in markdownErrors" :key="i") {{ err }}
 
     BaseButton(:disabled="saving" :loading="saving" @click="save") Guardar
     FeedbackMessage(v-if="error" :message="error" tone="error")
@@ -47,36 +60,15 @@
 <script lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { getConference, getActiveEventTypes, setOnDemandVideo } from '@/services/api/usersApi'
-import type { EventType, EventCapability } from '@/services/api/types'
+import type { EventType } from '@/services/api/types'
 import { eventTypeHasCapability } from '@/features/conferences/capabilities'
-import { toEmbedUrl } from '@/features/conferences/onDemandVideo'
+import { toEmbedUrl, parseCuePointsMarkdown, TOOL_CATALOG, type CuePointRow } from '@/features/conferences/onDemandVideo'
 import { useAuthStore } from '@/features/auth/authStore'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import ConferenceToolsNav from '@/components/ConferenceToolsNav.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
-
-// Catalogo estatico de pestañas publicas a las que puede apuntar una sugerencia -- filtrado por
-// las capabilities habilitadas para el tipo de evento de esta conferencia (misma fuente de
-// verdad que ConferenceToolsNav, ver features/conferences/capabilities.ts).
-const TOOL_CATALOG: Array<{ path: string, label: string, capability: EventCapability }> = [
-  { path: 'doubts', label: 'Nube de dudas', capability: 'WORD_CLOUD' },
-  { path: 'topics', label: 'Nube de temas', capability: 'WORD_CLOUD' },
-  { path: 'presentation', label: 'Presentación', capability: 'PRESENTATION' },
-  { path: 'survey', label: 'Encuesta', capability: 'SURVEY' },
-  { path: 'ide', label: 'IDE', capability: 'CODE_IDE' },
-  { path: 'diagrams', label: 'Diagramas', capability: 'DIAGRAMMING' },
-  { path: 'notes', label: 'Notas colaborativas', capability: 'COLLAB_NOTES' },
-  { path: 'whiteboard', label: 'Pizarra', capability: 'WHITEBOARD' }
-]
-
-interface CuePointRow {
-  minutes: number
-  seconds: number
-  label: string
-  toolPath: string
-}
 
 export default {
   name: 'OnDemandVideoManagePage',
@@ -94,6 +86,9 @@ export default {
     const cuePoints = ref<CuePointRow[]>([])
     const eventTypes = ref<EventType[]>([])
     const eventTypeKey = ref('')
+    const showMarkdownLoader = ref(false)
+    const markdownInput = ref('')
+    const markdownErrors = ref<string[]>([])
 
     const embedUrl = computed(() => toEmbedUrl(provider.value || null, url.value.trim() || null))
 
@@ -106,6 +101,22 @@ export default {
 
     function removeCuePoint(index: number) {
       cuePoints.value.splice(index, 1)
+    }
+
+    const markdownPlaceholder = [
+      '- 0:15 Abrí la encuesta ahora → survey',
+      '- 2:30 Mirá la nube de dudas → doubts',
+      '- 5:00 Probá el IDE → ide'
+    ].join('\n')
+
+    function loadFromMarkdown() {
+      const result = parseCuePointsMarkdown(markdownInput.value, toolOptions.value)
+      if ('errors' in result) {
+        markdownErrors.value = result.errors
+        return
+      }
+      markdownErrors.value = []
+      cuePoints.value = result.cuePoints
     }
 
     async function load() {
@@ -180,7 +191,8 @@ export default {
 
     return {
       loading, saving, error, success, provider, url, embedUrl, cuePoints, toolOptions,
-      addCuePoint, removeCuePoint, save, breadcrumbItems
+      addCuePoint, removeCuePoint, save, breadcrumbItems,
+      showMarkdownLoader, markdownInput, markdownErrors, markdownPlaceholder, loadFromMarkdown
     }
   }
 }
@@ -211,6 +223,18 @@ h3 { margin: 0 0 8px; color: var(--color-heading); }
 .cue-time, .cue-label, .cue-tool {
   padding: 8px 10px; border: 1.5px solid var(--color-border); border-radius: 8px; font-size: 0.9rem; box-sizing: border-box;
 }
+.cue-point-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.markdown-loader { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-border-subtle); }
+.markdown-textarea {
+  width: 100%; padding: 10px 14px; border: 1.5px solid var(--color-border); border-radius: 8px;
+  font-size: 0.85rem; font-family: monospace; box-sizing: border-box; background: var(--color-surface);
+  resize: vertical; margin-bottom: 10px;
+}
+.markdown-textarea:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-color: var(--color-primary); }
+.markdown-errors {
+  margin: 10px 0 0; padding-left: 20px; color: var(--color-danger); font-size: 0.82rem;
+}
+.markdown-errors li { margin-bottom: 4px; }
 
 @media (max-width: 600px) {
   .on-demand-manage-page { padding: 14px; }
