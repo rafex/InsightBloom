@@ -120,11 +120,14 @@ jobs:
         with:
           node-version: "22"
       - name: Install presentation dependencies
-        run: npm --prefix backend/services/insightbloom-presentations ci --omit=dev
+        run: npm --prefix backend/services/insightbloom-presentations ci
       - name: Test Slidev FAT artifact auditor
         run: npm --prefix backend/services/insightbloom-presentations run test:audit:slidev
       - name: Audit presentation dependencies
-        run: npm --prefix backend/services/insightbloom-presentations audit --omit=dev --audit-level=high
+        # audit-ci wraps `npm audit` with a reviewed allowlist (audit-ci.jsonc) for the
+        # handful of advisories that currently have no upstream fix, instead of silencing
+        # the whole check. See audit-ci.jsonc for per-advisory justification.
+        run: npm --prefix backend/services/insightbloom-presentations run audit:deps
       - name: Audit frontend dependencies
         # Excalidraw's Mermaid dependency currently pins lodash-es/nanoid to
         # versions with upstream advisories. npm's only proposed remediation

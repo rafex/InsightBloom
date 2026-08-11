@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "audit:deps": "audit-ci --config audit-ci.jsonc",
     "audit:slidev": "node tools/audit-slidev-artifact.js",
     "test": "node --test tools/*.test.js",
     "test:audit:slidev": "node --test tools/audit-slidev-artifact.test.js"
@@ -24,5 +25,8 @@
   },
   "overrides": {
     "dompurify": "^3.4.12"
+  },
+  "devDependencies": {
+    "audit-ci": "^7.1.0"
   }
 }
