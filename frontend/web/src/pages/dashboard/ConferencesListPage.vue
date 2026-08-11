@@ -88,6 +88,7 @@
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/edit`") Editar información
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/config`") Configuración
                 router-link(v-if="hasCapability(c, 'PRESENTATION')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/presentation`") Gestionar presentación
+                router-link(v-if="hasCapability(c, 'ON_DEMAND_VIDEO')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/on-demand`") Video on-demand
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/${c.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") Certificado
                 router-link(v-if="hasCapability(c, 'TICKETING_GENERAL') || hasCapability(c, 'TICKETING_SEATED')" :to="`/dashboard/conferences/${c.uuid || c.conferenceId}/tickets`") Boletos
                 router-link(:to="`/dashboard/conferences/${c.uuid || c.conferenceId}/moderation/tools`") Herramientas
