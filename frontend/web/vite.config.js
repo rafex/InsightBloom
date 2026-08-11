@@ -108,5 +108,18 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api\/presentations/, '')
       }
     }
+  },
+  test: {
+    // happy-dom: primer test que toca localStorage (useOnDemandProgress) -- el resto de la suite
+    // es logica pura sin DOM, asi que el entorno por defecto de vitest (node) alcanzaba hasta
+    // ahora. Se prefiere sobre jsdom: jsdom 30 + vitest 4 dejaba `window.localStorage` undefined
+    // sin error visible (probado localmente), ademas de chocar con el localStorage experimental
+    // que Node 22+ expone como global -- happy-dom no tiene ninguno de los dos problemas.
+    environment: 'happy-dom',
+    // Sin esto happy-dom usa su URL por defecto (localhost:3000) e intenta una conexion real que
+    // falla con ruido en stderr (no rompe los tests, pero ensucia el output).
+    environmentOptions: {
+      happyDOM: { url: 'http://localhost/' }
+    }
   }
 })

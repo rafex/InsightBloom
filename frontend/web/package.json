@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint src --ext .js,.ts,.vue",
     "lint:ui-governance": "node scripts/validate-ui-governance.mjs",
-    "test": "vitest run",
+    "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
@@ -42,6 +42,7 @@
     "@vue/test-utils": "^2.4.11",
     "eslint": "^9.17.0",
     "eslint-plugin-vue": "^9.32.0",
+    "happy-dom": "^20.11.2",
     "pug": "^3.0.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.63.0",
