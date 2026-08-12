@@ -89,6 +89,14 @@
           )
             span(v-if="!publishingApp") 🔌 Publicar backend/API
             span(v-else) Publicando...
+          BaseButton(
+            variant="secondary"
+            @click="publishContainerFromWorkspace"
+            :disabled="publishingContainer || !ideActionsLoaded || !isToolReleased('IDE_PUBLISH_API')"
+            :title="actionTitle('IDE_PUBLISH_API', 'Publicar contenedor (Containerfile)')"
+          )
+            span(v-if="!publishingContainer") 🐳 Publicar contenedor
+            span(v-else) Construyendo y corriendo...
           BaseButton(variant="secondary" @click="copyGatewayUrl" :title="`Copiar: ${fullGatewayUrl}`")
             span {{ urlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
           BaseButton(variant="secondary" @click="switchVariant")
@@ -112,6 +120,17 @@
             BaseButton(variant="secondary" @click="copyAppPreviewUrl") {{ appPreviewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
             BaseButton(variant="secondary" @click="copyAppPreviewToken") {{ appPreviewTokenCopied ? '✓ Copiado' : '🔑 Copiar token' }}
             BaseButton(variant="danger" @click="revokeApp") Revocar
+        .preview-result(v-if="containerPublishMessage")
+          strong Contenedor construido y corriendo
+          p {{ containerPublishMessage }}
+        .preview-result(v-if="containerPreview")
+          strong Contenedor publicado
+          p Esta URL proxea tu contenedor vivo y vence el {{ formatContainerPreviewExpiry }}.
+            |  Requiere el header "X-Preview-Token" con el token de abajo.
+          .preview-actions
+            BaseAnchor(variant="secondary" :href="containerPreview.url" target="_blank" rel="noopener noreferrer") Abrir URL
+            BaseButton(variant="secondary" @click="copyContainerPreviewUrl") {{ containerPreviewUrlCopied ? '✓ Copiado' : '📋 Copiar URL' }}
+            BaseButton(variant="secondary" @click="copyContainerPreviewToken") {{ containerPreviewTokenCopied ? '✓ Copiado' : '🔑 Copiar token' }}
 
       div(v-else class="no-sandbox")
         p ❌ No tienes un sandbox asignado en este evento.
@@ -130,6 +149,7 @@ import {
   revokeWorkspacePreview,
   publishAppPreview,
   revokeAppPreview,
+  publishContainer,
   streamSandboxStatus,
   AuthenticatedEventStream
 } from '@/services/api/usersApi'
@@ -175,6 +195,11 @@ export default {
     const appPreview = ref<AppPreviewInfo | null>(null)
     const appPreviewUrlCopied = ref(false)
     const appPreviewTokenCopied = ref(false)
+    const publishingContainer = ref(false)
+    const containerPreview = ref<{ publicationId: string, url: string, accessToken: string, expiresAt: string } | null>(null)
+    const containerPreviewUrlCopied = ref(false)
+    const containerPreviewTokenCopied = ref(false)
+    const containerPublishMessage = ref('')
     const urlCopied = ref(false)
     const auth = useAuthStore()
     const availability = ref<SandboxAvailability | null>(null)
@@ -249,6 +274,7 @@ export default {
 
     const formatPreviewExpiry = computed(() => preview.value ? new Date(preview.value.expiresAt).toLocaleString() : '')
     const formatAppPreviewExpiry = computed(() => appPreview.value ? new Date(appPreview.value.expiresAt).toLocaleString() : '')
+    const formatContainerPreviewExpiry = computed(() => containerPreview.value ? new Date(containerPreview.value.expiresAt).toLocaleString() : '')
 
     // Fase 3b: el gateway (ide-insightbloom...) no tiene un target fijo — resuelve por-sesion
     // contra el sandbox del usuario a partir de ib_token + conferenceId en la query string
@@ -515,6 +541,43 @@ export default {
       setTimeout(() => { appPreviewTokenCopied.value = false }, 2000)
     }
 
+    async function publishContainerFromWorkspace() {
+      if (!auth.state.token || !sandbox.value || !isToolReleased('IDE_PUBLISH_API')) return
+      try {
+        publishingContainer.value = true
+        containerPublishMessage.value = ''
+        const result = await publishContainer(props.conferenceId, auth.state.token)
+        if (result.published && result.publicationId && result.url && result.accessToken && result.expiresAt) {
+          containerPreview.value = {
+            publicationId: result.publicationId, url: result.url,
+            accessToken: result.accessToken, expiresAt: result.expiresAt
+          }
+        } else {
+          containerPreview.value = null
+          containerPublishMessage.value = result.message || 'El contenedor se construyó y corrió correctamente.'
+        }
+      } catch (e: any) {
+        error.value = e.response?.data?.error?.message
+          || 'No se pudo publicar el contenedor. Verifica que exista un Containerfile válido en la raíz del workspace.'
+      } finally {
+        publishingContainer.value = false
+      }
+    }
+
+    function copyContainerPreviewUrl() {
+      if (!containerPreview.value) return
+      navigator.clipboard.writeText(containerPreview.value.url)
+      containerPreviewUrlCopied.value = true
+      setTimeout(() => { containerPreviewUrlCopied.value = false }, 2000)
+    }
+
+    function copyContainerPreviewToken() {
+      if (!containerPreview.value) return
+      navigator.clipboard.writeText(containerPreview.value.accessToken)
+      containerPreviewTokenCopied.value = true
+      setTimeout(() => { containerPreviewTokenCopied.value = false }, 2000)
+    }
+
     function copyGatewayUrl() {
       if (!fullGatewayUrl.value) return
       navigator.clipboard.writeText(fullGatewayUrl.value)
@@ -541,7 +604,10 @@ export default {
       pendingMessage, publishingPreview, preview, formatPreviewExpiry, publishPreview,
       revokePreview, copyPreviewUrl, previewUrlCopied,
       publishingApp, appPreview, formatAppPreviewExpiry, publishApp, revokeApp,
-      copyAppPreviewUrl, copyAppPreviewToken, appPreviewUrlCopied, appPreviewTokenCopied
+      copyAppPreviewUrl, copyAppPreviewToken, appPreviewUrlCopied, appPreviewTokenCopied,
+      publishingContainer, containerPreview, formatContainerPreviewExpiry, containerPublishMessage,
+      publishContainerFromWorkspace, copyContainerPreviewUrl, copyContainerPreviewToken,
+      containerPreviewUrlCopied, containerPreviewTokenCopied
     }
   }
 }

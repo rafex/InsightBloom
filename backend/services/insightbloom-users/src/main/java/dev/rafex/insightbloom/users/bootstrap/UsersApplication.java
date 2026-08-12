@@ -274,6 +274,13 @@ public class UsersApplication {
                 "WORKSPACE_DOWNLOAD_BASE_URL", "https://insightbloom.v1.rafex.cloud/api/users");
         final String sandboxDebianMemoryLimit = System.getenv().getOrDefault("SANDBOX_DEBIAN_MEMORY_LIMIT", "1536Mi");
         final String sandboxNeovimMemoryLimit = System.getenv().getOrDefault("SANDBOX_NEOVIM_MEMORY_LIMIT", "1Gi");
+        final String sandboxPodmanMemoryLimit = System.getenv().getOrDefault("SANDBOX_PODMAN_MEMORY_LIMIT", "2Gi");
+        // Fase 4b (MVP, 2026-08): banda de puertos DEDICADA al pod Podman compartido, separada de
+        // SANDBOX_APP_BASE_PORT (ese es por-asiento de cada sandbox de evento; este es
+        // por-publicacion del pod Podman único). Default lejos de los rangos existentes
+        // (SANDBOX_PORT 8080.., SANDBOX_APP_BASE_PORT 9000..) para no colisionar.
+        final int sandboxPodmanAppBasePort = Integer.parseInt(
+                System.getenv().getOrDefault("SANDBOX_PODMAN_APP_BASE_PORT", "9500"));
         // Fase C (2026-07): secreto de BAJO privilegio (distinto de INTERNAL_API_KEY, ver
         // DEC-0025) compartido entre el Pod (KubernetesPodClient lo inyecta como env var) y
         // este proceso (InternalSandboxIncidentHandler lo valida) para que el watchdog del
@@ -332,7 +339,18 @@ public class UsersApplication {
                 // Publicacion de backends/API REST vivos (2026-07): banda de puertos paralela a
                 // SANDBOX_PORT (8080..8089), separada a proposito para no colisionar con los
                 // puertos de ttyd/code-server ni con el control port (SANDBOX_PORT - 1).
-                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_APP_BASE_PORT", "9000")));
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_APP_BASE_PORT", "9000")),
+                // Fase 4b (MVP): pod Podman compartido, ver ensureRuntimePodmanPod. Imagen propia
+                // (toolchain de Podman, ver infra/docker/Dockerfile.runtime-podman), no relacionada
+                // con debian/neovim.
+                System.getenv().getOrDefault("SANDBOX_PODMAN_IMAGE", "ghcr.io/rafex/insightbloom-runtime-podman:latest"),
+                new dev.rafex.insightbloom.users.adapters.outbound.kubernetes.KubernetesPodClient.ContainerResources(
+                        System.getenv().getOrDefault("SANDBOX_PODMAN_CPU_REQUEST", "500m"),
+                        System.getenv().getOrDefault("SANDBOX_PODMAN_MEMORY_REQUEST", "1Gi"),
+                        System.getenv().getOrDefault("SANDBOX_PODMAN_CPU_LIMIT", "1000m"),
+                        sandboxPodmanMemoryLimit),
+                sandboxPodmanAppBasePort,
+                System.getenv().getOrDefault("SANDBOX_PODMAN_STORAGE_SIZE_LIMIT", "4Gi"));
         final long sandboxTtlSecondsAfterEventExpiry =
                 Long.parseLong(System.getenv().getOrDefault("SANDBOX_TTL_SECONDS_AFTER_EVENT_EXPIRY", "3600"));
         final var assignSandboxUseCase = new AssignSandboxUseCase(
@@ -403,6 +421,17 @@ public class UsersApplication {
         final var resolveAppPreviewTargetUseCase =
                 new dev.rafex.insightbloom.users.application.usecases.ResolveAppPreviewTargetUseCase(
                         appPreviewRepo, System.getenv().getOrDefault("SANDBOX_NAMESPACE", "insightbloom-sandboxes"));
+        // Fase 4b (MVP): mismo resolver de política de imágenes de Fase 4a (ImagePolicyUseCase,
+        // instanciado más abajo, es el editor del organizador; este es el consumidor real, el
+        // primero desde que se agregó ContainerfileValidator).
+        final var resolveImagePolicyUseCase =
+                new dev.rafex.insightbloom.users.application.usecases.ResolveImagePolicyUseCase(
+                        platformSettingsRepo, imagePolicyRepo);
+        final var publishContainerUseCase = new dev.rafex.insightbloom.users.application.usecases.PublishContainerUseCase(
+                sandboxRepo, sandboxOrchestrator, appPreviewRepo, resolveImagePolicyUseCase,
+                System.getenv().getOrDefault("SANDBOX_PODMAN_SHARED_POD_NAME", "sandbox-runtime-podman-shared"),
+                sandboxPodmanAppBasePort,
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PODMAN_MAX_PUBLICATIONS", "10")));
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo, sandboxOrchestrator);
         final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
         final var reconcileSandboxHealthUseCase = new dev.rafex.insightbloom.users.application.usecases.ReconcileSandboxHealthUseCase(
@@ -464,7 +493,8 @@ public class UsersApplication {
                 setSandboxConfigUseCase, sandboxOrchestrator,
                 conferenceRepo, eventCapabilityGuard, toolAccessUseCase, ensureUnassignedSandboxUseCase, gatewayBaseUrl,
                 publishWorkspacePreviewUseCase, revokeWorkspacePreviewUseCase, workspacePreviewTtlSeconds,
-                publishAppPreviewUseCase, revokeAppPreviewUseCase, appPreviewTtlSeconds, appPreviewBaseUrl);
+                publishAppPreviewUseCase, revokeAppPreviewUseCase, appPreviewTtlSeconds, appPreviewBaseUrl,
+                publishContainerUseCase);
         final var sandboxFilesHandler = new SandboxFilesHandler(
                 validateTokenUseCase, listWorkspaceFilesUseCase, readWorkspaceFileUseCase, writeWorkspaceFileUseCase,
                 getConferenceUseCase);
@@ -527,10 +557,8 @@ public class UsersApplication {
                         sandboxOrchestrator, conferenceRepo, platformSettingsRepo, egressPolicyRepo);
         final var setGlobalImagePolicyUseCase =
                 new dev.rafex.insightbloom.users.application.usecases.SetGlobalImagePolicyUseCase(platformSettingsRepo);
-        // ResolveImagePolicyUseCase (ver domain/services/ContainerfileValidator.java) se instancia
-        // recién cuando PublishContainerUseCase exista -- requiere el prerequisito de infra
-        // sysbox-runc, todavía no resuelto. Por ahora solo está wireada la administración del
-        // whitelist/blacklist (global + por evento), ya consumible desde el dashboard.
+        // ResolveImagePolicyUseCase/PublishContainerUseCase: instanciados más arriba (Fase 4b,
+        // MVP con hostUsers:false, sin prerequisito de infra externo -- ver KubernetesPodClient).
         final var platformSettingsHandler = new PlatformSettingsHandler(
                 getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase, setAiSettingsUseCase,
                 setDeviceAccessSettingsUseCase, setGlobalEgressPolicyUseCase, setGlobalImagePolicyUseCase,

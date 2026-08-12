@@ -1,0 +1,50 @@
+# Imagen del pod Podman COMPARTIDO (Fase 4b, MVP, 2026-08) -- ver KubernetesPodClient.buildPodmanPodBody
+# y podman-agent.py. Debian (no Alpine): el paquete podman de Debian trae newuidmap/newgidmap +
+# fuse-overlayfs ya empaquetados y probados para Podman rootless, evitando resolver esas piezas a
+# mano como sí hace falta en Alpine.
+#
+# Aislamiento (ver plan de Fase 4b, "Cambio de mecanismo de aislamiento"): el pod corre con
+# hostUsers:false (user namespaces nativos de Kubernetes 1.36) -- root DENTRO de este contenedor
+# no es root real en el nodo. Podman corre "rootful-dentro-del-pod" (uid 0, ver
+# KubernetesPodClient.podmanContainerSecurityContext) y hace SU PROPIO remapeo rootless para los
+# contenedores que construye/corre, vía newuidmap/newgidmap -- de ahí /etc/subuid, /etc/subgid y
+# allowPrivilegeEscalation:true (esos binarios son setuid-root).
+FROM debian:bookworm-slim
+
+ARG RUNTIME_GIT_SHA=unknown
+ARG RUNTIME_BUILD_DATE=unknown
+RUN printf 'git sha: %s\nbuild:   %s\n' "$RUNTIME_GIT_SHA" "$RUNTIME_BUILD_DATE" \
+    > /etc/insightbloom-runtime-version
+RUN echo "debian / podman-runtime" > /etc/insightbloom-image-name
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    podman \
+    uidmap \
+    fuse-overlayfs \
+    slirp4netns \
+    python3 \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Rango de sub-UID/GID para que Podman pueda remapear SUS PROPIOS contenedores (rootless dentro
+# de este contenedor, ya root dentro del pod) -- 65536 IDs, mismo tamaño estándar que usa
+# "podman system migrate"/instalaciones rootless típicas.
+RUN echo "root:100000:65536" > /etc/subuid && \
+    echo "root:100000:65536" > /etc/subgid
+
+# storage.conf: fuse-overlayfs sobre el emptyDir montado en /var/lib/containers (ver
+# KubernetesPodClient.buildPodmanPodBody, volumeMounts) -- overlayfs nativo no siempre está
+# disponible dentro de un contenedor anidado sin privilegios reales adicionales.
+RUN mkdir -p /etc/containers && \
+    printf '[storage]\ndriver = "overlay"\n\n[storage.options.overlay]\nmount_program = "/usr/bin/fuse-overlayfs"\n' \
+    > /etc/containers/storage.conf
+
+COPY infra/docker/podman-agent.py /usr/local/bin/podman-agent.py
+RUN chmod +x /usr/local/bin/podman-agent.py
+
+# Puerto de control (--control-port en args, ver KubernetesPodClient) + rango de publicaciones
+# (--app-base-port..+MAX_PODMAN_PUBLICATIONS-1) -- EXPOSE es documentación, no reserva nada.
+EXPOSE 9499-9509
+
+ENTRYPOINT ["python3", "/usr/local/bin/podman-agent.py"]

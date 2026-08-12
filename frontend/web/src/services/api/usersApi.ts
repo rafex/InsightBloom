@@ -10,7 +10,7 @@ import type {
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
-  TicketManagementSummary, WorkspacePreviewInfo, AppPreviewInfo, PublicConference, JaasUsage,
+  TicketManagementSummary, WorkspacePreviewInfo, AppPreviewInfo, PublishContainerInfo, PublicConference, JaasUsage,
   OnDemandCuePoint, NotificationList
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
@@ -1144,6 +1144,18 @@ export async function publishAppPreview(conferenceId: string, token: string): Pr
 
 export async function revokeAppPreview(conferenceId: string, publicationId: string, token: string): Promise<void> {
   await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/sandbox/app-preview/${publicationId}`, authHeader(token))
+}
+
+/** Fase 4b (MVP): construye y corre un contenedor desde un Containerfile del workspace, en el pod
+ *  Podman compartido -- ver PublishContainerUseCase. `path` por defecto "Containerfile" en la
+ *  raíz del workspace. */
+export async function publishContainer(
+  conferenceId: string, token: string, path?: string
+): Promise<PublishContainerInfo> {
+  const res = await axios.post(
+    `/api/users/api/v1/conferences/${conferenceId}/sandbox/publish-container`,
+    path ? { path } : {}, authHeader(token))
+  return res.data.data
 }
 
 // ── Candado por herramienta (2026-07-27) ──────────────────────────────────────────────────

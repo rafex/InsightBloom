@@ -18,6 +18,7 @@ import dev.rafex.insightbloom.users.application.usecases.PublishWorkspacePreview
 import dev.rafex.insightbloom.users.application.usecases.RevokeWorkspacePreviewUseCase;
 import dev.rafex.insightbloom.users.application.usecases.PublishAppPreviewUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RevokeAppPreviewUseCase;
+import dev.rafex.insightbloom.users.application.usecases.PublishContainerUseCase;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.model.ToolKey;
@@ -62,6 +63,7 @@ public class SandboxHandler extends BaseResourceHandler {
     private final RevokeAppPreviewUseCase revokeAppPreviewUseCase;
     private final long appPreviewTtlSeconds;
     private final String appPreviewBaseUrl; // ej. "https://app-insightbloom.v1.rafex.cloud"
+    private final PublishContainerUseCase publishContainerUseCase;
     private final ScheduledExecutorService sandboxStreamScheduler = Executors.newScheduledThreadPool(8, runnable -> {
         final Thread thread = new Thread(runnable, "sandbox-status-sse");
         thread.setDaemon(true);
@@ -87,7 +89,8 @@ public class SandboxHandler extends BaseResourceHandler {
                          final PublishAppPreviewUseCase publishAppPreviewUseCase,
                          final RevokeAppPreviewUseCase revokeAppPreviewUseCase,
                          final long appPreviewTtlSeconds,
-                         final String appPreviewBaseUrl) {
+                         final String appPreviewBaseUrl,
+                         final PublishContainerUseCase publishContainerUseCase) {
         this.assignSandboxUseCase = assignSandboxUseCase;
         this.getSandboxAvailabilityUseCase = getSandboxAvailabilityUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -108,6 +111,7 @@ public class SandboxHandler extends BaseResourceHandler {
         this.revokeAppPreviewUseCase = revokeAppPreviewUseCase;
         this.appPreviewTtlSeconds = appPreviewTtlSeconds;
         this.appPreviewBaseUrl = appPreviewBaseUrl;
+        this.publishContainerUseCase = publishContainerUseCase;
     }
 
     /**
@@ -150,6 +154,7 @@ public class SandboxHandler extends BaseResourceHandler {
             Route.of("/{id}/sandbox/preview/{publicationId}", Set.of("DELETE")),
             Route.of("/{id}/sandbox/app-preview", Set.of("POST")),
             Route.of("/{id}/sandbox/app-preview/{publicationId}", Set.of("DELETE")),
+            Route.of("/{id}/sandbox/publish-container", Set.of("POST")),
             Route.of("/{id}/sandbox/config", Set.of("PUT"))
         );
     }
@@ -191,6 +196,9 @@ public class SandboxHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/sandbox/app-preview")) {
             return handlePublishAppPreview(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/sandbox/publish-container")) {
+            return handlePublishContainer(jx, jx.pathParam("id"));
         }
         return false;
     }
@@ -712,6 +720,59 @@ public class SandboxHandler extends BaseResourceHandler {
         } catch (final Exception e) {
             LOGGER.log(Level.SEVERE, "SandboxHandler: no se pudo publicar el app-preview", e);
             sendError(jx, 500, "app_preview_publication_failed", "No se pudo publicar la aplicación");
+        }
+        return true;
+    }
+
+    /**
+     * Fase 4b (MVP): construye y corre un contenedor desde un Containerfile del workspace del
+     * alumno, en el pod Podman COMPARTIDO -- ver {@code PublishContainerUseCase}. Reusa el gate de
+     * {@link ToolKey#IDE_PUBLISH_API} a propósito (misma categoría "publicar algo vivo desde el
+     * sandbox"; agregar un ToolKey dedicado, con su propio toggle en el Dashboard de moderación,
+     * queda para cuando esta función salga del MVP).
+     */
+    private boolean handlePublishContainer(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return true;
+            if (rejectIfToolNotReleased(jx, conferenceId, validation.subjectUuid(), ToolKey.IDE_PUBLISH_API)) return true;
+            final var body = parseBody(jx);
+            final String path = body.get("path") instanceof String s && !s.isBlank() ? s : "Containerfile";
+            final var result = publishContainerUseCase.execute(
+                    conferenceId, validation.subjectUuid(), path, appPreviewTtlSeconds);
+            if (!result.published()) {
+                sendOk(jx, 200, Map.of("published", false,
+                        "message", "El contenedor se construyó y corrió, pero el Containerfile no declara EXPOSE -- no queda publicable"));
+                return true;
+            }
+            final var preview = result.preview();
+            sendOk(jx, 201, Map.of(
+                    "published", true,
+                    "publicationId", preview.uuid(),
+                    "url", appPreviewBaseUrl + "/p/" + preview.uuid(),
+                    "accessToken", preview.accessToken(),
+                    "expiresAt", preview.expiresAt().toString()));
+        } catch (final PublishContainerUseCase.ContainerValidationException e) {
+            sendError(jx, 422, e.errorCode(), e.errorDetail() != null ? e.errorDetail() : e.errorCode());
+        } catch (final IllegalArgumentException e) {
+            final int status = switch (e.getMessage()) {
+                case "sandbox_not_assigned", "file_not_found" -> 404;
+                case "publish_container_pool_full" -> 503;
+                default -> 422;
+            };
+            sendError(jx, status, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: no se pudo publicar el contenedor", e);
+            sendError(jx, 500, "publish_container_failed", "No se pudo publicar el contenedor");
         }
         return true;
     }

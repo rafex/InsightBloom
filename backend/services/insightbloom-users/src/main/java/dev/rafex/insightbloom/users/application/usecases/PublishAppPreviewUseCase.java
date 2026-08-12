@@ -23,6 +23,13 @@ import java.util.UUID;
  */
 public class PublishAppPreviewUseCase {
     private static final SecureRandom RANDOM = new SecureRandom();
+    /**
+     * Tope duro, independiente de lo que pida el caller: expone un proceso vivo del alumno a
+     * internet con solo un token de acceso (sin sesión de InsightBloom) -- no debe poder quedar
+     * publicado indefinidamente aunque {@code APP_PREVIEW_TTL_SECONDS} se configure más alto por
+     * error. Mismo criterio en {@link PublishWorkspacePreviewUseCase}/{@link PublishContainerUseCase}.
+     */
+    private static final long MAX_TTL_SECONDS = 3600;
 
     private final SandboxRepository sandboxRepository;
     private final SandboxAppPreviewRepository previewRepository;
@@ -57,7 +64,7 @@ public class PublishAppPreviewUseCase {
                 sandbox.seatPort(appBasePort),
                 generateAccessToken(),
                 now,
-                now.plusSeconds(ttlSeconds));
+                now.plusSeconds(Math.min(ttlSeconds, MAX_TTL_SECONDS)));
         return previewRepository.save(preview);
     }
 

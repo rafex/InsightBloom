@@ -5,6 +5,7 @@ import dev.rafex.insightbloom.users.domain.ports.SandboxAppPreviewRepository;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,6 +23,12 @@ class ResolveAppPreviewTargetUseCaseTest {
         @Override
         public Optional<SandboxAppPreview> findByConferenceAndUser(final String c, final String u) {
             return Optional.empty();
+        }
+
+        @Override
+        public List<SandboxAppPreview> findActiveByPodName(final String podName) {
+            return stored != null && stored.podName().equals(podName) && !stored.isExpired()
+                    ? List.of(stored) : List.of();
         }
 
         @Override
