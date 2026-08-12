@@ -8,6 +8,7 @@ header.app-header
         img.brand-logo(src="@/assets/logo.svg" alt="InsightBloom")
     nav.header-nav(aria-label="Acciones de sesión")
       span.version-tag(v-if="version") v{{ version }}{{ gitSha ? ' \u00b7 ' + gitSha : '' }}
+      NotificationBell
       router-link(v-if="auth.state.token && auth.state.role !== 'guest'" to="/dashboard") Panel
       button.header-logout(v-if="auth.state.token" type="button" @click="logout") Salir
       router-link(v-else to="/login") Entrar
@@ -17,8 +18,10 @@ header.app-header
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/features/auth/authStore'
 import { useRouter } from 'vue-router'
+import NotificationBell from '@/components/NotificationBell.vue'
 export default {
   name: 'AppHeader',
+  components: { NotificationBell },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
