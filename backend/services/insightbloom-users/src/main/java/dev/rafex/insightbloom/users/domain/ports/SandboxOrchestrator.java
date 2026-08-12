@@ -1,5 +1,6 @@
 package dev.rafex.insightbloom.users.domain.ports;
 
+import dev.rafex.insightbloom.users.domain.model.ContainerBuildResult;
 import dev.rafex.insightbloom.users.domain.model.WorkspaceFileContent;
 import dev.rafex.insightbloom.users.domain.model.WorkspaceFileEntry;
 
@@ -138,4 +139,25 @@ public interface SandboxOrchestrator {
      * @return vacío si ninguna Pod tiene esa IP ahora mismo (recién borrado, IP reciclada, etc).
      */
     Optional<String> findConferenceUuidByPodIp(String podIp);
+
+    /**
+     * Fase 4b (MVP, 2026-08): crea (si no existe, idempotente) el pod Podman COMPARTIDO donde se
+     * construyen y corren los contenedores publicados por los alumnos vía {@code
+     * PublishContainerUseCase}. Deliberadamente separado de {@link #createSandbox} -- no es un
+     * sandbox por-alumno/por-evento (no pasa por {@code SandboxRepository}/{@code
+     * AssignSandboxUseCase}), sino un único pod para todos los alumnos mientras se prueba que el
+     * enfoque de aislamiento (user namespaces nativos de Kubernetes, {@code hostUsers: false})
+     * funciona en el cluster real. Escalar a un pool de varios pods queda para una fase futura.
+     */
+    void ensureRuntimePodmanPod(String podName);
+
+    /**
+     * Envía el contenido (ya validado por {@code ContainerfileValidator}/{@code
+     * ResolveImagePolicyUseCase}) al agente del pod Podman compartido, que corre {@code podman
+     * build} y {@code podman run -d -p hostPort:containerPort}. {@code containerPort <= 0}
+     * significa "sin puerto expuesto" (el Containerfile no tiene {@code EXPOSE}) -- el contenedor
+     * corre igual, pero no queda publicable vía {@code SandboxAppPreview}.
+     */
+    ContainerBuildResult buildAndRunContainer(String podName, String containerfileContent,
+                                               int hostPort, int containerPort);
 }

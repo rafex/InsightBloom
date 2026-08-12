@@ -493,6 +493,18 @@ export interface AppPreviewInfo {
   expiresAt: string
 }
 
+/** Fase 4b (MVP): resultado de publicar un contenedor construido desde un Containerfile del
+ *  workspace -- `published: false` significa que el build+run funcionó pero el Containerfile no
+ *  declara EXPOSE, así que no hay URL pública (ver PublishContainerUseCase). */
+export interface PublishContainerInfo {
+  published: boolean
+  publicationId?: string
+  url?: string
+  accessToken?: string
+  expiresAt?: string
+  message?: string
+}
+
 export interface AiProviderSettings {
   configured: boolean
   enabled: boolean

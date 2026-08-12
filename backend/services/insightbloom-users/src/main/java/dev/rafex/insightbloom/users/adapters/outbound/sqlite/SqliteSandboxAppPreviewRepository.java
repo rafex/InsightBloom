@@ -6,6 +6,8 @@ import dev.rafex.insightbloom.users.domain.ports.SandboxAppPreviewRepository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class SqliteSandboxAppPreviewRepository implements SandboxAppPreviewRepository {
@@ -45,6 +47,26 @@ public class SqliteSandboxAppPreviewRepository implements SandboxAppPreviewRepos
             }
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to read sandbox app preview", e);
+        }
+    }
+
+    @Override
+    public List<SandboxAppPreview> findActiveByPodName(final String podName) {
+        try (var c = database.getConnection(); var ps = c.prepareStatement("""
+                SELECT uuid, conference_uuid, user_uuid, pod_name, target_port, access_token,
+                       created_at, expires_at
+                FROM sandbox_app_previews WHERE pod_name = ? AND expires_at > ?""")) {
+            ps.setString(1, podName);
+            ps.setString(2, Instant.now().toString());
+            final List<SandboxAppPreview> results = new ArrayList<>();
+            try (var rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    results.add(read(rs));
+                }
+            }
+            return results;
+        } catch (final SQLException e) {
+            throw new RuntimeException("Failed to list sandbox app previews by pod", e);
         }
     }
 

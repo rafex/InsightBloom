@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.outbound.kubernetes;
 
 import dev.rafex.ether.json.JsonCodec;
+import dev.rafex.insightbloom.users.domain.model.ContainerBuildResult;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.model.WorkspaceFileContent;
 import dev.rafex.insightbloom.users.domain.model.WorkspaceFileEntry;
@@ -98,6 +99,17 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private static final int MAX_SEATS_PER_POD = 10;
 
     /**
+     * Fase 4b (MVP): cuántas publicaciones de contenedor concurrentes admite el pod Podman
+     * COMPARTIDO (ver {@link #ensureRuntimePodmanPod}) -- mismo valor que {@link
+     * #MAX_SEATS_PER_POD} a propósito (mismo criterio de "declarar el rango máximo posible de
+     * puertos una sola vez", ver comentario de esa constante). Escalar más allá de esto es una
+     * fase futura (pool de varios pods), no un ajuste de esta constante.
+     */
+    private static final int MAX_PODMAN_PUBLICATIONS = 10;
+    /** Ver javadoc de la clase / SandboxOrchestrator.ensureRuntimePodmanPod. */
+    public static final String RUNTIME_VARIANT_PODMAN = "runtime-podman";
+
+    /**
      * Límites de recursos del (unico) contenedor del Pod de sandbox. Un set por imagen (ver
      * {@link #debianResources}/{@link #neovimResources}), no uno solo compartido: las dos
      * imagenes tienen perfiles de consumo muy distintos -- la imagen Debian corre el extension
@@ -131,6 +143,10 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final String egressProxyHost;
     private final int egressProxyPort;
     private final int appBasePort;
+    private final String podmanImage;
+    private final ContainerResources podmanResources;
+    private final int podmanAppBasePort;
+    private final String podmanStorageSizeLimit;
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
                                 final String debianImage, final String neovimImage, final String neovimLazyVimImage,
@@ -139,7 +155,9 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                                 final int port, final int uid, final int gid, final int fsGroup,
                                 final String gatewayNamespace, final String gatewayPodComponentLabel,
                                 final String usersPodComponentLabel, final String incidentReportKey,
-                                final String egressProxyHost, final int egressProxyPort, final int appBasePort) {
+                                final String egressProxyHost, final int egressProxyPort, final int appBasePort,
+                                final String podmanImage, final ContainerResources podmanResources,
+                                final int podmanAppBasePort, final String podmanStorageSizeLimit) {
         this.jsonCodec = jsonCodec;
         this.namespace = namespace;
         this.debianImage = debianImage;
@@ -157,6 +175,10 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         this.egressProxyHost = egressProxyHost;
         this.egressProxyPort = egressProxyPort;
         this.appBasePort = appBasePort;
+        this.podmanImage = podmanImage;
+        this.podmanResources = podmanResources;
+        this.podmanAppBasePort = podmanAppBasePort;
+        this.podmanStorageSizeLimit = podmanStorageSizeLimit;
         this.uid = uid;
         this.gid = gid;
         this.fsGroup = fsGroup;
@@ -277,6 +299,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         for (int i = 0; i < MAX_SEATS_PER_POD; i++) {
             seatPorts.add(Map.of("protocol", "TCP", "port", appBasePort + i));
         }
+        // Publicaciones de contenedores (Fase 4b, MVP): mismo criterio que el rango de
+        // "seat-N"/"app-N" de arriba, ahora para el pod Podman compartido (ver
+        // ensureRuntimePodmanPod). Se declara siempre, aunque el pod Podman todavía no exista --
+        // esta policy es una sola para todo el namespace, idempotente, sin costo de declarar un
+        // rango que nadie usa todavía.
+        for (int i = 0; i < MAX_PODMAN_PUBLICATIONS; i++) {
+            seatPorts.add(Map.of("protocol", "TCP", "port", podmanAppBasePort + i));
+        }
         final Map<String, Object> policy = Map.of(
                 "apiVersion", "networking.k8s.io/v1",
                 "kind", "NetworkPolicy",
@@ -298,7 +328,12 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                                                         "matchLabels", Map.of("kubernetes.io/metadata.name", gatewayNamespace)),
                                                 "podSelector", Map.of(
                                                         "matchLabels", Map.of("app.kubernetes.io/component", usersPodComponentLabel)))),
-                                        "ports", List.of(Map.of("protocol", "TCP", "port", controlPort()))))));
+                                        // controlPort(): seat-agent/sandbox-file-agent (Pods de siempre). podmanControlPort():
+                                        // agente del pod Podman compartido (Fase 4b, ver ensureRuntimePodmanPod) -- mismo
+                                        // criterio, solo insightbloom-users llama a /build directamente, nunca el gateway.
+                                        "ports", List.of(
+                                                Map.of("protocol", "TCP", "port", controlPort()),
+                                                Map.of("protocol", "TCP", "port", podmanControlPort()))))));
         upsertNetworkPolicy("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
                 jsonCodec.toJson(policy), "networkpolicy " + INGRESS_POLICY_NAME, INGRESS_POLICY_NAME);
     }
@@ -501,6 +536,195 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final var uuid = items.get(0).path("metadata").path("annotations").path("insightbloom.io/conference-uuid");
         return uuid.isMissingNode() || uuid.isNull() || uuid.asText().isBlank()
                 ? java.util.Optional.empty() : java.util.Optional.of(uuid.asText());
+    }
+
+    private static final String PODMAN_EGRESS_POLICY_NAME = "sandbox-runtime-podman-egress";
+    private static final String PODMAN_COMPONENT_LABEL = "sandbox-runtime-podman";
+
+    /**
+     * Fase 4b (MVP): a diferencia de los sandboxes por-evento (egress deny-all salvo el proxy
+     * interno con allowlist de dominios, ver {@link #allowInternetEgress}), el pod Podman
+     * compartido necesita salida DIRECTA a internet -- {@code podman build} corre pasos
+     * arbitrarios del Containerfile ya validado (instalar paquetes via apt/pip/npm, etc.), no solo
+     * descargar la imagen base. Simplificación deliberada del MVP: sin el allowlist de dominios
+     * del egress-proxy para este pod en particular -- si se necesita restringir más adelante, se
+     * puede sumar el mismo egress-proxy que ya usan los sandboxes de evento.
+     */
+    private void ensurePodmanEgressPolicy() {
+        final Map<String, Object> policy = Map.of(
+                "apiVersion", "networking.k8s.io/v1",
+                "kind", "NetworkPolicy",
+                "metadata", Map.of("name", PODMAN_EGRESS_POLICY_NAME, "namespace", namespace),
+                "spec", Map.of(
+                        "podSelector", Map.of("matchLabels", Map.of("app.kubernetes.io/component", PODMAN_COMPONENT_LABEL)),
+                        "policyTypes", List.of("Egress"),
+                        // Regla vacía ({} sin "to"/"ports") == permitir TODO el egress para los
+                        // pods seleccionados -- semántica estándar de NetworkPolicy.
+                        "egress", List.of(Map.of())));
+        upsertNetworkPolicy("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
+                jsonCodec.toJson(policy), "networkpolicy " + PODMAN_EGRESS_POLICY_NAME, PODMAN_EGRESS_POLICY_NAME);
+    }
+
+    /** Puerto de control del agente del pod Podman compartido -- fuera del rango de publicación
+     *  ({@code podmanAppBasePort..podmanAppBasePort+MAX_PODMAN_PUBLICATIONS-1}), mismo criterio
+     *  que {@link #controlPort()}. */
+    private int podmanControlPort() {
+        return podmanAppBasePort - 1;
+    }
+
+    private String podmanControlUrl(final String podName) {
+        return "http://" + podName + "-svc." + namespace + ".svc.cluster.local:" + podmanControlPort();
+    }
+
+    @Override
+    public void ensureRuntimePodmanPod(final String podName) {
+        requireEnabled();
+        ensureIngressPolicy();
+        ensurePodmanEgressPolicy();
+        final String podJson = jsonCodec.toJson(buildPodmanPodBody(podName));
+        postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
+        final String serviceJson = jsonCodec.toJson(buildPodmanServiceBody(podName));
+        postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
+    }
+
+    @Override
+    public ContainerBuildResult buildAndRunContainer(final String podName, final String containerfileContent,
+                                                       final int hostPort, final int containerPort) {
+        requireEnabled();
+        final String url = podmanControlUrl(podName) + "/build";
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("containerfile", containerfileContent);
+        body.put("hostPort", hostPort);
+        body.put("containerPort", containerPort);
+        // podman build corre pasos arbitrarios del Containerfile (apt/pip/npm install, etc.) --
+        // sincrónico a propósito para el MVP (mismo enfoque simple que el resto de Fase 4b), pero
+        // con timeout generoso; si en la práctica los builds tardan más que esto, conviene el
+        // mismo patrón async ya usado para el zip de workspace (StartWorkspaceZipJobUseCase).
+        final HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(170))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonCodec.toJson(body), StandardCharsets.UTF_8))
+                .build();
+        final HttpResponse<String> response = send(request);
+        if (response.statusCode() >= 300) {
+            final var node = jsonCodec.readTree(response.body());
+            return ContainerBuildResult.failure(
+                    node.path("error").asText("container_build_failed"),
+                    node.path("detail").asText(response.body()));
+        }
+        return ContainerBuildResult.ok();
+    }
+
+    /**
+     * Pod spec dedicado, deliberadamente SEPARADO de {@link #buildPodBody} (que ya maneja tres
+     * variantes con lógica de asientos/terminal entrelazada) -- mezclar un cuarto modo ahí
+     * arriesgaba romper sutilmente los sandboxes de siempre. Ver "Cambio de mecanismo de
+     * aislamiento" en el plan de Fase 4b para el detalle completo de este diseño.
+     */
+    private Map<String, Object> buildPodmanPodBody(final String podName) {
+        final Map<String, Object> labels = Map.of(
+                "app.kubernetes.io/part-of", "insightbloom",
+                "app.kubernetes.io/component", PODMAN_COMPONENT_LABEL,
+                "sandbox-pod", podName);
+
+        final List<Map<String, Object>> ports = new ArrayList<>();
+        for (int i = 0; i < MAX_PODMAN_PUBLICATIONS; i++) {
+            ports.add(Map.of("name", "pub-" + i, "containerPort", podmanAppBasePort + i, "protocol", "TCP"));
+        }
+
+        final Map<String, Object> container = new LinkedHashMap<>();
+        container.put("name", "podman-runtime");
+        container.put("image", podmanImage);
+        container.put("imagePullPolicy", imagePullPolicy);
+        container.put("ports", ports);
+        container.put("env", List.of(Map.of("name", "PODMAN_APP_BASE_PORT", "value", String.valueOf(podmanAppBasePort))));
+        container.put("securityContext", podmanContainerSecurityContext());
+        container.put("resources", resourcesBody(podmanResources));
+        container.put("volumeMounts", List.of(Map.of("name", "containers-storage", "mountPath", "/var/lib/containers")));
+        container.put("args", List.of(
+                "python3", "/usr/local/bin/podman-agent.py",
+                "--control-port", String.valueOf(podmanControlPort()),
+                "--app-base-port", String.valueOf(podmanAppBasePort),
+                "--max-publications", String.valueOf(MAX_PODMAN_PUBLICATIONS)));
+        container.put("readinessProbe", tcpProbe(podmanControlPort(), 5, 10, 3));
+        container.put("livenessProbe", tcpProbe(podmanControlPort(), 10, 30, 3));
+        // startupProbe con más margen que el resto de las variantes: la imagen Podman es pesada
+        // (toolchain completo) y el primer arranque puede tardar más que un sandbox de código.
+        container.put("startupProbe", tcpProbe(podmanControlPort(), 5, 10, 60));
+
+        final Map<String, Object> podSecurityContext = new LinkedHashMap<>();
+        // Root nominal (uid 0) DENTRO del pod -- seguro porque hostUsers:false (ver spec.hostUsers
+        // más abajo) ya remapea TODO el rango de UID del pod, incluido el 0, a un rango sin
+        // privilegios reales en el nodo. Sin ese remapeo esto sería inaceptable.
+        podSecurityContext.put("runAsNonRoot", false);
+        podSecurityContext.put("runAsUser", 0);
+        podSecurityContext.put("runAsGroup", 0);
+        podSecurityContext.put("fsGroup", 0);
+        podSecurityContext.put("seccompProfile", Map.of("type", "RuntimeDefault"));
+
+        final Map<String, Object> spec = new LinkedHashMap<>();
+        spec.put("serviceAccountName", "default");
+        spec.put("automountServiceAccountToken", false);
+        spec.put("restartPolicy", "Always");
+        // Kubernetes 1.36 (GA): user namespaces nativos -- root dentro de este pod queda mapeado a
+        // un UID sin privilegios en el host, sin necesidad de un RuntimeClass especial (sysbox-runc
+        // fue evaluado y descartado, ver plan de Fase 4b). Es lo que hace seguro correr Podman
+        // "rootful-dentro-del-pod" arriba.
+        spec.put("hostUsers", false);
+        if (priorityClassName != null && !priorityClassName.isBlank()) {
+            spec.put("priorityClassName", priorityClassName);
+        }
+        spec.put("securityContext", podSecurityContext);
+        spec.put("containers", List.of(container));
+        spec.put("volumes", List.of(
+                Map.of("name", "containers-storage", "emptyDir", Map.of("sizeLimit", podmanStorageSizeLimit))));
+
+        return Map.of(
+                "apiVersion", "v1",
+                "kind", "Pod",
+                "metadata", Map.of("name", podName, "namespace", namespace, "labels", labels),
+                "spec", spec);
+    }
+
+    /**
+     * Capabilities mínimas para que Podman rootless funcione DENTRO del pod (un segundo nivel de
+     * aislamiento, propio de Podman, independiente del {@code hostUsers:false} del pod) --
+     * análogo al caso {@code multiSeat} de {@link #containerSecurityContext}, pero con una
+     * diferencia deliberada: {@code allowPrivilegeEscalation: true}. Podman rootless usa
+     * {@code newuidmap}/{@code newgidmap} (binarios setuid-root, ver
+     * infra/docker/Dockerfile.runtime-podman) para crear el mapeo de sub-UID de SUS PROPIOS
+     * contenedores anidados -- con {@code allowPrivilegeEscalation: false} el kernel fija
+     * {@code no_new_privs}, que bloquea CUALQUIER binario setuid (exactamente el mismo motivo por
+     * el que el resto del código de esta clase evita sudo, ver DEC-0025). Aceptable acá porque
+     * {@code hostUsers:false} ya garantiza que "root" en este pod no es root real en el nodo --
+     * sin ese remapeo, este ajuste sería inaceptable.
+     */
+    private Map<String, Object> podmanContainerSecurityContext() {
+        final Map<String, Object> ctx = new LinkedHashMap<>();
+        ctx.put("allowPrivilegeEscalation", true);
+        ctx.put("readOnlyRootFilesystem", false);
+        ctx.put("runAsNonRoot", false);
+        ctx.put("runAsUser", 0);
+        ctx.put("capabilities", Map.of("drop", List.of("ALL"),
+                "add", List.of("SETUID", "SETGID", "CHOWN", "FOWNER", "SYS_CHROOT")));
+        return ctx;
+    }
+
+    private Map<String, Object> buildPodmanServiceBody(final String podName) {
+        final List<Map<String, Object>> servicePorts = new ArrayList<>();
+        for (int i = 0; i < MAX_PODMAN_PUBLICATIONS; i++) {
+            servicePorts.add(Map.of("name", "pub-" + i, "port", podmanAppBasePort + i,
+                    "targetPort", podmanAppBasePort + i, "protocol", "TCP"));
+        }
+        servicePorts.add(Map.of("name", "control", "port", podmanControlPort(),
+                "targetPort", podmanControlPort(), "protocol", "TCP"));
+        return Map.of(
+                "apiVersion", "v1",
+                "kind", "Service",
+                "metadata", Map.of("name", serviceName(podName), "namespace", namespace),
+                "spec", Map.of(
+                        "selector", Map.of("sandbox-pod", podName),
+                        "ports", servicePorts));
     }
 
     private Map<String, Object> buildEgressAllowBody(final String conferenceLabel) {
