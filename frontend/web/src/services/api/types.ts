@@ -469,6 +469,13 @@ export interface WorkspaceDownloadInfo {
   expiresInSeconds: number
 }
 
+export interface WorkspaceZipJobInfo {
+  jobUuid?: string
+  status: 'PENDING' | 'READY' | 'FAILED' | 'EXPIRED'
+  downloadUrl?: string | null
+  errorMessage?: string | null
+}
+
 export interface WorkspacePreviewInfo {
   publicationId: string
   url: string

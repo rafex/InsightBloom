@@ -5,6 +5,7 @@ import type {
   SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
   CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
+  WorkspaceZipJobInfo,
   ChatSettings, AiSettings, AiPromptVariable, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
@@ -1075,6 +1076,22 @@ export async function getSandboxAvailability(
 
 export async function generateWorkspaceDownloadUrl(conferenceId: string, token?: string | null): Promise<WorkspaceDownloadInfo> {
   const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/download`, {}, authHeader(token))
+  return res.data.data
+}
+
+/** Arranca el armado del zip en background -- reemplaza a generateWorkspaceDownloadUrl para
+ * workspaces pesados que antes daban timeout. Devuelve de inmediato; hay que pollear
+ * getWorkspaceZipJobStatus con el jobUuid hasta que pase a READY. */
+export async function startWorkspaceZipJob(conferenceId: string, token: string): Promise<WorkspaceZipJobInfo> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/download/start`, {}, authHeader(token))
+  return res.data.data
+}
+
+export async function getWorkspaceZipJobStatus(
+  conferenceId: string, jobUuid: string, token: string
+): Promise<WorkspaceZipJobInfo> {
+  const res = await axios.get(
+    `/api/users/api/v1/conferences/${conferenceId}/sandbox/download/status/${jobUuid}`, authHeader(token))
   return res.data.data
 }
 

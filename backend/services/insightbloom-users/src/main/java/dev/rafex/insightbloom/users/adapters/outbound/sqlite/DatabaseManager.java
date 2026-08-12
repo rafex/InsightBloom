@@ -772,6 +772,26 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_notifications_user "
                     + "ON notifications(user_uuid, created_at DESC)");
 
+            // Descarga async del workspace (2026-08) -- ver StartWorkspaceZipJobUseCase. El ZIP en
+            // sí no se persiste acá (vive en memoria, ver WorkspaceZipCache); esta tabla solo
+            // trackea el estado del job y el token de descarga con TTL de 2hs.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS workspace_zip_jobs (
+                    uuid TEXT PRIMARY KEY,
+                    conference_uuid TEXT NOT NULL,
+                    sandbox_uuid TEXT NOT NULL,
+                    user_uuid TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    download_token TEXT,
+                    created_at TEXT NOT NULL,
+                    ready_at TEXT,
+                    expires_at TEXT,
+                    error_message TEXT
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_workspace_zip_jobs_expires "
+                    + "ON workspace_zip_jobs(expires_at)");
+
             backfillMissingTicketsForSimpleJoins(conn);
             backfillMissingCapacity(conn);
         } catch (SQLException e) {

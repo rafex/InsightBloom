@@ -456,7 +456,13 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     public byte[] downloadWorkspaceZip(final String podName, final int seatIndex) {
         requireEnabled();
         final String url = podControlUrl(podName) + "/workspace/" + seatIndex + "/zip";
-        final HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(30)).GET().build();
+        // Alineado con el limite real del subprocess dentro del pod (sandbox_file_api.py:
+        // build_workspace_zip_as_user, timeout=90) -- con 30s este cliente cortaba antes de que el
+        // agente terminara de comprimir un workspace grande-pero-bajo-el-limite-de-50MB con muchos
+        // archivos chicos (compresion CPU-bound, single-threaded), y el usuario veia un 500 generico
+        // (bug reportado 2026-08-12). Ahora se llama siempre desde StartWorkspaceZipJobUseCase, en un
+        // hilo de background sin el limite del request HTTP original -- 90s ya no bloquea al usuario.
+        final HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(90)).GET().build();
         final HttpResponse<byte[]> response = sendBytes(request);
         if (response.statusCode() == 404) {
             throw new IllegalArgumentException("workspace_not_found");

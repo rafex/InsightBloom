@@ -67,11 +67,12 @@
           BaseButton(
             variant="secondary"
             @click="downloadWorkspace"
-            :disabled="downloadingWorkspace || !ideActionsLoaded || !isToolReleased('IDE_DOWNLOAD')"
+            :disabled="workspaceZipStatus === 'PENDING' || !ideActionsLoaded || !isToolReleased('IDE_DOWNLOAD')"
             :title="actionTitle('IDE_DOWNLOAD', 'Descargar workspace')"
           )
-            span(v-if="!downloadingWorkspace") 📥 Descargar workspace
-            span(v-else) Descargando...
+            span(v-if="workspaceZipStatus === 'PENDING'") Generando…
+            span(v-else-if="workspaceZipStatus === 'READY'") 📥 Descargar zip workspace
+            span(v-else) 📥 Solicitar zip de workspace
           BaseButton(
             variant="secondary"
             @click="publishPreview"
@@ -123,7 +124,8 @@ import {
   getSandbox,
   getSandboxAvailability,
   getToolAccess,
-  generateWorkspaceDownloadUrl,
+  startWorkspaceZipJob,
+  getWorkspaceZipJobStatus,
   publishWorkspacePreview,
   revokeWorkspacePreview,
   publishAppPreview,
@@ -161,7 +163,11 @@ export default {
     const sandbox = ref<SandboxInfo | null>(null)
     const loading = ref(false)
     const error = ref('')
-    const downloadingWorkspace = ref(false)
+    // Estado del zip async del workspace: idle -> PENDING (armándose en background, ver
+    // StartWorkspaceZipJobUseCase) -> READY (listo para descargar) | FAILED/EXPIRED.
+    const workspaceZipStatus = ref<'PENDING' | 'READY' | 'FAILED' | 'EXPIRED' | null>(null)
+    const workspaceZipJobUuid = ref<string | null>(null)
+    const workspaceZipDownloadUrl = ref<string | null>(null)
     const publishingPreview = ref(false)
     const preview = ref<WorkspacePreviewInfo | null>(null)
     const previewUrlCopied = ref(false)
@@ -388,19 +394,59 @@ export default {
       pollTimer = setTimeout(() => loadSandbox(true), delay)
     }
 
+    let workspaceZipPollTimer: ReturnType<typeof setTimeout> | null = null
+    let workspaceZipPollDelayMs = POLL_INITIAL_DELAY_MS
+
+    function stopWorkspaceZipPolling() {
+      if (workspaceZipPollTimer) clearTimeout(workspaceZipPollTimer)
+      workspaceZipPollTimer = null
+    }
+
+    async function pollWorkspaceZipStatus() {
+      if (!workspaceZipJobUuid.value || !auth.state.token) return
+      try {
+        const result = await getWorkspaceZipJobStatus(props.conferenceId, workspaceZipJobUuid.value, auth.state.token)
+        workspaceZipStatus.value = result.status
+        if (result.status === 'READY') {
+          workspaceZipDownloadUrl.value = result.downloadUrl || null
+          stopWorkspaceZipPolling()
+          return
+        }
+        if (result.status === 'FAILED' || result.status === 'EXPIRED') {
+          error.value = result.errorMessage
+            ? `No se pudo generar el zip: ${result.errorMessage}`
+            : 'No se pudo generar el zip del workspace. Intenta más tarde.'
+          stopWorkspaceZipPolling()
+          return
+        }
+        workspaceZipPollDelayMs = Math.min(POLL_MAX_DELAY_MS, Math.ceil(workspaceZipPollDelayMs * 1.5))
+        workspaceZipPollTimer = setTimeout(pollWorkspaceZipStatus, workspaceZipPollDelayMs)
+      } catch (e: any) {
+        error.value = 'No se pudo consultar el estado del zip: ' + (e.message || 'Intenta más tarde')
+        workspaceZipStatus.value = null
+        stopWorkspaceZipPolling()
+      }
+    }
+
+    // Un clic con el zip ya listo descarga directo; si no, arranca el job en background (ver
+    // StartWorkspaceZipJobUseCase -- reemplaza el flujo síncrono que daba timeout en workspaces
+    // pesados) y el botón queda "Generando…" mientras se pollea el estado.
     async function downloadWorkspace() {
-      if (!sandbox.value || !isToolReleased('IDE_DOWNLOAD')) return
+      if (workspaceZipStatus.value === 'READY' && workspaceZipDownloadUrl.value) {
+        window.location.href = workspaceZipDownloadUrl.value
+        return
+      }
+      if (!sandbox.value || !isToolReleased('IDE_DOWNLOAD') || workspaceZipStatus.value === 'PENDING') return
 
       try {
-        downloadingWorkspace.value = true
-        const downloadInfo = await generateWorkspaceDownloadUrl(props.conferenceId, auth.state.token)
-
-        // Redirigir al URL de descarga
-        window.location.href = downloadInfo.downloadUrl
+        const job = await startWorkspaceZipJob(props.conferenceId, auth.state.token as string)
+        workspaceZipJobUuid.value = job.jobUuid || null
+        workspaceZipStatus.value = 'PENDING'
+        workspaceZipDownloadUrl.value = null
+        workspaceZipPollDelayMs = POLL_INITIAL_DELAY_MS
+        pollWorkspaceZipStatus()
       } catch (e: any) {
-        error.value = 'Error al generar descarga: ' + (e.message || 'Intenta más tarde')
-      } finally {
-        downloadingWorkspace.value = false
+        error.value = 'No se pudo solicitar el zip del workspace: ' + (e.message || 'Intenta más tarde')
       }
     }
 
@@ -483,11 +529,12 @@ export default {
 
     onBeforeUnmount(() => {
       stopPolling()
+      stopWorkspaceZipPolling()
       closeSandboxStream()
     })
 
     return {
-      sandbox, loading, error, downloadingWorkspace, urlCopied,
+      sandbox, loading, error, workspaceZipStatus, urlCopied,
       availability, loadingAvailability, chosenVariant, chooseVariant, switchVariant,
       formattedExpiry, fullGatewayUrl, ideSessionUrl, downloadWorkspace, copyGatewayUrl,
       ideActionsLoaded, allIdeActionsReleased, isToolReleased, actionTitle,

@@ -97,12 +97,11 @@ public class UsersApplication {
         final var egressPolicyRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteEgressPolicyRepository(db);
         final var notificationRepo = new SqliteNotificationRepository(db);
         // Registro compartido de streams SSE: NotificationHandler registra/desregistra conexiones
-        // acá, y SendNotificationUseCase empuja por acá cuando algo (ej. Fase 3: workspace zip
-        // listo) llama a execute(...). Ningún caso de uso de esta fase todavía llama a
-        // SendNotificationUseCase -- se instancia recién cuando exista un primer emisor real.
+        // acá, y SendNotificationUseCase empuja por acá.
         final var notificationStreamRegistry = new dev.rafex.insightbloom.users.domain.services.NotificationStreamRegistry();
         final var listNotificationsUseCase = new ListNotificationsUseCase(notificationRepo);
         final var markNotificationReadUseCase = new MarkNotificationReadUseCase(notificationRepo);
+        final var sendNotificationUseCase = new SendNotificationUseCase(notificationRepo, notificationStreamRegistry);
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
         final var timezoneRepo = new SqliteTimezoneRepository(db);
         final var reservationRepo = new SqliteReservationRepository(db);
@@ -361,6 +360,26 @@ public class UsersApplication {
                 sandboxRepo, workspaceDownloadBaseUrl, workspaceDownloadTokenCodec);
         final var downloadWorkspaceZipUseCase = new DownloadWorkspaceZipUseCase(
                 sandboxRepo, sandboxOrchestrator, workspaceDownloadTokenCodec);
+        final var workspaceZipJobRepo = new SqliteWorkspaceZipJobRepository(db);
+        final var workspaceZipCache = new dev.rafex.insightbloom.users.domain.services.WorkspaceZipCache();
+        // Un armado de zip es CPU/red-bound y puede tardar hasta 90s (ver KubernetesPodClient) --
+        // pool chico y separado del resto de los ScheduledExecutorService de este arranque, para
+        // no competir por hilos con los ticks periódicos de sandbox/reminders.
+        final var workspaceZipExecutor = java.util.concurrent.Executors.newFixedThreadPool(4, runnable -> {
+            final var t = new Thread(runnable, "workspace-zip-builder");
+            t.setDaemon(true);
+            return t;
+        });
+        final var startWorkspaceZipJobUseCase = new StartWorkspaceZipJobUseCase(
+                sandboxRepo, conferenceRepo, userRepo, workspaceZipJobRepo, workspaceZipCache,
+                sandboxOrchestrator, sendNotificationUseCase, emailPort, workspaceZipExecutor,
+                workspaceDownloadBaseUrl);
+        final var getWorkspaceZipJobStatusUseCase = new GetWorkspaceZipJobStatusUseCase(
+                workspaceZipJobRepo, workspaceDownloadBaseUrl);
+        final var downloadWorkspaceZipJobUseCase = new DownloadWorkspaceZipJobUseCase(
+                workspaceZipJobRepo, workspaceZipCache);
+        final var cleanupExpiredWorkspaceZipJobsUseCase = new CleanupExpiredWorkspaceZipJobsUseCase(
+                workspaceZipJobRepo, workspaceZipCache);
         final var workspacePreviewPublisher =
                 new dev.rafex.insightbloom.users.adapters.outbound.presentationsclient.HttpWorkspacePreviewPublisher(
                         presentationsUrl, internalApiKey);
@@ -438,14 +457,16 @@ public class UsersApplication {
         final var unblockDeviceUseCase = new UnblockDeviceUseCase(deviceBlockRepo);
         final var sandboxHandler = new SandboxHandler(
                 assignSandboxUseCase, getSandboxAvailabilityUseCase, validateTokenUseCase,
-                generateWorkspaceDownloadUrlUseCase, setSandboxConfigUseCase, sandboxOrchestrator,
+                generateWorkspaceDownloadUrlUseCase, startWorkspaceZipJobUseCase, getWorkspaceZipJobStatusUseCase,
+                setSandboxConfigUseCase, sandboxOrchestrator,
                 conferenceRepo, eventCapabilityGuard, toolAccessUseCase, ensureUnassignedSandboxUseCase, gatewayBaseUrl,
                 publishWorkspacePreviewUseCase, revokeWorkspacePreviewUseCase, workspacePreviewTtlSeconds,
                 publishAppPreviewUseCase, revokeAppPreviewUseCase, appPreviewTtlSeconds, appPreviewBaseUrl);
         final var sandboxFilesHandler = new SandboxFilesHandler(
                 validateTokenUseCase, listWorkspaceFilesUseCase, readWorkspaceFileUseCase, writeWorkspaceFileUseCase,
                 getConferenceUseCase);
-        final var workspaceDownloadHandler = new WorkspaceDownloadHandler(downloadWorkspaceZipUseCase);
+        final var workspaceDownloadHandler = new WorkspaceDownloadHandler(
+                downloadWorkspaceZipJobUseCase, downloadWorkspaceZipUseCase);
         final var conferenceHandler = new ConferenceHandler(createConferenceUseCase, getConferenceUseCase,
                 validateTokenUseCase, joinConferenceUseCase, getConferenceHistoryUseCase, generateCertificateUseCase,
                 countAttendeesUseCase, countRegisteredAttendeesUseCase, countUniqueRegisteredAttendeesUseCase,
@@ -576,6 +597,21 @@ public class UsersApplication {
                 System.err.println("sandbox-health-scheduler: tick failed: " + e.getMessage());
             }
         }, sandboxHealthIntervalSeconds, sandboxHealthIntervalSeconds, java.util.concurrent.TimeUnit.SECONDS);
+        // Cumple el TTL de 2hs de los zips de workspace pedidos async -- ver
+        // CleanupExpiredWorkspaceZipJobsUseCase. Cada 10 min alcanza de sobra dado el TTL de horas.
+        final var workspaceZipCleanupScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            final var t = new Thread(r, "workspace-zip-cleanup-scheduler");
+            t.setDaemon(true);
+            return t;
+        });
+        workspaceZipCleanupScheduler.scheduleAtFixedRate(() -> {
+            try {
+                final int cleaned = cleanupExpiredWorkspaceZipJobsUseCase.execute(java.time.Instant.now());
+                if (cleaned > 0) System.out.println("workspace-zip-cleanup-scheduler: cleaned " + cleaned + " jobs");
+            } catch (final Exception e) {
+                System.err.println("workspace-zip-cleanup-scheduler: tick failed: " + e.getMessage());
+            }
+        }, 10, 10, java.util.concurrent.TimeUnit.MINUTES);
         reminderScheduler.scheduleAtFixedRate(() -> {
             try {
                 sendConferenceRemindersUseCase.execute(java.time.Instant.now());
