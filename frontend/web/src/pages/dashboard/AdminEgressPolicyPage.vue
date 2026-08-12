@@ -11,11 +11,11 @@
     SaveState(:state="saveState")
     FormField(label="Lista blanca (permitidos)" hint="Un dominio por línea o separados por coma. Usa *.dominio.com para incluir subdominios.")
       template(#default="{ id, describedBy }")
-        textarea(:id="id" :aria-describedby="describedBy" v-model="allowedHosts" rows="8" placeholder="github.com&#10;*.npmjs.org")
+        textarea(:id="id" :aria-describedby="describedBy" v-model="allowedHosts" rows="8" placeholder="github.com\n*.npmjs.org")
 
     FormField(label="Lista negra (bloqueados)" hint="Siempre gana sobre la lista blanca, aquí y en cada evento.")
       template(#default="{ id, describedBy }")
-        textarea(:id="id" :aria-describedby="describedBy" v-model="blockedHosts" rows="4" placeholder="localhost&#10;169.254.169.254")
+        textarea(:id="id" :aria-describedby="describedBy" v-model="blockedHosts" rows="4" placeholder="localhost\n169.254.169.254")
 
     BaseButton(:loading="saving" :disabled="saving || saveState === 'clean' || saveState === 'saved'" @click="save") Guardar cambios
     FeedbackMessage(v-if="saved" message="Cambios guardados." tone="success")
