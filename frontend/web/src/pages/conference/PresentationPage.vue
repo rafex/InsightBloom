@@ -67,7 +67,7 @@ export default {
 
     function openPresenter() {
       if (!props.conferenceId || props.presentationManager !== true) return
-      const url = `/dashboard/conferences/${props.conferenceId}/speaker`
+      const url = `/dashboard/events/${props.conferenceId}/speaker`
       const child = window.open(url, '_blank')
       if (!child) window.location.assign(url)
     }

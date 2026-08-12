@@ -170,8 +170,8 @@
     .map-created(v-if="created.latitude != null")
       ConferenceMap(:latitude="created.latitude" :longitude="created.longitude" :label="created.name")
     .actions
-      BaseLink(variant="secondary" :to="`/dashboard/conferences/${created.conferenceId}/moderation/messages`") Ver moderación mensajes
-      BaseLink(variant="secondary" :to="`/dashboard/conferences/${created.conferenceId}/moderation/words`") Ver moderación palabras
+      BaseLink(variant="secondary" :to="`/dashboard/events/${created.conferenceId}/moderation/messages`") Ver moderación mensajes
+      BaseLink(variant="secondary" :to="`/dashboard/events/${created.conferenceId}/moderation/words`") Ver moderación palabras
       BaseButton(@click="reset") Crear otra
 </template>
 

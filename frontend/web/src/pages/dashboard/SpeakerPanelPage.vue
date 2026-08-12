@@ -26,7 +26,7 @@
 
   LoadingState(v-if="!checkedStatus" message="Cargando presentación…")
   EmptyState.presentation-empty(v-else-if="!ready" message="Aún no hay una presentación subida para esta conferencia.")
-    BaseLink(:to="`/dashboard/conferences/${conferenceId}/presentation`") Subir presentación
+    BaseLink(:to="`/dashboard/events/${conferenceId}/presentation`") Subir presentación
 
   template(v-else)
     p.hint(v-if="!offlineMode") Navega el deck con las flechas del teclado, haciendo clic dentro, o con los controles de navegación — la audiencia te sigue automáticamente.
@@ -367,7 +367,7 @@ export default {
     })
 
     const breadcrumbItems = computed(() => [
-      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: 'Eventos', to: '/dashboard/events' },
       { label: conferenceName.value || props.conferenceId || '', loading: !conferenceName.value },
       { label: 'Presentar' }
     ])
