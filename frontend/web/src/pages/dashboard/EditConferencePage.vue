@@ -47,7 +47,7 @@
 
     .form-group
       label Cronograma en Markdown (opcional)
-      textarea(v-model="scheduleMarkdown" rows="8" maxlength="12000" placeholder="## 09:00 — Registro\n\nBienvenida y apertura")
+      textarea.schedule-textarea(v-model="scheduleMarkdown" rows="8" maxlength="12000" placeholder="## 09:00 — Registro\n\nBienvenida y apertura")
       details.schedule-help
         summary Ver ejemplo detallado de cronograma
         p.field-hint Usa títulos Markdown para cada bloque y listas para describir actividades. No incluyas HTML, scripts ni enlaces sensibles.
@@ -367,6 +367,11 @@ h2 { color: var(--color-heading); margin-bottom: 8px; margin-top: 0; }
   background: var(--color-surface-muted); color: var(--color-text-muted); font-family: monospace; font-size: 0.9rem;
 }
 
+/* Único textarea de esta página que es hijo directo de un .form-group plano (sin flex) en vez
+   de ir dentro de FormField (que estira sus hijos vía flex-direction:column) -- sin este ancho
+   explícito, cae al tamaño nativo por defecto del navegador (basado en el atributo cols, ~20
+   caracteres) en vez de ocupar el ancho del formulario como los demás campos. */
+.schedule-textarea { width: 100%; }
 .schedule-help { margin-top: 4px; border: 1px solid var(--color-border-subtle); border-radius: 8px; padding: 8px 12px; background: var(--color-surface-muted); }
 .schedule-help summary { cursor: pointer; color: var(--color-primary); font-size: 0.85rem; font-weight: 600; }
 .schedule-example { overflow-x: auto; margin: 8px 0 0; padding: 12px; border-radius: 8px; background: var(--color-heading); color: var(--color-primary-soft); font: 0.78rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
