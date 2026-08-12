@@ -95,6 +95,14 @@ public class UsersApplication {
                 egressPolicySeedDefaults, System.getenv("EGRESS_PROXY_ALLOWED_HOSTS"),
                 System.getenv("EGRESS_PROXY_BLOCKED_HOSTS"));
         final var egressPolicyRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteEgressPolicyRepository(db);
+        final var notificationRepo = new SqliteNotificationRepository(db);
+        // Registro compartido de streams SSE: NotificationHandler registra/desregistra conexiones
+        // acá, y SendNotificationUseCase empuja por acá cuando algo (ej. Fase 3: workspace zip
+        // listo) llama a execute(...). Ningún caso de uso de esta fase todavía llama a
+        // SendNotificationUseCase -- se instancia recién cuando exista un primer emisor real.
+        final var notificationStreamRegistry = new dev.rafex.insightbloom.users.domain.services.NotificationStreamRegistry();
+        final var listNotificationsUseCase = new ListNotificationsUseCase(notificationRepo);
+        final var markNotificationReadUseCase = new MarkNotificationReadUseCase(notificationRepo);
         final var downloadEventRepo = new SqliteDownloadEventRepository(db);
         final var timezoneRepo = new SqliteTimezoneRepository(db);
         final var reservationRepo = new SqliteReservationRepository(db);
@@ -467,6 +475,8 @@ public class UsersApplication {
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase, setAuthMethodUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
+        final var notificationHandler = new NotificationHandler(
+                listNotificationsUseCase, markNotificationReadUseCase, validateTokenUseCase, notificationStreamRegistry);
         final var certificateSettingsHandler = new CertificateSettingsHandler(
                 getCertificateSettingsUseCase, saveCertificateSettingsUseCase, validateTokenUseCase);
         final var certificateTemplateHandler = new CertificateTemplateHandler(
@@ -518,6 +528,7 @@ public class UsersApplication {
         routes.add("/api/v1/conferences/*", conferenceHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);
+        routes.add("/api/v1/notifications/*", notificationHandler);
         routes.add("/api/v1/certificate-settings/*", certificateSettingsHandler);
         routes.add("/api/v1/certificate-templates/*", certificateTemplateHandler);
         routes.add("/api/v1/admin/users/*", adminUserHandler);
