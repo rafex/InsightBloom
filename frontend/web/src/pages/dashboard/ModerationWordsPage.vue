@@ -150,7 +150,7 @@ export default {
         wordNormalized: item.wordNormalized || item.wordCanonical,
         wordCanonical: item.wordCanonical
       })
-      router.push(`/dashboard/conferences/${props.conferenceId}/moderation/messages?${params}`)
+      router.push(`/dashboard/events/${props.conferenceId}/moderation/messages?${params}`)
     }
 
     onMounted(async () => {
@@ -164,7 +164,7 @@ export default {
     })
 
     const breadcrumbItems = computed(() => [
-      { label: conferenceName.value || props.conferenceId || '', to: `/dashboard/conferences/${props.conferenceId}/moderation/words`, loading: !conferenceName.value },
+      { label: conferenceName.value || props.conferenceId || '', to: `/dashboard/events/${props.conferenceId}/moderation/words`, loading: !conferenceName.value },
       { label: 'Moderación (palabras)' }
     ])
 

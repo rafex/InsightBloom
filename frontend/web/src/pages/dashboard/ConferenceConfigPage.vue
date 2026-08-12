@@ -96,9 +96,9 @@
       FeedbackMessage(v-if="ticketSalesSaved" message="Disponibilidad de boletos actualizada." tone="success")
       FeedbackMessage(v-if="ticketSalesError" :message="ticketSalesError" tone="error")
       .ticket-links(v-if="seatingMode !== 'NONE' || eventTypes.find(t => t.key === eventTypeKey)?.capabilities.some(c => c.startsWith('TICKETING_'))")
-        BaseLink(variant="secondary" :to="`/dashboard/conferences/${conferenceId}/tickets`") Administrar boletos
-        BaseLink(variant="secondary" :to="`/dashboard/conferences/${conferenceId}/check-in`") Ir al check-in
-        BaseLink(variant="secondary" v-if="seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Editar mapa de asientos
+        BaseLink(variant="secondary" :to="`/dashboard/events/${conferenceId}/tickets`") Administrar boletos
+        BaseLink(variant="secondary" :to="`/dashboard/events/${conferenceId}/check-in`") Ir al check-in
+        BaseLink(variant="secondary" v-if="seatingMode === 'SEATED'" :to="`/dashboard/events/${conferenceId}/venue-map`") Editar mapa de asientos
 
     .form-group.sandbox-group(v-show="activeTab === 'sandbox'")
       label IDE de código
@@ -964,7 +964,7 @@ export default {
     }
 
     const breadcrumbItems = computed(() => [
-      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: 'Eventos', to: '/dashboard/events' },
       { label: conference.value?.name || props.conferenceId || '', loading: loading.value && !conference.value },
       { label: 'Configuración' }
     ])

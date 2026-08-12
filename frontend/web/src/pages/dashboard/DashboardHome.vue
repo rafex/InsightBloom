@@ -4,7 +4,7 @@
     h1 Panel
 
   .summary-group(v-if="!loading && conferences.length" id="onboarding-events-summary")
-    h2 Eventos
+    h2 Organizo
     .summary-grid
       .summary-card
         span.summary-icon(aria-hidden="true")
@@ -59,10 +59,14 @@
 
   .section(v-else-if="conferences.length === 0")
     EmptyState(message="Aún no tienes conferencias.")
-      BaseLink(to="/dashboard/conferences/new") Crear la primera
+      BaseLink(to="/dashboard/events/new") Crear la primera
 
-  .section(v-if="!loadingHistory && attendeeHistory.length" id="onboarding-attendee-events")
-    h2 Eventos a los que asistes
+  //- !loading (no solo !loadingHistory): attendeeHistory depende de `conferences` para
+  //- deduplicar (ver computed mas abajo) -- sin esperar tambien ese fetch, hay una ventana
+  //- donde se ve el historial completo sin filtrar (incluye eventos que tambien organizas)
+  //- antes de que el segundo fetch resuelva y el dedup se aplique (bug reportado 2026-08-11).
+  .section(v-if="!loading && !loadingHistory && attendeeHistory.length" id="onboarding-attendee-events")
+    h2 Inscrito
     p.section-hint Estos eventos aparecen aunque también administres o moderes otros eventos.
     .conference-grid
       .conf-card(v-for="h in attendeeHistory" :key="h.conferenceUuid" :class="{ unavailable: !h.available }")
@@ -82,7 +86,7 @@
 
 .dashboard-home(v-else)
   .dashboard-header
-    h1 Mis eventos
+    h1 Inscrito
     BaseLink(to="/dashboard/join") + Unirse a un evento
 
   .section(v-if="loadingHistory")

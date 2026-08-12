@@ -184,7 +184,7 @@ export default {
     onMounted(load)
 
     const breadcrumbItems = computed(() => [
-      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: 'Eventos', to: '/dashboard/events' },
       { label: conferenceName.value || props.conferenceId || '', loading: !conferenceName.value },
       { label: 'Video on-demand' }
     ])

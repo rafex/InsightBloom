@@ -148,7 +148,7 @@ export default {
     }
 
     const breadcrumbItems = computed(() => [
-      { label: 'Eventos', to: '/dashboard/conferences' },
+      { label: 'Eventos', to: '/dashboard/events' },
       { label: 'Candado por herramienta' }
     ])
 

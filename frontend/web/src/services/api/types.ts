@@ -27,6 +27,7 @@ export interface CanvasToolConfig {
 export type EventCapability =
   | 'TICKETING_GENERAL' | 'TICKETING_SEATED' | 'SURVEY' | 'PRESENTATION' | 'WORD_CLOUD'
   | 'CHAT_BOT' | 'VIDEO_CONFERENCE' | 'WHITEBOARD' | 'DIAGRAMMING' | 'COLLAB_NOTES' | 'CODE_IDE'
+  | 'ON_DEMAND_VIDEO'
 
 export interface IntegrationConfig {
   drawioBaseUrl?: string | null

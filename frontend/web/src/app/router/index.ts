@@ -81,8 +81,8 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
     children: [
       { path: '', component: () => import('@/pages/dashboard/DashboardHome.vue') },
-      { path: 'conferences', component: () => import('@/pages/dashboard/ConferencesListPage.vue') },
-      { path: 'conferences/new', component: () => import('@/pages/dashboard/NewConferencePage.vue') },
+      { path: 'events', component: () => import('@/pages/dashboard/ConferencesListPage.vue') },
+      { path: 'events/new', component: () => import('@/pages/dashboard/NewConferencePage.vue') },
       { path: 'join', component: () => import('@/pages/dashboard/JoinConferencePage.vue') },
       { path: 'certificate-settings', component: () => import('@/pages/dashboard/CertificateSettingsPage.vue') },
       { path: 'admin/users', component: () => import('@/pages/dashboard/AdminUsersPage.vue') },
@@ -94,86 +94,97 @@ const routes: RouteRecordRaw[] = [
       { path: 'admin/device-access', component: () => import('@/pages/dashboard/AdminDeviceAccessPage.vue') },
       { path: 'admin/egress-policy', component: () => import('@/pages/dashboard/AdminEgressPolicyPage.vue') },
       {
-        path: 'conferences/:conferenceId/edit',
+        path: 'events/:conferenceId/edit',
         component: () => import('@/pages/dashboard/EditConferencePage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/config',
+        path: 'events/:conferenceId/config',
         component: () => import('@/pages/dashboard/ConferenceConfigPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/moderation/messages',
+        path: 'events/:conferenceId/moderation/messages',
         component: () => import('@/pages/dashboard/ModerationMessagesPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/moderation/words',
+        path: 'events/:conferenceId/moderation/words',
         component: () => import('@/pages/dashboard/ModerationWordsPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/moderation/ide',
+        path: 'events/:conferenceId/moderation/ide',
         component: () => import('@/pages/dashboard/ModerationIdePage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/moderation/tools',
+        path: 'events/:conferenceId/moderation/tools',
         component: () => import('@/pages/dashboard/ModerationToolsPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/device-blocks',
+        path: 'events/:conferenceId/device-blocks',
         component: () => import('@/pages/dashboard/DeviceBlocksPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/presentation',
+        path: 'events/:conferenceId/presentation',
         component: () => import('@/pages/dashboard/PresentationManagePage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/on-demand',
+        path: 'events/:conferenceId/on-demand',
         component: () => import('@/pages/dashboard/OnDemandVideoManagePage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/speaker',
+        path: 'events/:conferenceId/speaker',
         component: () => import('@/pages/dashboard/SpeakerPanelPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/survey',
+        path: 'events/:conferenceId/survey',
         component: () => import('@/pages/dashboard/SurveyManagePage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/certificate',
+        path: 'events/:conferenceId/certificate',
         component: () => import('@/pages/dashboard/CertificateEditorPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/certificate-legacy',
+        path: 'events/:conferenceId/certificate-legacy',
         component: () => import('@/pages/dashboard/CertificateSettingsPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/check-in',
+        path: 'events/:conferenceId/check-in',
         component: () => import('@/pages/dashboard/CheckInScannerPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/tickets',
+        path: 'events/:conferenceId/tickets',
         component: () => import('@/pages/dashboard/TicketManagementPage.vue'),
         props: true
       },
       {
-        path: 'conferences/:conferenceId/venue-map',
+        path: 'events/:conferenceId/venue-map',
         component: () => import('@/pages/dashboard/VenueMapEditorPage.vue'),
         props: true
       }
     ]
+  },
+  {
+    // Compatibilidad: /dashboard/conferences se renombro a /dashboard/events (2026-08-11).
+    // Redirect dinamico para que marcadores/links viejos con cualquier sub-ruta sigan
+    // funcionando en vez de caer al catch-all de "no encontrado".
+    path: '/dashboard/conferences/:pathMatch(.*)*',
+    redirect: to => `/dashboard/events/${(to.params.pathMatch as string[]).join('/')}`
+  },
+  {
+    path: '/dashboard/conferences',
+    redirect: '/dashboard/events'
   },
   {
     // Catch-all al final: sin esto, una URL erronea renderizaba una pagina en blanco
@@ -210,7 +221,7 @@ router.beforeEach(async (to) => {
 
   const roles = (localStorage.getItem('ib_role') || '').split(',').map((r) => r.trim())
   const isOrganizerOrAdmin = roles.includes('organizer') || roles.includes('admin')
-  const organizerOnlyPaths = ['/dashboard/conferences/new', '/dashboard/certificate-settings']
+  const organizerOnlyPaths = ['/dashboard/events/new', '/dashboard/certificate-settings']
   if (organizerOnlyPaths.includes(to.path) && !isOrganizerOrAdmin) return '/dashboard'
   if (to.path === '/dashboard/admin/users' && !roles.includes('admin')) return '/dashboard'
   if (to.path === '/dashboard/admin/event-types' && !roles.includes('admin')) return '/dashboard'

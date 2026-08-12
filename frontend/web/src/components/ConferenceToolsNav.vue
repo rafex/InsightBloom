@@ -1,16 +1,16 @@
 <template lang="pug">
 nav.tools-nav(v-if="conferenceId" aria-label="Herramientas del evento")
   DropdownMenu(v-if="hasCapability('PRESENTATION') || hasCapability('SURVEY') || hasCapability('ON_DEMAND_VIDEO')" label="Contenido")
-    router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/presentation`") Gestionar presentación
-    router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/conferences/${conferenceId}/speaker`") Presentar en vivo
-    router-link(v-if="hasCapability('SURVEY')" :to="`/dashboard/conferences/${conferenceId}/survey`") Encuesta
-    router-link(v-if="hasCapability('ON_DEMAND_VIDEO')" :to="`/dashboard/conferences/${conferenceId}/on-demand`") Video on-demand
+    router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/events/${conferenceId}/presentation`") Gestionar presentación
+    router-link(v-if="hasCapability('PRESENTATION')" :to="`/dashboard/events/${conferenceId}/speaker`") Presentar en vivo
+    router-link(v-if="hasCapability('SURVEY')" :to="`/dashboard/events/${conferenceId}/survey`") Encuesta
+    router-link(v-if="hasCapability('ON_DEMAND_VIDEO')" :to="`/dashboard/events/${conferenceId}/on-demand`") Video on-demand
     BaseAnchor.menu-public-link(v-if="hasCapability('PRESENTATION') && friendlyId" variant="ghost" size="sm" :href="`/c/${friendlyId}/presentation`" @click.prevent="openPublic") Ver vista pública
   DropdownMenu(label="Moderación")
-    router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/conferences/${conferenceId}/moderation/messages`") Mensajes
-    router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/conferences/${conferenceId}/moderation/words`") Palabras/Nube
-    router-link(v-if="hasCapability('CODE_IDE')" :to="`/dashboard/conferences/${conferenceId}/moderation/ide`") Editor Monaco
-    router-link(:to="`/dashboard/conferences/${conferenceId}/moderation/tools`") Herramientas
+    router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/events/${conferenceId}/moderation/messages`") Mensajes
+    router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/events/${conferenceId}/moderation/words`") Palabras/Nube
+    router-link(v-if="hasCapability('CODE_IDE')" :to="`/dashboard/events/${conferenceId}/moderation/ide`") Editor Monaco
+    router-link(:to="`/dashboard/events/${conferenceId}/moderation/tools`") Herramientas
     BaseAnchor.menu-video-link(
       v-if="hasCapability('VIDEO_CONFERENCE') && friendlyId"
       variant="ghost"
@@ -21,15 +21,15 @@ nav.tools-nav(v-if="conferenceId" aria-label="Herramientas del evento")
       title="Abrir la videollamada en una pestaña nueva"
       aria-label="Entrar a la videollamada (abre en una pestaña nueva)"
     ) Videollamada ↗
-    router-link(v-if="isOrganizer && (hasCapability('VIDEO_CONFERENCE') || hasCapability('CODE_IDE'))" :to="`/dashboard/conferences/${conferenceId}/device-blocks`") Bloqueos
+    router-link(v-if="isOrganizer && (hasCapability('VIDEO_CONFERENCE') || hasCapability('CODE_IDE'))" :to="`/dashboard/events/${conferenceId}/device-blocks`") Bloqueos
   DropdownMenu(v-if="hasTicketing() || hasSeating()" label="Acceso")
-    router-link(v-if="hasTicketing()" :to="`/dashboard/conferences/${conferenceId}/tickets`") Boletos
-    router-link(v-if="hasSeating()" :to="`/dashboard/conferences/${conferenceId}/check-in`") Check-in
-    router-link(v-if="conference?.seatingMode === 'SEATED'" :to="`/dashboard/conferences/${conferenceId}/venue-map`") Mapa de asientos
+    router-link(v-if="hasTicketing()" :to="`/dashboard/events/${conferenceId}/tickets`") Boletos
+    router-link(v-if="hasSeating()" :to="`/dashboard/events/${conferenceId}/check-in`") Check-in
+    router-link(v-if="conference?.seatingMode === 'SEATED'" :to="`/dashboard/events/${conferenceId}/venue-map`") Mapa de asientos
   DropdownMenu(v-if="isOrganizer" label="Configuración")
-    router-link(:to="`/dashboard/conferences/${conferenceId}/edit`") Datos del evento
-    router-link(:to="`/dashboard/conferences/${conferenceId}/config`") Configuración del evento
-    router-link(:to="`/dashboard/conferences/${conferenceId}/${conference?.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") Certificado
+    router-link(:to="`/dashboard/events/${conferenceId}/edit`") Datos del evento
+    router-link(:to="`/dashboard/events/${conferenceId}/config`") Configuración del evento
+    router-link(:to="`/dashboard/events/${conferenceId}/${conference?.certificateEngine === 'HTML_CHROME' ? 'certificate' : 'certificate-legacy'}`") Certificado
 </template>
 
 <script lang="ts">

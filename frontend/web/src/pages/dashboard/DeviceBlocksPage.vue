@@ -105,7 +105,7 @@ export default {
     })
 
     const breadcrumbItems = computed(() => [
-      { label: conferenceName.value || props.conferenceId || '', to: `/dashboard/conferences/${props.conferenceId}/device-blocks`, loading: !conferenceName.value },
+      { label: conferenceName.value || props.conferenceId || '', to: `/dashboard/events/${props.conferenceId}/device-blocks`, loading: !conferenceName.value },
       { label: 'Bloqueos de dispositivo' }
     ])
 

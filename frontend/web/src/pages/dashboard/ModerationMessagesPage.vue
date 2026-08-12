@@ -290,7 +290,7 @@ export default {
     })
 
     const breadcrumbItems = computed(() => {
-      const wordsPath = `/dashboard/conferences/${props.conferenceId}/moderation/words`
+      const wordsPath = `/dashboard/events/${props.conferenceId}/moderation/words`
       const items: BreadcrumbItem[] = [
         { label: conferenceName.value || props.conferenceId || '', to: wordsPath, loading: !conferenceName.value }
       ]

@@ -9,7 +9,7 @@
         router-link(to="/dashboard" active-class="" exact-active-class="router-link-active" @click="closeSidebar") Panel
         .nav-section
           h2.nav-section-title Eventos
-          router-link(v-if="isModerator" to="/dashboard/conferences" @click="closeSidebar") Mis eventos
+          router-link(v-if="isModerator" to="/dashboard/events" @click="closeSidebar") Mis eventos
           router-link(to="/events" @click="closeSidebar") Cartelera pública
           router-link(v-if="!isOrganizer" to="/dashboard/join" @click="closeSidebar") Unirse a un evento
         .nav-section(v-if="isOrganizer || isAdmin")
