@@ -10,18 +10,6 @@
     // https://github.com/advisories/GHSA-w3rx-r6r6-pgpr
     "GHSA-w3rx-r6r6-pgpr",
     // https://github.com/advisories/GHSA-5p2g-fcmc-qvqq
-    "GHSA-5p2g-fcmc-qvqq",
-    // extract-zip: symlink de un zip malicioso puede escribir fuera del directorio de
-    // extracción. Sin fix publicado aun (confirmado via GitHub Advisory API:
-    // first_patched_version=null; extract-zip@2.0.1 sigue siendo la ultima version
-    // publicada en npm). Llega transitivamente via @marp-team/marp-cli -> puppeteer-core
-    // -> @puppeteer/browsers -> extract-zip -- este servicio no llama a extract-zip
-    // directamente ni le pasa ningun zip de origen externo/usuario: @puppeteer/browsers lo
-    // usa solo para descomprimir el binario de Chromium que ÉL MISMO descarga desde el CDN
-    // fijo de Google al instalar dependencias, nunca contenido subido por un alumno/
-    // organizador. La superficie de ataque real (procesar un zip controlado por un
-    // atacante) no aplica a este uso. Revisar y quitar del allowlist cuando exista parche.
-    // https://github.com/advisories/GHSA-jmr9-qjv8-65gv
-    "GHSA-jmr9-qjv8-65gv"
+    "GHSA-5p2g-fcmc-qvqq"
   ]
 }
