@@ -7,7 +7,7 @@ header.app-header
       router-link(to="/")
         img.brand-logo(src="@/assets/logo.svg" alt="InsightBloom")
     nav.header-nav(aria-label="Acciones de sesión")
-      span.version-tag(v-if="version") v{{ version }}{{ gitSha ? ' \u00b7 ' + gitSha : '' }}
+      NotificationBell
       router-link(v-if="auth.state.token && auth.state.role !== 'guest'" to="/dashboard") Panel
       button.header-logout(v-if="auth.state.token" type="button" @click="logout") Salir
       router-link(v-else to="/login") Entrar
@@ -17,8 +17,10 @@ header.app-header
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useAuthStore } from '@/features/auth/authStore'
 import { useRouter } from 'vue-router'
+import NotificationBell from '@/components/NotificationBell.vue'
 export default {
   name: 'AppHeader',
+  components: { NotificationBell },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
@@ -34,9 +36,7 @@ export default {
       window.removeEventListener('offline', setOffline)
     })
     function logout() { auth.logout(); router.push('/') }
-    const version = import.meta.env.VITE_APP_VERSION || 'dev'
-    const gitSha = import.meta.env.VITE_GIT_SHA?.slice(0, 7) || ''
-    return { auth, logout, online, version, gitSha }
+    return { auth, logout, online }
   }
 }
 </script>
@@ -70,7 +70,7 @@ export default {
 }
 .header-brand a { text-decoration: none; display: flex; align-items: center; }
 .brand-logo { height: 36px; width: auto; }
-.header-nav { display: flex; gap: 16px; }
+.header-nav { display: flex; gap: 16px; align-items: center; }
 .header-nav a, .header-logout {
   color: var(--color-header-link); text-decoration: none; font-size: 0.9rem;
 }
@@ -81,26 +81,10 @@ export default {
 .header-nav a:focus-visible, .header-logout:focus-visible {
   outline: 2px solid var(--color-focus); outline-offset: 4px; border-radius: 3px;
 }
-.version-tag {
-  font-size: 0.7rem; color: var(--color-header-link-muted);
-  background: rgba(255,255,255,0.08); padding: 2px 8px;
-  border-radius: 9999px; margin-left: auto;
-  white-space: nowrap; opacity: 0.7;
-}
-
 @media (max-width: 480px) {
   .header-row { padding: 10px 14px; }
   .header-nav { gap: 10px; }
   .header-nav a, .header-logout { font-size: 0.82rem; }
   .brand-logo { height: 28px; }
-  .version-tag {
-    max-width: 12ch;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-@media (max-width: 360px) {
-  .version-tag { display: none; }
 }
 </style>

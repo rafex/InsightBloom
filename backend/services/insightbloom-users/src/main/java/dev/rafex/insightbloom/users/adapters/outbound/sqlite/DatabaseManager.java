@@ -755,6 +755,23 @@ public class DatabaseManager {
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tool_access_conference ON tool_access_releases(conference_uuid)");
 
+            // Notificaciones dentro del portal (campana del header, 2026-08) -- ver
+            // SendNotificationUseCase (inserta + empuja por SSE) y NotificationHandler.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS notifications (
+                    uuid TEXT PRIMARY KEY,
+                    user_uuid TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    body TEXT,
+                    link_url TEXT,
+                    created_at TEXT NOT NULL,
+                    read_at TEXT
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_notifications_user "
+                    + "ON notifications(user_uuid, created_at DESC)");
+
             backfillMissingTicketsForSimpleJoins(conn);
             backfillMissingCapacity(conn);
         } catch (SQLException e) {

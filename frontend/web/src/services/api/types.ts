@@ -524,3 +524,18 @@ export interface AiPromptVariable {
   example: string
   autoIncludedIn: string
 }
+
+export interface NotificationItem {
+  uuid: string
+  type: string
+  title: string
+  body: string | null
+  linkUrl: string | null
+  createdAt: string
+  readAt: string | null
+}
+
+export interface NotificationList {
+  items: NotificationItem[]
+  unreadCount: number
+}

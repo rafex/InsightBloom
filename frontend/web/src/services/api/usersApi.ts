@@ -10,7 +10,7 @@ import type {
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
   TicketManagementSummary, WorkspacePreviewInfo, AppPreviewInfo, PublicConference, JaasUsage,
-  OnDemandCuePoint
+  OnDemandCuePoint, NotificationList
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 import { handleSessionResponse } from '@/features/auth/sessionGuard'
@@ -1147,4 +1147,22 @@ export async function lockTool(
 /** Botón de recuperación de un clic: libera todas las herramientas y acciones para todos. */
 export async function releaseAllTools(conferenceId: string, token: string): Promise<void> {
   await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tool-access/release-all`, {}, authHeader(token))
+}
+
+/** Lista paginada de notificaciones de la campana del header, más el conteo de no leídas. */
+export async function getNotifications(
+  token: string, limit = 20, offset = 0
+): Promise<NotificationList> {
+  const res = await axios.get('/api/users/api/v1/notifications',
+    { ...authHeader(token), params: { limit, offset } })
+  return res.data.data
+}
+
+export async function markNotificationRead(uuid: string, token: string): Promise<void> {
+  await axios.post(`/api/users/api/v1/notifications/${uuid}/read`, {}, authHeader(token))
+}
+
+/** Stream autenticado que empuja cada notificación nueva en vivo (ver SendNotificationUseCase). */
+export function streamNotifications(token: string): AuthenticatedEventStream {
+  return new AuthenticatedEventStream('/api/users/api/v1/notifications/stream', token)
 }
