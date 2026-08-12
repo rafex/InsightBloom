@@ -10,6 +10,8 @@ import dev.rafex.insightbloom.users.application.usecases.AssignSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.EnsureUnassignedSandboxUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateWorkspaceDownloadUrlUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetSandboxAvailabilityUseCase;
+import dev.rafex.insightbloom.users.application.usecases.GetWorkspaceZipJobStatusUseCase;
+import dev.rafex.insightbloom.users.application.usecases.StartWorkspaceZipJobUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetSandboxConfigUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.PublishWorkspacePreviewUseCase;
@@ -44,6 +46,8 @@ public class SandboxHandler extends BaseResourceHandler {
     private final GetSandboxAvailabilityUseCase getSandboxAvailabilityUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
     private final GenerateWorkspaceDownloadUrlUseCase generateWorkspaceDownloadUrlUseCase;
+    private final StartWorkspaceZipJobUseCase startWorkspaceZipJobUseCase;
+    private final GetWorkspaceZipJobStatusUseCase getWorkspaceZipJobStatusUseCase;
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
     private final SandboxOrchestrator sandboxOrchestrator;
     private final ConferenceRepository conferenceRepository;
@@ -68,6 +72,8 @@ public class SandboxHandler extends BaseResourceHandler {
                          final GetSandboxAvailabilityUseCase getSandboxAvailabilityUseCase,
                          final ValidateTokenUseCase validateTokenUseCase,
                          final GenerateWorkspaceDownloadUrlUseCase generateWorkspaceDownloadUrlUseCase,
+                         final StartWorkspaceZipJobUseCase startWorkspaceZipJobUseCase,
+                         final GetWorkspaceZipJobStatusUseCase getWorkspaceZipJobStatusUseCase,
                          final SetSandboxConfigUseCase setSandboxConfigUseCase,
                          final SandboxOrchestrator sandboxOrchestrator,
                          final ConferenceRepository conferenceRepository,
@@ -86,6 +92,8 @@ public class SandboxHandler extends BaseResourceHandler {
         this.getSandboxAvailabilityUseCase = getSandboxAvailabilityUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
         this.generateWorkspaceDownloadUrlUseCase = generateWorkspaceDownloadUrlUseCase;
+        this.startWorkspaceZipJobUseCase = startWorkspaceZipJobUseCase;
+        this.getWorkspaceZipJobStatusUseCase = getWorkspaceZipJobStatusUseCase;
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
         this.sandboxOrchestrator = sandboxOrchestrator;
         this.conferenceRepository = conferenceRepository;
@@ -136,6 +144,8 @@ public class SandboxHandler extends BaseResourceHandler {
             Route.of("/{id}/sandbox/stream", Set.of("GET")),
             Route.of("/{id}/sandbox/availability", Set.of("GET")),
             Route.of("/{id}/sandbox/download", Set.of("POST")),
+            Route.of("/{id}/sandbox/download/start", Set.of("POST")),
+            Route.of("/{id}/sandbox/download/status/{jobUuid}", Set.of("GET")),
             Route.of("/{id}/sandbox/preview", Set.of("POST")),
             Route.of("/{id}/sandbox/preview/{publicationId}", Set.of("DELETE")),
             Route.of("/{id}/sandbox/app-preview", Set.of("POST")),
@@ -152,6 +162,9 @@ public class SandboxHandler extends BaseResourceHandler {
     @Override
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().contains("/sandbox/download/status/")) {
+            return handleGetDownloadJobStatus(jx, jx.pathParam("jobUuid"));
+        }
         if (jx.path().endsWith("/sandbox/availability")) {
             return handleGetAvailability(jx, jx.pathParam("id"));
         }
@@ -167,6 +180,9 @@ public class SandboxHandler extends BaseResourceHandler {
     @Override
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/sandbox/download/start")) {
+            return handleStartDownloadJob(jx, jx.pathParam("id"));
+        }
         if (jx.path().endsWith("/sandbox/download")) {
             return handleDownloadRequest(jx, jx.pathParam("id"));
         }
@@ -492,6 +508,65 @@ public class SandboxHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", "Internal server error");
             return true;
         }
+    }
+
+    /** Arranca el armado del zip en background (ver StartWorkspaceZipJobUseCase) y devuelve de
+     * inmediato -- reemplaza a handleDownloadRequest para workspaces pesados que antes daban
+     * timeout. El botón de IdePage.vue pasa a pollear handleGetDownloadJobStatus. */
+    private boolean handleStartDownloadJob(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            if (rejectIfToolNotReleased(jx, conferenceId, v.subjectUuid(), ToolKey.IDE_DOWNLOAD)) return true;
+
+            final var job = startWorkspaceZipJobUseCase.execute(conferenceId, v.subjectUuid());
+            sendOk(jx, 201, Map.of("jobUuid", job.uuid(), "status", job.status()));
+        } catch (final IllegalArgumentException e) {
+            if ("sandbox_not_assigned".equals(e.getMessage())) {
+                sendError(jx, 404, "sandbox_not_assigned", "No sandbox assigned");
+            } else {
+                sendError(jx, 400, "invalid_request", e.getMessage());
+            }
+        } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: error inesperado en " + jx.path(), e);
+            sendError(jx, 500, "internal_error", "Internal server error");
+        }
+        return true;
+    }
+
+    private boolean handleGetDownloadJobStatus(final JettyHttpExchange jx, final String jobUuid) {
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return true;
+        }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) {
+                sendError(jx, 401, "token_invalid", "Invalid token");
+                return true;
+            }
+            final var status = getWorkspaceZipJobStatusUseCase.execute(jobUuid, v.subjectUuid());
+            final Map<String, Object> response = new java.util.LinkedHashMap<>();
+            response.put("status", status.status());
+            response.put("downloadUrl", status.downloadUrl());
+            response.put("errorMessage", status.errorMessage());
+            sendOk(jx, 200, response);
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, "job_not_found", "No se encontró el pedido de descarga");
+        } catch (final Exception e) {
+            LOGGER.log(Level.SEVERE, "SandboxHandler: error inesperado en " + jx.path(), e);
+            sendError(jx, 500, "internal_error", "Internal server error");
+        }
+        return true;
     }
 
     private boolean handleSetSandboxConfig(final JettyHttpExchange jx, final String conferenceId) {
