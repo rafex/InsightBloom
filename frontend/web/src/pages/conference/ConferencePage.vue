@@ -107,7 +107,14 @@
         h2 Registro y boleto requeridos
         p La vista pública se limita a las primeras 5 diapositivas. Regístrate y canjea tu boleto para acceder al resto del evento.
         BaseLink(:to="`/c/${friendlyId}/ticket`") Ver mi boleto / canjear
-      router-view(v-else :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :on-demand-video-provider="conference.onDemandVideoProvider" :on-demand-video-url="conference.onDemandVideoUrl" :on-demand-cue-points="conference.onDemandCuePoints" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator" :event-name="conference.name" :event-description="conference.description" :flyer-base64="conference.flyerBase64" :schedule-markdown="conference.scheduleMarkdown")
+      //- Deep-link directo a una herramienta no habilitada (capability del tipo de evento, o
+      //- candado en vivo del moderador): antes de esto el gating solo ocultaba el boton de la
+      //- pestana -- si alguien compartia/escribia la URL igual se montaba la pagina. Mientras
+      //- capabilities/toolAccess todavia cargan, se espera (evita un falso negativo que
+      //- redirija de mas); una vez resueltos, si la ruta activa no pasa isCurrentToolAllowed,
+      //- el watch de route.path mas abajo redirige a flyer (unica pestana sin ningun v-if).
+      LoadingState(v-else-if="!toolAccessLoaded" message="Verificando acceso…")
+      router-view(v-else-if="isCurrentToolAllowed" :conference-id="conference.conferenceId || conference.uuid" :presentation-source-url="conference.presentationSourceUrl" :on-demand-video-provider="conference.onDemandVideoProvider" :on-demand-video-url="conference.onDemandVideoUrl" :on-demand-cue-points="conference.onDemandCuePoints" :seating-mode="conference.seatingMode" :ticketed="conference.seatingMode !== 'NONE' || hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')" :invite-alias="friendlyId" :access-granted="routeAccess" :presentation-manager="presentationManagementAccess" :canvas-audience-mode="currentCanvasAudienceMode" :canvas-moderator="isCanvasModerator" :event-name="conference.name" :event-description="conference.description" :flyer-base64="conference.flyerBase64" :schedule-markdown="conference.scheduleMarkdown")
 
     OnboardingTour(storage-key="ib_onboarding_conference_v2" :steps="attendeeTourSteps")
 
@@ -140,7 +147,7 @@ import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getConferenceByFriendlyId, getTimezones, getActiveEventTypes, joinConference, getConferenceAccess, getPresentationManagementAccess, createChatSsoExchange, getToolAccess } from '@/services/api/usersApi'
 import type { ToolKeyName } from '@/services/api/usersApi'
 import type { Conference, Timezone, EventCapability } from '@/services/api/types'
@@ -166,6 +173,7 @@ export default {
   components: { AppHeader, BaseAnchor, BaseButton, BaseLink, ConferenceIntroMap, EmptyState, FeedbackMessage, LoadingState, OnboardingTour, OnDemandFloatingVideo, UiIcon },
   setup() {
     const route      = useRoute()
+    const router     = useRouter()
     const friendlyId = route.params.friendlyId as string
     const conference = ref<Conference | null>(null)
     const loading    = ref(true)
@@ -190,14 +198,20 @@ export default {
     // por el TIPO de evento), esto lo prende/apaga el moderador en vivo por evento -- arranca
     // todo bloqueado (mapa vacio = { } = false para toda clave) hasta que se resuelva el fetch.
     const toolAccess = ref<Partial<Record<ToolKeyName, boolean>>>({})
+    // Distinto de `loading`: cubre el guard de deep-links de abajo -- mientras esto es false,
+    // no sabemos todavia si la ruta activa esta permitida (capabilities Y toolAccess tienen que
+    // haber resuelto), asi que se muestra un loading en vez de arriesgar un falso negativo.
+    const toolAccessLoaded = ref(false)
     function toolReleased(key: ToolKeyName): boolean {
       return toolAccess.value[key] === true
     }
     async function loadToolAccess() {
-      if (!conference.value) return
+      if (!conference.value) { toolAccessLoaded.value = true; return }
       try {
         toolAccess.value = await getToolAccess(conference.value.uuid, auth.state.token)
-      } catch { /* best-effort: si falla, todo queda bloqueado (fail-closed) */ }
+      } catch { /* best-effort: si falla, todo queda bloqueado (fail-closed) */ } finally {
+        toolAccessLoaded.value = true
+      }
     }
 
     async function refreshEventAccess() {
@@ -253,6 +267,15 @@ export default {
       void nextTick(scrollActiveTabIntoView)
     })
 
+    // Redirige a flyer (unica pestana siempre accesible) si la ruta activa no pasa el gating de
+    // capability/toolReleased -- cubre tanto el deep-link directo (dispara apenas
+    // toolAccessLoaded pasa a true) como cambiar de pestana a una que se vuelve invalida en vivo
+    // (el moderador puede alternar toolReleased mientras el usuario ya esta ahi).
+    watch([() => route.path, toolAccessLoaded, () => capabilities.value], () => {
+      if (!toolAccessLoaded.value) return
+      if (!isCurrentToolAllowed.value) router.replace(`/c/${friendlyId}/flyer`)
+    })
+
     function hasCapability(capability: EventCapability): boolean {
       // Sin catálogo cargado (aún cargando o falló), no se ocultan pestañas — evita parpadeo
       // y deja que el backend siga siendo la fuente de verdad autoritativa (409 si no aplica).
@@ -293,6 +316,26 @@ export default {
     // The presentation route has a narrower authorization contract than the
     // rest of the private event tools.
     const routeAccess = computed(() => isPublicRoute.value ? presentationAccess.value : privateAccess.value)
+
+    // Mismo mapeo ruta->capability que ya usa cada v-if de la barra de pestanas mas arriba --
+    // se repite aca (en vez de extraerlo a un composable compartido, fuera de alcance de este
+    // fix puntual) para bloquear tambien el RENDER de la pagina, no solo el boton. Rutas sin
+    // entrada explicita (flyer, schedule, y cualquier otra no listada aca) quedan permitidas por
+    // default -- son las que ya no tienen ningun v-if condicional en la barra tampoco.
+    function isPathAllowed(path: string): boolean {
+      if (path.endsWith('/ticket')) return hasCapability('TICKETING_GENERAL') || hasCapability('TICKETING_SEATED')
+      if (path.endsWith('/doubts')) return privateAllowed('WORD_CLOUD') && toolReleased('DOUBTS')
+      if (path.endsWith('/topics')) return privateAllowed('WORD_CLOUD') && toolReleased('TOPICS')
+      if (path.endsWith('/presentation')) return hasCapability('PRESENTATION') && toolReleased('PRESENTATION')
+      if (path.endsWith('/on-demand')) return privateAllowed('ON_DEMAND_VIDEO')
+      if (path.endsWith('/survey')) return privateAllowed('SURVEY')
+      if (path.endsWith('/diagrams')) return canvasAllowed('DRAWIO', 'DIAGRAMMING') && toolReleased('DIAGRAMS')
+      if (path.endsWith('/whiteboard')) return canvasAllowed('EXCALIDRAW', 'WHITEBOARD') && toolReleased('WHITEBOARD')
+      if (path.endsWith('/notes')) return canvasAllowed('ETHERPAD', 'COLLAB_NOTES') && toolReleased('NOTES')
+      if (path.endsWith('/ide')) return privateAllowed('CODE_IDE') && toolReleased('IDE')
+      return true
+    }
+    const isCurrentToolAllowed = computed(() => isPathAllowed(route.path))
 
     const isAnonymous = !auth.isAuthenticated() || auth.state.role === 'guest'
     const attendeeTourSteps = ATTENDEE_TOUR_STEPS
@@ -418,7 +461,7 @@ export default {
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
       privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed,
       toolbarRef, toolbarFadeLeft, toolbarFadeRight, updateToolbarFades, toolReleased,
-      onDemandVideoClosed
+      onDemandVideoClosed, toolAccessLoaded, isCurrentToolAllowed
     }
   }
 }
