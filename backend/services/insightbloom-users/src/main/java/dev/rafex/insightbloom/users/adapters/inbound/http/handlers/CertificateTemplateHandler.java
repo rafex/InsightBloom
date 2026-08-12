@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.inbound.http.handlers;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.exchange.JettyHttpExchange;
@@ -14,6 +15,7 @@ import dev.rafex.insightbloom.users.domain.ports.CertificateSettingsRepository;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.services.CertificateTemplateCatalog;
 import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
+import dev.rafex.insightbloom.users.domain.services.ImageNormalizer;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 
 import java.time.Instant;
@@ -34,6 +36,14 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
     private static final Pattern SAFE_COLOR = Pattern.compile("^(#[0-9a-f]{3,8}|rgba?\\([0-9., %]+\\)|transparent)$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SAFE_BORDER = Pattern.compile("^(none|\\d{1,3}px\\s+solid\\s+#[0-9a-f]{3,8})$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SAFE_IMAGE = Pattern.compile("^data:image/(png|jpeg|gif|webp|svg\\+xml);base64,[a-z0-9+/=]+$", Pattern.CASE_INSENSITIVE);
+    // Solo se re-procesan PNG/JPEG (ver ImageNormalizer.normalizeIfSupported) -- gif/webp/svg
+    // ya validados arriba por SAFE_IMAGE se guardan tal cual, sin optimizar.
+    // El fondo puede ser una imagen de página completa (impresión) -- tope de salida más alto
+    // que el de bloques individuales (logo, íconos) para no perder calidad visible.
+    private static final ImageNormalizer.Options CERTIFICATE_BACKGROUND_OPTIONS = new ImageNormalizer.Options(
+            MAX_CERTIFICATE_IMAGE_LENGTH + 100_000, 2 * 1024 * 1024, 6000, 2600, true, "certificate_background");
+    private static final ImageNormalizer.Options CERTIFICATE_BLOCK_IMAGE_OPTIONS = new ImageNormalizer.Options(
+            MAX_CERTIFICATE_IMAGE_LENGTH + 100_000, 2 * 1024 * 1024, 6000, 1200, true, "certificate_image");
     private final CertificateTemplateRepository templateRepository;
     private final ConferenceRepository conferenceRepository;
     private final EventPermissionGuard permissionGuard;
@@ -144,9 +154,9 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
                     ? s.trim() : catalog.map(CertificateTemplateCatalog.Entry::name).orElse("Personalizada");
             final String engine = body.get("engine") instanceof String s ? s : "HTML_CHROME";
             final String documentJson = body.get("documentJson") instanceof String s ? s : null;
-            validateDocument(engine, documentJson);
+            final String normalizedDocumentJson = validateAndNormalizeDocument(engine, documentJson);
             final int version = templateRepository.findByConferenceUuid(conferenceUuid).map(t -> t.getVersion() + 1).orElse(1);
-            final CertificateTemplate saved = new CertificateTemplate(conferenceUuid, key, name, engine, documentJson,
+            final CertificateTemplate saved = new CertificateTemplate(conferenceUuid, key, name, engine, normalizedDocumentJson,
                     version, auth.subjectUuid(), Instant.now());
             templateRepository.save(saved);
             // La conferencia es la fuente de verdad que consulta GenerateCertificateUseCase.
@@ -163,7 +173,9 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
         return true;
     }
 
-    private void validateDocument(final String engine, final String documentJson) {
+    /** Valida el documento y devuelve su JSON con las imágenes (fondo + bloques tipo image)
+     * redimensionadas/recomprimidas -- el string devuelto es el que se persiste, no el original. */
+    private String validateAndNormalizeDocument(final String engine, final String documentJson) {
         if (!"HTML_CHROME".equals(engine)) throw new IllegalArgumentException("El motor debe ser HTML_CHROME");
         if (documentJson == null || documentJson.isBlank() || documentJson.length() > MAX_DOCUMENT_LENGTH) {
             throw new IllegalArgumentException("El documento es obligatorio y no puede exceder 6 MB");
@@ -176,8 +188,31 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
             if (root.path("blocks").size() > 100) throw new IllegalArgumentException("Máximo 100 bloques");
             validatePage(root.path("page"));
             for (final JsonNode block : root.path("blocks")) validateBlock(block);
+            normalizeDocumentImages(root);
+            final String normalized = json.toJson(root);
+            if (normalized.length() > MAX_DOCUMENT_LENGTH) {
+                throw new IllegalArgumentException("El documento es obligatorio y no puede exceder 6 MB");
+            }
+            return normalized;
         } catch (IllegalArgumentException e) { throw e; }
         catch (Exception e) { throw new IllegalArgumentException("El documento no es JSON válido"); }
+    }
+
+    private static void normalizeDocumentImages(final JsonNode root) {
+        final JsonNode page = root.path("page");
+        if (page.isObject() && page.has("backgroundImage")) {
+            final String normalized = ImageNormalizer.normalizeIfSupported(
+                    page.path("backgroundImage").asText(), CERTIFICATE_BACKGROUND_OPTIONS);
+            ((ObjectNode) page).put("backgroundImage", normalized);
+        }
+        for (final JsonNode block : root.path("blocks")) {
+            if (block.isObject() && "image".equals(block.path("type").asText(""))
+                    && block.has("src") && block.path("src").isTextual()) {
+                final String normalized = ImageNormalizer.normalizeIfSupported(
+                        block.path("src").asText(), CERTIFICATE_BLOCK_IMAGE_OPTIONS);
+                ((ObjectNode) block).put("src", normalized);
+            }
+        }
     }
 
     private static void validatePage(final JsonNode page) {
@@ -271,7 +306,10 @@ public final class CertificateTemplateHandler extends BaseResourceHandler {
 
     private CertificateSettings settingsFromBody(final Map<String, Object> body) {
         final CertificateSettings defaults = certificateSettingsRepository.get();
-        if (body.get("logoBase64") instanceof String s) defaults.setLogoBase64(s.isBlank() ? null : s);
+        if (body.get("logoBase64") instanceof String s) {
+            defaults.setLogoBase64(s.isBlank() ? null
+                    : ImageNormalizer.normalizeIfSupported(s, CERTIFICATE_BLOCK_IMAGE_OPTIONS));
+        }
         if (body.get("fontFamily") instanceof String s) defaults.setFontFamily(s);
         if (body.get("titleFontSize") instanceof Number n) defaults.setTitleFontSize(n.intValue());
         if (body.get("bodyFontSize") instanceof Number n) defaults.setBodyFontSize(n.intValue());
