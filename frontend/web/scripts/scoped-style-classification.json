@@ -56,6 +56,7 @@
   "src/pages/dashboard/AdminAiSettingsPage.vue": "domain-screen",
   "src/pages/dashboard/AdminDeviceAccessPage.vue": "domain-screen",
   "src/pages/dashboard/AdminEgressPolicyPage.vue": "domain-screen",
+  "src/pages/dashboard/AdminImagePolicyPage.vue": "domain-screen",
   "src/pages/dashboard/AdminUsersPage.vue": "domain-screen",
   "src/pages/dashboard/CertificateEditorPage.vue": "domain-screen",
   "src/pages/dashboard/CertificateSettingsPage.vue": "domain-screen",
