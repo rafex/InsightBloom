@@ -16,7 +16,7 @@
     "@excalidraw/excalidraw": "^0.18.1",
     "@thumbmarkjs/thumbmarkjs": "^1.10.1",
     "animate.css": "^4.1.1",
-    "axios": "^1.7.9",
+    "axios": "^1.19.0",
     "d3": "^7.9.0",
     "d3-cloud": "^1.2.9",
     "leaflet": "^1.9.4",
