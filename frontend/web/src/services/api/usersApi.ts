@@ -1022,6 +1022,37 @@ export async function setConferenceEgressPolicy(
   return res.data.data
 }
 
+export interface ImagePolicyView {
+  allowedImages: string | null
+  blockedImages: string | null
+}
+
+export async function getGlobalImagePolicy(token: string): Promise<ImagePolicyView> {
+  const res = await axios.get('/api/users/api/v1/settings/image-policy', authHeader(token))
+  return res.data.data
+}
+
+export async function setGlobalImagePolicy(
+  allowedImages: string | null, blockedImages: string | null, token: string
+): Promise<ImagePolicyView> {
+  const res = await axios.put('/api/users/api/v1/settings/image-policy',
+    { allowedImages, blockedImages }, authHeader(token))
+  return res.data.data
+}
+
+export async function getConferenceImagePolicy(conferenceId: string, token: string): Promise<ImagePolicyView> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/image-policy`, authHeader(token))
+  return res.data.data
+}
+
+export async function setConferenceImagePolicy(
+  conferenceId: string, allowedImages: string | null, blockedImages: string | null, token: string
+): Promise<ImagePolicyView> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/image-policy`,
+    { allowedImages, blockedImages }, authHeader(token))
+  return res.data.data
+}
+
 export async function listPlatformDeviceBlocks(token: string): Promise<PlatformDeviceBlock[]> {
   const res = await axios.get('/api/users/api/v1/settings/device-blocks', authHeader(token))
   return res.data.data

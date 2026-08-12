@@ -574,6 +574,8 @@ public class DatabaseManager {
             // y egress_policies (tabla de abajo) para la capa por evento que se suma encima.
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "egress_allowed_hosts", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "egress_blocked_hosts", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "image_allow_list", "TEXT");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "image_block_list", "TEXT");
 
             // Dispositivos bloqueados a nivel PLATAFORMA (no un evento puntual) por multicuenta o
             // spam de registro -- ver PlatformDeviceGuard. Un system_admin decide desbloquear
@@ -791,6 +793,18 @@ public class DatabaseManager {
             """);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_workspace_zip_jobs_expires "
                     + "ON workspace_zip_jobs(expires_at)");
+
+            // Whitelist/blacklist de imágenes de contenedor POR EVENTO (2026-08) -- se suma a la
+            // global en platform_settings.image_allow_list/image_block_list, mismo patrón que
+            // egress_policies. Ver ResolveImagePolicyUseCase, ContainerfileValidator.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS image_policies (
+                    conference_uuid TEXT PRIMARY KEY,
+                    allowed_images TEXT,
+                    blocked_images TEXT,
+                    updated_at TEXT NOT NULL
+                )
+            """);
 
             backfillMissingTicketsForSimpleJoins(conn);
             backfillMissingCapacity(conn);

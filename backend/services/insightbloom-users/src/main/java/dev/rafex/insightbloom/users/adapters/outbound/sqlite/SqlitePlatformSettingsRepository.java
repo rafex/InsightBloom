@@ -50,6 +50,8 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             s.setMaxRegistrationsPerDevicePerDay(rs.wasNull() ? null : maxRegistrationsPerDevicePerDay);
             s.setEgressAllowedHosts(rs.getString("egress_allowed_hosts"));
             s.setEgressBlockedHosts(rs.getString("egress_blocked_hosts"));
+            s.setImageAllowList(rs.getString("image_allow_list"));
+            s.setImageBlockList(rs.getString("image_block_list"));
             return s;
         } catch (final SQLException e) {
             throw new RuntimeException("Failed to load platform settings", e);
@@ -66,8 +68,9 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             INSERT INTO platform_settings
                 (id, chat_ai_enabled, chat_system_prompt, chat_guardrails, chat_temperature, ai_base_url, ai_model,
                  ai_api_key_ciphertext, updated_at, max_accounts_per_device, max_sessions_per_user,
-                 max_registrations_per_device_per_day, egress_allowed_hosts, egress_blocked_hosts)
-            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 max_registrations_per_device_per_day, egress_allowed_hosts, egress_blocked_hosts,
+                 image_allow_list, image_block_list)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 chat_ai_enabled = excluded.chat_ai_enabled,
                 chat_system_prompt = excluded.chat_system_prompt,
@@ -81,7 +84,9 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
                 max_sessions_per_user = excluded.max_sessions_per_user,
                 max_registrations_per_device_per_day = excluded.max_registrations_per_device_per_day,
                 egress_allowed_hosts = excluded.egress_allowed_hosts,
-                egress_blocked_hosts = excluded.egress_blocked_hosts
+                egress_blocked_hosts = excluded.egress_blocked_hosts,
+                image_allow_list = excluded.image_allow_list,
+                image_block_list = excluded.image_block_list
             """;
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, s.isChatAiEnabled() ? 1 : 0);
@@ -101,6 +106,8 @@ public class SqlitePlatformSettingsRepository implements PlatformSettingsReposit
             else ps.setNull(11, Types.INTEGER);
             ps.setString(12, s.getEgressAllowedHosts());
             ps.setString(13, s.getEgressBlockedHosts());
+            ps.setString(14, s.getImageAllowList());
+            ps.setString(15, s.getImageBlockList());
             ps.executeUpdate();
             saveProvider(c, "tutor", s.getTutorAi());
             saveProvider(c, "survey", s.getSurveyAi());

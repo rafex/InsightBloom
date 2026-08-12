@@ -95,6 +95,7 @@ public class UsersApplication {
                 egressPolicySeedDefaults, System.getenv("EGRESS_PROXY_ALLOWED_HOSTS"),
                 System.getenv("EGRESS_PROXY_BLOCKED_HOSTS"));
         final var egressPolicyRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteEgressPolicyRepository(db);
+        final var imagePolicyRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteImagePolicyRepository(db);
         final var notificationRepo = new SqliteNotificationRepository(db);
         // Registro compartido de streams SSE: NotificationHandler registra/desregistra conexiones
         // acá, y SendNotificationUseCase empuja por acá.
@@ -451,6 +452,8 @@ public class UsersApplication {
                 conferenceRepo, maxPoolSizePerEvent, maxJvmHeapMbDebian, maxJvmHeapMbNeovim);
         final var egressPolicyUseCase =
                 new dev.rafex.insightbloom.users.application.usecases.EgressPolicyUseCase(egressPolicyRepo);
+        final var imagePolicyUseCase =
+                new dev.rafex.insightbloom.users.application.usecases.ImagePolicyUseCase(imagePolicyRepo);
         final var setCanvasConfigUseCase = new dev.rafex.insightbloom.users.application.usecases.SetCanvasConfigUseCase(conferenceRepo);
         final var setDeviceAccessConfigUseCase = new SetDeviceAccessConfigUseCase(conferenceRepo);
         final var listDeviceBlocksUseCase = new ListDeviceBlocksUseCase(deviceBlockRepo);
@@ -485,7 +488,7 @@ public class UsersApplication {
                 getEventDiagramUseCase, saveEventDiagramUseCase,
                 getEventWhiteboardUseCase, saveEventWhiteboardUseCase,
                 generateJaasTokenUseCase, generateSeatLayoutUseCase,
-                setSandboxConfigUseCase, egressPolicyUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
+                setSandboxConfigUseCase, egressPolicyUseCase, imagePolicyUseCase, setSandboxInternetUseCase, ensureUnassignedSandboxUseCase,
                 prewarmSandboxPoolUseCase,
                 resetSandboxUseCase,
                 listSandboxIncidentsUseCase, listSandboxStatusUseCase,
@@ -522,9 +525,16 @@ public class UsersApplication {
         final var resolveEgressPolicyUseCase =
                 new dev.rafex.insightbloom.users.application.usecases.ResolveEgressPolicyUseCase(
                         sandboxOrchestrator, conferenceRepo, platformSettingsRepo, egressPolicyRepo);
+        final var setGlobalImagePolicyUseCase =
+                new dev.rafex.insightbloom.users.application.usecases.SetGlobalImagePolicyUseCase(platformSettingsRepo);
+        // ResolveImagePolicyUseCase (ver domain/services/ContainerfileValidator.java) se instancia
+        // recién cuando PublishContainerUseCase exista -- requiere el prerequisito de infra
+        // sysbox-runc, todavía no resuelto. Por ahora solo está wireada la administración del
+        // whitelist/blacklist (global + por evento), ya consumible desde el dashboard.
         final var platformSettingsHandler = new PlatformSettingsHandler(
                 getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase, setAiSettingsUseCase,
-                setDeviceAccessSettingsUseCase, setGlobalEgressPolicyUseCase, listPlatformDeviceBlocksUseCase,
+                setDeviceAccessSettingsUseCase, setGlobalEgressPolicyUseCase, setGlobalImagePolicyUseCase,
+                listPlatformDeviceBlocksUseCase,
                 unblockPlatformDeviceUseCase, listDeviceFingerprintFlagsUseCase, reviewDeviceFingerprintFlagUseCase,
                 validateTokenUseCase);
         final var internalSandboxTargetHandler = new InternalSandboxTargetHandler(resolveSandboxTargetUseCase);

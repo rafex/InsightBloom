@@ -16,6 +16,10 @@ public class PlatformSettings {
     // ResolveEgressPolicyUseCase para como se combina con la capa por evento (EgressPolicy).
     private String egressAllowedHosts;
     private String egressBlockedHosts;
+    // Whitelist/blacklist de imágenes base de contenedor (2026-08, ver ResolveImagePolicyUseCase/
+    // PublishContainerUseCase) -- mismo patrón de herencia en capas que egress.
+    private String imageAllowList;
+    private String imageBlockList;
 
     public static PlatformSettings defaults() {
         final PlatformSettings s = new PlatformSettings();
@@ -67,4 +71,8 @@ public class PlatformSettings {
     public void setEgressAllowedHosts(final String egressAllowedHosts) { this.egressAllowedHosts = egressAllowedHosts; }
     public String getEgressBlockedHosts() { return egressBlockedHosts; }
     public void setEgressBlockedHosts(final String egressBlockedHosts) { this.egressBlockedHosts = egressBlockedHosts; }
+    public String getImageAllowList() { return imageAllowList; }
+    public void setImageAllowList(final String imageAllowList) { this.imageAllowList = imageAllowList; }
+    public String getImageBlockList() { return imageBlockList; }
+    public void setImageBlockList(final String imageBlockList) { this.imageBlockList = imageBlockList; }
 }

@@ -13,6 +13,7 @@ import dev.rafex.insightbloom.users.application.usecases.SetChatSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetAiSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetDeviceAccessSettingsUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetGlobalEgressPolicyUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SetGlobalImagePolicyUseCase;
 import dev.rafex.insightbloom.users.application.usecases.UnblockPlatformDeviceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.domain.model.DeviceFingerprintFlag;
@@ -41,6 +42,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
     private final SetAiSettingsUseCase setAiSettingsUseCase;
     private final SetDeviceAccessSettingsUseCase setDeviceAccessSettingsUseCase;
     private final SetGlobalEgressPolicyUseCase setGlobalEgressPolicyUseCase;
+    private final SetGlobalImagePolicyUseCase setGlobalImagePolicyUseCase;
     private final ListPlatformDeviceBlocksUseCase listPlatformDeviceBlocksUseCase;
     private final UnblockPlatformDeviceUseCase unblockPlatformDeviceUseCase;
     private final ListDeviceFingerprintFlagsUseCase listDeviceFingerprintFlagsUseCase;
@@ -53,6 +55,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                                     final SetAiSettingsUseCase setAiSettingsUseCase,
                                     final SetDeviceAccessSettingsUseCase setDeviceAccessSettingsUseCase,
                                     final SetGlobalEgressPolicyUseCase setGlobalEgressPolicyUseCase,
+                                    final SetGlobalImagePolicyUseCase setGlobalImagePolicyUseCase,
                                     final ListPlatformDeviceBlocksUseCase listPlatformDeviceBlocksUseCase,
                                     final UnblockPlatformDeviceUseCase unblockPlatformDeviceUseCase,
                                     final ListDeviceFingerprintFlagsUseCase listDeviceFingerprintFlagsUseCase,
@@ -64,6 +67,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         this.setAiSettingsUseCase = setAiSettingsUseCase;
         this.setDeviceAccessSettingsUseCase = setDeviceAccessSettingsUseCase;
         this.setGlobalEgressPolicyUseCase = setGlobalEgressPolicyUseCase;
+        this.setGlobalImagePolicyUseCase = setGlobalImagePolicyUseCase;
         this.listPlatformDeviceBlocksUseCase = listPlatformDeviceBlocksUseCase;
         this.unblockPlatformDeviceUseCase = unblockPlatformDeviceUseCase;
         this.listDeviceFingerprintFlagsUseCase = listDeviceFingerprintFlagsUseCase;
@@ -93,6 +97,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                 Route.of("/ai/{capability}", Set.of("PUT")),
                 Route.of("/device-access", Set.of("GET", "PUT")),
                 Route.of("/egress-policy", Set.of("GET", "PUT")),
+                Route.of("/image-policy", Set.of("GET", "PUT")),
                 Route.of("/device-blocks", Set.of("GET")),
                 Route.of("/device-blocks/{blockId}/unblock", Set.of("POST")),
                 Route.of("/device-fingerprint-flags", Set.of("GET")),
@@ -127,6 +132,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/device-access")) return handleGetDeviceAccess(jx);
         if (path.endsWith("/egress-policy")) return handleGetEgressPolicy(jx);
+        if (path.endsWith("/image-policy")) return handleGetImagePolicy(jx);
         if (path.endsWith("/device-blocks")) return handleListDeviceBlocks(jx);
         if (path.endsWith("/device-fingerprint-flags")) return handleListDeviceFingerprintFlags(jx);
         final String token = extractToken(jx);
@@ -150,6 +156,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         final var jx = asJetty(x);
         if (jx.path().endsWith("/device-access")) return handleSetDeviceAccess(jx);
         if (jx.path().endsWith("/egress-policy")) return handleSetEgressPolicy(jx);
+        if (jx.path().endsWith("/image-policy")) return handleSetImagePolicy(jx);
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
@@ -296,6 +303,51 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         final Map<String, Object> view = new java.util.HashMap<>();
         view.put("allowedHosts", s.getEgressAllowedHosts());
         view.put("blockedHosts", s.getEgressBlockedHosts());
+        return view;
+    }
+
+    private boolean handleGetImagePolicy(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
+                sendError(jx, 403, "forbidden", "Only admins can view the global image policy");
+                return true;
+            }
+            sendOk(jx, toImagePolicyView(getChatAiSettingUseCase.execute()));
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private boolean handleSetImagePolicy(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid() || !legacyRoleHasAny(v.role(), "admin")) {
+                sendError(jx, 403, "forbidden", "Only admins can change the global image policy");
+                return true;
+            }
+            final var body = parseBody(jx);
+            final String allowedImages = (String) body.get("allowedImages");
+            final String blockedImages = (String) body.get("blockedImages");
+            final var settings = setGlobalImagePolicyUseCase.execute(allowedImages, blockedImages);
+            sendOk(jx, toImagePolicyView(settings));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, e.getMessage(), e.getMessage());
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", e.getMessage());
+        }
+        return true;
+    }
+
+    private static Map<String, Object> toImagePolicyView(final PlatformSettings s) {
+        final Map<String, Object> view = new java.util.HashMap<>();
+        view.put("allowedImages", s.getImageAllowList());
+        view.put("blockedImages", s.getImageBlockList());
         return view;
     }
 

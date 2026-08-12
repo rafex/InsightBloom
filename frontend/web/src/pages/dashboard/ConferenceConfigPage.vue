@@ -292,6 +292,24 @@
       FeedbackMessage(v-if="egressPolicySaved" message="Control de red del evento guardado." tone="success")
       FeedbackMessage(v-if="egressPolicyError" :message="egressPolicyError" tone="error")
 
+    .form-group.image-policy-group(v-show="activeTab === 'network'")
+      label Imágenes de contenedor permitidas para este evento
+      p.field-hint Prefijos adicionales de imágenes que este evento puede usar en el
+        |  #[code FROM] de un Containerfile/Dockerfile, más allá de la lista global de la
+        |  plataforma (se suman, nunca la reemplazan). La lista negra, tanto la global como la de
+        |  aquí, siempre gana sobre cualquier lista blanca.
+      .coord-field
+        label.coord-label(for="config-image-allowed") Lista blanca adicional (permitidas)
+        textarea#config-image-allowed(v-model="imageAllowedImages" rows="5" placeholder="python\nnode")
+      .coord-field
+        label.coord-label(for="config-image-blocked") Lista negra adicional (bloqueadas)
+        textarea#config-image-blocked(v-model="imageBlockedImages" rows="3" placeholder="alpine:edge")
+      BaseButton(variant="secondary" type="button" @click="saveImagePolicy" :disabled="savingImagePolicy")
+        span(v-if="savingImagePolicy") Guardando...
+        span(v-else) Guardar imágenes permitidas
+      FeedbackMessage(v-if="imagePolicySaved" message="Política de imágenes del evento guardada." tone="success")
+      FeedbackMessage(v-if="imagePolicyError" :message="imagePolicyError" tone="error")
+
   //- Confirmación de acciones destructivas sobre sandboxes (reemplaza window.confirm: la accion
   //- mas destructiva de la pagina merece un dialogo con consecuencias explicitas y accesible).
   BaseModal(
@@ -332,7 +350,8 @@ import {
   getEventRoles, getActiveRoles, assignEventRole, removeEventRole, setSandboxConfig, setSandboxInternet,
   listSandboxIncidents, listSandboxStatus, prewarmSandboxPool as prewarmSandboxPoolApi, deleteSandbox as deleteSandboxApi,
   recreateSandbox as recreateSandboxApi, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
-  getCertificateEngine, getConferenceEgressPolicy, setConferenceEgressPolicy
+  getCertificateEngine, getConferenceEgressPolicy, setConferenceEgressPolicy,
+  getConferenceImagePolicy, setConferenceImagePolicy
 } from '@/services/api/usersApi'
 import { getAiMentorConfig, setAiMentorConfig, getAiSurveyConfig, setAiSurveyConfig } from '@/services/api/surveyApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, SandboxPrewarmResult, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
@@ -477,6 +496,11 @@ export default {
     const savingEgressPolicy = ref(false)
     const egressPolicySaved = ref(false)
     const egressPolicyError = ref('')
+    const imageAllowedImages = ref('')
+    const imageBlockedImages = ref('')
+    const savingImagePolicy = ref(false)
+    const imagePolicySaved = ref(false)
+    const imagePolicyError = ref('')
 
     function csvToLines(csv: string | null): string {
       if (!csv) return ''
@@ -511,6 +535,33 @@ export default {
         egressPolicyError.value = e.response?.data?.error?.message || 'No se pudo guardar el control de red del evento'
       } finally {
         savingEgressPolicy.value = false
+      }
+    }
+
+    async function loadImagePolicy() {
+      try {
+        const policy = await getConferenceImagePolicy(props.conferenceId as string, auth.state.token as string)
+        imageAllowedImages.value = csvToLines(policy.allowedImages)
+        imageBlockedImages.value = csvToLines(policy.blockedImages)
+      } catch (e: any) {
+        imagePolicyError.value = e.response?.data?.error?.message || 'No se pudo cargar la política de imágenes del evento'
+      }
+    }
+
+    async function saveImagePolicy() {
+      savingImagePolicy.value = true; imagePolicySaved.value = false; imagePolicyError.value = ''
+      try {
+        const policy = await setConferenceImagePolicy(
+          props.conferenceId as string, linesToCsv(imageAllowedImages.value), linesToCsv(imageBlockedImages.value),
+          auth.state.token as string
+        )
+        imageAllowedImages.value = csvToLines(policy.allowedImages)
+        imageBlockedImages.value = csvToLines(policy.blockedImages)
+        imagePolicySaved.value = true
+      } catch (e: any) {
+        imagePolicyError.value = e.response?.data?.error?.message || 'No se pudo guardar la política de imágenes del evento'
+      } finally {
+        savingImagePolicy.value = false
       }
     }
 
@@ -586,13 +637,13 @@ export default {
     const pendingTab = ref<string | null>(null)
     const markFormDirty = () => { formDirty.value = true }
     const savedFlags = [eventTypeSaved, certificateEngineSaved, canvasConfigSaved, seatingSaved,
-      ticketSalesSaved, sandboxConfigSaved, deviceAccessConfigSaved, egressPolicySaved,
+      ticketSalesSaved, sandboxConfigSaved, deviceAccessConfigSaved, egressPolicySaved, imagePolicySaved,
       mentorSaved, surveyAiConfigSaved]
     savedFlags.forEach((flag) => watch(flag, (saved) => { if (saved) formDirty.value = false }))
 
     const savingFlags = [savingEventType, savingCertificateEngine, savingCanvasConfig, savingSeating,
       savingTicketSales, savingSandboxConfig, savingSandboxInternet, savingDeviceAccessConfig,
-      savingEgressPolicy, savingMentor, savingSurveyAiConfig]
+      savingEgressPolicy, savingImagePolicy, savingMentor, savingSurveyAiConfig]
     const saveState = computed(() => {
       if (savingFlags.some((flag) => flag.value)) return 'saving'
       if (formDirty.value) return 'dirty'
@@ -699,6 +750,7 @@ export default {
       await loadMentor()
       await loadSurveyAiConfig()
       await loadEgressPolicy()
+      await loadImagePolicy()
     })
 
     function roleName(key: string): string {
@@ -1022,7 +1074,9 @@ export default {
              savingMentor, mentorSaved, mentorError, saveMentor,
              surveyExtraContext, savingSurveyAiConfig, surveyAiConfigSaved, surveyAiConfigError, saveSurveyAiConfig,
              egressAllowedHosts, egressBlockedHosts, savingEgressPolicy, egressPolicySaved, egressPolicyError,
-             saveEgressPolicy }
+             saveEgressPolicy,
+             imageAllowedImages, imageBlockedImages, savingImagePolicy, imagePolicySaved, imagePolicyError,
+             saveImagePolicy }
   }
 }
 </script>

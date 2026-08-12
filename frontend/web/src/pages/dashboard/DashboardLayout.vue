@@ -20,6 +20,7 @@
           router-link(v-if="isAdmin" to="/dashboard/admin/ai" @click="closeSidebar") IA
           router-link(v-if="isAdmin" to="/dashboard/admin/device-access" @click="closeSidebar") Acceso por dispositivo
           router-link(v-if="isAdmin" to="/dashboard/admin/egress-policy" @click="closeSidebar") Control de red
+          router-link(v-if="isAdmin" to="/dashboard/admin/image-policy" @click="closeSidebar") Imágenes de contenedor
           router-link(v-if="isOrganizer" to="/dashboard/certificate-settings" @click="closeSidebar") Plantilla global
         .nav-section
           h2.nav-section-title Cuenta
