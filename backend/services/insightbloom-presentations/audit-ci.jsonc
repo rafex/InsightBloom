@@ -6,9 +6,20 @@
     // image-size: DoS por loop infinito en parsers ICNS/JXL/HEIF. Sin fix publicado aun
     // (confirmado via GitHub Advisory API: first_patched_version=None incluso en la
     // ultima version, image-size@2.0.2). Llega transitivamente via pptxgenjs, usado por
-    // @slidev/cli para exportar PPTX. Revisar y quitar del allowlist cuando exista parche.
+    // @slidev/cli para exportar PPTX. No alcanzable en este servicio: server.js no tiene
+    // NINGUN codigo que invoque la exportacion PPTX de @slidev/cli (confirmado, sin
+    // "pptx" en todo el codigo propio) -- el unico camino que ejercitaria estos parsers
+    // (ICNS/JXL/HEIF de imagenes incrustadas en un PPTX) nunca se recorre. Se evaluo un
+    // fork no oficial de terceros (getitcheappro/image-size-patched) que dice arreglar
+    // los tres loops; se descarto por ahora por ser de un solo mantenedor externo sin
+    // adopcion/auditoria amplia -- swap de riesgo conocido y acotado por uno de cadena
+    // de suministro desconocido, no vale la pena sin mas diligencia. Ultima revision:
+    // 2026-08-12 (segundo chequeo del mismo dia, sigue sin parche oficial). Revisar y
+    // quitar del allowlist cuando exista parche oficial.
     // https://github.com/advisories/GHSA-w3rx-r6r6-pgpr
     "GHSA-w3rx-r6r6-pgpr",
+    // Misma justificacion que GHSA-w3rx-r6r6-pgpr de arriba (JXL/HEIF en vez de ICNS,
+    // mismo paquete/ruta de llegada/no-alcanzabilidad). Ultima revision: 2026-08-12.
     // https://github.com/advisories/GHSA-5p2g-fcmc-qvqq
     "GHSA-5p2g-fcmc-qvqq"
   ]
