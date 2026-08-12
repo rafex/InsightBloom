@@ -49,6 +49,12 @@ Ejemplos:
   6) Revocar esa publicación de backend/API:
      insightbloom app-revoke PUBLICATION_ID
 
+  7) Construir y correr un contenedor desde un Containerfile/Dockerfile del workspace:
+     insightbloom container-publish
+
+  8) Revocar esa publicación de contenedor:
+     insightbloom container-revoke PUBLICATION_ID
+
 Notas:
   - La carpeta publicada con `publish` debe contener index.html.
   - package.json es opcional y nunca se ejecuta.
@@ -58,6 +64,13 @@ Notas:
     $APP_PORT, ver `env | grep APP_PORT`) a través de una URL pública con su propio token de
     consumo -- cualquiera que tenga ese token puede llamar tu API mientras la publicación no
     expire ni la revoques.
+  - `container-publish` construye un contenedor a partir de un Containerfile/Dockerfile de tu
+    workspace (por defecto "Containerfile" en la raíz -- usa --path para otro nombre/ruta) y lo
+    corre en un pod Podman compartido, validado antes contra la whitelist/blacklist de imágenes
+    del evento. Si el Containerfile declara EXPOSE, publica una URL pública igual que
+    app-publish (mismo token de acceso); si no, el contenedor corre igual pero sin URL.
+  - Todas las publicaciones (publish/app-publish/container-publish) vencen a la 1 hora como
+    máximo, sin excepción.
   - Dentro de un sandbox el evento se detecta automáticamente desde CONFERENCE_UUID.
   - En el primer uso puedes ejecutar `insightbloom login`; solo se guarda un token en
     ~/.config/insightbloom/session.json, nunca la contraseña ni dentro del workspace.
@@ -422,6 +435,50 @@ def app_revoke(args: argparse.Namespace) -> None:
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
+def container_publish(args: argparse.Namespace) -> None:
+    api = api_base()
+    conference = conference_id(args)
+    body = json.dumps({"path": args.path}).encode("utf-8") if args.path else b"{}"
+    result = authenticated_request(
+        args,
+        lambda token: request_json(
+            "POST",
+            f"{api}/conferences/{conference}/sandbox/publish-container",
+            token,
+            body=body,
+        ),
+        api,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    data = result.get("data", result) if isinstance(result, dict) else {}
+    if isinstance(data, dict) and data.get("published") and data.get("url"):
+        print(
+            f"\nURL: {data['url']}\n"
+            f"Requiere el header 'X-Preview-Token: {data.get('accessToken', '')}' en cada request.\n"
+            f"Ejemplo: curl -H \"X-Preview-Token: {data.get('accessToken', '')}\" {data['url']}",
+            file=sys.stderr,
+        )
+    elif isinstance(data, dict) and data.get("published") is False:
+        print(f"\n{data.get('message', 'Contenedor construido y corriendo, sin EXPOSE declarado.')}", file=sys.stderr)
+
+
+def container_revoke(args: argparse.Namespace) -> None:
+    api = api_base()
+    conference = conference_id(args)
+    if not args.publication_id:
+        fail("container-revoke requiere el publicationId devuelto por container-publish")
+    result = authenticated_request(
+        args,
+        lambda token: request_json(
+            "DELETE",
+            f"{api}/conferences/{conference}/sandbox/app-preview/{args.publication_id}",
+            token,
+        ),
+        api,
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
 def login(args: argparse.Namespace) -> None:
     login_session(api_base(), args.username)
 
@@ -531,10 +588,56 @@ def main() -> None:
         help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
     )
     app_revoke_parser.set_defaults(func=app_revoke)
+    container_publish_parser = sub.add_parser(
+        "container-publish",
+        help="construye y corre un contenedor desde un Containerfile del workspace",
+        description=(
+            "Lee un Containerfile/Dockerfile de tu workspace (por defecto 'Containerfile' en la "
+            "raíz), lo valida contra la whitelist/blacklist de imágenes del evento, y lo construye "
+            "y corre en el pod Podman compartido. Si el Containerfile declara EXPOSE, publica una "
+            "URL pública con token de acceso (igual que app-publish); si no, el contenedor corre "
+            "igual pero sin URL."
+        ),
+        epilog=(
+            "Ejemplo: insightbloom container-publish\n"
+            "Ejemplo con otra ruta: insightbloom container-publish --path docker/Containerfile"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    container_publish_parser.add_argument(
+        "--path", default=None,
+        help="ruta del Containerfile dentro del workspace (por defecto: Containerfile)",
+    )
+    container_publish_parser.add_argument("--token", help="token puntual de sesión; normalmente usa insightbloom login")
+    container_publish_token_group = container_publish_parser.add_mutually_exclusive_group()
+    container_publish_token_group.add_argument("--token-prompt", action="store_true", help="solicita el token oculto, sin variable ni historial")
+    container_publish_token_group.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin para automatizaciones")
+    container_publish_parser.add_argument(
+        "--conference-id",
+        help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
+    )
+    container_publish_parser.set_defaults(func=container_publish)
+    container_revoke_parser = sub.add_parser(
+        "container-revoke",
+        help="revoca una publicación de contenedor propia",
+        description="Revoca una publicación de container-publish usando el publicationId devuelto.",
+        epilog="Ejemplo: insightbloom container-revoke PUBLICATION_ID",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    container_revoke_parser.add_argument("publication_id")
+    container_revoke_parser.add_argument("--token", help="token puntual de sesión; normalmente usa insightbloom login")
+    container_revoke_token_group = container_revoke_parser.add_mutually_exclusive_group()
+    container_revoke_token_group.add_argument("--token-prompt", action="store_true", help="solicita el token oculto, sin variable ni historial")
+    container_revoke_token_group.add_argument("--token-stdin", action="store_true", help="lee el token desde stdin para automatizaciones")
+    container_revoke_parser.add_argument(
+        "--conference-id",
+        help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
+    )
+    container_revoke_parser.set_defaults(func=container_revoke)
     args = parser.parse_args()
     if not args.command:
         parser.print_help(sys.stderr)
-        fail("falta el subcomando; usa 'insightbloom login', 'insightbloom publish', 'insightbloom app-publish', o 'insightbloom revoke/app-revoke PUBLICATION_ID'")
+        fail("falta el subcomando; usa 'insightbloom login', 'insightbloom publish', 'insightbloom app-publish', 'insightbloom container-publish', o 'insightbloom revoke/app-revoke/container-revoke PUBLICATION_ID'")
     args.func(args)
 
 

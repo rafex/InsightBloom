@@ -67,6 +67,16 @@ class PublishAppPreviewUseCaseTest {
     }
 
     @Test
+    void clampsTtlToOneHourMaxRegardlessOfRequestedValue() {
+        Mockito.when(sandboxRepository.findByConferenceAndUser("conf-1", "user-1"))
+                .thenReturn(Optional.of(activeSandbox(0)));
+
+        final SandboxAppPreview preview = useCase.execute("conf-1", "user-1", 24 * 3600);
+
+        assertTrue(preview.expiresAt().isBefore(Instant.now().plusSeconds(3700)));
+    }
+
+    @Test
     void generatesDifferentTokensAcrossPublications() {
         Mockito.when(sandboxRepository.findByConferenceAndUser("conf-1", "user-1"))
                 .thenReturn(Optional.of(activeSandbox(0)));

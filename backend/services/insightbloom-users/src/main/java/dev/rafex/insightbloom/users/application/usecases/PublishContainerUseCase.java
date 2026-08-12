@@ -34,6 +34,8 @@ import java.util.regex.Pattern;
  */
 public class PublishContainerUseCase {
     private static final SecureRandom RANDOM = new SecureRandom();
+    /** Ver PublishAppPreviewUseCase.MAX_TTL_SECONDS -- mismo criterio, tope duro de 1h. */
+    private static final long MAX_TTL_SECONDS = 3600;
     private static final Pattern EXPOSE_LINE = Pattern.compile(
             "^\\s*EXPOSE\\s+(\\d+)", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
     /** Sin puerto expuesto en el Containerfile -- el contenedor corre igual, pero no queda publicable. */
@@ -98,7 +100,7 @@ public class PublishContainerUseCase {
         final Instant now = Instant.now();
         final SandboxAppPreview preview = new SandboxAppPreview(
                 UUID.randomUUID().toString(), conferenceUuid, userUuid, sharedPodName, hostPort,
-                generateAccessToken(), now, now.plusSeconds(ttlSeconds));
+                generateAccessToken(), now, now.plusSeconds(Math.min(ttlSeconds, MAX_TTL_SECONDS)));
         return new Result(true, previewRepository.save(preview));
     }
 

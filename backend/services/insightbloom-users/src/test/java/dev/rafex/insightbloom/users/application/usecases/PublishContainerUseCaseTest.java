@@ -115,6 +115,24 @@ class PublishContainerUseCaseTest {
     }
 
     @Test
+    void clampsTtlToOneHourMaxRegardlessOfRequestedValue() {
+        Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-1")).thenReturn(Optional.of(ideSandbox));
+        Mockito.when(orchestratorMock.readWorkspaceFile(ideSandbox.podName(), 0, "Containerfile"))
+                .thenReturn(new WorkspaceFileContent("FROM python:3.12\nEXPOSE 8000\n", 1.0));
+        Mockito.when(orchestratorMock.buildAndRunContainer(
+                        Mockito.eq(SHARED_POD), Mockito.anyString(), Mockito.eq(APP_BASE_PORT), Mockito.eq(8000)))
+                .thenReturn(ContainerBuildResult.ok());
+        Mockito.when(previewRepoMock.findByConferenceAndUser("conf-1", "user-1")).thenReturn(Optional.empty());
+        Mockito.when(previewRepoMock.findActiveByPodName(SHARED_POD)).thenReturn(List.of());
+        Mockito.when(previewRepoMock.save(Mockito.any(SandboxAppPreview.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        final var result = useCase.execute("conf-1", "user-1", "Containerfile", 24 * 3600);
+
+        assertTrue(result.preview().expiresAt().isBefore(Instant.now().plusSeconds(3700)));
+    }
+
+    @Test
     void reusesOwnPortWhenRepublishing() {
         Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-1")).thenReturn(Optional.of(ideSandbox));
         Mockito.when(orchestratorMock.readWorkspaceFile(ideSandbox.podName(), 0, "Containerfile"))

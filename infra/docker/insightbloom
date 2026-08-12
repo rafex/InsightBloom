@@ -8,6 +8,8 @@ Uso:
   insightbloom revoke ID              Revoca una publicación de 'publish'.
   insightbloom app-publish            Publica tu backend/API VIVO (escuchando en $APP_PORT).
   insightbloom app-revoke ID          Revoca una publicación de 'app-publish'.
+  insightbloom container-publish      Construye y corre un contenedor desde un Containerfile.
+  insightbloom container-revoke ID    Revoca una publicación de 'container-publish'.
   insightbloom login                  Inicia sesión y guarda el token fuera del workspace.
   insightbloom logout                 Elimina la sesión local del CLI.
   insightbloom mentor [pregunta]      Consulta el tutor IA pedagógico del evento.

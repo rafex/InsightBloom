@@ -8,6 +8,9 @@ import dev.rafex.insightbloom.users.domain.ports.WorkspacePreviewPublisher;
 import java.time.Instant;
 
 public final class PublishWorkspacePreviewUseCase {
+    /** Ver PublishAppPreviewUseCase.MAX_TTL_SECONDS -- mismo criterio, tope duro de 1h. */
+    private static final long MAX_TTL_SECONDS = 3600;
+
     private final SandboxRepository sandboxRepository;
     private final SandboxOrchestrator sandboxOrchestrator;
     private final WorkspacePreviewPublisher publisher;
@@ -38,6 +41,6 @@ public final class PublishWorkspacePreviewUseCase {
         }
         final byte[] zip = sandboxOrchestrator.downloadWorkspaceZip(sandbox.podName(), sandbox.getSeatIndex());
         if (zip.length == 0) throw new IllegalArgumentException("workspace_empty");
-        return publisher.publish(conferenceUuid, userUuid, zip, ttlSeconds);
+        return publisher.publish(conferenceUuid, userUuid, zip, Math.min(ttlSeconds, MAX_TTL_SECONDS));
     }
 }
