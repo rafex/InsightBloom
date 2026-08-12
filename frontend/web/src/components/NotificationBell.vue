@@ -153,6 +153,11 @@ export default {
   color: var(--color-header-link);
   cursor: pointer;
   padding: 4px;
+  /* Corrección óptica: el ícono de campana concentra su trazo en la mitad superior del
+     viewBox, así que centrado por bounding-box (align-items:center del header-nav) igual se ve
+     más arriba que la línea base de "Panel"/"Salir". Bajarlo 2px lo empareja visualmente. */
+  position: relative;
+  top: 2px;
 }
 .bell-button:hover { color: var(--color-text-inverse); }
 .bell-badge {
