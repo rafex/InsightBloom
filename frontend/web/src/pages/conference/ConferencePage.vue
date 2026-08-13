@@ -13,6 +13,7 @@
       :label="conference.name"
       :flyer-url="conference.flyerBase64"
       @enter="dismissIntro"
+      @skip="skipMapAnimation"
     )
 
     .conf-header(:class="{ collapsed: headerCollapsed }")
@@ -129,6 +130,7 @@
       :provider="conference.onDemandVideoProvider"
       :video-url="conference.onDemandVideoUrl"
       :cue-points="conference.onDemandCuePoints"
+      :map-animation-complete="mapAnimationComplete"
       @closed="onDemandVideoClosed = true"
     )
 
@@ -179,6 +181,7 @@ export default {
     const loading    = ref(true)
     const error      = ref('')
     const showIntro  = ref(false)
+    const mapAnimationComplete = ref(false)
     const timezones  = ref<Timezone[]>([])
     const showCalendarMenu = ref(false)
     const capabilities = ref<Set<string>>(new Set())
@@ -363,6 +366,11 @@ export default {
 
     function dismissIntro() {
       showIntro.value = false
+      mapAnimationComplete.value = true
+    }
+
+    function skipMapAnimation() {
+      mapAnimationComplete.value = true
     }
 
     const utcOffsetMinutes = computed(() => {
@@ -456,12 +464,12 @@ export default {
     })
 
     return {
-      friendlyId, conference, loading, error, showIntro, dismissIntro, chatUrl, openChat,
+      friendlyId, conference, loading, error, showIntro, dismissIntro, skipMapAnimation, chatUrl, openChat,
       isAnonymous, attendeeTourSteps, formattedEventDate, isUpcoming, showCalendarMenu,
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
       privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed,
       toolbarRef, toolbarFadeLeft, toolbarFadeRight, updateToolbarFades, toolReleased,
-      onDemandVideoClosed, toolAccessLoaded, isCurrentToolAllowed
+      onDemandVideoClosed, toolAccessLoaded, isCurrentToolAllowed, mapAnimationComplete
     }
   }
 }

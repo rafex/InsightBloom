@@ -35,6 +35,10 @@ export default {
     const downloading = ref(false)
     const exportError = ref('')
     const isIndividual = computed(() => props.canvasAudienceMode === 'INDEPENDENT')
+    const isReadOnly = computed(() => {
+      // Non-moderators in COLLABORATIVE mode can only read
+      return !props.canvasModerator && props.canvasAudienceMode === 'COLLABORATIVE'
+    })
 
     async function downloadNotes() {
       downloading.value = true
@@ -73,8 +77,11 @@ export default {
         if (config.etherpadBaseUrl) {
           // Etherpad esta detras de insightbloom-tools-gateway (exige sesion antes de
           // reenviar el request al pod real) — ib_token arranca esa sesion en el primer request.
-          const token = auth.state.token ? `?ib_token=${encodeURIComponent(auth.state.token)}` : ''
-          padUrl.value = `${config.etherpadBaseUrl}/p/${pad.padId}${token}`
+          const params = new URLSearchParams()
+          if (auth.state.token) params.append('ib_token', auth.state.token)
+          if (isReadOnly.value) params.append('readonly', 'true')
+          const query = params.toString()
+          padUrl.value = `${config.etherpadBaseUrl}/p/${pad.padId}${query ? `?${query}` : ''}`
         }
       } catch (e: any) {
         padUrl.value = ''
@@ -83,7 +90,7 @@ export default {
       }
     })
 
-    return { loading, padUrl, isIndividual, downloading, exportError, downloadNotes, stripSessionToken }
+    return { loading, padUrl, isIndividual, isReadOnly, downloading, exportError, downloadNotes, stripSessionToken }
   }
 }
 </script>

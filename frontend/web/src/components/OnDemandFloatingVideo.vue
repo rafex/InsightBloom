@@ -1,6 +1,10 @@
 <template lang="pug">
 Teleport(:to="teleportTarget" defer)
-  .ondemand-floating-video(:class="{ floating: !isOnDemandTabActive, docked: isOnDemandTabActive }")
+  .ondemand-floating-video(
+    ref="floatingVideoRef"
+    :class="{ floating: !isOnDemandTabActive, docked: isOnDemandTabActive }"
+    :style="floatingVideoStyle"
+  )
     .video-wrap
       iframe.video-frame(
         v-if="provider === 'YOUTUBE'"
@@ -22,7 +26,7 @@ Teleport(:to="teleportTarget" defer)
             span.notification-time {{ formatTime(n.cue.atSeconds) }}
             span.notification-tool {{ toolLabel(n.cue.toolPath) }}
           span.notification-label {{ n.cue.label }}
-          a.notification-link(:href="`/c/${friendlyId}/${n.cue.toolPath}`" target="_blank" rel="noopener") Ir ahora →
+          a.notification-link(:href="`/c/${friendlyId}/${n.cue.toolPath}`" :target="n.cue.toolPath === 'ide' ? '_blank' : undefined" :rel="n.cue.toolPath === 'ide' ? 'noopener' : undefined") Ir ahora →
           button.notification-dismiss(type="button" @click="dismissNotification(n.id)" aria-label="Descartar sugerencia") ✕
       .notification-pagination(v-if="totalPages > 1")
         button(type="button" :disabled="page === 0" @click="page--") ← Más nuevas
@@ -31,12 +35,30 @@ Teleport(:to="teleportTarget" defer)
 </template>
 
 <script lang="ts">
-import { ref, computed, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { OnDemandCuePoint } from '@/services/api/types'
 import { toEmbedUrl, toolLabelForPath, findCuePointToTrigger } from '@/features/conferences/onDemandVideo'
 import { getSavedProgress, saveProgress } from '@/features/conferences/useOnDemandProgress'
 import UiIcon from '@/components/ui/UiIcon.vue'
+
+function getFloatingVideoStorageKey(conferenceId: string): string {
+  return `ondemand-floating-${conferenceId}`
+}
+
+function getFloatingVideoSize(conferenceId: string) {
+  try {
+    const stored = localStorage.getItem(getFloatingVideoStorageKey(conferenceId))
+    if (stored) return JSON.parse(stored)
+  } catch { /* ignored */ }
+  return { right: 20, bottom: 20, width: 240, height: 135 }
+}
+
+function saveFloatingVideoSize(conferenceId: string, data: any) {
+  try {
+    localStorage.setItem(getFloatingVideoStorageKey(conferenceId), JSON.stringify(data))
+  } catch { /* ignored */ }
+}
 
 declare global {
   interface Window { onYouTubeIframeAPIReady?: () => void, YT?: any }
@@ -71,7 +93,8 @@ export default {
     friendlyId: { type: String, required: true },
     provider: { type: String as () => 'YOUTUBE' | 'PEERTUBE' | null, default: null },
     videoUrl: { type: String, default: null },
-    cuePoints: { type: Array as () => OnDemandCuePoint[], default: () => [] }
+    cuePoints: { type: Array as () => OnDemandCuePoint[], default: () => [] },
+    mapAnimationComplete: { type: Boolean, default: true }
   },
   emits: ['closed'],
   setup(props: {
@@ -80,6 +103,7 @@ export default {
     provider: 'YOUTUBE' | 'PEERTUBE' | null
     videoUrl: string | null
     cuePoints: OnDemandCuePoint[]
+    mapAnimationComplete: boolean
   }, { emit }: { emit: (event: 'closed') => void }) {
     const route = useRoute()
     const router = useRouter()
@@ -87,9 +111,24 @@ export default {
     const isOnDemandTabActive = computed(() => route.path.endsWith('/on-demand'))
     const teleportTarget = computed(() => isOnDemandTabActive.value ? '#ondemand-full-slot' : '#ondemand-floating-slot')
 
+    // Floating video widget position and size
+    const floatingVideoRef = ref<HTMLDivElement | null>(null)
+    const floatingRight = ref(20)
+    const floatingBottom = ref(20)
+    const floatingWidth = ref(240)
+    const floatingHeight = ref(135)
+    const isResizing = ref(false)
+
     const embedUrl = computed(() => toEmbedUrl(props.provider, props.videoUrl))
     const youtubeSrc = computed(() => embedUrl.value ? `${embedUrl.value}?enablejsapi=1` : '')
     const videoFrame = ref<HTMLIFrameElement | null>(null)
+
+    const floatingVideoStyle = computed(() => isOnDemandTabActive.value ? {} : {
+      right: `${floatingRight.value}px`,
+      bottom: `${floatingBottom.value}px`,
+      width: `${floatingWidth.value}px`,
+      height: `${floatingHeight.value}px`
+    })
 
     const sortedCuePoints = computed(() => [...props.cuePoints].sort((a, b) => a.atSeconds - b.atSeconds))
 
@@ -194,14 +233,39 @@ export default {
     // que hay embedUrl disponible.
     watch(embedUrl, (url) => { if (url) void ensurePlayerCreated() }, { immediate: true })
 
+    // Auto-play solo después de que la animación del mapa se completa
+    watch(() => props.mapAnimationComplete, (complete) => {
+      if (complete && player?.playVideo) {
+        try { player.playVideo() } catch { /* ignored */ }
+      }
+    })
+
     function handleVisibilityChange() {
       if (document.visibilityState === 'hidden') persistCurrentTime()
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('beforeunload', persistCurrentTime)
 
+    onMounted(() => {
+      const saved = getFloatingVideoSize(props.conferenceId)
+      floatingRight.value = saved.right
+      floatingBottom.value = saved.bottom
+      floatingWidth.value = saved.width
+      floatingHeight.value = saved.height
+    })
+
+    function saveFloatingPosition() {
+      saveFloatingVideoSize(props.conferenceId, {
+        right: floatingRight.value,
+        bottom: floatingBottom.value,
+        width: floatingWidth.value,
+        height: floatingHeight.value
+      })
+    }
+
     onBeforeUnmount(() => {
       stopPolling()
+      saveFloatingPosition()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('beforeunload', persistCurrentTime)
     })
@@ -210,7 +274,8 @@ export default {
       isOnDemandTabActive, teleportTarget,
       embedUrl, youtubeSrc, videoFrame,
       notifications, pagedNotifications, totalPages, page, toolLabel, formatTime, dismissNotification,
-      goToFullTab, close
+      goToFullTab, close,
+      floatingVideoRef, floatingVideoStyle, floatingRight, floatingBottom, floatingWidth, floatingHeight, isResizing
     }
   }
 }
@@ -233,13 +298,12 @@ export default {
 
 .ondemand-floating-video.floating {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
-  width: 240px;
   z-index: 60;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
   border-radius: 10px;
   overflow: visible;
+  min-width: 200px;
+  min-height: 150px;
 }
 .ondemand-floating-video.floating .video-wrap {
   position: relative;
