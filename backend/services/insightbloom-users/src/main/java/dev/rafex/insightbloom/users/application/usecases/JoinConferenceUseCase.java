@@ -76,6 +76,9 @@ public class JoinConferenceUseCase {
     public Conference execute(final String userUuid, final String identifier) {
         final Conference conference = getConferenceUseCase.resolveAny(identifier)
                 .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+        if (conference.getStatus() == ConferenceStatus.CANCELLED) {
+            throw new IllegalStateException("conference_cancelled");
+        }
         if (conference.getStatus() != ConferenceStatus.ACTIVE) {
             throw new IllegalStateException("conference_closed");
         }
