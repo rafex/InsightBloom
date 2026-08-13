@@ -558,3 +558,18 @@ export interface NotificationList {
   items: NotificationItem[]
   unreadCount: number
 }
+
+export interface AuditLogEntry {
+  uuid: string
+  timestamp: string
+  actorUuid: string
+  action: string
+  resourceType: string
+  resourceId?: string | null
+  changes?: string | null
+  ipAddress?: string | null
+  userAgent?: string | null
+  status: string
+  errorMessage?: string | null
+  additionalContext?: string | null
+}

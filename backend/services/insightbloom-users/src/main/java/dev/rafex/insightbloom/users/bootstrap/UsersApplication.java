@@ -97,6 +97,7 @@ public class UsersApplication {
         final var egressPolicyRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteEgressPolicyRepository(db);
         final var imagePolicyRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteImagePolicyRepository(db);
         final var notificationRepo = new SqliteNotificationRepository(db);
+        final var sqliteAuditLogQueryRepository = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteAuditLogQueryRepository(db);
         final var notificationHeartbeatScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
             final var t = new Thread(r, "notification-heartbeat-scheduler");
             t.setDaemon(true);
@@ -588,6 +589,9 @@ public class UsersApplication {
         final var internalAppPreviewTargetHandler =
                 new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalAppPreviewTargetHandler(
                         resolveAppPreviewTargetUseCase);
+        final var auditLogHandler = new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.AuditLogHandler(
+                sqliteAuditLogQueryRepository, new CleanupExpiredAuditLogsUseCase(sqliteAuditLogQueryRepository),
+                validateTokenUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -611,6 +615,9 @@ public class UsersApplication {
         routes.add("/api/v1/roles/*", roleHandler);
         routes.add("/api/v1/permissions/*", permissionHandler);
         routes.add("/api/v1/settings/*", platformSettingsHandler);
+        routes.add("/api/v1/users/me/audit-logs*", auditLogHandler);
+        routes.add("/api/v1/admin/audit-logs*", auditLogHandler);
+        routes.add("/api/v1/audit-logs/*", auditLogHandler);
         routes.add("/version", new VersionHandler("insightbloom-users"));
 
         // Server

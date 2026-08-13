@@ -11,7 +11,7 @@ import type {
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
   TicketManagementSummary, WorkspacePreviewInfo, AppPreviewInfo, PublishContainerInfo, PublicConference, JaasUsage,
-  OnDemandCuePoint, NotificationList
+  OnDemandCuePoint, NotificationList, AuditLogEntry
 } from './types'
 import { getFingerprint } from '@/services/auth/fingerprint'
 import { handleSessionResponse } from '@/features/auth/sessionGuard'
@@ -1225,4 +1225,36 @@ export async function markNotificationRead(uuid: string, token: string): Promise
 /** Stream autenticado que empuja cada notificación nueva en vivo (ver SendNotificationUseCase). */
 export function streamNotifications(token: string): AuthenticatedEventStream {
   return new AuthenticatedEventStream('/api/users/api/v1/notifications/stream', token)
+}
+
+export interface AuditLogList {
+  items: AuditLogEntry[]
+  total: number
+}
+
+/** Lista paginada de logs de auditoría donde el usuario actual es el actor. Acceso GDPR: ver qué acciones el usuario realizó. */
+export async function getMyAuditLogs(
+  token: string, limit = 20, offset = 0
+): Promise<AuditLogList> {
+  const res = await axios.get('/api/users/api/v1/users/me/audit-logs',
+    { ...authHeader(token), params: { limit, offset } })
+  return res.data.data
+}
+
+/** Lista paginada de todos los logs de auditoría (solo admin). */
+export async function getAllAuditLogs(
+  token: string, limit = 20, offset = 0
+): Promise<AuditLogList> {
+  const res = await axios.get('/api/users/api/v1/admin/audit-logs',
+    { ...authHeader(token), params: { limit, offset } })
+  return res.data.data
+}
+
+/** Logs de auditoría para un recurso específico (evento, usuario, etc.). */
+export async function getResourceAuditLogs(
+  resourceType: string, resourceId: string, token: string, limit = 20, offset = 0
+): Promise<AuditLogList> {
+  const res = await axios.get(`/api/users/api/v1/audit-logs/${resourceType}/${resourceId}`,
+    { ...authHeader(token), params: { limit, offset } })
+  return res.data.data
 }
