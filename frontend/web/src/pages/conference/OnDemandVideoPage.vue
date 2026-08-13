@@ -63,11 +63,22 @@ export default {
 </script>
 
 <style scoped>
-.on-demand-page { padding: 24px; }
+.on-demand-page {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
 .on-demand-header { margin-bottom: 16px; }
 h2 { margin: 0; color: var(--color-heading); }
-#ondemand-full-slot { min-height: 1px; }
-.cue-list { margin-top: 16px; }
+#ondemand-full-slot {
+  min-height: 1px;
+  order: 1;
+  margin-bottom: 24px;
+}
+.cue-list {
+  margin-top: 0;
+  order: 2;
+}
 .cue-list .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 8px; }
 .cue-list-item {
   display: flex; align-items: baseline; gap: 10px;
