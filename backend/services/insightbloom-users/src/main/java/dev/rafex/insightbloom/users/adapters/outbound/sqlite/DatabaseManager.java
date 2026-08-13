@@ -175,6 +175,9 @@ public class DatabaseManager {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN reminder_sent_at TEXT");
             } catch (SQLException ignored) {}
             try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN day_before_reminder_sent_at TEXT");
+            } catch (SQLException ignored) {}
+            try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN seating_mode TEXT NOT NULL DEFAULT 'NONE'");
             } catch (SQLException ignored) {}
             try {
