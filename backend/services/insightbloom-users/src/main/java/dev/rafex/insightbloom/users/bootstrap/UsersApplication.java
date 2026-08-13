@@ -222,7 +222,7 @@ public class UsersApplication {
         final var listEventRolesUseCase = new ListEventRolesUseCase(eventRoleRepo, userRepo, eventPermissionGuard);
         final var removeEventRoleUseCase = new RemoveEventRoleUseCase(eventRoleRepo, conferenceRepo, eventPermissionGuard);
         final var sendConferenceRemindersUseCase = new SendConferenceRemindersUseCase(
-                conferenceRepo, userRepo, timezoneRepo, emailPort, reservationRepo, frontendBaseUrl);
+                conferenceRepo, userRepo, timezoneRepo, emailPort, reservationRepo, frontendBaseUrl, sendNotificationUseCase);
         final var purgeExpiredEventNotesUseCase = new PurgeExpiredEventNotesUseCase(
                 conferenceRepo, timezoneRepo, etherpadPort);
         final var eventCapabilityGuard = new dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard(eventTypeRepo);
