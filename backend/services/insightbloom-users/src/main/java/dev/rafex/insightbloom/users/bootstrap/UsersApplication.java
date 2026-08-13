@@ -230,7 +230,7 @@ public class UsersApplication {
         final var sendAttendeeEmailUseCase = new dev.rafex.insightbloom.users.application.usecases.SendAttendeeEmailUseCase(
                 conferenceRepo, reservationRepo, userRepo, emailPort);
         final var notifyConferenceUpdatedUseCase = new dev.rafex.insightbloom.users.application.usecases.NotifyConferenceUpdatedUseCase(
-                reservationRepo, userRepo, emailPort, eventTypeRepo);
+                reservationRepo, userRepo, emailPort, eventTypeRepo, sendNotificationUseCase, frontendBaseUrl);
         final var setOnDemandVideoUseCase = new dev.rafex.insightbloom.users.application.usecases.SetOnDemandVideoUseCase(conferenceRepo);
         final var emailLlmClient = new EmailLlmClient(platformSettingsRepo, JacksonJsonCodec.defaultCodec());
         final var generateEmailDraftUseCase = new GenerateEmailDraftUseCase(conferenceRepo, emailLlmClient);
