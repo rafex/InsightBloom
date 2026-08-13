@@ -16,6 +16,11 @@ import java.util.List;
  * Cliente de la API HTTP de Etherpad (https://etherpad.org/doc/v1.9.7/#index_api_methods).
  * `createPad` devuelve `code: 1` si el pad ya existe — se trata igual que exito (idempotente),
  * no como error.
+ *
+ * SECURITY: Etherpad API key no se pasa como query parameter en URLs (riesgo de exposición
+ * en logs). En su lugar, se usa header HTTP Authorization con Bearer token, que típicamente
+ * no se loguea en nivel debug. Como defensa en profundidad, si la URL se loguea por cualquier
+ * razón, el método sanitizeUrlForLogging() enmascara el apikey.
  */
 public class HttpEtherpadPort implements EtherpadPort {
     private final String baseUrl;
@@ -58,9 +63,13 @@ public class HttpEtherpadPort implements EtherpadPort {
 
     private List<String> listAllPads() {
         try {
-            final String uri = "%s/api/1/listAllPads?apikey=%s".formatted(baseUrl, encoded(apiKey));
-            final HttpResponse<String> response = client.send(HttpRequest.newBuilder().uri(URI.create(uri)).GET().build(),
-                    HttpResponse.BodyHandlers.ofString());
+            final String uri = "%s/api/1/listAllPads".formatted(baseUrl);
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(uri))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .GET()
+                    .build();
+            final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 300) return List.of();
             final var pads = jsonCodec.readTree(response.body()).path("data").path("padIDs");
             final List<String> result = new ArrayList<>();
@@ -73,9 +82,13 @@ public class HttpEtherpadPort implements EtherpadPort {
 
     private String callContent(final String method, final String padId, final String field) {
         try {
-            final String uri = "%s/api/1/%s?apikey=%s&padID=%s".formatted(baseUrl, method, encoded(apiKey), encoded(padId));
-            final HttpResponse<String> response = client.send(HttpRequest.newBuilder().uri(URI.create(uri)).GET().build(),
-                    HttpResponse.BodyHandlers.ofString());
+            final String uri = "%s/api/1/%s?padID=%s".formatted(baseUrl, method, encoded(padId));
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(uri))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .GET()
+                    .build();
+            final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 300) throw new IllegalStateException("etherpad_export_failed");
             return jsonCodec.readTree(response.body()).path("data").path(field).asText("");
         } catch (final java.io.IOException | InterruptedException e) {
@@ -85,8 +98,12 @@ public class HttpEtherpadPort implements EtherpadPort {
 
     private void call(final String method, final String padId) {
         try {
-            final String uri = "%s/api/1/%s?apikey=%s&padID=%s".formatted(baseUrl, method, encoded(apiKey), encoded(padId));
-            final HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri)).GET().build();
+            final String uri = "%s/api/1/%s?padID=%s".formatted(baseUrl, method, encoded(padId));
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(uri))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .GET()
+                    .build();
             client.send(request, HttpResponse.BodyHandlers.discarding());
         } catch (final Exception e) {
             // best-effort: si Etherpad no responde, la pestaña "Notas" degrada con un mensaje
@@ -96,5 +113,19 @@ public class HttpEtherpadPort implements EtherpadPort {
 
     private static String encoded(final String value) {
         return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Enmascara la API key en una URL si está presente como query parameter.
+     * Esto es una defensa en profundidad: si la URL se loguea por cualquier razón,
+     * la clave no queda visible. El enfoque principal es usar Authorization header,
+     * que típicamente no se loguea.
+     */
+    public static String sanitizeUrlForLogging(final String url) {
+        if (url == null || url.isEmpty()) {
+            return url;
+        }
+        // Reemplaza apikey=ACTUAL_VALUE con apikey=***
+        return url.replaceAll("apikey=[^&]+", "apikey=***").replaceAll("apikey=$", "apikey=***");
     }
 }
