@@ -400,7 +400,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
 
     private static String normalizeCanvasMode(final String tool, final String mode) {
         if ("ETHERPAD".equals(tool)) {
-            return "INDEPENDENT".equals(mode) ? "INDEPENDENT" : "COLLABORATIVE";
+            if ("INDEPENDENT".equals(mode) || "MODERATOR_ONLY".equals(mode)) return mode;
+            return "COLLABORATIVE";
         }
         return "MODERATOR_ONLY".equals(mode) ? "MODERATOR_ONLY" : "INDEPENDENT";
     }
