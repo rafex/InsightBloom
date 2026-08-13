@@ -9,6 +9,7 @@
   .intro-top
     .intro-name {{ label }}
     .intro-coords(v-if="latitude != null") {{ latitude.toFixed(4) }}, {{ longitude.toFixed(4) }}
+    button.intro-skip(type="button" @click="skip" title="Saltar animación") Saltar
 
   transition(name="hint-fade")
     .intro-hint(v-if="markerReady")
@@ -55,8 +56,8 @@ export default {
     label:     { type: String, default: '' },
     flyerUrl:  { type: String, default: '' }
   },
-  emits: ['enter'],
-  setup(props: { latitude: number, longitude: number, label: string, flyerUrl: string }, { emit }: { emit: (event: 'enter') => void }) {
+  emits: ['enter', 'skip'],
+  setup(props: { latitude: number, longitude: number, label: string, flyerUrl: string }, { emit }: { emit: (event: 'enter' | 'skip') => void }) {
     const mapRef      = ref<HTMLDivElement | null>(null)
     const markerReady = ref(false)
     const leaving     = ref(false)
@@ -82,6 +83,11 @@ export default {
     function enter() {
       leaving.value = true
       setTimeout(() => emit('enter'), 600)
+    }
+
+    function skip() {
+      emit('skip')
+      enter()
     }
 
     onMounted(() => {
@@ -121,7 +127,7 @@ export default {
 
     onUnmounted(() => { if (map) { map.remove(); map = null } })
 
-    return { mapRef, markerReady, leaving, showFlyer }
+    return { mapRef, markerReady, leaving, showFlyer, skip }
   }
 }
 </script>
@@ -157,6 +163,25 @@ export default {
   font-size: 0.85rem;
   font-family: monospace;
   color: var(--color-header-link-muted);
+}
+.intro-skip {
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  pointer-events: auto;
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.intro-skip:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .intro-flyer {

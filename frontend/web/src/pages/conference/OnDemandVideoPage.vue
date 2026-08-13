@@ -18,9 +18,7 @@
   template(v-else)
     .cue-list(v-if="sortedCuePoints.length")
       p.hint Sugerencias por momento del video:
-      //- target=_blank a proposito: asi la herramienta se abre en otra pestana sin tocar esta
-      //- (el video sigue reproduciendose aca, sin depender del mecanismo de flotante/Teleport).
-      a.cue-list-item(v-for="cue in sortedCuePoints" :key="cue.atSeconds" :href="`/c/${friendlyId}/${cue.toolPath}`" target="_blank" rel="noopener")
+      a.cue-list-item(v-for="cue in sortedCuePoints" :key="cue.atSeconds" :href="`/c/${friendlyId}/${cue.toolPath}`" :target="cue.toolPath === 'ide' ? '_blank' : undefined" :rel="cue.toolPath === 'ide' ? 'noopener' : undefined")
         span.cue-time {{ formatTime(cue.atSeconds) }}
         span.cue-tool {{ toolLabel(cue.toolPath) }}
         span.cue-label {{ cue.label }}
