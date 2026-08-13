@@ -33,7 +33,7 @@ class SqliteConferenceRepositoryTest {
     }
 
     @Test
-    void normalizesLegacyModeratorOnlyEtherpadToCollaborative(@TempDir final Path tempDir) {
+    void preservesModeratorOnlyModeForEtherpad(@TempDir final Path tempDir) {
         final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
         database.initialize();
         final SqliteConferenceRepository repository = new SqliteConferenceRepository(database);
@@ -44,8 +44,8 @@ class SqliteConferenceRepositoryTest {
         repository.save(conference);
 
         final Conference restored = repository.findByUuid(conference.getUuid()).orElseThrow();
-        assertEquals("COLLABORATIVE", restored.getCanvasAudienceMode());
-        assertEquals("COLLABORATIVE", restored.getCanvasConfigs().getFirst().audienceMode());
+        assertEquals("MODERATOR_ONLY", restored.getCanvasAudienceMode());
+        assertEquals("MODERATOR_ONLY", restored.getCanvasConfigs().getFirst().audienceMode());
     }
 
     @Test
