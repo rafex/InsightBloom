@@ -117,7 +117,6 @@ export default {
     const floatingBottom = ref(20)
     const floatingWidth = ref(240)
     const floatingHeight = ref(135)
-    const isResizing = ref(false)
 
     const embedUrl = computed(() => toEmbedUrl(props.provider, props.videoUrl))
     const youtubeSrc = computed(() => embedUrl.value ? `${embedUrl.value}?enablejsapi=1` : '')
@@ -275,7 +274,7 @@ export default {
       embedUrl, youtubeSrc, videoFrame,
       notifications, pagedNotifications, totalPages, page, toolLabel, formatTime, dismissNotification,
       goToFullTab, close,
-      floatingVideoRef, floatingVideoStyle, floatingRight, floatingBottom, floatingWidth, floatingHeight, isResizing
+      floatingVideoRef, floatingVideoStyle, floatingRight, floatingBottom, floatingWidth, floatingHeight
     }
   }
 }
