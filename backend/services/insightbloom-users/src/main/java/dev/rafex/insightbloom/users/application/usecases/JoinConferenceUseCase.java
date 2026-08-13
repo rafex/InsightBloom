@@ -11,6 +11,9 @@ import dev.rafex.insightbloom.users.domain.ports.UserRepository;
 import dev.rafex.insightbloom.users.domain.model.Permission;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.services.EventPermissionGuard;
+import dev.rafex.insightbloom.users.domain.services.IcsCalendarBuilder;
+
+import java.util.List;
 
 public class JoinConferenceUseCase {
     private final GetConferenceUseCase getConferenceUseCase;
@@ -21,6 +24,7 @@ public class JoinConferenceUseCase {
     private final ReserveGeneralUseCase reserveGeneralUseCase;
     private final TicketUseCase ticketUseCase;
     private final EventPermissionGuard eventPermissionGuard;
+    private final SendNotificationUseCase sendNotificationUseCase;
     private final String frontendBaseUrl;
 
     public JoinConferenceUseCase(final GetConferenceUseCase getConferenceUseCase,
@@ -31,7 +35,7 @@ public class JoinConferenceUseCase {
                                   final ReserveGeneralUseCase reserveGeneralUseCase,
                                   final String frontendBaseUrl) {
         this(getConferenceUseCase, membershipRepository, userRepository, emailPort, timezoneRepository,
-                reserveGeneralUseCase, frontendBaseUrl, null, null);
+                reserveGeneralUseCase, frontendBaseUrl, null, null, null);
     }
 
     public JoinConferenceUseCase(final GetConferenceUseCase getConferenceUseCase,
@@ -43,6 +47,20 @@ public class JoinConferenceUseCase {
                                   final String frontendBaseUrl,
                                   final TicketUseCase ticketUseCase,
                                   final EventPermissionGuard eventPermissionGuard) {
+        this(getConferenceUseCase, membershipRepository, userRepository, emailPort, timezoneRepository,
+                reserveGeneralUseCase, frontendBaseUrl, ticketUseCase, eventPermissionGuard, null);
+    }
+
+    public JoinConferenceUseCase(final GetConferenceUseCase getConferenceUseCase,
+                                  final ConferenceMembershipRepository membershipRepository,
+                                  final UserRepository userRepository,
+                                  final EmailPort emailPort,
+                                  final TimezoneRepository timezoneRepository,
+                                  final ReserveGeneralUseCase reserveGeneralUseCase,
+                                  final String frontendBaseUrl,
+                                  final TicketUseCase ticketUseCase,
+                                  final EventPermissionGuard eventPermissionGuard,
+                                  final SendNotificationUseCase sendNotificationUseCase) {
         this.getConferenceUseCase = getConferenceUseCase;
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
@@ -52,6 +70,7 @@ public class JoinConferenceUseCase {
         this.frontendBaseUrl = frontendBaseUrl;
         this.ticketUseCase = ticketUseCase;
         this.eventPermissionGuard = eventPermissionGuard;
+        this.sendNotificationUseCase = sendNotificationUseCase;
     }
 
     public Conference execute(final String userUuid, final String identifier) {
@@ -100,21 +119,62 @@ public class JoinConferenceUseCase {
             final String schedule = describeSchedule(conference);
             final String subject = "Te has apuntado a la conferencia " + conference.getName();
             final String ticketLine = reservation != null
-                    ? "\nTu boleto: " + frontendBaseUrl + "/c/" + conference.getFriendlyId() + "/ticket\n"
+                    ? "Tu boleto: <a href=\"" + frontendBaseUrl + "/c/" + conference.getFriendlyId() + "/ticket\">" + frontendBaseUrl + "/c/" + conference.getFriendlyId() + "/ticket</a>"
                     : "";
-            final String body = """
-                    ¡Hola!
-
-                    Confirmamos tu registro en "%s".
+            final String htmlBody = """
+                    <p>¡Hola!</p>
+                    <p>Confirmamos tu registro en "%s".</p>
                     %s%s%s
-                    Nos vemos ahí.
+                    <p>Nos vemos ahí.</p>
                     """.formatted(
                     conference.getName(),
-                    schedule.isBlank() ? "" : "\n" + schedule + "\n",
+                    schedule.isBlank() ? "" : "<p>" + schedule + "</p>",
                     conference.getVenue() != null && !conference.getVenue().isBlank()
-                            ? "\nSede: " + conference.getVenue() + "\n" : "",
-                    ticketLine);
-            emailPort.send(user.getEmail(), subject, body);
+                            ? "<p>Sede: " + conference.getVenue() + "</p>" : "",
+                    ticketLine.isBlank() ? "" : "<p>" + ticketLine + "</p>");
+
+            final List<EmailPort.EmailAttachment> attachments = buildCalendarAttachment(conference);
+            emailPort.sendHtml(user.getEmail(), subject, htmlBody, attachments);
+        } catch (final Exception e) {
+            // best-effort
+        }
+        sendNotificationInApp(userUuid, conference);
+    }
+
+    private List<EmailPort.EmailAttachment> buildCalendarAttachment(final Conference conference) {
+        try {
+            if (conference.getEventDate() == null || conference.getEventDate().isBlank()
+                    || conference.getStartTime() == null || conference.getStartTime().isBlank()) {
+                return List.of();
+            }
+            final Integer tzId = conference.getTimezoneId();
+            final Integer offsetMinutes = tzId != null
+                    ? timezoneRepository.findById(tzId).map(dev.rafex.insightbloom.users.domain.model.Timezone::utcOffsetMinutes).orElse(-360)
+                    : -360;
+            final var icsInput = new IcsCalendarBuilder.CalendarEventInput(
+                    conference.getName(),
+                    conference.getEventDate(),
+                    conference.getStartTime(),
+                    conference.getEndTime(),
+                    conference.getVenue(),
+                    offsetMinutes
+            );
+            final String icsContent = IcsCalendarBuilder.buildIcs(icsInput);
+            final byte[] icsBytes = icsContent.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            return List.of(new EmailPort.EmailAttachment("evento.ics", "text/calendar", icsBytes, null));
+        } catch (final Exception e) {
+            // best-effort: si no se puede generar el .ics, el email se envía sin adjunto
+            return List.of();
+        }
+    }
+
+    private void sendNotificationInApp(final String userUuid, final Conference conference) {
+        try {
+            if (sendNotificationUseCase == null) return;
+            sendNotificationUseCase.execute(userUuid, "conference_join_confirmed",
+                    "Te has apuntado a " + conference.getName(),
+                    "Confirmamos tu registro en la conferencia.",
+                    frontendBaseUrl + "/c/" + conference.getFriendlyId());
         } catch (final Exception e) {
             // best-effort
         }

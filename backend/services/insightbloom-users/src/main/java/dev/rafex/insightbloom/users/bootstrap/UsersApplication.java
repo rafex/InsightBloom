@@ -180,7 +180,7 @@ public class UsersApplication {
                 conferenceRepo, reservationRepo, venueSeatRepo, userRepo, emailPort, frontendBaseUrl);
         final var joinConferenceUseCase = new JoinConferenceUseCase(
                 getConferenceUseCase, membershipRepo, userRepo, emailPort, timezoneRepo,
-                reserveGeneralUseCase, frontendBaseUrl, ticketUseCase, eventPermissionGuard);
+                reserveGeneralUseCase, frontendBaseUrl, ticketUseCase, eventPermissionGuard, sendNotificationUseCase);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
         final var certificatePlatformData = new dev.rafex.insightbloom.users.domain.model.CertificatePlatformData(
                 "InsightBloom", frontendBaseUrl,
@@ -222,7 +222,7 @@ public class UsersApplication {
         final var listEventRolesUseCase = new ListEventRolesUseCase(eventRoleRepo, userRepo, eventPermissionGuard);
         final var removeEventRoleUseCase = new RemoveEventRoleUseCase(eventRoleRepo, conferenceRepo, eventPermissionGuard);
         final var sendConferenceRemindersUseCase = new SendConferenceRemindersUseCase(
-                conferenceRepo, membershipRepo, userRepo, timezoneRepo, emailPort, reservationRepo, frontendBaseUrl);
+                conferenceRepo, userRepo, timezoneRepo, emailPort, reservationRepo, frontendBaseUrl, sendNotificationUseCase);
         final var purgeExpiredEventNotesUseCase = new PurgeExpiredEventNotesUseCase(
                 conferenceRepo, timezoneRepo, etherpadPort);
         final var eventCapabilityGuard = new dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard(eventTypeRepo);
@@ -230,7 +230,7 @@ public class UsersApplication {
         final var sendAttendeeEmailUseCase = new dev.rafex.insightbloom.users.application.usecases.SendAttendeeEmailUseCase(
                 conferenceRepo, reservationRepo, userRepo, emailPort);
         final var notifyConferenceUpdatedUseCase = new dev.rafex.insightbloom.users.application.usecases.NotifyConferenceUpdatedUseCase(
-                reservationRepo, userRepo, emailPort, eventTypeRepo);
+                reservationRepo, userRepo, emailPort, eventTypeRepo, sendNotificationUseCase, frontendBaseUrl);
         final var setOnDemandVideoUseCase = new dev.rafex.insightbloom.users.application.usecases.SetOnDemandVideoUseCase(conferenceRepo);
         final var emailLlmClient = new EmailLlmClient(platformSettingsRepo, JacksonJsonCodec.defaultCodec());
         final var generateEmailDraftUseCase = new GenerateEmailDraftUseCase(conferenceRepo, emailLlmClient);

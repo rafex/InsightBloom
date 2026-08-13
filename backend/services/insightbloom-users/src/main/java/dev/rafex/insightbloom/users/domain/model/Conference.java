@@ -42,6 +42,7 @@ public class Conference {
     private String publicTheme = "CLASSIC"; // CLASSIC | EDITORIAL | MINIMAL
     private Integer timezoneId; // FK a timezones, nullable (se resuelve al default si no se envía)
     private Instant reminderSentAt; // marca cuándo se envió el recordatorio de 1h antes, nullable
+    private Instant dayBeforeReminderSentAt; // marca cuándo se envió el recordatorio de 1 día antes, nullable
     private String seatingMode = "NONE"; // NONE | GENERAL | SEATED
     private Integer capacity; // aforo máximo, solo relevante en modo GENERAL
     private int reservedCount; // contador atómico de reservas activas en modo GENERAL
@@ -188,6 +189,7 @@ public class Conference {
     public String getPublicTheme() { return publicTheme; }
     public Integer getTimezoneId() { return timezoneId; }
     public Instant getReminderSentAt() { return reminderSentAt; }
+    public Instant getDayBeforeReminderSentAt() { return dayBeforeReminderSentAt; }
     public String getSeatingMode() { return seatingMode; }
     public Integer getCapacity() { return capacity; }
     public int getReservedCount() { return reservedCount; }
@@ -297,6 +299,7 @@ public class Conference {
     }
     public void setTimezoneId(Integer timezoneId) { this.timezoneId = timezoneId; }
     public void setReminderSentAt(Instant reminderSentAt) { this.reminderSentAt = reminderSentAt; }
+    public void setDayBeforeReminderSentAt(Instant dayBeforeReminderSentAt) { this.dayBeforeReminderSentAt = dayBeforeReminderSentAt; }
     public String getSandboxVariant() { return sandboxVariant; }
     public Integer getSandboxPoolSize() { return sandboxPoolSize; }
     public Integer getSandboxInternetEnabled() { return sandboxInternetEnabled; }

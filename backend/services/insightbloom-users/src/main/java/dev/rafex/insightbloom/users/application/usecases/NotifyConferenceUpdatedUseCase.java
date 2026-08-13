@@ -25,40 +25,81 @@ public class NotifyConferenceUpdatedUseCase {
     private final UserRepository userRepository;
     private final EmailPort emailPort;
     private final EventTypeRepository eventTypeRepository;
+    private final SendNotificationUseCase sendNotificationUseCase;
+    private final String frontendBaseUrl;
 
     public NotifyConferenceUpdatedUseCase(final ReservationRepository reservationRepository,
                                            final UserRepository userRepository,
                                            final EmailPort emailPort,
                                            final EventTypeRepository eventTypeRepository) {
+        this(reservationRepository, userRepository, emailPort, eventTypeRepository, null, null);
+    }
+
+    public NotifyConferenceUpdatedUseCase(final ReservationRepository reservationRepository,
+                                           final UserRepository userRepository,
+                                           final EmailPort emailPort,
+                                           final EventTypeRepository eventTypeRepository,
+                                           final SendNotificationUseCase sendNotificationUseCase,
+                                           final String frontendBaseUrl) {
         this.reservationRepository = reservationRepository;
         this.userRepository = userRepository;
         this.emailPort = emailPort;
         this.eventTypeRepository = eventTypeRepository;
+        this.sendNotificationUseCase = sendNotificationUseCase;
+        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     public void execute(final Conference before, final Conference after) {
         final List<FieldRow> rows = buildRows(before, after);
         if (rows.stream().noneMatch(FieldRow::changed)) return;
-        if (!emailPort.isEnabled()) return;
 
-        final Set<String> emails = new LinkedHashSet<>();
+        final List<String> userUuids = new ArrayList<>();
         for (final var reservation : reservationRepository.findByConference(after.getUuid())) {
-            userRepository.findByUuid(reservation.getUserUuid())
-                    .map(User::getEmail)
-                    .filter(email -> email != null && !email.isBlank())
-                    .ifPresent(emails::add);
+            userUuids.add(reservation.getUserUuid());
         }
-        if (emails.isEmpty()) return;
+        if (userUuids.isEmpty()) return;
 
-        final String html = ConferenceUpdateEmailTemplate.render(after.getName(), rows);
-        final String subject = "Cambios en el evento: " + after.getName();
-        for (final String email : emails) {
-            try {
-                emailPort.sendHtml(email, subject, html);
-            } catch (final Exception ignored) {
-                // Un destinatario fallido no debe impedir que el resto reciba la notificación.
+        if (emailPort.isEnabled()) {
+            final Set<String> emails = new LinkedHashSet<>();
+            for (final String userUuid : userUuids) {
+                userRepository.findByUuid(userUuid)
+                        .map(User::getEmail)
+                        .filter(email -> email != null && !email.isBlank())
+                        .ifPresent(emails::add);
+            }
+            if (!emails.isEmpty()) {
+                final String html = ConferenceUpdateEmailTemplate.render(after.getName(), rows);
+                final String subject = "Cambios en el evento: " + after.getName();
+                for (final String email : emails) {
+                    try {
+                        emailPort.sendHtml(email, subject, html);
+                    } catch (final Exception ignored) {
+                        // Un destinatario fallido no debe impedir que el resto reciba la notificación.
+                    }
+                }
             }
         }
+
+        sendInAppNotifications(userUuids, after);
+    }
+
+    private void sendInAppNotifications(final List<String> userUuids, final Conference conference) {
+        if (sendNotificationUseCase == null || frontendBaseUrl == null) return;
+        final String summary = buildChangesSummary(conference);
+        for (final String userUuid : userUuids) {
+            try {
+                sendNotificationUseCase.execute(userUuid, "conference_updated",
+                        "Cambios en " + conference.getName(),
+                        summary,
+                        frontendBaseUrl + "/c/" + conference.getFriendlyId());
+            } catch (final Exception ignored) {
+                // best-effort: fallos en notificación in-app no deben afectar a otros usuarios
+            }
+        }
+    }
+
+    private String buildChangesSummary(final Conference conference) {
+        return "El organizador ha actualizado los detalles del evento. Revisa los cambios.";
     }
 
     private List<FieldRow> buildRows(final Conference before, final Conference after) {
