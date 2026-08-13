@@ -19,6 +19,8 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -50,9 +52,10 @@ class StartWorkspaceZipJobUseCaseTest {
         final SandboxOrchestrator sandboxOrchestrator = mock(SandboxOrchestrator.class);
         final EmailPort emailPort = mock(EmailPort.class);
         final WorkspaceZipCache zipCache = new WorkspaceZipCache();
+        final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         final SendNotificationUseCase sendNotificationUseCase =
                 new SendNotificationUseCase(mock(dev.rafex.insightbloom.users.domain.ports.NotificationRepository.class),
-                        new NotificationStreamRegistry());
+                        new NotificationStreamRegistry(scheduler));
 
         final Sandbox sandbox = sandbox("user-1");
         when(sandboxRepository.findByConferenceAndUser("conf-1", "user-1")).thenReturn(Optional.of(sandbox));
@@ -89,9 +92,10 @@ class StartWorkspaceZipJobUseCaseTest {
         final SandboxOrchestrator sandboxOrchestrator = mock(SandboxOrchestrator.class);
         final EmailPort emailPort = mock(EmailPort.class);
         final WorkspaceZipCache zipCache = new WorkspaceZipCache();
+        final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         final SendNotificationUseCase sendNotificationUseCase =
                 new SendNotificationUseCase(mock(dev.rafex.insightbloom.users.domain.ports.NotificationRepository.class),
-                        new NotificationStreamRegistry());
+                        new NotificationStreamRegistry(scheduler));
 
         final Sandbox sandbox = sandbox("user-1");
         when(sandboxRepository.findByConferenceAndUser("conf-1", "user-1")).thenReturn(Optional.of(sandbox));
@@ -117,10 +121,11 @@ class StartWorkspaceZipJobUseCaseTest {
     void throwsWhenNoSandboxAssigned() {
         final SandboxRepository sandboxRepository = mock(SandboxRepository.class);
         when(sandboxRepository.findByConferenceAndUser("conf-1", "user-1")).thenReturn(Optional.empty());
+        final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         final var useCase = new StartWorkspaceZipJobUseCase(sandboxRepository, mock(ConferenceRepository.class),
                 mock(UserRepository.class), mock(WorkspaceZipJobRepository.class), new WorkspaceZipCache(),
                 mock(SandboxOrchestrator.class),
-                new SendNotificationUseCase(mock(dev.rafex.insightbloom.users.domain.ports.NotificationRepository.class), new NotificationStreamRegistry()),
+                new SendNotificationUseCase(mock(dev.rafex.insightbloom.users.domain.ports.NotificationRepository.class), new NotificationStreamRegistry(scheduler)),
                 mock(EmailPort.class), DIRECT_EXECUTOR, "https://insightbloom.example/api/users");
 
         assertThrows(IllegalArgumentException.class, () -> useCase.execute("conf-1", "user-1"));
@@ -135,9 +140,10 @@ class StartWorkspaceZipJobUseCaseTest {
         final SandboxOrchestrator sandboxOrchestrator = mock(SandboxOrchestrator.class);
         final EmailPort emailPort = mock(EmailPort.class);
         final WorkspaceZipCache zipCache = new WorkspaceZipCache();
+        final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         final SendNotificationUseCase sendNotificationUseCase =
                 new SendNotificationUseCase(mock(dev.rafex.insightbloom.users.domain.ports.NotificationRepository.class),
-                        new NotificationStreamRegistry());
+                        new NotificationStreamRegistry(scheduler));
 
         final Sandbox sandbox = sandbox("user-1");
         when(sandboxRepository.findByConferenceAndUser("conf-1", "user-1")).thenReturn(Optional.of(sandbox));

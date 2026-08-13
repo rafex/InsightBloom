@@ -97,9 +97,15 @@ public class UsersApplication {
         final var egressPolicyRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteEgressPolicyRepository(db);
         final var imagePolicyRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteImagePolicyRepository(db);
         final var notificationRepo = new SqliteNotificationRepository(db);
+        final var notificationHeartbeatScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            final var t = new Thread(r, "notification-heartbeat-scheduler");
+            t.setDaemon(true);
+            return t;
+        });
         // Registro compartido de streams SSE: NotificationHandler registra/desregistra conexiones
-        // acá, y SendNotificationUseCase empuja por acá.
-        final var notificationStreamRegistry = new dev.rafex.insightbloom.users.domain.services.NotificationStreamRegistry();
+        // acá, y SendNotificationUseCase empuja por acá. El heartbeat scheduler mantiene vivas
+        // las conexiones SSE enviando ping cada 30s (previene 504 nginx timeout en silencio >60s).
+        final var notificationStreamRegistry = new dev.rafex.insightbloom.users.domain.services.NotificationStreamRegistry(notificationHeartbeatScheduler);
         final var listNotificationsUseCase = new ListNotificationsUseCase(notificationRepo);
         final var markNotificationReadUseCase = new MarkNotificationReadUseCase(notificationRepo);
         final var sendNotificationUseCase = new SendNotificationUseCase(notificationRepo, notificationStreamRegistry);

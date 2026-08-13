@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -26,31 +28,41 @@ class SendNotificationUseCaseTest {
 
     @Test
     void savesAndPushesToConnectedStream() {
-        final NotificationRepository repository = mock(NotificationRepository.class);
-        final NotificationStreamRegistry registry = new NotificationStreamRegistry();
-        final FakeStream stream = new FakeStream();
-        registry.register("user-1", stream);
+        final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            final NotificationRepository repository = mock(NotificationRepository.class);
+            final NotificationStreamRegistry registry = new NotificationStreamRegistry(scheduler);
+            final FakeStream stream = new FakeStream();
+            registry.register("user-1", stream);
 
-        final Notification result = new SendNotificationUseCase(repository, registry)
-                .execute("user-1", "workspace_zip_ready", "Tu zip está listo",
-                        "Ya podés descargarlo", "/dashboard/events/conf-1");
+            final Notification result = new SendNotificationUseCase(repository, registry)
+                    .execute("user-1", "workspace_zip_ready", "Tu zip está listo",
+                            "Ya podés descargarlo", "/dashboard/events/conf-1");
 
-        assertNotNull(result.getUuid());
-        assertEquals("user-1", result.getUserUuid());
-        verify(repository).save(result);
-        assertEquals(1, stream.sent.size());
-        assertEquals("notification", stream.sent.get(0)[0]);
-        assertTrue(stream.sent.get(0)[1].contains("Tu zip está listo"));
+            assertNotNull(result.getUuid());
+            assertEquals("user-1", result.getUserUuid());
+            verify(repository).save(result);
+            assertEquals(1, stream.sent.size());
+            assertEquals("notification", stream.sent.get(0)[0]);
+            assertTrue(stream.sent.get(0)[1].contains("Tu zip está listo"));
+        } finally {
+            scheduler.shutdown();
+        }
     }
 
     @Test
     void savesEvenWithoutConnectedStream() {
-        final NotificationRepository repository = mock(NotificationRepository.class);
-        final NotificationStreamRegistry registry = new NotificationStreamRegistry();
+        final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        try {
+            final NotificationRepository repository = mock(NotificationRepository.class);
+            final NotificationStreamRegistry registry = new NotificationStreamRegistry(scheduler);
 
-        final Notification result = new SendNotificationUseCase(repository, registry)
-                .execute("user-2", "workspace_zip_ready", "Listo", "body", null);
+            final Notification result = new SendNotificationUseCase(repository, registry)
+                    .execute("user-2", "workspace_zip_ready", "Listo", "body", null);
 
-        verify(repository).save(result);
+            verify(repository).save(result);
+        } finally {
+            scheduler.shutdown();
+        }
     }
 }
