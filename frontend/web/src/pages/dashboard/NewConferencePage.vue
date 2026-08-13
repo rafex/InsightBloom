@@ -107,7 +107,7 @@
         span.event-canvas-mode-label {{ canvasToolLabel(tool) }}
         select(v-model="canvasModes[tool]")
           option(v-for="option in canvasModeOptions(tool)" :key="option.value" :value="option.value") {{ option.label }}
-      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
+      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad soporta notas grupales (todos colaboran), notas individuales (un pad privado por asistente que se borra al vencer el evento y se puede exportar), o modo solo moderador (los asistentes ven la publicación sin poder editar).
       p.field-hint Cada herramienta puede tener una modalidad distinta.
 
     FormField(label="Aforo máximo" :hint="`Cuántas personas van a tener acceso al evento y sus herramientas (IDE, encuestas...), incluso si es virtual — la infraestructura tiene recursos limitados. El mínimo es 2 porque el creador ocupa un boleto operativo contado. Cada moderador adicional ocupa otra plaza. Recomendado hasta ${recommendedMaxCapacity}. Se puede cambiar después.`")
@@ -358,7 +358,8 @@ export default {
       if (tool === 'ETHERPAD') {
         return [
           { value: 'COLLABORATIVE', label: 'Notas grupales (todos colaboran)' },
-          { value: 'INDEPENDENT', label: 'Notas individuales (se borran al vencer el evento)' }
+          { value: 'INDEPENDENT', label: 'Notas individuales (se borran al vencer el evento)' },
+          { value: 'MODERATOR_ONLY', label: 'Solo el moderador edita; asistentes ven la publicación' }
         ]
       }
       return [
