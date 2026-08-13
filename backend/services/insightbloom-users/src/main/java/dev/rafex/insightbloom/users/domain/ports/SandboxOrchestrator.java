@@ -29,6 +29,11 @@ public interface SandboxOrchestrator {
      *                  alumno) via JDK_JAVA_OPTIONS; null usa el default chico de la
      *                  implementacion (pedido explicito: JVMs chicas por defecto, no "libres"
      *                  tomando todo lo que el contenedor les deje via cgroups).
+     * @param internetEnabled ya NO se usa acá (Fase 7, 2026-08) -- el bloqueo/permiso de egress
+     *                  externo lo decide {@code egress_proxy.py}/{@code ResolveEgressPolicyUseCase}
+     *                  dinámicamente en cada request, leyendo el valor vigente de {@code Conference}
+     *                  directo de SQLite, sin tocar Kubernetes. Se mantiene en la firma para no
+     *                  romper los call-sites existentes; ver {@code SetSandboxInternetUseCase}.
      * @param seatsPerPod cantidad de alumnos que compartiran este Pod (solo relevante en modo
      *                    terminal-nvim; ignorado en cualquier otro modo, un Pod = un alumno
      *                    siempre). Null usa el default de la implementacion. Determina cuantos
@@ -120,14 +125,6 @@ public interface SandboxOrchestrator {
      *  GenerateWorkspaceDownloadUrlUseCase/DownloadWorkspaceZipUseCase) -- mismo agente de
      *  control que listWorkspaceFiles/readWorkspaceFile, ruta {@code /workspace/{seatIndex}/zip}. */
     byte[] downloadWorkspaceZip(String podName, int seatIndex);
-
-    /** Fase 3c: crea (si no existe) la NetworkPolicy que permite egress a internet para todos
-     *  los sandboxes de un evento — idempotente. */
-    void allowInternetEgress(String conferenceLabel);
-
-    /** Fase 3c: borra esa NetworkPolicy (vuelve al default-deny egress del namespace) — no falla
-     *  si ya no existe. */
-    void denyInternetEgress(String conferenceLabel);
 
     /**
      * Control de egress por dominio (2026-07): el egress-proxy no conoce Kubernetes ni SQLite --

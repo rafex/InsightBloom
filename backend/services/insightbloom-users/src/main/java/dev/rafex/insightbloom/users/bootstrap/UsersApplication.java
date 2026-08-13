@@ -350,7 +350,12 @@ public class UsersApplication {
                         System.getenv().getOrDefault("SANDBOX_PODMAN_CPU_LIMIT", "1000m"),
                         sandboxPodmanMemoryLimit),
                 sandboxPodmanAppBasePort,
-                System.getenv().getOrDefault("SANDBOX_PODMAN_STORAGE_SIZE_LIMIT", "4Gi"));
+                System.getenv().getOrDefault("SANDBOX_PODMAN_STORAGE_SIZE_LIMIT", "4Gi"),
+                // Fase 7 (2026-08): CIDR interno del cluster que el initContainer de cada sandbox
+                // permite alcanzar (nftables) antes de bloquear el resto del egress -- default de
+                // k3s (pods 10.42.0.0/16 + services 10.43.0.0/16, ambos dentro de 10.0.0.0/8).
+                // Configurable por si el cluster real usa otro rango.
+                System.getenv().getOrDefault("SANDBOX_CLUSTER_CIDR", "10.0.0.0/8"));
         final long sandboxTtlSecondsAfterEventExpiry =
                 Long.parseLong(System.getenv().getOrDefault("SANDBOX_TTL_SECONDS_AFTER_EVENT_EXPIRY", "3600"));
         final var assignSandboxUseCase = new AssignSandboxUseCase(
@@ -432,7 +437,7 @@ public class UsersApplication {
                 System.getenv().getOrDefault("SANDBOX_PODMAN_SHARED_POD_NAME", "sandbox-runtime-podman-shared"),
                 sandboxPodmanAppBasePort,
                 Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PODMAN_MAX_PUBLICATIONS", "10")));
-        final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo, sandboxOrchestrator);
+        final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo);
         final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
         final var reconcileSandboxHealthUseCase = new dev.rafex.insightbloom.users.application.usecases.ReconcileSandboxHealthUseCase(
                 sandboxRepo, conferenceRepo, sandboxOrchestrator);
