@@ -246,7 +246,7 @@ public class SurveyHandler extends BaseResourceHandler {
                 return true;
             }
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
             return true;
         }
         sendError(jx, 404, "not_found", "Endpoint not found");
@@ -465,7 +465,7 @@ public class SurveyHandler extends BaseResourceHandler {
             sendError(jx, 400, e.getMessage(), e.getMessage());
             return true;
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
             return true;
         }
         sendError(jx, 404, "not_found", "Endpoint not found");
@@ -493,7 +493,7 @@ public class SurveyHandler extends BaseResourceHandler {
             } catch (final IllegalArgumentException e) {
                 sendError(jx, 400, e.getMessage(), e.getMessage());
             } catch (final Exception e) {
-                sendError(jx, 500, "internal_error", e.getMessage());
+                sendInternalError(jx, e);
             }
             return true;
         }
@@ -506,7 +506,7 @@ public class SurveyHandler extends BaseResourceHandler {
             } catch (final IllegalArgumentException e) {
                 sendError(jx, 400, e.getMessage(), e.getMessage());
             } catch (final Exception e) {
-                sendError(jx, 500, "internal_error", e.getMessage());
+                sendInternalError(jx, e);
             }
             return true;
         }
@@ -524,7 +524,7 @@ public class SurveyHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

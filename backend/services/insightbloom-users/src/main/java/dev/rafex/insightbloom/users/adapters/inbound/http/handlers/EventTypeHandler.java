@@ -79,7 +79,7 @@ public class EventTypeHandler extends BaseResourceHandler {
                     .map(EventTypeHandler::toView).toList();
             sendOk(jx, items);
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -97,7 +97,7 @@ public class EventTypeHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -122,7 +122,7 @@ public class EventTypeHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, "event_type_not_found".equals(e.getMessage()) ? 404 : 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

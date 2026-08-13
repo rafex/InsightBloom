@@ -616,7 +616,7 @@ public class SandboxHandler extends BaseResourceHandler {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             LOGGER.log(Level.SEVERE, "SandboxHandler: error inesperado en " + jx.path(), e);
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

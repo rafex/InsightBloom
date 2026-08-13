@@ -48,7 +48,7 @@ public class InternalEvaluateHandler extends BaseResourceHandler {
                     (String) body.get("authorDisplayName")));
             sendOk(jx, result);
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

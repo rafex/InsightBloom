@@ -50,7 +50,7 @@ public class RecalcHandler extends BaseResourceHandler {
                     Boolean.TRUE.equals(body.get("visible"))));
             sendOk(jx, Map.of("status", "recalculated"));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

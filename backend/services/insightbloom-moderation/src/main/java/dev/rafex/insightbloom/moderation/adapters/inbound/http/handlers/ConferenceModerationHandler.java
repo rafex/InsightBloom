@@ -147,7 +147,7 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
                 return handleListMessages(jx, conferenceId);
             }
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         sendError(jx, 404, "not_found", "Endpoint not found");
         return true;
@@ -185,7 +185,7 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
                 return handleDeleteMessage(jx, jx.pathParam("msgId"), v.subjectUuid());
             }
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
             return true;
         }
         sendError(jx, 404, "not_found", "Endpoint not found");
@@ -209,7 +209,7 @@ public class ConferenceModerationHandler extends BaseResourceHandler {
                 return handleEditMessage(jx, jx.pathParam("msgId"), v.subjectUuid());
             }
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
             return true;
         }
         sendError(jx, 404, "not_found", "Endpoint not found");

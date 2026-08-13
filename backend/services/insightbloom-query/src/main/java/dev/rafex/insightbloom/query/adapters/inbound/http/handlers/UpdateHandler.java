@@ -56,7 +56,7 @@ public class UpdateHandler extends BaseResourceHandler {
                     Boolean.TRUE.equals(body.get("wordVisible"))));
             sendOk(jx, Map.of("status", "updated"));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

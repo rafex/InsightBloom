@@ -77,7 +77,7 @@ public class UserProfileHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -106,7 +106,7 @@ public class UserProfileHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -139,7 +139,7 @@ public class UserProfileHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -167,7 +167,7 @@ public class UserProfileHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

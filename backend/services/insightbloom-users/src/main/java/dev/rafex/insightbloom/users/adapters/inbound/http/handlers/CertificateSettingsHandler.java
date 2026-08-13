@@ -82,7 +82,7 @@ public class CertificateSettingsHandler extends BaseResourceHandler {
                     (Boolean) body.get("showIssuedDate")));
             sendOk(jx, result);
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
