@@ -1,7 +1,5 @@
 <template lang="pug">
 .on-demand-page
-  .on-demand-header
-    h2 Video
   //- El iframe real (via <Teleport>) aterriza aca -- ver OnDemandFloatingVideo.vue, montado de
   //- forma persistente en ConferencePage.vue. SIEMPRE presente en el DOM, sin importar
   //- accessGranted/embedUrl (que llegan async y pueden resolver en un tick distinto al que usa
