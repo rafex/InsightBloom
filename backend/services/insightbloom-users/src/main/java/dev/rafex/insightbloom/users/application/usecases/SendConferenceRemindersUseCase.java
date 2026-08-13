@@ -16,17 +16,20 @@ import java.time.LocalTime;
 
 /**
  * Ticked periodically (see {@code UsersApplication}'s scheduler) to email registered attendees
- * ~1h before a conference starts. Each conference is reminded at most once, tracked via
- * {@code reminder_sent_at} — cleared automatically if the organizer reschedules the event
- * (see {@code UpdateConferenceUseCase}).
+ * ~1h and ~1 day before a conference starts. Each reminder is sent at most once, tracked via
+ * {@code reminder_sent_at} and {@code day_before_reminder_sent_at} — cleared automatically
+ * if the organizer reschedules the event (see {@code UpdateConferenceUseCase}).
+ * Recipients are determined by Reservation records (authoritative enrollment source as of 2026-07-18).
  */
 public class SendConferenceRemindersUseCase {
 
-    private static final long WINDOW_START_MINUTES = 55;
-    private static final long WINDOW_END_MINUTES = 65;
+    private static final long WINDOW_1H_START_MINUTES = 55;
+    private static final long WINDOW_1H_END_MINUTES = 65;
+
+    private static final long WINDOW_1DAY_START_HOURS = 23;
+    private static final long WINDOW_1DAY_END_HOURS = 25;
 
     private final ConferenceRepository conferenceRepository;
-    private final ConferenceMembershipRepository membershipRepository;
     private final UserRepository userRepository;
     private final TimezoneRepository timezoneRepository;
     private final EmailPort emailPort;
@@ -34,14 +37,12 @@ public class SendConferenceRemindersUseCase {
     private final String frontendBaseUrl;
 
     public SendConferenceRemindersUseCase(final ConferenceRepository conferenceRepository,
-                                           final ConferenceMembershipRepository membershipRepository,
                                            final UserRepository userRepository,
                                            final TimezoneRepository timezoneRepository,
                                            final EmailPort emailPort,
                                            final ReservationRepository reservationRepository,
                                            final String frontendBaseUrl) {
         this.conferenceRepository = conferenceRepository;
-        this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
         this.timezoneRepository = timezoneRepository;
         this.emailPort = emailPort;
@@ -51,32 +52,50 @@ public class SendConferenceRemindersUseCase {
 
     public void execute(final Instant now) {
         if (!emailPort.isEnabled()) return;
+        send1HourReminders(now);
+        send1DayBeforeReminders(now);
+    }
+
+    private void send1HourReminders(final Instant now) {
         for (final Conference conference : conferenceRepository.findPendingReminder()) {
             final Instant startInstant = resolveStartInstant(conference);
             if (startInstant == null) continue;
             final long minutesUntilStart = java.time.Duration.between(now, startInstant).toMinutes();
-            if (minutesUntilStart < WINDOW_START_MINUTES || minutesUntilStart > WINDOW_END_MINUTES) continue;
+            if (minutesUntilStart < WINDOW_1H_START_MINUTES || minutesUntilStart > WINDOW_1H_END_MINUTES) continue;
 
-            sendRemindersFor(conference);
+            sendRemindersFor(conference, "1 hora");
             conference.setReminderSentAt(now);
             conferenceRepository.save(conference);
         }
     }
 
-    private void sendRemindersFor(final Conference conference) {
-        for (final var membership : membershipRepository.findByConference(conference.getUuid())) {
+    private void send1DayBeforeReminders(final Instant now) {
+        for (final Conference conference : conferenceRepository.findPendingDayBeforeReminder()) {
+            final Instant startInstant = resolveStartInstant(conference);
+            if (startInstant == null) continue;
+            final long hoursUntilStart = java.time.Duration.between(now, startInstant).toHours();
+            if (hoursUntilStart < WINDOW_1DAY_START_HOURS || hoursUntilStart > WINDOW_1DAY_END_HOURS) continue;
+
+            sendRemindersFor(conference, "1 día");
+            conference.setDayBeforeReminderSentAt(now);
+            conferenceRepository.save(conference);
+        }
+    }
+
+    private void sendRemindersFor(final Conference conference, final String timeframe) {
+        for (final var reservation : reservationRepository.findByConference(conference.getUuid())) {
             try {
-                final User user = userRepository.findByUuid(membership.getUserUuid()).orElse(null);
+                final User user = userRepository.findByUuid(reservation.getUserUuid()).orElse(null);
                 if (user == null || user.getEmail() == null || user.getEmail().isBlank()) continue;
-                final String subject = "Tu conferencia " + conference.getName() + " empieza en 1 hora";
-                final String ticketLine = ticketReminderLine(conference, membership.getUserUuid());
+                final String subject = "Tu conferencia " + conference.getName() + " empieza en " + timeframe;
+                final String ticketLine = ticketReminderLine(conference, reservation.getUserUuid());
                 final String body = """
                         ¡Hola!
 
-                        Recordatorio: "%s" empieza en aproximadamente 1 hora.
+                        Recordatorio: "%s" empieza en aproximadamente %s.
                         %s%s
                         Nos vemos ahí.
-                        """.formatted(conference.getName(),
+                        """.formatted(conference.getName(), timeframe,
                         conference.getVenue() != null && !conference.getVenue().isBlank()
                                 ? "\nSede: " + conference.getVenue() + "\n" : "",
                         ticketLine);

@@ -34,7 +34,7 @@ public class SqliteConferenceRepository implements ConferenceRepository {
               (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, description, visibility, schedule_markdown, schedule_layout, public_theme, timezone_id, reminder_sent_at, day_before_reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, sandbox_cli_lazyvim_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode, ticket_price, ticket_currency, certificate_engine, ticket_sales_enabled, on_demand_video_provider, on_demand_video_url)
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 , ?, ?, ?, ?
@@ -74,47 +74,47 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(24, conference.getReminderSentAt() != null ? conference.getReminderSentAt().toString() : null);
             ps.setString(25, conference.getDayBeforeReminderSentAt() != null ? conference.getDayBeforeReminderSentAt().toString() : null);
             ps.setString(26, conference.getSeatingMode());
-            if (conference.getCapacity() != null) ps.setInt(28, conference.getCapacity());
-            else ps.setNull(28, Types.INTEGER);
-            ps.setInt(29, conference.getReservedCount());
-            ps.setString(30, conference.getVenueMapBase64());
-            ps.setString(31, conference.getEventTypeKey());
-            ps.setString(32, conference.getNotesPurgedAt() != null ? conference.getNotesPurgedAt().toString() : null);
-            ps.setString(33, conference.getDiagramXml());
-            ps.setString(34, conference.getDiagramPublishedSvg());
-            ps.setString(35, conference.getDiagramUpdatedAt() != null ? conference.getDiagramUpdatedAt().toString() : null);
-            ps.setLong(36, conference.getDiagramVersion());
-            ps.setString(37, conference.getDiagramPurgedAt() != null ? conference.getDiagramPurgedAt().toString() : null);
-            ps.setString(38, conference.getWhiteboardSceneJson());
-            ps.setString(39, conference.getWhiteboardPublishedSvg());
-            ps.setString(40, conference.getWhiteboardUpdatedAt() != null ? conference.getWhiteboardUpdatedAt().toString() : null);
-            ps.setLong(41, conference.getWhiteboardVersion());
-            ps.setString(42, conference.getSandboxVariant());
-            if (conference.getSandboxPoolSize() != null) ps.setInt(43, conference.getSandboxPoolSize());
-            else ps.setNull(43, Types.INTEGER);
+            if (conference.getCapacity() != null) ps.setInt(27, conference.getCapacity());
+            else ps.setNull(27, Types.INTEGER);
+            ps.setInt(28, conference.getReservedCount());
+            ps.setString(29, conference.getVenueMapBase64());
+            ps.setString(30, conference.getEventTypeKey());
+            ps.setString(31, conference.getNotesPurgedAt() != null ? conference.getNotesPurgedAt().toString() : null);
+            ps.setString(32, conference.getDiagramXml());
+            ps.setString(33, conference.getDiagramPublishedSvg());
+            ps.setString(34, conference.getDiagramUpdatedAt() != null ? conference.getDiagramUpdatedAt().toString() : null);
+            ps.setLong(35, conference.getDiagramVersion());
+            ps.setString(36, conference.getDiagramPurgedAt() != null ? conference.getDiagramPurgedAt().toString() : null);
+            ps.setString(37, conference.getWhiteboardSceneJson());
+            ps.setString(38, conference.getWhiteboardPublishedSvg());
+            ps.setString(39, conference.getWhiteboardUpdatedAt() != null ? conference.getWhiteboardUpdatedAt().toString() : null);
+            ps.setLong(40, conference.getWhiteboardVersion());
+            ps.setString(41, conference.getSandboxVariant());
+            if (conference.getSandboxPoolSize() != null) ps.setInt(42, conference.getSandboxPoolSize());
+            else ps.setNull(42, Types.INTEGER);
             final Integer internetEnabled = conference.getSandboxInternetEnabled();
-            ps.setInt(44, internetEnabled != null ? internetEnabled : 0);
-            ps.setString(45, conference.getSandboxRemoteGitUrl());
-            if (conference.getSandboxJvmHeapMb() != null) ps.setInt(46, conference.getSandboxJvmHeapMb());
+            ps.setInt(43, internetEnabled != null ? internetEnabled : 0);
+            ps.setString(44, conference.getSandboxRemoteGitUrl());
+            if (conference.getSandboxJvmHeapMb() != null) ps.setInt(45, conference.getSandboxJvmHeapMb());
+            else ps.setNull(45, Types.INTEGER);
+            if (conference.getSandboxSeatsPerPod() != null) ps.setInt(46, conference.getSandboxSeatsPerPod());
             else ps.setNull(46, Types.INTEGER);
-            if (conference.getSandboxSeatsPerPod() != null) ps.setInt(47, conference.getSandboxSeatsPerPod());
+            if (conference.getSandboxCliPoolSize() != null) ps.setInt(47, conference.getSandboxCliPoolSize());
             else ps.setNull(47, Types.INTEGER);
-            if (conference.getSandboxCliPoolSize() != null) ps.setInt(48, conference.getSandboxCliPoolSize());
+            if (conference.getSandboxCliLazyVimPoolSize() != null) ps.setInt(48, conference.getSandboxCliLazyVimPoolSize());
             else ps.setNull(48, Types.INTEGER);
-            if (conference.getSandboxCliLazyVimPoolSize() != null) ps.setInt(49, conference.getSandboxCliLazyVimPoolSize());
+            if (conference.getMaxDevicesPerUser() != null) ps.setInt(49, conference.getMaxDevicesPerUser());
             else ps.setNull(49, Types.INTEGER);
-            if (conference.getMaxDevicesPerUser() != null) ps.setInt(50, conference.getMaxDevicesPerUser());
+            if (conference.getMaxAccountsPerDevice() != null) ps.setInt(50, conference.getMaxAccountsPerDevice());
             else ps.setNull(50, Types.INTEGER);
-            if (conference.getMaxAccountsPerDevice() != null) ps.setInt(51, conference.getMaxAccountsPerDevice());
-            else ps.setNull(51, Types.INTEGER);
-            ps.setString(52, conference.getCanvasTool());
-            ps.setString(53, conference.getCanvasAudienceMode());
-            ps.setString(54, conference.getTicketPrice());
-            ps.setString(55, conference.getTicketCurrency());
-            ps.setString(56, conference.getCertificateEngine());
-            ps.setInt(57, conference.isTicketSalesEnabled() ? 1 : 0);
-            ps.setString(58, conference.getOnDemandVideoProvider());
-            ps.setString(59, conference.getOnDemandVideoUrl());
+            ps.setString(51, conference.getCanvasTool());
+            ps.setString(52, conference.getCanvasAudienceMode());
+            ps.setString(53, conference.getTicketPrice());
+            ps.setString(54, conference.getTicketCurrency());
+            ps.setString(55, conference.getCertificateEngine());
+            ps.setInt(56, conference.isTicketSalesEnabled() ? 1 : 0);
+            ps.setString(57, conference.getOnDemandVideoProvider());
+            ps.setString(58, conference.getOnDemandVideoUrl());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
