@@ -77,10 +77,13 @@ class SetCanvasConfigUseCaseTest {
     }
 
     @Test
-    void rejectsModeratorOnlyModeForEtherpad() {
+    void acceptsModeratorOnlyModeForEtherpad() {
+        final Conference conference = new Conference("id", "name", "owner", null, null, null);
         final ConferenceRepository repository = mock(ConferenceRepository.class);
+        when(repository.findByUuid("conference"))
+                .thenReturn(Optional.of(conference));
 
-        assertThrows(IllegalArgumentException.class, () ->
+        assertDoesNotThrow(() ->
                 new SetCanvasConfigUseCase(repository)
                         .execute("conference", "owner", "ETHERPAD", "MODERATOR_ONLY"));
     }
