@@ -336,8 +336,11 @@ export default {
 .tickets-page { padding: 24px; max-width: 900px; margin: 0 auto; }
 h2 { color: var(--color-heading); }
 .issue-card, .tickets-list, .compose-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; margin-top: 16px; }
-.compose-card textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; font: inherit; resize: vertical; margin: 10px 0; }
-.compose-card input { width: 100%; box-sizing: border-box; margin-bottom: 0; }
+/* gap (no margins por hijo) para que el input de Asunto, el editor y el botón Enviar queden
+   separados de forma pareja -- sin esto, el toolbar de EmailComposeEditor quedaba pegado al
+   input de arriba y el textarea pegado al botón de abajo (bug reportado 2026-08-12). */
+.compose-card { display: flex; flex-direction: column; gap: 14px; }
+.compose-card input { width: 100%; box-sizing: border-box; }
 .link-inline { color: var(--color-primary); font-size: 0.8rem; }
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
 .metric-card { display: flex; flex-direction: column; gap: 4px; background: var(--color-surface); border: 1px solid var(--color-primary-soft); border-radius: 12px; padding: 16px; min-height: 92px; }

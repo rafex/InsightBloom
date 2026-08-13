@@ -65,10 +65,17 @@
   //- deduplicar (ver computed mas abajo) -- sin esperar tambien ese fetch, hay una ventana
   //- donde se ve el historial completo sin filtrar (incluye eventos que tambien organizas)
   //- antes de que el segundo fetch resuelva y el dedup se aplique (bug reportado 2026-08-11).
-  .section(v-if="!loading && !loadingHistory && attendeeHistory.length" id="onboarding-attendee-events")
-    h2 Inscrito
+  //- Sin length en la condición (a diferencia de antes): un organizador tambien puede querer
+  //- unirse a un evento ajeno como asistente -- sin el link acá (y con el del sidebar antes
+  //- oculto para organizadores), no habia forma de llegar a /dashboard/join estando logueado
+  //- como organizador, aunque ya estuviera inscrito en 0 o mas eventos (bug reportado 2026-08-12).
+  .section(v-if="!loading && !loadingHistory" id="onboarding-attendee-events")
+    .dashboard-header
+      h2 Inscrito
+      BaseLink(to="/dashboard/join") + Unirse a un evento
     p.section-hint Estos eventos aparecen aunque también administres o moderes otros eventos.
-    .conference-grid
+    EmptyState(v-if="!attendeeHistory.length" message="Aún no te has unido a ningún evento como asistente.")
+    .conference-grid(v-else)
       .conf-card(v-for="h in attendeeHistory" :key="h.conferenceUuid" :class="{ unavailable: !h.available }")
         .conf-card-header
           span.friendly-id {{ h.friendlyId || h.conferenceUuid }}
