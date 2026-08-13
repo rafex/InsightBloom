@@ -23,38 +23,28 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/authStore'
-import { getNotifications, markNotificationRead, streamNotifications, AuthenticatedEventStream } from '@/services/api/usersApi'
+import { useNotificationStream } from '@/features/notifications/useNotificationStream'
 import type { NotificationItem } from '@/services/api/types'
-import { notifyBrowserIfHidden } from '@/composables/useBrowserNotifications'
 import UiIcon from '@/components/ui/UiIcon.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 
 const PAGE_SIZE = 5
-const RECONNECT_INITIAL_DELAY_MS = 2000
-const RECONNECT_MAX_DELAY_MS = 10000
 
-// Campana de notificaciones del portal: primero trae la lista por REST, después mantiene un
-// stream SSE (mismo patrón de reconexión con backoff que ya usa IdePage.vue para el sandbox)
-// para que las nuevas aparezcan sin recargar. Cierra/reconecta solo mientras la sesión sigue
-// activa -- si el usuario cierra sesión, el propio auth.state.token deja de existir y el bloque
-// raíz del template ni siquiera monta el botón.
+// Campana de notificaciones del portal: solo renderiza el estado que mantiene vivo
+// useNotificationStream (singleton iniciado en App.vue) -- este componente no abre/cierra el
+// stream SSE, así que remontarse en cada navegación (AppHeader no vive en un layout persistente)
+// ya no lo interrumpe.
 export default {
   name: 'NotificationBell',
   components: { UiIcon, EmptyState, LoadingState },
   setup() {
     const auth = useAuthStore()
     const router = useRouter()
-    const items = ref<NotificationItem[]>([])
-    const unreadCount = ref(0)
-    const loading = ref(true)
+    const { items, unreadCount, loading, markRead } = useNotificationStream()
     const open = ref(false)
     const page = ref(0)
     const dropdownRef = ref<HTMLElement | null>(null)
-
-    let stream: AuthenticatedEventStream | null = null
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-    let reconnectDelay = RECONNECT_INITIAL_DELAY_MS
 
     const pagedItems = computed(() => items.value.slice(page.value * PAGE_SIZE, page.value * PAGE_SIZE + PAGE_SIZE))
     const totalPages = computed(() => Math.max(1, Math.ceil(items.value.length / PAGE_SIZE)))
@@ -63,49 +53,10 @@ export default {
       return new Date(iso).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
     }
 
-    async function loadInitial() {
-      if (!auth.state.token) return
-      loading.value = true
-      try {
-        const result = await getNotifications(auth.state.token)
-        items.value = result.items
-        unreadCount.value = result.unreadCount
-      } catch {
-        // Se reintenta implícitamente la próxima vez que se abra la campana.
-      } finally {
-        loading.value = false
-      }
-    }
-
-    function connectStream() {
-      if (!auth.state.token) return
-      stream = streamNotifications(auth.state.token)
-      stream.addEventListener('notification', (event) => {
-        reconnectDelay = RECONNECT_INITIAL_DELAY_MS
-        const messageEvent = event as MessageEvent
-        const notification = JSON.parse(messageEvent.data) as NotificationItem
-        items.value = [notification, ...items.value]
-        unreadCount.value += 1
-        void notifyBrowserIfHidden(notification.title, { body: notification.body || undefined })
-      })
-      stream.onerror = () => {
-        stream?.close()
-        stream = null
-        reconnectTimer = setTimeout(() => {
-          reconnectDelay = Math.min(reconnectDelay * 1.5, RECONNECT_MAX_DELAY_MS)
-          connectStream()
-        }, reconnectDelay)
-      }
-    }
-
     function toggleOpen() { open.value = !open.value }
 
     async function onClickItem(n: NotificationItem) {
-      if (!n.readAt && auth.state.token) {
-        n.readAt = new Date().toISOString()
-        unreadCount.value = Math.max(0, unreadCount.value - 1)
-        try { await markNotificationRead(n.uuid, auth.state.token) } catch { /* ya se optimizó visualmente */ }
-      }
+      await markRead(n)
       open.value = false
       if (n.linkUrl) router.push(n.linkUrl)
     }
@@ -121,16 +72,10 @@ export default {
 
     onMounted(() => {
       document.addEventListener('click', onDocumentClick)
-      if (auth.state.token) {
-        void loadInitial()
-        connectStream()
-      }
     })
 
     onBeforeUnmount(() => {
       document.removeEventListener('click', onDocumentClick)
-      if (reconnectTimer) clearTimeout(reconnectTimer)
-      stream?.close()
     })
 
     return {

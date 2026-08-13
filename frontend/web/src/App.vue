@@ -13,12 +13,16 @@ import CookieConsentBanner from '@/components/CookieConsentBanner.vue'
 import SessionExpiryModal from '@/components/SessionExpiryModal.vue'
 import AppToast from '@/components/ui/AppToast.vue'
 import { useSessionManager } from '@/features/auth/useSessionManager'
+import { useNotificationStream } from '@/features/notifications/useNotificationStream'
 
 export default {
   name: 'App',
   components: { CookieConsentBanner, SessionExpiryModal, AppToast },
   setup() {
     const { showWarning, secondsRemaining, keepConnected, start, stop } = useSessionManager()
+    // Inicializa el singleton del stream de notificaciones acá (App.vue nunca se desmonta
+    // durante la navegación) para que sobreviva a los cambios de ruta -- ver useNotificationStream.
+    useNotificationStream()
     const ver = import.meta.env.VITE_APP_VERSION || 'dev'
     const sha = import.meta.env.VITE_GIT_SHA || 'unknown'
     onMounted(start)

@@ -36,8 +36,10 @@ export default {
     const exportError = ref('')
     const isIndividual = computed(() => props.canvasAudienceMode === 'INDEPENDENT')
     const isReadOnly = computed(() => {
-      // Non-moderators in COLLABORATIVE mode can only read
-      return !props.canvasModerator && props.canvasAudienceMode === 'COLLABORATIVE'
+      // COLLABORATIVE ("todos colaboran") deja editar a todos; solo MODERATOR_ONLY restringe
+      // la edición a quien creó/administra el evento (bug reportado 2026-08-13: comparaba
+      // contra 'COLLABORATIVE' en vez de 'MODERATOR_ONLY', dejando editar a los asistentes).
+      return !props.canvasModerator && props.canvasAudienceMode === 'MODERATOR_ONLY'
     })
 
     async function downloadNotes() {
