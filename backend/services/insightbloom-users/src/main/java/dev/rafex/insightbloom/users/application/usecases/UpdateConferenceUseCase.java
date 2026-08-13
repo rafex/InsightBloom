@@ -40,6 +40,7 @@ public class UpdateConferenceUseCase {
                     if (!java.util.Objects.equals(c.getEventDate(), newEventDate)
                             || !java.util.Objects.equals(c.getStartTime(), newStartTime)) {
                         c.setReminderSentAt(null);
+                        c.setDayBeforeReminderSentAt(null);
                     }
                     c.setEventDate(newEventDate);
                     c.setStartTime(newStartTime);
