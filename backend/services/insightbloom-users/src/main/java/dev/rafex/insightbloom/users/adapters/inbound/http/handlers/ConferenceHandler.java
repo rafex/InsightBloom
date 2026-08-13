@@ -1486,7 +1486,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita notas colaborativas");
                 return true;
             }
-            getOrCreateEventPadUseCase.execute(id, v.subjectUuid()).ifPresentOrElse(
+            final boolean isModerator = isPlatformAdminRole(v.role())
+                    || getConferenceUseCase.byId(id).map(c -> v.subjectUuid().equals(c.getCreatedByUserUuid())).orElse(false);
+            getOrCreateEventPadUseCase.execute(id, v.subjectUuid(), isModerator).ifPresentOrElse(
                     pad -> sendOk(jx, 200, pad),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {

@@ -63,6 +63,7 @@ export interface JitsiInviteAccess {
 
 export interface EventNotesPad {
   padId: string
+  readOnly: boolean
 }
 
 export type RoleScopeValue = 'PLATFORM' | 'EVENT'

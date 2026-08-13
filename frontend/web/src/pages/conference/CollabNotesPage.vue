@@ -5,6 +5,7 @@
   template(v-else)
     .notes-toolbar
       span(v-if="isIndividual") Notas individuales: se purgan después de vencer el evento y puedes exportarlas.
+      span(v-else-if="readOnly") Notas del moderador: estás viendo la publicación en modo lectura.
       span(v-else) Notas grupales: las notas se compartirán con los asistentes y quedarán en el ZIP de materiales.
       BaseButton(v-if="isIndividual" variant="secondary" size="sm" type="button" :loading="downloading" @click="downloadNotes") Descargar TXT
       FeedbackMessage(v-if="exportError" :message="exportError" tone="error")
@@ -35,12 +36,12 @@ export default {
     const downloading = ref(false)
     const exportError = ref('')
     const isIndividual = computed(() => props.canvasAudienceMode === 'INDEPENDENT')
-    const isReadOnly = computed(() => {
-      // COLLABORATIVE ("todos colaboran") deja editar a todos; solo MODERATOR_ONLY restringe
-      // la edición a quien creó/administra el evento (bug reportado 2026-08-13: comparaba
-      // contra 'COLLABORATIVE' en vez de 'MODERATOR_ONLY', dejando editar a los asistentes).
-      return !props.canvasModerator && props.canvasAudienceMode === 'MODERATOR_ONLY'
-    })
+    // El backend es quien decide y garantiza el modo lectura (ver GetOrCreateEventPadUseCase):
+    // en MODERATOR_ONLY, a los no-moderadores les devuelve el ID de solo-lectura real de
+    // Etherpad (getReadOnlyID), no el pad editable -- un query param "readonly" en la URL nunca
+    // funcionó porque Etherpad no lo interpreta (bug reportado 2026-08-13). `readOnly` acá solo
+    // se usa para el texto informativo de la toolbar.
+    const readOnly = ref(false)
 
     async function downloadNotes() {
       downloading.value = true
@@ -76,12 +77,15 @@ export default {
           getIntegrationConfig(),
           getEventNotes(props.conferenceId, auth.state.token as string)
         ])
+        readOnly.value = pad.readOnly
         if (config.etherpadBaseUrl) {
           // Etherpad esta detras de insightbloom-tools-gateway (exige sesion antes de
           // reenviar el request al pod real) — ib_token arranca esa sesion en el primer request.
+          // pad.padId ya viene resuelto por el backend: el UUID real y editable del evento, o el
+          // ID de solo-lectura de Etherpad cuando corresponde -- no hace falta ningún parámetro
+          // extra acá.
           const params = new URLSearchParams()
           if (auth.state.token) params.append('ib_token', auth.state.token)
-          if (isReadOnly.value) params.append('readonly', 'true')
           const query = params.toString()
           padUrl.value = `${config.etherpadBaseUrl}/p/${pad.padId}${query ? `?${query}` : ''}`
         }
@@ -92,7 +96,7 @@ export default {
       }
     })
 
-    return { loading, padUrl, isIndividual, isReadOnly, downloading, exportError, downloadNotes, stripSessionToken }
+    return { loading, padUrl, isIndividual, readOnly, downloading, exportError, downloadNotes, stripSessionToken }
   }
 }
 </script>
