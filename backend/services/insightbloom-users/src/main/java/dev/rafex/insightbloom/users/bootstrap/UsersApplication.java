@@ -615,8 +615,8 @@ public class UsersApplication {
         routes.add("/api/v1/roles/*", roleHandler);
         routes.add("/api/v1/permissions/*", permissionHandler);
         routes.add("/api/v1/settings/*", platformSettingsHandler);
-        routes.add("/api/v1/users/me/audit-logs*", auditLogHandler);
-        routes.add("/api/v1/admin/audit-logs*", auditLogHandler);
+        routes.add("/api/v1/users/me/audit-logs/*", auditLogHandler);
+        routes.add("/api/v1/admin/audit-logs/*", auditLogHandler);
         routes.add("/api/v1/audit-logs/*", auditLogHandler);
         routes.add("/version", new VersionHandler("insightbloom-users"));
 

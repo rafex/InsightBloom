@@ -96,7 +96,7 @@ public class AdminUserHandler extends BaseResourceHandler {
             final List<UserView> items = result.items().stream().map(AdminUserHandler::toView).toList();
             sendOk(jx, 200, items, ApiMeta.paged(UUID.randomUUID().toString(), result.page(), result.pageSize(), result.total()));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -115,7 +115,7 @@ public class AdminUserHandler extends BaseResourceHandler {
         try {
             sendOk(jx, 200, listUserReservationsUseCase.execute(uuid));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -133,7 +133,7 @@ public class AdminUserHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, "user_not_found".equals(e.getMessage()) ? 404 : 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -161,7 +161,7 @@ public class AdminUserHandler extends BaseResourceHandler {
             sendError(jx, 404, e.getMessage(), e.getMessage());
             return true;
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
             return true;
         }
         sendError(jx, 404, "not_found", "Endpoint not found");

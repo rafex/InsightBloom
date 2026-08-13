@@ -38,7 +38,7 @@ public class TimezoneHandler extends BaseResourceHandler {
         try {
             sendOk(jx, listTimezonesUseCase.execute());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }

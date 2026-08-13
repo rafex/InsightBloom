@@ -19,26 +19,13 @@ Teleport(:to="teleportTarget" defer)
         button.floating-expand(type="button" @click="goToFullTab" title="Volver al video" aria-label="Volver al video")
           UiIcon(name="video" size="16")
         button.floating-close(type="button" @click="close" title="Cerrar video" aria-label="Cerrar video") ✕
-    .notification-panel(v-if="!isOnDemandTabActive && notifications.length")
-      transition-group.notification-list(name="notif" tag="ul")
-        li.notification-item(v-for="n in pagedNotifications" :key="n.id")
-          .notification-meta
-            span.notification-time {{ formatTime(n.cue.atSeconds) }}
-            span.notification-tool {{ toolLabel(n.cue.toolPath) }}
-          span.notification-label {{ n.cue.label }}
-          a.notification-link(:href="`/c/${friendlyId}/${n.cue.toolPath}`" :target="n.cue.toolPath === 'ide' ? '_blank' : undefined" :rel="n.cue.toolPath === 'ide' ? 'noopener' : undefined") Ir ahora →
-          button.notification-dismiss(type="button" @click="dismissNotification(n.id)" aria-label="Descartar sugerencia") ✕
-      .notification-pagination(v-if="totalPages > 1")
-        button(type="button" :disabled="page === 0" @click="page--") ← Más nuevas
-        span {{ page + 1 }} / {{ totalPages }}
-        button(type="button" :disabled="page >= totalPages - 1" @click="page++") Más viejas →
 </template>
 
 <script lang="ts">
 import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { OnDemandCuePoint } from '@/services/api/types'
-import { toEmbedUrl, toolLabelForPath, findCuePointToTrigger } from '@/features/conferences/onDemandVideo'
+import { toEmbedUrl } from '@/features/conferences/onDemandVideo'
 import { getSavedProgress, saveProgress } from '@/features/conferences/useOnDemandProgress'
 import UiIcon from '@/components/ui/UiIcon.vue'
 
@@ -117,7 +104,6 @@ export default {
     const floatingBottom = ref(20)
     const floatingWidth = ref(240)
     const floatingHeight = ref(135)
-    const isResizing = ref(false)
 
     const embedUrl = computed(() => toEmbedUrl(props.provider, props.videoUrl))
     const youtubeSrc = computed(() => embedUrl.value ? `${embedUrl.value}?enablejsapi=1` : '')
@@ -132,55 +118,18 @@ export default {
 
     const sortedCuePoints = computed(() => [...props.cuePoints].sort((a, b) => a.atSeconds - b.atSeconds))
 
-    // Panel de notificaciones: se acumulan (no se auto-ocultan por tiempo, solo el usuario las
-    // saca con X) mientras el video esta flotando -- si estuviera en la pestana completa ya se ve
-    // la lista completa de sugerencias ahi (ver OnDemandVideoPage.vue), no hace falta duplicar.
-    // Orden: la mas nueva entra arriba (unshift), empujando las anteriores hacia abajo. `firedSeconds`
-    // es aparte de `notifications` a proposito -- descartar una notificacion no debe hacer que la
-    // misma sugerencia vuelva a aparecer si el usuario rebobina el video y pasa por ahi de nuevo.
-    let notifSeq = 0
-    const notifications = ref<Array<{ id: number, cue: OnDemandCuePoint }>>([])
+    // Tracking de cue points disparados para el video: usado para guardar progreso
     const firedSeconds = ref<Set<number>>(new Set())
-    const PAGE_SIZE = 5
-    const page = ref(0)
 
     let player: any = null
     let pollTimer: ReturnType<typeof setInterval> | null = null
     let pollTicks = 0
-    const totalPages = computed(() => Math.max(1, Math.ceil(notifications.value.length / PAGE_SIZE)))
-    const pagedNotifications = computed(() =>
-      notifications.value.slice(page.value * PAGE_SIZE, page.value * PAGE_SIZE + PAGE_SIZE))
-
-    function toolLabel(toolPath: string): string {
-      return toolLabelForPath(toolPath)
-    }
-
-    function formatTime(totalSeconds: number): string {
-      const minutes = Math.floor(totalSeconds / 60)
-      const seconds = totalSeconds % 60
-      return `${minutes}:${String(seconds).padStart(2, '0')}`
-    }
-
-    function dismissNotification(id: number) {
-      notifications.value = notifications.value.filter(n => n.id !== id)
-      if (page.value >= totalPages.value) page.value = Math.max(0, totalPages.value - 1)
-    }
-
-    function checkCuePoints(currentTime: number) {
-      const match = findCuePointToTrigger(sortedCuePoints.value, currentTime, firedSeconds.value)
-      if (match) {
-        firedSeconds.value.add(match.atSeconds)
-        notifications.value = [{ id: ++notifSeq, cue: match }, ...notifications.value]
-        page.value = 0
-      }
-    }
 
     function startPolling() {
       if (pollTimer) return
       pollTimer = setInterval(() => {
         if (!player?.getCurrentTime) return
         const currentTime = player.getCurrentTime()
-        checkCuePoints(Math.floor(currentTime))
         // Guardar cada ~5s (no en cada tick de 1s) -- suficiente resolucion para "retomar donde
         // quedo" sin escribir a localStorage constantemente.
         pollTicks += 1
@@ -273,9 +222,8 @@ export default {
     return {
       isOnDemandTabActive, teleportTarget,
       embedUrl, youtubeSrc, videoFrame,
-      notifications, pagedNotifications, totalPages, page, toolLabel, formatTime, dismissNotification,
       goToFullTab, close,
-      floatingVideoRef, floatingVideoStyle, floatingRight, floatingBottom, floatingWidth, floatingHeight, isResizing
+      floatingVideoRef, floatingVideoStyle, floatingRight, floatingBottom, floatingWidth, floatingHeight
     }
   }
 }
@@ -328,6 +276,11 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  transition: background 0.2s;
+  align-items: center;
+  justify-content: center;
   width: 24px;
   height: 24px;
   font-size: 0.8rem;
@@ -336,55 +289,9 @@ export default {
 .floating-close { right: 6px; }
 .floating-expand:hover, .floating-close:hover { background: rgba(0, 0, 0, 0.75); }
 
-.notification-panel {
-  margin-top: 8px;
-  width: 240px;
-}
-.notification-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.notification-item {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 8px 10px; border-radius: 8px;
-  background: var(--color-primary-soft); color: var(--color-primary); font-size: 0.8rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  position: relative;
-}
-.notification-meta { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; font-weight: 700; }
-.notification-time { font-family: monospace; }
-.notification-tool { text-transform: uppercase; letter-spacing: 0.02em; opacity: 0.85; }
-.notification-label { padding-right: 18px; }
-.notification-link { font-weight: 600; text-decoration: none; color: var(--color-primary); align-self: flex-start; }
-.notification-link:hover { text-decoration: underline; }
-.notification-dismiss {
-  position: absolute; top: 6px; right: 6px;
-  border: none; background: none; cursor: pointer;
-  color: var(--color-primary); font-size: 0.78rem; padding: 2px 4px; line-height: 1;
-}
-.notification-pagination {
-  display: flex; align-items: center; justify-content: space-between; gap: 6px;
-  margin-top: 6px; font-size: 0.72rem; color: var(--color-text-muted);
-}
-.notification-pagination button {
-  border: none; background: var(--color-surface); border-radius: 6px; padding: 3px 6px;
-  cursor: pointer; font-size: 0.72rem; color: var(--color-primary);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-}
-.notification-pagination button:disabled { opacity: 0.4; cursor: default; }
-
-.notif-enter-active, .notif-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.notif-enter-from { opacity: 0; transform: translateY(-6px); }
-.notif-leave-to { opacity: 0; transform: translateX(12px); }
-
 @media (max-width: 640px) {
   .ondemand-floating-video.floating,
-  .ondemand-floating-video.floating .video-frame,
-  .notification-panel {
+  .ondemand-floating-video.floating .video-frame {
     width: 168px;
   }
   .ondemand-floating-video.floating { right: 10px; bottom: 10px; }

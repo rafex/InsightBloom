@@ -122,7 +122,7 @@ public class SandboxFilesHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, mapErrorStatus(e.getMessage()), e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -137,7 +137,7 @@ public class SandboxFilesHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, mapErrorStatus(e.getMessage()), e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -158,7 +158,7 @@ public class SandboxFilesHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, mapErrorStatus(e.getMessage()), e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }

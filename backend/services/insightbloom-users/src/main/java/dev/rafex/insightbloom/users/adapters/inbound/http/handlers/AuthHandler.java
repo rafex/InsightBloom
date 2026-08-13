@@ -136,7 +136,7 @@ public class AuthHandler extends BaseResourceHandler {
             sendError(jx, 403, "platform_device_blocked",
                     "Este dispositivo fue bloqueado por uso indebido de la plataforma");
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -155,7 +155,7 @@ public class AuthHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Conference not found");
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -174,7 +174,7 @@ public class AuthHandler extends BaseResourceHandler {
                 sendError(jx, 401, "token_invalid", "Token is invalid or expired");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -203,7 +203,7 @@ public class AuthHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 409, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -219,7 +219,7 @@ public class AuthHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -253,7 +253,7 @@ public class AuthHandler extends BaseResourceHandler {
                 sendError(jx, 401, "token_invalid", "Token is invalid or expired");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -272,7 +272,7 @@ public class AuthHandler extends BaseResourceHandler {
                 sendError(jx, 401, "token_invalid", "Token is invalid, expired, or belongs to a guest");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -288,7 +288,7 @@ public class AuthHandler extends BaseResourceHandler {
                 sendError(jx, 401, "code_invalid", "Exchange code is invalid, expired, or already used");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -302,7 +302,7 @@ public class AuthHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -316,7 +316,7 @@ public class AuthHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -330,7 +330,7 @@ public class AuthHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
