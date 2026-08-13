@@ -9,12 +9,10 @@ import dev.rafex.insightbloom.users.domain.ports.EmailPort;
 import dev.rafex.insightbloom.users.domain.ports.ReservationRepository;
 import dev.rafex.insightbloom.users.domain.ports.TimezoneRepository;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
-import dev.rafex.insightbloom.users.domain.services.IcsCalendarBuilder;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.List;
 
 /**
  * Ticked periodically (see {@code UsersApplication}'s scheduler) to email registered attendees
@@ -36,7 +34,6 @@ public class SendConferenceRemindersUseCase {
     private final TimezoneRepository timezoneRepository;
     private final EmailPort emailPort;
     private final ReservationRepository reservationRepository;
-    private final SendNotificationUseCase sendNotificationUseCase;
     private final String frontendBaseUrl;
 
     public SendConferenceRemindersUseCase(final ConferenceRepository conferenceRepository,
@@ -45,23 +42,12 @@ public class SendConferenceRemindersUseCase {
                                            final EmailPort emailPort,
                                            final ReservationRepository reservationRepository,
                                            final String frontendBaseUrl) {
-        this(conferenceRepository, userRepository, timezoneRepository, emailPort, reservationRepository, frontendBaseUrl, null);
-    }
-
-    public SendConferenceRemindersUseCase(final ConferenceRepository conferenceRepository,
-                                           final UserRepository userRepository,
-                                           final TimezoneRepository timezoneRepository,
-                                           final EmailPort emailPort,
-                                           final ReservationRepository reservationRepository,
-                                           final String frontendBaseUrl,
-                                           final SendNotificationUseCase sendNotificationUseCase) {
         this.conferenceRepository = conferenceRepository;
         this.userRepository = userRepository;
         this.timezoneRepository = timezoneRepository;
         this.emailPort = emailPort;
         this.reservationRepository = reservationRepository;
         this.frontendBaseUrl = frontendBaseUrl;
-        this.sendNotificationUseCase = sendNotificationUseCase;
     }
 
     public void execute(final Instant now) {
@@ -97,66 +83,26 @@ public class SendConferenceRemindersUseCase {
     }
 
     private void sendRemindersFor(final Conference conference, final String timeframe) {
-        final List<EmailPort.EmailAttachment> attachments = buildCalendarAttachment(conference);
         for (final var reservation : reservationRepository.findByConference(conference.getUuid())) {
             try {
                 final User user = userRepository.findByUuid(reservation.getUserUuid()).orElse(null);
                 if (user == null || user.getEmail() == null || user.getEmail().isBlank()) continue;
                 final String subject = "Tu conferencia " + conference.getName() + " empieza en " + timeframe;
                 final String ticketLine = ticketReminderLine(conference, reservation.getUserUuid());
-                final String htmlBody = """
-                        <p>¡Hola!</p>
-                        <p>Recordatorio: "%s" empieza en aproximadamente %s.</p>
+                final String body = """
+                        ¡Hola!
+
+                        Recordatorio: "%s" empieza en aproximadamente %s.
                         %s%s
-                        <p>Nos vemos ahí.</p>
+                        Nos vemos ahí.
                         """.formatted(conference.getName(), timeframe,
                         conference.getVenue() != null && !conference.getVenue().isBlank()
-                                ? "<p>Sede: " + conference.getVenue() + "</p>" : "",
-                        ticketLine.isBlank() ? "" : "<p>" + ticketLine + "</p>");
-                emailPort.sendHtml(user.getEmail(), subject, htmlBody, attachments);
+                                ? "\nSede: " + conference.getVenue() + "\n" : "",
+                        ticketLine);
+                emailPort.send(user.getEmail(), subject, body);
             } catch (final Exception e) {
                 // best-effort: un fallo por asistente no debe frenar al resto
             }
-            sendReminderNotification(reservation.getUserUuid(), conference, timeframe);
-        }
-    }
-
-    private List<EmailPort.EmailAttachment> buildCalendarAttachment(final Conference conference) {
-        try {
-            if (conference.getEventDate() == null || conference.getEventDate().isBlank()
-                    || conference.getStartTime() == null || conference.getStartTime().isBlank()) {
-                return List.of();
-            }
-            final Integer tzId = conference.getTimezoneId();
-            final Integer offsetMinutes = tzId != null
-                    ? timezoneRepository.findById(tzId).map(Timezone::utcOffsetMinutes).orElse(-360)
-                    : -360;
-            final var icsInput = new IcsCalendarBuilder.CalendarEventInput(
-                    conference.getName(),
-                    conference.getEventDate(),
-                    conference.getStartTime(),
-                    conference.getEndTime(),
-                    conference.getVenue(),
-                    offsetMinutes
-            );
-            final String icsContent = IcsCalendarBuilder.buildIcs(icsInput);
-            final byte[] icsBytes = icsContent.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            return List.of(new EmailPort.EmailAttachment("evento.ics", "text/calendar", icsBytes, null));
-        } catch (final Exception e) {
-            // best-effort: si no se puede generar el .ics, el email se envía sin adjunto
-            return List.of();
-        }
-    }
-
-    private void sendReminderNotification(final String userUuid, final Conference conference, final String timeframe) {
-        try {
-            if (sendNotificationUseCase == null) return;
-            sendNotificationUseCase.execute(userUuid, "conference_reminder_" + timeframe.replace(" ", ""),
-                    "Recordatorio: " + conference.getName(),
-                    "Tu conferencia empieza en aproximadamente " + timeframe + ".",
-                    frontendBaseUrl + "/c/" + conference.getFriendlyId());
-        } catch (final Exception e) {
-            // best-effort
         }
     }
 
