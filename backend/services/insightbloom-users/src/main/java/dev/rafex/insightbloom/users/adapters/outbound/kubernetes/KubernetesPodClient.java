@@ -147,6 +147,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final ContainerResources podmanResources;
     private final int podmanAppBasePort;
     private final String podmanStorageSizeLimit;
+    private final String clusterCidr;
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
                                 final String debianImage, final String neovimImage, final String neovimLazyVimImage,
@@ -157,7 +158,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                                 final String usersPodComponentLabel, final String incidentReportKey,
                                 final String egressProxyHost, final int egressProxyPort, final int appBasePort,
                                 final String podmanImage, final ContainerResources podmanResources,
-                                final int podmanAppBasePort, final String podmanStorageSizeLimit) {
+                                final int podmanAppBasePort, final String podmanStorageSizeLimit,
+                                final String clusterCidr) {
         this.jsonCodec = jsonCodec;
         this.namespace = namespace;
         this.debianImage = debianImage;
@@ -179,6 +181,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         this.podmanResources = podmanResources;
         this.podmanAppBasePort = podmanAppBasePort;
         this.podmanStorageSizeLimit = podmanStorageSizeLimit;
+        this.clusterCidr = clusterCidr;
         this.uid = uid;
         this.gid = gid;
         this.fsGroup = fsGroup;
@@ -206,6 +209,17 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 ? Math.max(1, seatsPerPod != null ? seatsPerPod : DEFAULT_SEATS_PER_POD)
                 : 1;
         ensureIngressPolicy();
+        // Fase 7 (2026-08): defensa en profundidad, siempre activa -- el bloqueo REAL de egress
+        // externo lo aplica nftables en el initContainer (ver buildInitContainer), esto es una
+        // segunda capa vía el CNI en caso de que el initContainer fallara en aplicarse. No
+        // depende de internetEnabled: esa lógica dinámica vive enteramente en
+        // insightbloom-egress-proxy/ResolveEgressPolicyUseCase.
+        ensureEgressRestrictedPolicy();
+        // Conexión Pod-a-Pod directa solo entre sandboxes del MISMO evento (pedido explícito del
+        // usuario) -- por-conferencia (no namespace-wide como ensureIngressPolicy) porque el
+        // selector "misma label que YO" no es expresable en una única NetworkPolicy compartida.
+        final String conferenceLabel = Sandbox.conferenceLabel(conferenceUuid);
+        ensureSameConferenceIngressPolicy(conferenceLabel);
         if (terminalMode && effectiveSeats > 1) {
             ensureIncidentReportEgressPolicy();
         }
@@ -215,15 +229,6 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
         final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
-        // La política es parte del estado del evento, no del estado del Pod. Siempre
-        // reconciliamos ambos caminos para que un Pod reutilizado no conserve una
-        // NetworkPolicy permisiva de una configuración anterior.
-        final String conferenceLabel = Sandbox.conferenceLabel(conferenceUuid);
-        if (internetEnabled) {
-            allowInternetEgress(conferenceLabel);
-        } else {
-            denyInternetEgress(conferenceLabel);
-        }
     }
 
     private static final String INGRESS_POLICY_NAME = "sandbox-ingress-gateway-only";
@@ -238,7 +243,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
      * Fase C (DEC-0025): el watchdog del seat-agent necesita reportar incidentes a
      * insightbloom-users (POST /internal/sandbox-incidents) SIN depender de que la conferencia
      * tenga internet habilitado (el caso mas comun es internetEnabled=false) -- esta policy es
-     * independiente de {@link #allowInternetEgress}, restringida a un solo destino (namespace +
+     * independiente de {@link #ensureEgressRestrictedPolicy}, restringida a un solo destino (namespace +
      * label + puerto de insightbloom-users), no "internet abierto". Solo se llama para Pods
      * multi-asiento (el unico caso con seat-agent/watchdog); idempotente igual que
      * {@link #ensureIngressPolicy}.
@@ -338,12 +343,86 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 jsonCodec.toJson(policy), "networkpolicy " + INGRESS_POLICY_NAME, INGRESS_POLICY_NAME);
     }
 
-    @Override
-    public void allowInternetEgress(final String conferenceLabel) {
-        requireEnabled();
-        final String policyJson = jsonCodec.toJson(buildEgressAllowBody(conferenceLabel));
+    private static final String EGRESS_RESTRICTED_POLICY_NAME = "sandbox-egress-restricted";
+
+    /**
+     * Fase 7 (2026-08): defensa en profundidad -- namespace-wide (no por-conferencia como la
+     * vieja {@code sandbox-egress-<label>}, que quedó obsoleta), idempotente igual que
+     * {@link #ensureIngressPolicy}. El bloqueo REAL de egress externo lo aplica nftables dentro
+     * del Pod (ver {@link #buildInitContainer}/lockdown-egress.sh); esta policy es una segunda
+     * capa, enforced por el CNI, en caso de que el initContainer fallara en aplicarse por algún
+     * motivo -- mismo contenido final (DNS + Service de insightbloom-users + Service del proxy de
+     * egress), no depende de {@code internetEnabled} (esa lógica dinámica de whitelist/blacklist
+     * de dominios vive enteramente en {@code egress_proxy.py}/{@code ResolveEgressPolicyUseCase}).
+     */
+    private void ensureEgressRestrictedPolicy() {
+        final Map<String, Object> policy = Map.of(
+                "apiVersion", "networking.k8s.io/v1",
+                "kind", "NetworkPolicy",
+                "metadata", Map.of("name", EGRESS_RESTRICTED_POLICY_NAME, "namespace", namespace),
+                "spec", Map.of(
+                        "podSelector", Map.of(),
+                        "policyTypes", List.of("Egress"),
+                        "egress", List.of(
+                                Map.of("to", List.of(Map.of(
+                                        "namespaceSelector", Map.of("matchLabels", Map.of(
+                                                "kubernetes.io/metadata.name", gatewayNamespace)),
+                                        "podSelector", Map.of("matchLabels", Map.of(
+                                                "app.kubernetes.io/component", "egress-proxy")))),
+                                        "ports", List.of(Map.of("protocol", "TCP", "port", egressProxyPort))),
+                                Map.of("to", List.of(Map.of(
+                                        "namespaceSelector", Map.of("matchLabels", Map.of(
+                                                "kubernetes.io/metadata.name", gatewayNamespace)),
+                                        "podSelector", Map.of("matchLabels", Map.of(
+                                                "app.kubernetes.io/component", usersPodComponentLabel)))),
+                                        "ports", List.of(Map.of("protocol", "TCP", "port", USERS_INTERNAL_PORT))),
+                                // DNS: sin esto la resolución de nombres del proxy/insightbloom-users mismos
+                                // fallaría -- kube-dns/coredns vive en kube-system, no en gatewayNamespace.
+                                Map.of("ports", List.of(
+                                        Map.of("protocol", "UDP", "port", 53),
+                                        Map.of("protocol", "TCP", "port", 53))))));
         upsertNetworkPolicy("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
-                policyJson, "networkpolicy " + egressPolicyName(conferenceLabel), egressPolicyName(conferenceLabel));
+                jsonCodec.toJson(policy), "networkpolicy " + EGRESS_RESTRICTED_POLICY_NAME, EGRESS_RESTRICTED_POLICY_NAME);
+    }
+
+    private static String peerPolicyName(final String conferenceLabel) {
+        return "sandbox-peer-" + conferenceLabel;
+    }
+
+    /**
+     * Fase 7 (2026-08), pedido explícito del usuario: los sandboxes (IDE Web/CLI/Podman) de la
+     * MISMA conferencia pueden conectarse entre sí directamente (ej. un alumno probando la API
+     * que publicó otro alumno del mismo evento) -- pero nunca a sandboxes de OTRO evento. A
+     * diferencia de {@link #ensureIngressPolicy} (namespace-wide, un solo recurso para siempre),
+     * esta policy es por-conferencia porque el selector "misma label que yo" no es expresable en
+     * una única NetworkPolicy compartida por todos los pods -- cada conferencia necesita la suya,
+     * con su propio label fijo tanto en {@code podSelector} como en {@code from}. Mismo rango de
+     * puertos que ya usa el gateway (seat/app/podman) -- nunca el puerto de control.
+     */
+    private void ensureSameConferenceIngressPolicy(final String conferenceLabel) {
+        final List<Map<String, Object>> ports = new ArrayList<>();
+        for (int i = 0; i < MAX_SEATS_PER_POD; i++) {
+            ports.add(Map.of("protocol", "TCP", "port", port + i));
+        }
+        for (int i = 0; i < MAX_SEATS_PER_POD; i++) {
+            ports.add(Map.of("protocol", "TCP", "port", appBasePort + i));
+        }
+        for (int i = 0; i < MAX_PODMAN_PUBLICATIONS; i++) {
+            ports.add(Map.of("protocol", "TCP", "port", podmanAppBasePort + i));
+        }
+        final Map<String, Object> policy = Map.of(
+                "apiVersion", "networking.k8s.io/v1",
+                "kind", "NetworkPolicy",
+                "metadata", Map.of("name", peerPolicyName(conferenceLabel), "namespace", namespace),
+                "spec", Map.of(
+                        "podSelector", Map.of("matchLabels", Map.of("sandbox-conference", conferenceLabel)),
+                        "policyTypes", List.of("Ingress"),
+                        "ingress", List.of(Map.of(
+                                "from", List.of(Map.of("podSelector", Map.of(
+                                        "matchLabels", Map.of("sandbox-conference", conferenceLabel)))),
+                                "ports", ports))));
+        upsertNetworkPolicy("/apis/networking.k8s.io/v1/namespaces/" + namespace + "/networkpolicies",
+                jsonCodec.toJson(policy), "networkpolicy " + peerPolicyName(conferenceLabel), peerPolicyName(conferenceLabel));
     }
 
     /** Reintentos de {@link #provisionSeat}: el Pod puede tardar unos segundos en agendarse y
@@ -512,17 +591,6 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     }
 
     @Override
-    public void denyInternetEgress(final String conferenceLabel) {
-        requireEnabled();
-        deleteIgnoring404("/apis/networking.k8s.io/v1/namespaces/" + namespace
-                + "/networkpolicies/" + egressPolicyName(conferenceLabel));
-    }
-
-    private static String egressPolicyName(final String conferenceLabel) {
-        return "sandbox-egress-" + conferenceLabel;
-    }
-
-    @Override
     public java.util.Optional<String> findConferenceUuidByPodIp(final String podIp) {
         if (!isEnabled() || podIp == null || podIp.isBlank()) return java.util.Optional.empty();
         final String url = "/api/v1/namespaces/" + namespace + "/pods?fieldSelector="
@@ -542,8 +610,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private static final String PODMAN_COMPONENT_LABEL = "sandbox-runtime-podman";
 
     /**
-     * Fase 4b (MVP): a diferencia de los sandboxes por-evento (egress deny-all salvo el proxy
-     * interno con allowlist de dominios, ver {@link #allowInternetEgress}), el pod Podman
+     * Fase 4b (MVP): a diferencia de los sandboxes por-evento (egress restringido a tráfico
+     * interno del cluster, ver {@link #buildInitContainer}/lockdown-egress.sh, Fase 7), el pod Podman
      * compartido necesita salida DIRECTA a internet -- {@code podman build} corre pasos
      * arbitrarios del Containerfile ya validado (instalar paquetes via apt/pip/npm, etc.), no solo
      * descargar la imagen base. Simplificación deliberada del MVP: sin el allowlist de dominios
@@ -725,26 +793,6 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "spec", Map.of(
                         "selector", Map.of("sandbox-pod", podName),
                         "ports", servicePorts));
-    }
-
-    private Map<String, Object> buildEgressAllowBody(final String conferenceLabel) {
-        return Map.of(
-                "apiVersion", "networking.k8s.io/v1",
-                "kind", "NetworkPolicy",
-                "metadata", Map.of("name", egressPolicyName(conferenceLabel), "namespace", namespace),
-                "spec", Map.of(
-                        "podSelector", Map.of("matchLabels", Map.of("sandbox-conference", conferenceLabel)),
-                        "policyTypes", List.of("Egress"),
-                        // La salida nunca es directa. Solo se permite el Service de la proxy
-                        // interna; la proxy aplica EGRESS_PROXY_ALLOWED_HOSTS y
-                        // EGRESS_PROXY_BLOCKED_HOSTS antes de abrir el socket externo.
-                        "egress", List.of(Map.of(
-                                "to", List.of(Map.of(
-                                        "namespaceSelector", Map.of("matchLabels", Map.of(
-                                                "kubernetes.io/metadata.name", gatewayNamespace)),
-                                        "podSelector", Map.of("matchLabels", Map.of(
-                                                "app.kubernetes.io/component", "egress-proxy")))),
-                                "ports", List.of(Map.of("protocol", "TCP", "port", egressProxyPort))))));
     }
 
     @Override
@@ -1015,8 +1063,9 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             // single-seat debe repetir aqui la inicializacion que normalmente vive en el CMD:
             // sembrar el workspace y arrancar sandbox-file-agent.py. Sin el agente, el terminal
             // funciona pero la moderacion/editor recibe 404 en /files/{seatIndex}.
+            // El clonado de REMOTE_GIT_URL ya no corre acá -- se movió al initContainer (ver
+            // buildInitContainer), que corre antes del bloqueo de egress con red abierta.
             final String singleSeatCommand = String.join("; ",
-                    "/usr/local/bin/seed-remote-git.sh /home/coder/workspace",
                     "/usr/local/bin/seed-node-types.sh /home/coder/workspace",
                     "/usr/local/bin/seed-ide-docs.sh /home/coder/workspace",
                     "python3 /usr/local/bin/sandbox-file-agent.py --control-port " + controlPort() + " &",
@@ -1073,6 +1122,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             spec.put("priorityClassName", priorityClassName);
         }
         spec.put("securityContext", podSecurityContext);
+        // Fase 7 (2026-08): initContainer que clona REMOTE_GIT_URL (con red abierta) y despues
+        // bloquea el egress real del netns del Pod vía nftables -- ver buildInitContainer() y
+        // lockdown-egress.sh. Corre una sola vez, ANTES de que arranque "containers" (garantía de
+        // Kubernetes, no coordinación manual); su capability set (CAP_NET_ADMIN) desaparece con
+        // él, así que el alumno nunca lo tiene.
+        spec.put("initContainers", List.of(
+                buildInitContainer(terminalMode ? imageForTerminalVariant(variant) : debianImage,
+                        multiSeat, remoteGitUrl)));
         spec.put("containers", containers);
         spec.put("volumes", List.of(
                 Map.of("name", "workspace", "emptyDir", Map.of()),
@@ -1121,15 +1178,62 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             // NET_RAW: la imagen debian/code-server trae iputils-ping (ver
             // Dockerfile.code-ide-debian) para que el alumno pueda diagnosticar red desde el
             // IDE. El binario no es setuid-root -- sin esta capability, ping falla con
-            // "Operation not permitted" aunque el ejecutable exista. No amplia el egress
-            // real: la NetworkPolicy del evento (ver allowInternetEgress/buildEgressAllowBody)
-            // sigue siendo
-            // deny-all-excepto-egress-proxy en TCP, así que ICMP saliente a internet igual
-            // queda bloqueado por el CNI -- ping solo deja de fallar con un error de permisos
-            // confuso, no habilita tráfico nuevo.
+            // "Operation not permitted" aunque el ejecutable exista. No amplia el egress real:
+            // el bloqueo de nftables (ver buildInitContainer/lockdown-egress.sh, Fase 7) sigue
+            // siendo deny-all-excepto-tráfico-interno-del-cluster en TCP/UDP, así que ICMP
+            // saliente a internet igual queda bloqueado -- ping solo deja de fallar con un
+            // error de permisos confuso, no habilita tráfico nuevo.
             ctx.put("capabilities", Map.of("drop", List.of("ALL"), "add", List.of("NET_RAW")));
         }
         return ctx;
+    }
+
+    /**
+     * Fase 7 (2026-08): clona {@code REMOTE_GIT_URL} (si hay uno configurado, y solo para Pods de
+     * un solo asiento -- en Pods multi-asiento cada alumno recién tiene su propio home cuando
+     * {@code sandbox-agent.py} lo aprovisiona en runtime, no hay un workspace pod-wide donde
+     * clonar) con el netns TODAVÍA abierto, y despues aplica {@code lockdown-egress.sh}. Corre
+     * como un initContainer real de Kubernetes -- no dentro del contenedor principal -- porque
+     * bloquear egress requiere {@code CAP_NET_ADMIN}, y dárselo al contenedor principal se lo
+     * daría también al alumno (Web/CLI de un solo asiento comparten uid/capabilities con su
+     * propio {@code sandbox-file-agent.py}, sin separación de privilegios real, a diferencia del
+     * caso multi-asiento). Un initContainer termina y desaparece ANTES de que arranque el
+     * contenedor principal -- su capability set nunca llega al alumno.
+     */
+    private Map<String, Object> buildInitContainer(final String image, final boolean multiSeat,
+                                                     final String remoteGitUrl) {
+        final List<Map<String, Object>> env = new ArrayList<>();
+        env.add(Map.of("name", "SANDBOX_CLUSTER_CIDR", "value", clusterCidr));
+        if (!multiSeat && remoteGitUrl != null && !remoteGitUrl.isBlank()) {
+            env.add(Map.of("name", "REMOTE_GIT_URL", "value", remoteGitUrl));
+        }
+        // El initContainer corre como root (uid 0, necesario para CAP_NET_ADMIN) -- si clona acá
+        // los archivos quedan root:root, y el contenedor principal (uid no-root fijo, ver
+        // containerSecurityContext) no podría escribir en su propio workspace. chown al uid/gid
+        // real del contenedor principal después del clone, ANTES de nftables (por si el chown
+        // necesitara alguna syscall que el bloqueo de red no debería afectar, aunque no debería).
+        final String cloneStep = !multiSeat
+                ? "/usr/local/bin/seed-remote-git.sh /home/coder/workspace; "
+                        + "chown -R " + uid + ":" + gid + " /home/coder/workspace; "
+                : "";
+        final Map<String, Object> initContainer = new LinkedHashMap<>();
+        initContainer.put("name", "egress-lockdown");
+        initContainer.put("image", image);
+        initContainer.put("imagePullPolicy", imagePullPolicy);
+        initContainer.put("env", env);
+        initContainer.put("securityContext", Map.of(
+                "allowPrivilegeEscalation", false,
+                "runAsNonRoot", false,
+                "runAsUser", 0,
+                "capabilities", Map.of("drop", List.of("ALL"), "add", List.of("NET_ADMIN"))));
+        initContainer.put("resources", Map.of(
+                "requests", Map.of("cpu", "50m", "memory", "32Mi"),
+                "limits", Map.of("cpu", "250m", "memory", "64Mi")));
+        initContainer.put("volumeMounts", multiSeat
+                ? List.of(Map.of("name", "workspace", "mountPath", "/home"))
+                : List.of(Map.of("name", "workspace", "mountPath", "/home/coder/workspace")));
+        initContainer.put("args", List.of("sh", "-c", cloneStep + "/usr/local/bin/lockdown-egress.sh"));
+        return initContainer;
     }
 
     private static Map<String, Object> resourcesBody(final ContainerResources resources) {

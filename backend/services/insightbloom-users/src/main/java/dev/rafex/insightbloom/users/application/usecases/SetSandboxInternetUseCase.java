@@ -1,26 +1,25 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
-import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
-import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 
 public class SetSandboxInternetUseCase {
     private final ConferenceRepository conferenceRepository;
-    private final SandboxOrchestrator sandboxOrchestrator;
 
-    public SetSandboxInternetUseCase(final ConferenceRepository conferenceRepository,
-                                      final SandboxOrchestrator sandboxOrchestrator) {
+    public SetSandboxInternetUseCase(final ConferenceRepository conferenceRepository) {
         this.conferenceRepository = conferenceRepository;
-        this.sandboxOrchestrator = sandboxOrchestrator;
     }
 
     /**
      * Actualiza el flag de acceso a internet para los sandboxes de un evento.
      *
-     * Organizer-only. Cambia en caliente sin reiniciar sandboxes ya corriendo: crea/borra la
-     * NetworkPolicy de egress-allow del evento (ver KubernetesPodClient#allowInternetEgress),
-     * el default-deny del namespace hace el resto.
+     * Organizer-only. Fase 7 (2026-08): ya no toca Kubernetes en absoluto -- el bloqueo real de
+     * egress externo lo aplica nftables dentro de cada pod (ver
+     * KubernetesPodClient#buildInitContainer/lockdown-egress.sh, siempre activo, no depende de
+     * este flag) y el permiso/bloqueo POR DOMINIO lo decide dinámicamente
+     * insightbloom-egress-proxy en cada request, vía {@code ResolveEgressPolicyUseCase}, leyendo
+     * este mismo valor directo de SQLite (TTL corto, ~10s) -- cambia en caliente sin recrear
+     * ningún sandbox, sin necesitar ninguna llamada a la API de Kubernetes.
      *
      * @param conferenceUuid evento
      * @param internetEnabled 1 (habilitado) o 0 (deshabilitado)
@@ -37,21 +36,6 @@ public class SetSandboxInternetUseCase {
 
         conf.setSandboxInternetEnabled(internetEnabled);
         conferenceRepository.save(conf);
-
-        final String conferenceLabel = Sandbox.conferenceLabel(conferenceUuid);
-        try {
-            if (internetEnabled == 1) {
-                sandboxOrchestrator.allowInternetEgress(conferenceLabel);
-            } else {
-                sandboxOrchestrator.denyInternetEgress(conferenceLabel);
-            }
-        } catch (final IllegalStateException e) {
-            if (!"kubernetes_not_configured".equals(e.getMessage())) {
-                throw e;
-            }
-            // Sin Kubernetes configurado (dev local): el flag queda guardado igual, se aplicara
-            // la proxima vez que se cree un sandbox para este evento con internetEnabled=1.
-        }
 
         return conf;
     }

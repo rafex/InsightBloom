@@ -67,7 +67,8 @@ RUN apk add --no-cache \
     tree-sitter-json \
     tree-sitter-html \
     tree-sitter-css \
-    tree-sitter-bash
+    tree-sitter-bash \
+    nftables
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
@@ -316,6 +317,7 @@ COPY infra/docker/IDE-REST-CLIENT.md /usr/local/share/doc/insightbloom/IDE-REST-
 COPY infra/docker/IDE-APP-PUBLICATION.md /usr/local/share/doc/insightbloom/IDE-APP-PUBLICATION.md
 COPY infra/docker/seed-ide-docs.sh /usr/local/bin/seed-ide-docs.sh
 COPY infra/docker/seed-remote-git.sh /usr/local/bin/seed-remote-git.sh
+COPY infra/docker/lockdown-egress.sh /usr/local/bin/lockdown-egress.sh
 RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \
     chmod -R a+rX /usr/local/share/insightbloom-node-types && \
@@ -325,7 +327,7 @@ RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     test -x /opt/insightbloom/node-global/bin/vscode-css-language-server && \
     chmod +x /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-agent.py /usr/local/bin/sandbox-file-agent.py \
     /usr/local/bin/insightbloom-publish.py /usr/local/bin/insightbloom-mentor.py /usr/local/bin/insightbloom \
-    /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh
+    /usr/local/bin/seed-ide-docs.sh /usr/local/bin/seed-remote-git.sh /usr/local/bin/lockdown-egress.sh
 
 # Todos los directorios globales de LazyVim/plugins/config quedan legibles por cualquier
 # asiento (los procesos de nvim corren como studentN/coder, nunca como root) -- solo root

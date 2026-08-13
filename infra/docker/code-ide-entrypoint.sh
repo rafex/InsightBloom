@@ -5,10 +5,11 @@
 # de debug remoto tiene que pasar aca, al arrancar el contenedor, no en el Dockerfile.
 set -euo pipefail
 
-# Clona el repositorio remoto del organizador (Conference.sandboxRemoteGitUrl), si configuro
-# uno, ANTES de cualquier otro seed -- "git clone" exige un directorio destino vacio, asi que
-# tiene que correr primero (ver seed-remote-git.sh).
-/usr/local/bin/seed-remote-git.sh /home/coder/workspace
+# El clonado del repositorio remoto del organizador (Conference.sandboxRemoteGitUrl) ya NO corre
+# acá -- se movió al initContainer del Pod (ver KubernetesPodClient.buildInitContainer /
+# lockdown-egress.sh), que corre ANTES del bloqueo de egress de la Fase 7 con red totalmente
+# abierta. Para cuando este entrypoint arranca, el netns del Pod ya está bloqueado (solo
+# tráfico interno del cluster) -- clonar acá fallaría para remotos no permitidos.
 
 # Configuracion del workspace: publica los tipos de Node.js precargados para que el TypeScript
 # language service pueda resolver fs/http/process/Buffer sin npm ni Internet durante la sesion.
