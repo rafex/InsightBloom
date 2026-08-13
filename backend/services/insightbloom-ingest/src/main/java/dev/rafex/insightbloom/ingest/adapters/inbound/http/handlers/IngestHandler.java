@@ -75,7 +75,7 @@ public class IngestHandler extends BaseResourceHandler {
                     m -> sendOk(jx, 200, m),
                     () -> sendError(jx, 404, "message_not_found", "Message not found"));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -129,7 +129,7 @@ public class IngestHandler extends BaseResourceHandler {
 
             sendOk(jx, 201, Map.of("messageId", result.getUuid(), "status", result.getWordStatus().name().toLowerCase()));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

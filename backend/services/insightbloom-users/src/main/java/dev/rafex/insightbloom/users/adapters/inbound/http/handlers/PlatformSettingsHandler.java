@@ -146,7 +146,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             final var settings = getChatAiSettingUseCase.execute();
             sendOk(jx, toView(settings));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -188,7 +188,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -216,7 +216,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
                             "autoIncludedIn", item.autoIncludedIn()))
                     .toList()));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -232,7 +232,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             }
             sendOk(jx, toDeviceAccessView(getChatAiSettingUseCase.execute()));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -256,7 +256,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -272,7 +272,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             }
             sendOk(jx, toEgressPolicyView(getChatAiSettingUseCase.execute()));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -294,7 +294,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -317,7 +317,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             }
             sendOk(jx, toImagePolicyView(getChatAiSettingUseCase.execute()));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -339,7 +339,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -363,7 +363,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             final List<PlatformDeviceBlock> blocks = listPlatformDeviceBlocksUseCase.execute();
             sendOk(jx, blocks.stream().map(PlatformSettingsHandler::toBlockView).toList());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -380,7 +380,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             unblockPlatformDeviceUseCase.execute(blockId, v.subjectUuid());
             sendOk(jx, Map.of("unblocked", true));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -397,7 +397,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             final List<DeviceFingerprintFlag> flags = listDeviceFingerprintFlagsUseCase.execute();
             sendOk(jx, flags.stream().map(PlatformSettingsHandler::toFlagView).toList());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }
@@ -414,7 +414,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
             reviewDeviceFingerprintFlagUseCase.execute(flagId, v.subjectUuid());
             sendOk(jx, Map.of("reviewed", true));
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

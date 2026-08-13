@@ -53,6 +53,12 @@ public abstract class BaseResourceHandler extends NonBlockingResourceHandler {
                 ApiError.of(code, message, UUID.randomUUID().toString()));
     }
 
+    protected void sendInternalError(final JettyHttpExchange jx, final Exception e) {
+        System.err.println("Internal server error in " + this.getClass().getSimpleName() + ": " + e.getMessage());
+        e.printStackTrace(System.err);
+        sendError(jx, 500, "internal_error", "Internal server error");
+    }
+
     @SuppressWarnings("unchecked")
     protected Map<String, Object> parseBody(final JettyHttpExchange jx) throws IOException {
         return JSON_CODEC.readValue(Request.asInputStream(jx.request()), Map.class);

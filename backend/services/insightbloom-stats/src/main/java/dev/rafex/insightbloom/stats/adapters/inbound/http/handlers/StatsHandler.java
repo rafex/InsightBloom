@@ -75,7 +75,7 @@ public class StatsHandler extends BaseResourceHandler {
                 sendOk(jx, useCase.overview(conferenceId));
             }
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
         }
         return true;
     }

@@ -121,7 +121,7 @@ public class ConferenceQueryHandler extends BaseResourceHandler {
                 return true;
             }
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", e.getMessage());
+            sendInternalError(jx, e);
             return true;
         }
         sendError(jx, 404, "not_found", "Endpoint not found");
