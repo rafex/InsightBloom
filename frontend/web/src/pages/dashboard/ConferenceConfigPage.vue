@@ -64,7 +64,7 @@
         label.event-canvas-mode-label(:for="`config-canvas-mode-${tool}`") {{ canvasToolLabel(tool) }}
         select(:id="`config-canvas-mode-${tool}`" v-model="canvasModes[tool]")
           option(v-for="option in canvasModeOptions(tool)" :key="option.value" :value="option.value") {{ option.label }}
-      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad sólo admite notas grupales (todos colaboran) o notas individuales (un pad privado por asistente); no tiene modo de publicación exclusiva del moderador. Las notas individuales se borran al vencer el evento y se pueden exportar.
+      p.field-hint(v-if="canvasTools.includes('ETHERPAD')") Etherpad admite notas grupales (todos colaboran), notas individuales (un pad privado por asistente), o modo moderador (solo moderador edita; asistentes ven). Las notas individuales se borran al vencer el evento y se pueden exportar.
       BaseButton(variant="secondary" type="button" @click="saveCanvasConfig" :disabled="savingCanvasConfig")
         span(v-if="savingCanvasConfig") Guardando...
         span(v-else) Guardar configuración del lienzo
@@ -1029,7 +1029,8 @@ export default {
       if (tool === 'ETHERPAD') {
         return [
           { value: 'COLLABORATIVE', label: 'Notas grupales (todos colaboran)' },
-          { value: 'INDEPENDENT', label: 'Notas individuales (se borran al vencer el evento)' }
+          { value: 'INDEPENDENT', label: 'Notas individuales (se borran al vencer el evento)' },
+          { value: 'MODERATOR_ONLY', label: 'Solo el moderador edita; asistentes ven la publicación' }
         ]
       }
       return [
@@ -1039,7 +1040,7 @@ export default {
     }
 
     function normalizeCanvasMode(tool: CanvasTool, mode: CanvasAudienceMode | null | undefined): CanvasAudienceMode {
-      if (tool === 'ETHERPAD') return mode === 'INDEPENDENT' ? 'INDEPENDENT' : 'COLLABORATIVE'
+      if (tool === 'ETHERPAD') return (mode === 'INDEPENDENT' || mode === 'MODERATOR_ONLY') ? mode : 'COLLABORATIVE'
       return mode === 'MODERATOR_ONLY' ? 'MODERATOR_ONLY' : 'INDEPENDENT'
     }
 
