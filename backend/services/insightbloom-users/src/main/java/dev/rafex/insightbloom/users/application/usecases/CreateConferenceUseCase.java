@@ -163,7 +163,8 @@ public class CreateConferenceUseCase {
             }
             final boolean supportedMode = SetCanvasConfigUseCase.ETHERPAD.equals(config.tool())
                     ? (SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
-                        || SetCanvasConfigUseCase.COLLABORATIVE.equals(config.audienceMode()))
+                        || SetCanvasConfigUseCase.COLLABORATIVE.equals(config.audienceMode())
+                        || SetCanvasConfigUseCase.MODERATOR_ONLY.equals(config.audienceMode()))
                     : (SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
                         || SetCanvasConfigUseCase.MODERATOR_ONLY.equals(config.audienceMode()));
             if (!supportedMode) {
