@@ -1986,9 +1986,16 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             final var body = parseBody(jx);
+            final boolean hasCanvasConfigs = body.containsKey("canvasConfigs");
             final String canvasTool = (String) body.get("canvasTool");
             final String audienceMode = (String) body.get("canvasAudienceMode");
-            final List<CanvasConfig> canvasConfigs = parseCanvasConfigs(body.get("canvasConfigs"));
+            final List<CanvasConfig> canvasConfigs = hasCanvasConfigs ? parseCanvasConfigs(body.get("canvasConfigs")) : null;
+
+            if (hasCanvasConfigs && canvasConfigs == null) {
+                sendError(jx, 400, "invalid_canvas_config", "canvasConfigs must be a valid array of {tool, audienceMode}");
+                return true;
+            }
+
             if (canvasConfigs != null) {
                 for (final CanvasConfig config : canvasConfigs) {
                     final EventCapability required = canvasCapability(config.tool());
