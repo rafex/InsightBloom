@@ -19,6 +19,8 @@ public interface ConferenceRepository {
     List<Conference> findByUser(String userUuid);
     List<Conference> findPendingReminder();
 
+    List<Conference> findPendingDayBeforeReminder();
+
     /** Eventos con fecha/hora de fin conocida cuyo pad de Etherpad aun no se ha purgado (ver DEC-0020). */
     List<Conference> findPendingNotesPurge();
 
