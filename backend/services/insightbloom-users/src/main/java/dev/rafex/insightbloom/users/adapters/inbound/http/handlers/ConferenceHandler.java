@@ -72,7 +72,9 @@ import dev.rafex.insightbloom.users.domain.model.ToolKey;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.ConferenceStatus;
 import dev.rafex.insightbloom.users.domain.ports.UserRepository;
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Reservation;
 import dev.rafex.insightbloom.users.domain.model.Permission;
@@ -1998,7 +2000,7 @@ public class ConferenceHandler extends BaseResourceHandler {
 
             if (canvasConfigs != null) {
                 for (final CanvasConfig config : canvasConfigs) {
-                    final EventCapability required = canvasCapability(config.tool());
+                    final EventCapability required = config.tool() == null ? null : config.tool().requiredCapability();
                     if (required != null && !hasCapability(id, required)) {
                         sendError(jx, 409, "capability_not_available",
                                 "El tipo de evento no habilita una de las herramientas seleccionadas");
@@ -2006,12 +2008,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                     }
                 }
             }
-            final EventCapability requiredCapability = canvasTool == null ? null : switch (canvasTool) {
-                    case "DRAWIO" -> EventCapability.DIAGRAMMING;
-                    case "EXCALIDRAW" -> EventCapability.WHITEBOARD;
-                    case "ETHERPAD" -> EventCapability.COLLAB_NOTES;
-                    default -> null;
-                };
+            final CanvasTool legacyCanvasTool = CanvasTool.parse(canvasTool);
+            final EventCapability requiredCapability = legacyCanvasTool == null ? null : legacyCanvasTool.requiredCapability();
             if (requiredCapability != null && !hasCapability(id, requiredCapability)) {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita la herramienta seleccionada");
                 return true;
@@ -2042,20 +2040,11 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             final Object tool = map.get("tool");
             final Object mode = map.get("audienceMode");
-            configs.add(new CanvasConfig(tool instanceof String ? (String) tool : null,
-                    mode instanceof String ? (String) mode : null));
+            configs.add(new CanvasConfig(
+                    tool instanceof String toolStr ? CanvasTool.parse(toolStr) : null,
+                    mode instanceof String modeStr ? CanvasAudienceMode.parse(modeStr) : null));
         }
         return configs;
-    }
-
-    private static EventCapability canvasCapability(final String tool) {
-        if (tool == null) return null;
-        return switch (tool) {
-            case "DRAWIO" -> EventCapability.DIAGRAMMING;
-            case "EXCALIDRAW" -> EventCapability.WHITEBOARD;
-            case "ETHERPAD" -> EventCapability.COLLAB_NOTES;
-            default -> null;
-        };
     }
 
     private boolean handleSetActive(final JettyHttpExchange jx, final String id) {

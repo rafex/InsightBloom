@@ -1,5 +1,7 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
 import dev.rafex.insightbloom.users.domain.model.EventRole;
@@ -9,7 +11,9 @@ import dev.rafex.insightbloom.users.domain.ports.TimezoneRepository;
 import dev.rafex.insightbloom.users.domain.services.FriendlyIdService;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class CreateConferenceUseCase {
     private static final String HOST_ROLE_KEY = "host";
@@ -52,7 +56,7 @@ public class CreateConferenceUseCase {
                                String eventDate, String venue, String startTime, String endTime,
                                Integer timezoneId, String eventTypeKey, Integer capacity,
                                String ticketPrice, String ticketCurrency,
-                               String canvasTool, String canvasAudienceMode,
+                               CanvasTool canvasTool, CanvasAudienceMode canvasAudienceMode,
                                List<CanvasConfig> canvasConfigs, String certificateEngine,
                                String description, String visibility, String scheduleMarkdown,
                                String scheduleLayout, String publicTheme) {}
@@ -142,32 +146,25 @@ public class CreateConferenceUseCase {
 
     private static List<CanvasConfig> legacyConfig(final String canvasTool, final String audienceMode) {
         if (canvasTool == null || canvasTool.isBlank()) return List.of();
-        return List.of(new CanvasConfig(canvasTool,
-                audienceMode == null || audienceMode.isBlank()
-                        ? (SetCanvasConfigUseCase.ETHERPAD.equals(canvasTool)
-                            ? SetCanvasConfigUseCase.COLLABORATIVE : SetCanvasConfigUseCase.INDEPENDENT)
-                        : audienceMode));
+        final CanvasTool tool = CanvasTool.parse(canvasTool);
+        if (tool == null) {
+            // Tool desconocida: se deja pasar como inválida para que validateCanvasConfigs()
+            // la rechace con el mismo error que antes (canvas_tool_invalid).
+            return List.of(new CanvasConfig(null, null));
+        }
+        final CanvasAudienceMode mode = audienceMode == null || audienceMode.isBlank()
+                ? tool.defaultAudienceMode()
+                : CanvasAudienceMode.parse(audienceMode);
+        return List.of(new CanvasConfig(tool, mode));
     }
 
     private static void validateCanvasConfigs(final List<CanvasConfig> configs) {
-        final java.util.Set<String> tools = new java.util.HashSet<>();
+        final Set<CanvasTool> tools = new HashSet<>();
         for (final CanvasConfig config : configs) {
-            if (config == null || config.tool() == null || config.tool().isBlank()
-                    || !tools.add(config.tool())) {
+            if (config == null || config.tool() == null || !tools.add(config.tool())) {
                 throw new IllegalArgumentException("canvas_tool_invalid");
             }
-            if (!SetCanvasConfigUseCase.DRAWIO.equals(config.tool())
-                    && !SetCanvasConfigUseCase.EXCALIDRAW.equals(config.tool())
-                    && !SetCanvasConfigUseCase.ETHERPAD.equals(config.tool())) {
-                throw new IllegalArgumentException("canvas_tool_invalid");
-            }
-            final boolean supportedMode = SetCanvasConfigUseCase.ETHERPAD.equals(config.tool())
-                    ? (SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
-                        || SetCanvasConfigUseCase.COLLABORATIVE.equals(config.audienceMode())
-                        || SetCanvasConfigUseCase.MODERATOR_ONLY.equals(config.audienceMode()))
-                    : (SetCanvasConfigUseCase.INDEPENDENT.equals(config.audienceMode())
-                        || SetCanvasConfigUseCase.MODERATOR_ONLY.equals(config.audienceMode()));
-            if (!supportedMode) {
+            if (!config.tool().supports(config.audienceMode())) {
                 throw new IllegalArgumentException("canvas_audience_mode_invalid");
             }
         }

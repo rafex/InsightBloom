@@ -1,5 +1,8 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
+import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 
@@ -28,14 +31,14 @@ public class SaveEventDiagramUseCase {
         return conferenceRepository.findByUuid(conferenceUuid).map(conference -> {
             // En las modalidades nuevas solo el moderador/creador deja material persistente.
             // El overload anterior conserva compatibilidad con tareas internas existentes.
-            final String audienceMode = conference.getCanvasConfigs().stream()
-                    .filter(config -> "DRAWIO".equals(config.tool()))
-                    .map(dev.rafex.insightbloom.users.domain.model.CanvasConfig::audienceMode)
+            final CanvasAudienceMode audienceMode = conference.getCanvasConfigs().stream()
+                    .filter(config -> CanvasTool.DRAWIO.equals(config.tool()))
+                    .map(CanvasConfig::audienceMode)
                     .findFirst()
                     .orElse(conference.getCanvasAudienceMode());
             if (requestingUserUuid != null
-                    && ("INDEPENDENT".equals(audienceMode)
-                    || "MODERATOR_ONLY".equals(audienceMode))
+                    && (CanvasAudienceMode.INDEPENDENT.equals(audienceMode)
+                    || CanvasAudienceMode.MODERATOR_ONLY.equals(audienceMode))
                     && !conference.getCreatedByUserUuid().equals(requestingUserUuid)) {
                 return false;
             }

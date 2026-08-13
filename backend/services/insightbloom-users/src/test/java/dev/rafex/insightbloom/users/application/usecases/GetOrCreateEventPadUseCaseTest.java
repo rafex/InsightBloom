@@ -1,6 +1,8 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.EtherpadPort;
@@ -21,7 +23,7 @@ class GetOrCreateEventPadUseCaseTest {
         final ConferenceRepository repository = mock(ConferenceRepository.class);
         final EtherpadPort etherpad = mock(EtherpadPort.class);
         final Conference conference = new Conference("evento", "Evento", "owner");
-        conference.setCanvasConfigs(List.of(new CanvasConfig("ETHERPAD", "INDEPENDENT")));
+        conference.setCanvasConfigs(List.of(new CanvasConfig(CanvasTool.ETHERPAD, CanvasAudienceMode.INDEPENDENT)));
         when(repository.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
 
         final var useCase = new GetOrCreateEventPadUseCase(repository, etherpad, "stable-secret");
@@ -38,7 +40,7 @@ class GetOrCreateEventPadUseCaseTest {
         final ConferenceRepository repository = mock(ConferenceRepository.class);
         final EtherpadPort etherpad = mock(EtherpadPort.class);
         final Conference conference = new Conference("evento", "Evento", "owner");
-        conference.setCanvasConfigs(List.of(new CanvasConfig("ETHERPAD", "COLLABORATIVE")));
+        conference.setCanvasConfigs(List.of(new CanvasConfig(CanvasTool.ETHERPAD, CanvasAudienceMode.COLLABORATIVE)));
         when(repository.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
 
         final var pad = new GetOrCreateEventPadUseCase(repository, etherpad, "stable-secret")

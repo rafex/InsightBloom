@@ -100,8 +100,8 @@ public class Conference {
     private Integer maxAccountsPerDevice;
     // Configuracion legacy del lienzo. Se conserva para compatibilidad con clientes y filas
     // antiguas; las configuraciones nuevas viven en canvasConfigs, una por herramienta.
-    private String canvasTool; // DRAWIO | EXCALIDRAW | ETHERPAD | null (legacy/all)
-    private String canvasAudienceMode; // INDEPENDENT | MODERATOR_ONLY | COLLABORATIVE | null (legacy)
+    private CanvasTool canvasTool; // null cuando hay 0 o varias herramientas (legacy/all)
+    private CanvasAudienceMode canvasAudienceMode; // null cuando hay 0 o varias herramientas (legacy)
     private List<CanvasConfig> canvasConfigs = List.of();
     // Sugerencias de herramienta por timestamp del video on-demand (opcional). Vive en tabla hija
     // propia, mismo patron que canvasConfigs.
@@ -318,8 +318,8 @@ public class Conference {
     public void setSandboxSeatsPerPod(Integer sandboxSeatsPerPod) { this.sandboxSeatsPerPod = sandboxSeatsPerPod; }
     public Integer getMaxDevicesPerUser() { return maxDevicesPerUser; }
     public Integer getMaxAccountsPerDevice() { return maxAccountsPerDevice; }
-    public String getCanvasTool() { return canvasTool; }
-    public String getCanvasAudienceMode() { return canvasAudienceMode; }
+    public CanvasTool getCanvasTool() { return canvasTool; }
+    public CanvasAudienceMode getCanvasAudienceMode() { return canvasAudienceMode; }
     public List<CanvasConfig> getCanvasConfigs() { return canvasConfigs; }
     public List<OnDemandCuePoint> getOnDemandCuePoints() { return onDemandCuePoints; }
     public String getCertificateEngine() { return certificateEngine; }
@@ -328,8 +328,8 @@ public class Conference {
     }
     public void setMaxDevicesPerUser(Integer maxDevicesPerUser) { this.maxDevicesPerUser = maxDevicesPerUser; }
     public void setMaxAccountsPerDevice(Integer maxAccountsPerDevice) { this.maxAccountsPerDevice = maxAccountsPerDevice; }
-    public void setCanvasTool(String canvasTool) { this.canvasTool = canvasTool; }
-    public void setCanvasAudienceMode(String canvasAudienceMode) { this.canvasAudienceMode = canvasAudienceMode; }
+    public void setCanvasTool(CanvasTool canvasTool) { this.canvasTool = canvasTool; }
+    public void setCanvasAudienceMode(CanvasAudienceMode canvasAudienceMode) { this.canvasAudienceMode = canvasAudienceMode; }
     public void setCanvasConfigs(List<CanvasConfig> canvasConfigs) {
         this.canvasConfigs = canvasConfigs == null ? List.of() : List.copyOf(canvasConfigs);
     }

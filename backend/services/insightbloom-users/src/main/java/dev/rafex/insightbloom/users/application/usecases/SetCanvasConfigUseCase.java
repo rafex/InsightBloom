@@ -1,21 +1,18 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
-import dev.rafex.insightbloom.users.domain.model.Conference;
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
+import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** Persiste la herramienta y la modalidad de acceso al lienzo de un evento. */
 public class SetCanvasConfigUseCase {
-    public static final String DRAWIO = "DRAWIO";
-    public static final String EXCALIDRAW = "EXCALIDRAW";
-    public static final String ETHERPAD = "ETHERPAD";
-    public static final String COLLABORATIVE = "COLLABORATIVE";
-    public static final String INDEPENDENT = "INDEPENDENT";
-    public static final String MODERATOR_ONLY = "MODERATOR_ONLY";
-
     private final ConferenceRepository conferenceRepository;
 
     public SetCanvasConfigUseCase(final ConferenceRepository conferenceRepository) {
@@ -25,11 +22,14 @@ public class SetCanvasConfigUseCase {
     /** Compatibilidad con el contrato anterior de una sola herramienta. */
     public Optional<Conference> execute(final String conferenceUuid, final String requestingUserUuid,
                                         final String canvasTool, final String audienceMode) {
-        final List<CanvasConfig> configs = canvasTool == null || canvasTool.isBlank()
-                ? List.of()
-                : List.of(new CanvasConfig(canvasTool, audienceMode == null || audienceMode.isBlank()
-                        ? defaultMode(canvasTool) : audienceMode));
-        return execute(conferenceUuid, requestingUserUuid, configs);
+        if (canvasTool == null || canvasTool.isBlank()) {
+            return execute(conferenceUuid, requestingUserUuid, List.<CanvasConfig>of());
+        }
+        final CanvasTool tool = CanvasTool.parse(canvasTool);
+        final CanvasAudienceMode mode = audienceMode == null || audienceMode.isBlank()
+                ? (tool == null ? null : tool.defaultAudienceMode())
+                : CanvasAudienceMode.parse(audienceMode);
+        return execute(conferenceUuid, requestingUserUuid, List.of(new CanvasConfig(tool, mode)));
     }
 
     public Optional<Conference> execute(final String conferenceUuid, final String requestingUserUuid,
@@ -52,28 +52,17 @@ public class SetCanvasConfigUseCase {
 
     private static void validate(final List<CanvasConfig> configs) {
         if (configs == null) return;
-        final java.util.Set<String> tools = new java.util.HashSet<>();
+        final Set<CanvasTool> tools = new HashSet<>();
         for (final CanvasConfig config : configs) {
-            if (config == null || config.tool() == null || config.tool().isBlank()) {
+            if (config == null || config.tool() == null) {
                 throw new IllegalArgumentException("canvas_tool_invalid");
             }
             if (!tools.add(config.tool())) {
                 throw new IllegalArgumentException("canvas_tool_duplicate");
             }
-            if (!DRAWIO.equals(config.tool()) && !EXCALIDRAW.equals(config.tool())
-                    && !ETHERPAD.equals(config.tool())) {
-                throw new IllegalArgumentException("canvas_tool_invalid");
-            }
-            final boolean supportedMode = ETHERPAD.equals(config.tool())
-                    ? (INDEPENDENT.equals(config.audienceMode()) || COLLABORATIVE.equals(config.audienceMode()) || MODERATOR_ONLY.equals(config.audienceMode()))
-                    : (INDEPENDENT.equals(config.audienceMode()) || MODERATOR_ONLY.equals(config.audienceMode()));
-            if (!supportedMode) {
+            if (!config.tool().supports(config.audienceMode())) {
                 throw new IllegalArgumentException("canvas_audience_mode_invalid");
             }
         }
-    }
-
-    private static String defaultMode(final String tool) {
-        return ETHERPAD.equals(tool) ? COLLABORATIVE : INDEPENDENT;
     }
 }

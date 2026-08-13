@@ -1,6 +1,8 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +24,7 @@ class SaveEventDiagramUseCaseTest {
         conferenceRepository = Mockito.mock(ConferenceRepository.class);
         useCase = new SaveEventDiagramUseCase(conferenceRepository);
         conference = new Conference("demo-evento", "Demo evento", "moderator-1");
-        conference.setCanvasConfigs(List.of(new CanvasConfig("DRAWIO", "MODERATOR_ONLY")));
+        conference.setCanvasConfigs(List.of(new CanvasConfig(CanvasTool.DRAWIO, CanvasAudienceMode.MODERATOR_ONLY)));
         Mockito.when(conferenceRepository.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
     }
 

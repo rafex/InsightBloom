@@ -1,7 +1,9 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.ether.json.JacksonJsonCodec;
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
@@ -32,11 +34,6 @@ import java.util.zip.ZipOutputStream;
  * notas grupales, pero nunca las notas privadas derivadas de los asistentes.</p>
  */
 public class EventMaterialsDownloadUseCase {
-    private static final String DRAWIO = "DRAWIO";
-    private static final String EXCALIDRAW = "EXCALIDRAW";
-    private static final String ETHERPAD = "ETHERPAD";
-    private static final String COLLABORATIVE = "COLLABORATIVE";
-
     private final ConferenceRepository conferenceRepository;
     private final EventCapabilityGuard capabilityGuard;
     private final GetEventDiagramUseCase getEventDiagramUseCase;
@@ -59,26 +56,26 @@ public class EventMaterialsDownloadUseCase {
     public byte[] execute(final String conferenceUuid) {
         final Conference conference = conferenceRepository.findByUuid(conferenceUuid)
                 .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
-        final Set<String> tools = enabledTools(conference);
+        final Set<CanvasTool> tools = enabledTools(conference);
         final List<String> files = new ArrayList<>();
         final Map<String, byte[]> binaryFiles = new LinkedHashMap<>();
         final Map<String, String> textFiles = new LinkedHashMap<>();
 
-        if (tools.contains(DRAWIO)) {
+        if (tools.contains(CanvasTool.DRAWIO)) {
             getEventDiagramUseCase.execute(conferenceUuid).ifPresent(diagram -> {
                 addText(textFiles, files, "moderator/drawio/source.drawio", diagram.xml());
                 addPublishedSvg(binaryFiles, files, "moderator/drawio/export.svg", "moderator/drawio/export.png",
                         diagram.publishedSvg());
             });
         }
-        if (tools.contains(EXCALIDRAW)) {
+        if (tools.contains(CanvasTool.EXCALIDRAW)) {
             getEventWhiteboardUseCase.execute(conferenceUuid).ifPresent(whiteboard -> {
                 addText(textFiles, files, "moderator/excalidraw/source.excalidraw", whiteboard.sceneJson());
                 addPublishedSvg(binaryFiles, files, "moderator/excalidraw/export.svg", "moderator/excalidraw/export.png",
                         whiteboard.publishedSvg());
             });
         }
-        if (tools.contains(ETHERPAD) && isGroupNotes(conference)) {
+        if (tools.contains(CanvasTool.ETHERPAD) && isGroupNotes(conference)) {
             try {
                 final EtherpadPort.PadContent notes = etherpadPort.readPad(conferenceUuid);
                 addText(textFiles, files, "moderator/etherpad/source.html", notes.html());
@@ -96,7 +93,7 @@ public class EventMaterialsDownloadUseCase {
         manifest.put("version", 1);
         manifest.put("conference", conference.getFriendlyId());
         manifest.put("generatedAt", Instant.now().toString());
-        manifest.put("notes", !tools.contains(ETHERPAD) ? "NOT_ENABLED"
+        manifest.put("notes", !tools.contains(CanvasTool.ETHERPAD) ? "NOT_ENABLED"
                 : isGroupNotes(conference) ? "COLLABORATIVE" : "INDEPENDENT_NOT_INCLUDED");
         manifest.put("tools", tools);
         files.add("manifest.json");
@@ -120,27 +117,29 @@ public class EventMaterialsDownloadUseCase {
         }
     }
 
-    private Set<String> enabledTools(final Conference conference) {
-        final Set<String> tools = new LinkedHashSet<>();
-        for (final CanvasConfig config : conference.getCanvasConfigs()) tools.add(config.tool());
+    private Set<CanvasTool> enabledTools(final Conference conference) {
+        final Set<CanvasTool> tools = new LinkedHashSet<>();
+        for (final CanvasConfig config : conference.getCanvasConfigs()) {
+            if (config.tool() != null) tools.add(config.tool());
+        }
         if (!tools.isEmpty()) return tools;
-        if (conference.getCanvasTool() != null && !conference.getCanvasTool().isBlank()) {
+        if (conference.getCanvasTool() != null) {
             tools.add(conference.getCanvasTool());
             return tools;
         }
-        if (capabilityGuard.hasCapability(conference, EventCapability.DIAGRAMMING)) tools.add(DRAWIO);
-        if (capabilityGuard.hasCapability(conference, EventCapability.WHITEBOARD)) tools.add(EXCALIDRAW);
-        if (capabilityGuard.hasCapability(conference, EventCapability.COLLAB_NOTES)) tools.add(ETHERPAD);
+        if (capabilityGuard.hasCapability(conference, EventCapability.DIAGRAMMING)) tools.add(CanvasTool.DRAWIO);
+        if (capabilityGuard.hasCapability(conference, EventCapability.WHITEBOARD)) tools.add(CanvasTool.EXCALIDRAW);
+        if (capabilityGuard.hasCapability(conference, EventCapability.COLLAB_NOTES)) tools.add(CanvasTool.ETHERPAD);
         return tools;
     }
 
     private static boolean isGroupNotes(final Conference conference) {
         return !GetOrCreateEventPadUseCase.isIndividual(conference)
-                && (conference.getCanvasConfigs().stream().noneMatch(config -> ETHERPAD.equals(config.tool()))
+                && (conference.getCanvasConfigs().stream().noneMatch(config -> CanvasTool.ETHERPAD.equals(config.tool()))
                 || conference.getCanvasConfigs().stream()
-                .filter(config -> ETHERPAD.equals(config.tool()))
+                .filter(config -> CanvasTool.ETHERPAD.equals(config.tool()))
                 .map(CanvasConfig::audienceMode)
-                .anyMatch(COLLABORATIVE::equals));
+                .anyMatch(CanvasAudienceMode.COLLABORATIVE::equals));
     }
 
     private static void addText(final Map<String, String> textFiles, final List<String> files,

@@ -1,5 +1,8 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
+import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import org.junit.jupiter.api.Test;
@@ -26,8 +29,8 @@ class SetCanvasConfigUseCaseTest {
                 .execute(conference.getUuid(), "owner", "EXCALIDRAW", "MODERATOR_ONLY");
 
         assertTrue(result.isPresent());
-        assertEquals("EXCALIDRAW", conference.getCanvasTool());
-        assertEquals("MODERATOR_ONLY", conference.getCanvasAudienceMode());
+        assertEquals(CanvasTool.EXCALIDRAW, conference.getCanvasTool());
+        assertEquals(CanvasAudienceMode.MODERATOR_ONLY, conference.getCanvasAudienceMode());
         verify(repository).save(conference);
         verify(repository).replaceCanvasConfigs(conference.getUuid(), conference.getCanvasConfigs());
     }
@@ -38,9 +41,9 @@ class SetCanvasConfigUseCaseTest {
         final Conference conference = new Conference("evento", "Evento", "owner");
         when(repository.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
         final var configs = List.of(
-                new dev.rafex.insightbloom.users.domain.model.CanvasConfig("DRAWIO", "MODERATOR_ONLY"),
-                new dev.rafex.insightbloom.users.domain.model.CanvasConfig("EXCALIDRAW", "MODERATOR_ONLY"),
-                new dev.rafex.insightbloom.users.domain.model.CanvasConfig("ETHERPAD", "INDEPENDENT"));
+                new CanvasConfig(CanvasTool.DRAWIO, CanvasAudienceMode.MODERATOR_ONLY),
+                new CanvasConfig(CanvasTool.EXCALIDRAW, CanvasAudienceMode.MODERATOR_ONLY),
+                new CanvasConfig(CanvasTool.ETHERPAD, CanvasAudienceMode.INDEPENDENT));
 
         final var result = new SetCanvasConfigUseCase(repository)
                 .execute(conference.getUuid(), "owner", configs);
@@ -71,7 +74,7 @@ class SetCanvasConfigUseCaseTest {
                 .execute(conference.getUuid(), "owner", "ETHERPAD", "COLLABORATIVE");
 
         assertTrue(result.isPresent());
-        assertEquals("COLLABORATIVE", conference.getCanvasAudienceMode());
+        assertEquals(CanvasAudienceMode.COLLABORATIVE, conference.getCanvasAudienceMode());
         assertThrows(IllegalArgumentException.class, () ->
                 new SetCanvasConfigUseCase(repository)
                         .execute(conference.getUuid(), "owner", "DRAWIO", "COLLABORATIVE"));

@@ -1,5 +1,8 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
+import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.EtherpadPort;
@@ -39,12 +42,12 @@ public class GetOrCreateEventPadUseCase {
 
     public static boolean isIndividual(final Conference conference) {
         return conference.getCanvasConfigs().stream()
-                .filter(config -> ETHERPAD.equals(config.tool()))
-                .map(dev.rafex.insightbloom.users.domain.model.CanvasConfig::audienceMode)
+                .filter(config -> CanvasTool.ETHERPAD.equals(config.tool()))
+                .map(CanvasConfig::audienceMode)
                 .findFirst()
-                .map(INDEPENDENT::equals)
-                .orElse(ETHERPAD.equals(conference.getCanvasTool())
-                        && INDEPENDENT.equals(conference.getCanvasAudienceMode()));
+                .map(CanvasAudienceMode.INDEPENDENT::equals)
+                .orElse(CanvasTool.ETHERPAD.equals(conference.getCanvasTool())
+                        && CanvasAudienceMode.INDEPENDENT.equals(conference.getCanvasAudienceMode()));
     }
 
     private PadInfo ensurePad(final Conference conference, final String userUuid) {
@@ -65,6 +68,4 @@ public class GetOrCreateEventPadUseCase {
         }
     }
 
-    private static final String ETHERPAD = "ETHERPAD";
-    private static final String INDEPENDENT = "INDEPENDENT";
 }

@@ -1,6 +1,8 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.EtherpadPort;
@@ -30,9 +32,9 @@ class EventMaterialsDownloadUseCaseTest {
         final EventCapabilityGuard capabilityGuard = mock(EventCapabilityGuard.class);
         final Conference conference = new Conference("evento", "Evento", "owner");
         conference.setCanvasConfigs(java.util.List.of(
-                new CanvasConfig("DRAWIO", "MODERATOR_ONLY"),
-                new CanvasConfig("EXCALIDRAW", "MODERATOR_ONLY"),
-                new CanvasConfig("ETHERPAD", "COLLABORATIVE")));
+                new CanvasConfig(CanvasTool.DRAWIO, CanvasAudienceMode.MODERATOR_ONLY),
+                new CanvasConfig(CanvasTool.EXCALIDRAW, CanvasAudienceMode.MODERATOR_ONLY),
+                new CanvasConfig(CanvasTool.ETHERPAD, CanvasAudienceMode.COLLABORATIVE)));
         conference.setDiagramXmlAndPublishedSvg("<mxGraphModel/>", SVG);
         conference.setWhiteboardSceneAndPublishedSvg("{\"elements\":[]}", SVG);
         when(repository.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
@@ -63,7 +65,7 @@ class EventMaterialsDownloadUseCaseTest {
         final EtherpadPort etherpad = mock(EtherpadPort.class);
         final EventCapabilityGuard capabilityGuard = mock(EventCapabilityGuard.class);
         final Conference conference = new Conference("evento", "Evento", "owner");
-        conference.setCanvasConfigs(java.util.List.of(new CanvasConfig("ETHERPAD", "COLLABORATIVE")));
+        conference.setCanvasConfigs(java.util.List.of(new CanvasConfig(CanvasTool.ETHERPAD, CanvasAudienceMode.COLLABORATIVE)));
         when(repository.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
         when(etherpad.readPad(conference.getUuid())).thenThrow(new IllegalStateException("gateway_unauthorized"));
 

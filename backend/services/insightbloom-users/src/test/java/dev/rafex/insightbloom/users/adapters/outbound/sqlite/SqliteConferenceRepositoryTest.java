@@ -1,5 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.outbound.sqlite;
 
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.CertificateTemplate;
 import org.junit.jupiter.api.Test;
@@ -38,14 +40,14 @@ class SqliteConferenceRepositoryTest {
         database.initialize();
         final SqliteConferenceRepository repository = new SqliteConferenceRepository(database);
         final Conference conference = new Conference("etherpad-test", "Etherpad test", "owner");
-        conference.setCanvasTool("ETHERPAD");
-        conference.setCanvasAudienceMode("MODERATOR_ONLY");
+        conference.setCanvasTool(CanvasTool.ETHERPAD);
+        conference.setCanvasAudienceMode(CanvasAudienceMode.MODERATOR_ONLY);
 
         repository.save(conference);
 
         final Conference restored = repository.findByUuid(conference.getUuid()).orElseThrow();
-        assertEquals("MODERATOR_ONLY", restored.getCanvasAudienceMode());
-        assertEquals("MODERATOR_ONLY", restored.getCanvasConfigs().getFirst().audienceMode());
+        assertEquals(CanvasAudienceMode.MODERATOR_ONLY, restored.getCanvasAudienceMode());
+        assertEquals(CanvasAudienceMode.MODERATOR_ONLY, restored.getCanvasConfigs().getFirst().audienceMode());
     }
 
     @Test

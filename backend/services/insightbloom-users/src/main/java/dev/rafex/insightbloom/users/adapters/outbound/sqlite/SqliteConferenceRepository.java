@@ -1,5 +1,7 @@
 package dev.rafex.insightbloom.users.adapters.outbound.sqlite;
 
+import dev.rafex.insightbloom.users.domain.model.CanvasAudienceMode;
+import dev.rafex.insightbloom.users.domain.model.CanvasTool;
 import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.CanvasConfig;
 import dev.rafex.insightbloom.users.domain.model.OnDemandCuePoint;
@@ -107,8 +109,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             else ps.setNull(49, Types.INTEGER);
             if (conference.getMaxAccountsPerDevice() != null) ps.setInt(50, conference.getMaxAccountsPerDevice());
             else ps.setNull(50, Types.INTEGER);
-            ps.setString(51, conference.getCanvasTool());
-            ps.setString(52, conference.getCanvasAudienceMode());
+            ps.setString(51, conference.getCanvasTool() != null ? conference.getCanvasTool().name() : null);
+            ps.setString(52, conference.getCanvasAudienceMode() != null ? conference.getCanvasAudienceMode().name() : null);
             ps.setString(53, conference.getTicketPrice());
             ps.setString(54, conference.getTicketCurrency());
             ps.setString(55, conference.getCertificateEngine());
@@ -134,8 +136,8 @@ public class SqliteConferenceRepository implements ConferenceRepository {
                 delete.executeUpdate();
                 for (final CanvasConfig config : configs) {
                     insert.setString(1, conferenceUuid);
-                    insert.setString(2, config.tool());
-                    insert.setString(3, config.audienceMode());
+                    insert.setString(2, config.tool().name());
+                    insert.setString(3, config.audienceMode().name());
                     insert.addBatch();
                 }
                 insert.executeBatch();
@@ -360,9 +362,10 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.setMaxDevicesPerUser(rs.wasNull() ? null : maxDevicesPerUser);
         final int maxAccountsPerDevice = rs.getInt("max_accounts_per_device");
         conference.setMaxAccountsPerDevice(rs.wasNull() ? null : maxAccountsPerDevice);
-        conference.setCanvasTool(rs.getString("canvas_tool"));
+        final CanvasTool legacyTool = CanvasTool.parse(rs.getString("canvas_tool"));
+        conference.setCanvasTool(legacyTool);
         conference.setCanvasAudienceMode(normalizeCanvasMode(
-                conference.getCanvasTool(), rs.getString("canvas_audience_mode")));
+                legacyTool, CanvasAudienceMode.parse(rs.getString("canvas_audience_mode"))));
         final List<CanvasConfig> configs = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT canvas_tool, audience_mode FROM conference_canvas_configs "
@@ -370,9 +373,10 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(1, conference.getUuid());
             try (ResultSet configRs = ps.executeQuery()) {
                 while (configRs.next()) {
-                    final String tool = configRs.getString("canvas_tool");
+                    final CanvasTool tool = CanvasTool.parse(configRs.getString("canvas_tool"));
+                    if (tool == null) continue;
                     configs.add(new CanvasConfig(tool,
-                            normalizeCanvasMode(tool, configRs.getString("audience_mode"))));
+                            normalizeCanvasMode(tool, CanvasAudienceMode.parse(configRs.getString("audience_mode")))));
                 }
             }
         }
@@ -398,12 +402,11 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         return conference;
     }
 
-    private static String normalizeCanvasMode(final String tool, final String mode) {
-        if ("ETHERPAD".equals(tool)) {
-            if ("INDEPENDENT".equals(mode) || "MODERATOR_ONLY".equals(mode)) return mode;
-            return "COLLABORATIVE";
-        }
-        return "MODERATOR_ONLY".equals(mode) ? "MODERATOR_ONLY" : "INDEPENDENT";
+    /** Corrige datos legacy/corruptos: si el modo guardado ya no es válido para la tool, cae al
+     * default de esa tool en vez de propagar un valor inconsistente. */
+    private static CanvasAudienceMode normalizeCanvasMode(final CanvasTool tool, final CanvasAudienceMode mode) {
+        if (tool == null) return null;
+        return tool.supports(mode) ? mode : tool.defaultAudienceMode();
     }
 
     @Override
