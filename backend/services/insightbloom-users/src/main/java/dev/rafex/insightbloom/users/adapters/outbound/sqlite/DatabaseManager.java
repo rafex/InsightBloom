@@ -808,6 +808,22 @@ public class DatabaseManager {
                     updated_at TEXT NOT NULL
                 )
             """);
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    uuid TEXT PRIMARY KEY,
+                    timestamp TEXT NOT NULL,
+                    actor_uuid TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    resource_type TEXT NOT NULL,
+                    resource_id TEXT,
+                    changes TEXT,
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    status TEXT NOT NULL,
+                    error_message TEXT,
+                    additional_context TEXT
+                )
+            """);
 
             backfillMissingTicketsForSimpleJoins(conn);
             backfillMissingCapacity(conn);
