@@ -180,7 +180,7 @@ public class UsersApplication {
                 conferenceRepo, reservationRepo, venueSeatRepo, userRepo, emailPort, frontendBaseUrl);
         final var joinConferenceUseCase = new JoinConferenceUseCase(
                 getConferenceUseCase, membershipRepo, userRepo, emailPort, timezoneRepo,
-                reserveGeneralUseCase, frontendBaseUrl, ticketUseCase, eventPermissionGuard);
+                reserveGeneralUseCase, frontendBaseUrl, ticketUseCase, eventPermissionGuard, sendNotificationUseCase);
         final var getConferenceHistoryUseCase = new GetConferenceHistoryUseCase(membershipRepo, conferenceRepo);
         final var certificatePlatformData = new dev.rafex.insightbloom.users.domain.model.CertificatePlatformData(
                 "InsightBloom", frontendBaseUrl,
