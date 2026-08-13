@@ -157,7 +157,7 @@ describe('OnDemandFloatingVideo', () => {
       expect(floatingSlot.querySelectorAll('.notification-item')).toHaveLength(1)
     })
 
-    it('opens the suggestion link in a new tab', async () => {
+    it('opens the suggestion link in the same tab for non-IDE tools', async () => {
       const router = makeRouter('/c/evento-demo/survey')
       await router.isReady()
       const wrapper = mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
@@ -167,9 +167,27 @@ describe('OnDemandFloatingVideo', () => {
       await flushPromises()
 
       const link = floatingSlot.querySelector<HTMLAnchorElement>('.notification-link')
+      expect(link?.target).toBe('')
+      expect(link?.rel).toBe('')
+      expect(link?.getAttribute('href')).toBe('/c/evento-demo/survey')
+    })
+
+    it('opens the IDE link in a new tab', async () => {
+      const router = makeRouter('/c/evento-demo/survey')
+      await router.isReady()
+      const wrapper = mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+      await flushPromises()
+
+      ;(wrapper.vm as any).notifications = [{
+        id: 1,
+        cue: { atSeconds: 30, label: 'Abre el IDE', toolPath: 'ide' }
+      }]
+      await flushPromises()
+
+      const link = floatingSlot.querySelector<HTMLAnchorElement>('.notification-link')
       expect(link?.target).toBe('_blank')
       expect(link?.rel).toBe('noopener')
-      expect(link?.getAttribute('href')).toBe('/c/evento-demo/survey')
+      expect(link?.getAttribute('href')).toBe('/c/evento-demo/ide')
     })
   })
 })
