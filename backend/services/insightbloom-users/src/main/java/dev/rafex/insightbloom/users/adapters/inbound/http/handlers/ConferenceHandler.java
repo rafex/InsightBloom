@@ -720,7 +720,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             sendOk(jx, 200, getConferenceUseCase.byUser(v.subjectUuid()));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -755,7 +755,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -776,7 +776,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 final var v = validateTokenUseCase.execute(token);
                 if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             } catch (final Exception e) {
-                sendInternalError(jx, e);
+                sendError(jx, 500, "internal_error", "Internal server error");
                 return true;
             }
         }
@@ -785,7 +785,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     c -> sendOk(jx, 200, c),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -796,7 +796,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     c -> sendOk(jx, 200, sanitizeForPublicAggregate(c)),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -885,7 +885,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendOk(jx, 200, getConferenceUseCase.publicEvents().stream()
                     .map(conference -> publicView(conference, userUuid)).toList());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -899,7 +899,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     .ifPresentOrElse(c -> sendOk(jx, 200, publicView(c, userUuid)),
                             () -> sendError(jx, 404, "public_event_not_found", "Evento público no encontrado"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -930,7 +930,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             jx.response().getHeaders().put("Cache-Control", "public, max-age=3600");
             jx.response().write(true, ByteBuffer.wrap(bytes), jx.callback());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -999,7 +999,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1061,7 +1061,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     c -> sendOk(jx, 200, sanitizeForPublicAggregate(c)),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1091,7 +1091,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Esta conferencia ya no se encuentra disponible");
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1104,7 +1104,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             sendOk(jx, 200, getConferenceHistoryUseCase.execute(v.subjectUuid()));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1121,7 +1121,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             sendOk(jx, Map.of("uniqueRegisteredAttendees", countUniqueRegisteredAttendeesUseCase.execute(v.subjectUuid())));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1138,7 +1138,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             sendOk(jx, Map.of("activeRegisteredAttendees", countActiveRegisteredAttendeesUseCase.execute(v.subjectUuid())));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1154,7 +1154,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             sendOk(jx, 200, getJaasUsageUseCase.execute());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1172,7 +1172,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 404, "not_found", "Conference not found or not owned by you");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1203,7 +1203,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IOException e) {
             sendError(jx, 400, "invalid_multipart", "El multipart del flyer no es válido");
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1335,7 +1335,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 404, "not_found", "Conference not found or not owned by you");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1347,7 +1347,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var updated = updateConferenceUseCase.deriveNameFromPresentation(id, (String) body.get("title"));
             sendOk(jx, 200, Map.of("updated", updated.isPresent()));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1387,7 +1387,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1405,7 +1405,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     "count", countAttendeesUseCase.execute(conferenceId),
                     "registered", countRegisteredAttendeesUseCase.execute(conferenceId)));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1417,7 +1417,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             recordDownloadUseCase.execute(id, (String) body.get("kind"));
             sendOk(jx, 200, Map.of("status", "recorded"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1434,7 +1434,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var counts = getDownloadCountsUseCase.execute(conferenceId);
             sendOk(jx, Map.of("certificate", counts.certificate(), "presentation", counts.presentation()));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1468,7 +1468,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1488,7 +1488,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     pad -> sendOk(jx, 200, pad),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1520,7 +1520,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalStateException e) {
             sendError(jx, 502, "etherpad_export_failed", "No se pudieron leer las notas");
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1552,7 +1552,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalStateException e) {
             sendError(jx, 502, "materials_export_failed", "No se pudieron preparar los materiales");
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1572,7 +1572,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     diagram -> sendOk(jx, 200, diagram),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1602,7 +1602,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 403, "moderator_only", "Solo el moderador puede guardar el material del lienzo");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1631,7 +1631,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 if (subscribers.isEmpty()) diagramSubscribers.remove(id, subscribers);
             });
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1664,7 +1664,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     whiteboard -> sendOk(jx, 200, whiteboard),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1694,7 +1694,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 403, "moderator_only", "Solo el moderador puede guardar el material de la pizarra");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1724,7 +1724,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 if (subscribers.isEmpty()) whiteboardSubscribers.remove(id, subscribers);
             });
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1769,7 +1769,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 404, "jaas_not_configured", "JaaS no esta configurado en este despliegue");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1805,7 +1805,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 if (subscribers.isEmpty()) videoSubscribers.remove(key, subscribers);
             });
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1830,7 +1830,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             notifyVideoRevocations(id, validation.subjectUuid(), revoked, fingerprint);
             sendOk(jx, 200, Map.of("takenOver", true, "revokedSessions", revoked.size()));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1863,7 +1863,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     roles -> sendOk(jx, 200, roles),
                     () -> sendError(jx, 403, "forbidden", "No tienes permiso para ver los roles de este evento"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1884,7 +1884,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, "user_not_found".equals(e.getMessage()) || "role_not_found".equals(e.getMessage()) ? 404 : 400,
                     e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1902,7 +1902,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalStateException e) {
             sendError(jx, 409, e.getMessage(), "No se puede quitar al Host original del evento");
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1937,7 +1937,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -1955,7 +1955,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2020,7 +2020,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2070,7 +2070,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                         "Conference not found, not owned by you, or has an expiration date");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2093,7 +2093,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     updated -> sendOk(jx, 200, updated),
                     () -> sendError(jx, 404, "not_found", "Evento no encontrado o no es tuyo"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2133,7 +2133,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             for (final ToolKey key : ToolKey.values()) view.put(key.name(), released.contains(key));
             sendOk(jx, view);
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2156,7 +2156,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                             "email", a.email() == null ? "" : a.email(), "released", a.released())).toList())));
             sendOk(jx, view);
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2195,7 +2195,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2225,7 +2225,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2243,7 +2243,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             toolAccessUseCase.releaseAll(id);
             sendOk(jx, Map.of("released", true));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2302,7 +2302,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2314,7 +2314,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var v = validateTokenUseCase.execute(token);
             if (!v.valid() || !canManageTickets(id, v)) { sendError(jx, 403, "forbidden", "No tienes permiso para consultar boletos"); return true; }
             sendOk(jx, 200, ticketUseCase.listManagement(id));
-        } catch (Exception e) { sendInternalError(jx, e); }
+        } catch (Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 
@@ -2327,7 +2327,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             ticketUseCase.myTicket(id, v.subjectUuid()).ifPresentOrElse(
                     t -> sendOk(jx, 200, t),
                     () -> sendError(jx, 404, "no_ticket", "No tienes un boleto para esta conferencia"));
-        } catch (Exception e) { sendInternalError(jx, e); }
+        } catch (Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 
@@ -2355,7 +2355,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     "privateAreas", privateAreas,
                     "previewSlideLimit", eventActive ? 5 : 0));
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), e.getMessage());
-        } catch (final Exception e) { sendInternalError(jx, e); }
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 
@@ -2404,7 +2404,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             sendOk(jx, 200, Map.of("allowed", true));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2430,7 +2430,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
         } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Este boleto no se puede canjear");
         } catch (final IllegalArgumentException e) { sendError(jx, 400, e.getMessage(), "El QR o UUID del boleto no es válido");
-        } catch (final Exception e) { sendInternalError(jx, e); }
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 
@@ -2446,7 +2446,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendOk(jx, 200, ticketUseCase.claimByCode(input, v.subjectUuid()));
         } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Este boleto no se puede canjear");
         } catch (final IllegalArgumentException e) { sendError(jx, 400, e.getMessage(), "El QR o UUID del boleto no es válido");
-        } catch (final Exception e) { sendInternalError(jx, e); }
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 
@@ -2462,7 +2462,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendOk(jx, 200, ticketUseCase.checkIn(id, input));
         } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Este boleto ya fue utilizado o aún no fue canjeado");
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Boleto no encontrado para esta conferencia");
-        } catch (final Exception e) { sendInternalError(jx, e); }
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 
@@ -2479,7 +2479,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     : "El boleto ya fue utilizado";
             sendError(jx, 409, e.getMessage(), detail);
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Boleto no encontrado");
-        } catch (final Exception e) { sendInternalError(jx, e); }
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 
@@ -2500,7 +2500,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             };
             sendError(jx, 409, e.getMessage(), detail);
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Boleto no encontrado");
-        } catch (final Exception e) { sendInternalError(jx, e); }
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 
@@ -2513,7 +2513,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var summary = ticketUseCase.resendAll(id);
             sendOk(jx, 200, Map.of("sent", summary.sent(), "skipped", summary.skipped()));
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Evento no encontrado");
-        } catch (final Exception e) { sendInternalError(jx, e); }
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 
@@ -2551,7 +2551,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             };
             sendError(jx, 400, e.getMessage(), detail);
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2580,7 +2580,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             };
             sendError(jx, 400, e.getMessage(), detail);
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2619,7 +2619,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2634,7 +2634,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     r -> sendOk(jx, 200, r),
                     () -> sendError(jx, 404, "no_ticket", "No tienes un boleto para esta conferencia"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2648,7 +2648,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             final boolean cancelled = cancelReservationUseCase.execute(id, v.subjectUuid());
             sendOk(jx, 200, Map.of("cancelled", cancelled));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2666,7 +2666,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                     list -> sendOk(jx, 200, list),
                     () -> sendError(jx, 404, "not_found", "Conference not found or not owned by you"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2682,7 +2682,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             sendOk(jx, 200, listConferenceAttendeesUseCase.execute(id));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2712,7 +2712,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), "Boleto no encontrado para esta conferencia");
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2739,7 +2739,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 404, "not_found", "Conference not found or not owned by you");
             }
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2809,7 +2809,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalStateException e) {
             sendError(jx, 409, e.getMessage(), "No se puede quitar un asiento con una reserva activa");
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2822,7 +2822,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             sendOk(jx, 200, getConferenceSeatMapUseCase.execute(id));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2833,7 +2833,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             final EgressPolicy policy = egressPolicyUseCase.get(id);
             sendOk(jx, 200, toEgressPolicyView(policy));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2849,7 +2849,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2860,7 +2860,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             final ImagePolicy policy = imagePolicyUseCase.get(id);
             sendOk(jx, 200, toImagePolicyView(policy));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2876,7 +2876,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2925,7 +2925,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2962,7 +2962,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2974,7 +2974,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             if (requireConferenceOwner(jx, id) == null) return true;
             sendOk(jx, 200, listDeviceBlocksUseCase.execute(id));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2986,7 +2986,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             unblockDeviceUseCase.execute(blockId, v.subjectUuid());
             sendOk(jx, 200, Map.of("unblocked", true));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -2998,7 +2998,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             if (requireConferenceOwner(jx, id) == null) return true;
             sendOk(jx, 200, listSandboxIncidentsUseCase.execute(id));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -3010,7 +3010,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             if (requireConferenceOwner(jx, id) == null) return true;
             sendOk(jx, 200, listSandboxStatusUseCase.execute(id));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
@@ -3056,7 +3056,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }

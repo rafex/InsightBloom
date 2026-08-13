@@ -59,7 +59,7 @@ public class InternalEgressPolicyHandler extends BaseResourceHandler {
                                     "blocked", resolution.blocked())),
                             () -> sendError(jx, 404, "unknown_source", "No sandbox found for this source IP"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }

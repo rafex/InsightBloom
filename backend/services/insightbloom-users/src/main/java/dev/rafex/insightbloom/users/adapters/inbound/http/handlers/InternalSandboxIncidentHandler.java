@@ -68,7 +68,7 @@ public class InternalSandboxIncidentHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }

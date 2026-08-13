@@ -55,7 +55,7 @@ public class InternalSandboxTargetHandler extends BaseResourceHandler {
                             target -> sendOk(jx, 200, Map.of("target", target)),
                             () -> sendError(jx, 404, "sandbox_not_found", "No active sandbox for this user/conference"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }

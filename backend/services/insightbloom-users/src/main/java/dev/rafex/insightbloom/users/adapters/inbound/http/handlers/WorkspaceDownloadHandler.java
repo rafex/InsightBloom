@@ -64,7 +64,7 @@ public class WorkspaceDownloadHandler extends BaseResourceHandler {
             }
             // No es un job -- cae al flujo legacy por sandbox uuid, ver clase-doc.
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
             return true;
         }
         try {
@@ -73,7 +73,7 @@ public class WorkspaceDownloadHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, mapErrorStatus(e.getMessage()), e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }

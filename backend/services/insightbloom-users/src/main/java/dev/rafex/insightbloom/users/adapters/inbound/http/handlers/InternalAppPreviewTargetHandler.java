@@ -58,7 +58,7 @@ public class InternalAppPreviewTargetHandler extends BaseResourceHandler {
                             () -> sendError(jx, 404, "app_preview_not_found",
                                     "No active app-preview for this publicationId/token"));
         } catch (final Exception e) {
-            sendInternalError(jx, e);
+            sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
     }
