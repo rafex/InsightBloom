@@ -2,13 +2,20 @@
 .on-demand-page
   .on-demand-header
     h2 Video
+  //- El iframe real (via <Teleport>) aterriza aca -- ver OnDemandFloatingVideo.vue, montado de
+  //- forma persistente en ConferencePage.vue. SIEMPRE presente en el DOM, sin importar
+  //- accessGranted/embedUrl (que llegan async y pueden resolver en un tick distinto al que usa
+  //- OnDemandFloatingVideo para calcular su teleportTarget) -- si este div no existe todavia
+  //- cuando el Teleport intenta apuntar a #ondemand-full-slot, y despues aparece, Vue NO
+  //- reintenta el teleport porque el string del ":to" no cambio de valor, dejando el video
+  //- "perdido" y el proximo patch del arbol revienta al tocar un anchor node que nunca se
+  //- ancló bien (bug reportado 2026-08-12: video desaparecia y saltaba "can't access property
+  //- nextSibling" en consola al recargar ya parado en esta pestaña). Reservar el slot siempre,
+  //- vacio, elimina la carrera de raiz.
+  #ondemand-full-slot
   EmptyState(v-if="!accessGranted" message="Regístrate y canjea tu boleto para ver el video de este evento.")
   EmptyState(v-else-if="!embedUrl" message="El organizador todavía no configuró un video para este evento.")
   template(v-else)
-    //- El iframe real (via <Teleport>) aterriza aca -- ver OnDemandFloatingVideo.vue, montado de
-    //- forma persistente en ConferencePage.vue. Este div solo reserva el layout de tamano
-    //- completo; el video en si sigue vivo aunque el usuario haya estado en otra pestana.
-    #ondemand-full-slot
     .cue-list(v-if="sortedCuePoints.length")
       p.hint Sugerencias por momento del video:
       //- target=_blank a proposito: asi la herramienta se abre en otra pestana sin tocar esta

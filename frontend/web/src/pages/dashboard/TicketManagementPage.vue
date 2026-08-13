@@ -58,11 +58,24 @@
             span.audit-actor(:title="actorUuid(ticket.revokedByUserUuid)") {{ actorLabel(ticket.revokedByUserUuid) }}
             |  · {{ formatAuditDate(ticket.revokedAt) }}
         .row-actions
-          BaseButton(variant="ghost" size="sm" type="button" @click="showQr(ticket)") QR
-          BaseButton(variant="ghost" size="sm" type="button" @click="copy(ticket.ticketCode)") Copiar UUID
-          BaseButton(variant="ghost" size="sm" type="button" :loading="resendingUuid === ticket.uuid" :disabled="resendingUuid === ticket.uuid" @click="resendOne(ticket)") Reenviar
-          BaseButton(variant="ghost" size="sm" type="button" v-if="ticket.claimedByUserUuid" @click="writeToAttendee(ticket)") Escribir
-          BaseButton(variant="danger" size="sm" type="button" @click="revoke(ticket.uuid)") Revocar
+          BaseButton.icon-btn(variant="ghost" size="sm" type="button" title="Ver código QR" aria-label="Ver código QR" @click="showQr(ticket)")
+            UiIcon(name="qr" size="16" aria-hidden="true")
+          BaseButton.icon-btn(variant="ghost" size="sm" type="button" title="Copiar UUID" aria-label="Copiar UUID" @click="copy(ticket.ticketCode)")
+            UiIcon(name="copy" size="16" aria-hidden="true")
+          BaseButton.icon-btn(variant="ghost" size="sm" type="button" title="Copiar URL para compartir" aria-label="Copiar URL para compartir" @click="copyUrl(ticket)")
+            UiIcon(name="link" size="16" aria-hidden="true")
+          BaseButton.icon-btn(
+            v-if="ticket.claimedByUserUuid || ticket.recipientEmail"
+            variant="ghost" size="sm" type="button"
+            title="Reenviar por correo" aria-label="Reenviar por correo"
+            :loading="resendingUuid === ticket.uuid" :disabled="resendingUuid === ticket.uuid"
+            @click="resendOne(ticket)"
+          )
+            UiIcon(name="send" size="16" aria-hidden="true")
+          BaseButton.icon-btn(v-if="ticket.claimedByUserUuid" variant="ghost" size="sm" type="button" title="Escribir al inscrito" aria-label="Escribir al inscrito" @click="writeToAttendee(ticket)")
+            UiIcon(name="edit" size="16" aria-hidden="true")
+          BaseButton.icon-btn(variant="danger" size="sm" type="button" title="Revocar boleto" aria-label="Revocar boleto" @click="revoke(ticket.uuid)")
+            UiIcon(name="trash" size="16" aria-hidden="true")
     .qr-preview(v-if="selectedTicket")
       TicketQr(:ticket-code="selectedTicket.ticketCode" :ticket-url="ticketUrl(selectedTicket)" :show-code="false")
       BaseButton(variant="ghost" size="sm" type="button" @click="share(selectedTicket)") Compartir QR
@@ -79,6 +92,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
+import UiIcon from '@/components/ui/UiIcon.vue'
 import EmailComposeEditor from '@/components/EmailComposeEditor.vue'
 import AiEmailAssistant from '@/components/AiEmailAssistant.vue'
 import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets, sendAttendeeEmail } from '@/services/api/usersApi'
@@ -90,7 +104,7 @@ const sendMarked = new Marked()
 
 export default {
   name: 'TicketManagementPage',
-  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, FeedbackMessage, LoadingState, StatusBadge, EmailComposeEditor, AiEmailAssistant },
+  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, FeedbackMessage, LoadingState, StatusBadge, EmailComposeEditor, AiEmailAssistant, UiIcon },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -182,6 +196,11 @@ export default {
     async function copy(code: string) {
       await navigator.clipboard?.writeText(code)
       feedbackError.value = false; feedback.value = 'UUID copiado.'
+    }
+
+    async function copyUrl(ticket: Ticket) {
+      await navigator.clipboard?.writeText(ticketUrl(ticket))
+      feedbackError.value = false; feedback.value = 'URL del boleto copiada.'
     }
 
     function showQr(ticket: Ticket) { selectedTicket.value = ticket }
@@ -324,7 +343,7 @@ export default {
     ])
 
     onMounted(load)
-    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, showQr, share, revoke, ticketUrl, formatAuditDate, formatTicketStatusLabel, claimantLabel, actorLabel, actorUuid, breadcrumbItems,
+    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, copyUrl, showQr, share, revoke, ticketUrl, formatAuditDate, formatTicketStatusLabel, claimantLabel, actorLabel, actorUuid, breadcrumbItems,
       batchQuantity, issuingBatch, canIssueBatch, issueBatch, resendingUuid, resendingAll, resendOne, resendAll,
       composeSubject, composeMessage, composeFormat, showAiAssistant,
       composeTarget, sendingEmail, emailFeedback, emailFeedbackError, sendEmail, writeToAttendee, clearComposeTarget }
@@ -336,8 +355,11 @@ export default {
 .tickets-page { padding: 24px; max-width: 900px; margin: 0 auto; }
 h2 { color: var(--color-heading); }
 .issue-card, .tickets-list, .compose-card { background: var(--color-surface); border: 1px solid var(--color-border-subtle); border-radius: 12px; padding: 20px; margin-top: 16px; }
-.compose-card textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; font: inherit; resize: vertical; margin: 10px 0; }
-.compose-card input { width: 100%; box-sizing: border-box; margin-bottom: 0; }
+/* gap (no margins por hijo) para que el input de Asunto, el editor y el botón Enviar queden
+   separados de forma pareja -- sin esto, el toolbar de EmailComposeEditor quedaba pegado al
+   input de arriba y el textarea pegado al botón de abajo (bug reportado 2026-08-12). */
+.compose-card { display: flex; flex-direction: column; gap: 14px; }
+.compose-card input { width: 100%; box-sizing: border-box; }
 .link-inline { color: var(--color-primary); font-size: 0.8rem; }
 .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
 .metric-card { display: flex; flex-direction: column; gap: 4px; background: var(--color-surface); border: 1px solid var(--color-primary-soft); border-radius: 12px; padding: 16px; min-height: 92px; }
@@ -349,7 +371,11 @@ h2 { color: var(--color-heading); }
 input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; }
 .issue-divider { text-align: center; color: var(--color-text-muted); font-size: .78rem; margin: 12px 0; text-transform: uppercase; letter-spacing: .04em; }
 .field-hint { margin: 8px 0 0; font-size: .8rem; }
-.row-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+/* Botones a icono (con tooltip via title/aria-label) en vez de texto -- ahorra espacio en la
+   fila cuando hay hasta 6 acciones por boleto (bug/pedido 2026-08-12). Mismo patrón ya usado
+   en .qr-button de ConferencesListPage.vue: cuadrado fijo, sin depender del ancho del texto. */
+.icon-btn { width: 30px; height: 30px; padding: 4px; }
 .ticket-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-surface-muted); }
 .ticket-main { display: flex; flex-direction: column; gap: 2px; }
 .ticket-main strong { font: 0.8rem monospace; overflow-wrap: anywhere; }
@@ -373,7 +399,6 @@ input { flex: 1; min-width: 240px; padding: 10px; border: 1px solid var(--color-
   .ticket-row { flex-direction: column; align-items: stretch; }
   .ticket-main { width: 100%; min-width: 0; }
   .row-actions { width: 100%; justify-content: flex-start; gap: 6px; }
-  .row-actions :deep(.base-btn) { flex: 1 1 calc(50% - 6px); min-width: 0; }
   .list-header :deep(.base-btn) { width: 100%; }
 }
 </style>
