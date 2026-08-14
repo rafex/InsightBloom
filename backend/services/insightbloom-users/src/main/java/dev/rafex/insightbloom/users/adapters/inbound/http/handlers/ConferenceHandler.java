@@ -2047,6 +2047,13 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita la herramienta seleccionada");
                 return true;
             }
+            // Este PUT reemplaza TODA la config de lienzos del evento (no hace merge parcial) --
+            // loguear el payload real recibido es la única forma de distinguir, ante un reporte de
+            // "se perdió mi configuración", un cliente que mandó un valor viejo/stale de uno que no
+            // llegó a llamar este endpoint en absoluto (ver bug reportado 2026-08-14).
+            LOGGER.info("handleSetCanvasConfig id=" + id + " requestedBy=" + v.subjectUuid()
+                    + " canvasConfigs=" + describeCanvasConfigs(canvasConfigs)
+                    + " legacyTool=" + canvasTool + " legacyMode=" + audienceMode);
             final var updated = canvasConfigs != null
                     ? setCanvasConfigUseCase.execute(id, v.subjectUuid(), canvasConfigs)
                     : setCanvasConfigUseCase.execute(id, v.subjectUuid(), canvasTool, audienceMode);
@@ -2061,6 +2068,17 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 500, "internal_error", "Internal server error");
         }
         return true;
+    }
+
+    private static String describeCanvasConfigs(final List<CanvasConfig> configs) {
+        if (configs == null) return "null";
+        final StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < configs.size(); i++) {
+            if (i > 0) sb.append(", ");
+            final CanvasConfig c = configs.get(i);
+            sb.append(c.tool()).append(':').append(c.audienceMode());
+        }
+        return sb.append(']').toString();
     }
 
     private static List<CanvasConfig> parseCanvasConfigs(final Object raw) {
