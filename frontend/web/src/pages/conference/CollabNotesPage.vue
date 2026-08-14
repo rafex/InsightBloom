@@ -83,15 +83,20 @@ export default {
       const live = await getEventNotesLive(props.conferenceId, auth.state.token)
       noteText.value = live.text
       noteHtml.value = live.html
+      available.value = true
       refreshCountdown.value = REFRESH_INTERVAL_SECONDS
     }
 
+    // Tanto el refresh automático como el botón manual pasan por acá -- si una carga falla (ej.
+    // Etherpad momentáneamente inalcanzable), marca `available = false` para mostrar el aviso,
+    // pero el siguiente refresh (automático o manual) puede recuperarlo sin recargar la página.
     async function refreshLiveNotes() {
       if (refreshing.value) return
       refreshing.value = true
       try {
         await loadLiveNotes()
       } catch (e) {
+        available.value = false
         console.error('CollabNotesPage: fallo actualizando las notas publicadas', e)
       } finally {
         refreshing.value = false
@@ -136,15 +141,12 @@ export default {
     onMounted(async () => {
       if (!props.conferenceId) { loading.value = false; return }
       if (isModeratorOnlyViewer.value) {
-        try {
-          await loadLiveNotes()
-          startLiveNotesPolling()
-        } catch (e) {
-          available.value = false
-          console.error('CollabNotesPage: no se pudieron cargar las notas publicadas', e)
-        } finally {
-          loading.value = false
-        }
+        // El polling arranca siempre, haya fallado o no la primera carga -- así un fallo
+        // transitorio (ej. Etherpad tardando en responder al primer request tras un deploy) se
+        // recupera solo en el próximo ciclo de 30s, sin depender de que el usuario haga click.
+        await refreshLiveNotes()
+        startLiveNotesPolling()
+        loading.value = false
         return
       }
       try {
