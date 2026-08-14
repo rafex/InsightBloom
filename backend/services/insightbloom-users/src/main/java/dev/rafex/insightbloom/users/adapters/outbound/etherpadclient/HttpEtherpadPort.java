@@ -17,10 +17,13 @@ import java.util.List;
  * `createPad` devuelve `code: 1` si el pad ya existe — se trata igual que exito (idempotente),
  * no como error.
  *
- * SECURITY: Etherpad API key no se pasa como query parameter en URLs (riesgo de exposición
- * en logs). En su lugar, se usa header HTTP Authorization con Bearer token, que típicamente
- * no se loguea en nivel debug. Como defensa en profundidad, si la URL se loguea por cualquier
- * razón, el método sanitizeUrlForLogging() enmascara el apikey.
+ * SECURITY: se intentó pasar el apikey solo por header HTTP Authorization (Bearer) para no
+ * exponerlo en URLs/logs, pero se confirmó en vivo (2026-08-14) que con
+ * authenticationMethod=apikey (ver InsightBloom-gitops/.../etherpad-deployment.yaml) Etherpad
+ * ignora el header Authorization por completo -- su checkAccess solo mira `?apikey=` como query
+ * param. Volvió a usarse el query param como único mecanismo que Etherpad realmente acepta; como
+ * defensa en profundidad, sanitizeUrlForLogging() enmascara el apikey si la URL llegara a
+ * loguearse por cualquier razón (nunca se loguea hoy, pero la mantenemos por si acaso).
  */
 public class HttpEtherpadPort implements EtherpadPort {
     private final String baseUrl;
@@ -69,12 +72,8 @@ public class HttpEtherpadPort implements EtherpadPort {
 
     private List<String> listAllPads() {
         try {
-            final String uri = "%s/api/1/listAllPads".formatted(baseUrl);
-            final HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(uri))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .GET()
-                    .build();
+            final String uri = "%s/api/1/listAllPads?apikey=%s".formatted(baseUrl, encoded(apiKey));
+            final HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri)).GET().build();
             final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 300) return List.of();
             final var pads = jsonCodec.readTree(response.body()).path("data").path("padIDs");
@@ -88,12 +87,8 @@ public class HttpEtherpadPort implements EtherpadPort {
 
     private String callContent(final String method, final String padId, final String field) {
         try {
-            final String uri = "%s/api/1/%s?padID=%s".formatted(baseUrl, method, encoded(padId));
-            final HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(uri))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .GET()
-                    .build();
+            final String uri = "%s/api/1/%s?padID=%s&apikey=%s".formatted(baseUrl, method, encoded(padId), encoded(apiKey));
+            final HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri)).GET().build();
             final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 300) throw new IllegalStateException("etherpad_export_failed");
             return jsonCodec.readTree(response.body()).path("data").path(field).asText("");
@@ -104,12 +99,8 @@ public class HttpEtherpadPort implements EtherpadPort {
 
     private void call(final String method, final String padId) {
         try {
-            final String uri = "%s/api/1/%s?padID=%s".formatted(baseUrl, method, encoded(padId));
-            final HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(uri))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .GET()
-                    .build();
+            final String uri = "%s/api/1/%s?padID=%s&apikey=%s".formatted(baseUrl, method, encoded(padId), encoded(apiKey));
+            final HttpRequest request = HttpRequest.newBuilder().uri(URI.create(uri)).GET().build();
             client.send(request, HttpResponse.BodyHandlers.discarding());
         } catch (final Exception e) {
             // best-effort: si Etherpad no responde, la pestaña "Notas" degrada con un mensaje
@@ -123,9 +114,8 @@ public class HttpEtherpadPort implements EtherpadPort {
 
     /**
      * Enmascara la API key en una URL si está presente como query parameter.
-     * Esto es una defensa en profundidad: si la URL se loguea por cualquier razón,
-     * la clave no queda visible. El enfoque principal es usar Authorization header,
-     * que típicamente no se loguea.
+     * Ninguno de los métodos de esta clase loguea la URL hoy; esto es únicamente
+     * defensa en profundidad por si algún día se agrega logging de requests salientes.
      */
     public static String sanitizeUrlForLogging(final String url) {
         if (url == null || url.isEmpty()) {
