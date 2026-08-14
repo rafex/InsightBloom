@@ -258,23 +258,27 @@ public class DatabaseManager {
                 INSERT OR IGNORE INTO conference_canvas_configs (conference_uuid, canvas_tool, audience_mode)
                 SELECT uuid, canvas_tool,
                        CASE WHEN canvas_tool = 'ETHERPAD'
-                            THEN CASE WHEN canvas_audience_mode = 'INDEPENDENT' THEN 'INDEPENDENT' ELSE 'COLLABORATIVE' END
+                            THEN CASE WHEN canvas_audience_mode IN ('INDEPENDENT', 'MODERATOR_ONLY') THEN canvas_audience_mode ELSE 'COLLABORATIVE' END
                             ELSE CASE WHEN canvas_audience_mode = 'MODERATOR_ONLY' THEN 'MODERATOR_ONLY' ELSE 'INDEPENDENT' END END
                 FROM conferences
                 WHERE canvas_tool IS NOT NULL AND TRIM(canvas_tool) <> ''
             """);
-            // Corrige configuraciones antiguas que trataban Etherpad como si fuera un lienzo
-            // publicable. Etherpad sólo tiene notas grupales o notas individuales.
+            // Corrige valores de audience_mode inválidos (nunca soportados por ninguna
+            // herramienta, ej. basura o un enum viejo eliminado) cayendo al default de cada una.
+            // OJO: Etherpad SÍ admite MODERATOR_ONLY desde 2026-08-14 (ver CanvasTool.java) --
+            // antes esta migración lo tildaba de "inválido" y lo revertía a COLLABORATIVE en
+            // cada arranque del pod, deshaciendo en silencio cualquier guardado de "solo el
+            // moderador edita" para Etherpad (bug reportado el mismo día, encontrado recién acá).
             stmt.executeUpdate("""
                 UPDATE conference_canvas_configs
                    SET audience_mode = CASE WHEN canvas_tool = 'ETHERPAD' THEN 'COLLABORATIVE' ELSE 'INDEPENDENT' END
-                 WHERE (canvas_tool = 'ETHERPAD' AND audience_mode NOT IN ('COLLABORATIVE', 'INDEPENDENT'))
+                 WHERE (canvas_tool = 'ETHERPAD' AND audience_mode NOT IN ('COLLABORATIVE', 'INDEPENDENT', 'MODERATOR_ONLY'))
                     OR (canvas_tool <> 'ETHERPAD' AND audience_mode NOT IN ('INDEPENDENT', 'MODERATOR_ONLY'))
             """);
             stmt.executeUpdate("""
                 UPDATE conferences
                    SET canvas_audience_mode = CASE WHEN canvas_tool = 'ETHERPAD' THEN 'COLLABORATIVE' ELSE 'INDEPENDENT' END
-                 WHERE (canvas_tool = 'ETHERPAD' AND canvas_audience_mode NOT IN ('COLLABORATIVE', 'INDEPENDENT'))
+                 WHERE (canvas_tool = 'ETHERPAD' AND canvas_audience_mode NOT IN ('COLLABORATIVE', 'INDEPENDENT', 'MODERATOR_ONLY'))
                     OR (canvas_tool <> 'ETHERPAD' AND canvas_audience_mode NOT IN ('INDEPENDENT', 'MODERATOR_ONLY'))
             """);
 

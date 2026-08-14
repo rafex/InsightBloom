@@ -50,6 +50,31 @@ class SqliteConferenceRepositoryTest {
         assertEquals(CanvasAudienceMode.MODERATOR_ONLY, restored.getCanvasConfigs().getFirst().audienceMode());
     }
 
+    /** Bug reportado 2026-08-14: DatabaseManager.initialize() corre en CADA arranque del pod (no
+     *  solo la primera vez), y una migración de limpieza de datos legacy trataba MODERATOR_ONLY
+     *  como un valor "inválido" para Etherpad, revirtiéndolo a COLLABORATIVE en cada reinicio --
+     *  silencioso porque la migración no loguea nada. La prueba de arriba (save+findByUuid) no lo
+     *  detectaba porque nunca vuelve a llamar initialize() sobre una base ya poblada. */
+    @Test
+    void moderatorOnlyEtherpadSurvivesReinitializeOnPodRestart(@TempDir final Path tempDir) {
+        final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
+        database.initialize();
+        final SqliteConferenceRepository repository = new SqliteConferenceRepository(database);
+        final Conference conference = new Conference("etherpad-restart-test", "Etherpad restart test", "owner");
+        conference.setCanvasTool(CanvasTool.ETHERPAD);
+        conference.setCanvasAudienceMode(CanvasAudienceMode.MODERATOR_ONLY);
+        repository.save(conference);
+
+        // Simula el JVM reiniciando sobre el mismo archivo de datos (mismo DatabaseManager que
+        // usa la app en producción: initialize() corre sus migraciones cada vez, no solo al
+        // crear la base).
+        database.initialize();
+
+        final Conference restored = repository.findByUuid(conference.getUuid()).orElseThrow();
+        assertEquals(CanvasAudienceMode.MODERATOR_ONLY, restored.getCanvasAudienceMode());
+        assertEquals(CanvasAudienceMode.MODERATOR_ONLY, restored.getCanvasConfigs().getFirst().audienceMode());
+    }
+
     @Test
     void persistsCertificateEngine(@TempDir final Path tempDir) {
         final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
