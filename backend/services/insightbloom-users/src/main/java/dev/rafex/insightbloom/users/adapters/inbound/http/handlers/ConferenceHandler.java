@@ -1524,6 +1524,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final IllegalStateException e) {
+            LOGGER.log(java.util.logging.Level.WARNING, "handleExportNotes: fallo leyendo Etherpad para " + id, e);
             sendError(jx, 502, "etherpad_export_failed", "No se pudieron leer las notas");
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", "Internal server error");
@@ -1551,6 +1552,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final IllegalStateException e) {
+            LOGGER.log(java.util.logging.Level.WARNING, "handleGetNotesLive: fallo leyendo Etherpad para " + id, e);
             sendError(jx, 502, "etherpad_export_failed", "No se pudieron leer las notas");
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", "Internal server error");

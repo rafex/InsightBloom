@@ -34,7 +34,12 @@ public class HttpEtherpadPort implements EtherpadPort {
     public HttpEtherpadPort(final String baseUrl, final String apiKey) {
         this.baseUrl = baseUrl;
         this.apiKey = apiKey;
-        this.client = HttpClient.newHttpClient();
+        // HttpClient.newHttpClient() negocia HTTP/2 (h2c upgrade) por default -- Etherpad/Express
+        // solo habla HTTP/1.1 en texto plano. Contra ese servidor la negociación h2c se cuelga
+        // varios segundos antes de fallar (confirmado en vivo 2026-08-14: curl/wget desde el mismo
+        // pod respondían al instante, solo el HttpClient de Java fallaba). Fijar HTTP/1.1
+        // explícito evita el intento de upgrade.
+        this.client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
     }
 
     @Override
