@@ -33,7 +33,6 @@
 
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import TurndownService from 'turndown'
 import { marked, Renderer } from 'marked'
 import { getIntegrationConfig, getEventNotes, getEventNotesLive, exportEventNotes } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
@@ -48,9 +47,11 @@ const REFRESH_INTERVAL_SECONDS = 30
 // asistentes (su único mecanismo de solo-lectura es una URL /p/r.XXXX distinta, vía su API
 // getReadOnlyID) -- en vez de depender de eso, en MODERATOR_ONLY los asistentes ven una
 // exportación del pad que se refresca sola (mismo patrón que WhiteboardPage.vue para Excalidraw),
-// eligiendo verla como texto plano o como Markdown (convertido acá mismo con turndown, ya que el
-// Etherpad desplegado no tiene el plugin ep_markdown). El moderador sigue con el iframe editable
-// de siempre, sin cambios.
+// eligiendo verla como texto plano o como Markdown. El moderador escribe la sintaxis Markdown
+// directamente como texto plano en el pad (el Etherpad desplegado no tiene el plugin ep_markdown,
+// no hay formato enriquecido real que convertir), así que la vista Markdown renderiza el export de
+// texto plano tal cual con `marked` en vez de re-derivarlo del HTML del pad. El moderador sigue con
+// el iframe editable de siempre, sin cambios.
 export default {
   name: 'CollabNotesPage',
   components: { BaseButton, FeedbackMessage, LoadingState, NoticeState },
@@ -71,17 +72,14 @@ export default {
 
     const available = ref(true)
     const noteText = ref('')
-    const noteHtml = ref('')
     const viewFormat = ref<'txt' | 'markdown'>('txt')
     const refreshCountdown = ref(REFRESH_INTERVAL_SECONDS)
     const refreshing = ref(false)
-    const turndownService = new TurndownService()
-    const noteMarkdown = computed(() => noteHtml.value ? turndownService.turndown(noteHtml.value) : '')
     const markdownRenderer = new Renderer()
     markdownRenderer.html = () => ''
     const renderedMarkdown = computed(() => {
-      if (!noteMarkdown.value.trim()) return ''
-      const html = marked.parse(noteMarkdown.value, { async: false, renderer: markdownRenderer }) as string
+      if (!noteText.value.trim()) return ''
+      const html = marked.parse(noteText.value, { async: false, breaks: true, renderer: markdownRenderer }) as string
       return html.replace(/href\s*=\s*["'](?!https?:\/\/|mailto:)[^"']*["']/gi, 'href="#"')
     })
     let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -91,7 +89,6 @@ export default {
       if (!props.conferenceId || !auth.state.token) return
       const live = await getEventNotesLive(props.conferenceId, auth.state.token)
       noteText.value = live.text
-      noteHtml.value = live.html
       available.value = true
       refreshCountdown.value = REFRESH_INTERVAL_SECONDS
     }
@@ -186,7 +183,7 @@ export default {
     return {
       loading, padUrl, isIndividual, isModeratorOnlyViewer, downloading, exportError,
       downloadNotes, stripSessionToken,
-      available, noteText, noteMarkdown, renderedMarkdown, viewFormat, refreshCountdown, refreshing, refreshLiveNotes
+      available, noteText, renderedMarkdown, viewFormat, refreshCountdown, refreshing, refreshLiveNotes
     }
   }
 }
