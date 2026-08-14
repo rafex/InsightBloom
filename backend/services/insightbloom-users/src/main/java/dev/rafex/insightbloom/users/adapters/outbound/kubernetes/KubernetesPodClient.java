@@ -1226,9 +1226,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "runAsNonRoot", false,
                 "runAsUser", 0,
                 "capabilities", Map.of("drop", List.of("ALL"), "add", List.of("NET_ADMIN"))));
+        // 256Mi es el mínimo por contenedor que exige el LimitRange del namespace
+        // insightbloom-sandboxes (insightbloom-sandboxes-limits) -- valores menores (ej. el 32Mi/
+        // 64Mi previo) hacen que la API de Kubernetes rechace el pod entero con 403 Forbidden
+        // "minimum memory usage per Container is 256Mi" antes de que llegue a crearse (bug
+        // encontrado 2026-08-14: rompía la asignación de todo IDE nuevo, web o CLI).
         initContainer.put("resources", Map.of(
-                "requests", Map.of("cpu", "50m", "memory", "32Mi"),
-                "limits", Map.of("cpu", "250m", "memory", "64Mi")));
+                "requests", Map.of("cpu", "50m", "memory", "256Mi"),
+                "limits", Map.of("cpu", "250m", "memory", "256Mi")));
         initContainer.put("volumeMounts", multiSeat
                 ? List.of(Map.of("name", "workspace", "mountPath", "/home"))
                 : List.of(Map.of("name", "workspace", "mountPath", "/home/coder/workspace")));
