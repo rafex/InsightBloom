@@ -11,7 +11,8 @@
     NoticeState(v-if="!available" title="Notas no disponibles" message="Intenta más tarde o contacta al organizador." tone="warning")
     .published-content(v-else)
       pre.published-notes(v-if="viewFormat === 'txt'") {{ noteText || 'El moderador todavía no escribió nada.' }}
-      pre.published-notes(v-else) {{ noteMarkdown || 'El moderador todavía no escribió nada.' }}
+      .published-notes.markdown-body(v-else-if="renderedMarkdown" v-html="renderedMarkdown")
+      pre.published-notes(v-else) El moderador todavía no escribió nada.
     BaseButton.refresh-floating(
       type="button"
       :disabled="refreshing"
@@ -33,6 +34,7 @@
 <script lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import TurndownService from 'turndown'
+import { marked, Renderer } from 'marked'
 import { getIntegrationConfig, getEventNotes, getEventNotesLive, exportEventNotes } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -75,6 +77,13 @@ export default {
     const refreshing = ref(false)
     const turndownService = new TurndownService()
     const noteMarkdown = computed(() => noteHtml.value ? turndownService.turndown(noteHtml.value) : '')
+    const markdownRenderer = new Renderer()
+    markdownRenderer.html = () => ''
+    const renderedMarkdown = computed(() => {
+      if (!noteMarkdown.value.trim()) return ''
+      const html = marked.parse(noteMarkdown.value, { async: false, renderer: markdownRenderer }) as string
+      return html.replace(/href\s*=\s*["'](?!https?:\/\/|mailto:)[^"']*["']/gi, 'href="#"')
+    })
     let refreshTimer: ReturnType<typeof setInterval> | null = null
     let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -177,7 +186,7 @@ export default {
     return {
       loading, padUrl, isIndividual, isModeratorOnlyViewer, downloading, exportError,
       downloadNotes, stripSessionToken,
-      available, noteText, noteMarkdown, viewFormat, refreshCountdown, refreshing, refreshLiveNotes
+      available, noteText, noteMarkdown, renderedMarkdown, viewFormat, refreshCountdown, refreshing, refreshLiveNotes
     }
   }
 }
@@ -203,6 +212,18 @@ export default {
   white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, monospace; font-size: .88rem;
   color: var(--color-text);
 }
+.markdown-body { white-space: normal; font-family: inherit; }
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3) { margin: 1.2em 0 .5em; line-height: 1.3; }
+.markdown-body :deep(p) { margin: 0 0 1em; line-height: 1.55; }
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) { margin: 0 0 1em; padding-left: 1.4em; }
+.markdown-body :deep(code) { font-family: ui-monospace, SFMono-Regular, monospace; background: var(--color-surface-muted); padding: 1px 5px; border-radius: 4px; font-size: .88em; }
+.markdown-body :deep(pre) { background: var(--color-surface-muted); padding: 12px; border-radius: 8px; overflow-x: auto; }
+.markdown-body :deep(pre code) { background: none; padding: 0; }
+.markdown-body :deep(blockquote) { margin: 0 0 1em; padding-left: 12px; border-left: 3px solid var(--color-border-subtle); color: var(--color-text-secondary); }
+.markdown-body :deep(a) { color: var(--color-primary); }
 .refresh-floating { position: fixed; right: 24px; bottom: 24px; width: 44px; height: 44px; padding: 0; border-radius: 999px; font-size: 1.45rem; box-shadow: 0 8px 18px rgba(79, 70, 229, .3); }
 .refresh-floating:disabled { opacity: .65; cursor: wait; }
 </style>
