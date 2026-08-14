@@ -397,6 +397,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/tickets/resend-all", Set.of("POST")),
                 Route.of("/{id}/notes", Set.of("GET")),
                 Route.of("/{id}/notes/export", Set.of("GET")),
+                Route.of("/{id}/notes/live", Set.of("GET")),
                 Route.of("/{id}/materials.zip", Set.of("GET")),
                 Route.of("/{id}/diagram/stream", Set.of("GET")),
                 Route.of("/{id}/diagram", Set.of("GET", "PUT")),
@@ -495,6 +496,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/notes/export")) {
             return handleExportNotes(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/notes/live")) {
+            return handleGetNotesLive(jx, jx.pathParam("id"));
         }
         if (path.endsWith("/materials.zip")) {
             return handleMaterialsDownload(jx, jx.pathParam("id"));
@@ -1486,9 +1490,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita notas colaborativas");
                 return true;
             }
-            final boolean isModerator = isPlatformAdminRole(v.role())
-                    || getConferenceUseCase.byId(id).map(c -> v.subjectUuid().equals(c.getCreatedByUserUuid())).orElse(false);
-            getOrCreateEventPadUseCase.execute(id, v.subjectUuid(), isModerator).ifPresentOrElse(
+            getOrCreateEventPadUseCase.execute(id, v.subjectUuid()).ifPresentOrElse(
                     pad -> sendOk(jx, 200, pad),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
@@ -1519,6 +1521,33 @@ public class ConferenceHandler extends BaseResourceHandler {
                     + (export.individual() ? "individuales" : "grupales") + "." + (html ? "html" : "txt") + "\"");
             jx.response().getHeaders().put("Content-Length", Integer.toString(body.length));
             jx.response().write(true, ByteBuffer.wrap(body), jx.callback());
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 404, e.getMessage(), e.getMessage());
+        } catch (final IllegalStateException e) {
+            sendError(jx, 502, "etherpad_export_failed", "No se pudieron leer las notas");
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", "Internal server error");
+        }
+        return true;
+    }
+
+    /** Lectura liviana del contenido actual del pad para vistas con refresh periódico (a
+     *  diferencia de handleExportNotes, que arma una descarga de archivo). Usado por asistentes
+     *  en modo MODERATOR_ONLY para ver lo que va escribiendo el moderador sin embeber Etherpad. */
+    private boolean handleGetNotesLive(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var v = validateTokenUseCase.execute(token);
+            if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (rejectIfConferenceClosed(jx, id)) return true;
+            if (!hasCapability(id, EventCapability.COLLAB_NOTES)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita notas");
+                return true;
+            }
+            final var export = exportEventNotesUseCase.execute(id, v.subjectUuid())
+                    .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
+            sendOk(jx, 200, Map.of("text", export.text(), "html", export.html()));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final IllegalStateException e) {

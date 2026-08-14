@@ -30,21 +30,14 @@ public class GetOrCreateEventPadUseCase {
         this.privatePadSecret = privatePadSecret == null ? "" : privatePadSecret;
     }
 
-    public record PadInfo(String padId, boolean readOnly) {}
+    public record PadInfo(String padId) {}
 
-    /** Compatibilidad: siempre devuelve el pad real editable (usado por ExportEventNotesUseCase,
-     *  que necesita el padId real para leer contenido, nunca el ID de solo-lectura). */
     public Optional<PadInfo> execute(final String conferenceUuid, final String userUuid) {
-        return execute(conferenceUuid, userUuid, true);
+        return conferenceRepository.findByUuid(conferenceUuid).map(conference -> ensurePad(conference, userUuid));
     }
 
     public Optional<PadInfo> execute(final String conferenceUuid) {
-        return execute(conferenceUuid, null, true);
-    }
-
-    public Optional<PadInfo> execute(final String conferenceUuid, final String userUuid, final boolean isModerator) {
-        return conferenceRepository.findByUuid(conferenceUuid)
-                .map(conference -> ensurePad(conference, userUuid, isModerator));
+        return execute(conferenceUuid, null);
     }
 
     public static boolean isIndividual(final Conference conference) {
@@ -57,24 +50,11 @@ public class GetOrCreateEventPadUseCase {
                         && CanvasAudienceMode.INDEPENDENT.equals(conference.getCanvasAudienceMode()));
     }
 
-    private PadInfo ensurePad(final Conference conference, final String userUuid, final boolean isModerator) {
+    private PadInfo ensurePad(final Conference conference, final String userUuid) {
         final String padId = isIndividual(conference) && userUuid != null
                 ? privatePadId(conference.getUuid(), userUuid) : conference.getUuid();
         etherpadPort.ensurePadExists(padId);
-        if (!isModerator && isModeratorOnly(conference)) {
-            return new PadInfo(etherpadPort.getReadOnlyId(padId), true);
-        }
-        return new PadInfo(padId, false);
-    }
-
-    private static boolean isModeratorOnly(final Conference conference) {
-        return conference.getCanvasConfigs().stream()
-                .filter(config -> CanvasTool.ETHERPAD.equals(config.tool()))
-                .map(CanvasConfig::audienceMode)
-                .findFirst()
-                .map(CanvasAudienceMode.MODERATOR_ONLY::equals)
-                .orElse(CanvasTool.ETHERPAD.equals(conference.getCanvasTool())
-                        && CanvasAudienceMode.MODERATOR_ONLY.equals(conference.getCanvasAudienceMode()));
+        return new PadInfo(padId);
     }
 
     private String privatePadId(final String conferenceUuid, final String userUuid) {

@@ -56,12 +56,6 @@ public class HttpEtherpadPort implements EtherpadPort {
     }
 
     @Override
-    public String getReadOnlyId(final String padId) {
-        if (baseUrl == null || baseUrl.isBlank()) return padId;
-        return callContent("getReadOnlyID", padId, "readOnlyID");
-    }
-
-    @Override
     public void deletePadsForConference(final String conferenceUuid) {
         if (baseUrl == null || baseUrl.isBlank()) return;
         final String privatePrefix = conferenceUuid + "--private--";

@@ -17,12 +17,4 @@ public interface EtherpadPort {
 
     /** Borra el pad grupal y todos los pads privados derivados del evento. */
     void deletePadsForConference(String conferenceUuid);
-
-    /**
-     * ID de lectura de un pad (getReadOnlyID de la API de Etherpad). Etherpad no soporta un
-     * parámetro "readonly" sobre /p/{padId}: la única forma real de solo-lectura es navegar a
-     * /p/{readOnlyId}, una URL distinta. Se usa en modo MODERATOR_ONLY para que los asistentes
-     * naveguen a esa URL en vez del pad editable real.
-     */
-    String getReadOnlyId(String padId);
 }

@@ -2,7 +2,7 @@ import axios from 'axios'
 import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
-  SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad,
+  SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad, EventNotesLive,
   CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   WorkspaceZipJobInfo,
@@ -790,6 +790,13 @@ export async function exportEventNotes(conferenceId: string, token: string, form
     ...authHeader(token), responseType: 'blob'
   })
   return res.data
+}
+
+/** Lectura liviana del contenido actual del pad (sin descarga de archivo), para vistas con
+ *  refresh periódico -- ver CollabNotesPage.vue en modo MODERATOR_ONLY. */
+export async function getEventNotesLive(conferenceId: string, token: string): Promise<EventNotesLive> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/notes/live`, authHeader(token))
+  return res.data.data
 }
 
 /** Descarga las fuentes y exportaciones publicadas del evento como ZIP. No incluye pads privados. */

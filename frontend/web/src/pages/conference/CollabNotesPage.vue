@@ -1,11 +1,29 @@
 <template lang="pug">
 .collab-notes-page
   LoadingState(v-if="loading" message="Cargando notas colaborativas...")
+  template(v-else-if="isModeratorOnlyViewer")
+    .published-banner
+      span Estás viendo lo que va escribiendo el moderador (solo lectura).
+      .format-toggle
+        button.format-btn(type="button" :class="{ active: viewFormat === 'txt' }" @click="viewFormat = 'txt'") TXT
+        button.format-btn(type="button" :class="{ active: viewFormat === 'markdown' }" @click="viewFormat = 'markdown'") Markdown
+      span.update-state Actualización automática en {{ refreshCountdown }}s
+    NoticeState(v-if="!available" title="Notas no disponibles" message="Intenta más tarde o contacta al organizador." tone="warning")
+    .published-content(v-else)
+      pre.published-notes(v-if="viewFormat === 'txt'") {{ noteText || 'El moderador todavía no escribió nada.' }}
+      pre.published-notes(v-else) {{ noteMarkdown || 'El moderador todavía no escribió nada.' }}
+    BaseButton.refresh-floating(
+      type="button"
+      :disabled="refreshing"
+      :loading="refreshing"
+      aria-label="Actualizar notas"
+      title="Actualizar notas"
+      @click="refreshLiveNotes"
+    ) ↻
   NoticeState(v-else-if="!padUrl" title="Notas colaborativas no disponibles" message="Intenta más tarde o contacta al organizador." tone="warning")
   template(v-else)
     .notes-toolbar
       span(v-if="isIndividual") Notas individuales: se purgan después de vencer el evento y puedes exportarlas.
-      span(v-else-if="readOnly") Notas del moderador: estás viendo la publicación en modo lectura.
       span(v-else) Notas grupales: las notas se compartirán con los asistentes y quedarán en el ZIP de materiales.
       BaseButton(v-if="isIndividual" variant="secondary" size="sm" type="button" :loading="downloading" @click="downloadNotes") Descargar TXT
       FeedbackMessage(v-if="exportError" :message="exportError" tone="error")
@@ -13,14 +31,24 @@
 </template>
 
 <script lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { getIntegrationConfig, getEventNotes, exportEventNotes } from '@/services/api/usersApi'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import TurndownService from 'turndown'
+import { getIntegrationConfig, getEventNotes, getEventNotesLive, exportEventNotes } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import NoticeState from '@/components/ui/NoticeState.vue'
 
+const REFRESH_INTERVAL_SECONDS = 30
+
+// Etherpad no tiene un modo "solo el moderador edita" real que podamos embeber para los
+// asistentes (su único mecanismo de solo-lectura es una URL /p/r.XXXX distinta, vía su API
+// getReadOnlyID) -- en vez de depender de eso, en MODERATOR_ONLY los asistentes ven una
+// exportación del pad que se refresca sola (mismo patrón que WhiteboardPage.vue para Excalidraw),
+// eligiendo verla como texto plano o como Markdown (convertido acá mismo con turndown, ya que el
+// Etherpad desplegado no tiene el plugin ep_markdown). El moderador sigue con el iframe editable
+// de siempre, sin cambios.
 export default {
   name: 'CollabNotesPage',
   components: { BaseButton, FeedbackMessage, LoadingState, NoticeState },
@@ -36,12 +64,47 @@ export default {
     const downloading = ref(false)
     const exportError = ref('')
     const isIndividual = computed(() => props.canvasAudienceMode === 'INDEPENDENT')
-    // El backend es quien decide y garantiza el modo lectura (ver GetOrCreateEventPadUseCase):
-    // en MODERATOR_ONLY, a los no-moderadores les devuelve el ID de solo-lectura real de
-    // Etherpad (getReadOnlyID), no el pad editable -- un query param "readonly" en la URL nunca
-    // funcionó porque Etherpad no lo interpreta (bug reportado 2026-08-13). `readOnly` acá solo
-    // se usa para el texto informativo de la toolbar.
-    const readOnly = ref(false)
+    const isModeratorOnlyViewer = computed(() => props.canvasAudienceMode === 'MODERATOR_ONLY'
+      && props.canvasModerator !== true)
+
+    const available = ref(true)
+    const noteText = ref('')
+    const noteHtml = ref('')
+    const viewFormat = ref<'txt' | 'markdown'>('txt')
+    const refreshCountdown = ref(REFRESH_INTERVAL_SECONDS)
+    const refreshing = ref(false)
+    const turndownService = new TurndownService()
+    const noteMarkdown = computed(() => noteHtml.value ? turndownService.turndown(noteHtml.value) : '')
+    let refreshTimer: ReturnType<typeof setInterval> | null = null
+    let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+    async function loadLiveNotes() {
+      if (!props.conferenceId || !auth.state.token) return
+      const live = await getEventNotesLive(props.conferenceId, auth.state.token)
+      noteText.value = live.text
+      noteHtml.value = live.html
+      refreshCountdown.value = REFRESH_INTERVAL_SECONDS
+    }
+
+    async function refreshLiveNotes() {
+      if (refreshing.value) return
+      refreshing.value = true
+      try {
+        await loadLiveNotes()
+      } catch (e) {
+        console.error('CollabNotesPage: fallo actualizando las notas publicadas', e)
+      } finally {
+        refreshing.value = false
+      }
+    }
+
+    function startLiveNotesPolling() {
+      refreshTimer = setInterval(() => { void refreshLiveNotes() }, REFRESH_INTERVAL_SECONDS * 1000)
+      countdownTimer = setInterval(() => {
+        refreshCountdown.value = refreshCountdown.value <= 1
+          ? REFRESH_INTERVAL_SECONDS : refreshCountdown.value - 1
+      }, 1000)
+    }
 
     async function downloadNotes() {
       downloading.value = true
@@ -72,18 +135,26 @@ export default {
 
     onMounted(async () => {
       if (!props.conferenceId) { loading.value = false; return }
+      if (isModeratorOnlyViewer.value) {
+        try {
+          await loadLiveNotes()
+          startLiveNotesPolling()
+        } catch (e) {
+          available.value = false
+          console.error('CollabNotesPage: no se pudieron cargar las notas publicadas', e)
+        } finally {
+          loading.value = false
+        }
+        return
+      }
       try {
         const [config, pad] = await Promise.all([
           getIntegrationConfig(),
           getEventNotes(props.conferenceId, auth.state.token as string)
         ])
-        readOnly.value = pad.readOnly
         if (config.etherpadBaseUrl) {
           // Etherpad esta detras de insightbloom-tools-gateway (exige sesion antes de
           // reenviar el request al pod real) — ib_token arranca esa sesion en el primer request.
-          // pad.padId ya viene resuelto por el backend: el UUID real y editable del evento, o el
-          // ID de solo-lectura de Etherpad cuando corresponde -- no hace falta ningún parámetro
-          // extra acá.
           const params = new URLSearchParams()
           if (auth.state.token) params.append('ib_token', auth.state.token)
           const query = params.toString()
@@ -96,13 +167,40 @@ export default {
       }
     })
 
-    return { loading, padUrl, isIndividual, readOnly, downloading, exportError, downloadNotes, stripSessionToken }
+    onBeforeUnmount(() => {
+      if (refreshTimer) clearInterval(refreshTimer)
+      if (countdownTimer) clearInterval(countdownTimer)
+    })
+
+    return {
+      loading, padUrl, isIndividual, isModeratorOnlyViewer, downloading, exportError,
+      downloadNotes, stripSessionToken,
+      available, noteText, noteMarkdown, viewFormat, refreshCountdown, refreshing, refreshLiveNotes
+    }
   }
 }
 </script>
 
 <style scoped>
-.collab-notes-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; }
+.collab-notes-page { flex: 1; min-height: 480px; display: flex; flex-direction: column; position: relative; }
 .notes-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; color: var(--color-text-secondary); font-size: .85rem; background: var(--color-surface-muted); border-bottom: 1px solid var(--color-border-subtle); }
 .etherpad-frame { flex: 1; border: none; width: 100%; }
+
+.published-banner { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 10px 16px; font-size: 0.86rem; background: var(--color-primary-soft); color: var(--color-primary-dark); }
+.update-state { color: var(--color-text-secondary); }
+.format-toggle { display: flex; gap: 4px; }
+.format-btn {
+  padding: 4px 12px; border: 1.5px solid var(--color-border); border-radius: 999px;
+  background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; font-size: .8rem; font-weight: 600;
+}
+.format-btn.active { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
+.published-content { flex: 1; min-height: 480px; overflow-y: auto; padding: 24px; background: var(--color-surface-muted); }
+.published-notes {
+  max-width: 860px; margin: 0 auto; padding: 24px; background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle); border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, .08);
+  white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, monospace; font-size: .88rem;
+  color: var(--color-text);
+}
+.refresh-floating { position: fixed; right: 24px; bottom: 24px; width: 44px; height: 44px; padding: 0; border-radius: 999px; font-size: 1.45rem; box-shadow: 0 8px 18px rgba(79, 70, 229, .3); }
+.refresh-floating:disabled { opacity: .65; cursor: wait; }
 </style>
