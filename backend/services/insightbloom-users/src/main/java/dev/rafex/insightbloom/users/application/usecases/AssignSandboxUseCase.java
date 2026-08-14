@@ -255,7 +255,13 @@ public class AssignSandboxUseCase {
         try {
             sandboxRepository.save(sandbox);
         } catch (final RuntimeException e) {
-            if (e.getMessage() != null && e.getMessage().contains("UNIQUE")) {
+            // SqliteSandboxRepository.save() envuelve el SQLiteException en un RuntimeException
+            // genérico ("Failed to save sandbox") -- el detalle "UNIQUE constraint failed" vive
+            // en la causa, no en e.getMessage(). Chequear el mensaje equivocado hacía que esta
+            // rama nunca se activara, propagando 500 genérico en vez de sandbox_pool_full (bug
+            // encontrado 2026-08-14, junto con el fix de memoria del LimitRange que lo destapó).
+            final String causeMessage = e.getCause() != null ? e.getCause().getMessage() : null;
+            if (causeMessage != null && causeMessage.contains("UNIQUE")) {
                 if (allocation.isNewPod()) {
                     sandboxOrchestrator.deleteSandbox(sandbox.podName());
                 }

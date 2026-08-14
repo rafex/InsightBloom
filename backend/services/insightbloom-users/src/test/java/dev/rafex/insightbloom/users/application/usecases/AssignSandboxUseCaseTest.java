@@ -155,7 +155,11 @@ class AssignSandboxUseCaseTest {
         Mockito.when(conferenceRepoMock.findByUuid("conf-1")).thenReturn(Optional.of(testConf));
         Mockito.when(sandboxRepoMock.findByConferenceAndUser("conf-1", "user-student-1")).thenReturn(Optional.empty());
         Mockito.when(sandboxRepoMock.findByConferenceUuid("conf-1")).thenReturn(List.of());
-        Mockito.doThrow(new RuntimeException("UNIQUE constraint failed"))
+        // SqliteSandboxRepository.save() envuelve el SQLiteException real en un RuntimeException
+        // genérico -- el mock debe reproducir esa forma (mensaje "UNIQUE" en la causa, no en el
+        // RuntimeException externo) para probar el chequeo real, no uno que nunca ocurre en prod.
+        Mockito.doThrow(new RuntimeException("Failed to save sandbox",
+                new java.sql.SQLException("[SQLITE_CONSTRAINT_UNIQUE] A UNIQUE constraint failed")))
             .when(sandboxRepoMock).save(Mockito.any());
 
         final var ex = assertThrows(IllegalArgumentException.class,
