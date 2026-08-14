@@ -120,6 +120,8 @@ fuera del workspace, nunca la contraseña ni el código:
 ```bash
 insightbloom login
 insightbloom publish                 # publica el workspace actual
+insightbloom login --otp              # cuentas que autentican por código de correo
+insightbloom publish --otp            # renueva sesiones OTP sin pedir contraseña
 insightbloom publish --root dist     # publica una carpeta concreta
 insightbloom revoke PUBLICATION_ID   # revoca la URL temporal
 ```

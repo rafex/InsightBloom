@@ -1,6 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
+vi.mock('../OnDemandVideoPlayer.vue', () => ({
+  default: { name: 'OnDemandVideoPlayer', template: '<iframe class="video-frame" />' }
+}))
+
 import OnDemandFloatingVideo from '../OnDemandFloatingVideo.vue'
 
 // Solo cubre el proveedor PEERTUBE: es un <iframe> simple, sin la carga de la YouTube IFrame API
@@ -45,6 +49,7 @@ describe('OnDemandFloatingVideo', () => {
   afterEach(() => {
     fullSlot.remove()
     floatingSlot.remove()
+    localStorage.removeItem('ondemand-floating-conf-1')
   })
 
   it('teleports into the floating slot when not on the on-demand tab', async () => {
@@ -93,6 +98,45 @@ describe('OnDemandFloatingVideo', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/c/evento-demo/on-demand')
+  })
+
+  it('persists a dragged position and resized dimensions', async () => {
+    const router = makeRouter('/c/evento-demo/survey')
+    await router.isReady()
+    mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+    await flushPromises()
+
+    const toolbar = floatingSlot.querySelector<HTMLElement>('.floating-toolbar')
+    toolbar?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100, pointerId: 1 }))
+    document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 130, clientY: 80, pointerId: 1 }))
+    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 130, clientY: 80, pointerId: 1 }))
+
+    const resize = floatingSlot.querySelector<HTMLElement>('.resize-handle')
+    resize?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100, pointerId: 2 }))
+    document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 160, clientY: 120, pointerId: 2 }))
+    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 160, clientY: 120, pointerId: 2 }))
+
+    const saved = JSON.parse(localStorage.getItem('ondemand-floating-conf-1') || '{}')
+    expect(saved.right).toBeLessThan(20)
+    expect(saved.bottom).toBeGreaterThan(20)
+    expect(saved.width).toBeGreaterThan(320)
+  })
+
+  it('opens the standalone popup from the widget', async () => {
+    const router = makeRouter('/c/evento-demo/survey')
+    await router.isReady()
+    mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+    await flushPromises()
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+    floatingSlot.querySelector<HTMLButtonElement>('.floating-popup')?.click()
+
+    expect(open).toHaveBeenCalledWith(
+      '/on-demand-session/evento-demo',
+      'insightbloom-on-demand',
+      expect.stringContaining('popup=yes')
+    )
+    open.mockRestore()
   })
 
 })

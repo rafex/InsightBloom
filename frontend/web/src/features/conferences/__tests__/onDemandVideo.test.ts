@@ -30,14 +30,14 @@ describe('toEmbedUrl', () => {
 
   it('converts PeerTube /w/ and /videos/watch/ URLs to embed URLs', () => {
     expect(toEmbedUrl('PEERTUBE', 'https://peertube.example/w/abc123'))
-      .toBe('https://peertube.example/videos/embed/abc123')
+      .toBe('https://peertube.example/videos/embed/abc123?api=1&autoplay=0')
     expect(toEmbedUrl('PEERTUBE', 'https://peertube.example/videos/watch/abc123'))
-      .toBe('https://peertube.example/videos/embed/abc123')
+      .toBe('https://peertube.example/videos/embed/abc123?api=1&autoplay=0')
   })
 
   it('passes through an already-embed PeerTube URL', () => {
     expect(toEmbedUrl('PEERTUBE', 'https://peertube.example/videos/embed/abc123'))
-      .toBe('https://peertube.example/videos/embed/abc123')
+      .toBe('https://peertube.example/videos/embed/abc123?api=1&autoplay=0')
   })
 
   it('returns null for unrecognized PeerTube URL formats', () => {

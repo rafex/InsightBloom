@@ -55,14 +55,24 @@ function toYoutubeEmbedUrl(url: string): string | null {
   return `https://www.youtube.com/embed/${match[1]}`
 }
 
+function withEmbedParams(url: string, params: Record<string, string>): string {
+  try {
+    const parsed = new URL(url)
+    Object.entries(params).forEach(([key, value]) => parsed.searchParams.set(key, value))
+    return parsed.toString()
+  } catch {
+    return url
+  }
+}
+
 function toPeerTubeEmbedUrl(url: string): string | null {
   try {
     const parsed = new URL(url)
-    if (parsed.pathname.includes('/videos/embed/')) return url
+    if (parsed.pathname.includes('/videos/embed/')) return withEmbedParams(url, { api: '1', autoplay: '0' })
     const watchMatch = parsed.pathname.match(/^\/w\/([\w-]+)$/)
       || parsed.pathname.match(/^\/videos\/watch\/([\w-]+)$/)
     if (!watchMatch) return null
-    return `${parsed.origin}/videos/embed/${watchMatch[1]}`
+    return withEmbedParams(`${parsed.origin}/videos/embed/${watchMatch[1]}`, { api: '1', autoplay: '0' })
   } catch {
     return null
   }

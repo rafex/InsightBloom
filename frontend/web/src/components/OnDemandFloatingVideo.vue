@@ -6,294 +6,186 @@ Teleport(:to="teleportTarget" defer)
     :style="floatingVideoStyle"
   )
     .video-wrap
-      iframe.video-frame(
-        v-if="provider === 'YOUTUBE'"
-        ref="videoFrame"
-        :src="youtubeSrc"
-        title="Video"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen
-      )
-      iframe.video-frame(v-else :src="embedUrl" title="Video" allowfullscreen)
-      template(v-if="!isOnDemandTabActive")
-        button.floating-expand(type="button" @click="goToFullTab" title="Volver al video" aria-label="Volver al video")
+      .floating-toolbar(v-if="!isOnDemandTabActive" @pointerdown="startDrag" @dblclick="goToFullTab")
+        span.drag-handle(title="Arrastra para mover el video") Video bajo demanda
+        button.floating-expand(type="button" @pointerdown.stop @click="goToFullTab" title="Abrir video en la pestaña del evento" aria-label="Abrir video en la pestaña del evento")
           UiIcon(name="video" size="16")
-        button.floating-close(type="button" @click="close" title="Cerrar video" aria-label="Cerrar video") ✕
+        button.floating-popup(type="button" @pointerdown.stop @click="openPopup" title="Abrir video en una ventana" aria-label="Abrir video en una ventana") ↗
+        button.floating-close(type="button" @pointerdown.stop @click="close" title="Cerrar video" aria-label="Cerrar video") ✕
+      OnDemandVideoPlayer(:conference-id="conferenceId" :provider="provider" :video-url="videoUrl")
+      button.resize-handle(
+        v-if="!isOnDemandTabActive"
+        type="button"
+        aria-label="Redimensionar video"
+        title="Redimensionar video"
+        @pointerdown="startResize"
+      )
 </template>
 
 <script lang="ts">
-import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { OnDemandCuePoint } from '@/services/api/types'
-import { toEmbedUrl } from '@/features/conferences/onDemandVideo'
-import { getSavedProgress, saveProgress } from '@/features/conferences/useOnDemandProgress'
+import OnDemandVideoPlayer from '@/components/OnDemandVideoPlayer.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
 
-function getFloatingVideoStorageKey(conferenceId: string): string {
-  return `ondemand-floating-${conferenceId}`
-}
+interface FloatingVideoGeometry { right: number, bottom: number, width: number, height: number }
 
-function getFloatingVideoSize(conferenceId: string) {
+const DEFAULT_GEOMETRY: FloatingVideoGeometry = { right: 20, bottom: 20, width: 320, height: 214 }
+const MIN_WIDTH = 220
+const MIN_HEIGHT = 180
+const TOOLBAR_HEIGHT = 34
+
+function getStorageKey(conferenceId: string): string { return `ondemand-floating-${conferenceId}` }
+function clamp(value: number, min: number, max: number): number { return Math.min(Math.max(value, min), Math.max(min, max)) }
+
+function readGeometry(conferenceId: string): FloatingVideoGeometry {
   try {
-    const stored = localStorage.getItem(getFloatingVideoStorageKey(conferenceId))
-    if (stored) return JSON.parse(stored)
-  } catch { /* ignored */ }
-  return { right: 20, bottom: 20, width: 240, height: 135 }
+    const parsed = JSON.parse(localStorage.getItem(getStorageKey(conferenceId)) || '')
+    if (parsed && typeof parsed === 'object') {
+      return {
+        right: Number.isFinite(parsed.right) ? parsed.right : DEFAULT_GEOMETRY.right,
+        bottom: Number.isFinite(parsed.bottom) ? parsed.bottom : DEFAULT_GEOMETRY.bottom,
+        width: Number.isFinite(parsed.width) ? parsed.width : DEFAULT_GEOMETRY.width,
+        height: Number.isFinite(parsed.height) ? parsed.height : DEFAULT_GEOMETRY.height
+      }
+    }
+  } catch { /* corrupted or unavailable local storage */ }
+  return { ...DEFAULT_GEOMETRY }
 }
 
-function saveFloatingVideoSize(conferenceId: string, data: any) {
-  try {
-    localStorage.setItem(getFloatingVideoStorageKey(conferenceId), JSON.stringify(data))
-  } catch { /* ignored */ }
+function saveGeometry(conferenceId: string, geometry: FloatingVideoGeometry) {
+  try { localStorage.setItem(getStorageKey(conferenceId), JSON.stringify(geometry)) } catch { /* ignored */ }
 }
 
-declare global {
-  interface Window { onYouTubeIframeAPIReady?: () => void, YT?: any }
-}
-
-let youtubeApiPromise: Promise<void> | null = null
-function loadYoutubeApi(): Promise<void> {
-  if (window.YT?.Player) return Promise.resolve()
-  if (youtubeApiPromise) return youtubeApiPromise
-  youtubeApiPromise = new Promise((resolve) => {
-    const previous = window.onYouTubeIframeAPIReady
-    window.onYouTubeIframeAPIReady = () => { previous?.(); resolve() }
-    const script = document.createElement('script')
-    script.src = 'https://www.youtube.com/iframe_api'
-    document.head.appendChild(script)
-  })
-  return youtubeApiPromise
-}
-
-// Dueño unico del reproductor: se monta siempre dentro de ConferencePage.vue (fuera del
-// router-view, ver ConferencePage.vue), asi que nunca se desmonta al navegar entre pestanas de la
-// conferencia -- el <Teleport> de arriba es lo unico que mueve el iframe entre la caja flotante
-// (su posicion por defecto) y el slot de la pestana completa (#ondemand-full-slot, provisto por
-// OnDemandVideoPage.vue solo mientras esa pestana esta montada). Mover un nodo DOM via Teleport no
-// reinicia su src ni su estado de reproduccion -- a diferencia de desmontar/remontar el
-// componente, que es lo que pasaba antes de esto.
 export default {
   name: 'OnDemandFloatingVideo',
-  components: { UiIcon },
+  components: { OnDemandVideoPlayer, UiIcon },
   props: {
     conferenceId: { type: String, required: true },
     friendlyId: { type: String, required: true },
-    provider: { type: String as () => 'YOUTUBE' | 'PEERTUBE' | null, default: null },
-    videoUrl: { type: String, default: null },
-    cuePoints: { type: Array as () => OnDemandCuePoint[], default: () => [] },
-    mapAnimationComplete: { type: Boolean, default: true }
+    provider: { type: String as () => 'YOUTUBE' | 'PEERTUBE', required: true },
+    videoUrl: { type: String, required: true },
+    cuePoints: { type: Array as () => OnDemandCuePoint[], default: () => [] }
   },
   emits: ['closed'],
-  setup(props: {
-    conferenceId: string
-    friendlyId: string
-    provider: 'YOUTUBE' | 'PEERTUBE' | null
-    videoUrl: string | null
-    cuePoints: OnDemandCuePoint[]
-    mapAnimationComplete: boolean
-  }, { emit }: { emit: (event: 'closed') => void }) {
+  setup(props: { conferenceId: string, friendlyId: string, provider: 'YOUTUBE' | 'PEERTUBE', videoUrl: string, cuePoints: OnDemandCuePoint[] }, { emit }: { emit: (event: 'closed') => void }) {
     const route = useRoute()
     const router = useRouter()
-
     const isOnDemandTabActive = computed(() => route.path.endsWith('/on-demand'))
     const teleportTarget = computed(() => isOnDemandTabActive.value ? '#ondemand-full-slot' : '#ondemand-floating-slot')
-
-    // Floating video widget position and size
     const floatingVideoRef = ref<HTMLDivElement | null>(null)
-    const floatingRight = ref(20)
-    const floatingBottom = ref(20)
-    const floatingWidth = ref(240)
-    const floatingHeight = ref(135)
-
-    const embedUrl = computed(() => toEmbedUrl(props.provider, props.videoUrl))
-    const youtubeSrc = computed(() => embedUrl.value ? `${embedUrl.value}?enablejsapi=1` : '')
-    const videoFrame = ref<HTMLIFrameElement | null>(null)
+    const floatingRight = ref(DEFAULT_GEOMETRY.right)
+    const floatingBottom = ref(DEFAULT_GEOMETRY.bottom)
+    const floatingWidth = ref(DEFAULT_GEOMETRY.width)
+    const floatingHeight = ref(DEFAULT_GEOMETRY.height)
 
     const floatingVideoStyle = computed(() => isOnDemandTabActive.value ? {} : {
-      right: `${floatingRight.value}px`,
-      bottom: `${floatingBottom.value}px`,
-      width: `${floatingWidth.value}px`,
-      height: `${floatingHeight.value}px`
+      right: `${floatingRight.value}px`, bottom: `${floatingBottom.value}px`,
+      width: `${floatingWidth.value}px`, height: `${floatingHeight.value}px`
     })
 
-    const sortedCuePoints = computed(() => [...props.cuePoints].sort((a, b) => a.atSeconds - b.atSeconds))
+    let pointerMode: 'drag' | 'resize' | null = null
+    let pointerId: number | null = null
+    let startX = 0, startY = 0, startRight = 0, startBottom = 0, startWidth = 0
 
-    // Tracking de cue points disparados para el video: usado para guardar progreso
-    const firedSeconds = ref<Set<number>>(new Set())
-
-    let player: any = null
-    let pollTimer: ReturnType<typeof setInterval> | null = null
-    let pollTicks = 0
-
-    function startPolling() {
-      if (pollTimer) return
-      pollTimer = setInterval(() => {
-        if (!player?.getCurrentTime) return
-        const currentTime = player.getCurrentTime()
-        // Guardar cada ~5s (no en cada tick de 1s) -- suficiente resolucion para "retomar donde
-        // quedo" sin escribir a localStorage constantemente.
-        pollTicks += 1
-        if (pollTicks % 5 === 0) saveProgress(props.conferenceId, currentTime)
-      }, 1000)
+    function clampGeometry() {
+      const maxWidth = Math.max(MIN_WIDTH, window.innerWidth - 24)
+      const maxHeight = Math.max(MIN_HEIGHT, window.innerHeight - 24)
+      floatingWidth.value = clamp(floatingWidth.value, MIN_WIDTH, maxWidth)
+      floatingHeight.value = clamp(floatingHeight.value, MIN_HEIGHT, maxHeight)
+      floatingRight.value = clamp(floatingRight.value, 8, Math.max(8, window.innerWidth - floatingWidth.value - 8))
+      floatingBottom.value = clamp(floatingBottom.value, 8, Math.max(8, window.innerHeight - floatingHeight.value - 8))
     }
 
-    function stopPolling() {
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+    function startDrag(event: PointerEvent) {
+      if (isOnDemandTabActive.value || (event.target as HTMLElement).closest('button')) return
+      pointerMode = 'drag'; pointerId = event.pointerId
+      startX = event.clientX; startY = event.clientY
+      startRight = floatingRight.value; startBottom = floatingBottom.value
+      document.addEventListener('pointermove', onPointerMove)
+      document.addEventListener('pointerup', stopPointerInteraction, { once: true })
+      event.preventDefault()
     }
 
-    function goToFullTab() {
-      router.push(`/c/${props.friendlyId}/on-demand`)
+    function startResize(event: PointerEvent) {
+      if (isOnDemandTabActive.value) return
+      pointerMode = 'resize'; pointerId = event.pointerId
+      startX = event.clientX; startY = event.clientY; startWidth = floatingWidth.value
+      document.addEventListener('pointermove', onPointerMove)
+      document.addEventListener('pointerup', stopPointerInteraction, { once: true })
+      event.preventDefault()
     }
 
-    function persistCurrentTime() {
-      if (player?.getCurrentTime) saveProgress(props.conferenceId, player.getCurrentTime())
+    function onPointerMove(event: PointerEvent) {
+      if (!pointerMode || (pointerId !== null && event.pointerId !== pointerId)) return
+      const dx = event.clientX - startX
+      const dy = event.clientY - startY
+      if (pointerMode === 'drag') {
+        floatingRight.value = startRight - dx
+        floatingBottom.value = startBottom - dy
+      } else {
+        const width = clamp(startWidth + dx, MIN_WIDTH, window.innerWidth - 24)
+        floatingWidth.value = width
+        floatingHeight.value = clamp(Math.round(width * 9 / 16 + TOOLBAR_HEIGHT), MIN_HEIGHT, window.innerHeight - 24)
+      }
+      clampGeometry()
+    }
+
+    function stopPointerInteraction() {
+      pointerMode = null; pointerId = null
+      document.removeEventListener('pointermove', onPointerMove)
+      saveGeometry(props.conferenceId, { right: floatingRight.value, bottom: floatingBottom.value, width: floatingWidth.value, height: floatingHeight.value })
+    }
+
+    function goToFullTab() { void router.push(`/c/${props.friendlyId}/on-demand`) }
+
+    function openPopup() {
+      const href = router.resolve(`/on-demand-session/${encodeURIComponent(props.friendlyId)}`).href
+      window.open(href, 'insightbloom-on-demand', 'popup=yes,width=720,height=520,resizable=yes,scrollbars=yes')
     }
 
     function close() {
-      stopPolling()
-      persistCurrentTime()
-      if (player?.destroy) player.destroy()
-      player = null
+      saveGeometry(props.conferenceId, { right: floatingRight.value, bottom: floatingBottom.value, width: floatingWidth.value, height: floatingHeight.value })
       emit('closed')
     }
 
-    async function ensurePlayerCreated() {
-      if (player || props.provider !== 'YOUTUBE' || !embedUrl.value) return
-      await loadYoutubeApi()
-      if (!videoFrame.value || !window.YT?.Player) return
-      const savedProgress = getSavedProgress(props.conferenceId)
-      player = new window.YT.Player(videoFrame.value, {
-        events: {
-          onReady: () => {
-            if (savedProgress && savedProgress > 0) player.seekTo(savedProgress, true)
-          },
-          onStateChange: (event: { data: number }) => {
-            // 1 = playing (YT.PlayerState.PLAYING)
-            if (event.data === 1) startPolling()
-            else { stopPolling(); persistCurrentTime() }
-          }
-        }
-      })
+    function handleViewportResize() {
+      clampGeometry()
+      saveGeometry(props.conferenceId, { right: floatingRight.value, bottom: floatingBottom.value, width: floatingWidth.value, height: floatingHeight.value })
     }
-
-    // El iframe de YouTube solo existe en el DOM despues de que este componente decide montarlo
-    // (ver template: v-if="provider === 'YOUTUBE'" siempre true si hay provider, ya que el
-    // widget solo se monta con onDemandVideoUrl presente) -- se crea el player la primera vez
-    // que hay embedUrl disponible.
-    watch(embedUrl, (url) => { if (url) void ensurePlayerCreated() }, { immediate: true })
-
-    // Auto-play solo después de que la animación del mapa se completa
-    watch(() => props.mapAnimationComplete, (complete) => {
-      if (complete && player?.playVideo) {
-        try { player.playVideo() } catch { /* ignored */ }
-      }
-    })
-
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'hidden') persistCurrentTime()
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('beforeunload', persistCurrentTime)
 
     onMounted(() => {
-      const saved = getFloatingVideoSize(props.conferenceId)
-      floatingRight.value = saved.right
-      floatingBottom.value = saved.bottom
-      floatingWidth.value = saved.width
-      floatingHeight.value = saved.height
+      const saved = readGeometry(props.conferenceId)
+      floatingRight.value = saved.right; floatingBottom.value = saved.bottom
+      floatingWidth.value = saved.width; floatingHeight.value = saved.height
+      clampGeometry()
+      window.addEventListener('resize', handleViewportResize, { passive: true })
     })
-
-    function saveFloatingPosition() {
-      saveFloatingVideoSize(props.conferenceId, {
-        right: floatingRight.value,
-        bottom: floatingBottom.value,
-        width: floatingWidth.value,
-        height: floatingHeight.value
-      })
-    }
 
     onBeforeUnmount(() => {
-      stopPolling()
-      saveFloatingPosition()
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('beforeunload', persistCurrentTime)
+      stopPointerInteraction()
+      window.removeEventListener('resize', handleViewportResize)
     })
 
-    return {
-      isOnDemandTabActive, teleportTarget,
-      embedUrl, youtubeSrc, videoFrame,
-      goToFullTab, close,
-      floatingVideoRef, floatingVideoStyle, floatingRight, floatingBottom, floatingWidth, floatingHeight
-    }
+    return { isOnDemandTabActive, teleportTarget, floatingVideoRef, floatingVideoStyle, startDrag, startResize, goToFullTab, openPopup, close }
   }
 }
 </script>
 
 <style scoped>
-.ondemand-floating-video.docked {
-  width: 100%;
-}
-.ondemand-floating-video.docked .video-wrap {
-  position: relative;
-}
-.ondemand-floating-video.docked .video-frame {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 12px;
-  background: var(--color-surface);
-}
-
-.ondemand-floating-video.floating {
-  position: fixed;
-  z-index: 60;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
-  border-radius: 10px;
-  overflow: visible;
-  min-width: 200px;
-  min-height: 150px;
-}
-.ondemand-floating-video.floating .video-wrap {
-  position: relative;
-  border-radius: 10px;
-  overflow: hidden;
-}
-.ondemand-floating-video.floating .video-frame {
-  display: block;
-  width: 240px;
-  aspect-ratio: 16 / 9;
-  border: none;
-  background: #000;
-}
-.floating-expand, .floating-close {
-  position: absolute;
-  top: 6px;
-  border: none;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  transition: background 0.2s;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  font-size: 0.8rem;
-}
-.floating-expand { left: 6px; }
-.floating-close { right: 6px; }
-.floating-expand:hover, .floating-close:hover { background: rgba(0, 0, 0, 0.75); }
-
-@media (max-width: 640px) {
-  .ondemand-floating-video.floating,
-  .ondemand-floating-video.floating .video-frame {
-    width: 168px;
-  }
-  .ondemand-floating-video.floating { right: 10px; bottom: 10px; }
-}
+.ondemand-floating-video.docked { width: 100%; }
+.ondemand-floating-video.docked .video-wrap { position: relative; width: 100%; height: min(70vh, 720px); min-height: 300px; }
+.ondemand-floating-video.floating { position: fixed; z-index: 60; min-width: 220px; min-height: 180px; border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28); }
+.video-wrap { position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; overflow: visible; border-radius: 10px; }
+.ondemand-floating-video.docked .video-wrap { border: 1px solid var(--color-border-subtle); overflow: hidden; }
+.floating-toolbar { position: relative; z-index: 2; display: flex; align-items: center; gap: 4px; height: 34px; padding: 0 6px 0 10px; color: #fff; background: rgba(15, 23, 42, 0.96); cursor: grab; touch-action: none; user-select: none; }
+.floating-toolbar:active { cursor: grabbing; }
+.drag-handle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.76rem; }
+.floating-expand, .floating-popup, .floating-close, .resize-handle { border: 0; color: #fff; background: transparent; cursor: pointer; }
+.floating-expand, .floating-popup, .floating-close { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 5px; }
+.floating-expand:hover, .floating-popup:hover, .floating-close:hover { background: rgba(255, 255, 255, 0.16); }
+.resize-handle { position: absolute; right: 1px; bottom: 1px; z-index: 3; width: 18px; height: 18px; cursor: nwse-resize; touch-action: none; }
+.resize-handle::after { content: ''; position: absolute; right: 2px; bottom: 2px; width: 9px; height: 9px; border-right: 2px solid rgba(255, 255, 255, 0.8); border-bottom: 2px solid rgba(255, 255, 255, 0.8); }
+@media (max-width: 640px) { .ondemand-floating-video.floating { min-width: 200px; } .ondemand-floating-video.docked .video-wrap { min-height: 220px; } }
 </style>

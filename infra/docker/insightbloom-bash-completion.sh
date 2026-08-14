@@ -28,7 +28,7 @@ _insightbloom_completion() {
 
     case "$command" in
         login)
-            _insightbloom_complete_values "--help --username"
+            _insightbloom_complete_values "--help --otp --username"
             ;;
         logout)
             _insightbloom_complete_values "--help"
@@ -36,19 +36,19 @@ _insightbloom_completion() {
         publish)
             case "$previous" in
                 --root) _insightbloom_complete_path ;;
-                *) _insightbloom_complete_values "--conference-id --help --root --token --token-prompt --token-stdin" ;;
+                *) _insightbloom_complete_values "--conference-id --help --otp --root --token --token-prompt --token-stdin" ;;
             esac
             ;;
         revoke|app-revoke|app-publish)
             case "$previous" in
                 --token|--conference-id) ;;
-                *) _insightbloom_complete_values "--conference-id --help --token --token-prompt --token-stdin" ;;
+                *) _insightbloom_complete_values "--conference-id --help --otp --token --token-prompt --token-stdin" ;;
             esac
             ;;
         mentor|ask)
             case "$previous" in
                 --file) _insightbloom_complete_path ;;
-                *) _insightbloom_complete_values "--conference-id --file --help --token --token-prompt" ;;
+                *) _insightbloom_complete_values "--conference-id --file --help --otp --token --token-prompt" ;;
             esac
             ;;
     esac

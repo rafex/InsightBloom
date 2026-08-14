@@ -130,7 +130,6 @@
       :provider="conference.onDemandVideoProvider"
       :video-url="conference.onDemandVideoUrl"
       :cue-points="conference.onDemandCuePoints"
-      :map-animation-complete="mapAnimationComplete"
       @closed="onDemandVideoClosed = true"
     )
 
@@ -181,7 +180,6 @@ export default {
     const loading    = ref(true)
     const error      = ref('')
     const showIntro  = ref(false)
-    const mapAnimationComplete = ref(false)
     const timezones  = ref<Timezone[]>([])
     const showCalendarMenu = ref(false)
     const capabilities = ref<Set<string>>(new Set())
@@ -366,11 +364,10 @@ export default {
 
     function dismissIntro() {
       showIntro.value = false
-      mapAnimationComplete.value = true
     }
 
     function skipMapAnimation() {
-      mapAnimationComplete.value = true
+      showIntro.value = false
     }
 
     const utcOffsetMinutes = computed(() => {
@@ -469,7 +466,7 @@ export default {
       googleCalendarUrl, downloadCalendarFile, hasCapability, privateAllowed, canvasAllowed, isCanvasModerator, currentCanvasAudienceMode,
       privateAccess, presentationAccess, presentationManagementAccess, routeAccess, isTicketRoute, isPublicRoute, headerCollapsed, eventClosed,
       toolbarRef, toolbarFadeLeft, toolbarFadeRight, updateToolbarFades, toolReleased,
-      onDemandVideoClosed, toolAccessLoaded, isCurrentToolAllowed, mapAnimationComplete
+      onDemandVideoClosed, toolAccessLoaded, isCurrentToolAllowed
     }
   }
 }

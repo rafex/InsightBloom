@@ -19,7 +19,7 @@ import zipfile
 
 DEFAULT_API_BASE = "https://insightbloom.v1.rafex.cloud/api/users/api/v1"
 DEFAULT_SESSION_FILE = Path("~/.config/insightbloom/session.json").expanduser()
-CLI_VERSION = "2026.08-login-session-otp"
+CLI_VERSION = "2026.08-login-otp-direct"
 MAX_FILES = 1000
 MAX_BYTES = 250 * 1024 * 1024
 EXCLUDED_DIRS = {".git", ".hg", ".svn", "node_modules", ".venv", "__pycache__", ".insightbloom"}
@@ -74,6 +74,8 @@ Notas:
   - Dentro de un sandbox el evento se detecta automáticamente desde CONFERENCE_UUID.
   - En el primer uso puedes ejecutar `insightbloom login`; solo se guarda un token en
     ~/.config/insightbloom/session.json, nunca la contraseña ni dentro del workspace.
+  - Para cuentas con código por correo usa `insightbloom login --otp`; el modo se conserva para
+    renovar la sesión sin solicitar contraseña.
   - Si la sesión expira durante cualquier comando, el CLI solicita login una sola vez y reintenta.
   - También se conserva --token-prompt para introducir un token manual oculto.
   - También puedes consultar la ayuda específica con:
@@ -179,7 +181,7 @@ def read_saved_session() -> dict:
     return value if isinstance(value, dict) and isinstance(value.get("token"), str) else {}
 
 
-def save_session(token: str, username: str, expires_at: str | None) -> None:
+def save_session(token: str, username: str, expires_at: str | None, auth_method: str = "password") -> None:
     path = session_file()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -191,6 +193,7 @@ def save_session(token: str, username: str, expires_at: str | None) -> None:
             "token": token,
             "username": username,
             "expiresAt": expires_at,
+            "authMethod": auth_method,
         }, ensure_ascii=False) + "\n", encoding="utf-8")
         os.chmod(path, 0o600)
     except OSError as exc:
@@ -272,65 +275,76 @@ def api_base() -> str:
     return os.environ.get("INSIGHTBLOOM_API_BASE_URL", DEFAULT_API_BASE).rstrip("/")
 
 
-def login_session(api: str, username: str | None = None) -> str:
+def request_otp_login(api: str, login_name: str) -> tuple[dict, str]:
+    print("Esta cuenta usa código de acceso por correo; se solicitará un código OTP.", file=sys.stderr)
+    try:
+        request_json(
+            "POST",
+            f"{api}/auth/login/otp/request",
+            body=json.dumps({"identifier": login_name}).encode("utf-8"),
+        )
+        otp_code = getpass.getpass("Código de acceso (oculto): ").strip()
+    except (EOFError, KeyboardInterrupt):
+        fail("inicio de sesión cancelado")
+    if not otp_code:
+        fail("el código de acceso no puede estar vacío")
+    try:
+        result = request_json(
+            "POST",
+            f"{api}/auth/login/otp/verify",
+            body=json.dumps({"identifier": login_name, "code": otp_code}).encode("utf-8"),
+        )
+    except ApiError as otp_exc:
+        fail(f"no se pudo verificar el código ({otp_exc.status or 'red'}): {otp_exc.message}", 1)
+    return result, "otp_email"
+
+
+def login_session(api: str, username: str | None = None, otp_only: bool = False) -> str:
     try:
         login_name = username.strip() if username else input("Usuario o correo: ").strip()
     except (EOFError, KeyboardInterrupt):
         fail("inicio de sesión cancelado")
     if not login_name:
         fail("el usuario o correo no puede estar vacío")
-    try:
-        password = getpass.getpass("Contraseña (oculta): ")
-    except (EOFError, KeyboardInterrupt):
-        fail("inicio de sesión cancelado")
-    if not password:
-        fail("la contraseña no puede estar vacía")
-    payload = json.dumps({"username": login_name, "password": password}).encode("utf-8")
-    try:
-        result = request_json("POST", f"{api}/auth/login", body=payload)
-    except ApiError as exc:
-        if exc.code != "otp_login_required":
-            fail(f"no se pudo iniciar sesión ({exc.status or 'red'}): {exc.message}", 1)
-        print("Esta cuenta usa código de acceso por correo; se solicitará un código OTP.", file=sys.stderr)
+    auth_method = "password"
+    if otp_only:
+        result, auth_method = request_otp_login(api, login_name)
+    else:
         try:
-            request_json(
-                "POST",
-                f"{api}/auth/login/otp/request",
-                body=json.dumps({"identifier": login_name}).encode("utf-8"),
-            )
-            otp_code = getpass.getpass("Código de acceso (oculto): ").strip()
+            password = getpass.getpass("Contraseña (oculta): ")
         except (EOFError, KeyboardInterrupt):
             fail("inicio de sesión cancelado")
-        if not otp_code:
-            fail("el código de acceso no puede estar vacío")
+        if not password:
+            fail("la contraseña no puede estar vacía")
+        payload = json.dumps({"username": login_name, "password": password}).encode("utf-8")
         try:
-            result = request_json(
-                "POST",
-                f"{api}/auth/login/otp/verify",
-                body=json.dumps({"identifier": login_name, "code": otp_code}).encode("utf-8"),
-            )
-        except ApiError as otp_exc:
-            fail(f"no se pudo verificar el código ({otp_exc.status or 'red'}): {otp_exc.message}", 1)
+            result = request_json("POST", f"{api}/auth/login", body=payload)
+        except ApiError as exc:
+            if exc.code != "otp_login_required":
+                fail(f"no se pudo iniciar sesión ({exc.status or 'red'}): {exc.message}", 1)
+            result, auth_method = request_otp_login(api, login_name)
     data = result.get("data", result) if isinstance(result, dict) else {}
     token = data.get("token") if isinstance(data, dict) else None
     if not isinstance(token, str) or not token.strip():
         fail("la API de inicio de sesión no devolvió un token", 1)
-    save_session(token.strip(), login_name, data.get("expiresAt"))
+    save_session(token.strip(), login_name, data.get("expiresAt"), auth_method)
     print(f"Sesión iniciada para {login_name}. Se guardó solo el token en {session_file()}.", file=sys.stderr)
     return token.strip()
 
 
 def authenticated_request(args: argparse.Namespace, operation, api: str):
     token = read_token(args)
+    saved_auth_method = read_saved_session().get("authMethod")
+    otp_only = bool(getattr(args, "otp", False) or saved_auth_method == "otp_email")
     if not token:
-        token = login_session(api)
+        token = login_session(api, otp_only=otp_only)
     try:
         return operation(token)
     except ApiError as exc:
         if exc.status != 401:
             fail(f"la API rechazó la solicitud ({exc.status or 'red'}): {exc.message}", 1)
         print("La sesión expiró o dejó de ser válida; inicia sesión nuevamente.", file=sys.stderr)
-        token = login_session(api)
+        token = login_session(api, otp_only=otp_only)
         try:
             return operation(token)
         except ApiError as retry_exc:
@@ -480,12 +494,20 @@ def container_revoke(args: argparse.Namespace) -> None:
 
 
 def login(args: argparse.Namespace) -> None:
-    login_session(api_base(), args.username)
+    login_session(api_base(), args.username, args.otp)
 
 
 def logout(_: argparse.Namespace) -> None:
     clear_session()
     print("Sesión local cerrada. La contraseña nunca se almacenó.")
+
+
+def add_otp_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--otp",
+        action="store_true",
+        help="usa autenticación por código enviado por correo y nunca solicita contraseña",
+    )
 
 
 def main() -> None:
@@ -502,7 +524,8 @@ def main() -> None:
         help="inicia sesión y guarda el token fuera del workspace",
         description="Solicita usuario y contraseña sin exponerlos en el historial.",
     )
-    login_parser.add_argument("--username", help="usuario o correo; la contraseña siempre se solicita de forma oculta")
+    login_parser.add_argument("--username", help="usuario o correo; con --otp se usa como identificador del correo")
+    add_otp_argument(login_parser)
     login_parser.set_defaults(func=login)
     logout_parser = sub.add_parser(
         "logout",
@@ -529,6 +552,7 @@ def main() -> None:
         "--conference-id",
         help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
     )
+    add_otp_argument(publish_parser)
     publish_parser.set_defaults(func=publish)
     revoke_parser = sub.add_parser(
         "revoke",
@@ -546,6 +570,7 @@ def main() -> None:
         "--conference-id",
         help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
     )
+    add_otp_argument(revoke_parser)
     revoke_parser.set_defaults(func=revoke)
     app_publish_parser = sub.add_parser(
         "app-publish",
@@ -570,6 +595,7 @@ def main() -> None:
         "--conference-id",
         help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
     )
+    add_otp_argument(app_publish_parser)
     app_publish_parser.set_defaults(func=app_publish)
     app_revoke_parser = sub.add_parser(
         "app-revoke",
@@ -587,6 +613,7 @@ def main() -> None:
         "--conference-id",
         help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
     )
+    add_otp_argument(app_revoke_parser)
     app_revoke_parser.set_defaults(func=app_revoke)
     container_publish_parser = sub.add_parser(
         "container-publish",
@@ -608,6 +635,7 @@ def main() -> None:
         "--path", default=None,
         help="ruta del Containerfile dentro del workspace (por defecto: Containerfile)",
     )
+    add_otp_argument(container_publish_parser)
     container_publish_parser.add_argument("--token", help="token puntual de sesión; normalmente usa insightbloom login")
     container_publish_token_group = container_publish_parser.add_mutually_exclusive_group()
     container_publish_token_group.add_argument("--token-prompt", action="store_true", help="solicita el token oculto, sin variable ni historial")
@@ -633,6 +661,7 @@ def main() -> None:
         "--conference-id",
         help="UUID del evento; dentro del sandbox se detecta automáticamente desde CONFERENCE_UUID",
     )
+    add_otp_argument(container_revoke_parser)
     container_revoke_parser.set_defaults(func=container_revoke)
     args = parser.parse_args()
     if not args.command:

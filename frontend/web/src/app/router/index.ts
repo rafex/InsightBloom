@@ -40,6 +40,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/conference/IdeSessionPage.vue')
   },
   {
+    // Vista mínima para abrir el video en una ventana independiente, sin montar el mapa ni el
+    // resto de ConferencePage. La sesión sigue siendo same-origin y se resuelve desde localStorage.
+    path: '/on-demand-session/:friendlyId',
+    component: () => import('@/pages/conference/OnDemandVideoSessionPage.vue')
+  },
+  {
     // Base personalizada configurada en JaaS. La pantalla valida sesión + boleto y sólo
     // entonces entra a /c/:friendlyId/video.
     path: '/jitsi/:friendlyId',

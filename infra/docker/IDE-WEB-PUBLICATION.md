@@ -35,6 +35,17 @@ insightbloom login
 insightbloom publish
 ```
 
+Si tu cuenta está configurada para enviar un código por correo, puedes indicar el método desde
+el inicio para evitar el prompt de contraseña:
+
+```bash
+insightbloom login --otp
+insightbloom publish --otp
+```
+
+El modo `--otp` también está disponible en `revoke`, `app-publish`, `app-revoke`,
+`container-publish` y `container-revoke`.
+
 Si al ejecutar `login` o `publish` aparece `Connection refused`, el sandbox fue creado con una
 imagen o configuración anterior. Guarda tus archivos y pulsa **Recrear** en el Dashboard para que
 reciba la ruta interna y las políticas de red actuales. `publis` no es un subcomando válido; la
@@ -64,8 +75,8 @@ insightbloom publish --root dist --token-prompt
 El UUID del evento ya no se considera una credencial manual dentro del sandbox: la plataforma lo
 inyecta como `CONFERENCE_UUID`. La sesión del CLI se guarda fuera del workspace en
 `~/.config/insightbloom/session.json` con permisos restrictivos; solo contiene el token y su fecha
-de expiración. La contraseña y el código OTP nunca se guardan. Si el token caduca, `publish` y
-`revoke` solicitan login nuevamente y repiten la solicitud una sola vez.
+de expiración. La contraseña y el código OTP nunca se guardan. Si el token caduca, una sesión
+iniciada con `--otp` vuelve a solicitar código sin pedir contraseña.
 
 ## Configuración opcional
 
