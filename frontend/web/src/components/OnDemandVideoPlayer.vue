@@ -375,17 +375,17 @@ export default {
 </script>
 
 <style scoped>
-.on-demand-player { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; background: #000; }
-.video-stage { position: relative; flex: 1; min-height: 0; background: #000; }
-.video-frame { display: block; width: 100%; height: 100%; border: 0; background: #000; }
-.video-controls { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 5px 8px; color: #fff; background: rgba(15, 23, 42, 0.96); font-size: 0.75rem; }
-.video-control { border: 0; border-radius: 5px; padding: 4px 7px; color: #fff; background: transparent; cursor: pointer; }
+.on-demand-player { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; background: var(--color-video-background); }
+.video-stage { position: relative; flex: 1; min-height: 0; background: var(--color-video-background); }
+.video-frame { display: block; width: 100%; height: 100%; border: 0; background: var(--color-video-background); }
+.video-controls { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 5px 8px; color: var(--color-text-inverse); background: var(--color-video-controls); font-size: 0.75rem; }
+.video-control { border: 0; border-radius: 5px; padding: 4px 7px; color: var(--color-text-inverse); background: transparent; cursor: pointer; }
 .video-control:hover:not(:disabled) { background: rgba(255, 255, 255, 0.15); }
 .video-control:disabled, .video-progress:disabled { opacity: 0.45; cursor: default; }
 .video-progress { flex: 1; min-width: 40px; accent-color: var(--color-primary); }
 .video-time { min-width: 68px; text-align: center; font-variant-numeric: tabular-nums; }
 .volume-control input { width: 62px; accent-color: var(--color-primary); }
-.rate-control { color: #fff; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; background: #1e293b; font-size: 0.75rem; }
+.rate-control { color: var(--color-text-inverse); border: 1px solid var(--color-video-control-border); border-radius: 4px; background: var(--color-video-control-surface); font-size: 0.75rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 @media (max-width: 640px) { .video-controls { gap: 4px; padding-inline: 4px; } .video-time { display: none; } .volume-control { display: none; } }
 </style>

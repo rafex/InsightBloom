@@ -73,6 +73,12 @@
   --color-map-overlay: #0f172a;
   --color-map-bloom-mid: #6366f1;
 
+  /* Superficies y controles del reproductor de video bajo demanda. */
+  --color-video-background: #000000;
+  --color-video-controls: #0f172a;
+  --color-video-control-surface: #1e293b;
+  --color-video-control-border: rgba(255, 255, 255, 0.3);
+
   /* Paletas de ilustraciones aprobadas. Se mantienen como tokens para que los componentes
    * puedan compartir la intención visual sin repetir hex locales en cada SVG/CSS. */
   --color-sandbox-loading-text: #4b5563;
