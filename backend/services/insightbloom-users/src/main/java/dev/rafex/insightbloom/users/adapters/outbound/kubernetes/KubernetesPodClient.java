@@ -493,6 +493,29 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         }
     }
 
+    @Override
+    public boolean installPublicationCapability(final String podName, final int seatIndex,
+                                                final String userUuid, final String capability) {
+        if (!isEnabled() || userUuid == null || userUuid.isBlank() || capability == null || capability.isBlank()) {
+            return false;
+        }
+        final String url = "http://" + podName + "-svc." + namespace + ".svc.cluster.local:"
+                + controlPort() + "/credential/" + seatIndex;
+        final String body = jsonCodec.toJson(Map.of("userUuid", userUuid, "capability", capability));
+        try {
+            final HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+            return send(request).statusCode() < 300;
+        } catch (final IllegalStateException e) {
+            // El Pod puede estar arrancando o el agente aún no estar escuchando. El siguiente
+            // poll de GET /sandbox volverá a intentar la materialización idempotente.
+            return false;
+        }
+    }
+
     private String podControlUrl(final String podName) {
         return "http://" + podName + "-svc." + namespace + ".svc.cluster.local:" + controlPort();
     }

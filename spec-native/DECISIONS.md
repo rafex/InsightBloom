@@ -1230,6 +1230,30 @@ Registrar una decision cuando cambie:
     al repo, a mano, en ese orden.
 - Reemplaza: `none`.
 
+### DEC-0035 - Capability local para publicar desde el sandbox
+
+- Fecha: 2026-08-14
+- Estado: accepted
+- Contexto:
+  El IDE puede asignarse a un guest o a una cuenta registrada, mientras el CLI puede autenticarse
+  con otra sesión. El endpoint de publicación debe conservar el aislamiento por sandbox sin exigir
+  que ambas identidades coincidan.
+- Decision:
+  - `GET /sandbox` emite una capability HMAC corta, limitada a conferencia, sandbox, asiento y
+    expiración, y la entrega directamente al agente interno del Pod.
+  - El agente escribe la capability en `~/.config/insightbloom/sandbox-token` con permisos `0600`;
+    no se expone al frontend, a query strings ni al workspace.
+  - Los endpoints de publicación y revocación aceptan la capability mediante
+    `X-InsightBloom-Sandbox-Capability` además del Bearer normal. La sesión de cuenta sigue siendo
+    válida para sandboxes asignados a esa misma cuenta.
+  - El CLI prueba primero la capability local y después el flujo de sesión/OTP existente.
+- Consecuencias:
+  - Un terminal dentro del IDE puede publicar aunque el navegador haya usado una identidad guest.
+  - Una capability robada solo permite operar el sandbox asignado hasta su expiración; no sustituye
+    una sesión completa de InsightBloom.
+  - La rotación del secreto requiere `SANDBOX_PUBLICATION_SECRET` estable en el despliegue.
+- Reemplaza: `none`.
+
 ### DEC-0027 - Auto-sanado del aprovisionamiento de asientos (sin intervencion manual)
 
 - Fecha: 2026-07-19

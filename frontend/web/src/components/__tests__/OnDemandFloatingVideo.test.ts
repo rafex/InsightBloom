@@ -6,6 +6,10 @@ vi.mock('../OnDemandVideoPlayer.vue', () => ({
 }))
 
 import OnDemandFloatingVideo from '../OnDemandFloatingVideo.vue'
+import {
+  floatingVideoHeightForWidth,
+  sanitizeFloatingVideoGeometry
+} from '@/features/conferences/floatingVideoGeometry'
 
 // Solo cubre el proveedor PEERTUBE: es un <iframe> simple, sin la carga de la YouTube IFrame API
 // (que dispara un <script> externo real e YT.Player -- fuera de alcance de un test unitario,
@@ -18,7 +22,8 @@ function makeRouter(initialPath: string) {
     history: createMemoryHistory(),
     routes: [
       { path: '/c/:friendlyId/on-demand', component: { template: '<div/>' } },
-      { path: '/c/:friendlyId/survey', component: { template: '<div/>' } }
+      { path: '/c/:friendlyId/survey', component: { template: '<div/>' } },
+      { path: '/on-demand-session/:friendlyId', component: { template: '<div/>' } }
     ]
   })
   router.push(initialPath)
@@ -107,19 +112,55 @@ describe('OnDemandFloatingVideo', () => {
     await flushPromises()
 
     const toolbar = floatingSlot.querySelector<HTMLElement>('.floating-toolbar')
+    toolbar!.setPointerCapture = vi.fn()
     toolbar?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100, pointerId: 1 }))
-    document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 130, clientY: 80, pointerId: 1 }))
-    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 130, clientY: 80, pointerId: 1 }))
+    toolbar?.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 130, clientY: 80, pointerId: 1 }))
+    toolbar?.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 130, clientY: 80, pointerId: 1 }))
 
     const resize = floatingSlot.querySelector<HTMLElement>('.resize-handle')
+    resize!.setPointerCapture = vi.fn()
     resize?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100, pointerId: 2 }))
-    document.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 160, clientY: 120, pointerId: 2 }))
-    document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 160, clientY: 120, pointerId: 2 }))
+    resize?.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 160, clientY: 120, pointerId: 2 }))
+    resize?.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 160, clientY: 120, pointerId: 2 }))
 
     const saved = JSON.parse(localStorage.getItem('ondemand-floating-conf-1') || '{}')
     expect(saved.right).toBeLessThan(20)
     expect(saved.bottom).toBeGreaterThan(20)
     expect(saved.width).toBeGreaterThan(320)
+    expect(saved.height).toBe(floatingVideoHeightForWidth(saved.width))
+  })
+
+  it('terminates an interaction on pointercancel and keeps the latest geometry', async () => {
+    const router = makeRouter('/c/evento-demo/survey')
+    await router.isReady()
+    mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+    await flushPromises()
+
+    const toolbar = floatingSlot.querySelector<HTMLElement>('.floating-toolbar')!
+    toolbar.setPointerCapture = vi.fn()
+    toolbar.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100, pointerId: 4 }))
+    toolbar.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 180, clientY: 150, pointerId: 4 }))
+    toolbar.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, clientX: 180, clientY: 150, pointerId: 4 }))
+
+    const saved = JSON.parse(localStorage.getItem('ondemand-floating-conf-1') || '{}')
+    expect(saved.right).toBeLessThan(20)
+    expect(saved.bottom).toBeLessThan(20)
+    toolbar.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: 260, clientY: 200, pointerId: 4 }))
+    expect(JSON.parse(localStorage.getItem('ondemand-floating-conf-1') || '{}')).toEqual(saved)
+  })
+
+  it('sanitizes corrupted geometry and keeps the video inside the viewport', () => {
+    const geometry = sanitizeFloatingVideoGeometry({
+      right: Number.NaN,
+      bottom: -100,
+      width: 99999,
+      height: 1
+    }, { width: 800, height: 600 })
+
+    expect(geometry.right).toBeGreaterThanOrEqual(8)
+    expect(geometry.bottom).toBeGreaterThanOrEqual(8)
+    expect(geometry.width).toBeLessThanOrEqual(800 - 16)
+    expect(geometry.height).toBe(floatingVideoHeightForWidth(geometry.width))
   })
 
   it('opens the standalone popup from the widget', async () => {
@@ -137,6 +178,56 @@ describe('OnDemandFloatingVideo', () => {
       expect.stringContaining('popup=yes')
     )
     open.mockRestore()
+  })
+
+  it('hides the widget while the popup is open and restores it when the popup closes', async () => {
+    const router = makeRouter('/c/evento-demo/survey')
+    await router.isReady()
+    const popup = { closed: false } as unknown as Window
+    const open = vi.spyOn(window, 'open').mockImplementation(() => popup)
+    const wrapper = mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+    await flushPromises()
+
+    floatingSlot.querySelector<HTMLButtonElement>('.floating-popup')?.click()
+    await flushPromises()
+    expect(floatingSlot.querySelector('.ondemand-floating-video')).toBeNull()
+
+    window.dispatchEvent(new MessageEvent('message', {
+      origin: window.location.origin,
+      source: popup,
+      data: {
+        type: 'insightbloom-on-demand-popup-closed',
+        conferenceId: 'conf-1'
+      }
+    }))
+    await flushPromises()
+
+    expect(floatingSlot.querySelector('.ondemand-floating-video')).not.toBeNull()
+    expect(floatingSlot.querySelector('.video-frame')).not.toBeNull()
+    wrapper.unmount()
+    open.mockRestore()
+  })
+
+  it('restores the widget if the popup is closed by the browser', async () => {
+    vi.useFakeTimers()
+    const router = makeRouter('/c/evento-demo/survey')
+    await router.isReady()
+    const popup = { closed: false } as unknown as Window
+    const open = vi.spyOn(window, 'open').mockImplementation(() => popup)
+    const wrapper = mount(OnDemandFloatingVideo, { props: baseProps, global: { plugins: [router] } })
+    await flushPromises()
+
+    floatingSlot.querySelector<HTMLButtonElement>('.floating-popup')?.click()
+    await flushPromises()
+    expect(floatingSlot.querySelector('.ondemand-floating-video')).toBeNull()
+    ;(popup as unknown as { closed: boolean }).closed = true
+    vi.advanceTimersByTime(400)
+    await flushPromises()
+
+    expect(floatingSlot.querySelector('.ondemand-floating-video')).not.toBeNull()
+    wrapper.unmount()
+    open.mockRestore()
+    vi.useRealTimers()
   })
 
 })

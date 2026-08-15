@@ -65,19 +65,17 @@ export default {
 <style scoped>
 .on-demand-page {
   padding: 24px;
-  display: flex;
-  flex-direction: column;
+  display: block;
 }
 .on-demand-header { margin-bottom: 16px; }
 h2 { margin: 0; color: var(--color-heading); }
 #ondemand-full-slot {
   min-height: 1px;
-  order: 1;
+  width: 100%;
   margin-bottom: 24px;
 }
 .cue-list {
   margin-top: 0;
-  order: 2;
 }
 .cue-list .hint { color: var(--color-text-muted); font-size: 0.85rem; margin-bottom: 8px; }
 .cue-list-item {

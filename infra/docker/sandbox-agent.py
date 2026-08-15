@@ -89,6 +89,25 @@ def _seat_home(user_uuid: str) -> str:
     return f"{WORKSPACE_ROOT}/{user_uuid}"
 
 
+def _write_capability_as_user(path: str, capability: str, uid: int, gid: int) -> None:
+    """Escribe la capability dentro del home del asiento sin que el agente root atraviese otro
+    workspace con sus propios privilegios. El hijo corre como el usuario real y fija 0600."""
+    script = (
+        "import os, sys\n"
+        "path = sys.argv[1]\n"
+        "os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)\n"
+        "data = sys.stdin.read().strip()\n"
+        "fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)\n"
+        "with os.fdopen(fd, 'w', encoding='utf-8') as output:\n"
+        "    output.write(data + '\\n')\n"
+        "os.chmod(path, 0o600)\n"
+    )
+    subprocess.run(
+        ["python3", "-c", script, path], input=capability, text=True,
+        preexec_fn=_drop_privileges(uid, gid), check=True, timeout=10,
+    )
+
+
 def _drop_privileges(uid: int, gid: int):
     """preexec_fn: corre en el proceso HIJO, entre fork() y exec() -- dropea a un uid/gid no-root
     especifico antes de que el hijo ejecute nada real. El kernel limpia el capability set del
@@ -503,6 +522,29 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send_json(400, {"error": "invalid_mtime"})
 
     def do_POST(self):
+        credential_match = re.fullmatch(r"/credential/(\d+)", self.path)
+        if credential_match:
+            index = int(credential_match.group(1))
+            seat = _seats.get(index)
+            if seat is None:
+                self._send_json(404, {"error": "seat_not_provisioned"})
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                body = json.loads(self.rfile.read(length) or b"{}")
+                user_uuid = body.get("userUuid", "")
+                capability = body.get("capability", "")
+                if user_uuid != seat["userUuid"] or not isinstance(capability, str) or not capability or len(capability) > 4096:
+                    raise ValueError("invalid_capability")
+                _write_capability_as_user(
+                    f"{_seat_home(user_uuid)}/.config/insightbloom/sandbox-token",
+                    capability, seat["uid"], seat["uid"])
+            except (ValueError, TypeError, json.JSONDecodeError, subprocess.SubprocessError) as exc:
+                self._send_json(400, {"error": "invalid_capability", "detail": str(exc)})
+                return
+            self._send_json(204, {})
+            return
+
         match = re.fullmatch(r"/seats/(\d+)", self.path)
         if not match:
             self._send_json(404, {"error": "not_found"})

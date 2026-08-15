@@ -3,6 +3,7 @@ main.on-demand-session#main-content(tabindex="-1")
   LoadingState(v-if="loading" message="Cargando video…")
   FeedbackMessage(v-else-if="error" :message="error" tone="error")
   EmptyState(v-else-if="!accessGranted" message="Regístrate y canjea tu boleto para ver el video de este evento.")
+  button.session-close.session-close-fallback(v-if="loading || error || !accessGranted" type="button" @click="closeWindow") Cerrar ventana y volver al evento
   template(v-else-if="conference")
     header.session-header
       h1 {{ conference.name }}
@@ -17,7 +18,7 @@ main.on-demand-session#main-content(tabindex="-1")
 </template>
 
 <script lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
@@ -57,6 +58,7 @@ export default {
           && videoCapabilityAllowed
           && !!conf.onDemandVideoUrl
           && (conf.onDemandVideoProvider === 'YOUTUBE' || conf.onDemandVideoProvider === 'PEERTUBE')
+        notifyOpener('insightbloom-on-demand-popup-ready')
       } catch {
         error.value = 'No se pudo cargar el video de la conferencia.'
       } finally {
@@ -65,10 +67,27 @@ export default {
     }
 
     function closeWindow() {
+      notifyOpener('insightbloom-on-demand-popup-closed')
       window.close()
     }
 
-    onMounted(() => { void loadSession() })
+    function notifyOpener(type: 'insightbloom-on-demand-popup-ready' | 'insightbloom-on-demand-popup-closed') {
+      if (!conference.value || !window.opener || window.opener === window) return
+      window.opener.postMessage({
+        type,
+        conferenceId: conference.value.conferenceId || conference.value.uuid
+      }, window.location.origin)
+    }
+
+    function handleBeforeUnload() {
+      notifyOpener('insightbloom-on-demand-popup-closed')
+    }
+
+    onMounted(() => {
+      window.addEventListener('beforeunload', handleBeforeUnload)
+      void loadSession()
+    })
+    onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnload))
     return { friendlyId, conference, loading, error, accessGranted, closeWindow }
   }
 }

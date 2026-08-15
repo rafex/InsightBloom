@@ -416,6 +416,15 @@ public class UsersApplication {
         final var workspacePreviewPublisher =
                 new dev.rafex.insightbloom.users.adapters.outbound.presentationsclient.HttpWorkspacePreviewPublisher(
                         presentationsUrl, internalApiKey);
+        final String sandboxPublicationSecret = java.util.Optional.ofNullable(System.getenv("SANDBOX_PUBLICATION_SECRET"))
+                .filter(s -> !s.isBlank())
+                .orElseGet(() -> {
+                    if (!internalApiKey.isBlank()) return internalApiKey;
+                    final byte[] random = new byte[32];
+                    new java.security.SecureRandom().nextBytes(random);
+                    return java.util.Base64.getEncoder().encodeToString(random);
+                });
+        final var sandboxPublicationCapability = new SandboxPublicationCapability(sandboxPublicationSecret);
         final var publishWorkspacePreviewUseCase = new PublishWorkspacePreviewUseCase(
                 sandboxRepo, sandboxOrchestrator, workspacePreviewPublisher);
         final var revokeWorkspacePreviewUseCase = new RevokeWorkspacePreviewUseCase(workspacePreviewPublisher);
@@ -505,6 +514,7 @@ public class UsersApplication {
                 assignSandboxUseCase, getSandboxAvailabilityUseCase, validateTokenUseCase,
                 generateWorkspaceDownloadUrlUseCase, startWorkspaceZipJobUseCase, getWorkspaceZipJobStatusUseCase,
                 setSandboxConfigUseCase, sandboxOrchestrator,
+                sandboxRepo, sandboxPublicationCapability,
                 conferenceRepo, eventCapabilityGuard, toolAccessUseCase, ensureUnassignedSandboxUseCase, gatewayBaseUrl,
                 publishWorkspacePreviewUseCase, revokeWorkspacePreviewUseCase, workspacePreviewTtlSeconds,
                 publishAppPreviewUseCase, revokeAppPreviewUseCase, appPreviewTtlSeconds, appPreviewBaseUrl,

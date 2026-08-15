@@ -17,6 +17,8 @@ code-server"; en las imágenes CLI se lanza antes de ttyd. En ambos casos queda 
 dumb-init (PID 1), que reapea sus zombies igual que los de cualquier otro huérfano.
 """
 import http.server
+import json
+import os
 import re
 import sandbox_file_api
 import socketserver
@@ -24,6 +26,26 @@ import sys
 import urllib.parse
 
 WORKSPACE_ROOT = "/home/coder/workspace"
+CAPABILITY_PATH = os.path.expanduser("~/.config/insightbloom/sandbox-token")
+
+
+def write_capability(capability: str) -> None:
+    if not capability or len(capability) > 4096:
+        raise ValueError("invalid_capability")
+    parent = os.path.dirname(CAPABILITY_PATH)
+    os.makedirs(parent, mode=0o700, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    fd = os.open(CAPABILITY_PATH, flags, 0o600)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as output:
+            output.write(capability.strip() + "\n")
+        os.chmod(CAPABILITY_PATH, 0o600)
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
@@ -85,6 +107,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
 
         self._send_json(404, {"error": "not_found"})
+
+    def do_POST(self):
+        match = re.fullmatch(r"/credential/0", urllib.parse.urlsplit(self.path).path)
+        if not match:
+            self._send_json(404, {"error": "not_found"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            body = json.loads(self.rfile.read(length) or b"{}")
+            capability = body.get("capability", "")
+            if not isinstance(capability, str):
+                raise ValueError("invalid_capability")
+            write_capability(capability)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "invalid_capability"})
+            return
+        self._send_json(204, {})
 
     def do_PUT(self):
         parsed = urllib.parse.urlsplit(self.path)

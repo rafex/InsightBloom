@@ -25,16 +25,17 @@ el resultado de la publicación.
 
 Dentro del sandbox, el CLI ya está configurado para usar el API interno de InsightBloom. No se
 requiere habilitar Internet ni exportar `INSIGHTBLOOM_API_BASE_URL`, `INSIGHTBLOOM_CONFERENCE_ID` o
-`INSIGHTBLOOM_TOKEN`: el evento se identifica con `CONFERENCE_UUID` y la sesión se guarda fuera del
-workspace.
+`INSIGHTBLOOM_TOKEN`: el evento se identifica con `CONFERENCE_UUID` y la capability se guarda fuera
+del workspace.
 
 El comando necesita un subcomando. Ejecutar solo
 `insightbloom-publish.py` muestra el error `the following arguments are
 required: command`; eso significa que falta indicar la operación.
 
 El botón **Publicar página temporal** del Web IDE ya envía la sesión automáticamente. Si usás el
-terminal, la plataforma inyecta el UUID del evento en `CONFERENCE_UUID` y el CLI puede iniciar
-sesión sin copiar credenciales al workspace:
+terminal, la plataforma inyecta el UUID del evento en `CONFERENCE_UUID` y entrega una capability
+corta en `~/.config/insightbloom/sandbox-token`; el CLI puede publicar sin copiar credenciales al
+workspace:
 
 ```bash
 insightbloom login
@@ -62,10 +63,11 @@ Para introducir el token sin mostrarlo en pantalla, ni guardarlo en variables o 
 insightbloom publish --token-prompt
 ```
 
-El token se guarda únicamente fuera del workspace en `~/.config/insightbloom/session.json` y la
-contraseña nunca se almacena. Si el token caduca, el comando solicita login de nuevo y reintenta
-una sola vez. Para usar un token puntual sin guardar sesión, utiliza `--token-prompt`. Fuera de un
-sandbox se puede usar `--conference-id UUID_DEL_EVENTO`; dentro del IDE no hace falta.
+La capability se guarda fuera del workspace en `~/.config/insightbloom/sandbox-token` con permisos
+`0600` y solo permite publicar el sandbox asignado. Si no existe o caduca, el CLI usa la sesión de
+`~/.config/insightbloom/session.json`; las sesiones OTP conservan `authMethod: "otp_email"` y no
+solicitan contraseña al renovar. Para usar un token puntual sin guardar sesión, utiliza
+`--token-prompt`. Fuera de un sandbox se puede usar `--conference-id UUID_DEL_EVENTO`.
 
 Para publicar una carpeta concreta:
 

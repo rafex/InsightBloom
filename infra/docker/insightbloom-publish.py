@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+from typing import NamedTuple
 import urllib.error
 import urllib.request
 import zipfile
@@ -20,6 +21,8 @@ import zipfile
 DEFAULT_API_BASE = "https://insightbloom.v1.rafex.cloud/api/users/api/v1"
 DEFAULT_SESSION_FILE = Path("~/.config/insightbloom/session.json").expanduser()
 CLI_VERSION = "2026.08-login-otp-direct"
+SANDBOX_CAPABILITY_HEADER = "X-InsightBloom-Sandbox-Capability"
+SANDBOX_CAPABILITY_FILE = ".config/insightbloom/sandbox-token"
 MAX_FILES = 1000
 MAX_BYTES = 250 * 1024 * 1024
 EXCLUDED_DIRS = {".git", ".hg", ".svn", "node_modules", ".venv", "__pycache__", ".insightbloom"}
@@ -72,7 +75,9 @@ Notas:
   - Todas las publicaciones (publish/app-publish/container-publish) vencen a la 1 hora como
     máximo, sin excepción.
   - Dentro de un sandbox el evento se detecta automáticamente desde CONFERENCE_UUID.
-  - En el primer uso puedes ejecutar `insightbloom login`; solo se guarda un token en
+  - Dentro de un IDE asignado, `publish` usa automáticamente la capability de sandbox guardada
+    fuera del workspace en ~/.config/insightbloom/sandbox-token; no solicita login adicional.
+  - Fuera del IDE puedes ejecutar `insightbloom login`; solo se guarda un token en
     ~/.config/insightbloom/session.json, nunca la contraseña ni dentro del workspace.
   - Para cuentas con código por correo usa `insightbloom login --otp`; el modo se conserva para
     renovar la sesión sin solicitar contraseña.
@@ -99,6 +104,11 @@ class ApiError(Exception):
         self.status = status
         self.message = message
         self.code = code
+
+
+class AuthContext(NamedTuple):
+    token: str | None = None
+    sandbox_capability: str | None = None
 
 
 def read_config(root: Path) -> tuple[Path, str | None]:
@@ -222,6 +232,18 @@ def read_token(args: argparse.Namespace) -> str:
     return token
 
 
+def read_sandbox_capability() -> str:
+    configured = os.environ.get("INSIGHTBLOOM_SANDBOX_TOKEN_FILE", "").strip()
+    path = Path(configured).expanduser() if configured else Path.home() / SANDBOX_CAPABILITY_FILE
+    try:
+        value = path.read_text(encoding="utf-8").strip()
+    except (FileNotFoundError, OSError):
+        value = ""
+    if not value:
+        value = os.environ.get("INSIGHTBLOOM_SANDBOX_TOKEN", "").strip()
+    return value
+
+
 def conference_id(args: argparse.Namespace) -> str:
     value = (
         args.conference_id
@@ -252,10 +274,12 @@ def response_error(exc: urllib.error.HTTPError) -> ApiError:
     return ApiError(exc.code, str(message), code)
 
 
-def request_json(method: str, url: str, token: str | None = None, body: bytes | None = None) -> dict:
+def request_json(method: str, url: str, auth: AuthContext | None = None, body: bytes | None = None) -> dict:
     request = urllib.request.Request(url, data=body, method=method)
-    if token:
-        request.add_header("Authorization", f"Bearer {token}")
+    if auth and auth.sandbox_capability:
+        request.add_header(SANDBOX_CAPABILITY_HEADER, auth.sandbox_capability)
+    elif auth and auth.token:
+        request.add_header("Authorization", f"Bearer {auth.token}")
     if body is not None:
         request.add_header("Content-Type", "application/json")
     try:
@@ -333,22 +357,33 @@ def login_session(api: str, username: str | None = None, otp_only: bool = False)
 
 
 def authenticated_request(args: argparse.Namespace, operation, api: str):
+    sandbox_capability = read_sandbox_capability()
+    if sandbox_capability:
+        try:
+            return operation(AuthContext(sandbox_capability=sandbox_capability))
+        except ApiError as exc:
+            if exc.status not in {401, 403, 404}:
+                fail(f"la API rechazó la solicitud ({exc.status or 'red'}): {exc.message}", 1)
+
     token = read_token(args)
     saved_auth_method = read_saved_session().get("authMethod")
     otp_only = bool(getattr(args, "otp", False) or saved_auth_method == "otp_email")
     if not token:
         token = login_session(api, otp_only=otp_only)
     try:
-        return operation(token)
+        return operation(AuthContext(token=token))
     except ApiError as exc:
         if exc.status != 401:
             fail(f"la API rechazó la solicitud ({exc.status or 'red'}): {exc.message}", 1)
         print("La sesión expiró o dejó de ser válida; inicia sesión nuevamente.", file=sys.stderr)
         token = login_session(api, otp_only=otp_only)
         try:
-            return operation(token)
+            return operation(AuthContext(token=token))
         except ApiError as retry_exc:
-            fail(f"la API rechazó la solicitud después de iniciar sesión ({retry_exc.status or 'red'}): {retry_exc.message}", 1)
+            message = retry_exc.message
+            if retry_exc.code == "sandbox_not_assigned":
+                message += ". Abre el IDE asignado a este terminal o usa la misma cuenta que creó el sandbox"
+            fail(f"la API rechazó la solicitud después de iniciar sesión ({retry_exc.status or 'red'}): {message}", 1)
 
 
 def publish(args: argparse.Namespace) -> None:
@@ -363,13 +398,16 @@ def publish(args: argparse.Namespace) -> None:
         api = api_base()
         conference = conference_id(args)
         payload = zip_path.read_bytes()
-        def send(token: str):
+        def send(auth: AuthContext):
             request = urllib.request.Request(
                 f"{api}/conferences/{conference}/sandbox/preview",
                 data=payload,
                 method="POST",
             )
-            request.add_header("Authorization", f"Bearer {token}")
+            if auth.sandbox_capability:
+                request.add_header(SANDBOX_CAPABILITY_HEADER, auth.sandbox_capability)
+            elif auth.token:
+                request.add_header("Authorization", f"Bearer {auth.token}")
             request.add_header("Content-Type", "application/zip")
             try:
                 with urllib.request.urlopen(request, timeout=90) as response:
@@ -398,10 +436,10 @@ def revoke(args: argparse.Namespace) -> None:
         fail("revoke requiere el publicationId devuelto por publish")
     result = authenticated_request(
         args,
-        lambda token: request_json(
+        lambda auth: request_json(
             "DELETE",
             f"{api}/conferences/{conference}/sandbox/preview/{args.publication_id}",
-            token,
+            auth,
         ),
         api,
     )
@@ -413,10 +451,10 @@ def app_publish(args: argparse.Namespace) -> None:
     conference = conference_id(args)
     result = authenticated_request(
         args,
-        lambda token: request_json(
+        lambda auth: request_json(
             "POST",
             f"{api}/conferences/{conference}/sandbox/app-preview",
-            token,
+            auth,
             body=b"{}",
         ),
         api,
@@ -439,10 +477,10 @@ def app_revoke(args: argparse.Namespace) -> None:
         fail("app-revoke requiere el publicationId devuelto por app-publish")
     result = authenticated_request(
         args,
-        lambda token: request_json(
+        lambda auth: request_json(
             "DELETE",
             f"{api}/conferences/{conference}/sandbox/app-preview/{args.publication_id}",
-            token,
+            auth,
         ),
         api,
     )
@@ -455,10 +493,10 @@ def container_publish(args: argparse.Namespace) -> None:
     body = json.dumps({"path": args.path}).encode("utf-8") if args.path else b"{}"
     result = authenticated_request(
         args,
-        lambda token: request_json(
+        lambda auth: request_json(
             "POST",
             f"{api}/conferences/{conference}/sandbox/publish-container",
-            token,
+            auth,
             body=body,
         ),
         api,
@@ -483,10 +521,10 @@ def container_revoke(args: argparse.Namespace) -> None:
         fail("container-revoke requiere el publicationId devuelto por container-publish")
     result = authenticated_request(
         args,
-        lambda token: request_json(
+        lambda auth: request_json(
             "DELETE",
             f"{api}/conferences/{conference}/sandbox/app-preview/{args.publication_id}",
-            token,
+            auth,
         ),
         api,
     )

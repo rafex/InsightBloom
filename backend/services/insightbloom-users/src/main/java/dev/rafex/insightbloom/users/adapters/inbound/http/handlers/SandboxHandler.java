@@ -19,12 +19,14 @@ import dev.rafex.insightbloom.users.application.usecases.RevokeWorkspacePreviewU
 import dev.rafex.insightbloom.users.application.usecases.PublishAppPreviewUseCase;
 import dev.rafex.insightbloom.users.application.usecases.RevokeAppPreviewUseCase;
 import dev.rafex.insightbloom.users.application.usecases.PublishContainerUseCase;
+import dev.rafex.insightbloom.users.application.usecases.SandboxPublicationCapability;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.model.ToolKey;
 import dev.rafex.insightbloom.users.application.usecases.ToolAccessUseCase;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
+import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
 import dev.rafex.insightbloom.users.domain.services.DeviceBlockedException;
 import dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard;
 
@@ -51,6 +53,8 @@ public class SandboxHandler extends BaseResourceHandler {
     private final GetWorkspaceZipJobStatusUseCase getWorkspaceZipJobStatusUseCase;
     private final SetSandboxConfigUseCase setSandboxConfigUseCase;
     private final SandboxOrchestrator sandboxOrchestrator;
+    private final SandboxRepository sandboxRepository;
+    private final SandboxPublicationCapability sandboxPublicationCapability;
     private final ConferenceRepository conferenceRepository;
     private final EventCapabilityGuard eventCapabilityGuard;
     private final ToolAccessUseCase toolAccessUseCase;
@@ -78,6 +82,8 @@ public class SandboxHandler extends BaseResourceHandler {
                          final GetWorkspaceZipJobStatusUseCase getWorkspaceZipJobStatusUseCase,
                          final SetSandboxConfigUseCase setSandboxConfigUseCase,
                          final SandboxOrchestrator sandboxOrchestrator,
+                         final SandboxRepository sandboxRepository,
+                         final SandboxPublicationCapability sandboxPublicationCapability,
                          final ConferenceRepository conferenceRepository,
                          final EventCapabilityGuard eventCapabilityGuard,
                          final ToolAccessUseCase toolAccessUseCase,
@@ -99,6 +105,8 @@ public class SandboxHandler extends BaseResourceHandler {
         this.getWorkspaceZipJobStatusUseCase = getWorkspaceZipJobStatusUseCase;
         this.setSandboxConfigUseCase = setSandboxConfigUseCase;
         this.sandboxOrchestrator = sandboxOrchestrator;
+        this.sandboxRepository = sandboxRepository;
+        this.sandboxPublicationCapability = sandboxPublicationCapability;
         this.conferenceRepository = conferenceRepository;
         this.eventCapabilityGuard = eventCapabilityGuard;
         this.toolAccessUseCase = toolAccessUseCase;
@@ -255,6 +263,13 @@ public class SandboxHandler extends BaseResourceHandler {
                 LOGGER.log(Level.WARNING, "No se pudo reponer el sandbox libre de " + conferenceId, e);
             }
 
+            // La capability se materializa dentro del home del asiento y nunca se incluye en la
+            // respuesta del navegador. Se reintenta en cada poll porque el agente puede todavía
+            // estar arrancando cuando el Pod ya aparece asignado.
+            final boolean capabilityReady = sandboxOrchestrator.installPublicationCapability(
+                    sandbox.podName(), sandbox.getSeatIndex(), sandbox.getUserUuid(),
+                    sandboxPublicationCapability.encode(sandbox));
+
             // El Pod pasa a fase "Running" en cuanto arrancan sus contenedores, sin esperar a que
             // pasen su readiness probe -- con el Pod de dos contenedores (ide+runtime) eso dejaba
             // cargar el IDE antes de que 'runtime' estuviera realmente listo (502/WS rechazado,
@@ -263,6 +278,7 @@ public class SandboxHandler extends BaseResourceHandler {
             // en el seat-agent -- ver AssignSandboxUseCase.isSeatFullyProvisioned/DEC-0027.
             final String status = sandboxOrchestrator.isReady(sandbox.podName())
                     && assignSandboxUseCase.isSeatFullyProvisioned(sandbox, v.subjectUuid())
+                    && capabilityReady
                     ? "READY" : "PENDING";
 
             final Map<String, Object> response = Map.of(
@@ -461,6 +477,58 @@ public class SandboxHandler extends BaseResourceHandler {
         return (auth != null && auth.startsWith("Bearer ")) ? auth.substring(7) : null;
     }
 
+    private String extractPublicationCapability(final JettyHttpExchange jx) {
+        final String value = jx.request().getHeaders().get("X-InsightBloom-Sandbox-Capability");
+        return value != null && !value.isBlank() ? value.trim() : null;
+    }
+
+    /** Autoriza publicaciones con el token normal o con la capability instalada en el sandbox. */
+    private String authorizePublication(final JettyHttpExchange jx, final String conferenceId,
+                                        final ToolKey toolKey, final boolean requireTool) {
+        final String capability = extractPublicationCapability(jx);
+        if (capability != null) {
+            final var parsed = sandboxPublicationCapability.decode(capability);
+            if (parsed.isEmpty()) {
+                sendError(jx, 401, "sandbox_capability_invalid", "La capability del sandbox expiró o no es válida");
+                return null;
+            }
+            final var claims = parsed.get();
+            final var sandbox = sandboxRepository.findByUuid(claims.sandboxUuid());
+            if (sandbox.isEmpty() || !conferenceId.equals(claims.conferenceUuid())
+                    || !conferenceId.equals(sandbox.get().getConferenceUuid())
+                    || claims.seatIndex() != sandbox.get().getSeatIndex()
+                    || !claims.userUuid().equals(sandbox.get().getUserUuid())) {
+                sendError(jx, 403, "sandbox_capability_scope", "La capability no corresponde a este sandbox");
+                return null;
+            }
+            if (sandbox.get().getExpiresAt() != null && !sandbox.get().getExpiresAt().isAfter(java.time.Instant.now())) {
+                sendError(jx, 410, "sandbox_expired", "El sandbox expiró");
+                return null;
+            }
+            if (requireTool) {
+                if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return null;
+                if (rejectIfToolNotReleased(jx, conferenceId, claims.userUuid(), toolKey)) return null;
+            }
+            return claims.userUuid();
+        }
+
+        final String token = extractToken(jx);
+        if (token == null) {
+            sendError(jx, 401, "token_missing", "Authorization required");
+            return null;
+        }
+        final var validation = validateTokenUseCase.execute(token);
+        if (!validation.valid()) {
+            sendError(jx, 401, "token_invalid", "Invalid token");
+            return null;
+        }
+        if (requireTool) {
+            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return null;
+            if (rejectIfToolNotReleased(jx, conferenceId, validation.subjectUuid(), toolKey)) return null;
+        }
+        return validation.subjectUuid();
+    }
+
     private String extractDeviceFingerprint(final JettyHttpExchange jx) {
         return jx.request().getHeaders().get("X-Device-Fingerprint");
     }
@@ -622,21 +690,11 @@ public class SandboxHandler extends BaseResourceHandler {
     }
 
     private boolean handlePublishPreview(final JettyHttpExchange jx, final String conferenceId) {
-        final String token = extractToken(jx);
-        if (token == null) {
-            sendError(jx, 401, "token_missing", "Authorization required");
-            return true;
-        }
         try {
-            final var validation = validateTokenUseCase.execute(token);
-            if (!validation.valid()) {
-                sendError(jx, 401, "token_invalid", "Invalid token");
-                return true;
-            }
-            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return true;
-            if (rejectIfToolNotReleased(jx, conferenceId, validation.subjectUuid(), ToolKey.IDE_PUBLISH_PAGE)) return true;
+            final String subjectUuid = authorizePublication(jx, conferenceId, ToolKey.IDE_PUBLISH_PAGE, true);
+            if (subjectUuid == null) return true;
             final var publication = publishWorkspacePreviewUseCase.execute(
-                    conferenceId, validation.subjectUuid(), previewTtlSeconds);
+                    conferenceId, subjectUuid, previewTtlSeconds);
             sendOk(jx, 201, Map.of(
                     "publicationId", publication.publicationId(),
                     "url", publication.url(),
@@ -668,18 +726,10 @@ public class SandboxHandler extends BaseResourceHandler {
 
     private boolean handleRevokePreview(final JettyHttpExchange jx, final String conferenceId,
                                         final String publicationId) {
-        final String token = extractToken(jx);
-        if (token == null) {
-            sendError(jx, 401, "token_missing", "Authorization required");
-            return true;
-        }
         try {
-            final var validation = validateTokenUseCase.execute(token);
-            if (!validation.valid()) {
-                sendError(jx, 401, "token_invalid", "Invalid token");
-                return true;
-            }
-            revokeWorkspacePreviewUseCase.execute(conferenceId, validation.subjectUuid(), publicationId);
+            final String subjectUuid = authorizePublication(jx, conferenceId, null, false);
+            if (subjectUuid == null) return true;
+            revokeWorkspacePreviewUseCase.execute(conferenceId, subjectUuid, publicationId);
             sendOk(jx, 200, Map.of("revoked", true));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
@@ -690,21 +740,11 @@ public class SandboxHandler extends BaseResourceHandler {
     }
 
     private boolean handlePublishAppPreview(final JettyHttpExchange jx, final String conferenceId) {
-        final String token = extractToken(jx);
-        if (token == null) {
-            sendError(jx, 401, "token_missing", "Authorization required");
-            return true;
-        }
         try {
-            final var validation = validateTokenUseCase.execute(token);
-            if (!validation.valid()) {
-                sendError(jx, 401, "token_invalid", "Invalid token");
-                return true;
-            }
-            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return true;
-            if (rejectIfToolNotReleased(jx, conferenceId, validation.subjectUuid(), ToolKey.IDE_PUBLISH_API)) return true;
+            final String subjectUuid = authorizePublication(jx, conferenceId, ToolKey.IDE_PUBLISH_API, true);
+            if (subjectUuid == null) return true;
             final var preview = publishAppPreviewUseCase.execute(
-                    conferenceId, validation.subjectUuid(), appPreviewTtlSeconds);
+                    conferenceId, subjectUuid, appPreviewTtlSeconds);
             sendOk(jx, 201, Map.of(
                     "publicationId", preview.uuid(),
                     "url", appPreviewBaseUrl + "/p/" + preview.uuid(),
@@ -732,23 +772,13 @@ public class SandboxHandler extends BaseResourceHandler {
      * queda para cuando esta función salga del MVP).
      */
     private boolean handlePublishContainer(final JettyHttpExchange jx, final String conferenceId) {
-        final String token = extractToken(jx);
-        if (token == null) {
-            sendError(jx, 401, "token_missing", "Authorization required");
-            return true;
-        }
         try {
-            final var validation = validateTokenUseCase.execute(token);
-            if (!validation.valid()) {
-                sendError(jx, 401, "token_invalid", "Invalid token");
-                return true;
-            }
-            if (rejectIfCodeIdeNotAvailable(jx, conferenceId)) return true;
-            if (rejectIfToolNotReleased(jx, conferenceId, validation.subjectUuid(), ToolKey.IDE_PUBLISH_API)) return true;
+            final String subjectUuid = authorizePublication(jx, conferenceId, ToolKey.IDE_PUBLISH_API, true);
+            if (subjectUuid == null) return true;
             final var body = parseBody(jx);
             final String path = body.get("path") instanceof String s && !s.isBlank() ? s : "Containerfile";
             final var result = publishContainerUseCase.execute(
-                    conferenceId, validation.subjectUuid(), path, appPreviewTtlSeconds);
+                    conferenceId, subjectUuid, path, appPreviewTtlSeconds);
             if (!result.published()) {
                 sendOk(jx, 200, Map.of("published", false,
                         "message", "El contenedor se construyó y corrió, pero el Containerfile no declara EXPOSE -- no queda publicable"));
@@ -779,18 +809,10 @@ public class SandboxHandler extends BaseResourceHandler {
 
     private boolean handleRevokeAppPreview(final JettyHttpExchange jx, final String conferenceId,
                                             final String publicationId) {
-        final String token = extractToken(jx);
-        if (token == null) {
-            sendError(jx, 401, "token_missing", "Authorization required");
-            return true;
-        }
         try {
-            final var validation = validateTokenUseCase.execute(token);
-            if (!validation.valid()) {
-                sendError(jx, 401, "token_invalid", "Invalid token");
-                return true;
-            }
-            revokeAppPreviewUseCase.execute(conferenceId, validation.subjectUuid(), publicationId);
+            final String subjectUuid = authorizePublication(jx, conferenceId, null, false);
+            if (subjectUuid == null) return true;
+            revokeAppPreviewUseCase.execute(conferenceId, subjectUuid, publicationId);
             sendOk(jx, 200, Map.of("revoked", true));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());

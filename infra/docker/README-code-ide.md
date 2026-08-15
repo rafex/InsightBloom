@@ -126,9 +126,12 @@ insightbloom publish --root dist     # publica una carpeta concreta
 insightbloom revoke PUBLICATION_ID   # revoca la URL temporal
 ```
 
-Dentro de un sandbox el evento se detecta automáticamente mediante `CONFERENCE_UUID`. Si el token
-caduca durante una publicación o revocación, el CLI pide iniciar sesión nuevamente y reintenta una
-sola vez. Para automatizaciones todavía se pueden usar `INSIGHTBLOOM_TOKEN` o `--token-stdin`.
+Dentro de un sandbox el evento se detecta automáticamente mediante `CONFERENCE_UUID` y el CLI usa
+la capability instalada en `~/.config/insightbloom/sandbox-token` antes de consultar la sesión de
+cuenta. La capability no se incluye en URLs ni en el workspace y está limitada al sandbox,
+conferencia y asiento actuales. Si caduca, el CLI intenta la sesión guardada y mantiene la renovación
+OTP sin pedir contraseña; si la cuenta no corresponde al sandbox, muestra un error explícito.
+Para automatizaciones todavía se pueden usar `INSIGHTBLOOM_TOKEN` o `--token-stdin`.
 
 Un `insightbloom.json` es opcional para declarar la raíz publicada:
 

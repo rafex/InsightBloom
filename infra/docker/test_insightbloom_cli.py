@@ -41,8 +41,8 @@ def test_expired_otp_session_renews_without_password(tmp_path):
     args = Namespace(token="", token_prompt=False, token_stdin=False, otp=False)
     calls = []
 
-    def operation(token):
-        calls.append(token)
+    def operation(auth):
+        calls.append(auth.token)
         if len(calls) == 1:
             raise cli.ApiError(401, "expired")
         return {"ok": True}
@@ -54,3 +54,23 @@ def test_expired_otp_session_renews_without_password(tmp_path):
     assert result == {"ok": True}
     assert calls == ["expired", "renewed"]
     login.assert_called_once_with("https://api.example", otp_only=True)
+
+
+def test_sandbox_capability_has_priority_over_saved_session(tmp_path):
+    session = tmp_path / "session.json"
+    session.write_text(json.dumps({"token": "account-token", "authMethod": "otp_email"}))
+    capability = tmp_path / "sandbox-token"
+    capability.write_text("sandbox-capability\n")
+    args = Namespace(token="", token_prompt=False, token_stdin=False, otp=False)
+    calls = []
+
+    def operation(auth):
+        calls.append(auth)
+        return {"ok": True}
+
+    with patch.object(cli, "session_file", return_value=session), \
+         patch.dict("os.environ", {"INSIGHTBLOOM_SANDBOX_TOKEN_FILE": str(capability)}, clear=False):
+        result = cli.authenticated_request(args, operation, "https://api.example")
+
+    assert result == {"ok": True}
+    assert calls[0] == cli.AuthContext(sandbox_capability="sandbox-capability")

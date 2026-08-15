@@ -66,6 +66,15 @@ public interface SandboxOrchestrator {
      */
     boolean ensureSeatReady(String podName, int seatIndex, String userUuid);
 
+    /**
+     * Materializa una capability de publicación dentro del home del asiento. El valor nunca se
+     * devuelve al frontend; el CLI lo descubre desde ~/.config/insightbloom/sandbox-token.
+     */
+    default boolean installPublicationCapability(final String podName, final int seatIndex,
+                                                 final String userUuid, final String capability) {
+        return false;
+    }
+
     /** Borra Pod + Service; no falla si ya no existen (ej. purga repetida). */
     void deleteSandbox(String podName);
 

@@ -25,12 +25,13 @@ El comando está precargado en la imagen y no instala paquetes:
 El sandbox recibe una ruta interna y restringida al API de InsightBloom para el login y la
 publicación. No necesitas habilitar Internet ni copiar `INSIGHTBLOOM_API_BASE_URL`,
 `INSIGHTBLOOM_CONFERENCE_ID` o `INSIGHTBLOOM_TOKEN`; el UUID del evento ya se inyecta como
-`CONFERENCE_UUID` y el token se guarda fuera del workspace.
+`CONFERENCE_UUID`; la capability de publicación se guarda fuera del workspace en
+`~/.config/insightbloom/sandbox-token`.
 
 ```bash
 # Dentro del sandbox, el evento se detecta automáticamente desde CONFERENCE_UUID.
-# En el primer uso solicita usuario y contraseña de forma oculta. Si la cuenta tiene OTP,
-# también solicita el código enviado por correo.
+# Dentro del sandbox usa la capability instalada automáticamente. Fuera del sandbox solicita
+# credenciales de forma oculta; si la cuenta tiene OTP, solicita el código enviado por correo.
 insightbloom login
 insightbloom publish
 ```
@@ -73,10 +74,10 @@ insightbloom publish --root dist --token-prompt
 ```
 
 El UUID del evento ya no se considera una credencial manual dentro del sandbox: la plataforma lo
-inyecta como `CONFERENCE_UUID`. La sesión del CLI se guarda fuera del workspace en
-`~/.config/insightbloom/session.json` con permisos restrictivos; solo contiene el token y su fecha
-de expiración. La contraseña y el código OTP nunca se guardan. Si el token caduca, una sesión
-iniciada con `--otp` vuelve a solicitar código sin pedir contraseña.
+inyecta como `CONFERENCE_UUID`. La capability y la sesión del CLI se guardan fuera del workspace con
+permisos restrictivos. La capability solo permite publicar el sandbox, conferencia y asiento que
+la recibieron; la contraseña y el código OTP nunca se guardan. Si caduca, una sesión iniciada con
+`--otp` vuelve a solicitar código sin pedir contraseña.
 
 ## Configuración opcional
 

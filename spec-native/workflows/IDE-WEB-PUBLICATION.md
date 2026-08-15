@@ -55,7 +55,9 @@ DELETE /api/users/api/v1/conferences/{conferenceId}/sandbox/preview/{publication
 ```
 
 El primer endpoint requiere sesión válida, la capacidad `CODE_IDE` y un
-sandbox asignado al usuario en ese evento. `users` descarga el ZIP del sandbox
+sandbox asignado al usuario en ese evento. Dentro del IDE también acepta la
+capability corta `X-InsightBloom-Sandbox-Capability`, limitada a conferencia,
+sandbox, asiento y expiración. `users` descarga el ZIP del sandbox
 mediante el orquestador interno y lo envía a:
 
 ```text
@@ -85,19 +87,19 @@ faltante; no es un fallo de la publicación.
 
 ```bash
 # Dentro del sandbox, el evento se detecta automáticamente desde CONFERENCE_UUID.
-# En el primer uso se solicitan usuario y contraseña de forma oculta.
+# Dentro del sandbox se usa automáticamente ~/.config/insightbloom/sandbox-token.
+# Fuera del sandbox se solicitan credenciales de forma oculta.
 insightbloom login
 insightbloom publish
 insightbloom publish --root sitio
 insightbloom revoke PUBLICATION_ID
 ```
 
-El botón **Publicar página temporal** del Web IDE no requiere copiar credenciales. En el CLI no se
-puede eliminar toda prueba de identidad: el servidor debe comprobar que la publicación pertenece
-al usuario y al evento. Por eso el UUID se detecta automáticamente dentro del sandbox. El CLI guarda
-solo el token, fuera del workspace, en `~/.config/insightbloom/session.json` con permisos `0600`.
-La contraseña nunca se almacena. Si el token caduca, `publish` o `revoke` solicitan login una vez
-y reintentan la solicitud. Fuera del sandbox se puede usar `--conference-id UUID_DEL_EVENTO`.
+El botón **Publicar página temporal** del Web IDE no requiere copiar credenciales. Dentro del IDE,
+el CLI recibe una capability firmada en `~/.config/insightbloom/sandbox-token`, fuera del workspace
+y con permisos `0600`; no contiene una sesión de usuario y nunca viaja en la URL. Si no existe o
+caduca, el CLI usa `session.json` y conserva el flujo OTP/password. Si ninguna identidad corresponde
+al sandbox, se debe abrir el IDE asignado o iniciar sesión con la cuenta que lo creó.
 
 ## Configuración de despliegue
 

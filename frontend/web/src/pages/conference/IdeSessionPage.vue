@@ -4,13 +4,21 @@
     FeedbackMessage(:message="'No se especificó un IDE para abrir.'" tone="error")
     p.hint Volvé a la página del evento y abrí el IDE desde ahí.
   template(v-else)
-    iframe.ide-frame(:src="targetUrl" title="IDE" allow="clipboard-write")
+    iframe.ide-frame(:key="frameKey" :src="targetUrl" title="IDE" allow="clipboard-read; clipboard-write; fullscreen" @load="handleFrameLoad")
+    .ide-loading(v-if="!frameLoaded" role="status" aria-live="polite")
+      .ide-loading-card
+        p(v-if="!frameTimedOut") Cargando IDE Web…
+        template(v-else)
+          p El IDE está tardando más de lo esperado.
+          BaseButton.ide-retry(variant="secondary" size="sm" type="button" @click="retryFrame") Reintentar
     ide-help-panel(:conference-id="conferenceId" :token="sessionToken")
 </template>
 
 <script lang="ts">
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import IdeHelpPanel from '@/components/IdeHelpPanel.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import { useAuthStore } from '@/features/auth/authStore'
 
@@ -21,7 +29,7 @@ import { useAuthStore } from '@/features/auth/authStore'
 // que bloqueen esto (2026-07-19).
 export default {
   name: 'IdeSessionPage',
-  components: { FeedbackMessage, IdeHelpPanel },
+  components: { BaseButton, FeedbackMessage, IdeHelpPanel },
   setup() {
     const route = useRoute()
     const auth = useAuthStore()
@@ -35,7 +43,40 @@ export default {
     } catch {
       // La vista de error ya informa que no hay destino válido.
     }
-    return { targetUrl, conferenceId, sessionToken: auth.state.token || targetToken }
+    const frameKey = ref(0)
+    const frameLoaded = ref(false)
+    const frameTimedOut = ref(false)
+    let frameTimer: number | null = null
+
+    function armFrameTimeout() {
+      frameLoaded.value = false
+      frameTimedOut.value = false
+      if (frameTimer) window.clearTimeout(frameTimer)
+      frameTimer = window.setTimeout(() => {
+        if (!frameLoaded.value) frameTimedOut.value = true
+      }, 15000)
+    }
+
+    function handleFrameLoad() {
+      frameLoaded.value = true
+      frameTimedOut.value = false
+      if (frameTimer) window.clearTimeout(frameTimer)
+      frameTimer = null
+    }
+
+    function retryFrame() {
+      frameKey.value += 1
+      armFrameTimeout()
+    }
+
+    onMounted(() => {
+      if (targetUrl) armFrameTimeout()
+    })
+    onBeforeUnmount(() => {
+      if (frameTimer) window.clearTimeout(frameTimer)
+    })
+
+    return { targetUrl, conferenceId, sessionToken: auth.state.token || targetToken, frameKey, frameLoaded, frameTimedOut, handleFrameLoad, retryFrame }
   }
 }
 </script>
@@ -54,6 +95,30 @@ export default {
   height: 100%;
   border: none;
 }
+
+.ide-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgba(30, 27, 75, 0.94);
+  color: var(--color-text-inverse);
+  text-align: center;
+}
+
+.ide-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 360px;
+  padding: 24px;
+}
+
+.ide-loading-card p { margin: 0; }
+.ide-retry { pointer-events: auto; }
 
 .unavailable {
   display: flex;
