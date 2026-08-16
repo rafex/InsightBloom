@@ -5,6 +5,7 @@
 # ── Herramientas de IA / agentes ─────────────────────────────────────────────
 .claude/
 .opencode/
+.codebase-memory/
 .aider*
 .copilot*
 .cursor/
