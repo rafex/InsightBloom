@@ -82,6 +82,12 @@ class KubernetesPodClientInitContainerTest {
 
         final List<Map<String, Object>> mounts = (List<Map<String, Object>>) init.get("volumeMounts");
         assertEquals("/home", mounts.get(0).get("mountPath"));
+
+        final List<Map<String, Object>> env = (List<Map<String, Object>>) ((Map<String, Object>)
+                ((List<Map<String, Object>>) spec.get("containers")).get(0)).get("env");
+        assertTrue(env.stream().anyMatch(entry -> "REMOTE_GIT_URL".equals(entry.get("name"))
+                        && "https://github.com/example/repo.git".equals(entry.get("value"))),
+                "multi-asiento: el agente de asientos debe recibir REMOTE_GIT_URL para clonar al aprovisionar el home");
     }
 
     @Test
