@@ -94,12 +94,12 @@ export default {
 </script>
 
 <style scoped>
-.on-demand-session { min-height: 100vh; display: flex; flex-direction: column; gap: 14px; padding: 18px; color: var(--color-text); background: var(--color-bg); }
+.on-demand-session { box-sizing: border-box; height: 100vh; min-height: 100vh; display: flex; flex-direction: column; gap: 14px; overflow: hidden; padding: 18px; color: var(--color-text); background: var(--color-bg); }
 .session-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 h1 { margin: 0; color: var(--color-heading); font-size: 1.1rem; }
 .session-actions { display: flex; align-items: center; gap: 8px; }
 .session-link, .session-close { border: 0; border-radius: 6px; padding: 6px 10px; font-size: 0.82rem; text-decoration: none; color: var(--color-text-secondary); background: var(--color-surface-muted); cursor: pointer; }
 .session-link:hover, .session-close:hover { color: var(--color-primary); }
-.on-demand-session :deep(.on-demand-player) { flex: 1; min-height: 0; height: calc(100vh - 76px); border-radius: 10px; overflow: hidden; }
-@media (max-width: 640px) { .on-demand-session { padding: 10px; } .session-header { align-items: flex-start; flex-direction: column; } .on-demand-session :deep(.on-demand-player) { height: calc(100vh - 120px); } }
+.on-demand-session :deep(.on-demand-player) { flex: 1 1 auto; width: 100%; min-width: 0; min-height: 0; height: auto; border-radius: 10px; overflow: hidden; }
+@media (max-width: 640px) { .on-demand-session { padding: 10px; } .session-header { align-items: flex-start; flex-direction: column; } }
 </style>

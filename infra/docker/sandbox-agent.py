@@ -60,6 +60,7 @@ import urllib.request
 WORKSPACE_ROOT = "/home"
 NVIM_CONFIG_SOURCE = "/etc/insightbloom/nvim-init.lua"
 NODE_TYPES_SEEDER = "/usr/local/bin/seed-node-types.sh"
+REMOTE_GIT_SEEDER = "/usr/local/bin/seed-remote-git.sh"
 SEAT_UID_BASE = 2000
 # ulimit -u por asiento (defensa dura contra fork-bombs, ver Fase C): un fork-bomb pega contra
 # esto de inmediato (EAGAIN), sin depender de que el watchdog lo note a tiempo.
@@ -132,6 +133,28 @@ def _user_exists(uid: int) -> bool:
         return False
 
 
+def _seed_remote_git(uid: int, index: int, home: str, workspace: str) -> None:
+    """Clona el repositorio configurado antes de sembrar archivos auxiliares.
+
+    Los pods CLI multi-asiento no tienen un workspace común durante el initContainer:
+    cada asiento obtiene su home cuando llega el POST /seats/{index}. La URL ya viaja
+    en REMOTE_GIT_URL desde Kubernetes; aquí se consume bajo el uid del alumno para
+    que el repositorio quede editable por él y no por root.
+    """
+    seat_env = {
+        **os.environ,
+        "HOME": home,
+        "USER": _seat_login_name(index),
+        "REMOTE_GIT_MIGRATE_SEED_ONLY": "1",
+    }
+    subprocess.run(
+        [REMOTE_GIT_SEEDER, workspace],
+        preexec_fn=_drop_privileges(uid, uid),
+        env=seat_env,
+        check=True,
+    )
+
+
 def _ensure_seat_account(index: int, user_uuid: str):
     """Idempotente: si el agente se reinicio y este asiento ya tenia cuenta creada de una
     provision anterior, no vuelve a correr adduser (fallaria, uid/nombre ya existen).
@@ -161,21 +184,6 @@ def _ensure_seat_account(index: int, user_uuid: str):
         with open(NVIM_CONFIG_SOURCE, "r", encoding="utf-8") as src, open(nvim_init, "w", encoding="utf-8") as dst:
             dst.write(src.read())
     subprocess.run(["chown", "-R", f"{uid}:{uid}", home], check=False)
-    # El workspace es un volumen por asiento y no contiene los archivos creados
-    # durante el build. Publicar los tipos precargados mediante enlaces mantiene
-    # el autocompletado de Node.js/TypeScript sin instalar nada en runtime.
-    #
-    # Importante: este contenedor elimina CAP_DAC_OVERRIDE. Después del chown el
-    # usuario root del agente ya no puede crear archivos dentro de un directorio
-    # propiedad del alumno; en producción eso provocaba Permission denied en
-    # /workspace/node_modules y el endpoint /seats/{index} devolvía 500. Ejecutar
-    # el seeder como el dueño real conserva el hardening y deja los enlaces con el
-    # UID/GID correctos desde el principio.
-    subprocess.run(
-        [NODE_TYPES_SEEDER, workspace],
-        preexec_fn=_drop_privileges(uid, uid),
-        check=True,
-    )
     # El volumen /home se comparte entre los asientos del Pod. El chown evita que
     # otro usuario pueda escribir, pero por sí solo no evita que pueda atravesar y
     # leer el home de un compañero: adduser crea homes 0755 por defecto y los
@@ -197,6 +205,18 @@ def _ensure_seat_account(index: int, user_uuid: str):
     os.chmod(f"{home}/.config", 0o750)
     os.chmod(workspace, 0o750)
     os.chmod(home, 0o750)
+    # Debe ocurrir antes de seed-node-types: ese seeder crea node_modules y un
+    # workspace deja de parecer vacío para git clone. El modo multi-asiento no
+    # puede clonar en el initContainer porque todavía no conoce este home.
+    _seed_remote_git(uid, index, home, workspace)
+    # El workspace es un volumen por asiento y no contiene los archivos creados
+    # durante el build. Publicar los tipos precargados mediante enlaces mantiene
+    # el autocompletado de Node.js/TypeScript sin instalar nada en runtime.
+    subprocess.run(
+        [NODE_TYPES_SEEDER, workspace],
+        preexec_fn=_drop_privileges(uid, uid),
+        check=True,
+    )
     return uid, home
 
 
