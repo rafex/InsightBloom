@@ -161,6 +161,9 @@ session-ses_*.md
 .specnative/.venv/
 .specnative/__pycache__/
 
+# Codebase Memory — índice local no se versiona
+.codebase-memory/
+
 # SQLite WAL (Write-Ahead Logging) and shared memory files
 *.db-shm
 *.db-wal
