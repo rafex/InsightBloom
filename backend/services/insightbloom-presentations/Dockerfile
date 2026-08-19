@@ -22,7 +22,6 @@ RUN npm ci --omit=dev
 
 COPY server.js live.js access.js ./
 COPY tools/audit-slidev-artifact.js ./tools/audit-slidev-artifact.js
-COPY tools/audit-web-artifact.js ./tools/audit-web-artifact.js
 
 RUN mkdir -p /data && chown -R node:node /app /data
 USER node

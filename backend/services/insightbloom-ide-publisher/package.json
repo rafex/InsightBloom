@@ -1,0 +1,20 @@
+{
+  "name": "insightbloom-ide-publisher",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "audit:deps": "audit-ci --config audit-ci.jsonc"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.0",
+    "cheerio": "^1.2.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "audit-ci": "^7.1.0"
+  }
+}

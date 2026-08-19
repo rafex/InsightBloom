@@ -7,6 +7,8 @@ import dev.rafex.insightbloom.users.domain.model.WorkspaceFileContent;
 import dev.rafex.insightbloom.users.domain.ports.SandboxAppPreviewRepository;
 import dev.rafex.insightbloom.users.domain.ports.SandboxOrchestrator;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
+import dev.rafex.insightbloom.users.domain.ports.ContainerRuntimePublisher;
+import dev.rafex.insightbloom.users.adapters.outbound.idepublisher.HttpWorkspacePreviewPublisher;
 import dev.rafex.insightbloom.users.domain.services.ContainerfileValidator;
 
 import java.security.SecureRandom;
@@ -48,6 +50,9 @@ public class PublishContainerUseCase {
     private final String sharedPodName;
     private final int podmanAppBasePort;
     private final int maxConcurrentPublications;
+    private final ContainerRuntimePublisher runtimePublisher;
+    private final String runtimeTargetName;
+    private final HttpWorkspacePreviewPublisher previewPublisher;
 
     public PublishContainerUseCase(final SandboxRepository sandboxRepository,
                                     final SandboxOrchestrator sandboxOrchestrator,
@@ -56,6 +61,33 @@ public class PublishContainerUseCase {
                                     final String sharedPodName,
                                     final int podmanAppBasePort,
                                     final int maxConcurrentPublications) {
+        this(sandboxRepository, sandboxOrchestrator, previewRepository, resolveImagePolicyUseCase,
+                sharedPodName, podmanAppBasePort, maxConcurrentPublications, null, sharedPodName, null);
+    }
+
+    public PublishContainerUseCase(final SandboxRepository sandboxRepository,
+                                    final SandboxOrchestrator sandboxOrchestrator,
+                                    final SandboxAppPreviewRepository previewRepository,
+                                    final ResolveImagePolicyUseCase resolveImagePolicyUseCase,
+                                    final String sharedPodName,
+                                    final int podmanAppBasePort,
+                                    final int maxConcurrentPublications,
+                                    final ContainerRuntimePublisher runtimePublisher) {
+        this(sandboxRepository, sandboxOrchestrator, previewRepository, resolveImagePolicyUseCase,
+                sharedPodName, podmanAppBasePort, maxConcurrentPublications, runtimePublisher,
+                sharedPodName, null);
+    }
+
+    public PublishContainerUseCase(final SandboxRepository sandboxRepository,
+                                    final SandboxOrchestrator sandboxOrchestrator,
+                                    final SandboxAppPreviewRepository previewRepository,
+                                    final ResolveImagePolicyUseCase resolveImagePolicyUseCase,
+                                    final String sharedPodName,
+                                    final int podmanAppBasePort,
+                                    final int maxConcurrentPublications,
+                                    final ContainerRuntimePublisher runtimePublisher,
+                                    final String runtimeTargetName,
+                                    final HttpWorkspacePreviewPublisher previewPublisher) {
         this.sandboxRepository = sandboxRepository;
         this.sandboxOrchestrator = sandboxOrchestrator;
         this.previewRepository = previewRepository;
@@ -63,6 +95,10 @@ public class PublishContainerUseCase {
         this.sharedPodName = sharedPodName;
         this.podmanAppBasePort = podmanAppBasePort;
         this.maxConcurrentPublications = maxConcurrentPublications;
+        this.runtimePublisher = runtimePublisher;
+        this.runtimeTargetName = runtimeTargetName == null || runtimeTargetName.isBlank()
+                ? sharedPodName : runtimeTargetName;
+        this.previewPublisher = previewPublisher;
     }
 
     public record Result(boolean published, SandboxAppPreview preview) {
@@ -82,13 +118,16 @@ public class PublishContainerUseCase {
             throw new ContainerValidationException(validation.errorCode(), validation.errorDetail());
         }
 
-        sandboxOrchestrator.ensureRuntimePodmanPod(sharedPodName);
-
         final int containerPort = extractExposedPort(file.content());
         final int hostPort = allocateHostPort(conferenceUuid, userUuid);
 
-        final ContainerBuildResult buildResult = sandboxOrchestrator.buildAndRunContainer(
-                sharedPodName, file.content(), hostPort, containerPort);
+        final ContainerBuildResult buildResult;
+        if (runtimePublisher != null) {
+            buildResult = runtimePublisher.buildAndRun(file.content(), hostPort, containerPort);
+        } else {
+            sandboxOrchestrator.ensureRuntimePodmanPod(sharedPodName);
+            buildResult = sandboxOrchestrator.buildAndRunContainer(sharedPodName, file.content(), hostPort, containerPort);
+        }
         if (!buildResult.success()) {
             throw new ContainerValidationException(buildResult.errorCode(), buildResult.errorDetail());
         }
@@ -99,9 +138,14 @@ public class PublishContainerUseCase {
 
         final Instant now = Instant.now();
         final SandboxAppPreview preview = new SandboxAppPreview(
-                UUID.randomUUID().toString(), conferenceUuid, userUuid, sharedPodName, hostPort,
+                UUID.randomUUID().toString(), conferenceUuid, userUuid, runtimeTargetName, hostPort,
                 generateAccessToken(), now, now.plusSeconds(Math.min(ttlSeconds, MAX_TTL_SECONDS)));
-        return new Result(true, previewRepository.save(preview));
+        final SandboxAppPreview saved = previewRepository.save(preview);
+        if (previewPublisher != null) {
+            previewPublisher.registerAppPreview(conferenceUuid, userUuid, saved.uuid(), saved.podName(),
+                    saved.targetPort(), saved.accessToken(), saved.expiresAt());
+        }
+        return new Result(true, saved);
     }
 
     /**
@@ -112,11 +156,15 @@ public class PublishContainerUseCase {
      */
     private int allocateHostPort(final String conferenceUuid, final String userUuid) {
         final var own = previewRepository.findByConferenceAndUser(conferenceUuid, userUuid);
-        if (own.isPresent() && sharedPodName.equals(own.get().podName()) && !own.get().isExpired()) {
+        if (own.isPresent() && (sharedPodName.equals(own.get().podName())
+                || runtimeTargetName.equals(own.get().podName())) && !own.get().isExpired()) {
             return own.get().targetPort();
         }
         final Set<Integer> usedOffsets = new HashSet<>();
-        for (final SandboxAppPreview active : previewRepository.findActiveByPodName(sharedPodName)) {
+        final Set<SandboxAppPreview> activePreviews = new java.util.HashSet<>(
+                previewRepository.findActiveByPodName(sharedPodName));
+        activePreviews.addAll(previewRepository.findActiveByPodName(runtimeTargetName));
+        for (final SandboxAppPreview active : activePreviews) {
             if (conferenceUuid.equals(active.conferenceUuid()) && userUuid.equals(active.userUuid())) {
                 continue;
             }

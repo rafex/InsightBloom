@@ -27,6 +27,7 @@
 | Device Fingerprinting | [`specs/device-fingerprinting/SPEC.md`](./specs/device-fingerprinting/SPEC.md) | — | active |
 | Slidev Presentations | [`specs/slidev-presentations/SPEC.md`](./specs/slidev-presentations/SPEC.md) | [`tasks/slidev-presentations/TASKS.md`](./tasks/slidev-presentations/TASKS.md) | active |
 | Event Certificate Editor | [`specs/certificate-editor/SPEC.md`](./specs/certificate-editor/SPEC.md) | [`tasks/certificate-editor/TASKS.md`](./tasks/certificate-editor/TASKS.md) | active |
+| IDE Publication Separation | [`specs/ide-publication-separation/SPEC.md`](./specs/ide-publication-separation/SPEC.md) | [`tasks/ide-publication-separation/TASKS.md`](./tasks/ide-publication-separation/TASKS.md) | active |
 
 ## Workflows
 

@@ -23,6 +23,8 @@ public class UsersApplication {
         final String queryUrl = System.getenv().getOrDefault("QUERY_URL", "http://insightbloom-query:8083");
         final String moderationUrl = System.getenv().getOrDefault("MODERATION_URL", "http://insightbloom-moderation:8084");
         final String presentationsUrl = System.getenv().getOrDefault("PRESENTATIONS_URL", "http://insightbloom-presentations:8091");
+        final String idePublisherUrl = System.getenv().getOrDefault("IDE_PUBLISHER_URL", "http://insightbloom-ide-publisher:8096");
+        final String ideRuntimeUrl = System.getenv().getOrDefault("IDE_RUNTIME_URL", "http://insightbloom-ide-runtime:9499");
         final String surveyUrl = System.getenv().getOrDefault("SURVEY_URL", "http://insightbloom-survey:8086");
         final String telegramUrl = System.getenv().getOrDefault("TELEGRAM_URL", "http://insightbloom-telegram:8095");
         final String internalApiKey = System.getenv().getOrDefault("INTERNAL_API_KEY", "");
@@ -414,8 +416,8 @@ public class UsersApplication {
         final var cleanupExpiredWorkspaceZipJobsUseCase = new CleanupExpiredWorkspaceZipJobsUseCase(
                 workspaceZipJobRepo, workspaceZipCache);
         final var workspacePreviewPublisher =
-                new dev.rafex.insightbloom.users.adapters.outbound.presentationsclient.HttpWorkspacePreviewPublisher(
-                        presentationsUrl, internalApiKey);
+                new dev.rafex.insightbloom.users.adapters.outbound.idepublisher.HttpWorkspacePreviewPublisher(
+                        idePublisherUrl, internalApiKey);
         final String sandboxPublicationSecret = java.util.Optional.ofNullable(System.getenv("SANDBOX_PUBLICATION_SECRET"))
                 .filter(s -> !s.isBlank())
                 .orElseGet(() -> {
@@ -434,9 +436,11 @@ public class UsersApplication {
                 new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteSandboxAppPreviewRepository(db);
         final var publishAppPreviewUseCase = new dev.rafex.insightbloom.users.application.usecases.PublishAppPreviewUseCase(
                 sandboxRepo, appPreviewRepo,
-                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_APP_BASE_PORT", "9000")));
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_APP_BASE_PORT", "9000")),
+                (dev.rafex.insightbloom.users.adapters.outbound.idepublisher.HttpWorkspacePreviewPublisher) workspacePreviewPublisher);
         final var revokeAppPreviewUseCase = new dev.rafex.insightbloom.users.application.usecases.RevokeAppPreviewUseCase(
-                appPreviewRepo);
+                appPreviewRepo,
+                (dev.rafex.insightbloom.users.adapters.outbound.idepublisher.HttpWorkspacePreviewPublisher) workspacePreviewPublisher);
         final long appPreviewTtlSeconds = Long.parseLong(
                 System.getenv().getOrDefault("APP_PREVIEW_TTL_SECONDS", "3600"));
         final String appPreviewBaseUrl = System.getenv().getOrDefault(
@@ -454,7 +458,11 @@ public class UsersApplication {
                 sandboxRepo, sandboxOrchestrator, appPreviewRepo, resolveImagePolicyUseCase,
                 System.getenv().getOrDefault("SANDBOX_PODMAN_SHARED_POD_NAME", "sandbox-runtime-podman-shared"),
                 sandboxPodmanAppBasePort,
-                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PODMAN_MAX_PUBLICATIONS", "10")));
+                Integer.parseInt(System.getenv().getOrDefault("SANDBOX_PODMAN_MAX_PUBLICATIONS", "10")),
+                new dev.rafex.insightbloom.users.adapters.outbound.idepublisher.HttpIdeRuntimePublisher(
+                        ideRuntimeUrl, internalApiKey),
+                System.getenv().getOrDefault("IDE_RUNTIME_SERVICE_NAME", "insightbloom-ide-runtime"),
+                (dev.rafex.insightbloom.users.adapters.outbound.idepublisher.HttpWorkspacePreviewPublisher) workspacePreviewPublisher);
         final var setSandboxInternetUseCase = new SetSandboxInternetUseCase(conferenceRepo);
         final var purgeSandboxPoolUseCase = new PurgeSandboxPoolUseCase(sandboxRepo, sandboxOrchestrator);
         final var reconcileSandboxHealthUseCase = new dev.rafex.insightbloom.users.application.usecases.ReconcileSandboxHealthUseCase(

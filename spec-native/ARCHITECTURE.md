@@ -95,6 +95,13 @@ microservicio ligero).
   a HTML via `@marp-team/marp-cli` y sirve slides pre-renderizados para
   visualizacion en la conferencia. Recibe uploads via multipart. Extrae
   slides individuales como preview.
+- Microservicio `insightbloom-ide-publisher` — Puerto 8096:
+  auditoría, extracción atómica, almacenamiento temporal y resolución de
+  publicaciones de sitios/API originadas en los IDE. No renderiza slides.
+- Microservicio `insightbloom-ide-runtime` — Puerto 9499 de control y
+  `9500-9509` para apps publicadas:
+  runtime Podman aislado para construir, ejecutar y limpiar contenedores de
+  los IDE. El endpoint de control solo acepta llamadas internas de users.
 
 ## Distribucion de paquetes Java
 
@@ -460,6 +467,12 @@ frontend/web/
 - `insightbloom-presentations`:
   archivos Marp subidos, slides HTML pre-renderizados. Datos en volumen
   Docker, sin base de datos.
+- `insightbloom-ide-publisher`:
+  publicaciones estáticas y registro efímero de destinos API/contenedor en
+  su propio PVC. No comparte el PVC de presentaciones.
+- `insightbloom-ide-runtime`:
+  imágenes, contenedores y estado Podman de publicaciones de contenedores; no
+  tiene ownership de usuarios ni permisos.
 
 ## Contratos entre servicios
 
@@ -478,6 +491,19 @@ insightbloom-moderation
         POST /internal/visibility          censura/restauracion de palabra
         POST /internal/message-visibility  censura/restauracion de mensaje
         (ambas llamadas son best-effort / fire-and-forget)
+
+insightbloom-users
+  ├─► insightbloom-ide-publisher
+  │     POST /internal/v1/previews
+  │     POST /internal/v1/app-previews
+  │     DELETE /internal/v1/previews/{id}
+  │     DELETE /internal/v1/app-previews/{id}
+  └─► insightbloom-ide-runtime
+        POST /build                 build/run Podman
+
+insightbloom-tools-gateway
+  └─► insightbloom-ide-publisher
+        GET /internal/v1/app-previews/resolve
 ```
 
 Comunicacion: HTTP sincrono entre servicios Java. Sin broker de eventos.
