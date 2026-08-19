@@ -30,7 +30,12 @@ import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
 import dev.rafex.insightbloom.users.domain.services.DeviceBlockedException;
 import dev.rafex.insightbloom.users.domain.services.EventCapabilityGuard;
 
+import org.eclipse.jetty.server.Request;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -45,6 +50,7 @@ public class SandboxHandler extends BaseResourceHandler {
     private static final Logger LOGGER = Logger.getLogger(SandboxHandler.class.getName());
     private static final long SANDBOX_STREAM_INTERVAL_SECONDS = 2;
     private static final long SANDBOX_STREAM_TIMEOUT_SECONDS = 5 * 60;
+    private static final int MAX_PREVIEW_UPLOAD_BYTES = 100 * 1024 * 1024;
     private final AssignSandboxUseCase assignSandboxUseCase;
     private final GetSandboxAvailabilityUseCase getSandboxAvailabilityUseCase;
     private final ValidateTokenUseCase validateTokenUseCase;
@@ -693,8 +699,11 @@ public class SandboxHandler extends BaseResourceHandler {
         try {
             final String subjectUuid = authorizePublication(jx, conferenceId, ToolKey.IDE_PUBLISH_PAGE, true);
             if (subjectUuid == null) return true;
-            final var publication = publishWorkspacePreviewUseCase.execute(
-                    conferenceId, subjectUuid, previewTtlSeconds);
+            final byte[] uploadedZip = readUploadedPreviewZip(jx);
+            final var publication = uploadedZip == null
+                    ? publishWorkspacePreviewUseCase.execute(conferenceId, subjectUuid, previewTtlSeconds)
+                    : publishWorkspacePreviewUseCase.execute(
+                            conferenceId, subjectUuid, uploadedZip, previewTtlSeconds);
             sendOk(jx, 201, Map.of(
                     "publicationId", publication.publicationId(),
                     "url", publication.url(),
@@ -722,6 +731,30 @@ public class SandboxHandler extends BaseResourceHandler {
             sendError(jx, 500, "preview_publication_failed", "No se pudo publicar el workspace");
         }
         return true;
+    }
+
+    /** JSON vacío conserva el flujo Web; application/zip representa el snapshot del CLI. */
+    private static byte[] readUploadedPreviewZip(final JettyHttpExchange jx) throws IOException {
+        final String contentType = jx.request().getHeaders().get("Content-Type");
+        if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("application/zip")) {
+            return null;
+        }
+        return readLimited(Request.asInputStream(jx.request()), MAX_PREVIEW_UPLOAD_BYTES);
+    }
+
+    private static byte[] readLimited(final java.io.InputStream input, final int maxBytes) throws IOException {
+        try (input) {
+            final ByteArrayOutputStream output = new ByteArrayOutputStream(Math.min(maxBytes, 64 * 1024));
+            final byte[] buffer = new byte[16 * 1024];
+            int total = 0;
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                total += read;
+                if (total > maxBytes) throw new IllegalArgumentException("preview_upload_too_large");
+                output.write(buffer, 0, read);
+            }
+            return output.toByteArray();
+        }
     }
 
     private boolean handleRevokePreview(final JettyHttpExchange jx, final String conferenceId,

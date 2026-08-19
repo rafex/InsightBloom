@@ -82,4 +82,27 @@ class PublishWorkspacePreviewUseCaseTest {
 
         Mockito.verify(publisher).publish("conf-1", "user-1", "zip".getBytes(), 3600);
     }
+
+    @Test
+    void publishesUploadedCliSnapshotWithoutDownloadingWholeWorkspace() {
+        final SandboxRepository sandboxRepository = Mockito.mock(SandboxRepository.class);
+        final SandboxOrchestrator sandboxOrchestrator = Mockito.mock(SandboxOrchestrator.class);
+        final WorkspacePreviewPublisher publisher = Mockito.mock(WorkspacePreviewPublisher.class);
+        final Sandbox sandbox = new Sandbox("conf-1", 0, "user-1", Instant.now().plusSeconds(3600));
+        final byte[] uploadedZip = "site-flat.zip".getBytes();
+        Mockito.when(sandboxRepository.findByConferenceAndUser("conf-1", "user-1"))
+                .thenReturn(Optional.of(sandbox));
+        Mockito.when(publisher.publish("conf-1", "user-1", uploadedZip, 3600))
+                .thenReturn(new WorkspacePreviewPublisher.PreviewPublication(
+                        "publication-1", "https://preview.example/p/publication-1/",
+                        Instant.now().plusSeconds(3600), "hash", 1));
+
+        assertNotNull(new PublishWorkspacePreviewUseCase(
+                sandboxRepository, sandboxOrchestrator, publisher)
+                .execute("conf-1", "user-1", uploadedZip, 3600));
+
+        Mockito.verify(publisher).publish("conf-1", "user-1", uploadedZip, 3600);
+        Mockito.verify(sandboxOrchestrator, Mockito.never())
+                .downloadWorkspaceZip(Mockito.anyString(), Mockito.anyInt());
+    }
 }

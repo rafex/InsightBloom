@@ -26,11 +26,7 @@ public final class PublishWorkspacePreviewUseCase {
     public WorkspacePreviewPublisher.PreviewPublication execute(final String conferenceUuid,
                                                                 final String userUuid,
                                                                 final long ttlSeconds) {
-        final Sandbox sandbox = sandboxRepository.findByConferenceAndUser(conferenceUuid, userUuid)
-                .orElseThrow(() -> new IllegalArgumentException("sandbox_not_assigned"));
-        if (sandbox.getExpiresAt() != null && !sandbox.getExpiresAt().isAfter(Instant.now())) {
-            throw new IllegalArgumentException("sandbox_expired");
-        }
+        final Sandbox sandbox = requireActiveSandbox(conferenceUuid, userUuid);
         // En CLI multi-asiento el proceso de sandbox-agent mantiene la sesión de los asientos
         // en memoria. Después de un reinicio del Pod la fila de SQLite sigue asignada, pero el
         // agente todavía no conoce el asiento y devolvía workspace_not_found. Reaprovisiónalo
@@ -41,6 +37,38 @@ public final class PublishWorkspacePreviewUseCase {
         }
         final byte[] zip = sandboxOrchestrator.downloadWorkspaceZip(sandbox.podName(), sandbox.getSeatIndex());
         if (zip.length == 0) throw new IllegalArgumentException("workspace_empty");
-        return publisher.publish(conferenceUuid, userUuid, zip, Math.min(ttlSeconds, MAX_TTL_SECONDS));
+        return publish(conferenceUuid, userUuid, zip, ttlSeconds);
+    }
+
+    /**
+     * Publica el snapshot que el CLI ya auditó y empaquetó desde --root. El endpoint Web mantiene
+     * el overload anterior, que descarga el workspace completo cuando recibe JSON vacío.
+     */
+    public WorkspacePreviewPublisher.PreviewPublication execute(final String conferenceUuid,
+                                                                final String userUuid,
+                                                                final byte[] workspaceZip,
+                                                                final long ttlSeconds) {
+        requireActiveSandbox(conferenceUuid, userUuid);
+        if (workspaceZip == null || workspaceZip.length == 0) {
+            throw new IllegalArgumentException("workspace_empty");
+        }
+        return publish(conferenceUuid, userUuid, workspaceZip, ttlSeconds);
+    }
+
+    private Sandbox requireActiveSandbox(final String conferenceUuid, final String userUuid) {
+        final Sandbox sandbox = sandboxRepository.findByConferenceAndUser(conferenceUuid, userUuid)
+                .orElseThrow(() -> new IllegalArgumentException("sandbox_not_assigned"));
+        if (sandbox.getExpiresAt() != null && !sandbox.getExpiresAt().isAfter(Instant.now())) {
+            throw new IllegalArgumentException("sandbox_expired");
+        }
+        return sandbox;
+    }
+
+    private WorkspacePreviewPublisher.PreviewPublication publish(final String conferenceUuid,
+                                                                  final String userUuid,
+                                                                  final byte[] workspaceZip,
+                                                                  final long ttlSeconds) {
+        return publisher.publish(conferenceUuid, userUuid, workspaceZip,
+                Math.min(ttlSeconds, MAX_TTL_SECONDS));
     }
 }
