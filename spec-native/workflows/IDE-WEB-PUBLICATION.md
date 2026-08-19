@@ -13,14 +13,14 @@ IDE asignado
     ↓ ZIP interno del workspace
 users: autorización del alumno y evento
     ↓
-presentations: auditoría + extracción atómica
+ide-publisher: auditoría + extracción atómica
     ↓
 https://preview-insightbloom.v1.rafex.cloud/p/<publication-id>/
 ```
 
 ## Controles de seguridad
 
-Antes de publicar, `insightbloom-presentations` inspecciona el ZIP completo:
+Antes de publicar, `insightbloom-ide-publisher` inspecciona el ZIP completo:
 
 - máximo 1000 entradas, 250 MiB descomprimidos y 25 MiB por archivo;
 - rechazo de rutas absolutas, `..`, symlinks y extensiones no estáticas;
@@ -110,15 +110,20 @@ La única configuración funcional vive en
 services:
   users:
     env:
-      WORKSPACE_PREVIEW_TTL_SECONDS: "3600"
-  presentations:
+      IDE_PUBLISHER_URL: http://insightbloom-ide-publisher:8096
+      IDE_RUNTIME_URL: http://insightbloom-ide-runtime:9499
+  ide-publisher:
     env:
       PREVIEW_PUBLIC_BASE_URL: https://preview-insightbloom.v1.rafex.cloud/p
       PREVIEW_TTL_SECONDS: "3600"
+  ide-runtime:
+    env:
+      CONTROL_PORT: "9499"
+      APP_BASE_PORT: "9500"
 ```
 
 El Ingress de `preview-insightbloom.v1.rafex.cloud` termina en el frontend;
-Nginx reenvía solo `/p/` al servicio de presentaciones. Así se reutiliza la
+Nginx reenvía solo `/p/` al servicio `insightbloom-ide-publisher`. Así se reutiliza la
 NetworkPolicy del frontend y no se abre directamente el backend al tráfico
 externo.
 
@@ -134,7 +139,14 @@ superficie operativa sin aportar un control de seguridad necesario.
 ## Pruebas de regresión
 
 ```bash
-cd backend/services/insightbloom-presentations
+cd backend/services/insightbloom-ide-publisher
+node --check server.js
+npm test
+
+cd ../insightbloom-ide-runtime
+python3 -m unittest discover -s test -v
+
+cd ../insightbloom-presentations
 node --check server.js
 npm test
 

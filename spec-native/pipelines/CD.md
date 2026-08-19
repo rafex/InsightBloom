@@ -49,7 +49,7 @@ la lógica compartida de resolución/validación de tag, login a GHCR y setup de
 | Archivo | Usado por | Qué hace |
 |---------|-----------|----------|
 | `_build-java-service.yml` | los 7 workflows Java (abajo) | Build+push desde `container/backend/java/Dockerfile` (build-args `SERVICE`/`SERVICE_PORT`). El propio Dockerfile compila el reactor Maven completo dentro del build de Docker (stage builder) — no hay paso de `mvn package` en el runner. |
-| `_build-standalone-service.yml` | presentations, chat, telegram | Build+push directo desde el Dockerfile propio de cada servicio (Node/Python autocontenidos, sin paso de build previo en el runner). |
+| `_build-standalone-service.yml` | presentations, IDE publisher, IDE runtime, chat, telegram | Build+push directo desde el Dockerfile propio de cada servicio (Node/Python autocontenidos, sin paso de build previo en el runner). |
 
 ### Workflows por servicio
 
@@ -63,6 +63,8 @@ la lógica compartida de resolución/validación de tag, login a GHCR y setup de
 | `publish-query.yml` | insightbloom-query | 8083 | `container/backend/java/Dockerfile` | `insightbloom-query` |
 | `publish-ingest.yml` | insightbloom-ingest | 8082 | `container/backend/java/Dockerfile` | `insightbloom-ingest` |
 | `publish-presentations.yml` | insightbloom-presentations (Node) | — | `backend/services/insightbloom-presentations/Dockerfile` | `insightbloom-presentations` |
+| `publish-ide-publisher.yml` | insightbloom-ide-publisher (Node) | 8096 | `backend/services/insightbloom-ide-publisher/Dockerfile` | `insightbloom-ide-publisher` |
+| `publish-ide-runtime.yml` | insightbloom-ide-runtime (Python/Podman) | 9499 | `backend/services/insightbloom-ide-runtime/Dockerfile` | `insightbloom-ide-runtime` |
 | `publish-chat.yml` | chat (Python/FastAPI) | — | `chat/Dockerfile` | `insightbloom-chat` |
 | `publish-telegram.yml` | telegram (Python/FastAPI) | — | `telegram/Dockerfile` | `insightbloom-telegram` |
 | `publish-web.yml` | frontend (Vue) | — | `container/frontend/Dockerfile` | `insightbloom-web` |

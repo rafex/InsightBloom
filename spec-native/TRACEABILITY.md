@@ -36,6 +36,8 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | DEC-0028 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users | Control de acceso por dispositivo, por evento (Jitsi/IDE) (accepted) |
 | DEC-0029 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users, frontend/web | Huella real (ThumbmarkJS) en login + control de abuso a nivel plataforma (accepted) |
 | DEC-0030 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users, frontend/web | Auditoria (no bloqueo) de fingerprint en cada request autenticado (accepted) |
+| SPEC-IDE-PUBLICATION-SEPARATION | spec | DEC-0035, ARCHITECTURE.md, workflows/IDE-WEB-PUBLICATION.md, InsightBloom-gitops | Publisher y runtime separados de presentations (active) |
+| DEC-0035 | decision | SPEC-IDE-PUBLICATION-SEPARATION, backend/services/insightbloom-ide-publisher, backend/services/insightbloom-ide-runtime, InsightBloom-gitops | Ownership independiente de publicación IDE (accepted) |
 | SEC-001 | security | agents/SECURITY.md | Auditoría de seguridad (7 hallazgos) |
 | DIAG-001 | diagnostic | agents/DIAGNOSE.md | Diagnóstico del proyecto 2026-06-26 |
 
@@ -51,6 +53,7 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | event-types-catalog | specs/event-types-catalog/SPEC.md | 0/0/0 (ver tasks/event-types-catalog/TASKS.md) | draft |
 | device-fingerprinting | specs/device-fingerprinting/SPEC.md | — | active (2026-07-20) |
 | slidev-presentations | specs/slidev-presentations/SPEC.md | tasks/slidev-presentations/TASKS.md | active |
+| ide-publication-separation | specs/ide-publication-separation/SPEC.md | tasks/ide-publication-separation/TASKS.md | in_progress |
 
 ---
 
@@ -65,6 +68,8 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | stats | 8085 | ARCHITECTURE.md § insightbloom-stats |
 | survey | 8086 | ARCHITECTURE.md, STACK.md (DEC-0014) |
 | presentations | 8091 | ARCHITECTURE.md, STACK.md (DEC-0012) |
+| ide-publisher | 8096 | ARCHITECTURE.md, specs/ide-publication-separation/SPEC.md |
+| ide-runtime | 9499 control / 9500-9509 apps | ARCHITECTURE.md, specs/ide-publication-separation/SPEC.md |
 | chat | 8090 | ARCHITECTURE.md, STACK.md (Python/FastAPI) |
 | web | 80 | ARCHITECTURE.md (Vue 3 SPA) |
 | cli | — | COMMANDS.md, ROLES.md |

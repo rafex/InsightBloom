@@ -60,7 +60,7 @@ public final class GatewayApplication {
         // configurado (el gateway sigue funcionando igual sin esto).
         final String appPreviewHost = System.getenv("GATEWAY_APP_PREVIEW_HOST");
         final String appPreviewResolveUrl = System.getenv().getOrDefault(
-                "GATEWAY_APP_PREVIEW_RESOLVE_URL", "http://insightbloom-users:8081/internal/app-preview-target");
+                "GATEWAY_APP_PREVIEW_RESOLVE_URL", "http://insightbloom-ide-publisher:8096/internal/v1/app-previews/resolve");
 
         final Server server = new Server();
         final ServerConnector connector = new ServerConnector(server);

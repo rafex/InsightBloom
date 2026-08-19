@@ -106,6 +106,9 @@ function auditHtml(file, source, issues) {
       }
     }
   });
+  $('script:not([src])').each((_, element) => {
+    auditText(`${file}#inline-script`, $(element).html() || '', issues);
+  });
 }
 
 function auditText(file, source, issues) {

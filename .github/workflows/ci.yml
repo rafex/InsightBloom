@@ -128,6 +128,16 @@ jobs:
         # handful of advisories that currently have no upstream fix, instead of silencing
         # the whole check. See audit-ci.jsonc for per-advisory justification.
         run: npm --prefix backend/services/insightbloom-presentations run audit:deps
+      - name: Install IDE publisher dependencies
+        run: npm --prefix backend/services/insightbloom-ide-publisher ci
+      - name: Test IDE publisher artifact auditor
+        run: npm --prefix backend/services/insightbloom-ide-publisher test
+      - name: Audit IDE publisher dependencies
+        run: npm --prefix backend/services/insightbloom-ide-publisher run audit:deps
+      - name: Check IDE runtime agent syntax
+        run: python3 -m py_compile backend/services/insightbloom-ide-runtime/podman-agent.py
+      - name: Test IDE runtime agent
+        run: python3 -m unittest discover -s backend/services/insightbloom-ide-runtime/test -v
       - name: Audit frontend dependencies
         # Excalidraw's Mermaid dependency currently pins lodash-es/nanoid to
         # versions with upstream advisories. npm's only proposed remediation

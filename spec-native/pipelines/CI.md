@@ -72,7 +72,9 @@ Gates:
 | stats (Java) | Maven | JUnit |
 | survey (Java) | Maven | JUnit |
 | cli (Java) | Maven | — |
-| presentations (Node.js) | — | — (no incluido en CI actual) |
+| presentations (Node.js) | Node syntax + tests | Artifact/rendering tests |
+| ide-publisher (Node.js) | Node syntax + npm audit | ZIP auditor tests |
+| ide-runtime (Python) | py_compile | Podman agent unit tests |
 | chat (Python) | — | pytest |
 | web (Vue) | Vite | Vitest + ESLint |
 
@@ -87,4 +89,4 @@ Gates:
 - [ ] SAST scan (CodeQL / SonarQube)
 - [ ] Integration tests con Docker Compose
 - [ ] E2E tests con Playwright/Cypress
-- [ ] CI para presentations service
+- [x] CI para presentations, IDE publisher y IDE runtime

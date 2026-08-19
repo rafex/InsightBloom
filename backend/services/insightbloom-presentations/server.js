@@ -10,12 +10,6 @@ const cheerio = require('cheerio');
 const { chromium } = require('playwright-chromium');
 const { attachLiveSync, issueRemoteToken } = require('./live');
 const { auditArchive } = require('./tools/audit-slidev-artifact');
-const {
-  auditZipBuffer,
-  normalizeEntryName: normalizeWebEntryName,
-  isSymlink: isWebSymlink,
-  isExcludedFromPublication,
-} = require('./tools/audit-web-artifact');
 const { presentationCookiePath, hasConferenceAccess: accessFromResponse } = require('./access');
 
 const PREVIEW_SLIDE_LIMIT = 5;
@@ -43,9 +37,6 @@ const OFFLINE_PRESENTATION_TTL_MS = Math.min(
 );
 const OFFLINE_MANIFEST_PRIVATE_KEY = process.env.OFFLINE_MANIFEST_PRIVATE_KEY || '';
 const OFFLINE_MANIFEST_PUBLIC_KEY = process.env.OFFLINE_MANIFEST_PUBLIC_KEY || '';
-const PREVIEW_PUBLIC_BASE_URL = process.env.PREVIEW_PUBLIC_BASE_URL || 'https://preview-insightbloom.v1.rafex.cloud/p';
-const PREVIEW_TTL_SECONDS = Math.min(Math.max(Number(process.env.PREVIEW_TTL_SECONDS || 3600), 300), 24 * 60 * 60);
-const PREVIEW_ROOT = path.join(DATA_DIR, 'previews');
 const MAX_UNCOMPRESSED_ZIP_BYTES = 250 * 1024 * 1024;
 const MAX_ARCHIVE_FILES = 1000;
 const UPLOAD_RATE_WINDOW_MS = 60 * 1000;
@@ -66,7 +57,6 @@ const app = express();
 let certificateBrowserPromise = null;
 
 fs.mkdirSync(path.join(DATA_DIR, 'tmp'), { recursive: true });
-fs.mkdirSync(PREVIEW_ROOT, { recursive: true });
 
 app.disable('x-powered-by');
 app.use((_req, res, next) => {
@@ -247,221 +237,6 @@ function constantTimeHeaderMatches(value, expected) {
   return actual.length === target.length && crypto.timingSafeEqual(actual, target);
 }
 
-function previewPublicationPath(publicationId) {
-  return path.join(PREVIEW_ROOT, publicationId);
-}
-
-function previewManifestPath(publicationId) {
-  return path.join(previewPublicationPath(publicationId), 'publication.json');
-}
-
-function readPreviewManifest(publicationId) {
-  if (!UUID_RE.test(publicationId)) return null;
-  try {
-    const manifest = JSON.parse(fs.readFileSync(previewManifestPath(publicationId), 'utf8'));
-    if (manifest.publicationId !== publicationId || !validConferenceId(manifest.conferenceId)) return null;
-    return manifest;
-  } catch {
-    return null;
-  }
-}
-
-function previewExpired(manifest) {
-  return manifest.status !== 'active' || Date.parse(manifest.expiresAt) <= Date.now();
-}
-
-function previewCsp(res, nonce = '') {
-  const scriptSource = nonce ? `'self' 'nonce-${nonce}'` : "'self'";
-  res.setHeader('Content-Security-Policy',
-    "default-src 'none'; base-uri 'none'; object-src 'none'; form-action 'self'; " +
-    `frame-ancestors 'self' https://insightbloom.v1.rafex.cloud; script-src ${scriptSource}; ` +
-    "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; " +
-    "media-src 'self' blob:; connect-src 'self'; frame-src 'none'");
-  res.setHeader('Cache-Control', 'no-store, max-age=0');
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-}
-
-function sendPreviewFile(target, res, next) {
-  if (!['.html', '.htm'].includes(path.extname(target).toLowerCase())) {
-    previewCsp(res);
-    res.type(contentTypeFor(target));
-    return res.sendFile(target, { dotfiles: 'deny' }, (error) => error && next(error));
-  }
-
-  try {
-    const nonce = crypto.randomBytes(18).toString('base64');
-    const source = fs.readFileSync(target, 'utf8');
-    // La auditoría ya rechazó atributos inline de eventos. Este nonce permite
-    // el JavaScript inline normal de una página estática sin usar unsafe-inline.
-    const html = source.replace(/<script\b(?![^>]*\bnonce=)([^>]*)>/gi,
-      (_match, attributes) => `<script nonce="${nonce}"${attributes}>`);
-    previewCsp(res, nonce);
-    res.type(contentTypeFor(target));
-    return res.send(html);
-  } catch (error) {
-    return next(error);
-  }
-}
-
-function findPreviewIndex(rootDir) {
-  const found = [];
-  const stack = [rootDir];
-  while (stack.length) {
-    const dir = stack.pop();
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) stack.push(full);
-      else if (/^index\.html?$/i.test(entry.name)) found.push(full);
-    }
-  }
-  if (found.length !== 1) throw new Error(found.length ? 'preview_multiple_indexes' : 'preview_index_missing');
-  return found[0];
-}
-
-function extractWebArtifact(buffer, destination) {
-  const audit = auditZipBuffer(buffer, 'workspace.zip');
-  const zip = new AdmZip(buffer);
-  for (const entry of zip.getEntries()) {
-    const normalizedName = normalizeWebEntryName(entry.entryName);
-    if (isWebSymlink(entry)) throw new Error('archive_symlink_not_allowed');
-    const target = path.join(destination, ...normalizedName.split('/'));
-    if (entry.isDirectory) {
-      fs.mkdirSync(target, { recursive: true });
-      continue;
-    }
-    if (isExcludedFromPublication(normalizedName)) continue;
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    const data = entry.getData();
-    fs.writeFileSync(target, path.extname(normalizedName).toLowerCase() === '.svg' ? sanitizeSvg(data) : data);
-  }
-  const index = findPreviewIndex(destination);
-  const staticRoot = path.relative(destination, path.dirname(index)).split(path.sep).join('/');
-  return { ...audit, staticRoot: staticRoot === '.' ? '' : staticRoot, indexPath: 'index.html' };
-}
-
-function cleanupExpiredPreviews() {
-  let entries = [];
-  try { entries = fs.readdirSync(PREVIEW_ROOT, { withFileTypes: true }); } catch { return; }
-  for (const entry of entries) {
-    if (!entry.isDirectory() || !UUID_RE.test(entry.name)) continue;
-    const manifest = readPreviewManifest(entry.name);
-    if (manifest && previewExpired(manifest)) fs.rmSync(previewPublicationPath(entry.name), { recursive: true, force: true });
-  }
-}
-
-function requireInternalApiKey(req, res) {
-  if (!constantTimeHeaderMatches(req.headers['x-internal-api-key'], INTERNAL_API_KEY)) {
-    res.status(403).json({ error: 'forbidden' });
-    return false;
-  }
-  return true;
-}
-
-// Preview content is served from a separate origin and is never put below the
-// main application origin. There is no build step and no arbitrary filesystem
-// path in this route.
-// A static site's relative assets are resolved against the last path segment. Keep
-// the publication URL directory-like even when an older client or copied link
-// omits the trailing slash; otherwise `styles.css` becomes `/p/styles.css` and
-// the preview ingress returns its JSON error response with the wrong MIME type.
-app.get('/p/:publicationId', (req, res, next) => {
-  const pathWithoutQuery = String(req.originalUrl || '').split('?')[0];
-  if (pathWithoutQuery.endsWith('/')) return next();
-  const publicationId = req.params.publicationId;
-  if (!UUID_RE.test(publicationId)) return next();
-  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-  return res.redirect(308, `/p/${publicationId}/${query}`);
-});
-
-app.use('/p/:publicationId', (req, res, next) => {
-  const publicationId = req.params.publicationId;
-  const manifest = readPreviewManifest(publicationId);
-  if (!manifest) return res.status(404).json({ error: 'preview_not_found' });
-  if (previewExpired(manifest)) {
-    fs.rmSync(previewPublicationPath(publicationId), { recursive: true, force: true });
-    return res.status(410).json({ error: 'preview_expired' });
-  }
-
-  const staticRoot = path.resolve(previewPublicationPath(publicationId), manifest.staticRoot || '.');
-  let requested;
-  try {
-    requested = req.path === '/' ? manifest.indexPath : decodeURIComponent(req.path.replace(/^\/+/, ''));
-    requested = normalizeWebEntryName(requested);
-  } catch {
-    return res.status(400).json({ error: 'invalid_preview_path' });
-  }
-  if (path.basename(requested).toLowerCase() === 'publication.json') return res.status(404).json({ error: 'not_found' });
-  let target = path.resolve(staticRoot, requested);
-  if (target !== staticRoot && !target.startsWith(`${staticRoot}${path.sep}`)) return res.status(400).json({ error: 'invalid_preview_path' });
-  if (!fs.existsSync(target) || !fs.statSync(target).isFile()) {
-    if (!path.extname(requested)) {
-      requested = manifest.indexPath;
-      target = path.resolve(staticRoot, requested);
-    }
-    if (!fs.existsSync(target) || !fs.statSync(target).isFile()) return res.status(404).json({ error: 'preview_file_not_found' });
-  }
-  return sendPreviewFile(target, res, next);
-});
-
-app.post('/internal/v1/previews', express.raw({ type: 'application/zip', limit: '100mb' }), (req, res) => {
-  if (!requireInternalApiKey(req, res)) return;
-  const conferenceId = req.headers['x-conference-id'];
-  const ownerId = req.headers['x-owner-id'];
-  if (!validConferenceId(conferenceId) || !UUID_RE.test(String(ownerId || ''))) {
-    return res.status(400).json({ error: 'invalid_preview_owner_or_conference' });
-  }
-  const ttl = Math.min(Math.max(Number(req.headers['x-expires-in-seconds'] || PREVIEW_TTL_SECONDS), 300), 24 * 60 * 60);
-  const publicationId = crypto.randomUUID();
-  const staging = path.join(DATA_DIR, 'tmp', `preview-${publicationId}`);
-  const finalDir = previewPublicationPath(publicationId);
-  try {
-    if (!Buffer.isBuffer(req.body)) throw new Error('preview_archive_empty');
-    fs.mkdirSync(staging, { recursive: true });
-    const artifact = extractWebArtifact(req.body, staging);
-    const manifest = {
-      publicationId,
-      conferenceId: String(conferenceId),
-      ownerId: String(ownerId),
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + ttl * 1000).toISOString(),
-      artifactHash: artifact.artifactHash,
-      totalBytes: artifact.totalBytes,
-      files: artifact.files,
-      staticRoot: artifact.staticRoot,
-      indexPath: artifact.indexPath,
-    };
-    fs.writeFileSync(path.join(staging, 'publication.json'), JSON.stringify(manifest, null, 2), { mode: 0o640 });
-    fs.mkdirSync(PREVIEW_ROOT, { recursive: true });
-    fs.renameSync(staging, finalDir);
-    return res.status(201).json({
-      publicationId,
-      url: `${PREVIEW_PUBLIC_BASE_URL.replace(/\/$/, '')}/${publicationId}/`,
-      expiresAt: manifest.expiresAt,
-      artifactHash: manifest.artifactHash,
-      files: manifest.files.length,
-    });
-  } catch (error) {
-    fs.rmSync(staging, { recursive: true, force: true });
-    console.error('preview_publication_rejected', error.message, error.issues || '');
-    const status = /^(?:preview_|archive_)/.test(error.message) ? 422 : 500;
-    return res.status(status).json({ error: error.message || 'preview_publication_failed', issues: error.issues || undefined });
-  }
-});
-
-app.delete('/internal/v1/previews/:publicationId', (req, res) => {
-  if (!requireInternalApiKey(req, res)) return;
-  const manifest = readPreviewManifest(req.params.publicationId);
-  if (!manifest) return res.status(404).json({ error: 'preview_not_found' });
-  if (manifest.conferenceId !== req.headers['x-conference-id'] || manifest.ownerId !== req.headers['x-owner-id']) {
-    return res.status(403).json({ error: 'preview_owner_mismatch' });
-  }
-  fs.rmSync(previewPublicationPath(req.params.publicationId), { recursive: true, force: true });
-  return res.json({ revoked: true });
-});
-
-const previewCleanupTimer = setInterval(cleanupExpiredPreviews, 60 * 1000);
-previewCleanupTimer.unref?.();
 
 function presentationUploadRateLimit(req, res, next) {
   const now = Date.now();

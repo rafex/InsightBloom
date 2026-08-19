@@ -1541,3 +1541,23 @@ Registrar una decision cuando cambie:
   - La matriz y la acción global existente pasan a gestionar 12 claves; no se crea otro sistema
     paralelo de permisos.
 - Reemplaza: `none`.
+
+### DEC-0035 - Publicación de IDE separada de presentaciones
+
+- Fecha: 2026-08-19
+- Estado: accepted
+- Contexto: `insightbloom-presentations` había acumulado auditoría, almacenamiento y entrega de
+  sitios del IDE junto con el renderizado de slides. Eso mezclaba ciclos de despliegue, PVCs,
+  permisos y límites de recursos; además, un fallo de publicación podía afectar presentaciones.
+- Decision:
+  - `insightbloom-presentations` queda dedicado a Marp/Slidev y sus artefactos.
+  - `insightbloom-ide-publisher` es owner de sitios estáticos y del registro de destinos API.
+  - `insightbloom-ide-runtime` es owner de builds, ejecución y limpieza Podman.
+  - `users` conserva autorización y delega por contratos internos autenticados.
+  - Se mantienen los prefijos públicos existentes y se conserva una ventana de rollback del
+    upstream durante la migración del PVC.
+- Consecuencias: hay dos imágenes y despliegues adicionales, pero cada superficie puede escalar,
+  auditarse y recuperarse de forma independiente. El publisher debe validar ownership, expiración
+  y capacidad antes de resolver un destino; el runtime requiere una política de recursos más amplia
+  que los servicios HTTP normales.
+- Reemplaza: la responsabilidad de publicación web embebida en `insightbloom-presentations`.

@@ -4,6 +4,7 @@ import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.model.SandboxAppPreview;
 import dev.rafex.insightbloom.users.domain.ports.SandboxAppPreviewRepository;
 import dev.rafex.insightbloom.users.domain.ports.SandboxRepository;
+import dev.rafex.insightbloom.users.adapters.outbound.idepublisher.HttpWorkspacePreviewPublisher;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -34,6 +35,7 @@ public class PublishAppPreviewUseCase {
     private final SandboxRepository sandboxRepository;
     private final SandboxAppPreviewRepository previewRepository;
     private final int appBasePort;
+    private final HttpWorkspacePreviewPublisher publisher;
 
     /**
      * @param appBasePort MISMO valor que {@code SANDBOX_APP_BASE_PORT} usado para construir
@@ -44,9 +46,17 @@ public class PublishAppPreviewUseCase {
     public PublishAppPreviewUseCase(final SandboxRepository sandboxRepository,
                                      final SandboxAppPreviewRepository previewRepository,
                                      final int appBasePort) {
+        this(sandboxRepository, previewRepository, appBasePort, null);
+    }
+
+    public PublishAppPreviewUseCase(final SandboxRepository sandboxRepository,
+                                     final SandboxAppPreviewRepository previewRepository,
+                                     final int appBasePort,
+                                     final HttpWorkspacePreviewPublisher publisher) {
         this.sandboxRepository = sandboxRepository;
         this.previewRepository = previewRepository;
         this.appBasePort = appBasePort;
+        this.publisher = publisher;
     }
 
     public SandboxAppPreview execute(final String conferenceUuid, final String userUuid, final long ttlSeconds) {
@@ -65,7 +75,12 @@ public class PublishAppPreviewUseCase {
                 generateAccessToken(),
                 now,
                 now.plusSeconds(Math.min(ttlSeconds, MAX_TTL_SECONDS)));
-        return previewRepository.save(preview);
+        final SandboxAppPreview saved = previewRepository.save(preview);
+        if (publisher != null) {
+            publisher.registerAppPreview(conferenceUuid, userUuid, saved.uuid(), saved.podName(),
+                    saved.targetPort(), saved.accessToken(), saved.expiresAt());
+        }
+        return saved;
     }
 
     private static String generateAccessToken() {
