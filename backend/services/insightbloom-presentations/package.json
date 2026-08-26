@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@marp-team/marp-cli": "^4.5.0",
-    "@slidev/cli": "52.19.0",
+    "@slidev/cli": "52.19.1",
     "@slidev/theme-default": "0.25.0",
     "adm-zip": "^0.6.0",
     "cheerio": "^1.2.0",
