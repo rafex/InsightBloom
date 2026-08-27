@@ -1,0 +1,36 @@
+# Imagen mínima para ejecutar los .jar de los servicios Java del backend (IBM Semeru JRE).
+# No trae ningún jar ni ENTRYPOINT final -- `container/backend/java/Dockerfile` la usa como
+# `FROM ... AS runtime` y copia ahí el jar del servicio específico (cada uno con su propio
+# puerto/nombre). Se publica aparte (ver .github/workflows/publish-java-base-images.yml).
+#
+# IBM Semeru (OpenJ9) no publica imagen oficial para Debian-slim ni Alpine, solo Ubuntu -- de ahí
+# que esta imagen se arme a mano sobre debian-slim descargando el tarball oficial de
+# github.com/ibmruntimes/semeru25-binaries y verificando su checksum.
+FROM debian:bookworm-slim
+
+ARG SEMERU_VERSION=25.0.4.0
+ARG SEMERU_TARBALL=ibm-semeru-open-jre_x64_linux_25.0.4.0.tar.gz
+ARG SEMERU_SHA256=96df49c3d63000e75640a44b6ebf803bb96513ba2a64b00462c986104ffd4961
+
+# curl: usado por el HEALTHCHECK que define cada servicio en container/backend/java/Dockerfile.
+# ca-certificates: llamadas TLS salientes que ya hacen los servicios (Etherpad, Kubernetes API...).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL -o /tmp/semeru.tar.gz \
+      "https://github.com/ibmruntimes/semeru25-binaries/releases/download/jdk-${SEMERU_VERSION}/${SEMERU_TARBALL}" \
+    && echo "${SEMERU_SHA256}  /tmp/semeru.tar.gz" | sha256sum -c - \
+    && mkdir -p /opt/java \
+    && tar xzf /tmp/semeru.tar.gz -C /opt/java --strip-components=1 \
+    && rm -f /tmp/semeru.tar.gz
+
+ENV JAVA_HOME=/opt/java
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+RUN java -version
+
+# Usuario no-root -- equivalente exacto al uid=1000 que ya usaba container/backend/java/Dockerfile
+# sobre Alpine (addgroup -S / adduser -S -u 1000), con la sintaxis de Debian.
+RUN groupadd -r insightbloom && \
+    useradd -r -u 1000 -g insightbloom insightbloom

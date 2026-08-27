@@ -1,15 +1,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 – Builder: compila todos los servicios con Maven
+#
+# IBM Semeru (OpenJ9) + Maven ya vienen instalados en esta imagen (ver
+# infra/docker/Dockerfile.java-builder / .github/workflows/publish-java-base-images.yml) --
+# reemplaza la instalación manual que antes vivía acá sobre eclipse-temurin:25-jdk-alpine.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM eclipse-temurin:25-jdk-alpine AS builder
-
-# Instalar Maven directamente (evita que mvnw descargue distribuciones externas)
-ENV MAVEN_VERSION=3.9.9
-RUN apk add --no-cache unzip wget && \
-    wget -q "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/${MAVEN_VERSION}/apache-maven-${MAVEN_VERSION}-bin.tar.gz" -O /tmp/maven.tar.gz && \
-    tar xzf /tmp/maven.tar.gz -C /opt && \
-    ln -s "/opt/apache-maven-${MAVEN_VERSION}/bin/mvn" /usr/local/bin/mvn && \
-    rm -f /tmp/maven.tar.gz
+FROM ghcr.io/rafex/insightbloom-java-builder:25.0.4.0 AS builder
 
 WORKDIR /workspace
 
@@ -32,12 +28,16 @@ RUN mvn -f backend/services/pom.xml clean package -DskipTests -q
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 – Runtime: imagen mínima JRE para un servicio específico
 #
+# El usuario no-root insightbloom (uid 1000) ya viene creado en esta imagen (ver
+# infra/docker/Dockerfile.java-runtime) -- reemplaza la creación manual que antes vivía acá
+# sobre eclipse-temurin:25-jre-alpine.
+#
 # Uso:
 #   docker build --build-arg SERVICE=insightbloom-users \
 #                --build-arg SERVICE_PORT=8081 \
 #                -f container/backend/java/Dockerfile .
 # ─────────────────────────────────────────────────────────────────────────────
-FROM eclipse-temurin:25-jre-alpine AS runtime
+FROM ghcr.io/rafex/insightbloom-java-runtime:25.0.4.0 AS runtime
 
 ARG SERVICE=insightbloom-users
 ARG SERVICE_PORT=8081
@@ -46,12 +46,7 @@ ARG APP_VERSION=dev
 ARG GIT_SHA=unknown
 
 WORKDIR /app
-
-# Usuario no-root para seguridad
-RUN addgroup -S insightbloom && \
-    adduser  -S insightbloom -G insightbloom -u 1000 && \
-    mkdir -p /data && \
-    chown -R insightbloom:insightbloom /app /data
+RUN mkdir -p /data && chown -R insightbloom:insightbloom /app /data
 
 COPY --from=builder \
      /workspace/backend/services/${SERVICE}/target/${SERVICE}-${VERSION}.jar \
@@ -73,7 +68,7 @@ VOLUME ["/data"]
 EXPOSE ${SERVICE_PORT}
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=4 \
-  CMD wget -qO- http://localhost:${PORT}/health || exit 1
+  CMD curl -fsS http://localhost:${PORT}/health || exit 1
 
 ENTRYPOINT ["java", \
             "-Djdk.httpclient.keepalive.timeout=5", \

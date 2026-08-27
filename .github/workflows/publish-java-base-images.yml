@@ -1,0 +1,75 @@
+---
+# Imagenes base de toolchain/runtime Java (IBM Semeru OpenJ9 25 sobre debian-slim), usadas por
+# `container/backend/java/Dockerfile` como FROM del builder y del runtime de los 7 servicios Java.
+# Semeru no publica imagen oficial para debian-slim/Alpine (solo Ubuntu), asi que estas dos
+# imagenes se arman a mano (ver infra/docker/Dockerfile.java-builder y Dockerfile.java-runtime).
+#
+# A diferencia de publish-code-ide.yml, aca SI hay path filter: estas imagenes solo cambian cuando
+# se decide bumpear version de Java/Maven, no en cada push a main.
+#
+# Deliberadamente independiente de los demas publish-*.yml: nada depende de el via `needs:`, y el
+# tampoco es needs de nadie (mismo principio que publish-code-ide.yml -- ver su postmortem
+# 2026-07-13: acoplar estos jobs hizo que un fallo no relacionado bloqueara despliegues listos).
+name: Publish Java base images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/docker/Dockerfile.java-builder'
+      - 'infra/docker/Dockerfile.java-runtime'
+      - '.github/workflows/publish-java-base-images.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: rafex
+  SEMERU_VERSION: 25.0.4.0
+
+jobs:
+  build-and-push-java-base:
+    name: Build and push java base (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: java-builder
+            file: infra/docker/Dockerfile.java-builder
+            image: ghcr.io/rafex/insightbloom-java-builder
+          - name: java-runtime
+            file: infra/docker/Dockerfile.java-runtime
+            image: ghcr.io/rafex/insightbloom-java-runtime
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          push: true
+          provenance: true
+          sbom: true
+          platforms: linux/amd64
+          tags: |
+            ${{ matrix.image }}:${{ env.SEMERU_VERSION }}
+            ${{ matrix.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
