@@ -15,17 +15,18 @@
     "@marp-team/marp-cli": "^4.5.0",
     "@slidev/cli": "52.19.0",
     "@slidev/theme-default": "0.25.0",
-    "adm-zip": "^0.6.0",
+    "adm-zip": "^0.6.1",
     "cheerio": "^1.2.0",
     "express": "^5.2.1",
-    "multer": "^2.0.1",
+    "multer": "^2.3.0",
     "nats": "^2.29.3",
     "playwright-chromium": "1.62.1",
     "ws": "^8.21.3"
   },
   "overrides": {
     "dompurify": "^3.4.12",
-    "@puppeteer/browsers": "^3.2.0"
+    "@puppeteer/browsers": "^3.2.0",
+    "@xmldom/xmldom": "^0.9.12"
   },
   "devDependencies": {
     "audit-ci": "^7.1.0"
