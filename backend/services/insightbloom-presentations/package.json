@@ -20,7 +20,7 @@
     "express": "^5.2.1",
     "multer": "^2.3.0",
     "nats": "^2.29.3",
-    "playwright-chromium": "1.62.1",
+    "playwright-chromium": "1.63.0",
     "ws": "^8.21.3"
   },
   "overrides": {
