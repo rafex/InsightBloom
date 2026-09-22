@@ -231,7 +231,9 @@ RUN addgroup -g 1000 coder && \
     chown -R coder:coder /home/coder
 
 ENV NPM_CONFIG_PREFIX=/opt/insightbloom/node-global
-ENV PATH=/opt/insightbloom/node-global/bin:/home/coder/.opencode/bin:$PATH
+# OpenCode must live outside /home: the sandbox mounts the per-seat workspace over
+# /home at runtime, which would otherwise hide the binary baked into the image.
+ENV PATH=/opt/insightbloom/node-global/bin:/opt/insightbloom/.opencode/bin:$PATH
 RUN mkdir -p /opt/insightbloom/node-global && chown -R coder:coder /opt/insightbloom
 
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -287,9 +289,11 @@ ARG OPENCODE_VERSION=latest
 LABEL io.insightbloom.opencode.installer="https://opencode.ai/v2/install" \
       io.insightbloom.opencode.cli-version="${OPENCODE_VERSION}"
 RUN set -eux; \
+    export HOME=/opt/insightbloom; \
     echo "OpenCode cache key: ${OPENCODE_CACHE_BUST}"; \
     curl -fsSL https://opencode.ai/v2/install | \
       bash -s -- --version "${OPENCODE_VERSION}" --no-modify-path; \
+    test -x /opt/insightbloom/.opencode/bin/opencode; \
     opencode_version_output="$(opencode --version 2>&1)"; \
     printf '%s\n' "$opencode_version_output" | grep -F -- "${OPENCODE_VERSION}"; \
     printf '%s\n' "$opencode_version_output" > /tmp/insightbloom-opencode-cli-version
