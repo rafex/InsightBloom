@@ -723,9 +723,14 @@ public class DatabaseManager {
                     conference_uuid TEXT PRIMARY KEY,
                     allowed_hosts TEXT,
                     blocked_hosts TEXT,
+                    allow_all INTEGER NOT NULL DEFAULT 0,
                     updated_at TEXT NOT NULL
                 )
             """);
+            // Existing event policies predate allow_all. SQLite applies the default to every row,
+            // preserving deny-by-default behavior after an upgrade.
+            ColumnMigrationHelper.addColumnIfMissing(conn, "egress_policies", "allow_all",
+                    "INTEGER NOT NULL DEFAULT 0");
 
             // Publicacion publica de un backend/API REST vivo del sandbox (2026-07) -- a
             // diferencia del preview de workspace (ZIP estatico via insightbloom-presentations),

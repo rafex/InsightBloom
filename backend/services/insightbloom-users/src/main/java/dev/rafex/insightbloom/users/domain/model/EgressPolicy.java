@@ -8,11 +8,14 @@ import java.time.Instant;
  * {@link PlatformSettings#getEgressBlockedHosts()} (herencia en capas, ver ResolveEgressPolicyUseCase):
  * allowed = global ∪ evento, blocked = global ∪ evento, y blocked SIEMPRE gana sobre allowed en
  * cualquier nivel. Formato de cada entrada: mismo que ya usa el proxy (dominio exacto o
- * {@code *.dominio} para subdominios).
+ * {@code *.dominio} para subdominios). {@code allowAll} es una excepcion explicita por evento:
+ * permite hosts publicos HTTP/HTTPS sin lista blanca, pero nunca vence los bloqueos ni las
+ * defensas del proxy contra IPs directas o redes privadas.
  */
 public record EgressPolicy(
         String conferenceUuid,
         String allowedHosts,
         String blockedHosts,
+        boolean allowAll,
         Instant updatedAt) {
 }

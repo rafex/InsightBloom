@@ -13,7 +13,8 @@ import {
   saveEventDiagram,
   streamEventDiagram,
   sendAttendeeEmail,
-  generateEmailDraft
+  generateEmailDraft,
+  setConferenceEgressPolicy
 } from '../usersApi'
 
 vi.mock('axios')
@@ -87,6 +88,20 @@ describe('usersApi', () => {
       expect(body.flyerBase64).toBe('data:image/png;base64,AAAA')
       expect(body.timezoneId).toBe(3)
       expect(config.headers.Authorization).toBe('Bearer tok')
+    })
+  })
+
+  describe('setConferenceEgressPolicy', () => {
+    it('sends the explicit per-event public web exception', async () => {
+      axios.put.mockResolvedValue({ data: { data: { allowAll: true } } })
+
+      await setConferenceEgressPolicy('c1', 'github.com', 'blocked.example', true, 'tok')
+
+      expect(axios.put).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/egress-policy',
+        { allowedHosts: 'github.com', blockedHosts: 'blocked.example', allowAll: true },
+        { headers: { Authorization: 'Bearer tok' } }
+      )
     })
   })
 

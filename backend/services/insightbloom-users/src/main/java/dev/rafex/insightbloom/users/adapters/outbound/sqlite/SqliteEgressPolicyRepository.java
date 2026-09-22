@@ -17,7 +17,7 @@ public class SqliteEgressPolicyRepository implements EgressPolicyRepository {
     @Override
     public Optional<EgressPolicy> findByConference(final String conferenceUuid) {
         try (var c = database.getConnection(); var ps = c.prepareStatement("""
-                SELECT conference_uuid, allowed_hosts, blocked_hosts, updated_at
+                SELECT conference_uuid, allowed_hosts, blocked_hosts, allow_all, updated_at
                 FROM egress_policies WHERE conference_uuid = ?""")) {
             ps.setString(1, conferenceUuid);
             try (var rs = ps.executeQuery()) {
@@ -32,16 +32,18 @@ public class SqliteEgressPolicyRepository implements EgressPolicyRepository {
     @Override
     public EgressPolicy save(final EgressPolicy policy) {
         try (var c = database.getConnection(); var ps = c.prepareStatement("""
-                INSERT INTO egress_policies (conference_uuid, allowed_hosts, blocked_hosts, updated_at)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO egress_policies (conference_uuid, allowed_hosts, blocked_hosts, allow_all, updated_at)
+                VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(conference_uuid) DO UPDATE SET
                     allowed_hosts = excluded.allowed_hosts,
                     blocked_hosts = excluded.blocked_hosts,
+                    allow_all = excluded.allow_all,
                     updated_at = excluded.updated_at""")) {
             ps.setString(1, policy.conferenceUuid());
             ps.setString(2, policy.allowedHosts());
             ps.setString(3, policy.blockedHosts());
-            ps.setString(4, policy.updatedAt().toString());
+            ps.setInt(4, policy.allowAll() ? 1 : 0);
+            ps.setString(5, policy.updatedAt().toString());
             ps.executeUpdate();
             return policy;
         } catch (final SQLException e) {
@@ -65,6 +67,7 @@ public class SqliteEgressPolicyRepository implements EgressPolicyRepository {
                 rs.getString("conference_uuid"),
                 rs.getString("allowed_hosts"),
                 rs.getString("blocked_hosts"),
+                rs.getInt("allow_all") != 0,
                 Instant.parse(rs.getString("updated_at")));
     }
 }

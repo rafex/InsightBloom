@@ -57,6 +57,7 @@ class PolicyEntry:
     fetched_at: float
     known: bool  # False = insightbloom-users respondio "no existe sandbox con esa IP" (404)
     internet_enabled: bool = False
+    allow_all: bool = False
     allowed: frozenset[str] = field(default_factory=frozenset)
     blocked: frozenset[str] = field(default_factory=frozenset)
 
@@ -111,6 +112,7 @@ class Policy:
         return {
             "known": True,
             "internetEnabled": bool(data.get("internetEnabled", False)),
+            "allowAll": bool(data.get("allowAll", False)),
             "allowed": data.get("allowed") or [],
             "blocked": data.get("blocked") or [],
         }
@@ -134,6 +136,7 @@ class Policy:
             fetched_at=now,
             known=raw.get("known", True),
             internet_enabled=bool(raw.get("internetEnabled", False)),
+            allow_all=bool(raw.get("allowAll", False)),
             allowed=frozenset(h.lower().rstrip(".") for h in raw.get("allowed", [])),
             blocked=frozenset(h.lower().rstrip(".") for h in raw.get("blocked", [])))
         with self._lock:
@@ -157,7 +160,7 @@ class Policy:
             return False
         if any(_host_matches(host, rule) for rule in entry.blocked):
             return False
-        return any(_host_matches(host, rule) for rule in entry.allowed)
+        return entry.allow_all or any(_host_matches(host, rule) for rule in entry.allowed)
 
     def safe_addresses(self, host: str, port: int) -> list[tuple[int, int, int, str, tuple]]:
         addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)

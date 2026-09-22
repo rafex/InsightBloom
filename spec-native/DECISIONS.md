@@ -1587,3 +1587,24 @@ Registrar una decision cuando cambie:
   - La rotación forzada de sandboxes ocupados puede perder cambios en `emptyDir`, por lo que el
     respaldo del workspace es obligatorio antes de cualquier mantenimiento destructivo.
 - Reemplaza: la instalación sin versión explícita mediante `https://opencode.ai/install`.
+
+### DEC-0037 - Excepción manual de salida web pública por evento
+
+- Fecha: 2026-09-22
+- Estado: accepted
+- Contexto: algunos talleres necesitan proveedores o dependencias que no pueden mantener una
+  lista blanca de dominios en el momento. La salida directa del sandbox seguiría exponiendo la red
+  interna y no es una alternativa aceptable.
+- Decision:
+  - Cada propietario de evento puede activar o revocar `allowAll` en su política de egress; el
+    valor inicia en `false` y no existe una equivalencia en la política global de plataforma.
+  - El proxy conserva el camino obligatorio a través de la NetworkPolicy y solo permite HTTP/HTTPS
+    a hostnames públicos. Los bloqueos globales y del evento se evalúan antes de `allowAll`.
+  - La política se resuelve dinámicamente por IP de sandbox, de modo que el cambio alcanza pods
+    existentes dentro del TTL de caché del proxy sin recrearlos.
+- Consecuencias:
+  - La excepción reduce el control preventivo de dominios, pero no elimina las protecciones contra
+    SSRF, puertos arbitrarios o acceso a servicios privados.
+  - Un cliente API antiguo que no envíe `allowAll` preserva el valor ya guardado; el frontend
+    actual siempre lo envía explícitamente.
+- Reemplaza: la restricción de que todo evento con internet habilitado requiera lista blanca.

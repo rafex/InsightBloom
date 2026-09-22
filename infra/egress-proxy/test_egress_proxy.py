@@ -26,6 +26,23 @@ class PolicyTest(unittest.TestCase):
         }))
         self.assertFalse(policy.permits("10.0.0.1", "raw.githubusercontent.com", 443))
 
+    def test_allow_all_permits_public_domain_without_a_whitelist(self):
+        policy = Policy(fetch_fn=fixed_fetch({
+            "known": True, "internetEnabled": True, "allowAll": True,
+            "allowed": [], "blocked": [],
+        }))
+        self.assertTrue(policy.permits("10.0.0.1", "opencode.ai", 443))
+        self.assertTrue(policy.permits("10.0.0.1", "example.com", 80))
+
+    def test_blocklist_and_transport_guards_still_win_over_allow_all(self):
+        policy = Policy(fetch_fn=fixed_fetch({
+            "known": True, "internetEnabled": True, "allowAll": True,
+            "allowed": [], "blocked": ["models.opencode.ai"],
+        }))
+        self.assertFalse(policy.permits("10.0.0.1", "models.opencode.ai", 443))
+        self.assertFalse(policy.permits("10.0.0.1", "opencode.ai", 22))
+        self.assertFalse(policy.permits("10.0.0.1", "127.0.0.1", 443))
+
     def test_rejects_hosts_not_in_allowlist_and_bad_ports_and_raw_ips(self):
         policy = Policy(fetch_fn=fixed_fetch({
             "known": True, "internetEnabled": True, "allowed": ["github.com"], "blocked": [],
@@ -36,7 +53,8 @@ class PolicyTest(unittest.TestCase):
 
     def test_denies_when_internet_disabled_for_the_event(self):
         policy = Policy(fetch_fn=fixed_fetch({
-            "known": True, "internetEnabled": False, "allowed": ["github.com"], "blocked": [],
+            "known": True, "internetEnabled": False, "allowAll": True,
+            "allowed": ["github.com"], "blocked": [],
         }))
         self.assertFalse(policy.permits("10.0.0.1", "github.com", 443))
 

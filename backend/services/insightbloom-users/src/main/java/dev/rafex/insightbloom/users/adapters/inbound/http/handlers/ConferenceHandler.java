@@ -2891,7 +2891,12 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final String allowedHosts = (String) body.get("allowedHosts");
             final String blockedHosts = (String) body.get("blockedHosts");
-            final EgressPolicy policy = egressPolicyUseCase.save(id, allowedHosts, blockedHosts);
+            final Object rawAllowAll = body.get("allowAll");
+            if (rawAllowAll != null && !(rawAllowAll instanceof Boolean)) {
+                throw new IllegalArgumentException("allow_all_must_be_boolean");
+            }
+            final EgressPolicy policy = egressPolicyUseCase.save(id, allowedHosts, blockedHosts,
+                    (Boolean) rawAllowAll);
             sendOk(jx, 200, toEgressPolicyView(policy));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
@@ -2941,6 +2946,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         view.put("conferenceUuid", policy.conferenceUuid());
         view.put("allowedHosts", policy.allowedHosts());
         view.put("blockedHosts", policy.blockedHosts());
+        view.put("allowAll", policy.allowAll());
         return view;
     }
 

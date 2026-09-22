@@ -55,6 +55,7 @@ public class InternalEgressPolicyHandler extends BaseResourceHandler {
                             resolution -> sendOk(jx, 200, Map.of(
                                     "conferenceUuid", resolution.conferenceUuid(),
                                     "internetEnabled", resolution.internetEnabled(),
+                                    "allowAll", resolution.allowAll(),
                                     "allowed", resolution.allowed(),
                                     "blocked", resolution.blocked())),
                             () -> sendError(jx, 404, "unknown_source", "No sandbox found for this source IP"));

@@ -41,7 +41,8 @@ public class ResolveEgressPolicyUseCase {
         this.egressPolicyRepository = egressPolicyRepository;
     }
 
-    public record Resolution(String conferenceUuid, boolean internetEnabled, Set<String> allowed, Set<String> blocked) {
+    public record Resolution(String conferenceUuid, boolean internetEnabled, boolean allowAll, Set<String> allowed,
+                             Set<String> blocked) {
     }
 
     public Optional<Resolution> execute(final String sourceIp) {
@@ -57,7 +58,8 @@ public class ResolveEgressPolicyUseCase {
 
         final Set<String> allowed = union(global.getEgressAllowedHosts(), event == null ? null : event.allowedHosts());
         final Set<String> blocked = union(global.getEgressBlockedHosts(), event == null ? null : event.blockedHosts());
-        return Optional.of(new Resolution(conferenceUuid.get(), internetEnabled, allowed, blocked));
+        return Optional.of(new Resolution(conferenceUuid.get(), internetEnabled,
+                event != null && event.allowAll(), allowed, blocked));
     }
 
     private static Set<String> union(final String csvA, final String csvB) {

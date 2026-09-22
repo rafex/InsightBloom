@@ -1001,6 +1001,7 @@ export async function setDeviceAccessSettings(
 export interface EgressPolicyView {
   allowedHosts: string | null
   blockedHosts: string | null
+  allowAll?: boolean
 }
 
 export async function getGlobalEgressPolicy(token: string): Promise<EgressPolicyView> {
@@ -1022,10 +1023,11 @@ export async function getConferenceEgressPolicy(conferenceId: string, token: str
 }
 
 export async function setConferenceEgressPolicy(
-  conferenceId: string, allowedHosts: string | null, blockedHosts: string | null, token: string
+  conferenceId: string, allowedHosts: string | null, blockedHosts: string | null,
+  allowAll: boolean, token: string
 ): Promise<EgressPolicyView> {
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/egress-policy`,
-    { allowedHosts, blockedHosts }, authHeader(token))
+    { allowedHosts, blockedHosts, allowAll }, authHeader(token))
   return res.data.data
 }
 

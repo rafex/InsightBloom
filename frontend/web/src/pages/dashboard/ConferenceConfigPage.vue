@@ -280,6 +280,8 @@
       p.field-hint Dominios adicionales que el IDE de ESTE evento puede alcanzar, más allá de la
         |  lista global de la plataforma (se suman, nunca la reemplazan). La lista negra, tanto la
         |  global como la de aquí, siempre gana sobre cualquier lista blanca.
+      ToggleSwitch(v-model="egressAllowAll") Permitir salida web pública sin lista blanca
+      p.field-hint(v-if="egressAllowAll") Esta excepción afecta todos los sandboxes Web y CLI de este evento hasta que la desactives. Solo permite HTTP/HTTPS hacia dominios públicos; las listas negras, IPs directas y redes privadas siguen bloqueadas.
       .coord-field
         label.coord-label(for="config-egress-allowed") Lista blanca adicional (permitidos)
         textarea#config-egress-allowed(v-model="egressAllowedHosts" rows="5" placeholder="un-dominio-extra.com\n*.otro-dominio.org")
@@ -493,6 +495,7 @@ export default {
     const surveyAiConfigError = ref('')
     const egressAllowedHosts = ref('')
     const egressBlockedHosts = ref('')
+    const egressAllowAll = ref(false)
     const savingEgressPolicy = ref(false)
     const egressPolicySaved = ref(false)
     const egressPolicyError = ref('')
@@ -516,6 +519,7 @@ export default {
         const policy = await getConferenceEgressPolicy(props.conferenceId as string, auth.state.token as string)
         egressAllowedHosts.value = csvToLines(policy.allowedHosts)
         egressBlockedHosts.value = csvToLines(policy.blockedHosts)
+        egressAllowAll.value = policy.allowAll === true
       } catch (e: any) {
         egressPolicyError.value = e.response?.data?.error?.message || 'No se pudo cargar el control de red del evento'
       }
@@ -526,10 +530,11 @@ export default {
       try {
         const policy = await setConferenceEgressPolicy(
           props.conferenceId as string, linesToCsv(egressAllowedHosts.value), linesToCsv(egressBlockedHosts.value),
-          auth.state.token as string
+          egressAllowAll.value, auth.state.token as string
         )
         egressAllowedHosts.value = csvToLines(policy.allowedHosts)
         egressBlockedHosts.value = csvToLines(policy.blockedHosts)
+        egressAllowAll.value = policy.allowAll === true
         egressPolicySaved.value = true
       } catch (e: any) {
         egressPolicyError.value = e.response?.data?.error?.message || 'No se pudo guardar el control de red del evento'
@@ -1074,7 +1079,7 @@ export default {
              mentorEnabled, mentorObjective, mentorPrompt, mentorIncludePresentation, mentorMaxRequests,
              savingMentor, mentorSaved, mentorError, saveMentor,
              surveyExtraContext, savingSurveyAiConfig, surveyAiConfigSaved, surveyAiConfigError, saveSurveyAiConfig,
-             egressAllowedHosts, egressBlockedHosts, savingEgressPolicy, egressPolicySaved, egressPolicyError,
+             egressAllowedHosts, egressBlockedHosts, egressAllowAll, savingEgressPolicy, egressPolicySaved, egressPolicyError,
              saveEgressPolicy,
              imageAllowedImages, imageBlockedImages, savingImagePolicy, imagePolicySaved, imagePolicyError,
              saveImagePolicy }

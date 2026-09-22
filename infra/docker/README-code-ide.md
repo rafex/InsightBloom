@@ -270,15 +270,19 @@ El diseño es:
 1. El organizador activa la salida controlada para el evento.
 2. Todos los sandboxes reciben `HTTP_PROXY`/`HTTPS_PROXY`, pero solo pueden conectar al proxy
    interno cuando la `NetworkPolicy` del evento está habilitada.
-3. El proxy permite únicamente los hosts declarados en `EGRESS_PROXY_ALLOWED_HOSTS`.
+3. Por defecto el proxy permite únicamente los hosts declarados en la lista blanca efectiva.
+   El propietario puede activar por evento la excepción **Salida web pública sin lista blanca**:
+   permite dominios públicos por HTTP/HTTPS sin tener que enumerarlos. No es acceso de red
+   irrestricto: las listas negras conservan precedencia, no se aceptan IPs directas y el proxy
+   descarta resoluciones hacia redes privadas, locales o reservadas.
 4. El proxy rechaza otros dominios, registra evento/usuario/repositorio y limita tamaño,
    método y redirecciones.
 5. La `NetworkPolicy` mantiene bloqueado el acceso directo desde el sandbox a Internet y a los
   servicios internos.
 
-La lista blanca y la lista negra son configuración de plataforma administrada en GitOps. El
-frontend solo expone el permiso genérico de acceso a internet; no decide ni muestra qué dominios
-concretos están autorizados.
+La lista blanca y la lista negra globales son configuración de plataforma. El organizador también
+puede añadir listas por evento o activar manualmente la excepción temporal de salida web pública;
+esta última queda desactivada por defecto y debe revocarse desde la configuración del evento.
 
 En el CLI multiusuario cada asiento tiene una cuenta Linux y un workspace independiente. El
 agente aplica permisos `0750` a `/home/{uuid}` y `/home/{uuid}/workspace`; el grupo de control

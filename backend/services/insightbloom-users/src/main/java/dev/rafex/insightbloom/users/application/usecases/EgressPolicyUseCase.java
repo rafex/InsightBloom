@@ -17,10 +17,19 @@ public class EgressPolicyUseCase {
 
     public EgressPolicy get(final String conferenceUuid) {
         return repository.findByConference(conferenceUuid).orElseGet(() ->
-                new EgressPolicy(conferenceUuid, null, null, Instant.now()));
+                new EgressPolicy(conferenceUuid, null, null, false, Instant.now()));
     }
 
     public EgressPolicy save(final String conferenceUuid, final String allowedHosts, final String blockedHosts) {
+        return save(conferenceUuid, allowedHosts, blockedHosts, null);
+    }
+
+    /**
+     * A {@code null} allowAll preserves the stored value so older API clients cannot accidentally
+     * revoke an event owner's explicit exception while updating host lists.
+     */
+    public EgressPolicy save(final String conferenceUuid, final String allowedHosts, final String blockedHosts,
+                             final Boolean allowAll) {
         if (conferenceUuid == null || conferenceUuid.isBlank()) throw new IllegalArgumentException("conference_required");
         if (allowedHosts != null && allowedHosts.length() > MAX_HOSTS_TEXT_LENGTH) {
             throw new IllegalArgumentException("allowed_hosts_too_long");
@@ -28,6 +37,10 @@ public class EgressPolicyUseCase {
         if (blockedHosts != null && blockedHosts.length() > MAX_HOSTS_TEXT_LENGTH) {
             throw new IllegalArgumentException("blocked_hosts_too_long");
         }
-        return repository.save(new EgressPolicy(conferenceUuid, allowedHosts, blockedHosts, Instant.now()));
+        final boolean effectiveAllowAll = allowAll != null
+                ? allowAll
+                : repository.findByConference(conferenceUuid).map(EgressPolicy::allowAll).orElse(false);
+        return repository.save(new EgressPolicy(conferenceUuid, allowedHosts, blockedHosts, effectiveAllowAll,
+                Instant.now()));
     }
 }

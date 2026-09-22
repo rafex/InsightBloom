@@ -61,12 +61,14 @@ class ResolveEgressPolicyUseCaseTest {
         global.setEgressBlockedHosts("evil.example.com");
         Mockito.when(platformSettingsRepository.get()).thenReturn(global);
         Mockito.when(egressPolicyRepository.findByConference(CONF)).thenReturn(Optional.of(
-                new EgressPolicy(CONF, "extra-allowed.example.com", "extra-blocked.example.com", Instant.now())));
+                new EgressPolicy(CONF, "extra-allowed.example.com", "extra-blocked.example.com", true,
+                        Instant.now())));
 
         final var resolution = useCase.execute(IP).orElseThrow();
 
         assertEquals(CONF, resolution.conferenceUuid());
         assertTrue(resolution.internetEnabled());
+        assertTrue(resolution.allowAll());
         assertTrue(resolution.allowed().contains("github.com"));
         assertTrue(resolution.allowed().contains("*.npmjs.org"));
         assertTrue(resolution.allowed().contains("extra-allowed.example.com"));
@@ -87,7 +89,7 @@ class ResolveEgressPolicyUseCaseTest {
         global.setEgressBlockedHosts(null);
         Mockito.when(platformSettingsRepository.get()).thenReturn(global);
         Mockito.when(egressPolicyRepository.findByConference(CONF)).thenReturn(Optional.of(
-                new EgressPolicy(CONF, null, "github.com", Instant.now())));
+                new EgressPolicy(CONF, null, "github.com", false, Instant.now())));
 
         final var resolution = useCase.execute(IP).orElseThrow();
 
@@ -96,6 +98,7 @@ class ResolveEgressPolicyUseCaseTest {
         // caso de uso solo combina las listas, no resuelve la precedencia.
         assertTrue(resolution.allowed().contains("github.com"));
         assertTrue(resolution.blocked().contains("github.com"));
+        assertFalse(resolution.allowAll());
     }
 
     @Test
@@ -111,6 +114,7 @@ class ResolveEgressPolicyUseCaseTest {
         final var resolution = useCase.execute(IP).orElseThrow();
 
         assertFalse(resolution.internetEnabled());
+        assertFalse(resolution.allowAll());
         assertEquals(Set.of("github.com"), resolution.allowed());
         assertEquals(Set.of("localhost"), resolution.blocked());
     }
@@ -121,5 +125,15 @@ class ResolveEgressPolicyUseCaseTest {
         Mockito.when(conferenceRepository.findByUuid(CONF)).thenReturn(Optional.empty());
 
         assertTrue(useCase.execute(IP).isEmpty());
+    }
+
+    @Test
+    void keepsAllowAllFalseWhenEventHasNoPolicy() {
+        Mockito.when(orchestrator.findConferenceUuidByPodIp(IP)).thenReturn(Optional.of(CONF));
+        Mockito.when(conferenceRepository.findByUuid(CONF)).thenReturn(Optional.of(conferenceWithInternet(1)));
+        Mockito.when(platformSettingsRepository.get()).thenReturn(PlatformSettings.defaults());
+        Mockito.when(egressPolicyRepository.findByConference(CONF)).thenReturn(Optional.empty());
+
+        assertFalse(useCase.execute(IP).orElseThrow().allowAll());
     }
 }
