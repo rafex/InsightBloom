@@ -3070,6 +3070,15 @@ public class ConferenceHandler extends BaseResourceHandler {
                 ? resetSandboxUseCase.recreate(conferenceId, sandboxUuid)
                 : resetSandboxUseCase.delete(conferenceId, sandboxUuid);
             sendOk(jx, 200, result);
+        } catch (final dev.rafex.insightbloom.users.application.usecases.SandboxResetException e) {
+            LOGGER.log(java.util.logging.Level.WARNING, "reset de sandbox falló para " + conferenceId
+                + " (sandbox=" + sandboxUuid + ", action=" + (recreate ? "recreate" : "delete")
+                + ", kind=" + e.getKind() + ")", e);
+            final String errorCode = e.getMessage();
+            sendError(jx, 503, errorCode, e.getKind()
+                == dev.rafex.insightbloom.users.application.usecases.SandboxResetException.Kind.ORCHESTRATION
+                    ? "No se pudo eliminar el recurso del sandbox; inténtalo nuevamente"
+                    : "No se pudo actualizar el registro del sandbox; inténtalo nuevamente");
         } catch (final IllegalArgumentException e) {
             final String errorCode = e.getMessage() != null ? e.getMessage() : "invalid_sandbox";
             final int status = switch (errorCode) {

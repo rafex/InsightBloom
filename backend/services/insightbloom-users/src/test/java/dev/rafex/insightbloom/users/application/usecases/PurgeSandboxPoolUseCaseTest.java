@@ -30,14 +30,13 @@ class PurgeSandboxPoolUseCaseTest {
         final var expired1 = new Sandbox("conf-1", 0, "user-a", now.minusSeconds(10));
         final var expired2 = new Sandbox("conf-2", 0, "user-b", now.minusSeconds(20));
         Mockito.when(sandboxRepoMock.findExpired(now)).thenReturn(List.of(expired1, expired2));
-        Mockito.when(sandboxRepoMock.deleteExpired(now)).thenReturn(2);
-
         final int deleted = useCase.execute(now);
 
         assertEquals(2, deleted);
         Mockito.verify(orchestratorMock).deleteSandbox(expired1.podName());
         Mockito.verify(orchestratorMock).deleteSandbox(expired2.podName());
-        Mockito.verify(sandboxRepoMock).deleteExpired(now);
+        Mockito.verify(sandboxRepoMock).deletePod("conf-1", Sandbox.VARIANT_WEB, 0);
+        Mockito.verify(sandboxRepoMock).deletePod("conf-2", Sandbox.VARIANT_WEB, 0);
     }
 
     @Test
@@ -48,24 +47,51 @@ class PurgeSandboxPoolUseCaseTest {
         Mockito.when(sandboxRepoMock.findExpired(now)).thenReturn(List.of(expired1, expired2));
         Mockito.doThrow(new RuntimeException("k8s unreachable"))
             .when(orchestratorMock).deleteSandbox(expired1.podName());
-        Mockito.when(sandboxRepoMock.deleteExpired(now)).thenReturn(2);
-
         final int deleted = useCase.execute(now);
 
-        assertEquals(2, deleted);
+        assertEquals(1, deleted);
         Mockito.verify(orchestratorMock).deleteSandbox(expired2.podName());
-        Mockito.verify(sandboxRepoMock).deleteExpired(now);
+        Mockito.verify(sandboxRepoMock).deletePod("conf-2", Sandbox.VARIANT_WEB, 0);
+        Mockito.verify(sandboxRepoMock, Mockito.never()).deletePod("conf-1", Sandbox.VARIANT_WEB, 0);
     }
 
     @Test
     void testPurgeNoExpiredSandboxes() {
         final Instant now = Instant.now();
         Mockito.when(sandboxRepoMock.findExpired(now)).thenReturn(List.of());
-        Mockito.when(sandboxRepoMock.deleteExpired(now)).thenReturn(0);
-
         final int deleted = useCase.execute(now);
 
         assertEquals(0, deleted);
         Mockito.verifyNoInteractions(orchestratorMock);
+    }
+
+    @Test
+    void testPurgeKeepsRowsWhenPersistenceFails() {
+        final Instant now = Instant.now();
+        final var expired = new Sandbox("conf-1", 0, "user-a", now.minusSeconds(10));
+        Mockito.when(sandboxRepoMock.findExpired(now)).thenReturn(List.of(expired));
+        Mockito.doThrow(new RuntimeException("database locked")).when(sandboxRepoMock)
+            .deletePod("conf-1", Sandbox.VARIANT_WEB, 0);
+
+        final int deleted = useCase.execute(now);
+
+        assertEquals(0, deleted);
+        Mockito.verify(sandboxRepoMock).deletePod("conf-1", Sandbox.VARIANT_WEB, 0);
+    }
+
+    @Test
+    void testPurgeDeletesSharedCliPodOnceAndCountsEverySeat() {
+        final Instant now = Instant.now();
+        final var occupied = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_CLI,
+            "user-a", now.minusSeconds(10));
+        final var freeSeat = new Sandbox("conf-1", 0, 1, Sandbox.VARIANT_CLI,
+            null, now.minusSeconds(10));
+        Mockito.when(sandboxRepoMock.findExpired(now)).thenReturn(List.of(occupied, freeSeat));
+
+        final int deleted = useCase.execute(now);
+
+        assertEquals(2, deleted);
+        Mockito.verify(orchestratorMock).deleteSandbox(occupied.podName());
+        Mockito.verify(sandboxRepoMock).deletePod("conf-1", Sandbox.VARIANT_CLI, 0);
     }
 }

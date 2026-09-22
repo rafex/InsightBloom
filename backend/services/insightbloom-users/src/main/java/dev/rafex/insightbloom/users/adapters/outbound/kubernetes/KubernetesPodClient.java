@@ -1363,8 +1363,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final HttpRequest request = authedRequest(path).DELETE().build();
         final HttpResponse<String> response = send(request);
         if (response.statusCode() != 404 && response.statusCode() >= 300) {
-            LOGGER.log(Level.WARNING, () -> "kubernetes: fallo al borrar " + path + " -> "
-                    + response.statusCode() + " " + response.body());
+            throw new IllegalStateException("kubernetes_delete_failed: " + path + " -> "
+                    + response.statusCode());
         }
     }
 

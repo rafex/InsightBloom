@@ -94,4 +94,47 @@ class ResetSandboxUseCaseTest {
         verify(conferenceRepository, never()).save(any(Conference.class));
         verifyNoInteractions(ensurePool);
     }
+
+    @Test
+    void preservesRowsWhenKubernetesDeletionFails() {
+        final SandboxRepository sandboxRepository = mock(SandboxRepository.class);
+        final ConferenceRepository conferenceRepository = mock(ConferenceRepository.class);
+        final SandboxOrchestrator orchestrator = mock(SandboxOrchestrator.class);
+        final EnsureUnassignedSandboxUseCase ensurePool = mock(EnsureUnassignedSandboxUseCase.class);
+        final Sandbox sandbox = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_WEB,
+            null, Instant.now().plusSeconds(3600));
+        when(sandboxRepository.findByUuid(sandbox.getUuid())).thenReturn(Optional.of(sandbox));
+        when(sandboxRepository.findByConferenceUuid("conf-1")).thenReturn(List.of(sandbox));
+        doThrow(new IllegalStateException("kubernetes_delete_failed")).when(orchestrator).deleteSandbox(sandbox.podName());
+
+        final var useCase = new ResetSandboxUseCase(sandboxRepository, conferenceRepository, orchestrator, ensurePool);
+
+        final var error = assertThrows(SandboxResetException.class,
+            () -> useCase.delete("conf-1", sandbox.getUuid()));
+
+        assertEquals(SandboxResetException.Kind.ORCHESTRATION, error.getKind());
+        verify(sandboxRepository, never()).deletePod(anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    void classifiesPersistenceFailureAfterIdempotentResourceDeletion() {
+        final SandboxRepository sandboxRepository = mock(SandboxRepository.class);
+        final ConferenceRepository conferenceRepository = mock(ConferenceRepository.class);
+        final SandboxOrchestrator orchestrator = mock(SandboxOrchestrator.class);
+        final EnsureUnassignedSandboxUseCase ensurePool = mock(EnsureUnassignedSandboxUseCase.class);
+        final Sandbox sandbox = new Sandbox("conf-1", 0, 0, Sandbox.VARIANT_WEB,
+            null, Instant.now().plusSeconds(3600));
+        when(sandboxRepository.findByUuid(sandbox.getUuid())).thenReturn(Optional.of(sandbox));
+        when(sandboxRepository.findByConferenceUuid("conf-1")).thenReturn(List.of(sandbox));
+        doThrow(new RuntimeException("database locked")).when(sandboxRepository)
+            .deletePod("conf-1", Sandbox.VARIANT_WEB, 0);
+
+        final var useCase = new ResetSandboxUseCase(sandboxRepository, conferenceRepository, orchestrator, ensurePool);
+
+        final var error = assertThrows(SandboxResetException.class,
+            () -> useCase.delete("conf-1", sandbox.getUuid()));
+
+        assertEquals(SandboxResetException.Kind.PERSISTENCE, error.getKind());
+        verify(orchestrator).deleteSandbox(sandbox.podName());
+    }
 }

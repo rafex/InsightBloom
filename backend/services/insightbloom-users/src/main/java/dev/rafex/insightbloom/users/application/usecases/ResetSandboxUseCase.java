@@ -79,8 +79,16 @@ public class ResetSandboxUseCase {
 
         // Borramos el recurso real antes de quitar sus filas: si Kubernetes falla, el estado
         // queda visible y el organizador puede reintentar, en lugar de crear un Pod huérfano.
-        sandboxOrchestrator.deleteSandbox(requested.podName());
-        sandboxRepository.deletePod(conferenceUuid, requested.getVariant(), requested.getSandboxSlot());
+        try {
+            sandboxOrchestrator.deleteSandbox(requested.podName());
+        } catch (final RuntimeException e) {
+            throw new SandboxResetException(SandboxResetException.Kind.ORCHESTRATION, e);
+        }
+        try {
+            sandboxRepository.deletePod(conferenceUuid, requested.getVariant(), requested.getSandboxSlot());
+        } catch (final RuntimeException e) {
+            throw new SandboxResetException(SandboxResetException.Kind.PERSISTENCE, e);
+        }
 
         int recreatedPods = 0;
         if (recreate) {
