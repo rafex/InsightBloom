@@ -283,8 +283,30 @@ RUN npm install -g npm@latest && \
 # reconstruccion para que una imagen que permanece estatica durante meses no conserve
 # indefinidamente una version antigua.
 ARG OPENCODE_CACHE_BUST=default
-RUN echo "OpenCode cache key: ${OPENCODE_CACHE_BUST}" \
-    && curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path
+ARG OPENCODE_VERSION=latest
+LABEL io.insightbloom.opencode.installer="https://opencode.ai/v2/install" \
+      io.insightbloom.opencode.cli-version="${OPENCODE_VERSION}"
+RUN set -eux; \
+    echo "OpenCode cache key: ${OPENCODE_CACHE_BUST}"; \
+    curl -fsSL https://opencode.ai/v2/install | \
+      bash -s -- --version "${OPENCODE_VERSION}" --no-modify-path; \
+    opencode_version_output="$(opencode --version 2>&1)"; \
+    printf '%s\n' "$opencode_version_output" | grep -F -- "${OPENCODE_VERSION}"; \
+    printf '%s\n' "$opencode_version_output" > /tmp/insightbloom-opencode-cli-version
+
+USER root
+RUN set -eux; \
+    mkdir -p /etc/insightbloom; \
+    { \
+      printf 'cli_version=%s\n' "$(cat /tmp/insightbloom-opencode-cli-version)"; \
+      printf 'extension_version=not-applicable\n'; \
+      printf 'installer_url=https://opencode.ai/v2/install\n'; \
+      printf 'runtime_git_sha=%s\n' "$RUNTIME_GIT_SHA"; \
+      printf 'runtime_build_date=%s\n' "$RUNTIME_BUILD_DATE"; \
+      printf 'cache_bust=%s\n' "$OPENCODE_CACHE_BUST"; \
+    } > /etc/insightbloom/opencode-versions; \
+    chmod 0644 /etc/insightbloom/opencode-versions; \
+    rm -f /tmp/insightbloom-opencode-cli-version
 
 ENV TERM=xterm-256color
 

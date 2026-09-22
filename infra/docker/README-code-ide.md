@@ -40,27 +40,31 @@ Service del Pod sin saber si hay VS Code o una terminal detras.
 Todas las descargas se verifican con `sha256sum -c` contra un hash fijado en el Dockerfile
 (`ARG *_SHA256`), no solo "confiar en HTTPS".
 
-### Actualizar OpenCode CLI manualmente
+### Actualizar OpenCode CLI y la extensión Web manualmente
 
 El workflow `.github/workflows/publish-code-ide.yml` admite `workflow_dispatch` desde la pestaña
 **Actions** de GitHub. `refresh_opencode` queda activado por defecto; al ejecutarlo, usa el
 `run_id` como cache-bust de la capa de OpenCode y reconstruye las tres variantes (Web, Neovim y
-LazyVim), consultando la release `latest` de OpenCode CLI. Después, InsightBloom-gitops debe
-promover el tag inmutable `build-<run_id>` para que K3s use la nueva imagen.
+LazyVim). Antes del build consulta el canal oficial `latest`, fija la versión resuelta como
+argumento de la imagen y la registra en `/etc/insightbloom/opencode-versions`. El CLI se instala
+con `https://opencode.ai/v2/install`; la imagen Web instala `sst-dev.opencode` sin pin y valida la
+versión efectiva con `code-server --list-extensions --show-versions`. Después,
+InsightBloom-gitops debe promover el tag inmutable `build-<run_id>` para que K3s use la nueva
+imagen.
 
-Una ejecución manual con `refresh_opencode` desactivado conserva la caché de esa capa y sirve
-para reconstruir sin forzar una descarga. La extensión `sst-dev.opencode` del Web IDE no se
-actualiza con este mecanismo: mantiene su versión fijada de forma independiente.
+Una ejecución manual con `refresh_opencode` desactivado conserva la caché de esa capa cuando la
+versión resuelta no cambió. La extensión Web forma parte de la misma validación y queda registrada
+junto al CLI; Neovim y LazyVim no contienen extensiones de VS Code, solo el CLI.
 
 ## Herramientas de curso (pedido explicito, ver DEC-0023)
 
 Ademas del toolchain de lenguajes, las tres imagenes incluyen: `git`, `fzf`, `bash-completion`,
 `bat`/`eza`/`fd`/`ripgrep`/`ncdu` (mejoras de cat/ls/find/grep/du), `jq`, `tmux`, `tree`,
 `httpie`, `shellcheck`, `build-essential`/`build-base`, `maven`, `unzip`, `nano`, `less`+`man`,
-`just` 1.57.0 y `opencode` (CLI de agente de codigo IA). OpenCode CLI se instala sin un
-`--version` fijo, por lo que cada reconstruccion consulta la release `latest`; una imagen ya
-construida conserva la version que tenia hasta que se vuelva a construir y publicar. `insightbloom` incluye autocompletado
-de bash para subcomandos, opciones y rutas. El CLI tambien incluye `posting` 2.10.0 para probar REST
+`just` 1.57.0 y `opencode` (CLI de agente de codigo IA). Cada reconstruccion consulta el canal
+`latest`, pasa la version exacta al instalador `/v2/install` y verifica `opencode --version`; una
+imagen ya construida conserva la version que tenia hasta que se vuelva a construir y publicar.
+`insightbloom` incluye autocompletado de bash para subcomandos, opciones y rutas. El CLI tambien incluye `posting` 2.10.0 para probar REST
 desde terminal. Paquetes globales de Python (`jupyter`, `numpy`,
 `pandas`, `matplotlib`, `flask`, `django`, `fastapi`, `pytest`, `black`, `pylint`, `debugpy`) y
 de Node (`typescript`, `typescript-language-server`, `eslint`, `prettier`, `@types/node`, `vite`, `webpack`, `@vue/cli`, `create-react-app`)
@@ -199,10 +203,9 @@ java` no esta en open-vsx.org), Python (`ms-python.python` + `ms-pyright.pyright
 Pylance, tampoco en open-vsx), el pack web (Prettier/ESLint/Volar/React/Tailwind/HTML-CSS),
 [`humao.rest-client`](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) para
 ejecutar archivos `.http`/`.rest`, el paquete de idioma español
-(`ms-ceintl.vscode-language-pack-es`) y `sst-dev.opencode`. Las extensiones, incluida
-`sst-dev.opencode`, siguen fijadas a una version explicita salvo el language pack; ese pin es
-independiente de la version del CLI OpenCode instalada en la imagen (ver comentarios en los
-Dockerfiles).
+(`ms-ceintl.vscode-language-pack-es`) y `sst-dev.opencode`. La extensión se instala sin pin para
+resolver el canal `latest`, se valida durante el build y su versión efectiva queda registrada junto
+al CLI; ese ciclo es independiente de la versión del binario OpenCode.
 
 ## Probar APIs REST
 

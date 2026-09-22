@@ -1561,3 +1561,29 @@ Registrar una decision cuando cambie:
   y capacidad antes de resolver un destino; el runtime requiere una política de recursos más amplia
   que los servicios HTTP normales.
 - Reemplaza: la responsabilidad de publicación web embebida en `insightbloom-presentations`.
+
+### DEC-0036 - OpenCode resuelto por canal latest y registrado en las imágenes
+
+- Fecha: 2026-09-21
+- Estado: accepted
+- Contexto: las imágenes del IDE instalaban OpenCode con el instalador histórico y podían
+  conservar una versión anterior por la caché de BuildKit. Además, la extensión Web y el CLI
+  tenían controles de versión distintos y no existía un artefacto común de auditoría.
+- Decision:
+  - Las tres imágenes consultan el canal oficial `latest` durante el workflow y pasan la versión
+    resuelta de forma explícita al instalador `https://opencode.ai/v2/install`.
+  - El workflow conserva `OPENCODE_CACHE_BUST`, usando el `run_id` para `refresh_opencode=true` y
+    el SHA del commit en builds automáticos.
+  - La imagen Debian instala `sst-dev.opencode` sin pin para resolver el latest del marketplace;
+    el build falla si la extensión no queda instalada y registra su versión efectiva.
+  - Cada imagen contiene `/etc/insightbloom/opencode-versions` con la versión CLI, la extensión
+    cuando aplica, la fuente de instalación, el SHA del build, la fecha y la clave de caché.
+  - Las imágenes se publican con tags `latest` y `build-*`, pero Kubernetes continúa usando solo
+    el tag inmutable promovido por FluxCD.
+- Consecuencias:
+  - La versión exacta del build queda reproducible y auditable aunque el canal sea `latest`.
+  - Una actualización de OpenCode requiere reconstruir las tres imágenes y esperar la promoción
+    de FluxCD; no se actualiza el binario dentro de un Pod existente.
+  - La rotación forzada de sandboxes ocupados puede perder cambios en `emptyDir`, por lo que el
+    respaldo del workspace es obligatorio antes de cualquier mantenimiento destructivo.
+- Reemplaza: la instalación sin versión explícita mediante `https://opencode.ai/install`.

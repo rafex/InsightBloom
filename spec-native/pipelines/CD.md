@@ -81,19 +81,23 @@ de deploy hizo que un fallo ahí frenara imágenes ya listas de la aplicación r
 tag `v*.*` con su `paths:` filter propio, más `workflow_dispatch` manual con input
 `version_tag` (formato `vN.YYYYmmDD[-N]`). `publish-code-ide.yml` corre en cualquier `push` a
 `main` o tag `v*.*`, y también admite `workflow_dispatch` con `refresh_opencode` activado por
-defecto. Ese dispatch usa `github.run_id` como cache-bust para que las tres imágenes consulten
-la release `latest` de OpenCode CLI; los builds automáticos usan el SHA del commit como clave.
-Publica `latest` más `build-${{ github.run_id }}`. Ese tag inmutable es el que ImagePolicy de
-InsightBloom-gitops promueve al HelmRelease; los sandboxes dinámicos no resuelven `latest`.
+defecto. El workflow consulta el canal oficial `latest` de OpenCode, registra versión, paquete y
+SHA de origen, pasa la versión exacta a `https://opencode.ai/v2/install` y verifica el binario
+dentro de cada una de las tres imágenes. El dispatch usa `github.run_id` como cache-bust; los
+builds automáticos usan el SHA del commit como clave. Publica `latest` más
+`build-${{ github.run_id }}`. Ese tag inmutable es el que ImagePolicy de InsightBloom-gitops
+promueve al HelmRelease; los sandboxes dinámicos no resuelven `latest`.
 
 **Versionado de tags** (igual en los 14 workflows):
 - Tag semántico (`v1.20260424`) → tag + sha
 - Push a main → `latest` + sha + `build-${{ github.run_number }}`
 - Manual dispatch → tag validado (formato `vN.YYYYmmDD[-N]`)
 
-**Características comunes**: multi-plataforma `linux/amd64`, cache GHA (`type=gha`, con
-`scope` por servicio en los reusable workflows para no pisarse cache entre sí),
-`provenance: false` / `sbom: false` (optimización de tiempo de build).
+**Características de `publish-code-ide.yml`**: plataforma `linux/amd64`, cache GHA
+(`type=gha`, con `scope` por variante para no pisarse cache entre sí), `provenance: true` y
+`sbom: true`. Cada imagen publica `/etc/insightbloom/opencode-versions` con la versión efectiva
+del CLI, la extensión cuando aplica, el instalador, el SHA del build y la clave de cache. Los demás
+workflows conservan sus propias opciones de provenance/SBOM documentadas por sus implementaciones.
 
 ## Deploy a K3s mediante FluxCD
 

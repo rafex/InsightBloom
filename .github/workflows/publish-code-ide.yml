@@ -79,14 +79,28 @@ jobs:
         id: metadata
         shell: bash
         run: |
-          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          opencode_metadata="$(curl -fsSL https://opencode.ai/update/api/latest/cli/npm)"
+          opencode_version="$(jq -er '.version' <<<"$opencode_metadata")"
+          opencode_package="$(jq -er '.metadata.package' <<<"$opencode_metadata")"
+          opencode_source_sha="$(jq -er '.metadata.github.sha' <<<"$opencode_metadata")"
+          echo "OpenCode channel: $(jq -er '.channel' <<<"$opencode_metadata")"
+          echo "OpenCode version: $opencode_version"
+          echo "OpenCode package: $opencode_package"
+          echo "OpenCode source SHA: $opencode_source_sha"
+          {
+            echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "opencode_version=$opencode_version"
+            echo "opencode_package=$opencode_package"
+            echo "opencode_source_sha=$opencode_source_sha"
+          } >> "$GITHUB_OUTPUT"
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "${{ inputs.refresh_opencode }}" == "true" ]]; then
             # Cada dispatch debe atravesar la capa de instalación para consultar latest.
-            echo "opencode_cache_bust=$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+            opencode_cache_bust="$GITHUB_RUN_ID"
           else
             # En builds automáticos, un commit nuevo también invalida esa capa.
-            echo "opencode_cache_bust=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            opencode_cache_bust="$GITHUB_SHA"
           fi
+          echo "opencode_cache_bust=$opencode_cache_bust" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v7
@@ -101,6 +115,7 @@ jobs:
             RUNTIME_GIT_SHA=${{ github.sha }}
             RUNTIME_BUILD_DATE=${{ steps.metadata.outputs.build_date }}
             OPENCODE_CACHE_BUST=${{ steps.metadata.outputs.opencode_cache_bust }}
+            OPENCODE_VERSION=${{ steps.metadata.outputs.opencode_version }}
           tags: |
             ${{ matrix.image }}:${{ matrix.variantTag }}
             ${{ matrix.image }}:build-${{ github.run_id }}
