@@ -33,13 +33,13 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         // codigo (AssignSandboxUseCase), no algo que un organizador hubiera configurado.
         String sql = """
             INSERT OR REPLACE INTO conferences
-              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, description, visibility, schedule_markdown, schedule_layout, public_theme, timezone_id, reminder_sent_at, day_before_reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, sandbox_cli_lazyvim_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode, ticket_price, ticket_currency, certificate_engine, ticket_sales_enabled, on_demand_video_provider, on_demand_video_url)
+              (uuid, friendly_id, name, created_by_user_uuid, status, created_at, updated_at, expires_at, latitude, longitude, event_date, venue, start_time, end_time, name_auto_generated, presentation_source_url, flyer_base64, description, visibility, schedule_markdown, schedule_layout, public_theme, timezone_id, reminder_sent_at, day_before_reminder_sent_at, seating_mode, capacity, reserved_count, venue_map_base64, event_type_key, notes_purged_at, diagram_xml, diagram_published_svg, diagram_updated_at, diagram_version, diagram_purged_at, whiteboard_scene_json, whiteboard_published_svg, whiteboard_updated_at, whiteboard_version, sandbox_variant, sandbox_pool_size, sandbox_internet_enabled, sandbox_remote_git_url, sandbox_jvm_heap_mb, sandbox_seats_per_pod, sandbox_cli_pool_size, sandbox_cli_lazyvim_pool_size, max_devices_per_user, max_accounts_per_device, canvas_tool, canvas_audience_mode, ticket_price, ticket_currency, certificate_engine, ticket_sales_enabled, on_demand_video_provider, on_demand_video_url, sandbox_material_source_url, sandbox_material_ref, sandbox_bootstrap_kind, sandbox_bootstrap_source, sandbox_bootstrap_value)
             VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                , ?, ?, ?, ?
+                , ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         """;
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -117,6 +117,11 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setInt(56, conference.isTicketSalesEnabled() ? 1 : 0);
             ps.setString(57, conference.getOnDemandVideoProvider());
             ps.setString(58, conference.getOnDemandVideoUrl());
+            ps.setString(59, conference.getSandboxMaterialSourceUrl());
+            ps.setString(60, conference.getSandboxMaterialRef());
+            ps.setString(61, conference.getSandboxBootstrapKind());
+            ps.setString(62, conference.getSandboxBootstrapSource());
+            ps.setString(63, conference.getSandboxBootstrapValue());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -350,6 +355,11 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.setSandboxPoolSize(rs.wasNull() ? null : sandboxPoolSize);
         conference.setSandboxInternetEnabled(rs.getInt("sandbox_internet_enabled"));
         conference.setSandboxRemoteGitUrl(rs.getString("sandbox_remote_git_url"));
+        conference.setSandboxMaterialSourceUrl(rs.getString("sandbox_material_source_url"));
+        conference.setSandboxMaterialRef(rs.getString("sandbox_material_ref"));
+        conference.setSandboxBootstrapKind(rs.getString("sandbox_bootstrap_kind"));
+        conference.setSandboxBootstrapSource(rs.getString("sandbox_bootstrap_source"));
+        conference.setSandboxBootstrapValue(rs.getString("sandbox_bootstrap_value"));
         final int sandboxJvmHeapMb = rs.getInt("sandbox_jvm_heap_mb");
         conference.setSandboxJvmHeapMb(rs.wasNull() ? null : sandboxJvmHeapMb);
         final int sandboxSeatsPerPod = rs.getInt("sandbox_seats_per_pod");

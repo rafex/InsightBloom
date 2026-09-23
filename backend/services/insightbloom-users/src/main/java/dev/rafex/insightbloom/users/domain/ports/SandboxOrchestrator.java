@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.domain.ports;
 
 import dev.rafex.insightbloom.users.domain.model.ContainerBuildResult;
+import dev.rafex.insightbloom.users.domain.model.MaterialBootstrapConfig;
 import dev.rafex.insightbloom.users.domain.model.WorkspaceFileContent;
 import dev.rafex.insightbloom.users.domain.model.WorkspaceFileEntry;
 
@@ -43,6 +44,12 @@ public interface SandboxOrchestrator {
     void createSandbox(String podName, String conferenceUuid, String variant,
                         String remoteGitUrl, boolean internetEnabled, Integer jvmHeapMb, Integer seatsPerPod);
 
+    default void createSandbox(String podName, String conferenceUuid, String variant,
+                               String remoteGitUrl, boolean internetEnabled, Integer jvmHeapMb, Integer seatsPerPod,
+                               MaterialBootstrapConfig materialBootstrap) {
+        createSandbox(podName, conferenceUuid, variant, remoteGitUrl, internetEnabled, jvmHeapMb, seatsPerPod);
+    }
+
     /**
      * Fase B (2026-07): pide al seat-agent de un Pod neovim multi-asiento ya corriendo que
      * cree (si no existe) el usuario Linux y el {@code ttyd} de un asiento especifico. No hace
@@ -53,6 +60,12 @@ public interface SandboxOrchestrator {
      * @param userUuid alumno real asignado a ese asiento (para logging/incidentes, Fase C)
      */
     void provisionSeat(String podName, int seatIndex, String userUuid);
+
+    /** Conserva el contrato existente y permite actualizar el material antes del asiento. */
+    default void provisionSeat(String podName, int seatIndex, String userUuid,
+                               MaterialBootstrapConfig materialBootstrap) {
+        provisionSeat(podName, seatIndex, userUuid);
+    }
 
     /**
      * Como {@link #provisionSeat}, pero un UNICO intento rapido en vez de reintentar durante

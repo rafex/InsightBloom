@@ -121,6 +121,27 @@
         input#config-sandbox-git(v-model="sandboxRemoteGitUrl" type="text" placeholder="https://github.com/...")
       p.field-hint Si lo indicás, se clona automáticamente en el workspace de cada alumno al arrancar su sandbox (solo si el workspace está vacío — no pisa trabajo ya en progreso).
       .coord-field
+        label.coord-label(for="config-material-source") Repositorio de materiales cacheado (GitHub público, opcional)
+        input#config-material-source(v-model="sandboxMaterialSourceUrl" type="url" placeholder="https://github.com/organizacion/materiales")
+      .coord-field(v-if="sandboxMaterialSourceUrl")
+        label.coord-label(for="config-material-ref") Rama o ref a sincronizar
+        input#config-material-ref(v-model="sandboxMaterialRef" type="text" placeholder="main")
+      .coord-field(v-if="sandboxMaterialSourceUrl")
+        label.coord-label Preparador
+        select(v-model="sandboxBootstrapKind")
+          option(value="shell") Shell
+          option(value="python") Python
+        select(v-model="sandboxBootstrapSource")
+          option(value="material") Ruta dentro del material cacheado
+          option(value="inline") Script pegado aquí
+      .coord-field(v-if="sandboxMaterialSourceUrl && sandboxBootstrapSource === 'material'")
+        label.coord-label(for="config-material-script") Ruta relativa del script
+        input#config-material-script(v-model="sandboxBootstrapValue" type="text" placeholder="talleres/curso/bootstrap.sh")
+      .coord-field(v-if="sandboxMaterialSourceUrl && sandboxBootstrapSource === 'inline'")
+        label.coord-label(for="config-material-inline") Script de preparación
+        textarea#config-material-inline(v-model="sandboxBootstrapValue" rows="8" placeholder="insightbloom-material-copy ...")
+      p.field-hint(v-if="sandboxMaterialSourceUrl") El material se monta en modo solo lectura y se actualiza al arrancar; el script corre como alumno y no sobrescribe archivos existentes salvo que lo haga explícitamente.
+      .coord-field
         label.coord-label(for="config-sandbox-jvm-heap") Memoria máxima de Java por sandbox (MB, opcional)
         input#config-sandbox-jvm-heap(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="70 (por defecto)")
       p.field-hint Cuánta memoria puede usar cada programa de Java que corran los asistentes (incluido el autocompletado del editor). El valor por defecto (70 MB) está pensado para cursos: alcanza para ejercicios y no acapara el sandbox. Si ponés un valor mayor al que soporta la infraestructura, el servidor rechaza el guardado y te lo indica.
@@ -417,6 +438,11 @@ export default {
     const cliEnabled = computed(() => (sandboxCliPoolSize.value ?? 0) > 0
       || (sandboxCliLazyVimPoolSize.value ?? 0) > 0)
     const sandboxRemoteGitUrl = ref('')
+    const sandboxMaterialSourceUrl = ref('')
+    const sandboxMaterialRef = ref('main')
+    const sandboxBootstrapKind = ref<'shell' | 'python'>('shell')
+    const sandboxBootstrapSource = ref<'inline' | 'material'>('material')
+    const sandboxBootstrapValue = ref('')
     // Heap maximo (-Xmx, en MB) de las JVMs del sandbox -- null = usa el default chico del
     // backend (70Mi, ver KubernetesPodClient). El backend rechaza (400) valores que excedan el
     // limite de memoria del contenedor configurado en el chart de despliegue -- no se valida ese
@@ -714,6 +740,11 @@ export default {
         sandboxCliPoolSize.value = conference.value.sandboxCliPoolSize ?? 1
         sandboxCliLazyVimPoolSize.value = conference.value.sandboxCliLazyVimPoolSize ?? null
         sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''
+        sandboxMaterialSourceUrl.value = conference.value.sandboxMaterialSourceUrl || ''
+        sandboxMaterialRef.value = conference.value.sandboxMaterialRef || 'main'
+        sandboxBootstrapKind.value = conference.value.sandboxBootstrapKind || 'shell'
+        sandboxBootstrapSource.value = conference.value.sandboxBootstrapSource || 'material'
+        sandboxBootstrapValue.value = conference.value.sandboxBootstrapValue || ''
         sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? 70
         sandboxSeatsPerPod.value = conference.value.sandboxSeatsPerPod ?? null
         sandboxInternetEnabled.value = conference.value.sandboxInternetEnabled === 1
@@ -825,6 +856,10 @@ export default {
           sandboxRemoteGitUrl.value.trim() || null,
           sandboxJvmHeapMb.value, sandboxSeatsPerPod.value, sandboxCliPoolSize.value,
           sandboxCliLazyVimPoolSize.value,
+          sandboxMaterialSourceUrl.value.trim() || null, sandboxMaterialRef.value.trim() || null,
+          sandboxMaterialSourceUrl.value ? sandboxBootstrapKind.value : null,
+          sandboxMaterialSourceUrl.value ? sandboxBootstrapSource.value : null,
+          sandboxMaterialSourceUrl.value ? sandboxBootstrapValue.value : null,
           auth.state.token as string
         )
         sandboxConfigSaved.value = true
@@ -1054,7 +1089,8 @@ export default {
              ticketSalesEnabled, savingTicketSales, ticketSalesSaved, ticketSalesError, saveTicketSales,
              sandboxVariant, sandboxPoolSize, sandboxCliPoolSize, sandboxCliLazyVimPoolSize, cliEnabled,
              sandboxRemoteGitUrl, sandboxJvmHeapMb,
-             sandboxSeatsPerPod, sandboxInternetEnabled,
+             sandboxSeatsPerPod, sandboxInternetEnabled, sandboxMaterialSourceUrl, sandboxMaterialRef,
+             sandboxBootstrapKind, sandboxBootstrapSource, sandboxBootstrapValue,
              savingSandboxConfig, sandboxConfigSaved, sandboxConfigError, savingSandboxInternet,
              saveSandboxConfig, saveSandboxInternet,
              sandboxIncidents, sandboxIncidentsLoaded, loadingSandboxIncidents, sandboxIncidentsError,

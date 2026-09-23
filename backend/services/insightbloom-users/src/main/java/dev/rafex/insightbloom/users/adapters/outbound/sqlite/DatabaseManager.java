@@ -204,6 +204,11 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_remote_git_url TEXT");
             } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_material_source_url TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_material_ref TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_bootstrap_kind TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_bootstrap_source TEXT"); } catch (SQLException ignored) {}
+            try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_bootstrap_value TEXT"); } catch (SQLException ignored) {}
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_jvm_heap_mb INTEGER");
             } catch (SQLException ignored) {}

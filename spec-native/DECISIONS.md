@@ -1608,3 +1608,19 @@ Registrar una decision cuando cambie:
   - Un cliente API antiguo que no envíe `allowAll` preserva el valor ya guardado; el frontend
     actual siempre lo envía explícitamente.
 - Reemplaza: la restricción de que todo evento con internet habilitado requiera lista blanca.
+
+### DEC-0038 - Materiales de curso compartidos y preparación no privilegiada
+
+- Fecha: 2026-09-23
+- Estado: accepted
+- Contexto: clonar un repositorio grande por cada sandbox desperdicia tiempo, red y disco; sin
+  embargo, compartir un workspace escribible entre alumnos rompería aislamiento y trazabilidad.
+- Decision: `insightbloom-material-cache` sincroniza solamente repositorios GitHub HTTPS públicos
+  y publica snapshots inmutables por SHA en un PVC Longhorn RWX. Los sandboxes montan ese PVC
+  como solo lectura y ejecutan un script shell/Python configurado por el propietario del evento
+  como el usuario del alumno. La rama/ref se sigue al iniciar y el SHA efectivo se registra en el
+  workspace. Un error crea diagnóstico pero no bloquea el IDE.
+- Consecuencias: los cursos reutilizan datos sin clonar todo el repositorio por alumno, mientras
+  que el origen y el script deben tratarse como código de confianza del propietario del evento.
+  Repositorios privados, credenciales y escritura al caché quedan fuera de esta primera versión.
+- Reemplaza: el uso exclusivo de `sandboxRemoteGitUrl` para material inicial.

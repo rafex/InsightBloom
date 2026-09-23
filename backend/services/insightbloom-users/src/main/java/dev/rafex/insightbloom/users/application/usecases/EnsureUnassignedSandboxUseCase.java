@@ -145,9 +145,14 @@ public class EnsureUnassignedSandboxUseCase {
         final Sandbox sandbox = new Sandbox(conferenceUuid, sandboxSlot, 0, variant, null, expiresAt);
 
         try {
-            sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, orchestratorVariant,
-                conference.getSandboxRemoteGitUrl(), internetEnabled,
-                conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
+            if (conference.materialBootstrap().enabled()) {
+                sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, orchestratorVariant,
+                    conference.getSandboxRemoteGitUrl(), internetEnabled, conference.getSandboxJvmHeapMb(),
+                    conference.getSandboxSeatsPerPod(), conference.materialBootstrap());
+            } else {
+                sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, orchestratorVariant,
+                    conference.getSandboxRemoteGitUrl(), internetEnabled, conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
+            }
         } catch (final IllegalStateException e) {
             if ("kubernetes_not_configured".equals(e.getMessage())) {
                 return false;

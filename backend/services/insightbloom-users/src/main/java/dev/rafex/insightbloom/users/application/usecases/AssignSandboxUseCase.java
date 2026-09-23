@@ -231,9 +231,7 @@ public class AssignSandboxUseCase {
             // corriendo: no hace falta (ni conviene) volver a pedirlo, solo sumar el asiento
             // (ver mas abajo).
             try {
-                sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, orchestratorVariant,
-                    conference.getSandboxRemoteGitUrl(), internetEnabled,
-                    conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
+                createSandbox(sandbox.podName(), conferenceUuid, orchestratorVariant, conference, internetEnabled);
             } catch (final IllegalStateException e) {
                 if ("kubernetes_not_configured".equals(e.getMessage())) {
                     throw new IllegalArgumentException("sandbox_unavailable");
@@ -324,14 +322,23 @@ public class AssignSandboxUseCase {
         final boolean internetEnabled = conference.getSandboxInternetEnabled() != null
             && conference.getSandboxInternetEnabled() == 1;
         try {
-            sandboxOrchestrator.createSandbox(sandbox.podName(), sandbox.getConferenceUuid(), orchestratorVariant,
-                conference.getSandboxRemoteGitUrl(), internetEnabled,
-                conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
+            createSandbox(sandbox.podName(), sandbox.getConferenceUuid(), orchestratorVariant, conference, internetEnabled);
         } catch (final IllegalStateException e) {
             if ("kubernetes_not_configured".equals(e.getMessage())) {
                 throw new IllegalArgumentException("sandbox_unavailable");
             }
             throw e;
+        }
+    }
+
+    private void createSandbox(final String podName, final String conferenceUuid, final String variant,
+                               final Conference conference, final boolean internetEnabled) {
+        if (conference.materialBootstrap().enabled()) {
+            sandboxOrchestrator.createSandbox(podName, conferenceUuid, variant, conference.getSandboxRemoteGitUrl(),
+                    internetEnabled, conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod(), conference.materialBootstrap());
+        } else {
+            sandboxOrchestrator.createSandbox(podName, conferenceUuid, variant, conference.getSandboxRemoteGitUrl(),
+                    internetEnabled, conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
         }
     }
 

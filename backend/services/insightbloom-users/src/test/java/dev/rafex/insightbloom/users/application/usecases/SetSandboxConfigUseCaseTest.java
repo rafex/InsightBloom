@@ -152,4 +152,28 @@ class SetSandboxConfigUseCaseTest {
             () -> useCase.execute("conf1", "terminal-nvim", 1, null, null, 11, null));
         assertEquals("seats_per_pod_out_of_range", ex.getMessage());
     }
+
+    @Test
+    void savesPublicGithubMaterialBootstrap() {
+        Mockito.when(repoMock.findByUuid("conf1")).thenReturn(Optional.of(conf));
+
+        var result = useCase.execute("conf1", "", 1, null, 70, null, 1, null,
+                "https://github.com/rafex/presentaciones-cursos-talleres", "main", "shell",
+                "inline", "material-copy \"$INSIGHTBLOOM_MATERIALS_ROOT/key/current/talleres/crea-tu-agente-ia/ejercicios\" \"$INSIGHTBLOOM_WORKSPACE\"");
+
+        assertTrue(result.materialBootstrap().enabled());
+        assertEquals("main", result.materialBootstrap().ref());
+        assertEquals("inline", result.materialBootstrap().source());
+    }
+
+    @Test
+    void rejectsGithubPathsOutsideOnePublicRepository() {
+        Mockito.when(repoMock.findByUuid("conf1")).thenReturn(Optional.of(conf));
+
+        var ex = assertThrows(IllegalArgumentException.class,
+                () -> useCase.execute("conf1", "", 1, null, 70, null, 1, null,
+                        "https://github.com/rafex/repo/tree/main", "main", "shell", "inline", "echo hola"));
+
+        assertEquals("material_source_must_be_public_github", ex.getMessage());
+    }
 }

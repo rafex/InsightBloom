@@ -29,6 +29,28 @@ ya no obliga a todos los asistentes a compartir una sola imagen:
 pipeline (gateway, `SandboxHandler`, `IdePage.vue`) es agnóstico al modo, proxea HTTP/WS al
 Service del Pod sin saber si hay VS Code o una terminal detras.
 
+## Materiales de curso sin clonar por alumno
+
+El propietario de un evento puede configurar en **IDE y sandboxes** un repositorio público de
+GitHub, su rama/ref y un preparador `shell` o `python`. `insightbloom-material-cache` sigue esa
+ref una vez en un PVC Longhorn RWX, publica un release atómico por SHA y cada sandbox recibe el
+material montado en `/opt/insightbloom/materials` como solo lectura. El preparador corre antes de
+exponer code-server, ttyd o un asiento CLI compartido, siempre como usuario del alumno.
+
+Se admite tanto un script inline como una ruta relativa dentro del material. El helper
+`material-copy ORIGEN DESTINO` copia un subárbol sin reemplazar archivos existentes. Por ejemplo,
+para el taller de Agente IA se configura el repositorio
+`https://github.com/rafex/presentaciones-cursos-talleres`, ref `main`, y un script shell inline:
+
+```sh
+material-copy "$INSIGHTBLOOM_MATERIALS_ROOT/$INSIGHTBLOOM_MATERIAL_SOURCE/talleres/crea-tu-agente-ia/ejercicios" "$INSIGHTBLOOM_WORKSPACE"
+```
+
+El SHA realmente usado queda en `.insightbloom/bootstrap-status.json`; la salida está en
+`.insightbloom/bootstrap.log`. Si la sincronización o el script falla, el IDE abre igualmente y
+crea `README-INSIGHTBLOOM-BOOTSTRAP.md` con el diagnóstico. La primera versión rechaza repositorios
+privados, credenciales en URL, rutas absolutas y escritura al volumen compartido.
+
 ## Toolchain (versiones controladas; OpenCode CLI se actualiza a latest al construir)
 
 | Componente | Version | Origen |

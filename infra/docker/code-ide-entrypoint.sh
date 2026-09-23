@@ -11,6 +11,10 @@ set -euo pipefail
 # abierta. Para cuando este entrypoint arranca, el netns del Pod ya está bloqueado (solo
 # tráfico interno del cluster) -- clonar acá fallaría para remotos no permitidos.
 
+# El preparador es deliberadamente posterior al clone del initContainer y anterior a los
+# archivos auxiliares del IDE. Nunca aborta el IDE: escribe estado/log dentro del workspace.
+/usr/local/bin/prepare-materials.sh /home/coder/workspace
+
 # Configuracion del workspace: publica los tipos de Node.js precargados para que el TypeScript
 # language service pueda resolver fs/http/process/Buffer sin npm ni Internet durante la sesion.
 /usr/local/bin/seed-node-types.sh /home/coder/workspace

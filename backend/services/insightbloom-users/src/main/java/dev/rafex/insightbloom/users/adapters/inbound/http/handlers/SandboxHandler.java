@@ -663,6 +663,15 @@ public class SandboxHandler extends BaseResourceHandler {
                 sendError(jx, 401, "token_invalid", "Invalid token");
                 return true;
             }
+            final var conference = conferenceRepository.findByUuid(conferenceId);
+            if (conference.isEmpty()) {
+                sendError(jx, 404, "conference_not_found", "Conference not found");
+                return true;
+            }
+            if (!v.subjectUuid().equals(conference.get().getCreatedByUserUuid())) {
+                sendError(jx, 403, "conference_owner_required", "Solo el propietario puede configurar materiales del IDE");
+                return true;
+            }
 
             final var body = parseBody(jx);
             final String sandboxVariant = (String) body.get("sandboxVariant");
@@ -672,6 +681,11 @@ public class SandboxHandler extends BaseResourceHandler {
             final Integer sandboxSeatsPerPod = (Integer) body.get("sandboxSeatsPerPod");
             final Integer sandboxCliPoolSize = (Integer) body.get("sandboxCliPoolSize");
             final Integer sandboxCliLazyVimPoolSize = (Integer) body.get("sandboxCliLazyVimPoolSize");
+            final String materialSourceUrl = (String) body.get("sandboxMaterialSourceUrl");
+            final String materialRef = (String) body.get("sandboxMaterialRef");
+            final String bootstrapKind = (String) body.get("sandboxBootstrapKind");
+            final String bootstrapSource = (String) body.get("sandboxBootstrapSource");
+            final String bootstrapValue = (String) body.get("sandboxBootstrapValue");
 
             final var updated = setSandboxConfigUseCase.execute(
                 conferenceId,
@@ -681,7 +695,8 @@ public class SandboxHandler extends BaseResourceHandler {
                 sandboxJvmHeapMb,
                 sandboxSeatsPerPod,
                 sandboxCliPoolSize,
-                sandboxCliLazyVimPoolSize
+                sandboxCliLazyVimPoolSize,
+                materialSourceUrl, materialRef, bootstrapKind, bootstrapSource, bootstrapValue
             );
 
             sendOk(jx, 200, updated);

@@ -142,6 +142,11 @@ export interface Conference {
   sandboxPoolSize?: number | null
   sandboxInternetEnabled?: number | null
   sandboxRemoteGitUrl?: string | null
+  sandboxMaterialSourceUrl?: string | null
+  sandboxMaterialRef?: string | null
+  sandboxBootstrapKind?: 'shell' | 'python' | null
+  sandboxBootstrapSource?: 'inline' | 'material' | null
+  sandboxBootstrapValue?: string | null
   canvasTool?: CanvasTool | null
   canvasAudienceMode?: CanvasAudienceMode | null
   canvasConfigs?: CanvasToolConfig[]

@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
 import dev.rafex.insightbloom.users.domain.model.Conference;
+import java.net.URI;
 import dev.rafex.insightbloom.users.domain.ports.ConferenceRepository;
 
 public class SetSandboxConfigUseCase {
@@ -41,7 +42,9 @@ public class SetSandboxConfigUseCase {
         Integer sandboxJvmHeapMb,
         Integer sandboxSeatsPerPod,
         Integer sandboxCliPoolSize,
-        Integer sandboxCliLazyVimPoolSize
+        Integer sandboxCliLazyVimPoolSize,
+        String materialSourceUrl, String materialRef, String bootstrapKind,
+        String bootstrapSource, String bootstrapValue
     ) {
         var conf = conferenceRepository.findByUuid(conferenceUuid)
             .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
@@ -87,6 +90,7 @@ public class SetSandboxConfigUseCase {
                 && (sandboxSeatsPerPod < MIN_SEATS_PER_POD || sandboxSeatsPerPod > MAX_SEATS_PER_POD)) {
             throw new IllegalArgumentException("seats_per_pod_out_of_range");
         }
+        validateMaterialBootstrap(materialSourceUrl, materialRef, bootstrapKind, bootstrapSource, bootstrapValue);
 
         conf.setSandboxVariant(sandboxVariant);
         conf.setSandboxPoolSize(sandboxPoolSize);
@@ -95,9 +99,25 @@ public class SetSandboxConfigUseCase {
         conf.setSandboxSeatsPerPod(sandboxSeatsPerPod);
         conf.setSandboxCliPoolSize(sandboxCliPoolSize);
         conf.setSandboxCliLazyVimPoolSize(sandboxCliLazyVimPoolSize);
+        conf.setSandboxMaterialSourceUrl(blankToNull(materialSourceUrl));
+        conf.setSandboxMaterialRef(blankToNull(materialRef));
+        conf.setSandboxBootstrapKind(blankToNull(bootstrapKind));
+        conf.setSandboxBootstrapSource(blankToNull(bootstrapSource));
+        conf.setSandboxBootstrapValue(blankToNull(bootstrapValue));
 
         conferenceRepository.save(conf);
         return conf;
+    }
+
+    /** Compatibilidad con callers/tests del contrato anterior; LazyVim queda deshabilitado. */
+    public Conference execute(
+        String conferenceUuid, String sandboxVariant, Integer sandboxPoolSize, String sandboxRemoteGitUrl,
+        Integer sandboxJvmHeapMb, Integer sandboxSeatsPerPod, Integer sandboxCliPoolSize,
+        Integer sandboxCliLazyVimPoolSize
+    ) {
+        return execute(conferenceUuid, sandboxVariant, sandboxPoolSize, sandboxRemoteGitUrl,
+                sandboxJvmHeapMb, sandboxSeatsPerPod, sandboxCliPoolSize, sandboxCliLazyVimPoolSize,
+                null, null, null, null, null);
     }
 
     /** Compatibilidad con callers/tests del contrato anterior; LazyVim queda deshabilitado. */
@@ -111,6 +131,37 @@ public class SetSandboxConfigUseCase {
         Integer sandboxCliPoolSize
     ) {
         return execute(conferenceUuid, sandboxVariant, sandboxPoolSize, sandboxRemoteGitUrl,
-                sandboxJvmHeapMb, sandboxSeatsPerPod, sandboxCliPoolSize, null);
+                sandboxJvmHeapMb, sandboxSeatsPerPod, sandboxCliPoolSize, null,
+                null, null, null, null, null);
+    }
+
+    private static String blankToNull(final String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static void validateMaterialBootstrap(final String url, final String ref, final String kind,
+                                                   final String source, final String value) {
+        final boolean any = java.util.stream.Stream.of(url, ref, kind, source, value)
+                .anyMatch(v -> v != null && !v.isBlank());
+        if (!any) return;
+        if (url == null || ref == null || kind == null || source == null || value == null) {
+            throw new IllegalArgumentException("material_bootstrap_incomplete");
+        }
+        try {
+            final URI uri = URI.create(url.trim());
+            if (!"https".equals(uri.getScheme()) || !"github.com".equalsIgnoreCase(uri.getHost())
+                    || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null
+                    || uri.getPath() == null || !uri.getPath().matches("/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\\.git)?")) {
+                throw new IllegalArgumentException("material_source_must_be_public_github");
+            }
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("material_source_must_be_public_github");
+        }
+        if (!ref.trim().matches("[A-Za-z0-9._/-]{1,128}")) throw new IllegalArgumentException("material_ref_invalid");
+        if (!"shell".equals(kind) && !"python".equals(kind)) throw new IllegalArgumentException("bootstrap_kind_invalid");
+        if (!"inline".equals(source) && !"material".equals(source)) throw new IllegalArgumentException("bootstrap_source_invalid");
+        if (value.length() > 65536 || ("material".equals(source) && (value.startsWith("/") || value.contains("..")))) {
+            throw new IllegalArgumentException("bootstrap_value_invalid");
+        }
     }
 }

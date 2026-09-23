@@ -61,6 +61,7 @@ WORKSPACE_ROOT = "/home"
 NVIM_CONFIG_SOURCE = "/etc/insightbloom/nvim-init.lua"
 NODE_TYPES_SEEDER = "/usr/local/bin/seed-node-types.sh"
 REMOTE_GIT_SEEDER = "/usr/local/bin/seed-remote-git.sh"
+MATERIAL_PREPARER = "/usr/local/bin/prepare-materials.sh"
 SEAT_UID_BASE = 2000
 # ulimit -u por asiento (defensa dura contra fork-bombs, ver Fase C): un fork-bomb pega contra
 # esto de inmediato (EAGAIN), sin depender de que el watchdog lo note a tiempo.
@@ -209,6 +210,12 @@ def _ensure_seat_account(index: int, user_uuid: str):
     # workspace deja de parecer vacío para git clone. El modo multi-asiento no
     # puede clonar en el initContainer porque todavía no conoce este home.
     _seed_remote_git(uid, index, home, workspace)
+    subprocess.run(
+        [MATERIAL_PREPARER, workspace],
+        preexec_fn=_drop_privileges(uid, uid),
+        env=seat_env,
+        check=True,
+    )
     # El workspace es un volumen por asiento y no contiene los archivos creados
     # durante el build. Publicar los tipos precargados mediante enlaces mantiene
     # el autocompletado de Node.js/TypeScript sin instalar nada en runtime.

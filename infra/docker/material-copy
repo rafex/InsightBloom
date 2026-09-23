@@ -1,0 +1,8 @@
+#!/bin/sh
+# Copia material del caché sin reemplazar trabajo del alumno.
+set -eu
+source_path="${1:?origen requerido}"
+target_path="${2:?destino requerido}"
+case "$source_path" in "${INSIGHTBLOOM_MATERIALS_ROOT:-/opt/insightbloom/materials}"/*) ;; *) echo "origen fuera del caché" >&2; exit 64;; esac
+mkdir -p "$target_path"
+cp -R -n "$source_path"/. "$target_path"/

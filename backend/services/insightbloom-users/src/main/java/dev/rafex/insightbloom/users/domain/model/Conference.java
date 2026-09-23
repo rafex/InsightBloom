@@ -79,6 +79,11 @@ public class Conference {
     private Integer sandboxCliLazyVimPoolSize;
     private Integer sandboxInternetEnabled; // 0|1, por defecto 0
     private String sandboxRemoteGitUrl; // URL de remoto git del profesor, nullable
+    private String sandboxMaterialSourceUrl;
+    private String sandboxMaterialRef;
+    private String sandboxBootstrapKind;
+    private String sandboxBootstrapSource;
+    private String sandboxBootstrapValue;
     // Heap maximo (-Xmx, en MB) de las JVMs dentro del sandbox (jdt.ls, java/mvn que corra el
     // alumno) -- nullable, si no se configura se usa un default chico pensado para cursos
     // (ver KubernetesPodClient). Clampeado contra el limite de memoria del contenedor
@@ -304,6 +309,11 @@ public class Conference {
     public Integer getSandboxPoolSize() { return sandboxPoolSize; }
     public Integer getSandboxInternetEnabled() { return sandboxInternetEnabled; }
     public String getSandboxRemoteGitUrl() { return sandboxRemoteGitUrl; }
+    public String getSandboxMaterialSourceUrl() { return sandboxMaterialSourceUrl; }
+    public String getSandboxMaterialRef() { return sandboxMaterialRef; }
+    public String getSandboxBootstrapKind() { return sandboxBootstrapKind; }
+    public String getSandboxBootstrapSource() { return sandboxBootstrapSource; }
+    public String getSandboxBootstrapValue() { return sandboxBootstrapValue; }
     public Integer getSandboxJvmHeapMb() { return sandboxJvmHeapMb; }
     public Integer getSandboxSeatsPerPod() { return sandboxSeatsPerPod; }
     public Integer getSandboxCliPoolSize() { return sandboxCliPoolSize; }
@@ -314,6 +324,15 @@ public class Conference {
     public void setSandboxCliLazyVimPoolSize(Integer sandboxCliLazyVimPoolSize) { this.sandboxCliLazyVimPoolSize = sandboxCliLazyVimPoolSize; }
     public void setSandboxInternetEnabled(Integer sandboxInternetEnabled) { this.sandboxInternetEnabled = sandboxInternetEnabled; }
     public void setSandboxRemoteGitUrl(String sandboxRemoteGitUrl) { this.sandboxRemoteGitUrl = sandboxRemoteGitUrl; }
+    public void setSandboxMaterialSourceUrl(String value) { this.sandboxMaterialSourceUrl = value; }
+    public void setSandboxMaterialRef(String value) { this.sandboxMaterialRef = value; }
+    public void setSandboxBootstrapKind(String value) { this.sandboxBootstrapKind = value; }
+    public void setSandboxBootstrapSource(String value) { this.sandboxBootstrapSource = value; }
+    public void setSandboxBootstrapValue(String value) { this.sandboxBootstrapValue = value; }
+    public MaterialBootstrapConfig materialBootstrap() {
+        return new MaterialBootstrapConfig(sandboxMaterialSourceUrl, sandboxMaterialRef,
+                sandboxBootstrapKind, sandboxBootstrapSource, sandboxBootstrapValue);
+    }
     public void setSandboxJvmHeapMb(Integer sandboxJvmHeapMb) { this.sandboxJvmHeapMb = sandboxJvmHeapMb; }
     public void setSandboxSeatsPerPod(Integer sandboxSeatsPerPod) { this.sandboxSeatsPerPod = sandboxSeatsPerPod; }
     public Integer getMaxDevicesPerUser() { return maxDevicesPerUser; }

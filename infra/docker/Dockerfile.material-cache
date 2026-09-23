@@ -1,0 +1,7 @@
+FROM alpine:3.21
+RUN apk add --no-cache git python3 tar && adduser -D -u 1000 -h /data materials
+COPY infra/docker/material-cache.py /usr/local/bin/material-cache.py
+RUN chmod 755 /usr/local/bin/material-cache.py && mkdir -p /data/materials && chown -R materials:materials /data
+USER materials
+EXPOSE 8092
+ENTRYPOINT ["python3", "/usr/local/bin/material-cache.py"]

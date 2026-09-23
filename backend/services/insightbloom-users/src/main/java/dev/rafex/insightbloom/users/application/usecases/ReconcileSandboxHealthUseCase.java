@@ -42,8 +42,7 @@ public class ReconcileSandboxHealthUseCase {
 
             orchestrator.deleteSandbox(s.podName());
             boolean internet=c.getSandboxInternetEnabled()!=null && c.getSandboxInternetEnabled()==1;
-            orchestrator.createSandbox(s.podName(), c.getUuid(), toOrchestratorVariant(s.getVariant()),
-                c.getSandboxRemoteGitUrl(), internet, c.getSandboxJvmHeapMb(), c.getSandboxSeatsPerPod());
+            createSandbox(s.podName(), c, s.getVariant(), internet);
             recovered++;
             }
         }
@@ -66,11 +65,20 @@ public class ReconcileSandboxHealthUseCase {
             sandboxes.save(sandbox);
         }
         final boolean internet=conference.getSandboxInternetEnabled()!=null && conference.getSandboxInternetEnabled()==1;
-        orchestrator.createSandbox(representative.podName(), conference.getUuid(),
-            toOrchestratorVariant(representative.getVariant()),
-            conference.getSandboxRemoteGitUrl(), internet, conference.getSandboxJvmHeapMb(),
-            conference.getSandboxSeatsPerPod());
+        createSandbox(representative.podName(), conference, representative.getVariant(), internet);
         return true;
+    }
+
+    private void createSandbox(final String podName, final Conference conference, final String domainVariant,
+                               final boolean internet) {
+        final String variant = toOrchestratorVariant(domainVariant);
+        if (conference.materialBootstrap() != null && conference.materialBootstrap().enabled()) {
+            orchestrator.createSandbox(podName, conference.getUuid(), variant, conference.getSandboxRemoteGitUrl(),
+                    internet, conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod(), conference.materialBootstrap());
+        } else {
+            orchestrator.createSandbox(podName, conference.getUuid(), variant, conference.getSandboxRemoteGitUrl(),
+                    internet, conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod());
+        }
     }
 
     private static String toOrchestratorVariant(final String variant) {

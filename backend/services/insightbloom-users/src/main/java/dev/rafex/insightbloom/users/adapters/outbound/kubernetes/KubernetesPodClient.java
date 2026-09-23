@@ -2,6 +2,7 @@ package dev.rafex.insightbloom.users.adapters.outbound.kubernetes;
 
 import dev.rafex.ether.json.JsonCodec;
 import dev.rafex.insightbloom.users.domain.model.ContainerBuildResult;
+import dev.rafex.insightbloom.users.domain.model.MaterialBootstrapConfig;
 import dev.rafex.insightbloom.users.domain.model.Sandbox;
 import dev.rafex.insightbloom.users.domain.model.WorkspaceFileContent;
 import dev.rafex.insightbloom.users.domain.model.WorkspaceFileEntry;
@@ -18,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
+import java.security.MessageDigest;
 import java.security.cert.CertificateFactory;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -148,6 +150,11 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final int podmanAppBasePort;
     private final String podmanStorageSizeLimit;
     private final String clusterCidr;
+    /** PVC RWX del caché; el mount solo se agrega cuando el evento configuró materiales. */
+    private final String materialCacheClaimName = System.getenv().getOrDefault(
+            "SANDBOX_MATERIAL_CACHE_CLAIM", "insightbloom-material-cache");
+    private final String materialCacheUrl = System.getenv().getOrDefault(
+            "SANDBOX_MATERIAL_CACHE_URL", "http://insightbloom-material-cache.insightbloom-sandboxes.svc.cluster.local:8092");
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
                                 final String debianImage, final String neovimImage, final String neovimLazyVimImage,
@@ -201,6 +208,14 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     public void createSandbox(final String podName, final String conferenceUuid, final String variant,
                                final String remoteGitUrl, final boolean internetEnabled,
                                final Integer jvmHeapMb, final Integer seatsPerPod) {
+        createSandbox(podName, conferenceUuid, variant, remoteGitUrl, internetEnabled, jvmHeapMb, seatsPerPod, null);
+    }
+
+    @Override
+    public void createSandbox(final String podName, final String conferenceUuid, final String variant,
+                               final String remoteGitUrl, final boolean internetEnabled,
+                               final Integer jvmHeapMb, final Integer seatsPerPod,
+                               final MaterialBootstrapConfig materialBootstrap) {
         requireEnabled();
         final boolean terminalMode = isTerminalVariant(variant);
         // seatsPerPod solo importa en modo terminal-nvim -- en cualquier otro modo (o
@@ -208,6 +223,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final int effectiveSeats = terminalMode
                 ? Math.max(1, seatsPerPod != null ? seatsPerPod : DEFAULT_SEATS_PER_POD)
                 : 1;
+        ensureMaterialCached(materialBootstrap);
         ensureIngressPolicy();
         // Fase 7 (2026-08): defensa en profundidad, siempre activa -- el bloqueo REAL de egress
         // externo lo aplica nftables en el initContainer (ver buildInitContainer), esto es una
@@ -225,7 +241,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         }
         final String podJson = jsonCodec.toJson(
                 buildPodBody(podName, conferenceUuid, variant, remoteGitUrl,
-                        jvmHeapMb, effectiveSeats));
+                        jvmHeapMb, effectiveSeats, materialBootstrap));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
         final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
@@ -466,6 +482,15 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             }
         }
         throw lastFailure;
+    }
+
+    @Override
+    public void provisionSeat(final String podName, final int seatIndex, final String userUuid,
+                              final MaterialBootstrapConfig materialBootstrap) {
+        if (materialBootstrap != null && materialBootstrap.enabled()) {
+            ensureMaterialCached(materialBootstrap);
+        }
+        provisionSeat(podName, seatIndex, userUuid);
     }
 
     @Override
@@ -945,7 +970,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private Map<String, Object> buildPodBody(final String podName, final String conferenceUuid, final String variant,
                                               final String remoteGitUrl,
                                               final Integer jvmHeapMb,
-                                              final int effectiveSeats) {
+                                              final int effectiveSeats,
+                                              final MaterialBootstrapConfig materialBootstrap) {
         final Map<String, Object> labels = Map.of(
                 "app.kubernetes.io/part-of", "insightbloom",
                 "app.kubernetes.io/component", "sandbox",
@@ -984,6 +1010,20 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_SURVEY_API", "value", surveyApiBase));
         if (remoteGitUrl != null && !remoteGitUrl.isBlank()) {
             runtimeEnv.add(Map.of("name", "REMOTE_GIT_URL", "value", remoteGitUrl));
+        }
+        final boolean hasMaterials = materialBootstrap != null && materialBootstrap.enabled();
+        if (hasMaterials) {
+            final String sourceKey = materialSourceKey(materialBootstrap.sourceUrl(), materialBootstrap.ref());
+            runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIALS_ROOT", "value", "/opt/insightbloom/materials"));
+            runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIAL_SOURCE", "value", sourceKey + "/current"));
+            runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIAL_REF", "value", materialBootstrap.ref()));
+            runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_BOOTSTRAP_KIND", "value", materialBootstrap.kind()));
+            runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_BOOTSTRAP_SOURCE", "value", materialBootstrap.source()));
+            if ("inline".equals(materialBootstrap.source())) {
+                runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_BOOTSTRAP_INLINE", "value", materialBootstrap.value()));
+            } else {
+                runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_BOOTSTRAP_PATH", "value", materialBootstrap.value()));
+            }
         }
         // El proxy se declara siempre en ambos modos. La NetworkPolicy es la compuerta real:
         // con internetEnabled=false el Pod no puede alcanzar este Service; al habilitarlo,
@@ -1041,11 +1081,12 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         // monta aca -- gap conocido, documentado en
         // DEC-0025: cada asiento puede seguir usando SQLite dentro de su propio workspace, pero
         // el flujo de descarga dedicado no distingue asientos todavia.
-        final List<Map<String, Object>> volumeMounts = multiSeat
+        final List<Map<String, Object>> volumeMounts = new ArrayList<>(multiSeat
                 ? List.of(Map.of("name", "workspace", "mountPath", "/home"))
                 : List.of(
                         Map.of("name", "workspace", "mountPath", "/home/coder/workspace"),
-                        Map.of("name", "database", "mountPath", "/home/coder/db"));
+                        Map.of("name", "database", "mountPath", "/home/coder/db")));
+        if (hasMaterials) volumeMounts.add(Map.of("name", "materials", "mountPath", "/opt/insightbloom/materials", "readOnly", true));
 
         // Un puerto por asiento (siempre 1 salvo terminal-nvim con effectiveSeats > 1) -- ver
         // KubernetesPodClient.MAX_SEATS_PER_POD para el porque la NetworkPolicy declara un rango
@@ -1089,6 +1130,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             // El clonado de REMOTE_GIT_URL ya no corre acá -- se movió al initContainer (ver
             // buildInitContainer), que corre antes del bloqueo de egress con red abierta.
             final String singleSeatCommand = String.join("; ",
+                    "/usr/local/bin/prepare-materials.sh /home/coder/workspace",
                     "/usr/local/bin/seed-node-types.sh /home/coder/workspace",
                     "/usr/local/bin/seed-ide-docs.sh /home/coder/workspace",
                     "python3 /usr/local/bin/sandbox-file-agent.py --control-port " + controlPort() + " &",
@@ -1154,9 +1196,11 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 buildInitContainer(terminalMode ? imageForTerminalVariant(variant) : debianImage,
                         multiSeat, remoteGitUrl)));
         spec.put("containers", containers);
-        spec.put("volumes", List.of(
+        final List<Map<String, Object>> volumes = new ArrayList<>(List.of(
                 Map.of("name", "workspace", "emptyDir", Map.of()),
                 Map.of("name", "database", "emptyDir", Map.of())));
+        if (hasMaterials) volumes.add(Map.of("name", "materials", "persistentVolumeClaim", Map.of("claimName", materialCacheClaimName)));
+        spec.put("volumes", volumes);
 
         // Annotation con el UUID COMPLETO (a diferencia de la label "sandbox-conference", que
         // trunca a 8 caracteres para caber en el limite de labels de k8s) -- la usa
@@ -1170,6 +1214,41 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 "metadata", Map.of("name", podName, "namespace", namespace, "labels", labels,
                         "annotations", annotations),
                 "spec", spec);
+    }
+
+    // Conserva el punto de extensión usado por pruebas y adaptadores previos.
+    private Map<String, Object> buildPodBody(final String podName, final String conferenceUuid, final String variant,
+                                              final String remoteGitUrl, final Integer jvmHeapMb,
+                                              final int effectiveSeats) {
+        return buildPodBody(podName, conferenceUuid, variant, remoteGitUrl, jvmHeapMb, effectiveSeats, null);
+    }
+
+    private static String materialSourceKey(final String sourceUrl, final String ref) {
+        final String value = sourceUrl + "#" + (ref == null || ref.isBlank() ? "main" : ref);
+        try {
+            final byte[] digest = MessageDigest.getInstance("MD5").digest(value.getBytes(StandardCharsets.UTF_8));
+            final StringBuilder out = new StringBuilder(32);
+            for (byte b : digest) out.append(String.format("%02x", b));
+            return out.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("md5_unavailable", e);
+        }
+    }
+
+    private void ensureMaterialCached(final MaterialBootstrapConfig config) {
+        if (config == null || !config.enabled()) return;
+        try {
+            final String body = "{\"url\":\"" + config.sourceUrl().replace("\\", "\\\\").replace("\"", "\\\"")
+                    + "\",\"ref\":\"" + config.ref().replace("\\", "\\\\").replace("\"", "\\\"") + "\"}";
+            final HttpRequest request = HttpRequest.newBuilder(URI.create(materialCacheUrl + "/sync"))
+                    .timeout(Duration.ofSeconds(180)).header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(body)).build();
+            final int status = httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
+            if (status / 100 != 2) LOGGER.warning("material-cache rejected source with HTTP " + status);
+        } catch (Exception e) {
+            // Un cache temporalmente caído no impide que el IDE abra: el bootstrap generará el aviso visible.
+            LOGGER.log(Level.WARNING, "material-cache unavailable; sandbox continues", e);
+        }
     }
 
     /**
