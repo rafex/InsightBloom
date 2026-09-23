@@ -12,7 +12,7 @@
     "test:audit:slidev": "node --test tools/audit-slidev-artifact.test.js"
   },
   "dependencies": {
-    "@marp-team/marp-cli": "^4.5.0",
+    "@marp-team/marp-cli": "^4.5.1",
     "@slidev/cli": "53.0.0",
     "@slidev/theme-default": "0.25.0",
     "@slidev/theme-seriph": "0.25.0",
@@ -21,7 +21,7 @@
     "express": "^5.2.1",
     "multer": "^2.3.0",
     "nats": "^2.29.3",
-    "playwright-chromium": "1.62.1",
+    "playwright-chromium": "1.63.0",
     "ws": "^8.21.3"
   },
   "overrides": {

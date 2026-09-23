@@ -2,6 +2,7 @@ import { defineConfig } from 'eslint/config'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import pluginVue from 'eslint-plugin-vue'
+import globals from 'globals'
 
 export default defineConfig(
   {
@@ -56,6 +57,7 @@ export default defineConfig(
   {
     languageOptions: {
       globals: {
+        ...globals.browser,
         window: 'readonly',
         document: 'readonly',
         localStorage: 'readonly',

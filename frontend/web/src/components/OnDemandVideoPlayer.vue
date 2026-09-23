@@ -376,7 +376,15 @@ export default {
 
 <style scoped>
 .on-demand-player { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; background: var(--color-video-background); }
-.video-stage { position: relative; flex: 1; min-height: 0; background: var(--color-video-background); }
+.video-stage { position: relative; flex: 1 1 auto; width: 100%; min-width: 0; min-height: 0; overflow: hidden; background: var(--color-video-background); }
+/*
+ * The YouTube IFrame API replaces the source iframe when it creates its
+ * player. That replacement does not retain Vue's scoped-style attribute,
+ * so the deep selector is required to keep the generated iframe filling the
+ * popup (and the floating player) instead of falling back to its intrinsic
+ * dimensions.
+ */
+.video-stage :deep(iframe) { position: absolute; inset: 0; display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; border: 0; background: var(--color-video-background); }
 .video-frame { display: block; width: 100%; height: 100%; border: 0; background: var(--color-video-background); }
 .video-controls { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 5px 8px; color: var(--color-text-inverse); background: var(--color-video-controls); font-size: 0.75rem; }
 .video-control { border: 0; border-radius: 5px; padding: 4px 7px; color: var(--color-text-inverse); background: transparent; cursor: pointer; }
