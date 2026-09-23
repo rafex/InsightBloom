@@ -310,13 +310,16 @@ public class AuthHandler extends BaseResourceHandler {
     private boolean handleRequestLoginOtp(final JettyHttpExchange jx) {
         try {
             final var body = parseBody(jx);
-            requestLoginOtpUseCase.execute(new RequestLoginOtpUseCase.Request((String) body.get("identifier")));
+            final var metadata = OtpClientMetadata.from(jx);
+            requestLoginOtpUseCase.execute(new RequestLoginOtpUseCase.Request((String) body.get("identifier"),
+                    metadata.clientIp(), metadata.userAgent()));
             // Siempre 200, exista o no la cuenta / use o no OTP_EMAIL -- ver RequestLoginOtpUseCase.
             sendOk(jx, 200, Map.of("status", "sent"));
         } catch (final IllegalArgumentException e) {
             sendError(jx, 400, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
-            sendError(jx, 500, "internal_error", "Internal server error");
+            // Do not expose SMTP/database failures; that could reveal account eligibility.
+            sendOk(jx, 200, Map.of("status", "sent"));
         }
         return true;
     }

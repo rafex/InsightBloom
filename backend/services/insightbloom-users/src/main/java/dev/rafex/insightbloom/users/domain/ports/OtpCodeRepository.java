@@ -7,6 +7,9 @@ import java.util.Optional;
 
 public interface OtpCodeRepository {
     void save(OtpCode otpCode);
+    /** Stores a login code as unusable until the mail provider accepts it. */
+    void savePending(OtpCode otpCode);
+    void markDelivered(String uuid);
     Optional<OtpCode> findLatestActive(String identifier);
     void markConsumed(String uuid);
 

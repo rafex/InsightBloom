@@ -10,6 +10,7 @@ public class OtpCode {
     private final String code;
     private final Instant expiresAt;
     private boolean consumed;
+    private final boolean delivered;
     private final Instant createdAt;
     private final int failedAttempts;
 
@@ -21,6 +22,7 @@ public class OtpCode {
         this.code = code;
         this.expiresAt = expiresAt;
         this.consumed = false;
+        this.delivered = true;
         this.createdAt = Instant.now();
         this.failedAttempts = 0;
     }
@@ -33,12 +35,19 @@ public class OtpCode {
     public OtpCode(final String uuid, final String identifier, final OtpChannel channel, final String code,
                    final Instant expiresAt, final boolean consumed, final Instant createdAt,
                    final int failedAttempts) {
+        this(uuid, identifier, channel, code, expiresAt, consumed, createdAt, failedAttempts, true);
+    }
+
+    public OtpCode(final String uuid, final String identifier, final OtpChannel channel, final String code,
+                   final Instant expiresAt, final boolean consumed, final Instant createdAt,
+                   final int failedAttempts, final boolean delivered) {
         this.uuid = uuid;
         this.identifier = identifier;
         this.channel = channel;
         this.code = code;
         this.expiresAt = expiresAt;
         this.consumed = consumed;
+        this.delivered = delivered;
         this.createdAt = createdAt;
         this.failedAttempts = failedAttempts;
     }
@@ -55,4 +64,5 @@ public class OtpCode {
     public boolean isConsumed() { return consumed; }
     public Instant getCreatedAt() { return createdAt; }
     public int getFailedAttempts() { return failedAttempts; }
+    public boolean isDelivered() { return delivered; }
 }

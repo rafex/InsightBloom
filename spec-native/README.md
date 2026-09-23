@@ -29,6 +29,7 @@
 | Event Certificate Editor | [`specs/certificate-editor/SPEC.md`](./specs/certificate-editor/SPEC.md) | [`tasks/certificate-editor/TASKS.md`](./tasks/certificate-editor/TASKS.md) | active |
 | IDE Publication Separation | [`specs/ide-publication-separation/SPEC.md`](./specs/ide-publication-separation/SPEC.md) | [`tasks/ide-publication-separation/TASKS.md`](./tasks/ide-publication-separation/TASKS.md) | active |
 | Material Bootstrap | [`specs/material-bootstrap/SPEC.md`](./specs/material-bootstrap/SPEC.md) | [`tasks/material-bootstrap/TASKS.md`](./tasks/material-bootstrap/TASKS.md) | active |
+| OTP Request Audit | [`specs/otp-request-audit/SPEC.md`](./specs/otp-request-audit/SPEC.md) | [`tasks/otp-request-audit/TASKS.md`](./tasks/otp-request-audit/TASKS.md) | active |
 
 ## Workflows
 

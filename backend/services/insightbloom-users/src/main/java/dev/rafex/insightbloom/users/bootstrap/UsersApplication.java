@@ -77,6 +77,7 @@ public class UsersApplication {
         final var tokenRepo = new SqliteTokenRepository(db);
         final var conferenceRepo = new SqliteConferenceRepository(db);
         final var otpRepo = new SqliteOtpCodeRepository(db);
+        final var otpRequestAuditRepo = new SqliteOtpRequestAuditRepository(db);
         final var membershipRepo = new SqliteConferenceMembershipRepository(db);
         final var certificateSettingsRepo = new SqliteCertificateSettingsRepository(db);
         final var certificateTemplateRepo = new SqliteCertificateTemplateRepository(db);
@@ -158,7 +159,7 @@ public class UsersApplication {
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
         final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);
         final var requestLoginOtpUseCase = new dev.rafex.insightbloom.users.application.usecases.RequestLoginOtpUseCase(
-                userRepo, otpRepo, emailPort);
+                userRepo, otpRepo, otpRequestAuditRepo, emailPort);
         final var verifyLoginOtpUseCase = new dev.rafex.insightbloom.users.application.usecases.VerifyLoginOtpUseCase(
                 userRepo, otpRepo, tokenService);
         final var setAuthMethodUseCase = new dev.rafex.insightbloom.users.application.usecases.SetAuthMethodUseCase(
@@ -610,6 +611,7 @@ public class UsersApplication {
         final var auditLogHandler = new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.AuditLogHandler(
                 sqliteAuditLogQueryRepository, new CleanupExpiredAuditLogsUseCase(sqliteAuditLogQueryRepository),
                 validateTokenUseCase);
+        final var otpRequestAuditHandler = new OtpRequestAuditHandler(otpRequestAuditRepo, validateTokenUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -635,6 +637,7 @@ public class UsersApplication {
         routes.add("/api/v1/settings/*", platformSettingsHandler);
         routes.add("/api/v1/users/me/audit-logs/*", auditLogHandler);
         routes.add("/api/v1/admin/audit-logs/*", auditLogHandler);
+        routes.add("/api/v1/admin/auth/otp-audit", otpRequestAuditHandler);
         routes.add("/api/v1/audit-logs/*", auditLogHandler);
         routes.add("/version", new VersionHandler("insightbloom-users"));
 
@@ -688,6 +691,19 @@ public class UsersApplication {
                 System.err.println("workspace-zip-cleanup-scheduler: tick failed: " + e.getMessage());
             }
         }, 10, 10, java.util.concurrent.TimeUnit.MINUTES);
+        final var otpAuditCleanupScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            final var t = new Thread(r, "otp-audit-cleanup-scheduler");
+            t.setDaemon(true);
+            return t;
+        });
+        otpAuditCleanupScheduler.scheduleAtFixedRate(() -> {
+            try {
+                final int removed = otpRequestAuditRepo.deleteOlderThan(java.time.Instant.now().minus(java.time.Duration.ofDays(30)));
+                if (removed > 0) System.out.println("otp-audit-cleanup-scheduler: deleted " + removed + " expired records");
+            } catch (final Exception e) {
+                System.err.println("otp-audit-cleanup-scheduler: tick failed: " + e.getClass().getSimpleName());
+            }
+        }, 0, 1, java.util.concurrent.TimeUnit.HOURS);
         reminderScheduler.scheduleAtFixedRate(() -> {
             try {
                 sendConferenceRemindersUseCase.execute(java.time.Instant.now());

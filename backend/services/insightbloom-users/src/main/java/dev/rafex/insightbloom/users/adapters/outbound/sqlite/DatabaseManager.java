@@ -369,7 +369,21 @@ public class DatabaseManager {
             """);
             // Limite de intentos de verificacion fallidos (login OTP): ver VerifyLoginOtpUseCase.
             ColumnMigrationHelper.addColumnIfMissing(conn, "otp_codes", "failed_attempts", "INTEGER NOT NULL DEFAULT 0");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "otp_codes", "delivered", "INTEGER NOT NULL DEFAULT 1");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_otp_identifier ON otp_codes(identifier)");
+
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS otp_request_audit (
+                    uuid TEXT PRIMARY KEY,
+                    requested_at TEXT NOT NULL,
+                    account_uuid TEXT,
+                    client_ip TEXT,
+                    user_agent TEXT,
+                    outcome TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_otp_audit_requested_at ON otp_request_audit(requested_at)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_otp_audit_account_time ON otp_request_audit(account_uuid, requested_at)");
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS conference_memberships (

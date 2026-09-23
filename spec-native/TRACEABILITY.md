@@ -38,6 +38,8 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | DEC-0030 | decision | SPEC-DEVICE-FINGERPRINTING, backend/services/insightbloom-users, frontend/web | Auditoria (no bloqueo) de fingerprint en cada request autenticado (accepted) |
 | SPEC-IDE-PUBLICATION-SEPARATION | spec | DEC-0035, ARCHITECTURE.md, workflows/IDE-WEB-PUBLICATION.md, InsightBloom-gitops | Publisher y runtime separados de presentations (active) |
 | DEC-0035 | decision | SPEC-IDE-PUBLICATION-SEPARATION, backend/services/insightbloom-ide-publisher, backend/services/insightbloom-ide-runtime, InsightBloom-gitops | Ownership independiente de publicación IDE (accepted) |
+| SPEC-OTP-REQUEST-AUDIT | spec | DEC-0039, backend/services/insightbloom-users | Registro interno, retención 30 días y consulta estrictamente admin de solicitudes OTP |
+| DEC-0039 | decision | SPEC-OTP-REQUEST-AUDIT, backend/services/insightbloom-users | Trazabilidad OTP sin enumeración de cuentas (accepted) |
 | SEC-001 | security | agents/SECURITY.md | Auditoría de seguridad (7 hallazgos) |
 | DIAG-001 | diagnostic | agents/DIAGNOSE.md | Diagnóstico del proyecto 2026-06-26 |
 
@@ -54,6 +56,7 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | device-fingerprinting | specs/device-fingerprinting/SPEC.md | — | active (2026-07-20) |
 | slidev-presentations | specs/slidev-presentations/SPEC.md | tasks/slidev-presentations/TASKS.md | active |
 | ide-publication-separation | specs/ide-publication-separation/SPEC.md | tasks/ide-publication-separation/TASKS.md | in_progress |
+| otp-request-audit | specs/otp-request-audit/SPEC.md | tasks/otp-request-audit/TASKS.md | active (2026-09-23) |
 
 ---
 

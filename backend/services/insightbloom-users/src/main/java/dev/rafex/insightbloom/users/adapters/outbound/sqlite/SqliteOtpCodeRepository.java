@@ -18,9 +18,18 @@ public class SqliteOtpCodeRepository implements OtpCodeRepository {
 
     @Override
     public void save(final OtpCode otpCode) {
+        save(otpCode, true);
+    }
+
+    @Override
+    public void savePending(final OtpCode otpCode) {
+        save(otpCode, false);
+    }
+
+    private void save(final OtpCode otpCode, final boolean delivered) {
         final String sql = """
-            INSERT INTO otp_codes (uuid, identifier, channel, code, expires_at, consumed, created_at, failed_attempts)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO otp_codes (uuid, identifier, channel, code, expires_at, consumed, created_at, failed_attempts, delivered)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, otpCode.getUuid());
@@ -31,6 +40,18 @@ public class SqliteOtpCodeRepository implements OtpCodeRepository {
             ps.setInt(6, otpCode.isConsumed() ? 1 : 0);
             ps.setString(7, otpCode.getCreatedAt().toString());
             ps.setInt(8, otpCode.getFailedAttempts());
+            ps.setInt(9, delivered ? 1 : 0);
+            ps.executeUpdate();
+        } catch (final SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void markDelivered(final String uuid) {
+        try (Connection c = db.getConnection();
+             PreparedStatement ps = c.prepareStatement("UPDATE otp_codes SET delivered = 1 WHERE uuid = ?")) {
+            ps.setString(1, uuid);
             ps.executeUpdate();
         } catch (final SQLException e) {
             throw new RuntimeException(e);
@@ -40,7 +61,7 @@ public class SqliteOtpCodeRepository implements OtpCodeRepository {
     @Override
     public Optional<OtpCode> findLatestActive(final String identifier) {
         final String sql = """
-            SELECT * FROM otp_codes WHERE identifier = ? AND consumed = 0
+            SELECT * FROM otp_codes WHERE identifier = ? AND consumed = 0 AND delivered = 1
             ORDER BY created_at DESC LIMIT 1
         """;
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
@@ -79,7 +100,7 @@ public class SqliteOtpCodeRepository implements OtpCodeRepository {
 
     @Override
     public int countSince(final String identifier, final Instant since) {
-        final String sql = "SELECT COUNT(*) FROM otp_codes WHERE identifier = ? AND created_at > ?";
+        final String sql = "SELECT COUNT(*) FROM otp_codes WHERE identifier = ? AND created_at > ? AND delivered = 1";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, identifier);
             ps.setString(2, since.toString());
@@ -97,6 +118,6 @@ public class SqliteOtpCodeRepository implements OtpCodeRepository {
                 rs.getString("uuid"), rs.getString("identifier"), OtpChannel.valueOf(rs.getString("channel")),
                 rs.getString("code"), Instant.parse(rs.getString("expires_at")),
                 rs.getInt("consumed") == 1, Instant.parse(rs.getString("created_at")),
-                rs.getInt("failed_attempts"));
+                rs.getInt("failed_attempts"), rs.getInt("delivered") == 1);
     }
 }

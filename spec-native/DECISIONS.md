@@ -1624,3 +1624,24 @@ Registrar una decision cuando cambie:
   que el origen y el script deben tratarse como código de confianza del propietario del evento.
   Repositorios privados, credenciales y escritura al caché quedan fuera de esta primera versión.
 - Reemplaza: el uso exclusivo de `sandboxRemoteGitUrl` para material inicial.
+
+### DEC-0039 - Trazabilidad OTP sin enumeración de cuentas
+
+- Fecha: 2026-09-23
+- Estado: accepted
+- Contexto: solicitudes de código OTP deben poder investigarse ante abuso o fallos de entrega,
+  sin convertir el endpoint en un oráculo que confirme qué correos tienen cuenta.
+- Decision:
+  - Responder de forma genérica a toda solicitud bien formada, independientemente de elegibilidad
+    de cuenta o resultado SMTP.
+  - Registrar internamente el resultado, UUID de cuenta cuando se conoce, IP de cliente obtenida
+    desde el último salto confiable que añade el Ingress, y User-Agent. No guardar identificador
+    enviado ni código OTP.
+  - Retener los eventos durante 30 días y exponer una API de consulta paginada solo para el rol
+    exacto `admin`.
+  - Conservar las verificaciones de cuenta, método OTP, proveedor y límite de tres códigos
+    entregados por cuenta en una hora; un fallo SMTP no crea un código usable ni consume cuota.
+- Consecuencias: la investigación interna puede distinguir solicitudes no elegibles y fallos SMTP,
+  mientras que el solicitante no puede confirmarlos por el cuerpo de respuesta. IP y User-Agent
+  son datos personales operativos y se limitan a 30 días.
+- Reemplaza: `none`.
