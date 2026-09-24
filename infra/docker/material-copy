@@ -1,8 +1,127 @@
-#!/bin/sh
-# Copia material del caché sin reemplazar trabajo del alumno.
-set -eu
-source_path="${1:?origen requerido}"
-target_path="${2:?destino requerido}"
-case "$source_path" in "${INSIGHTBLOOM_MATERIALS_ROOT:-/opt/insightbloom/materials}"/*) ;; *) echo "origen fuera del caché" >&2; exit 64;; esac
-mkdir -p "$target_path"
-cp -R -n "$source_path"/. "$target_path"/
+#!/usr/bin/env python3
+"""Fetch one cached repository file/subtree and copy it without overwriting workspace files."""
+import os
+import shutil
+import sys
+import tarfile
+import tempfile
+from pathlib import Path, PurePosixPath
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import urlopen
+
+MAX_DOWNLOAD_BYTES = int(os.environ.get("INSIGHTBLOOM_MATERIAL_MAX_DOWNLOAD_BYTES", str(128 * 1024 * 1024)))
+
+
+def fail(message: str, status: int = 1) -> "None":
+    print(f"material-copy: {message}", file=sys.stderr)
+    raise SystemExit(status)
+
+
+def safe_archive_path(name: str) -> PurePosixPath:
+    path = PurePosixPath(name)
+    if path.is_absolute() or "\\" in name or any(part in ("", ".", "..") for part in name.split("/")):
+        raise ValueError("unsafe archive path")
+    return path
+
+
+def extract_regular_entries(archive: tarfile.TarFile, destination: Path, members: list[tarfile.TarInfo]) -> None:
+    """Extract only regular files/directories; compatible with Python 3.11 and newer."""
+    root = destination.resolve()
+    for member in members:
+        relative = safe_archive_path(member.name.rstrip("/"))
+        target = destination.joinpath(*relative.parts)
+        if not target.resolve(strict=False).is_relative_to(root):
+            raise ValueError("archive path escapes staging directory")
+        if member.isdir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        if not member.isfile():
+            raise ValueError("unsupported archive entry")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source = archive.extractfile(member)
+        if source is None:
+            raise ValueError("invalid archive entry")
+        with source, target.open("xb") as output:
+            shutil.copyfileobj(source, output)
+        os.chmod(target, member.mode & 0o777)
+
+
+def copy_material(source_path: str, target_path: str) -> None:
+    root = Path(os.environ.get("INSIGHTBLOOM_MATERIALS_ROOT", "/opt/insightbloom/materials")).resolve()
+    source = Path(source_path)
+    source_key = os.environ.get("INSIGHTBLOOM_MATERIAL_SOURCE", "")
+    revision = os.environ.get("INSIGHTBLOOM_MATERIAL_REVISION", "")
+    base_url = os.environ.get("INSIGHTBLOOM_MATERIAL_CACHE_URL", "").rstrip("/")
+    if not source.is_absolute():
+        fail("source must be under the configured materials root", 64)
+    try:
+        relative = source.relative_to(root)
+    except ValueError:
+        fail("source is outside the configured materials root", 64)
+    source_parts = tuple(part for part in source_key.split("/") if part)
+    if (not source_parts or len(source_parts) > 2 or len(source_parts[0]) != 64
+            or any(char not in "0123456789abcdef" for char in source_parts[0])
+            or (len(source_parts) == 2 and source_parts[1] != "current")
+            or not revision or not base_url
+            or relative.parts[:len(source_parts)] != source_parts):
+        fail("material cache is not configured", 69)
+    material_relative = relative.parts[len(source_parts):]
+    if not material_relative or any(part in (".", "..") for part in material_relative):
+        fail("invalid source path", 64)
+    endpoint = (f"{base_url}/material/{quote(source_parts[0], safe='')}/{quote(revision, safe='')}/"
+                f"{quote('/'.join(material_relative), safe='/')}")
+    target_root = Path(target_path).resolve()
+    target_root.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="insightbloom-material-") as staging_name:
+            staging = Path(staging_name)
+            archive_path = staging / "materials.tar"
+            size = 0
+            with urlopen(endpoint, timeout=60) as response, archive_path.open("wb") as output:
+                while chunk := response.read(64 * 1024):
+                    size += len(chunk)
+                    if size > MAX_DOWNLOAD_BYTES:
+                        raise ValueError("download exceeds material limit")
+                    output.write(chunk)
+            extraction = staging / "content"
+            extraction.mkdir()
+            with tarfile.open(archive_path, "r:*") as archive:
+                members = archive.getmembers()
+                total_size = 0
+                for member in members:
+                    safe_archive_path(member.name)
+                    if not (member.isfile() or member.isdir()):
+                        raise ValueError("unsupported archive entry")
+                    total_size += member.size
+                    if total_size > MAX_DOWNLOAD_BYTES:
+                        raise ValueError("extracted content exceeds material limit")
+                extract_regular_entries(archive, extraction, members)
+            for item in sorted(extraction.rglob("*")):
+                relative_item = item.relative_to(extraction)
+                destination = target_root / relative_item
+                if item.is_dir():
+                    destination.mkdir(parents=True, exist_ok=True)
+                    if not destination.resolve().is_relative_to(target_root):
+                        raise ValueError("destination escapes workspace")
+                    continue
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                if not destination.parent.resolve().is_relative_to(target_root) or destination.is_symlink():
+                    raise ValueError("destination escapes workspace")
+                try:
+                    with item.open("rb") as src, destination.open("xb") as dst:
+                        shutil.copyfileobj(src, dst)
+                    shutil.copystat(item, destination, follow_symlinks=False)
+                except FileExistsError:
+                    continue
+    except HTTPError as exc:
+        fail(f"cache returned HTTP {exc.code}")
+    except (URLError, TimeoutError, OSError, tarfile.TarError, ValueError) as exc:
+        fail(str(exc) or "unable to copy material")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        fail("usage: material-copy SOURCE_PATH TARGET_DIRECTORY", 64)
+    copy_material(sys.argv[1], sys.argv[2])

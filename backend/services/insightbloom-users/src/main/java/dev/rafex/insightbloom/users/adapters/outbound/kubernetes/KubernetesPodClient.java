@@ -150,11 +150,9 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private final int podmanAppBasePort;
     private final String podmanStorageSizeLimit;
     private final String clusterCidr;
-    /** PVC RWX del caché; el mount solo se agrega cuando el evento configuró materiales. */
-    private final String materialCacheClaimName = System.getenv().getOrDefault(
-            "SANDBOX_MATERIAL_CACHE_CLAIM", "insightbloom-material-cache");
     private final String materialCacheUrl = System.getenv().getOrDefault(
-            "SANDBOX_MATERIAL_CACHE_URL", "http://insightbloom-material-cache.insightbloom-sandboxes.svc.cluster.local:8092");
+            "SANDBOX_MATERIAL_CACHE_URL", "http://insightbloom-material-cache.insightbloom.svc.cluster.local:8092");
+    private final String materialCacheSyncToken = System.getenv().getOrDefault("MATERIAL_CACHE_SYNC_TOKEN", "");
 
     public KubernetesPodClient(final JsonCodec jsonCodec, final String namespace,
                                 final String debianImage, final String neovimImage, final String neovimLazyVimImage,
@@ -223,7 +221,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final int effectiveSeats = terminalMode
                 ? Math.max(1, seatsPerPod != null ? seatsPerPod : DEFAULT_SEATS_PER_POD)
                 : 1;
-        ensureMaterialCached(materialBootstrap);
+        final String materialRevision = ensureMaterialCached(materialBootstrap);
         ensureIngressPolicy();
         // Fase 7 (2026-08): defensa en profundidad, siempre activa -- el bloqueo REAL de egress
         // externo lo aplica nftables en el initContainer (ver buildInitContainer), esto es una
@@ -241,7 +239,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         }
         final String podJson = jsonCodec.toJson(
                 buildPodBody(podName, conferenceUuid, variant, remoteGitUrl,
-                        jvmHeapMb, effectiveSeats, materialBootstrap));
+                        jvmHeapMb, effectiveSeats, materialBootstrap, materialRevision));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/pods", podJson, "pod " + podName);
         final String serviceJson = jsonCodec.toJson(buildServiceBody(podName, effectiveSeats));
         postIgnoringConflict("/api/v1/namespaces/" + namespace + "/services", serviceJson, "service " + serviceName(podName));
@@ -972,6 +970,16 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                                               final Integer jvmHeapMb,
                                               final int effectiveSeats,
                                               final MaterialBootstrapConfig materialBootstrap) {
+        return buildPodBody(podName, conferenceUuid, variant, remoteGitUrl, jvmHeapMb,
+                effectiveSeats, materialBootstrap, "");
+    }
+
+    private Map<String, Object> buildPodBody(final String podName, final String conferenceUuid, final String variant,
+                                              final String remoteGitUrl,
+                                              final Integer jvmHeapMb,
+                                              final int effectiveSeats,
+                                              final MaterialBootstrapConfig materialBootstrap,
+                                              final String materialRevision) {
         final Map<String, Object> labels = Map.of(
                 "app.kubernetes.io/part-of", "insightbloom",
                 "app.kubernetes.io/component", "sandbox",
@@ -1017,6 +1025,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIALS_ROOT", "value", "/opt/insightbloom/materials"));
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIAL_SOURCE", "value", sourceKey + "/current"));
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIAL_REF", "value", materialBootstrap.ref()));
+            runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIAL_REVISION", "value", materialRevision == null ? "" : materialRevision));
+            runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIAL_CACHE_URL", "value", materialCacheUrl));
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_BOOTSTRAP_KIND", "value", materialBootstrap.kind()));
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_BOOTSTRAP_SOURCE", "value", materialBootstrap.source()));
             if ("inline".equals(materialBootstrap.source())) {
@@ -1086,7 +1096,6 @@ public class KubernetesPodClient implements SandboxOrchestrator {
                 : List.of(
                         Map.of("name", "workspace", "mountPath", "/home/coder/workspace"),
                         Map.of("name", "database", "mountPath", "/home/coder/db")));
-        if (hasMaterials) volumeMounts.add(Map.of("name", "materials", "mountPath", "/opt/insightbloom/materials", "readOnly", true));
 
         // Un puerto por asiento (siempre 1 salvo terminal-nvim con effectiveSeats > 1) -- ver
         // KubernetesPodClient.MAX_SEATS_PER_POD para el porque la NetworkPolicy declara un rango
@@ -1199,7 +1208,6 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         final List<Map<String, Object>> volumes = new ArrayList<>(List.of(
                 Map.of("name", "workspace", "emptyDir", Map.of()),
                 Map.of("name", "database", "emptyDir", Map.of())));
-        if (hasMaterials) volumes.add(Map.of("name", "materials", "persistentVolumeClaim", Map.of("claimName", materialCacheClaimName)));
         spec.put("volumes", volumes);
 
         // Annotation con el UUID COMPLETO (a diferencia de la label "sandbox-conference", que
@@ -1226,28 +1234,38 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     private static String materialSourceKey(final String sourceUrl, final String ref) {
         final String value = sourceUrl + "#" + (ref == null || ref.isBlank() ? "main" : ref);
         try {
-            final byte[] digest = MessageDigest.getInstance("MD5").digest(value.getBytes(StandardCharsets.UTF_8));
-            final StringBuilder out = new StringBuilder(32);
+            final byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            final StringBuilder out = new StringBuilder(64);
             for (byte b : digest) out.append(String.format("%02x", b));
             return out.toString();
         } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException("md5_unavailable", e);
+            throw new IllegalStateException("sha256_unavailable", e);
         }
     }
 
-    private void ensureMaterialCached(final MaterialBootstrapConfig config) {
-        if (config == null || !config.enabled()) return;
+    private String ensureMaterialCached(final MaterialBootstrapConfig config) {
+        if (config == null || !config.enabled()) return "";
         try {
-            final String body = "{\"url\":\"" + config.sourceUrl().replace("\\", "\\\\").replace("\"", "\\\"")
-                    + "\",\"ref\":\"" + config.ref().replace("\\", "\\\\").replace("\"", "\\\"") + "\"}";
+            final String body = jsonCodec.toJson(Map.of("url", config.sourceUrl(), "ref", config.ref()));
             final HttpRequest request = HttpRequest.newBuilder(URI.create(materialCacheUrl + "/sync"))
                     .timeout(Duration.ofSeconds(180)).header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + materialCacheSyncToken)
                     .POST(HttpRequest.BodyPublishers.ofString(body)).build();
-            final int status = httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
-            if (status / 100 != 2) LOGGER.warning("material-cache rejected source with HTTP " + status);
+            final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                LOGGER.warning("material-cache rejected source with HTTP " + response.statusCode());
+                return "";
+            }
+            final String revision = jsonCodec.readTree(response.body()).path("revision").asText("");
+            if (!revision.matches("(?:[a-f0-9]{40}|[a-f0-9]{64})")) {
+                LOGGER.warning("material-cache returned an invalid revision");
+                return "";
+            }
+            return revision;
         } catch (Exception e) {
             // Un cache temporalmente caído no impide que el IDE abra: el bootstrap generará el aviso visible.
             LOGGER.log(Level.WARNING, "material-cache unavailable; sandbox continues", e);
+            return "";
         }
     }
 

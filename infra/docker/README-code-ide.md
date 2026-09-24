@@ -33,8 +33,12 @@ Service del Pod sin saber si hay VS Code o una terminal detras.
 
 El propietario de un evento puede configurar en **IDE y sandboxes** un repositorio público de
 GitHub, su rama/ref y un preparador `shell` o `python`. `insightbloom-material-cache` sigue esa
-ref una vez en un PVC Longhorn RWX, publica un release atómico por SHA y cada sandbox recibe el
-material montado en `/opt/insightbloom/materials` como solo lectura. El preparador corre antes de
+ref en un PVC local `local-path` RWO, publica releases por SHA y entrega archivos/subárboles por
+HTTP interno. El servicio es el único que monta el PVC; los sandboxes no reciben un montaje del
+repositorio completo. `insightbloom-users` solicita la sincronización autenticada y fija el SHA
+en el Pod. El caché vive junto a `users` en el namespace de la aplicación para usar el secreto
+interno sin replicar credenciales entre namespaces; su Service solo admite `users` y sandboxes
+en la NetworkPolicy. `material-copy` descarga únicamente la ruta solicitada. El preparador corre antes de
 exponer code-server, ttyd o un asiento CLI compartido, siempre como usuario del alumno.
 
 Se admite tanto un script inline como una ruta relativa dentro del material. El helper
@@ -45,6 +49,14 @@ para el taller de Agente IA se configura el repositorio
 ```sh
 material-copy "$INSIGHTBLOOM_MATERIALS_ROOT/$INSIGHTBLOOM_MATERIAL_SOURCE/talleres/crea-tu-agente-ia/ejercicios" "$INSIGHTBLOOM_WORKSPACE"
 ```
+
+La descarga usa `INSIGHTBLOOM_MATERIAL_CACHE_URL` y `INSIGHTBLOOM_MATERIAL_REVISION`; funciona
+con la salida pública a Internet del evento desactivada. El helper rechaza rutas fuera del
+material asignado, limita el tamaño descargado y nunca sobrescribe archivos del alumno. El
+caché impone un límite de 700 MiB, retiene como máximo las dos revisiones recientes por fuente
+y expira fuentes inactivas; si se excede el límite, el bootstrap falla con diagnóstico pero el
+IDE sigue disponible. El PVC local no ofrece alta disponibilidad ni se comparte entre nodos,
+supuesto válido para el clúster K3s actual de un nodo.
 
 El SHA realmente usado queda en `.insightbloom/bootstrap-status.json`; la salida está en
 `.insightbloom/bootstrap.log`. Si la sincronización o el script falla, el IDE abre igualmente y

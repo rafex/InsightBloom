@@ -1616,10 +1616,15 @@ Registrar una decision cuando cambie:
 - Contexto: clonar un repositorio grande por cada sandbox desperdicia tiempo, red y disco; sin
   embargo, compartir un workspace escribible entre alumnos rompería aislamiento y trazabilidad.
 - Decision: `insightbloom-material-cache` sincroniza solamente repositorios GitHub HTTPS públicos
-  y publica snapshots inmutables por SHA en un PVC Longhorn RWX. Los sandboxes montan ese PVC
-  como solo lectura y ejecutan un script shell/Python configurado por el propietario del evento
-  como el usuario del alumno. La rama/ref se sigue al iniciar y el SHA efectivo se registra en el
-  workspace. Un error crea diagnóstico pero no bloquea el IDE.
+  y publica snapshots inmutables por SHA en un PVC local `local-path` RWO de tamaño acotado. Solo
+  el servicio monta el claim; `insightbloom-users` invoca `/sync` con bearer interno y los
+  sandboxes descargan por HTTP interno los archivos/subárboles pedidos mediante `material-copy`,
+  fijados a la revisión SHA y sin permiso para sincronizar. El caché corre junto a `users` en el
+  namespace de aplicación para no replicar el secreto privilegiado a sandboxes. Ninguna ruta se publica por Ingress.
+  Los preparadores shell/Python corren como el usuario del alumno. La rama/ref se sigue al iniciar
+  y el SHA efectivo se registra en el workspace. Si falta el cache o el material excede límites,
+  el diagnóstico se conserva pero el IDE no se bloquea. El claim Longhorn RWX anterior solo se
+  retira después de comprobar que ningún Pod lo monte.
 - Consecuencias: los cursos reutilizan datos sin clonar todo el repositorio por alumno, mientras
   que el origen y el script deben tratarse como código de confianza del propietario del evento.
   Repositorios privados, credenciales y escritura al caché quedan fuera de esta primera versión.

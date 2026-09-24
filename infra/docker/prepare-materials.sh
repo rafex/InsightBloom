@@ -34,10 +34,9 @@ fi
 
 export INSIGHTBLOOM_WORKSPACE="$workspace"
 export INSIGHTBLOOM_MATERIALS_ROOT="${INSIGHTBLOOM_MATERIALS_ROOT:-/opt/insightbloom/materials}"
-if [ -n "${INSIGHTBLOOM_MATERIAL_SOURCE:-}" ] && [ -f "$INSIGHTBLOOM_MATERIALS_ROOT/$INSIGHTBLOOM_MATERIAL_SOURCE/.insightbloom-material-revision" ]; then
-  INSIGHTBLOOM_MATERIAL_REVISION="$(cat "$INSIGHTBLOOM_MATERIALS_ROOT/$INSIGHTBLOOM_MATERIAL_SOURCE/.insightbloom-material-revision")"
-  export INSIGHTBLOOM_MATERIAL_REVISION
-fi
+export INSIGHTBLOOM_MATERIAL_CACHE_URL="${INSIGHTBLOOM_MATERIAL_CACHE_URL:-}"
+export INSIGHTBLOOM_MATERIAL_REVISION="${INSIGHTBLOOM_MATERIAL_REVISION:-}"
+material_copy="${INSIGHTBLOOM_MATERIAL_COPY_BIN:-/usr/local/bin/insightbloom-material-copy}"
 
 run_bootstrap() {
   case "${INSIGHTBLOOM_BOOTSTRAP_SOURCE:-}" in
@@ -52,6 +51,11 @@ run_bootstrap() {
     material)
       script="${INSIGHTBLOOM_MATERIALS_ROOT}/${INSIGHTBLOOM_MATERIAL_SOURCE}/${INSIGHTBLOOM_BOOTSTRAP_PATH:-}"
       case "$script" in "$INSIGHTBLOOM_MATERIALS_ROOT"/*) ;; *) return 64 ;; esac
+      [ -n "$INSIGHTBLOOM_MATERIAL_REVISION" ] || return 69
+      script_dir="$(mktemp -d "$state_dir/bootstrap-source.XXXXXX")" || return 1
+      trap 'rm -f "$script_dir/$(basename "${INSIGHTBLOOM_BOOTSTRAP_PATH:-bootstrap}")"; rmdir "$script_dir" 2>/dev/null || true' EXIT
+      "$material_copy" "$script" "$script_dir" || return $?
+      script="$script_dir/$(basename "${INSIGHTBLOOM_BOOTSTRAP_PATH:-bootstrap}")"
       [ -f "$script" ] || return 66
       case "$INSIGHTBLOOM_BOOTSTRAP_KIND" in
         shell) sh "$script" ;;
@@ -66,9 +70,9 @@ run_bootstrap() {
 if run_bootstrap >>"$log_file" 2>&1; then
   write_status "ready" "Preparación de materiales completada"
   exit 0
+else
+  code=$?
 fi
-
-code=$?
 write_status "failed" "La preparación falló (código $code); el IDE sigue disponible."
 cat > "$workspace/README-INSIGHTBLOOM-BOOTSTRAP.md" <<'EOF'
 # Preparación de materiales incompleta
