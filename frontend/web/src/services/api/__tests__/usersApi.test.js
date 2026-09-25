@@ -15,6 +15,8 @@ import {
   sendAttendeeEmail,
   generateEmailDraft,
   setSandboxConfig,
+  deleteSandbox,
+  recreateSandbox,
   setConferenceEgressPolicy
 } from '../usersApi'
 
@@ -122,6 +124,38 @@ describe('usersApi', () => {
           sandboxBootstrapKind: 'shell',
           sandboxBootstrapSource: 'inline'
         }),
+        { headers: { Authorization: 'Bearer tok' } }
+      )
+    })
+  })
+
+  describe('sandbox administrative actions', () => {
+    it('accepts deletion only when the API confirms the requested sandbox was deleted', async () => {
+      axios.post.mockResolvedValue({ data: { data: { action: 'deleted', sandboxUuid: 'sb-1' } } })
+
+      await expect(deleteSandbox('c1', 'sb-1', 'tok')).resolves.toBeUndefined()
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/sandbox/sb-1/delete',
+        {},
+        { headers: { Authorization: 'Bearer tok' } }
+      )
+    })
+
+    it('rejects a successful HTTP response that did not perform the requested sandbox action', async () => {
+      axios.post.mockResolvedValue({ data: { data: { uuid: 'c1' } } })
+
+      await expect(deleteSandbox('c1', 'sb-1', 'tok')).rejects.toThrow(
+        'El servidor no confirmó la operación solicitada sobre el sandbox'
+      )
+    })
+
+    it('requires an explicit recreated result for sandbox recreation', async () => {
+      axios.post.mockResolvedValue({ data: { data: { action: 'recreated', sandboxUuid: 'sb-2' } } })
+
+      await expect(recreateSandbox('c1', 'sb-2', 'tok')).resolves.toBeUndefined()
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/sandbox/sb-2/recreate',
+        {},
         { headers: { Authorization: 'Bearer tok' } }
       )
     })

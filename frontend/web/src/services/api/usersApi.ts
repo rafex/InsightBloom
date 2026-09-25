@@ -498,15 +498,27 @@ export async function prewarmSandboxPool(
 export async function deleteSandbox(
   conferenceId: string, sandboxUuid: string, token: string
 ): Promise<void> {
-  await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/${sandboxUuid}/delete`,
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/${sandboxUuid}/delete`,
     {}, authHeader(token))
+  assertSandboxActionResult(res.data?.data, sandboxUuid, 'deleted')
 }
 
 export async function recreateSandbox(
   conferenceId: string, sandboxUuid: string, token: string
 ): Promise<void> {
-  await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/${sandboxUuid}/recreate`,
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/sandbox/${sandboxUuid}/recreate`,
     {}, authHeader(token))
+  assertSandboxActionResult(res.data?.data, sandboxUuid, 'recreated')
+}
+
+function assertSandboxActionResult(
+  result: { action?: string; sandboxUuid?: string } | undefined,
+  sandboxUuid: string,
+  expectedAction: 'deleted' | 'recreated'
+): void {
+  if (result?.action !== expectedAction || result.sandboxUuid !== sandboxUuid) {
+    throw new Error('El servidor no confirmó la operación solicitada sobre el sandbox')
+  }
 }
 
 export async function listWorkspaceFiles(

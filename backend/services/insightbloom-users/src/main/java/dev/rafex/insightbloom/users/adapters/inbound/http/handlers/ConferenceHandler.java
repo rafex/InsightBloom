@@ -109,6 +109,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     private static final int MAX_FLYER_REQUEST_BYTES = MAX_FLYER_BYTES + 128 * 1024;
     private static final Pattern MULTIPART_BOUNDARY = Pattern.compile(
             "(?:^|;)\\s*boundary=(?:\\\"([^\\\"]+)\\\"|([^;\\s]+))", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SANDBOX_RESET_ACTION_PATH =
+        Pattern.compile("(?:^|/)sandbox/[^/]+/(delete|recreate)$");
 
     private static final java.util.logging.Logger LOGGER =
         java.util.logging.Logger.getLogger(ConferenceHandler.class.getName());
@@ -631,16 +633,20 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/video-session/takeover")) {
             return handleVideoSessionTakeover(jx, jx.pathParam("id"));
         }
-        if (jx.path().endsWith("/sandbox/delete")) {
-            return handleResetSandbox(jx, jx.pathParam("id"), jx.pathParam("sandboxUuid"), false);
-        }
-        if (jx.path().endsWith("/sandbox/recreate")) {
-            return handleResetSandbox(jx, jx.pathParam("id"), jx.pathParam("sandboxUuid"), true);
+        final String sandboxResetAction = sandboxResetAction(jx.path());
+        if (sandboxResetAction != null) {
+            return handleResetSandbox(jx, jx.pathParam("id"), jx.pathParam("sandboxUuid"),
+                "recreate".equals(sandboxResetAction));
         }
         if (jx.path().endsWith("/unblock")) {
             return handleUnblockDevice(jx, jx.pathParam("id"), jx.pathParam("blockId"));
         }
         return handleCreate(jx);
+    }
+
+    static String sandboxResetAction(final String path) {
+        final Matcher matcher = SANDBOX_RESET_ACTION_PATH.matcher(path);
+        return matcher.find() ? matcher.group(1) : null;
     }
 
     @Override
