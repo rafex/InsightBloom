@@ -1585,6 +1585,9 @@ Registrar una decision cuando cambie:
     cuando aplica, la fuente de instalación, el SHA del build, la fecha y la clave de caché.
   - Las imágenes se publican con tags `latest` y `build-*`, pero Kubernetes continúa usando solo
     el tag inmutable promovido por FluxCD.
+  - En la imagen LazyVim, `XDG_DATA_HOME` apunta al árbol global de plugins, que es de solo
+    lectura en runtime. El wrapper de OpenCode redirige únicamente sus datos mutables al home
+    escribible de cada asiento; el valor global sigue intacto para que Neovim encuentre plugins.
 - Consecuencias:
   - La versión exacta del build queda reproducible y auditable aunque el canal sea `latest`.
   - Una actualización de OpenCode requiere reconstruir las tres imágenes y esperar la promoción

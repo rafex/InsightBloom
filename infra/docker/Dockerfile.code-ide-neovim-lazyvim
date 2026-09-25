@@ -298,6 +298,21 @@ RUN set -eux; \
     printf '%s\n' "$opencode_version_output" | grep -F -- "${OPENCODE_VERSION}"; \
     printf '%s\n' "$opencode_version_output" > /tmp/insightbloom-opencode-cli-version
 
+# LazyVim uses a read-only global XDG_DATA_HOME for its vendored plugins. OpenCode also uses
+# XDG_DATA_HOME for mutable logs and runtime state, so route only its own invocation to each
+# seat's writable home while leaving Neovim's shared plugin path unchanged.
+COPY --chmod=0555 infra/docker/opencode-seat-wrapper.sh /opt/insightbloom/node-global/bin/opencode
+RUN set -eux; \
+    test -x /opt/insightbloom/.opencode/bin/opencode; \
+    mkdir -p /tmp/insightbloom-opencode-seat-test; \
+    output="$(HOME=/tmp/insightbloom-opencode-seat-test \
+      XDG_DATA_HOME=/opt/insightbloom/nvim-lazy/data \
+      /opt/insightbloom/node-global/bin/opencode --version 2>&1)"; \
+    printf '%s\n' "$output"; \
+    printf '%s\n' "$output" | grep -F 'opencode v'; \
+    test -f /tmp/insightbloom-opencode-seat-test/.local/share/opencode/log/opencode.log; \
+    rm -rf /tmp/insightbloom-opencode-seat-test
+
 USER root
 RUN set -eux; \
     mkdir -p /etc/insightbloom; \
