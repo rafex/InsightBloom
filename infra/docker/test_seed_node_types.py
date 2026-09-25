@@ -35,6 +35,8 @@ class SeedNodeTypesTest(unittest.TestCase):
         self.source = self.root / "node-types" / "node_modules"
         node_types = self.source / "@types" / "node"
         node_types.mkdir(parents=True)
+        undici_types = self.source / "undici-types"
+        undici_types.mkdir(parents=True)
         (node_types / "package.json").write_text('{"name":"@types/node","types":"index.d.ts"}\n')
         (node_types / "index.d.ts").write_text(
             'declare class Buffer { static from(value: Buffer): Buffer; }\n'
@@ -45,13 +47,14 @@ class SeedNodeTypesTest(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
-    def run_seeder(self, *arguments):
+    def run_seeder(self, *arguments, api_path=None):
+        api_path = api_path or typescript_api_path()
         return subprocess.run(
             ["sh", str(SCRIPT), *map(str, arguments)],
             env={
                 **os.environ,
                 "INSIGHTBLOOM_NODE_TYPES_SOURCE": str(self.source),
-                "INSIGHTBLOOM_TYPESCRIPT_API": typescript_api_path(),
+                "INSIGHTBLOOM_TYPESCRIPT_API": api_path,
             },
             capture_output=True,
             text=True,
@@ -105,6 +108,50 @@ if (errors.length) {
     def test_workspace_mode_does_not_seed_normal_workspace(self):
         result = self.run_seeder("--workspace", self.workspace)
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.workspace / "node_modules").exists())
+
+    def test_normal_workspace_cleans_only_stale_managed_links(self):
+        modules = self.workspace / "node_modules"
+        modules.mkdir()
+        (modules / "@types").symlink_to(self.source / "@types")
+        (modules / "undici-types").symlink_to(self.source / "undici-types")
+        result = self.run_seeder("--workspace", self.workspace)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(modules.exists())
+
+    def test_missing_api_cleans_only_generated_links_and_does_not_seed(self):
+        modules = self.workspace / "node_modules"
+        modules.mkdir()
+        (modules / "@types").symlink_to(self.source / "@types")
+        (modules / "undici-types").symlink_to(self.source / "undici-types")
+        result = self.run_seeder(
+            "--workspace", self.workspace,
+            api_path=str(self.root / "missing-typescript-api.js"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("no se crean enlaces locales", result.stderr)
+        self.assertFalse(modules.exists())
+
+    def test_missing_api_preserves_real_workspace_packages(self):
+        modules = self.workspace / "node_modules"
+        local_package = modules / "example-package"
+        local_package.mkdir(parents=True)
+        (local_package / "index.js").write_text("// project package\n")
+        (modules / "@types").symlink_to(self.source / "@types")
+        result = self.run_seeder(
+            "--workspace", self.workspace,
+            api_path=str(self.root / "missing-typescript-api.js"),
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((local_package / "index.js").is_file())
+        self.assertFalse((modules / "@types").exists())
+        self.assertTrue(modules.is_dir())
+
+    def test_invalid_config_does_not_seed_local_compatibility(self):
+        (self.workspace / "tsconfig.json").write_text('{"extends":"./missing.json"}\n')
+        result = self.run_seeder("--workspace", self.workspace)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("no se crean enlaces locales", result.stderr)
         self.assertFalse((self.workspace / "node_modules").exists())
 
     def test_effective_type_roots_inherited_through_extends_get_local_fallback(self):

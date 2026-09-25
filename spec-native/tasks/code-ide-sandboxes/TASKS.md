@@ -75,7 +75,10 @@ agente CLI multi-asiento recrea esa ruta tras el montaje emptyDir de `/home`. No
 `workspace/node_modules` normalmente; se conserva un enlace local solo si el typeRoots
 efectivo de tsconfig/jsconfig (incluidos `extends`) apunta explícitamente a esa ruta, sin
 pisar paquetes locales existentes. `fs`, `http`, `process` y `Buffer` se validan con
-TypeScript durante el build de las tres imágenes.
+TypeScript durante el build de las tres imágenes. El evaluador usa una API de TypeScript
+6.0.3 fijada e independiente del compilador visible al alumno; ante API/configuración no
+resoluble no siembra enlaces locales. Al iniciar también elimina únicamente los enlaces
+residuales que él mismo haya creado y retira `node_modules` solo si queda vacío.
 
 **Criterio de cierre:** el Language Server se inicia desde Neovim sin Mason ni
 descargas en runtime; los tipos de Node se resuelven en un Pod de un asiento y en

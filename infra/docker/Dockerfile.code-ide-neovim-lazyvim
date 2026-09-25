@@ -231,6 +231,7 @@ RUN addgroup -g 1000 coder && \
     chown -R coder:coder /home/coder
 
 ENV NPM_CONFIG_PREFIX=/opt/insightbloom/node-global
+ENV INSIGHTBLOOM_TYPESCRIPT_API=/opt/insightbloom/tsconfig-api/node_modules/typescript/lib/typescript.js
 # OpenCode must live outside /home: the sandbox mounts the per-seat workspace over
 # /home at runtime, which would otherwise hide the binary baked into the image.
 ENV PATH=/opt/insightbloom/node-global/bin:/opt/insightbloom/.opencode/bin:$PATH
@@ -279,7 +280,10 @@ RUN npm install -g npm@latest && \
     pyright@1.1.411 \
     vscode-langservers-extracted@4.10.0 \
     @typescript-eslint/parser \
-    @typescript-eslint/eslint-plugin
+    @typescript-eslint/eslint-plugin && \
+    npm install --prefix /opt/insightbloom/tsconfig-api --omit=dev --save-exact typescript@6.0.3 && \
+    test -f "$INSIGHTBLOOM_TYPESCRIPT_API" && \
+    node -e 'const ts = require(process.env.INSIGHTBLOOM_TYPESCRIPT_API); if (typeof ts.getParsedCommandLineOfConfigFile !== "function") process.exit(1)'
 
 # opencode -- identico a Dockerfile.code-ide-neovim. Se resuelve la release latest en cada
 # reconstruccion para que una imagen que permanece estatica durante meses no conserve
@@ -341,7 +345,9 @@ COPY --chown=coder:coder infra/docker/nvim-init-lazyvim.lua /home/coder/.config/
 # imagen original -- solo cambia el CONTENIDO de /etc/insightbloom/nvim-init.lua entre las dos
 # imagenes, nunca el mecanismo de copia).
 USER root
-RUN mkdir -p /etc/insightbloom /usr/local/share/doc/insightbloom /usr/local/share/insightbloom
+RUN mkdir -p /etc/insightbloom /usr/local/share/doc/insightbloom /usr/local/share/insightbloom && \
+    chown -R root:root /opt/insightbloom/tsconfig-api && \
+    chmod -R a+rX,a-w /opt/insightbloom/tsconfig-api
 COPY infra/docker/nvim-init-lazyvim.lua /etc/insightbloom/nvim-init.lua
 COPY infra/docker/insightbloom-bash-completion.sh /usr/share/bash-completion/completions/insightbloom
 COPY infra/docker/tmux.conf /etc/tmux.conf

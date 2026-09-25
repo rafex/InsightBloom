@@ -16,9 +16,27 @@ elif [ "$MODE" = "--workspace" ]; then
         echo "uso: seed-node-types.sh --workspace RUTA | --global [RUTA]" >&2
         exit 2
     fi
-    # Evalúa JSONC, extends y rutas relativas con la misma versión de TypeScript instalada
-    # para los language servers. Solo usa el enlace local si el typeRoots EFECTIVO lo exige.
-    if node - "$WORKSPACE" "${INSIGHTBLOOM_TYPESCRIPT_API:-/opt/insightbloom/node-global/lib/node_modules/typescript/lib/typescript.js}" <<'NODE'
+
+    # Retira únicamente los enlaces creados por este seeder. Los paquetes reales y cualquier
+    # otro contenido de node_modules pertenecen al proyecto y nunca se borran.
+    cleanup_managed_link() {
+        destination="$1"
+        expected_target="$2"
+        if [ -L "$destination" ] && [ "$(readlink "$destination")" = "$expected_target" ]; then
+            rm "$destination"
+        fi
+    }
+
+    workspace_modules="$WORKSPACE/node_modules"
+    if [ -d "$workspace_modules" ]; then
+        cleanup_managed_link "$workspace_modules/@types" "$SOURCE/@types"
+        cleanup_managed_link "$workspace_modules/undici-types" "$SOURCE/undici-types"
+        rmdir "$workspace_modules" 2>/dev/null || true
+    fi
+
+    # Evalúa JSONC, extends y rutas relativas con una API fijada en la imagen. El TypeScript
+    # visible para los alumnos puede cambiar de layout y no debe controlar este fallback.
+    if node - "$WORKSPACE" "${INSIGHTBLOOM_TYPESCRIPT_API:-/opt/insightbloom/tsconfig-api/node_modules/typescript/lib/typescript.js}" <<'NODE'
 const fs = require('node:fs');
 const path = require('node:path');
 const workspace = path.resolve(process.argv[2]);
@@ -26,8 +44,8 @@ let ts;
 try {
   ts = require(process.argv[3]);
 } catch (error) {
-  console.error(`seed-node-types: no se pudo cargar TypeScript para evaluar typeRoots; usando compatibilidad local: ${error.message}`);
-  process.exit(0);
+  console.error(`seed-node-types: no se pudo cargar la API TypeScript; no se crean enlaces locales: ${error.message}`);
+  process.exit(2);
 }
 
 const configs = ['tsconfig.json', 'jsconfig.json']
@@ -48,16 +66,15 @@ for (const configPath of configs) {
       },
     });
   } catch (error) {
-    console.error(`seed-node-types: no se pudo analizar ${path.basename(configPath)}: ${error.message}`);
-    fallback = true;
+    console.error(`seed-node-types: no se pudo analizar ${path.basename(configPath)}; no se crean enlaces locales: ${error.message}`);
+    process.exit(2);
     continue;
   }
   const configErrors = parsed ? parsed.errors.filter((diagnostic) =>
     diagnostic.category === ts.DiagnosticCategory.Error && diagnostic.code !== 18003) : [];
   if (!parsed || fatalDiagnostic || configErrors.length > 0) {
-    console.error(`seed-node-types: configuración TypeScript no resoluble; usando compatibilidad local para ${path.basename(configPath)}`);
-    fallback = true;
-    continue;
+    console.error(`seed-node-types: configuración TypeScript no resoluble; no se crean enlaces locales para ${path.basename(configPath)}`);
+    process.exit(2);
   }
   const localTypes = path.resolve(workspace, 'node_modules/@types');
   const roots = parsed.options.typeRoots || [];
@@ -71,6 +88,7 @@ NODE
         status=$?
         case "$status" in
             1) exit 0 ;; # Configuración ausente o sin typeRoots local: /home/node_modules basta.
+            2) exit 0 ;; # Error de evaluación: mantener el IDE disponible sin ensuciar el workspace.
             *) exit "$status" ;;
         esac
     fi

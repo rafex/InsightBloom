@@ -37,8 +37,31 @@ env:
   OWNER: rafex
 
 jobs:
+  test-node-types-seeder:
+    name: Test global Node typings seeder
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "25"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install isolated TypeScript config API
+        run: npm install --prefix "$RUNNER_TEMP/insightbloom-tsconfig-api" --omit=dev --save-exact typescript@6.0.3
+
+      - name: Test workspace seeding and safe cleanup
+        env:
+          INSIGHTBLOOM_TYPESCRIPT_API: ${{ runner.temp }}/insightbloom-tsconfig-api/node_modules/typescript/lib/typescript.js
+        run: python -m unittest -v infra.docker.test_seed_node_types
+
   build-and-push-code-ide:
     name: Build and push code-ide (${{ matrix.name }})
+    needs: test-node-types-seeder
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:

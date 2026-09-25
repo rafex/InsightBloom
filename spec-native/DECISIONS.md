@@ -1136,7 +1136,11 @@ Registrar una decision cuando cambie:
   compartido es root-owned y no escribible por alumnos. `seed-node-types.sh` deja
   intacto el workspace normal y solo publica el enlace local como compatibilidad si
   el `typeRoots` efectivo de tsconfig/jsconfig (incluidos `extends`) exige exactamente
-  `workspace/node_modules/@types`; no pisa paquetes locales existentes. No se usa
+  `workspace/node_modules/@types`; no pisa paquetes locales existentes. El evaluador usa
+  una API TypeScript 6.0.3 fijada, separada del TypeScript 7 del usuario; si no puede
+  evaluar una configuración, no crea enlaces. La limpieza retira solo symlinks cuyos
+  destinos coinciden con el almacén compartido y elimina la carpeta únicamente si queda
+  vacía. No se usa
   Mason, Lazy ni instalación en runtime: `fs`, `http`, `process`, `Buffer` y demás
   tipos de Node están disponibles sin Internet.
 - **Contrato LSP común para IDE Web y CLI (2026-07-23):** las tres imágenes

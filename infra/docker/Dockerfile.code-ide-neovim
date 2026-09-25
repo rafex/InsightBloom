@@ -185,6 +185,7 @@ RUN addgroup -g 1000 coder && \
 # aprovisionar un asiento. Mantener el prefijo global fuera de /home hace que la instalación
 # siga siendo visible para coder, studentN y el agente aunque cada asiento tenga su propio home.
 ENV NPM_CONFIG_PREFIX=/opt/insightbloom/node-global
+ENV INSIGHTBLOOM_TYPESCRIPT_API=/opt/insightbloom/tsconfig-api/node_modules/typescript/lib/typescript.js
 # OpenCode must live outside /home: the sandbox mounts the per-seat workspace over
 # /home at runtime, which would otherwise hide the binary baked into the image.
 ENV PATH=/opt/insightbloom/node-global/bin:/opt/insightbloom/.opencode/bin:$PATH
@@ -238,7 +239,10 @@ RUN npm install -g npm@latest && \
     pyright@1.1.411 \
     vscode-langservers-extracted@4.10.0 \
     @typescript-eslint/parser \
-    @typescript-eslint/eslint-plugin
+    @typescript-eslint/eslint-plugin && \
+    npm install --prefix /opt/insightbloom/tsconfig-api --omit=dev --save-exact typescript@6.0.3 && \
+    test -f "$INSIGHTBLOOM_TYPESCRIPT_API" && \
+    node -e 'const ts = require(process.env.INSIGHTBLOOM_TYPESCRIPT_API); if (typeof ts.getParsedCommandLineOfConfigFile !== "function") process.exit(1)'
 
 # opencode (CLI de agente de codigo IA, https://opencode.ai, de SST) -- costo fijo aceptado
 # incondicionalmente (auditoria de seguridad 2026-07-17), igual que en la imagen Debian.
@@ -261,6 +265,8 @@ RUN set -eux; \
 USER root
 RUN set -eux; \
     mkdir -p /etc/insightbloom; \
+    chown -R root:root /opt/insightbloom/tsconfig-api; \
+    chmod -R a+rX,a-w /opt/insightbloom/tsconfig-api; \
     { \
       printf 'cli_version=%s\n' "$(cat /tmp/insightbloom-opencode-cli-version)"; \
       printf 'extension_version=not-applicable\n'; \
