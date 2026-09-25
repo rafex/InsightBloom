@@ -307,8 +307,9 @@ RUN set -eux; \
     mkdir -p /tmp/insightbloom-opencode-seat-test; \
     output="$(HOME=/tmp/insightbloom-opencode-seat-test \
       XDG_DATA_HOME=/opt/insightbloom/nvim-lazy/data \
-      /opt/insightbloom/node-global/bin/opencode --version 2>&1)"; \
+      /bin/bash -lc 'command -v opencode; opencode --version' 2>&1)"; \
     printf '%s\n' "$output"; \
+    printf '%s\n' "$output" | grep -F '/opt/insightbloom/node-global/bin/opencode'; \
     printf '%s\n' "$output" | grep -F 'opencode v'; \
     test -f /tmp/insightbloom-opencode-seat-test/.local/share/opencode/log/opencode.log; \
     rm -rf /tmp/insightbloom-opencode-seat-test

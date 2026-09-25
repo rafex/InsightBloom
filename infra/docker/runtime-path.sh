@@ -18,4 +18,4 @@
 # al resolverlo por su path real (mismo bug ya documentado para este mismo directorio en
 # Dockerfile.code-ide-neovim, nunca portado a esta imagen).
 export JAVA_HOME="/usr/local/lib/jvm/temurin-25"
-export PATH="${JAVA_HOME}/bin:/usr/local/lib/node-24/bin:/usr/local/lib/python-3.12/bin:/opt/insightbloom/.opencode/bin:/home/coder/.npm-global/bin:$PATH"
+export PATH="${JAVA_HOME}/bin:/usr/local/lib/node-24/bin:/usr/local/lib/python-3.12/bin:/opt/insightbloom/node-global/bin:/opt/insightbloom/.opencode/bin:/home/coder/.npm-global/bin:$PATH"

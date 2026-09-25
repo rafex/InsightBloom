@@ -1588,6 +1588,8 @@ Registrar una decision cuando cambie:
   - En la imagen LazyVim, `XDG_DATA_HOME` apunta al árbol global de plugins, que es de solo
     lectura en runtime. El wrapper de OpenCode redirige únicamente sus datos mutables al home
     escribible de cada asiento; el valor global sigue intacto para que Neovim encuentre plugins.
+    El perfil de shells de login también incluye `/opt/insightbloom/node-global/bin` antes del
+    binario real, de modo que tanto OpenCode como las herramientas npm globales usan el wrapper.
 - Consecuencias:
   - La versión exacta del build queda reproducible y auditable aunque el canal sea `latest`.
   - Una actualización de OpenCode requiere reconstruir las tres imágenes y esperar la promoción
