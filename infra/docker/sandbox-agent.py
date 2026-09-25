@@ -171,6 +171,7 @@ def _ensure_seat_account(index: int, user_uuid: str):
     login = _seat_login_name(index)
     home = _seat_home(user_uuid)
     workspace = f"{home}/workspace"
+    seat_env = {**os.environ, "HOME": home, "USER": login}
     nvim_config_dir = f"{home}/.config/nvim"
     os.makedirs(workspace, exist_ok=True)
     os.makedirs(nvim_config_dir, exist_ok=True)
@@ -206,9 +207,8 @@ def _ensure_seat_account(index: int, user_uuid: str):
     os.chmod(f"{home}/.config", 0o750)
     os.chmod(workspace, 0o750)
     os.chmod(home, 0o750)
-    # Debe ocurrir antes de seed-node-types: ese seeder crea node_modules y un
-    # workspace deja de parecer vacío para git clone. El modo multi-asiento no
-    # puede clonar en el initContainer porque todavía no conoce este home.
+    # El clonado precede a la compatibilidad de typeRoots local: un workspace deja
+    # de parecer vacío si el proyecto exige ese enlace. No crea nada en proyectos normales.
     _seed_remote_git(uid, index, home, workspace)
     subprocess.run(
         [MATERIAL_PREPARER, workspace],
@@ -216,12 +216,12 @@ def _ensure_seat_account(index: int, user_uuid: str):
         env=seat_env,
         check=True,
     )
-    # El workspace es un volumen por asiento y no contiene los archivos creados
-    # durante el build. Publicar los tipos precargados mediante enlaces mantiene
-    # el autocompletado de Node.js/TypeScript sin instalar nada en runtime.
+    # Solo proyectos cuyo typeRoots efectivo exige workspace/node_modules/@types
+    # reciben enlaces locales; normalmente los tipos se resuelven desde /home/node_modules.
     subprocess.run(
-        [NODE_TYPES_SEEDER, workspace],
+        [NODE_TYPES_SEEDER, "--workspace", workspace],
         preexec_fn=_drop_privileges(uid, uid),
+        env=seat_env,
         check=True,
     )
     return uid, home
@@ -630,6 +630,14 @@ def main():
     # puede atravesar esos directorios; los procesos de alumnos pierden todos sus
     # grupos suplementarios antes de ejecutar ttyd.
     os.chmod(WORKSPACE_ROOT, 0o755)
+
+    # Kubernetes monta un emptyDir sobre /home en Pods multi-asiento, ocultando la ruta
+    # precargada en la imagen. Recrearla una vez como root antes de aceptar asientos;
+    # los alumnos solo tendrán lectura/ejecución, no podrán alterar enlaces compartidos.
+    subprocess.run(
+        [NODE_TYPES_SEEDER, "--global", f"{WORKSPACE_ROOT}/node_modules"],
+        check=True,
+    )
 
     def _reap_zombies(*_):
         while True:

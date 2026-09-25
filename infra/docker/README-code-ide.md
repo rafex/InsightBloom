@@ -130,9 +130,15 @@ de CI locales y diagnósticos manuales usen las mismas versiones: `pyright`,
 `typescript-language-server` y `vscode-langservers-extracted`.
 
 Como `/home/*/workspace` es un volumen efímero, la imagen guarda una copia inmutable de los
-tipos en `/usr/local/share/insightbloom-node-types`. `seed-node-types.sh` crea enlaces dentro
-del workspace al arrancar el asiento, tanto en el modo de un solo usuario como en el agente
-multi-asiento. El script no ejecuta `npm install`, no usa Mason/Lazy y no requiere Internet.
+tipos en `/usr/local/share/insightbloom-node-types` y publica enlaces root-owned de solo lectura
+en `/home/node_modules`. TypeScript los encuentra desde los workspaces descendientes sin crear
+`workspace/node_modules`; en Pods multi-asiento el agente recrea esa ruta al inicio porque el
+emptyDir de `/home` oculta el contenido de la imagen. El seeder solo crea el enlace local como
+compatibilidad cuando el `tsconfig.json`/`jsconfig.json` efectivo (incluidos `extends`) limita
+`typeRoots` explícitamente a `workspace/node_modules/@types`. Los paquetes locales existentes
+mantienen prioridad y nunca se pisan. El script no ejecuta `npm install`, no usa Mason/Lazy y no
+requiere Internet. Los tres Dockerfiles validan durante el build que `fs`, `process` y `Buffer`
+resuelven desde el directorio ancestro.
 
 ## Distribución en K3s
 

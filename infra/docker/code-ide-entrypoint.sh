@@ -15,9 +15,10 @@ set -euo pipefail
 # archivos auxiliares del IDE. Nunca aborta el IDE: escribe estado/log dentro del workspace.
 /usr/local/bin/prepare-materials.sh /home/coder/workspace
 
-# Configuracion del workspace: publica los tipos de Node.js precargados para que el TypeScript
-# language service pueda resolver fs/http/process/Buffer sin npm ni Internet durante la sesion.
-/usr/local/bin/seed-node-types.sh /home/coder/workspace
+# Los tipos globales viven en /home/node_modules, que TypeScript encuentra como directorio
+# ancestro. Solo proyectos con typeRoots explícito al node_modules local necesitan el enlace
+# de compatibilidad; se evalúa su tsconfig efectivo sin tocar workspaces normales.
+/usr/local/bin/seed-node-types.sh --workspace /home/coder/workspace
 /usr/local/bin/seed-ide-docs.sh /home/coder/workspace
 
 if [ ! -f /home/coder/workspace/.vscode/launch.json ]; then

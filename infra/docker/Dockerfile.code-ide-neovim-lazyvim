@@ -348,7 +348,13 @@ COPY infra/docker/material-copy /usr/local/bin/insightbloom-material-copy
 COPY infra/docker/lockdown-egress.sh /usr/local/bin/lockdown-egress.sh
 RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \
-    chmod -R a+rX /usr/local/share/insightbloom-node-types && \
+    chown -R root:root /usr/local/share/insightbloom-node-types && \
+    chmod -R a+rX,a-w /usr/local/share/insightbloom-node-types && \
+    chmod +x /usr/local/bin/seed-node-types.sh && \
+    /usr/local/bin/seed-node-types.sh --global /home/node_modules && \
+    printf '%s\n' 'import { readFileSync } from "node:fs";' 'const cwd: string = process.cwd();' 'const data: string = readFileSync(cwd);' 'const buffer: Buffer = Buffer.from(data);' > /home/.insightbloom-node-types-check.ts && \
+    /opt/insightbloom/node-global/bin/tsc --noEmit --strict --skipLibCheck --types node /home/.insightbloom-node-types-check.ts && \
+    rm /home/.insightbloom-node-types-check.ts && \
     test -x /opt/insightbloom/node-global/bin/typescript-language-server && \
     test -x /opt/insightbloom/node-global/bin/pyright-langserver && \
     test -x /opt/insightbloom/node-global/bin/vscode-html-language-server && \
@@ -368,4 +374,4 @@ USER coder
 EXPOSE 8079-8089
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["sh", "-c", "/usr/local/bin/seed-remote-git.sh /home/coder/workspace; /usr/local/bin/prepare-materials.sh /home/coder/workspace; /usr/local/bin/seed-node-types.sh /home/coder/workspace; /usr/local/bin/seed-ide-docs.sh /home/coder/workspace; python3 /usr/local/bin/sandbox-file-agent.py --control-port 8079 & tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]
+CMD ["sh", "-c", "/usr/local/bin/seed-remote-git.sh /home/coder/workspace; /usr/local/bin/prepare-materials.sh /home/coder/workspace; /usr/local/bin/seed-node-types.sh --workspace /home/coder/workspace; /usr/local/bin/seed-ide-docs.sh /home/coder/workspace; python3 /usr/local/bin/sandbox-file-agent.py --control-port 8079 & tmux new-session -d -s main -c /home/coder/workspace nvim . ; exec ttyd -p 8080 -W --ping-interval 15 tmux attach-session -t main"]

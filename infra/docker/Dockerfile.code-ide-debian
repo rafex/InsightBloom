@@ -355,7 +355,12 @@ COPY infra/docker/sandbox-file-agent.py /usr/local/bin/sandbox-file-agent.py
 COPY infra/docker/sandbox_file_api.py /usr/local/bin/sandbox_file_api.py
 RUN mkdir -p /usr/local/share/insightbloom-node-types && \
     npm install --prefix /usr/local/share/insightbloom-node-types --omit=dev @types/node && \
-    chmod -R a+rX /usr/local/share/insightbloom-node-types && \
+    chown -R root:root /usr/local/share/insightbloom-node-types && \
+    chmod -R a+rX,a-w /usr/local/share/insightbloom-node-types && \
+    /usr/local/bin/seed-node-types.sh --global /home/node_modules && \
+    printf '%s\n' 'import { readFileSync } from "node:fs";' 'const cwd: string = process.cwd();' 'const data: string = readFileSync(cwd);' 'const buffer: Buffer = Buffer.from(data);' > /home/.insightbloom-node-types-check.ts && \
+    /opt/insightbloom/node-global/bin/tsc --noEmit --strict --skipLibCheck --types node /home/.insightbloom-node-types-check.ts && \
+    rm /home/.insightbloom-node-types-check.ts && \
     chmod +x /usr/local/bin/code-ide-entrypoint.sh /usr/local/bin/seed-node-types.sh /usr/local/bin/sandbox-file-agent.py
 USER coder
 

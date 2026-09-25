@@ -69,8 +69,13 @@ El modo `terminal-nvim` incorpora `nvim-lspconfig` y
 configuración cubre JavaScript, JSX, TypeScript, TSX y JSON/JSONC (`package.json`,
 `jsconfig.json`, `tsconfig.json`) y detecta la raíz por configuración de proyecto o
 `.git`. La imagen precarga también `@types/node`; el script
-`infra/docker/seed-node-types.sh` publica esos tipos en cada workspace efímero sin
-Internet, incluyendo los tipos de `fs`, `http`, `process` y `Buffer`.
+`infra/docker/seed-node-types.sh` publica esos tipos en `/home/node_modules`, compartido
+en modo de solo lectura y visible desde los workspaces descendientes sin Internet. El
+agente CLI multi-asiento recrea esa ruta tras el montaje emptyDir de `/home`. No se crea
+`workspace/node_modules` normalmente; se conserva un enlace local solo si el typeRoots
+efectivo de tsconfig/jsconfig (incluidos `extends`) apunta explícitamente a esa ruta, sin
+pisar paquetes locales existentes. `fs`, `http`, `process` y `Buffer` se validan con
+TypeScript durante el build de las tres imágenes.
 
 **Criterio de cierre:** el Language Server se inicia desde Neovim sin Mason ni
 descargas en runtime; los tipos de Node se resuelven en un Pod de un asiento y en
