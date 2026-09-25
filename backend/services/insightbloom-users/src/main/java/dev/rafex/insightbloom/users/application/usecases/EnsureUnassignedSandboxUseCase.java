@@ -145,7 +145,7 @@ public class EnsureUnassignedSandboxUseCase {
         final Sandbox sandbox = new Sandbox(conferenceUuid, sandboxSlot, 0, variant, null, expiresAt);
 
         try {
-            if (conference.materialBootstrap().enabled()) {
+            if (conference.materialBootstrap().configured()) {
                 sandboxOrchestrator.createSandbox(sandbox.podName(), conferenceUuid, orchestratorVariant,
                     conference.getSandboxRemoteGitUrl(), internetEnabled, conference.getSandboxJvmHeapMb(),
                     conference.getSandboxSeatsPerPod(), conference.materialBootstrap());

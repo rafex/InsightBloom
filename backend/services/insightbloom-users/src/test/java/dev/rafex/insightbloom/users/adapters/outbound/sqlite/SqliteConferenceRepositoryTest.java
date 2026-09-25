@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -87,6 +88,48 @@ class SqliteConferenceRepositoryTest {
 
         final Conference restored = repository.findByUuid(conference.getUuid()).orElseThrow();
         assertEquals("HTML_CHROME", restored.getCertificateEngine());
+    }
+
+    @Test
+    void persistsBootstrapToggleAndKeepsDisabledScriptConfiguration(@TempDir final Path tempDir) {
+        final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
+        database.initialize();
+        final SqliteConferenceRepository repository = new SqliteConferenceRepository(database);
+        final Conference conference = new Conference("bootstrap-toggle", "Bootstrap toggle", "owner");
+        conference.setSandboxBootstrapEnabled(false);
+        conference.setSandboxBootstrapKind("shell");
+        conference.setSandboxBootstrapSource("inline");
+        conference.setSandboxBootstrapValue("echo kept");
+
+        repository.save(conference);
+        database.initialize();
+
+        final Conference restored = repository.findByUuid(conference.getUuid()).orElseThrow();
+        assertTrue(!restored.getSandboxBootstrapEnabled());
+        assertEquals("echo kept", restored.getSandboxBootstrapValue());
+        assertFalse(restored.materialBootstrap().enabled());
+    }
+
+    @Test
+    void migratesLegacyConfiguredBootstrapToEnabledOnlyWhenAddingToggleColumn(@TempDir final Path tempDir)
+            throws Exception {
+        final DatabaseManager database = new DatabaseManager(tempDir.resolve("users.db").toString());
+        database.initialize();
+        final SqliteConferenceRepository repository = new SqliteConferenceRepository(database);
+        final Conference conference = new Conference("legacy-bootstrap", "Legacy bootstrap", "owner");
+        conference.setSandboxMaterialSourceUrl("https://github.com/rafex/course");
+        conference.setSandboxMaterialRef("main");
+        conference.setSandboxBootstrapKind("shell");
+        conference.setSandboxBootstrapSource("inline");
+        conference.setSandboxBootstrapValue("echo legacy");
+        repository.save(conference);
+
+        try (Connection connection = database.getConnection(); var statement = connection.createStatement()) {
+            statement.executeUpdate("ALTER TABLE conferences DROP COLUMN sandbox_bootstrap_enabled");
+        }
+        database.initialize();
+
+        assertTrue(repository.findByUuid(conference.getUuid()).orElseThrow().getSandboxBootstrapEnabled());
     }
 
     @Test

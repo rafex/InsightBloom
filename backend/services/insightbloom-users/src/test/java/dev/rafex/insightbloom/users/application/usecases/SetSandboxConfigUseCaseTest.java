@@ -159,11 +159,67 @@ class SetSandboxConfigUseCaseTest {
 
         var result = useCase.execute("conf1", "", 1, null, 70, null, 1, null,
                 "https://github.com/rafex/presentaciones-cursos-talleres", "main", "shell",
-                "inline", "material-copy \"$INSIGHTBLOOM_MATERIALS_ROOT/key/current/talleres/crea-tu-agente-ia/ejercicios\" \"$INSIGHTBLOOM_WORKSPACE\"");
+                "inline", "material-copy \"$INSIGHTBLOOM_MATERIALS_ROOT/key/current/talleres/crea-tu-agente-ia/ejercicios\" "
+                        + "\"$INSIGHTBLOOM_WORKSPACE\"", true);
 
         assertTrue(result.materialBootstrap().enabled());
         assertEquals("main", result.materialBootstrap().ref());
         assertEquals("inline", result.materialBootstrap().source());
+    }
+
+    @Test
+    void savesAndEnablesInlineBootstrapWithoutMaterials() {
+        Mockito.when(repoMock.findByUuid("conf1")).thenReturn(Optional.of(conf));
+
+        var result = useCase.execute("conf1", "", 1, null, 70, null, 1, null,
+                null, null, "shell", "inline", "mkdir -p \"$INSIGHTBLOOM_WORKSPACE/actividad\"", true);
+
+        assertTrue(result.materialBootstrap().enabled());
+        assertFalse(result.materialBootstrap().hasMaterials());
+    }
+
+    @Test
+    void configuresMaterialsWithoutEnablingBootstrap() {
+        Mockito.when(repoMock.findByUuid("conf1")).thenReturn(Optional.of(conf));
+
+        var result = useCase.execute("conf1", "", 1, null, 70, null, 1, null,
+                "https://github.com/rafex/curso", "main", null, null, null, false);
+
+        assertTrue(result.materialBootstrap().hasMaterials());
+        assertFalse(result.materialBootstrap().enabled());
+        assertTrue(result.materialBootstrap().configured());
+    }
+
+    @Test
+    void enabledMaterialScriptRequiresAConfiguredMaterialsRepository() {
+        Mockito.when(repoMock.findByUuid("conf1")).thenReturn(Optional.of(conf));
+
+        var ex = assertThrows(IllegalArgumentException.class,
+                () -> useCase.execute("conf1", "", 1, null, 70, null, 1, null,
+                        null, null, "shell", "material", "taller/bootstrap.sh", true));
+
+        assertEquals("bootstrap_material_source_required", ex.getMessage());
+    }
+
+    @Test
+    void omittedBootstrapTogglePreservesSavedDisabledValue() {
+        Mockito.when(repoMock.findByUuid("conf1")).thenReturn(Optional.of(conf));
+
+        var result = useCase.execute("conf1", "", 1, null, 70, null, 1, null,
+                "https://github.com/rafex/curso", "main", "shell", "inline", "echo kept");
+
+        assertFalse(result.materialBootstrap().enabled());
+    }
+
+    @Test
+    void omittedBootstrapTogglePreservesSavedEnabledValue() {
+        conf.setSandboxBootstrapEnabled(true);
+        Mockito.when(repoMock.findByUuid("conf1")).thenReturn(Optional.of(conf));
+
+        var result = useCase.execute("conf1", "", 1, null, 70, null, 1, null,
+                "https://github.com/rafex/curso", "main", "shell", "inline", "echo kept");
+
+        assertTrue(result.materialBootstrap().enabled());
     }
 
     @Test

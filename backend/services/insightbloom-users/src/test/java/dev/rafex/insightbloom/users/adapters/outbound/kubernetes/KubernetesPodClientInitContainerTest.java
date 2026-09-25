@@ -99,7 +99,7 @@ class KubernetesPodClientInitContainerTest {
                 MaterialBootstrapConfig.class, String.class);
         m.setAccessible(true);
         final MaterialBootstrapConfig config = new MaterialBootstrapConfig(
-                "https://github.com/example/course", "main", "shell", "material", "setup.sh");
+                "https://github.com/example/course", "main", "shell", "material", "setup.sh", true);
         final Map<String, Object> pod = (Map<String, Object>) m.invoke(newClient(), "sandbox-material-0",
                 "conf-uuid-1234", "python", null, null, 1, config, "b".repeat(40));
         final Map<String, Object> spec = (Map<String, Object>) pod.get("spec");
@@ -116,6 +116,43 @@ class KubernetesPodClientInitContainerTest {
         assertTrue(env.stream().anyMatch(entry -> "INSIGHTBLOOM_MATERIAL_CACHE_URL".equals(entry.get("name"))));
         assertTrue(env.stream().anyMatch(entry -> "INSIGHTBLOOM_MATERIAL_SOURCE".equals(entry.get("name"))
                 && ((String) entry.get("value")).matches("[a-f0-9]{64}/current")));
+        assertTrue(env.stream().anyMatch(entry -> "INSIGHTBLOOM_BOOTSTRAP_PATH".equals(entry.get("name"))));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void inlineBootstrapDoesNotRequireOrSynchronizeMaterials() throws Exception {
+        final Method m = KubernetesPodClient.class.getDeclaredMethod("buildPodBody",
+                String.class, String.class, String.class, String.class, Integer.class, int.class,
+                MaterialBootstrapConfig.class, String.class);
+        m.setAccessible(true);
+        final MaterialBootstrapConfig config = new MaterialBootstrapConfig(
+                null, null, "shell", "inline", "echo inline", true);
+        final Map<String, Object> pod = (Map<String, Object>) m.invoke(newClient(), "sandbox-inline-0",
+                "conf-uuid-1234", "python", null, null, 1, config, "");
+        final Map<String, Object> spec = (Map<String, Object>) pod.get("spec");
+        final List<Map<String, Object>> env = (List<Map<String, Object>>) ((Map<String, Object>)
+                ((List<Map<String, Object>>) spec.get("containers")).get(0)).get("env");
+        assertTrue(env.stream().anyMatch(entry -> "INSIGHTBLOOM_BOOTSTRAP_INLINE".equals(entry.get("name"))));
+        assertFalse(env.stream().anyMatch(entry -> "INSIGHTBLOOM_MATERIAL_CACHE_URL".equals(entry.get("name"))));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void materialsAreProvidedToSandboxWithoutBootstrap() throws Exception {
+        final Method m = KubernetesPodClient.class.getDeclaredMethod("buildPodBody",
+                String.class, String.class, String.class, String.class, Integer.class, int.class,
+                MaterialBootstrapConfig.class, String.class);
+        m.setAccessible(true);
+        final MaterialBootstrapConfig config = new MaterialBootstrapConfig(
+                "https://github.com/example/course", "main", null, null, null, false);
+        final Map<String, Object> pod = (Map<String, Object>) m.invoke(newClient(), "sandbox-material-only-0",
+                "conf-uuid-1234", "python", null, null, 1, config, "b".repeat(40));
+        final Map<String, Object> spec = (Map<String, Object>) pod.get("spec");
+        final List<Map<String, Object>> env = (List<Map<String, Object>>) ((Map<String, Object>)
+                ((List<Map<String, Object>>) spec.get("containers")).get(0)).get("env");
+        assertTrue(env.stream().anyMatch(entry -> "INSIGHTBLOOM_MATERIAL_CACHE_URL".equals(entry.get("name"))));
+        assertFalse(env.stream().anyMatch(entry -> "INSIGHTBLOOM_BOOTSTRAP_KIND".equals(entry.get("name"))));
     }
 
     @Test

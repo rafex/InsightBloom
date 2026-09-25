@@ -120,27 +120,34 @@
         label.coord-label(for="config-sandbox-git") Repositorio git remoto (opcional)
         input#config-sandbox-git(v-model="sandboxRemoteGitUrl" type="text" placeholder="https://github.com/...")
       p.field-hint Si lo indicás, se clona automáticamente en el workspace de cada alumno al arrancar su sandbox (solo si el workspace está vacío — no pisa trabajo ya en progreso).
+      label.coord-label Materiales cacheados (opcional)
+      p.field-hint Configura un repositorio público de GitHub para poder traer materiales con insightbloom-material-copy. Esto no activa ni ejecuta el preparador.
       .coord-field
         label.coord-label(for="config-material-source") Repositorio de materiales cacheado (GitHub público, opcional)
         input#config-material-source(v-model="sandboxMaterialSourceUrl" type="url" placeholder="https://github.com/organizacion/materiales")
       .coord-field(v-if="sandboxMaterialSourceUrl")
         label.coord-label(for="config-material-ref") Rama o ref a sincronizar
         input#config-material-ref(v-model="sandboxMaterialRef" type="text" placeholder="main")
-      .coord-field(v-if="sandboxMaterialSourceUrl")
-        label.coord-label Preparador
-        select(v-model="sandboxBootstrapKind")
+      label.coord-label Preparador del IDE
+      ToggleSwitch(v-model="sandboxBootstrapEnabled") Ejecutar preparador al iniciar el IDE
+      p.field-hint El preparador corre como el alumno antes de abrir Web, Neovim o LazyVim. Puede ejecutarse sin repositorio de materiales si el script es inline.
+      .coord-field
+        label.coord-label(for="config-bootstrap-kind") Tipo de script
+        select#config-bootstrap-kind(v-model="sandboxBootstrapKind")
           option(value="shell") Shell
           option(value="python") Python
-        select(v-model="sandboxBootstrapSource")
-          option(value="material") Ruta dentro del material cacheado
+        label.coord-label(for="config-bootstrap-source") Origen del script
+        select#config-bootstrap-source(v-model="sandboxBootstrapSource")
           option(value="inline") Script pegado aquí
-      .coord-field(v-if="sandboxMaterialSourceUrl && sandboxBootstrapSource === 'material'")
+          option(value="material") Ruta dentro del material cacheado
+      .coord-field(v-if="sandboxBootstrapSource === 'material'")
         label.coord-label(for="config-material-script") Ruta relativa del script
         input#config-material-script(v-model="sandboxBootstrapValue" type="text" placeholder="talleres/curso/bootstrap.sh")
-      .coord-field(v-if="sandboxMaterialSourceUrl && sandboxBootstrapSource === 'inline'")
+      .coord-field(v-else)
         label.coord-label(for="config-material-inline") Script de preparación
-        textarea#config-material-inline(v-model="sandboxBootstrapValue" rows="8" placeholder="insightbloom-material-copy ...")
-      p.field-hint(v-if="sandboxMaterialSourceUrl") El material se monta en modo solo lectura y se actualiza al arrancar; el script corre como alumno y no sobrescribe archivos existentes salvo que lo haga explícitamente.
+        textarea#config-material-inline(v-model="sandboxBootstrapValue" rows="8" placeholder="mkdir -p \"$INSIGHTBLOOM_WORKSPACE/actividades\"")
+      p.field-hint(v-if="sandboxBootstrapEnabled && sandboxBootstrapSource === 'material' && !sandboxMaterialSourceUrl") Para usar un script versionado, configura primero un repositorio de materiales.
+      p.field-hint El interruptor apagado conserva la configuración, pero no ejecuta el script. El IDE seguirá disponible aunque falle la preparación.
       .coord-field
         label.coord-label(for="config-sandbox-jvm-heap") Memoria máxima de Java por sandbox (MB, opcional)
         input#config-sandbox-jvm-heap(v-model.number="sandboxJvmHeapMb" type="number" min="64" placeholder="70 (por defecto)")
@@ -440,8 +447,9 @@ export default {
     const sandboxRemoteGitUrl = ref('')
     const sandboxMaterialSourceUrl = ref('')
     const sandboxMaterialRef = ref('main')
+    const sandboxBootstrapEnabled = ref(false)
     const sandboxBootstrapKind = ref<'shell' | 'python'>('shell')
-    const sandboxBootstrapSource = ref<'inline' | 'material'>('material')
+    const sandboxBootstrapSource = ref<'inline' | 'material'>('inline')
     const sandboxBootstrapValue = ref('')
     // Heap maximo (-Xmx, en MB) de las JVMs del sandbox -- null = usa el default chico del
     // backend (70Mi, ver KubernetesPodClient). El backend rechaza (400) valores que excedan el
@@ -742,8 +750,11 @@ export default {
         sandboxRemoteGitUrl.value = conference.value.sandboxRemoteGitUrl || ''
         sandboxMaterialSourceUrl.value = conference.value.sandboxMaterialSourceUrl || ''
         sandboxMaterialRef.value = conference.value.sandboxMaterialRef || 'main'
+        sandboxBootstrapEnabled.value = conference.value.sandboxBootstrapEnabled
+          ?? Boolean(conference.value.sandboxMaterialSourceUrl && conference.value.sandboxBootstrapKind
+            && conference.value.sandboxBootstrapSource && conference.value.sandboxBootstrapValue)
         sandboxBootstrapKind.value = conference.value.sandboxBootstrapKind || 'shell'
-        sandboxBootstrapSource.value = conference.value.sandboxBootstrapSource || 'material'
+        sandboxBootstrapSource.value = conference.value.sandboxBootstrapSource || 'inline'
         sandboxBootstrapValue.value = conference.value.sandboxBootstrapValue || ''
         sandboxJvmHeapMb.value = conference.value.sandboxJvmHeapMb ?? 70
         sandboxSeatsPerPod.value = conference.value.sandboxSeatsPerPod ?? null
@@ -856,10 +867,12 @@ export default {
           sandboxRemoteGitUrl.value.trim() || null,
           sandboxJvmHeapMb.value, sandboxSeatsPerPod.value, sandboxCliPoolSize.value,
           sandboxCliLazyVimPoolSize.value,
-          sandboxMaterialSourceUrl.value.trim() || null, sandboxMaterialRef.value.trim() || null,
-          sandboxMaterialSourceUrl.value ? sandboxBootstrapKind.value : null,
-          sandboxMaterialSourceUrl.value ? sandboxBootstrapSource.value : null,
-          sandboxMaterialSourceUrl.value ? sandboxBootstrapValue.value : null,
+          sandboxMaterialSourceUrl.value.trim() || null,
+          sandboxMaterialSourceUrl.value.trim() ? (sandboxMaterialRef.value.trim() || 'main') : null,
+          sandboxBootstrapEnabled.value,
+          sandboxBootstrapKind.value,
+          sandboxBootstrapSource.value,
+          sandboxBootstrapValue.value,
           auth.state.token as string
         )
         sandboxConfigSaved.value = true

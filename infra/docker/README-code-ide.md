@@ -32,7 +32,7 @@ Service del Pod sin saber si hay VS Code o una terminal detras.
 ## Materiales de curso sin clonar por alumno
 
 El propietario de un evento puede configurar en **IDE y sandboxes** un repositorio público de
-GitHub, su rama/ref y un preparador `shell` o `python`. `insightbloom-material-cache` sigue esa
+GitHub, su rama/ref y, de forma independiente, un preparador `shell` o `python`. `insightbloom-material-cache` sigue esa
 ref en un PVC local `local-path` RWO, publica releases por SHA y entrega archivos/subárboles por
 HTTP interno. El servicio es el único que monta el PVC; los sandboxes no reciben un montaje del
 repositorio completo. `insightbloom-users` solicita la sincronización autenticada y fija el SHA
@@ -40,6 +40,13 @@ en el Pod. El caché vive junto a `users` en el namespace de la aplicación para
 interno sin replicar credenciales entre namespaces; su Service solo admite `users` y sandboxes
 en la NetworkPolicy. `material-copy` descarga únicamente la ruta solicitada. El preparador corre antes de
 exponer code-server, ttyd o un asiento CLI compartido, siempre como usuario del alumno.
+
+En **Configuración del evento → IDE y sandboxes**, Materiales cacheados y Preparador del IDE son
+secciones independientes. Configurar materiales permite usar `material-copy` desde la terminal,
+pero no activa ningún script. El interruptor **Ejecutar preparador al iniciar el IDE** está
+apagado por defecto; al apagarlo se conserva la configuración sin ejecutarla. Un script inline
+puede correr sin repo cacheado. Un script versionado como ruta relativa necesita la fuente
+cacheada. El preparador corre como el alumno antes de abrir el IDE.
 
 Se admite tanto un script inline como una ruta relativa dentro del material. El helper
 `material-copy ORIGEN DESTINO` copia un subárbol sin reemplazar archivos existentes. Por ejemplo,
@@ -58,7 +65,8 @@ y expira fuentes inactivas; si se excede el límite, el bootstrap falla con diag
 IDE sigue disponible. El PVC local no ofrece alta disponibilidad ni se comparte entre nodos,
 supuesto válido para el clúster K3s actual de un nodo.
 
-El SHA realmente usado queda en `.insightbloom/bootstrap-status.json`; la salida está en
+Cuando hay una fuente cacheada, el SHA realmente usado queda en
+`.insightbloom/bootstrap-status.json`; sin materiales la revisión permanece vacía. La salida está en
 `.insightbloom/bootstrap.log`. Si la sincronización o el script falla, el IDE abre igualmente y
 crea `README-INSIGHTBLOOM-BOOTSTRAP.md` con el diagnóstico. La primera versión rechaza repositorios
 privados, credenciales en URL, rutas absolutas y escritura al volumen compartido.

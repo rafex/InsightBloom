@@ -436,6 +436,7 @@ export async function setSandboxConfig(
   sandboxCliLazyVimPoolSize: number | null,
   sandboxMaterialSourceUrl: string | null,
   sandboxMaterialRef: string | null,
+  sandboxBootstrapEnabled: boolean,
   sandboxBootstrapKind: 'shell' | 'python' | null,
   sandboxBootstrapSource: 'inline' | 'material' | null,
   sandboxBootstrapValue: string | null,
@@ -444,7 +445,8 @@ export async function setSandboxConfig(
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/sandbox-config`,
     { sandboxVariant, sandboxPoolSize, sandboxRemoteGitUrl, sandboxJvmHeapMb,
       sandboxSeatsPerPod, sandboxCliPoolSize, sandboxCliLazyVimPoolSize,
-      sandboxMaterialSourceUrl, sandboxMaterialRef, sandboxBootstrapKind, sandboxBootstrapSource, sandboxBootstrapValue },
+      sandboxMaterialSourceUrl, sandboxMaterialRef, sandboxBootstrapEnabled,
+      sandboxBootstrapKind, sandboxBootstrapSource, sandboxBootstrapValue },
     authHeader(token))
   return res.data.data
 }

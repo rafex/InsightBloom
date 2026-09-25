@@ -7,19 +7,26 @@ material-bootstrap
 active
 
 ## Summary
-Cada evento puede declarar un repositorio público de GitHub y un preparador shell o Python. Un
-servicio interno sincroniza `url+ref` en un PVC local `local-path` RWO, publica releases
-inmutables por SHA y sirve archivos/subárboles mediante HTTP interno. Solo el servicio monta el
-PVC. `insightbloom-users` sincroniza con un bearer interno; el sandbox recibe el `sourceKey`, la
-URL interna y el SHA, y `material-copy` descarga exclusivamente la ruta solicitada. El
-preparador corre como el usuario del alumno antes de abrir el IDE y deja estado/log en el
-workspace sin impedir el acceso si falla.
+Cada evento configura de forma independiente materiales públicos de GitHub y un preparador shell
+o Python. El caché puede estar habilitado sin ejecutar un preparador; un script inline puede
+ejecutarse sin configurar caché. Solo los scripts cuya fuente sea una ruta dentro del repositorio
+requieren materiales cacheados. Un servicio interno sincroniza `url+ref` en un PVC local
+`local-path` RWO, publica releases inmutables por SHA y sirve archivos/subárboles mediante HTTP
+interno. Solo el servicio monta el PVC. `insightbloom-users` sincroniza con un bearer interno; el
+sandbox recibe el `sourceKey`, la URL interna y el SHA, y `material-copy` descarga exclusivamente
+la ruta solicitada. El preparador corre únicamente cuando el interruptor explícito está activo,
+como el usuario del alumno antes de abrir el IDE, y deja estado/log sin impedir el acceso si falla.
 
 ## Requirements
 
 - Solo se admiten URLs HTTPS públicas de `github.com`, sin credenciales, query ni fragmento.
-- La configuración completa es exclusiva del propietario del evento: URL, ref, tipo de script,
-  origen inline o ruta relativa del material y contenido/ruta.
+- Solo el propietario del evento puede configurar materiales y preparador. El interruptor de
+  ejecución del preparador es independiente de la fuente cacheada, se guarda apagado por defecto y
+  al apagarse conserva el script sin ejecutarlo.
+- Un repositorio/ref configurado habilita `material-copy` aunque el preparador esté apagado. Un
+  preparador inline no requiere URL/ref; un preparador basado en ruta relativa del material sí.
+- Al omitir el nuevo campo de activación, clientes antiguos conservan la semántica previa:
+  configuraciones antiguas completas de bootstrap siguen activas.
 - Cada sincronización sigue el ref configurado y fija el SHA efectivo en el Pod y en
   `.insightbloom/bootstrap-status.json`; las descargas no siguen un alias mutable como `current`.
 - El PVC `local-path` es RWO y solo lo monta el servicio. Los sandboxes no montan el repositorio,
@@ -34,6 +41,16 @@ workspace sin impedir el acceso si falla.
 - El helper `material-copy` descarga subárboles sin sobrescribir archivos existentes. Los
   scripts conservan libertad para crear o reorganizar recursos dentro de su propio workspace.
 - Si el caché o el script falla, el IDE permanece disponible con log y README de diagnóstico.
+
+## Acceptance scenarios
+
+- Con el interruptor apagado, los campos del preparador se conservan y el script no se ejecuta.
+- Un preparador inline activado funciona sin fuente de materiales ni solicitud a `/sync`.
+- Una fuente cacheada puede sincronizarse y usarse con `material-copy` aunque no haya preparador
+  activado.
+- Un preparador versionado activado requiere una fuente y ref cacheadas válidas.
+- La migración activa configuraciones antiguas completas una sola vez y no vuelve a activar una
+  configuración que el propietario apagó posteriormente.
 
 ## Initial course configuration
 

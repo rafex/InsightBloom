@@ -87,6 +87,28 @@ class PrepareMaterialsTest(unittest.TestCase):
         )
         self.assertEqual((self.workspace / "python.txt").read_text(), "python\n")
 
+    def test_inline_bootstrap_runs_without_any_cached_material_configuration(self):
+        self.run_preparer(
+            INSIGHTBLOOM_BOOTSTRAP_KIND="shell",
+            INSIGHTBLOOM_BOOTSTRAP_SOURCE="inline",
+            INSIGHTBLOOM_BOOTSTRAP_INLINE='printf "standalone\\n" > "$INSIGHTBLOOM_WORKSPACE/standalone.txt"',
+            INSIGHTBLOOM_MATERIAL_SOURCE="",
+            INSIGHTBLOOM_MATERIAL_REVISION="",
+            INSIGHTBLOOM_MATERIAL_CACHE_URL="",
+        )
+
+        self.assertEqual((self.workspace / "standalone.txt").read_text(), "standalone\n")
+        status = (self.workspace / ".insightbloom/bootstrap-status.json").read_text()
+        self.assertIn('"status": "ready"', status)
+        self.assertIn('"revision": ""', status)
+
+    def test_material_settings_without_bootstrap_skip_script_but_remain_separate(self):
+        self.run_preparer()
+
+        self.assertFalse((self.workspace / "material.txt").exists())
+        self.assertIn('"status": "skipped"',
+                      (self.workspace / ".insightbloom/bootstrap-status.json").read_text())
+
 
 if __name__ == "__main__":
     unittest.main()

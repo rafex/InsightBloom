@@ -11,5 +11,7 @@
 - [x] Añadir límites de archivo y de caché, limpieza de revisiones y expiración de fuentes inactivas.
 - [x] Actualizar los IDEs para descargar scripts versionados y materiales con `material-copy`.
 - [x] Conservar el PVC Longhorn legado durante el corte, sin retirarlo ni tocar datos activos.
+- [x] Desacoplar la configuración de materiales cacheados del preparador: toggle persistido, inline sin caché y `material-copy` disponible sin ejecutar script.
+- [x] Migrar configuración bootstrap antigua como activa una sola vez; cubrir compatibilidad de API y base existente.
 - [ ] Ejecutar pruebas, validar Helm y reconciliar Flux en clúster.
 - [ ] Confirmar que ningún Pod monta el claim Longhorn legado y retirarlo en un cambio GitOps posterior.

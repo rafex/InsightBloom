@@ -28,7 +28,7 @@ PY
 # Sin configuración no hay trabajo que hacer. Conservamos el contrato actual de
 # workspaces vacíos y de REMOTE_GIT_URL.
 if [ -z "${INSIGHTBLOOM_BOOTSTRAP_KIND:-}" ]; then
-  write_status "skipped" "No hay preparación de materiales configurada"
+  write_status "skipped" "No hay preparador activado para este workspace"
   exit 0
 fi
 

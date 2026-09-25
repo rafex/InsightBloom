@@ -81,6 +81,7 @@ public class Conference {
     private String sandboxRemoteGitUrl; // URL de remoto git del profesor, nullable
     private String sandboxMaterialSourceUrl;
     private String sandboxMaterialRef;
+    private boolean sandboxBootstrapEnabled;
     private String sandboxBootstrapKind;
     private String sandboxBootstrapSource;
     private String sandboxBootstrapValue;
@@ -311,6 +312,7 @@ public class Conference {
     public String getSandboxRemoteGitUrl() { return sandboxRemoteGitUrl; }
     public String getSandboxMaterialSourceUrl() { return sandboxMaterialSourceUrl; }
     public String getSandboxMaterialRef() { return sandboxMaterialRef; }
+    public boolean getSandboxBootstrapEnabled() { return sandboxBootstrapEnabled; }
     public String getSandboxBootstrapKind() { return sandboxBootstrapKind; }
     public String getSandboxBootstrapSource() { return sandboxBootstrapSource; }
     public String getSandboxBootstrapValue() { return sandboxBootstrapValue; }
@@ -326,12 +328,13 @@ public class Conference {
     public void setSandboxRemoteGitUrl(String sandboxRemoteGitUrl) { this.sandboxRemoteGitUrl = sandboxRemoteGitUrl; }
     public void setSandboxMaterialSourceUrl(String value) { this.sandboxMaterialSourceUrl = value; }
     public void setSandboxMaterialRef(String value) { this.sandboxMaterialRef = value; }
+    public void setSandboxBootstrapEnabled(boolean value) { this.sandboxBootstrapEnabled = value; }
     public void setSandboxBootstrapKind(String value) { this.sandboxBootstrapKind = value; }
     public void setSandboxBootstrapSource(String value) { this.sandboxBootstrapSource = value; }
     public void setSandboxBootstrapValue(String value) { this.sandboxBootstrapValue = value; }
     public MaterialBootstrapConfig materialBootstrap() {
         return new MaterialBootstrapConfig(sandboxMaterialSourceUrl, sandboxMaterialRef,
-                sandboxBootstrapKind, sandboxBootstrapSource, sandboxBootstrapValue);
+                sandboxBootstrapKind, sandboxBootstrapSource, sandboxBootstrapValue, sandboxBootstrapEnabled);
     }
     public void setSandboxJvmHeapMb(Integer sandboxJvmHeapMb) { this.sandboxJvmHeapMb = sandboxJvmHeapMb; }
     public void setSandboxSeatsPerPod(Integer sandboxSeatsPerPod) { this.sandboxSeatsPerPod = sandboxSeatsPerPod; }

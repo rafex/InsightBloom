@@ -485,7 +485,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     @Override
     public void provisionSeat(final String podName, final int seatIndex, final String userUuid,
                               final MaterialBootstrapConfig materialBootstrap) {
-        if (materialBootstrap != null && materialBootstrap.enabled()) {
+        if (materialBootstrap != null && materialBootstrap.hasMaterials()) {
             ensureMaterialCached(materialBootstrap);
         }
         provisionSeat(podName, seatIndex, userUuid);
@@ -1019,7 +1019,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
         if (remoteGitUrl != null && !remoteGitUrl.isBlank()) {
             runtimeEnv.add(Map.of("name", "REMOTE_GIT_URL", "value", remoteGitUrl));
         }
-        final boolean hasMaterials = materialBootstrap != null && materialBootstrap.enabled();
+        final boolean hasMaterials = materialBootstrap != null && materialBootstrap.hasMaterials();
         if (hasMaterials) {
             final String sourceKey = materialSourceKey(materialBootstrap.sourceUrl(), materialBootstrap.ref());
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIALS_ROOT", "value", "/opt/insightbloom/materials"));
@@ -1027,6 +1027,8 @@ public class KubernetesPodClient implements SandboxOrchestrator {
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIAL_REF", "value", materialBootstrap.ref()));
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIAL_REVISION", "value", materialRevision == null ? "" : materialRevision));
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_MATERIAL_CACHE_URL", "value", materialCacheUrl));
+        }
+        if (materialBootstrap != null && materialBootstrap.enabled()) {
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_BOOTSTRAP_KIND", "value", materialBootstrap.kind()));
             runtimeEnv.add(Map.of("name", "INSIGHTBLOOM_BOOTSTRAP_SOURCE", "value", materialBootstrap.source()));
             if ("inline".equals(materialBootstrap.source())) {
@@ -1244,7 +1246,7 @@ public class KubernetesPodClient implements SandboxOrchestrator {
     }
 
     private String ensureMaterialCached(final MaterialBootstrapConfig config) {
-        if (config == null || !config.enabled()) return "";
+        if (config == null || !config.hasMaterials()) return "";
         try {
             final String body = jsonCodec.toJson(Map.of("url", config.sourceUrl(), "ref", config.ref()));
             final HttpRequest request = HttpRequest.newBuilder(URI.create(materialCacheUrl + "/sync"))

@@ -72,7 +72,7 @@ public class ReconcileSandboxHealthUseCase {
     private void createSandbox(final String podName, final Conference conference, final String domainVariant,
                                final boolean internet) {
         final String variant = toOrchestratorVariant(domainVariant);
-        if (conference.materialBootstrap() != null && conference.materialBootstrap().enabled()) {
+        if (conference.materialBootstrap() != null && conference.materialBootstrap().configured()) {
             orchestrator.createSandbox(podName, conference.getUuid(), variant, conference.getSandboxRemoteGitUrl(),
                     internet, conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod(), conference.materialBootstrap());
         } else {

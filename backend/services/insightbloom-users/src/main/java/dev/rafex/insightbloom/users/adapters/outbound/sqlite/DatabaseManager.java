@@ -209,6 +209,19 @@ public class DatabaseManager {
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_bootstrap_kind TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_bootstrap_source TEXT"); } catch (SQLException ignored) {}
             try { stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_bootstrap_value TEXT"); } catch (SQLException ignored) {}
+            boolean addedSandboxBootstrapEnabled = false;
+            try {
+                stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_bootstrap_enabled INTEGER NOT NULL DEFAULT 0");
+                addedSandboxBootstrapEnabled = true;
+            } catch (SQLException ignored) {}
+            if (addedSandboxBootstrapEnabled) {
+                stmt.executeUpdate("UPDATE conferences SET sandbox_bootstrap_enabled = 1 "
+                        + "WHERE sandbox_bootstrap_kind IS NOT NULL AND trim(sandbox_bootstrap_kind) <> '' "
+                        + "AND sandbox_bootstrap_source IS NOT NULL AND trim(sandbox_bootstrap_source) <> '' "
+                        + "AND sandbox_bootstrap_value IS NOT NULL AND trim(sandbox_bootstrap_value) <> '' "
+                        + "AND sandbox_material_source_url IS NOT NULL AND trim(sandbox_material_source_url) <> '' "
+                        + "AND sandbox_material_ref IS NOT NULL AND trim(sandbox_material_ref) <> ''");
+            }
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_jvm_heap_mb INTEGER");
             } catch (SQLException ignored) {}

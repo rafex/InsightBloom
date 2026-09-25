@@ -14,6 +14,7 @@ import {
   streamEventDiagram,
   sendAttendeeEmail,
   generateEmailDraft,
+  setSandboxConfig,
   setConferenceEgressPolicy
 } from '../usersApi'
 
@@ -100,6 +101,27 @@ describe('usersApi', () => {
       expect(axios.put).toHaveBeenCalledWith(
         '/api/users/api/v1/conferences/c1/egress-policy',
         { allowedHosts: 'github.com', blockedHosts: 'blocked.example', allowAll: true },
+        { headers: { Authorization: 'Bearer tok' } }
+      )
+    })
+  })
+
+  describe('setSandboxConfig', () => {
+    it('sends an independent bootstrap toggle and allows inline scripts without cached materials', async () => {
+      axios.put.mockResolvedValue({ data: { data: { uuid: 'c1', sandboxBootstrapEnabled: true } } })
+
+      await setSandboxConfig('c1', '', 1, null, 70, null, 1, null,
+        null, null, true, 'shell', 'inline', 'mkdir -p "$INSIGHTBLOOM_WORKSPACE/actividad"', 'tok')
+
+      expect(axios.put).toHaveBeenCalledWith(
+        '/api/users/api/v1/conferences/c1/sandbox-config',
+        expect.objectContaining({
+          sandboxMaterialSourceUrl: null,
+          sandboxMaterialRef: null,
+          sandboxBootstrapEnabled: true,
+          sandboxBootstrapKind: 'shell',
+          sandboxBootstrapSource: 'inline'
+        }),
         { headers: { Authorization: 'Bearer tok' } }
       )
     })

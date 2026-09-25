@@ -144,6 +144,7 @@ export interface Conference {
   sandboxRemoteGitUrl?: string | null
   sandboxMaterialSourceUrl?: string | null
   sandboxMaterialRef?: string | null
+  sandboxBootstrapEnabled?: boolean
   sandboxBootstrapKind?: 'shell' | 'python' | null
   sandboxBootstrapSource?: 'inline' | 'material' | null
   sandboxBootstrapValue?: string | null

@@ -44,7 +44,7 @@ public class SetSandboxConfigUseCase {
         Integer sandboxCliPoolSize,
         Integer sandboxCliLazyVimPoolSize,
         String materialSourceUrl, String materialRef, String bootstrapKind,
-        String bootstrapSource, String bootstrapValue
+        String bootstrapSource, String bootstrapValue, Boolean bootstrapEnabled
     ) {
         var conf = conferenceRepository.findByUuid(conferenceUuid)
             .orElseThrow(() -> new IllegalArgumentException("conference_not_found"));
@@ -90,7 +90,11 @@ public class SetSandboxConfigUseCase {
                 && (sandboxSeatsPerPod < MIN_SEATS_PER_POD || sandboxSeatsPerPod > MAX_SEATS_PER_POD)) {
             throw new IllegalArgumentException("seats_per_pod_out_of_range");
         }
-        validateMaterialBootstrap(materialSourceUrl, materialRef, bootstrapKind, bootstrapSource, bootstrapValue);
+        // Los clientes anteriores no envían el interruptor: preserva el valor persistido.
+        // Las configuraciones legacy completas se migran a true al agregar la columna.
+        final boolean effectiveBootstrapEnabled = validateMaterialBootstrap(materialSourceUrl, materialRef,
+                bootstrapKind, bootstrapSource, bootstrapValue,
+                bootstrapEnabled != null ? bootstrapEnabled : conf.getSandboxBootstrapEnabled());
 
         conf.setSandboxVariant(sandboxVariant);
         conf.setSandboxPoolSize(sandboxPoolSize);
@@ -101,12 +105,25 @@ public class SetSandboxConfigUseCase {
         conf.setSandboxCliLazyVimPoolSize(sandboxCliLazyVimPoolSize);
         conf.setSandboxMaterialSourceUrl(blankToNull(materialSourceUrl));
         conf.setSandboxMaterialRef(blankToNull(materialRef));
+        conf.setSandboxBootstrapEnabled(effectiveBootstrapEnabled);
         conf.setSandboxBootstrapKind(blankToNull(bootstrapKind));
         conf.setSandboxBootstrapSource(blankToNull(bootstrapSource));
         conf.setSandboxBootstrapValue(blankToNull(bootstrapValue));
 
         conferenceRepository.save(conf);
         return conf;
+    }
+
+    /** Compatibility with clients predating the explicit bootstrap toggle. */
+    public Conference execute(
+        String conferenceUuid, String sandboxVariant, Integer sandboxPoolSize, String sandboxRemoteGitUrl,
+        Integer sandboxJvmHeapMb, Integer sandboxSeatsPerPod, Integer sandboxCliPoolSize,
+        Integer sandboxCliLazyVimPoolSize, String materialSourceUrl, String materialRef,
+        String bootstrapKind, String bootstrapSource, String bootstrapValue
+    ) {
+        return execute(conferenceUuid, sandboxVariant, sandboxPoolSize, sandboxRemoteGitUrl, sandboxJvmHeapMb,
+                sandboxSeatsPerPod, sandboxCliPoolSize, sandboxCliLazyVimPoolSize, materialSourceUrl, materialRef,
+                bootstrapKind, bootstrapSource, bootstrapValue, null);
     }
 
     /** Compatibilidad con callers/tests del contrato anterior; LazyVim queda deshabilitado. */
@@ -139,29 +156,50 @@ public class SetSandboxConfigUseCase {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private static void validateMaterialBootstrap(final String url, final String ref, final String kind,
-                                                   final String source, final String value) {
-        final boolean any = java.util.stream.Stream.of(url, ref, kind, source, value)
-                .anyMatch(v -> v != null && !v.isBlank());
-        if (!any) return;
-        if (url == null || ref == null || kind == null || source == null || value == null) {
-            throw new IllegalArgumentException("material_bootstrap_incomplete");
-        }
-        try {
-            final URI uri = URI.create(url.trim());
-            if (!"https".equals(uri.getScheme()) || !"github.com".equalsIgnoreCase(uri.getHost())
-                    || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null
-                    || uri.getPath() == null || !uri.getPath().matches("/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\\.git)?")) {
+    private static boolean validateMaterialBootstrap(final String url, final String ref, final String kind,
+                                                      final String source, final String value,
+                                                      final Boolean bootstrapEnabled) {
+        final boolean hasUrl = url != null && !url.isBlank();
+        final boolean hasRef = ref != null && !ref.isBlank();
+        if (hasUrl != hasRef) throw new IllegalArgumentException("material_source_incomplete");
+        if (hasUrl) {
+            try {
+                final URI uri = URI.create(url.trim());
+                if (!"https".equals(uri.getScheme()) || !"github.com".equalsIgnoreCase(uri.getHost())
+                        || uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null
+                        || uri.getPath() == null
+                        || !uri.getPath().matches("/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\\.git)?")) {
+                    throw new IllegalArgumentException("material_source_must_be_public_github");
+                }
+            } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("material_source_must_be_public_github");
             }
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("material_source_must_be_public_github");
+            if (!ref.trim().matches("[A-Za-z0-9._/-]{1,128}")) {
+                throw new IllegalArgumentException("material_ref_invalid");
+            }
         }
-        if (!ref.trim().matches("[A-Za-z0-9._/-]{1,128}")) throw new IllegalArgumentException("material_ref_invalid");
-        if (!"shell".equals(kind) && !"python".equals(kind)) throw new IllegalArgumentException("bootstrap_kind_invalid");
-        if (!"inline".equals(source) && !"material".equals(source)) throw new IllegalArgumentException("bootstrap_source_invalid");
-        if (value.length() > 65536 || ("material".equals(source) && (value.startsWith("/") || value.contains("..")))) {
+
+        final boolean hasKind = kind != null && !kind.isBlank();
+        final boolean hasSource = source != null && !source.isBlank();
+        final boolean hasValue = value != null && !value.isBlank();
+        final boolean enabled = Boolean.TRUE.equals(bootstrapEnabled);
+
+        if (hasKind && !"shell".equals(kind)) {
+            if (!"python".equals(kind)) throw new IllegalArgumentException("bootstrap_kind_invalid");
+        }
+        if (hasSource && !"inline".equals(source) && !"material".equals(source)) {
+            throw new IllegalArgumentException("bootstrap_source_invalid");
+        }
+        if (value != null && (value.length() > 65536
+                || ("material".equals(source) && (value.startsWith("/") || value.contains(".."))))) {
             throw new IllegalArgumentException("bootstrap_value_invalid");
         }
+        if (enabled && (!hasKind || !hasSource || !hasValue)) {
+            throw new IllegalArgumentException("material_bootstrap_incomplete");
+        }
+        if (enabled && "material".equals(source) && !hasUrl) {
+            throw new IllegalArgumentException("bootstrap_material_source_required");
+        }
+        return enabled;
     }
 }

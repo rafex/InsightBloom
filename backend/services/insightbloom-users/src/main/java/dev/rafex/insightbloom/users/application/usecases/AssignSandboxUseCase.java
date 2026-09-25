@@ -333,7 +333,7 @@ public class AssignSandboxUseCase {
 
     private void createSandbox(final String podName, final String conferenceUuid, final String variant,
                                final Conference conference, final boolean internetEnabled) {
-        if (conference.materialBootstrap().enabled()) {
+        if (conference.materialBootstrap().configured()) {
             sandboxOrchestrator.createSandbox(podName, conferenceUuid, variant, conference.getSandboxRemoteGitUrl(),
                     internetEnabled, conference.getSandboxJvmHeapMb(), conference.getSandboxSeatsPerPod(), conference.materialBootstrap());
         } else {
