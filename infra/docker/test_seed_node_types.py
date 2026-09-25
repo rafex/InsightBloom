@@ -37,9 +37,9 @@ class SeedNodeTypesTest(unittest.TestCase):
         node_types.mkdir(parents=True)
         (node_types / "package.json").write_text('{"name":"@types/node","types":"index.d.ts"}\n')
         (node_types / "index.d.ts").write_text(
-            'declare module "node:fs" { export function readFileSync(path: string): string; }\n'
+            'declare class Buffer { static from(value: Buffer): Buffer; }\n'
+            'declare module "node:fs" { export function readFileSync(path: string): Buffer; }\n'
             'declare const process: { cwd(): string };\n'
-            'declare class Buffer { static from(value: string): Buffer; }\n'
         )
 
     def tearDown(self):
@@ -76,7 +76,7 @@ class SeedNodeTypesTest(unittest.TestCase):
         source_file.write_text(
             'import { readFileSync } from "node:fs";\n'
             'const cwd: string = process.cwd();\n'
-            'const data: string = readFileSync(cwd);\n'
+            'const data: Buffer = readFileSync(cwd);\n'
             'const buffer: Buffer = Buffer.from(data);\n'
         )
         api = typescript_api_path()
