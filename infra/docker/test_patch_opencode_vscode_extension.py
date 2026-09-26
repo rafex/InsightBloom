@@ -39,6 +39,7 @@ class OpenCodeExtensionPatchTest(unittest.TestCase):
         bundle = (extension / "dist" / "extension.js").read_text(encoding="utf-8")
         self.assertIn('o.startsWith("server listening")', bundle)
         self.assertIn('OPENCODE_SERVER_PASSWORD=password', bundle)
+        self.assertIn('OPENCODE_SERVER_USERNAME="opencode"', bundle)
         self.assertIn('headers.set("Authorization",authorization)', bundle)
         self.assertIn('"/health":"/global/health"', bundle)
         self.assertIn('"/app/providers":"/config/providers"', bundle)

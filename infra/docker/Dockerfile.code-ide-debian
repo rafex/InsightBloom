@@ -301,6 +301,7 @@ RUN set -eu; \
     server_pid=""; \
     mkdir -p "$smoke_dir/home" "$smoke_dir/config" "$smoke_dir/data"; \
     export HOME="$smoke_dir/home" XDG_CONFIG_HOME="$smoke_dir/config" XDG_DATA_HOME="$smoke_dir/data"; \
+    export OPENCODE_SERVER_USERNAME=opencode; \
     export OPENCODE_SERVER_PASSWORD="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"; \
     opencode serve --hostname 127.0.0.1 --port 49173 >"$smoke_dir/server.log" 2>&1 & \
     server_pid=$!; \
