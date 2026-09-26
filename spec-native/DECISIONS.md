@@ -1681,9 +1681,12 @@ Registrar una decision cuando cambie:
     de `http://localhost:4096`.
   - La contraseña del servidor se genera aleatoriamente en el proceso de extensión y se hereda
     solo por el proceso local de OpenCode; no es una credencial común embebida en la imagen.
-  - El workflow valida el parche y la imagen prueba un arranque real, un 401 anónimo en `/session`
-    y respuestas 200 autenticadas para `/session` y `/global/health`.
+  - El workflow valida el parche; la imagen prueba el arranque con listener estrictamente en
+    loopback y respuestas 200 autenticadas para `/session` y `/global/health`. La ruta de salud
+    puede responder 200 o 401 sin credenciales según la semántica del CLI latest resuelto.
 - Consecuencias:
+  - El loopback limita el servidor al mismo sandbox; Basic Auth es defensa adicional y no se usa
+    como único aislamiento entre sandboxes.
   - Una futura versión de la extensión no se adopta implícitamente: requiere revisar su bundle y
     adaptar el parche antes de actualizar el pin.
   - El parche añade una pequeña capa de mantenimiento local para sostener compatibilidad con

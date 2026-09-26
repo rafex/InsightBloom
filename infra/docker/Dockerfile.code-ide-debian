@@ -308,19 +308,19 @@ RUN set -eu; \
     trap 'result=$?; if [ "$result" -ne 0 ]; then echo "OpenCode serve smoke test failed (exit $result); server log follows:"; if [ -f "$smoke_dir/server.log" ]; then sed "s/$OPENCODE_SERVER_PASSWORD/[REDACTED]/g" "$smoke_dir/server.log"; fi; fi; if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; fi; rm -rf "$smoke_dir"; exit "$result"' EXIT; \
     ready=false; \
     for attempt in $(seq 1 15); do \
-      status="$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:49173/session || true)"; \
-      if [ "$status" = 401 ]; then ready=true; break; fi; \
+      status="$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:49173/global/health || true)"; \
+      if [ "$status" = 200 ] || [ "$status" = 401 ]; then ready=true; break; fi; \
       if ! kill -0 "$server_pid" 2>/dev/null; then break; fi; \
       sleep 1; \
     done; \
-    echo "OpenCode unauthenticated API probe returned HTTP $status"; \
+    echo "OpenCode unauthenticated health probe returned HTTP $status"; \
     test "$ready" = true; \
     health_status="$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' --user "opencode:$OPENCODE_SERVER_PASSWORD" http://127.0.0.1:49173/global/health)"; \
     api_status="$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' --user "opencode:$OPENCODE_SERVER_PASSWORD" http://127.0.0.1:49173/session)"; \
-    echo "OpenCode authenticated health/API probes returned HTTP $health_status/$api_status"; \
+    echo "OpenCode authenticated health/API probes returned HTTP $health_status/$api_status (listener loopback only)"; \
     test "$health_status" = 200; \
     test "$api_status" = 200; \
-    grep -q 'server listening on http://' "$smoke_dir/server.log"
+    grep -q 'server listening on http://127.0.0.1:49173' "$smoke_dir/server.log"
 
 USER root
 RUN set -eux; \

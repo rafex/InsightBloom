@@ -91,9 +91,9 @@ LazyVim). Antes del build consulta el canal oficial `latest`, fija la versión r
 argumento de la imagen y la registra en `/etc/insightbloom/opencode-versions`. El CLI se instala
 con `https://opencode.ai/v2/install`; la imagen Web instala `sst-dev.opencode-v2@0.1.1`, valida la
 versión y aplica el parche de compatibilidad para el marcador de `serve`, Basic Auth y las rutas
-legacy `/health` y `/app/providers` que cambiaron en el API actual. El build verifica que `/session`
-rechace requests anónimas (401) y que `/session` y `/global/health` respondan autenticados (200).
-Después,
+legacy `/health` y `/app/providers` que cambiaron en el API actual. El build verifica que el
+servidor escuche solo en loopback y que `/session` y `/global/health` respondan al cliente
+autenticado; acepta que la ruta de salud sea anónima o exija auth según el CLI resuelto. Después,
 InsightBloom-gitops debe promover el tag inmutable `build-<run_id>` para que K3s use la nueva
 imagen.
 
