@@ -340,11 +340,12 @@ En el CLI multiusuario cada asiento tiene una cuenta Linux y un workspace indepe
 agente aplica permisos `0750` a `/home/{uuid}` y `/home/{uuid}/workspace`; el grupo de control
 `coder` conserva acceso para moderación, pero los alumnos no pertenecen a ese grupo. Por eso un alumno no
 puede listar, leer ni escribir el workspace de otro aunque compartan el mismo Pod. La salida
-directa permanece bloqueada por la `NetworkPolicy`; el binario `ping` continúa disponible como
-herramienta de diagnóstico, pero no concede acceso a Internet. Cuando se habilita la salida controlada,
-el único destino de red permitido es la proxy interna, que aplica la allowlist y la lista negra. La
-allowlist controla HTTP/HTTPS y otros flujos TCP/UDP proxificados; ICMP no se puede expresar con la
-API estándar de `NetworkPolicy`.
+directa permanece bloqueada por la `NetworkPolicy`; como excepción de diagnóstico, `ping` puede
+enviar únicamente solicitudes ICMP echo a direcciones IPv4 públicas. La `NetworkPolicy` permite
+tráfico L3 público solo a Pods de sandbox, mientras `lockdown-egress.sh` limita el tráfico efectivo
+a esas solicitudes echo; TCP/UDP directo continúa bloqueado y HTTP/HTTPS debe pasar por el proxy
+interno y su allowlist/lista negra. No se permite ICMP hacia redes privadas, reservadas ni del
+clúster. Este permiso de diagnóstico es independiente del interruptor de navegación web del evento.
 
 La configuración vive en GitOps: `infrastructure/config/app-config.yaml` es la única fuente
 declarativa. No se debe editar ni mantener un `app-config-cm.yaml` duplicado. La lista negra se

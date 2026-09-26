@@ -31,6 +31,16 @@ for ip in $DNS_SERVERS; do
     nft add rule inet sandboxfw output ip daddr "$ip" tcp dport 53 accept
 done
 nft add rule inet sandboxfw output ip daddr "$CLUSTER_CIDR" accept
+# Kubernetes NetworkPolicy has no portable ICMP protocol selector. A companion policy permits
+# L3 egress only for sandbox Pods; this firewall remains the protocol-level guard and allows only
+# IPv4 echo requests to globally routable destinations. TCP/UDP direct egress still goes only to
+# cluster services (including the controlled HTTP proxy) or DNS.
+nft add rule inet sandboxfw output ip protocol icmp icmp type echo-request \
+    ip daddr != { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, \
+                  169.254.0.0/16, 172.16.0.0/12, 192.0.0.0/24, \
+                  192.0.2.0/24, 192.88.99.0/24, 192.168.0.0/16, \
+                  198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24, \
+                  224.0.0.0/4, 240.0.0.0/4 } accept
 
 echo "lockdown-egress: reglas aplicadas (cluster_cidr=$CLUSTER_CIDR, dns=$DNS_SERVERS)" >&2
 nft list ruleset >&2

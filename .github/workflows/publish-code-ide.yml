@@ -62,6 +62,9 @@ jobs:
       - name: Test OpenCode Web extension compatibility patch
         run: python -m unittest -v infra.docker.test_patch_opencode_vscode_extension
 
+      - name: Test sandbox egress lockdown rules
+        run: python -m unittest -v infra.docker.test_lockdown_egress
+
   build-and-push-code-ide:
     name: Build and push code-ide (${{ matrix.name }})
     needs: test-node-types-seeder
