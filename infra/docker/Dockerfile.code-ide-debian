@@ -298,20 +298,22 @@ RUN set -eux; \
 # extension patch and the Basic Auth behavior before this image can be published.
 RUN set -eu; \
     smoke_dir="$(mktemp -d /tmp/opencode-serve-smoke.XXXXXX)"; \
+    server_pid=""; \
     mkdir -p "$smoke_dir/home" "$smoke_dir/config" "$smoke_dir/data"; \
     export HOME="$smoke_dir/home" XDG_CONFIG_HOME="$smoke_dir/config" XDG_DATA_HOME="$smoke_dir/data"; \
     export OPENCODE_SERVER_PASSWORD="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"; \
     opencode serve --hostname 127.0.0.1 --port 49173 >"$smoke_dir/server.log" 2>&1 & \
     server_pid=$!; \
-    trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$smoke_dir"' EXIT; \
+    trap 'result=$?; if [ "$result" -ne 0 ]; then echo "OpenCode serve smoke test failed (exit $result); server log follows:"; if [ -f "$smoke_dir/server.log" ]; then sed "s/$OPENCODE_SERVER_PASSWORD/[REDACTED]/g" "$smoke_dir/server.log"; fi; fi; if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || true; fi; rm -rf "$smoke_dir"; exit "$result"' EXIT; \
     ready=false; \
     for attempt in $(seq 1 15); do \
-      status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:49173/health || true)"; \
+      status="$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:49173/health || true)"; \
       if [ "$status" = 401 ]; then ready=true; break; fi; \
+      if ! kill -0 "$server_pid" 2>/dev/null; then break; fi; \
       sleep 1; \
     done; \
     test "$ready" = true; \
-    test "$(curl -sS -o /dev/null -w '%{http_code}' --user "opencode:$OPENCODE_SERVER_PASSWORD" http://127.0.0.1:49173/health)" = 200; \
+    test "$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' --user "opencode:$OPENCODE_SERVER_PASSWORD" http://127.0.0.1:49173/health)" = 200; \
     grep -q 'server listening on http://' "$smoke_dir/server.log"
 
 USER root
