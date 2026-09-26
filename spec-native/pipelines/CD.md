@@ -99,6 +99,15 @@ promueve al HelmRelease; los sandboxes dinámicos no resuelven `latest`.
 del CLI, la extensión cuando aplica, el instalador, el SHA del build y la clave de cache. Los demás
 workflows conservan sus propias opciones de provenance/SBOM documentadas por sus implementaciones.
 
+El proxy de egreso publica tags inmutables `build-*`. GitOps rastrea su `ImageRepository` y
+selecciona numéricamente mediante `ImagePolicy`; el tag queda fijado en el HelmRelease para que
+la imagen publicada no dependa de `latest` ni de un reinicio manual de Pods.
+
+La imagen Web fija `sst-dev.opencode-v2@0.1.1` y parchea el bundle durante la construcción para
+reconocer la salida vigente de `opencode serve` y autenticar requests HTTP al loopback con una
+contraseña aleatoria generada por el host de la extensión. La construcción valida que el paquete,
+versión y marcador upstream correspondan al parche; una diferencia bloquea el build hasta revisión.
+
 ## Deploy a K3s mediante FluxCD
 
 El deploy **no vive en este repositorio** — no hay ningún workflow de `deploy`/`helm upgrade`

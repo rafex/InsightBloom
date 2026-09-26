@@ -1574,7 +1574,7 @@ Registrar una decision cuando cambie:
 ### DEC-0036 - OpenCode resuelto por canal latest y registrado en las imágenes
 
 - Fecha: 2026-09-21
-- Estado: accepted
+- Estado: replaced
 - Contexto: las imágenes del IDE instalaban OpenCode con el instalador histórico y podían
   conservar una versión anterior por la caché de BuildKit. Además, la extensión Web y el CLI
   tenían controles de versión distintos y no existía un artefacto común de auditoría.
@@ -1664,3 +1664,27 @@ Registrar una decision cuando cambie:
   mientras que el solicitante no puede confirmarlos por el cuerpo de respuesta. IP y User-Agent
   son datos personales operativos y se limitan a 30 días.
 - Reemplaza: `none`.
+
+### DEC-0040 - Compatibilidad autenticada del panel Web de OpenCode
+
+- Fecha: 2026-09-26
+- Estado: accepted
+- Contexto: el CLI OpenCode 2.x trasladó el servidor a `opencode serve` y exige Basic Auth.
+  La extensión Web publicada aún esperaba un marcador de arranque de la versión anterior y
+  realizaba llamadas sin autenticación; por eso no inicializaba el panel aunque el CLI estuviera
+  instalado correctamente.
+- Decision:
+  - La imagen Web instala `sst-dev.opencode-v2@0.1.1` fijada, en lugar de la extensión legacy.
+  - El build aplica un parche reproducible al bundle y falla si paquete, versión o marcador
+    esperado difieren. Actualiza el marcador de `serve` y agrega Basic Auth únicamente a requests
+    de `http://localhost:4096`.
+  - La contraseña del servidor se genera aleatoriamente en el proceso de extensión y se hereda
+    solo por el proceso local de OpenCode; no es una credencial común embebida en la imagen.
+  - El workflow valida el parche y la imagen prueba un arranque real autenticado del servidor.
+- Consecuencias:
+  - Una futura versión de la extensión no se adopta implícitamente: requiere revisar su bundle y
+    adaptar el parche antes de actualizar el pin.
+  - El parche añade una pequeña capa de mantenimiento local para sostener compatibilidad con
+    cambios upstream en el CLI; un marcador distinto detiene la construcción, sin producir una
+    imagen parcialmente funcional.
+- Reemplaza: `sst-dev.opencode` legacy instalado sin pin.

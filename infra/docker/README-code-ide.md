@@ -89,8 +89,8 @@ El workflow `.github/workflows/publish-code-ide.yml` admite `workflow_dispatch` 
 `run_id` como cache-bust de la capa de OpenCode y reconstruye las tres variantes (Web, Neovim y
 LazyVim). Antes del build consulta el canal oficial `latest`, fija la versión resuelta como
 argumento de la imagen y la registra en `/etc/insightbloom/opencode-versions`. El CLI se instala
-con `https://opencode.ai/v2/install`; la imagen Web instala `sst-dev.opencode` sin pin y valida la
-versión efectiva con `code-server --list-extensions --show-versions`. Después,
+con `https://opencode.ai/v2/install`; la imagen Web instala `sst-dev.opencode-v2@0.1.1`, valida la
+versión y aplica el parche de compatibilidad autenticada del servidor `serve`. Después,
 InsightBloom-gitops debe promover el tag inmutable `build-<run_id>` para que K3s use la nueva
 imagen.
 
@@ -210,7 +210,7 @@ ni se abre un portal de portapapeles del navegador. Dentro de tmux se puede pega
 
 - **Dockerfile.code-ide-debian**: Debian 12-slim, `code-server` (release standalone oficial, sin
   npm) + toolchain completo + extensiones Java/Python/Web + idioma español
-  (`ms-ceintl.vscode-language-pack-es`, activado via `--locale es`) + `sst-dev.opencode`. Expone
+  (`ms-ceintl.vscode-language-pack-es`, activado via `--locale es`) + `sst-dev.opencode-v2`. Expone
   el puerto 8080 (servido al usuario vía el gateway).
 - **Dockerfile.code-ide-neovim**: Alpine 3.21, `neovim`/`vim`/`lazygit` + toolchain completo +
   `ttyd` (sirve `nvim` sobre `/home/coder/workspace` directo en el puerto público del Service).
@@ -251,9 +251,10 @@ java` no esta en open-vsx.org), Python (`ms-python.python` + `ms-pyright.pyright
 Pylance, tampoco en open-vsx), el pack web (Prettier/ESLint/Volar/React/Tailwind/HTML-CSS),
 [`humao.rest-client`](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) para
 ejecutar archivos `.http`/`.rest`, el paquete de idioma español
-(`ms-ceintl.vscode-language-pack-es`) y `sst-dev.opencode`. La extensión se instala sin pin para
-resolver el canal `latest`, se valida durante el build y su versión efectiva queda registrada junto
-al CLI; ese ciclo es independiente de la versión del binario OpenCode.
+(`ms-ceintl.vscode-language-pack-es`) y `sst-dev.opencode-v2@0.1.1`. El bundle se valida y parchea
+durante el build para ajustarse al marcador de arranque de OpenCode 2.x y enviar Basic Auth solo a
+la API local del servidor. El secreto se genera aleatoriamente por proceso, no se almacena en la
+imagen; la versión efectiva queda registrada junto al CLI.
 
 ## Probar APIs REST
 

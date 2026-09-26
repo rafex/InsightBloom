@@ -59,6 +59,9 @@ jobs:
           INSIGHTBLOOM_TYPESCRIPT_API: ${{ runner.temp }}/insightbloom-tsconfig-api/node_modules/typescript/lib/typescript.js
         run: python -m unittest -v infra.docker.test_seed_node_types
 
+      - name: Test OpenCode Web extension compatibility patch
+        run: python -m unittest -v infra.docker.test_patch_opencode_vscode_extension
+
   build-and-push-code-ide:
     name: Build and push code-ide (${{ matrix.name }})
     needs: test-node-types-seeder

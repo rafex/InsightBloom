@@ -175,6 +175,7 @@ ENV INSIGHTBLOOM_TYPESCRIPT_API=/opt/insightbloom/tsconfig-api/node_modules/type
 # /home at runtime, which would otherwise hide the binary baked into the image.
 ENV PATH=/opt/insightbloom/node-global/bin:/opt/insightbloom/.opencode/bin:$PATH
 RUN mkdir -p /opt/insightbloom/node-global && chown -R coder:coder /opt/insightbloom
+COPY --chmod=0555 infra/docker/patch-opencode-vscode-extension.mjs /usr/local/bin/patch-opencode-vscode-extension.mjs
 
 USER coder
 WORKDIR /home/coder
@@ -263,10 +264,14 @@ RUN for ext in \
       ms-ceintl.vscode-language-pack-es; do \
         code-server --install-extension "$ext" || echo "WARN: extension $ext skipped"; \
     done && \
-    code-server --install-extension sst-dev.opencode && \
+    code-server --install-extension sst-dev.opencode-v2@0.1.1 && \
+    opencode_extension_dir="$(find /home/coder/.local/share/code-server/extensions -mindepth 1 -maxdepth 1 \
+      -type d -name 'sst-dev.opencode-v2-0.1.1*' -print -quit)" && \
+    test -n "$opencode_extension_dir" && \
+    node /usr/local/bin/patch-opencode-vscode-extension.mjs "$opencode_extension_dir" && \
     opencode_extension_version="$(code-server --list-extensions --show-versions | \
-      awk -F@ '$1 == "sst-dev.opencode" { print $2; exit }')" && \
-    test -n "$opencode_extension_version" && \
+      awk -F@ '$1 == "sst-dev.opencode-v2" { print $2; exit }')" && \
+    test "$opencode_extension_version" = "0.1.1" && \
     printf '%s\n' "$opencode_extension_version" > /tmp/insightbloom-opencode-extension-version
 
 # opencode (CLI de agente de codigo IA, https://opencode.ai, de SST) -- instalado
@@ -289,12 +294,34 @@ RUN set -eux; \
     printf '%s\n' "$opencode_version_output" | grep -F -- "${OPENCODE_VERSION}"; \
     printf '%s\n' "$opencode_version_output" > /tmp/insightbloom-opencode-cli-version
 
+# Smoke test against the actual pinned CLI: verify the stdout marker consumed by the Web
+# extension patch and the Basic Auth behavior before this image can be published.
+RUN set -eu; \
+    smoke_dir="$(mktemp -d /tmp/opencode-serve-smoke.XXXXXX)"; \
+    mkdir -p "$smoke_dir/home" "$smoke_dir/config" "$smoke_dir/data"; \
+    export HOME="$smoke_dir/home" XDG_CONFIG_HOME="$smoke_dir/config" XDG_DATA_HOME="$smoke_dir/data"; \
+    export OPENCODE_SERVER_PASSWORD="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"; \
+    opencode serve --hostname 127.0.0.1 --port 49173 >"$smoke_dir/server.log" 2>&1 & \
+    server_pid=$!; \
+    trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$smoke_dir"' EXIT; \
+    ready=false; \
+    for attempt in $(seq 1 15); do \
+      status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:49173/health || true)"; \
+      if [ "$status" = 401 ]; then ready=true; break; fi; \
+      sleep 1; \
+    done; \
+    test "$ready" = true; \
+    test "$(curl -sS -o /dev/null -w '%{http_code}' --user "opencode:$OPENCODE_SERVER_PASSWORD" http://127.0.0.1:49173/health)" = 200; \
+    grep -q 'server listening on http://' "$smoke_dir/server.log"
+
 USER root
 RUN set -eux; \
     mkdir -p /etc/insightbloom; \
     { \
       printf 'cli_version=%s\n' "$(cat /tmp/insightbloom-opencode-cli-version)"; \
+      printf 'extension_id=sst-dev.opencode-v2\n'; \
       printf 'extension_version=%s\n' "$(cat /tmp/insightbloom-opencode-extension-version)"; \
+      printf 'extension_patch=serve-marker+localhost-basic-auth\n'; \
       printf 'installer_url=https://opencode.ai/v2/install\n'; \
       printf 'runtime_git_sha=%s\n' "$RUNTIME_GIT_SHA"; \
       printf 'runtime_build_date=%s\n' "$RUNTIME_BUILD_DATE"; \
