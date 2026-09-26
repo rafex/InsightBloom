@@ -1681,8 +1681,8 @@ Registrar una decision cuando cambie:
     de `http://localhost:4096`.
   - La contraseña del servidor se genera aleatoriamente en el proceso de extensión y se hereda
     solo por el proceso local de OpenCode; no es una credencial común embebida en la imagen.
-  - El workflow valida el parche y la imagen prueba un arranque real del servidor y la respuesta
-    401/200 del endpoint de salud con/sin Basic Auth.
+  - El workflow valida el parche y la imagen prueba un arranque real, un 401 anónimo en `/session`
+    y respuestas 200 autenticadas para `/session` y `/global/health`.
 - Consecuencias:
   - Una futura versión de la extensión no se adopta implícitamente: requiere revisar su bundle y
     adaptar el parche antes de actualizar el pin.

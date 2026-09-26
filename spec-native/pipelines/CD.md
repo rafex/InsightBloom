@@ -107,7 +107,8 @@ La imagen Web fija `sst-dev.opencode-v2@0.1.1` y parchea el bundle durante la co
 reconocer la salida vigente de `opencode serve`, mapear `/health` y `/app/providers` al API actual
 y autenticar requests HTTP al loopback con una contraseña aleatoria generada por el host de la
 extensión. La construcción valida que el paquete, versión y marcador upstream correspondan al
-parche y prueba el endpoint de salud autenticado; una diferencia bloquea el build hasta revisión.
+parche y prueba el rechazo anónimo de `/session` más las respuestas autenticadas de `/session` y
+`/global/health`; una diferencia bloquea el build hasta revisión.
 
 ## Deploy a K3s mediante FluxCD
 
