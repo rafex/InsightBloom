@@ -11,7 +11,8 @@
 # script es "¿este destino es interno al cluster, o es internet real?" -- lo interno se permite
 # siempre (DNS, el proxy de egress, la API de insightbloom-users, y cualquier otro Pod/Service del
 # cluster -- la restricción de "solo el mismo evento" para Pod-a-Pod la aplica la NetworkPolicy de
-# ingress del Pod RECEPTOR, no este script), lo externo se bloquea salvo que pase por el proxy.
+# ingress del Pod RECEPTOR, no este script). La salida web TCP/UDP externa va por el proxy; la
+# unica excepcion directa es ICMP echo-request a IPs publicas para diagnostico.
 #
 # Antes de esto: sin ninguna NetworkPolicy de Egress seleccionando el Pod, Kubernetes permitía
 # TODO el tráfico saliente por defecto -- el toggle "Permitir acceso a internet" y las listas
