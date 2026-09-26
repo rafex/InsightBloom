@@ -22,6 +22,20 @@ set -eu
 
 CLUSTER_CIDR="${SANDBOX_CLUSTER_CIDR:-10.0.0.0/8}"
 DNS_SERVERS="$(awk '/^nameserver/ { print $2 }' /etc/resolv.conf 2>/dev/null | tr '\n' ' ')"
+NFT_BIN="${NFT_BIN:-$(command -v nft || true)}"
+if [ -z "$NFT_BIN" ]; then
+    for candidate in /sbin/nft /usr/sbin/nft; do
+        if [ -x "$candidate" ]; then
+            NFT_BIN="$candidate"
+            break
+        fi
+    done
+fi
+if [ -z "$NFT_BIN" ] || [ ! -x "$NFT_BIN" ]; then
+    echo "lockdown-egress: nft executable not found" >&2
+    exit 1
+fi
+nft() { "$NFT_BIN" "$@"; }
 
 nft add table inet sandboxfw
 nft add chain inet sandboxfw output '{ type filter hook output priority 0; policy drop; }'

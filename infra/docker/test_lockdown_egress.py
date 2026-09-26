@@ -21,6 +21,7 @@ class LockdownEgressTest(unittest.TestCase):
             env = os.environ | {
                 "PATH": f"{temp}:{os.environ['PATH']}",
                 "NFT_LOG": str(nft_log),
+                "NFT_BIN": str(nft),
                 "SANDBOX_CLUSTER_CIDR": "10.0.0.0/8",
             }
 
