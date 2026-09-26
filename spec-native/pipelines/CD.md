@@ -104,9 +104,10 @@ selecciona numéricamente mediante `ImagePolicy`; el tag queda fijado en el Helm
 la imagen publicada no dependa de `latest` ni de un reinicio manual de Pods.
 
 La imagen Web fija `sst-dev.opencode-v2@0.1.1` y parchea el bundle durante la construcción para
-reconocer la salida vigente de `opencode serve` y autenticar requests HTTP al loopback con una
-contraseña aleatoria generada por el host de la extensión. La construcción valida que el paquete,
-versión y marcador upstream correspondan al parche; una diferencia bloquea el build hasta revisión.
+reconocer la salida vigente de `opencode serve`, mapear `/health` y `/app/providers` al API actual
+y autenticar requests HTTP al loopback con una contraseña aleatoria generada por el host de la
+extensión. La construcción valida que el paquete, versión y marcador upstream correspondan al
+parche y prueba el endpoint de salud autenticado; una diferencia bloquea el build hasta revisión.
 
 ## Deploy a K3s mediante FluxCD
 

@@ -23,11 +23,11 @@ if (occurrences !== 1) {
 }
 bundle = bundle.replace(marker, 'o.startsWith("server listening")');
 
-const passwordPrelude = `;(()=>{const password=process.env.OPENCODE_SERVER_PASSWORD||require("node:crypto").randomBytes(32).toString("base64url");process.env.OPENCODE_SERVER_PASSWORD=password;const authorization="Basic "+Buffer.from("opencode:"+password).toString("base64");const nativeFetch=globalThis.fetch.bind(globalThis);globalThis.fetch=(input,init={})=>{let url;try{url=new URL(typeof input==="string"?input:input.url)}catch{}if(url?.origin==="http://localhost:4096"){const headers=new Headers(input instanceof Request?input.headers:undefined);new Headers(init.headers).forEach((value,key)=>headers.set(key,value));headers.set("Authorization",authorization);init={...init,headers}}return nativeFetch(input,init)}})();\n`;
+const passwordPrelude = `;(()=>{const password=process.env.OPENCODE_SERVER_PASSWORD||require("node:crypto").randomBytes(32).toString("base64url");process.env.OPENCODE_SERVER_PASSWORD=password;const authorization="Basic "+Buffer.from("opencode:"+password).toString("base64");const nativeFetch=globalThis.fetch.bind(globalThis);globalThis.fetch=(input,init={})=>{let url;try{url=new URL(input instanceof Request?input.url:input)}catch{}if(url?.origin==="http://localhost:4096"){const aliases={"/health":"/global/health","/app/providers":"/config/providers"};const targetPath=aliases[url.pathname];if(targetPath){url.pathname=targetPath;input=input instanceof Request?new Request(url.href,input):url.href}const headers=new Headers(input instanceof Request?input.headers:undefined);new Headers(init.headers).forEach((value,key)=>headers.set(key,value));headers.set("Authorization",authorization);init={...init,headers}}return nativeFetch(input,init)}})();\n`;
 if (bundle.startsWith(";(()=>{const password=")) {
   throw new Error("OpenCode extension bundle is already patched; refusing to patch twice");
 }
 bundle = passwordPrelude + bundle;
 
 fs.writeFileSync(bundlePath, bundle);
-console.log("Patched OpenCode v2 extension: updated serve startup marker and localhost Basic auth");
+console.log("Patched OpenCode v2 extension: updated serve marker, v2 API routes, and localhost Basic auth");

@@ -1676,11 +1676,13 @@ Registrar una decision cuando cambie:
 - Decision:
   - La imagen Web instala `sst-dev.opencode-v2@0.1.1` fijada, en lugar de la extensión legacy.
   - El build aplica un parche reproducible al bundle y falla si paquete, versión o marcador
-    esperado difieren. Actualiza el marcador de `serve` y agrega Basic Auth únicamente a requests
+    esperado difieren. Actualiza el marcador de `serve`, traduce `/health` y `/app/providers` a las
+    rutas actuales `/global/health` y `/config/providers`, y agrega Basic Auth únicamente a requests
     de `http://localhost:4096`.
   - La contraseña del servidor se genera aleatoriamente en el proceso de extensión y se hereda
     solo por el proceso local de OpenCode; no es una credencial común embebida en la imagen.
-  - El workflow valida el parche y la imagen prueba un arranque real autenticado del servidor.
+  - El workflow valida el parche y la imagen prueba un arranque real del servidor y la respuesta
+    401/200 del endpoint de salud con/sin Basic Auth.
 - Consecuencias:
   - Una futura versión de la extensión no se adopta implícitamente: requiere revisar su bundle y
     adaptar el parche antes de actualizar el pin.
