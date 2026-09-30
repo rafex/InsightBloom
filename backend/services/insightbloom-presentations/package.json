@@ -22,7 +22,7 @@
     "multer": "^2.3.0",
     "nats": "^2.29.3",
     "playwright-chromium": "1.63.0",
-    "ws": "^8.21.3"
+    "ws": "^8.22.0"
   },
   "overrides": {
     "dompurify": "^3.4.12",
