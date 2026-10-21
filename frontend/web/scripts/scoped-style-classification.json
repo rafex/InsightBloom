@@ -59,6 +59,7 @@
   "src/pages/dashboard/AdminDeviceAccessPage.vue": "domain-screen",
   "src/pages/dashboard/AdminEgressPolicyPage.vue": "domain-screen",
   "src/pages/dashboard/AdminImagePolicyPage.vue": "domain-screen",
+  "src/pages/dashboard/AdminOrganizerInvitationsPage.vue": "domain-screen",
   "src/pages/dashboard/AdminUsersPage.vue": "domain-screen",
   "src/pages/dashboard/CertificateEditorPage.vue": "domain-screen",
   "src/pages/dashboard/CertificateSettingsPage.vue": "domain-screen",
@@ -75,6 +76,7 @@
   "src/pages/dashboard/ModerationMessagesPage.vue": "domain-screen",
   "src/pages/dashboard/ModerationToolsPage.vue": "domain-screen",
   "src/pages/dashboard/ModerationWordsPage.vue": "domain-screen",
+  "src/pages/dashboard/MyOrganizerReferralsPage.vue": "domain-screen",
   "src/pages/dashboard/NewConferencePage.vue": "domain-screen",
   "src/pages/dashboard/OnDemandVideoManagePage.vue": "domain-screen",
   "src/pages/dashboard/PresentationManagePage.vue": "domain-screen",
@@ -90,5 +92,6 @@
   "src/pages/public/NotFoundPage.vue": "domain-screen",
   "src/pages/public/PublicEventDetailPage.vue": "domain-screen",
   "src/pages/public/PublicEventsPage.vue": "domain-screen",
+  "src/pages/public/OrganizerInvitePage.vue": "domain-screen",
   "src/pages/public/PublicTicketCheckoutPage.vue": "domain-screen"
 }

@@ -2,7 +2,7 @@
 
 Cada iniciativa tiene su propia carpeta con `SPEC.md`.
 
-## Iniciativas activas
+## Iniciativas
 
 | ID | Iniciativa | Estado | Owner |
 |----|-----------|--------|-------|
@@ -13,6 +13,7 @@ Cada iniciativa tiene su propia carpeta con `SPEC.md`.
 | — | [event-roles](./event-roles/SPEC.md) | draft | team |
 | — | [code-ide-sandboxes](./code-ide-sandboxes/SPEC.md) | draft | team |
 | — | [device-fingerprinting](./device-fingerprinting/SPEC.md) | active | team |
+| — | [beta-organizer-invitations](./beta-organizer-invitations/SPEC.md) | done | product owner |
 
 ## Cómo crear una nueva iniciativa
 

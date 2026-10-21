@@ -24,6 +24,12 @@ dominio, casos de uso y adaptadores. El servicio de chat usa SQLite propio.
 El servicio de presentaciones es Node.js/Express (sin arquitectura hexagonal,
 microservicio ligero).
 
+### Acceso beta para organizadores
+
+`insightbloom-users` persiste invitaciones beta, recomendaciones, elegibilidad individual, ajustes y auditoría en SQLite. ADMIN emite, reenvía y revoca invitaciones. El registro público sigue creando ATTENDEE; una aceptación explícita concede ORGANIZER en una transacción únicamente si la cuenta está activa y el correo destinatario coincide con el correo verificado. Abrir el enlace solo muestra una vista previa y no consume el token.
+
+Los tokens de invitación son aleatorios, de un solo uso y se persisten solo como hash SHA-256. El vencimiento inicial es de 7 días (configurable entre 1 y 30). Las recomendaciones comienzan apagadas; requieren elegibilidad individual y aprobación ADMIN antes de emitir el correo final. La cuota inicial es 3 por persona cada 30 días (configurable hasta 10). Los errores de envío quedan visibles para reintentar; un reenvío invalida el enlace anterior.
+
 ## Modulos principales
 
 - Modulo frontend web (SPA Vue 3 + Vite, puerto 80 via nginx en Docker):
@@ -43,6 +49,9 @@ microservicio ligero).
     - `SurveyManagePage.vue` — gestion de encuestas
     - `PresentationManagePage.vue` — upload y gestion de slides (Marp)
     - `AdminUsersPage.vue` — administracion de usuarios (solo ADMIN)
+    - `AdminOrganizerInvitationsPage.vue` — invitaciones beta, aprobación de recomendaciones y ajustes (solo ADMIN)
+    - `MyOrganizerReferralsPage.vue` — recomendaciones personales para organizadores habilitados
+    - `OrganizerInvitePage.vue` — vista previa y aceptación de invitaciones temporales
     - `CertificateSettingsPage.vue` — configuracion de certificados
     - `DashboardHome.vue` — resumen del organizador
   - **Conferencia** (vista publica): `ConferencePage.vue` + sub-paginas

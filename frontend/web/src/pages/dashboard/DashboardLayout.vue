@@ -15,6 +15,7 @@
         .nav-section(v-if="isOrganizer || isAdmin")
           h2.nav-section-title Plataforma
           router-link(v-if="isAdmin" to="/dashboard/admin/users" @click="closeSidebar") Usuarios
+          router-link(v-if="isAdmin" to="/dashboard/admin/organizer-invitations" @click="closeSidebar") Invitaciones beta
           router-link(v-if="isAdmin" to="/dashboard/admin/roles" @click="closeSidebar") Roles
           router-link(v-if="isAdmin" to="/dashboard/admin/event-types" @click="closeSidebar") Tipos de evento
           router-link(v-if="isAdmin" to="/dashboard/admin/ai" @click="closeSidebar") IA
@@ -22,6 +23,9 @@
           router-link(v-if="isAdmin" to="/dashboard/admin/egress-policy" @click="closeSidebar") Control de red
           router-link(v-if="isAdmin" to="/dashboard/admin/image-policy" @click="closeSidebar") Imágenes de contenedor
           router-link(v-if="isOrganizer" to="/dashboard/certificate-settings" @click="closeSidebar") Plantilla global
+        .nav-section(v-if="isOrganizer")
+          h2.nav-section-title Beta
+          router-link(to="/dashboard/organizer-referrals" @click="closeSidebar") Recomendar organizadores
         .nav-section
           h2.nav-section-title Cuenta
           router-link(to="/profile" @click="closeSidebar") Mi perfil

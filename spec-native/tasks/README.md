@@ -7,6 +7,8 @@ Tareas ejecutables por iniciativa.
 ```
 tasks/
 ├── README.md           ← este archivo
+├── beta-organizer-invitations/ ← acceso controlado de organizadores beta
+│   └── TASKS.md
 └── <iniciativa>/
     └── TASKS.md         ← plan de tareas
 ```

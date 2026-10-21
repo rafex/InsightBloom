@@ -39,6 +39,7 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | SPEC-IDE-PUBLICATION-SEPARATION | spec | DEC-0035, ARCHITECTURE.md, workflows/IDE-WEB-PUBLICATION.md, InsightBloom-gitops | Publisher y runtime separados de presentations (active) |
 | DEC-0035 | decision | SPEC-IDE-PUBLICATION-SEPARATION, backend/services/insightbloom-ide-publisher, backend/services/insightbloom-ide-runtime, InsightBloom-gitops | Ownership independiente de publicación IDE (accepted) |
 | SPEC-OTP-REQUEST-AUDIT | spec | DEC-0039, backend/services/insightbloom-users | Registro interno, retención 30 días y consulta estrictamente admin de solicitudes OTP |
+| SPEC-BETA-ORGANIZER-INVITATIONS | spec | tasks/beta-organizer-invitations/TASKS.md, ROLES.md, backend/services/insightbloom-users, frontend/web | Invitaciones email-bound y gate manual de recomendaciones beta |
 | DEC-0039 | decision | SPEC-OTP-REQUEST-AUDIT, backend/services/insightbloom-users | Trazabilidad OTP sin enumeración de cuentas (accepted) |
 | SEC-001 | security | agents/SECURITY.md | Auditoría de seguridad (7 hallazgos) |
 | DIAG-001 | diagnostic | agents/DIAGNOSE.md | Diagnóstico del proyecto 2026-06-26 |

@@ -67,6 +67,97 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_users_registration_fingerprint "
                     + "ON users(registration_device_fingerprint)");
 
+            // Acceso controlado de organizadores beta. El token de invitación nunca se persiste
+            // en claro; las cuotas y los canjes se aplican en transacciones SQLite.
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_invite_settings (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    referrals_enabled INTEGER NOT NULL DEFAULT 0,
+                    invitation_ttl_days INTEGER NOT NULL DEFAULT 7,
+                    referral_limit INTEGER NOT NULL DEFAULT 3,
+                    updated_by TEXT,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """);
+            stmt.executeUpdate("INSERT OR IGNORE INTO organizer_invite_settings(id) VALUES (1)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_invitations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    email TEXT NOT NULL,
+                    email_normalized TEXT NOT NULL,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    status TEXT NOT NULL,
+                    issuer_uuid TEXT NOT NULL,
+                    referral_uuid TEXT,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    sent_at TEXT,
+                    accepted_at TEXT,
+                    accepted_by_user_uuid TEXT,
+                    revoked_at TEXT,
+                    delivery_error TEXT
+                )
+            """);
+            stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_active_organizer_invite_email "
+                    + "ON organizer_invitations(email_normalized) WHERE status IN ('PENDING','DELIVERY_FAILED')");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_organizer_invites_status_created "
+                    + "ON organizer_invitations(status,created_at DESC)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_referrals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    uuid TEXT NOT NULL UNIQUE,
+                    email TEXT NOT NULL,
+                    email_normalized TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    inviter_uuid TEXT NOT NULL,
+                    reviewer_uuid TEXT,
+                    invitation_uuid TEXT,
+                    created_at TEXT NOT NULL,
+                    reviewed_at TEXT
+                )
+            """);
+            stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_referral_per_inviter_email "
+                    + "ON organizer_referrals(inviter_uuid,email_normalized) WHERE status='PENDING_REVIEW'");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_organizer_referrals_status_created "
+                    + "ON organizer_referrals(status,created_at DESC)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_referrer_eligibility (
+                    user_uuid TEXT PRIMARY KEY,
+                    enabled INTEGER NOT NULL DEFAULT 0,
+                    updated_by TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_invite_audit (
+                    uuid TEXT PRIMARY KEY,
+                    actor_uuid TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    resource_type TEXT NOT NULL,
+                    resource_id TEXT,
+                    email_hash TEXT,
+                    created_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_organizer_invite_audit_resource "
+                    + "ON organizer_invite_audit(resource_type,resource_id,created_at DESC)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_organizer_invite_audit_created "
+                    + "ON organizer_invite_audit(created_at DESC)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_invite_rate_events (
+                    uuid TEXT PRIMARY KEY,
+                    event_type TEXT NOT NULL,
+                    actor_uuid TEXT NOT NULL,
+                    ip_hash TEXT,
+                    occurred_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_organizer_invite_rate_actor "
+                    + "ON organizer_invite_rate_events(event_type,actor_uuid,occurred_at)");
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_organizer_invite_rate_ip "
+                    + "ON organizer_invite_rate_events(event_type,ip_hash,occurred_at)");
+
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS guest_users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

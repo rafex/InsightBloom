@@ -26,6 +26,7 @@ const routes: RouteRecordRaw[] = [
     path: '/register',
     component: () => import('@/pages/login/RegisterPage.vue')
   },
+  { path: '/organizer-invite', component: () => import('@/pages/public/OrganizerInvitePage.vue') },
   {
     path: '/profile',
     component: () => import('@/pages/profile/ProfilePage.vue'),
@@ -92,6 +93,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'join', component: () => import('@/pages/dashboard/JoinConferencePage.vue') },
       { path: 'certificate-settings', component: () => import('@/pages/dashboard/CertificateSettingsPage.vue') },
       { path: 'admin/users', component: () => import('@/pages/dashboard/AdminUsersPage.vue') },
+      { path: 'admin/organizer-invitations', component: () => import('@/pages/dashboard/AdminOrganizerInvitationsPage.vue') },
+      { path: 'organizer-referrals', component: () => import('@/pages/dashboard/MyOrganizerReferralsPage.vue') },
       { path: 'admin/users/:uuid', component: () => import('@/pages/dashboard/UserDetailPage.vue') },
       { path: 'admin/event-types', component: () => import('@/pages/dashboard/EventTypesAdminPage.vue') },
       { path: 'admin/roles', component: () => import('@/pages/dashboard/RolesAdminPage.vue') },
@@ -231,6 +234,8 @@ router.beforeEach(async (to) => {
   const organizerOnlyPaths = ['/dashboard/events/new', '/dashboard/certificate-settings']
   if (organizerOnlyPaths.includes(to.path) && !isOrganizerOrAdmin) return '/dashboard'
   if (to.path === '/dashboard/admin/users' && !roles.includes('admin')) return '/dashboard'
+  if (to.path === '/dashboard/admin/organizer-invitations' && !roles.includes('admin')) return '/dashboard'
+  if (to.path === '/dashboard/organizer-referrals' && !isOrganizerOrAdmin) return '/dashboard'
   if (to.path === '/dashboard/admin/event-types' && !roles.includes('admin')) return '/dashboard'
   if (to.path === '/dashboard/admin/roles' && !roles.includes('admin')) return '/dashboard'
   if ((to.path === '/dashboard/admin/chat' || to.path.startsWith('/dashboard/admin/ai')) && !roles.includes('admin')) return '/dashboard'

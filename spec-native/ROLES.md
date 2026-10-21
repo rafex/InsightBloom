@@ -17,7 +17,8 @@ Capacidades:
 
 Restricciones:
 
-- Solo puede crearse a traves del CLI de administracion.
+- Puede habilitarse mediante invitación administrativa después de verificar el correo destinatario.
+- No puede emitir invitaciones ni recomendaciones salvo habilitación individual y gate global activo; toda recomendación requiere aprobación ADMIN.
 - El rol ADMIN puede combinarse con ORGANIZER (multi-rol).
 
 ---
@@ -132,10 +133,19 @@ Restricciones:
 | `PUT /certificate-templates/events/{id}` | ✅ | ✅* | ✅* | — |
 | `PATCH /certificates/settings` | ✅ | ✅ | — | — |
 
-`*` Solo si es propietario/host del evento o tiene una asignación de evento
-con `MANAGE_CERTIFICATE`. La configuración global de plataforma no se delega.
 | `GET /profile` | ✅ | ✅ | ✅ | — |
 | `PATCH /profile` | ✅ | ✅ | ✅ | — |
+| `GET /api/v1/admin/organizer-invitations` | ✅ | — | — | — |
+| `POST /api/v1/admin/organizer-invitations` | ✅ | — | — | — |
+| `POST /api/v1/admin/organizer-invitations/{uuid}/resend` | ✅ | — | — | — |
+| `POST /api/v1/admin/organizer-invitations/{uuid}/revoke` | ✅ | — | — | — |
+| `GET/PUT /api/v1/admin/organizer-invitations/settings` | ✅ | — | — | — |
+| `GET/POST /api/v1/organizer-invitations/referrals` | — | habilitado | — | — |
+
+`POST /api/v1/organizer-invitations/preview` es público y no consume el token. `POST /api/v1/organizer-invitations/redeem` requiere un usuario autenticado con correo verificado coincidente.
+
+`*` Solo si es propietario/host del evento o tiene una asignación de evento
+con `MANAGE_CERTIFICATE`. La configuración global de plataforma no se delega.
 
 ---
 
@@ -159,6 +169,8 @@ CLI create-user
 - Los invitados (GUEST) no tienen fila en la tabla `users`; usan
   `guest_users` y tokens de tipo `GUEST`.
 - El OTP (Twilio SMS o Zoho email) es opcional para verificacion adicional.
+- El registro público crea únicamente ATTENDEE. La beta concede ORGANIZER después de una invitación temporal de un solo uso, correo verificado coincidente y aceptación explícita. El token se guarda solo como hash, vence por defecto en 7 días y ADMIN puede revocarlo o reemitirlo.
+- Las recomendaciones comienzan deshabilitadas globalmente. ADMIN puede habilitarlas para personas concretas; las recomendaciones quedan pendientes hasta su aprobación. El límite inicial es 3 por 30 días y puede configurarse hasta 10.
 
 ## Como crear usuarios
 

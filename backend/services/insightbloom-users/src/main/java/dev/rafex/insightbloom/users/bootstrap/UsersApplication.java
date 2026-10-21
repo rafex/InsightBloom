@@ -78,6 +78,7 @@ public class UsersApplication {
         final var conferenceRepo = new SqliteConferenceRepository(db);
         final var otpRepo = new SqliteOtpCodeRepository(db);
         final var otpRequestAuditRepo = new SqliteOtpRequestAuditRepository(db);
+        final var organizerInvitationRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteOrganizerInvitationRepository(db);
         final var membershipRepo = new SqliteConferenceMembershipRepository(db);
         final var certificateSettingsRepo = new SqliteCertificateSettingsRepository(db);
         final var certificateTemplateRepo = new SqliteCertificateTemplateRepository(db);
@@ -158,6 +159,8 @@ public class UsersApplication {
         final var registerUseCase = new RegisterUseCase(userRepo, passwordService, platformDeviceGuard, platformSettingsRepo);
         final var sendOtpUseCase = new SendOtpUseCase(otpRepo, smsPort, emailPort);
         final var verifyOtpUseCase = new VerifyOtpUseCase(otpRepo, userRepo, tokenService);
+        final var organizerInvitationUseCase = new dev.rafex.insightbloom.users.application.usecases.OrganizerInvitationUseCase(
+                organizerInvitationRepo, userRepo, emailPort, tokenService, frontendBaseUrl);
         final var requestLoginOtpUseCase = new dev.rafex.insightbloom.users.application.usecases.RequestLoginOtpUseCase(
                 userRepo, otpRepo, otpRequestAuditRepo, emailPort);
         final var verifyLoginOtpUseCase = new dev.rafex.insightbloom.users.application.usecases.VerifyLoginOtpUseCase(
@@ -612,6 +615,8 @@ public class UsersApplication {
                 sqliteAuditLogQueryRepository, new CleanupExpiredAuditLogsUseCase(sqliteAuditLogQueryRepository),
                 validateTokenUseCase);
         final var otpRequestAuditHandler = new OtpRequestAuditHandler(otpRequestAuditRepo, validateTokenUseCase);
+        final var organizerInvitationHandler = new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.OrganizerInvitationHandler(
+                organizerInvitationUseCase, validateTokenUseCase);
 
         // Route registry
         final var routes = new JettyRouteRegistry();
@@ -638,6 +643,7 @@ public class UsersApplication {
         routes.add("/api/v1/users/me/audit-logs/*", auditLogHandler);
         routes.add("/api/v1/admin/audit-logs/*", auditLogHandler);
         routes.add("/api/v1/admin/auth/otp-audit", otpRequestAuditHandler);
+        routes.add("/api/v1/organizer-invitations/*", organizerInvitationHandler);
         routes.add("/api/v1/audit-logs/*", auditLogHandler);
         routes.add("/version", new VersionHandler("insightbloom-users"));
 

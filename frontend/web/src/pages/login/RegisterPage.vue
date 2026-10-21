@@ -72,6 +72,7 @@ export default {
     const router = useRouter()
     const route = useRoute()
     const auth = useAuthStore()
+    const inviteTokenPresent = !!sessionStorage.getItem('ib_organizer_invite_token')
     const step = ref('form')
     const loading = ref(false)
     const error = ref('')
@@ -90,6 +91,10 @@ export default {
       error.value = ''
       if (!form.value.email && !form.value.phone) {
         error.value = 'Ingresa al menos un correo o teléfono'
+        return
+      }
+      if (inviteTokenPresent && !form.value.email) {
+        error.value = 'Para aceptar una invitación debes registrarte con el correo al que fue enviada.'
         return
       }
       if (!form.value.password) {
@@ -121,6 +126,7 @@ export default {
           await sendOtp(verifyIdentifier.value, 'EMAIL')
           return
         } catch (e: any) {
+          if (inviteTokenPresent) throw e
           if (!form.value.phone) throw e
         }
       }
@@ -149,7 +155,7 @@ export default {
         const result = await verifyOtp(verifyIdentifier.value, code.value.trim())
         auth.setSession(result)
         step.value = 'done'
-        setTimeout(() => router.push(String(route.query.redirect || '/')), 1500)
+        setTimeout(() => router.push(String(route.query.redirect || (inviteTokenPresent ? '/organizer-invite' : '/'))), 1500)
       } catch (e: any) {
         error.value = e.response?.data?.error?.message || 'Código inválido o expirado.'
       } finally {
