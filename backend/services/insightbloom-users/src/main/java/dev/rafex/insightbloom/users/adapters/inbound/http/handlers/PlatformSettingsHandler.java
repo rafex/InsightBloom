@@ -435,7 +435,6 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         view.put("aiBaseUrl", s.getChatAi().getBaseUrl());
         view.put("aiModel", s.getChatAi().getModel());
         view.put("aiApiKeyConfigured", hasKey(s.getChatAi()));
-        view.put("aiApiKeyHint", keyHint(s.getChatAi().getApiKey()));
         return view;
     }
 
@@ -483,7 +482,7 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
         // but that fallback must not look like an explicitly configured credential in
         // the administrative UI.
         view.put("apiKeyConfigured", p.isConfigured() && hasKey(p));
-        view.put("apiKeyHint", p.isConfigured() ? keyHint(p.getApiKey()) : null);
+        // Never disclose any substring of a stored provider credential.
         return view;
     }
 
@@ -495,10 +494,6 @@ public class PlatformSettingsHandler extends BaseResourceHandler {
 
     private static boolean hasKey(final AiProviderSettings p) {
         return p.getApiKey() != null && !p.getApiKey().isBlank();
-    }
-
-    private static String keyHint(final String key) {
-        return key == null || key.isBlank() ? null : "••••" + key.substring(Math.max(0, key.length() - 4));
     }
 
     private static boolean pathEndsWith(final JettyHttpExchange jx, final String suffix) {

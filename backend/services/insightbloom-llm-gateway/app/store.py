@@ -1,0 +1,141 @@
+"""SQLite store. Plaintext credentials are never persisted."""
+
+from __future__ import annotations
+
+import sqlite3
+import time
+import os
+from pathlib import Path
+from typing import Any
+
+from .crypto import KeyRing
+
+CAPABILITIES = {"chat", "tutor", "survey", "seatLayout", "email"}
+
+
+class CredentialStore:
+    def __init__(self, database: str, keyring: KeyRing):
+        self.database = database
+        self.keyring = keyring
+        os.umask(0o077)
+        Path(database).parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        with self._connect() as db:
+            try:
+                os.chmod(database, 0o600)
+            except OSError:
+                pass
+            db.execute("PRAGMA journal_mode=WAL")
+            db.execute("PRAGMA secure_delete=ON")
+            db.executescript("""
+                CREATE TABLE IF NOT EXISTS credentials (
+                    scope_type TEXT NOT NULL CHECK(scope_type IN ('organizer','event')),
+                    scope_id TEXT NOT NULL,
+                    capability TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    ciphertext TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    PRIMARY KEY(scope_type, scope_id, capability)
+                );
+                CREATE TABLE IF NOT EXISTS audit (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    actor TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    scope_type TEXT NOT NULL,
+                    scope_id TEXT NOT NULL,
+                    capability TEXT NOT NULL,
+                    occurred_at INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS usage (
+                    organizer_id TEXT NOT NULL,
+                    event_id TEXT NOT NULL,
+                    minute INTEGER NOT NULL,
+                    requests INTEGER NOT NULL,
+                    PRIMARY KEY(organizer_id, event_id, minute)
+                );
+            """)
+
+    def _connect(self) -> sqlite3.Connection:
+        db = sqlite3.connect(self.database, timeout=5, isolation_level="IMMEDIATE")
+        db.row_factory = sqlite3.Row
+        return db
+
+    @staticmethod
+    def _aad(scope_type: str, scope_id: str, capability: str) -> bytes:
+        return f"{scope_type}\0{scope_id}\0{capability}".encode("utf-8")
+
+    def set(self, *, scope_type: str, scope_id: str, capability: str, provider: str, model: str, api_key: str, actor: str) -> None:
+        if scope_type not in {"organizer", "event"} or capability not in CAPABILITIES:
+            raise ValueError("credential_scope_invalid")
+        if not scope_id or len(scope_id) > 128 or not api_key or len(api_key) > 4096:
+            raise ValueError("credential_input_invalid")
+        encrypted = self.keyring.encrypt(api_key, associated_data=self._aad(scope_type, scope_id, capability))
+        now = int(time.time())
+        with self._connect() as db:
+            db.execute("""INSERT INTO credentials(scope_type,scope_id,capability,provider,model,ciphertext,updated_at)
+                VALUES(?,?,?,?,?,?,?) ON CONFLICT(scope_type,scope_id,capability) DO UPDATE SET
+                provider=excluded.provider,model=excluded.model,ciphertext=excluded.ciphertext,updated_at=excluded.updated_at""",
+                       (scope_type, scope_id, capability, provider, model, encrypted, now))
+            db.execute("INSERT INTO audit(actor,action,scope_type,scope_id,capability,occurred_at) VALUES(?,?,?,?,?,?)",
+                       (actor, "credential_set", scope_type, scope_id, capability, now))
+
+    def clear(self, *, scope_type: str, scope_id: str, capability: str, actor: str) -> None:
+        now = int(time.time())
+        with self._connect() as db:
+            db.execute("DELETE FROM credentials WHERE scope_type=? AND scope_id=? AND capability=?",
+                       (scope_type, scope_id, capability))
+            db.execute("INSERT INTO audit(actor,action,scope_type,scope_id,capability,occurred_at) VALUES(?,?,?,?,?,?)",
+                       (actor, "credential_cleared", scope_type, scope_id, capability, now))
+
+    def status(self, *, scope_type: str, scope_id: str, capability: str) -> dict[str, Any]:
+        with self._connect() as db:
+            row = db.execute("SELECT provider,model,updated_at FROM credentials WHERE scope_type=? AND scope_id=? AND capability=?",
+                             (scope_type, scope_id, capability)).fetchone()
+        if row is None:
+            return {"configured": False}
+        return {"configured": True, "provider": row["provider"], "model": row["model"], "updatedAt": row["updated_at"]}
+
+    def resolve(self, *, organizer_id: str, event_id: str, capability: str) -> tuple[str, str, str, str] | None:
+        with self._connect() as db:
+            row = db.execute("""SELECT scope_type,scope_id,provider,model,ciphertext FROM credentials
+                WHERE capability=? AND ((scope_type='event' AND scope_id=?) OR (scope_type='organizer' AND scope_id=?))
+                ORDER BY CASE scope_type WHEN 'event' THEN 0 ELSE 1 END LIMIT 1""",
+                             (capability, event_id, organizer_id)).fetchone()
+        if row is None:
+            return None
+        key = self.keyring.decrypt(row["ciphertext"], associated_data=self._aad(row["scope_type"], row["scope_id"], capability))
+        return row["provider"], row["model"], key, row["scope_type"]
+
+    def consume_quota(self, *, organizer_id: str, event_id: str, limit: int = 30) -> bool:
+        minute = int(time.time() // 60)
+        with self._connect() as db:
+            row = db.execute("SELECT requests FROM usage WHERE organizer_id=? AND event_id=? AND minute=?",
+                             (organizer_id, event_id, minute)).fetchone()
+            if row and row["requests"] >= limit:
+                return False
+            db.execute("""INSERT INTO usage(organizer_id,event_id,minute,requests) VALUES(?,?,?,1)
+                ON CONFLICT(organizer_id,event_id,minute) DO UPDATE SET requests=requests+1""",
+                       (organizer_id, event_id, minute))
+            db.execute("DELETE FROM usage WHERE minute < ?", (minute - 2,))
+        return True
+
+    def audit_request(self, *, actor: str, event_id: str, capability: str) -> None:
+        with self._connect() as db:
+            db.execute("INSERT INTO audit(actor,action,scope_type,scope_id,capability,occurred_at) VALUES(?,?,?,?,?,?)",
+                       (actor, "completion_requested", "event", event_id, capability, int(time.time())))
+
+    def reencrypt_all(self) -> int:
+        """Recipher records to the active key; retain old key in the ring during rotation."""
+        changed = 0
+        with self._connect() as db:
+            rows = db.execute("SELECT scope_type,scope_id,capability,ciphertext FROM credentials").fetchall()
+            for row in rows:
+                version = row["ciphertext"].split(":", 1)[0]
+                if version == self.keyring.active_version:
+                    continue
+                aad = self._aad(row["scope_type"], row["scope_id"], row["capability"])
+                updated = self.keyring.reencrypt(row["ciphertext"], associated_data=aad)
+                db.execute("UPDATE credentials SET ciphertext=?,updated_at=? WHERE scope_type=? AND scope_id=? AND capability=?",
+                           (updated, int(time.time()), row["scope_type"], row["scope_id"], row["capability"]))
+                changed += 1
+        return changed

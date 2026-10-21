@@ -11,6 +11,8 @@ tasks/
 │   └── TASKS.md
 ├── beta-organizer-invitations/ ← acceso controlado de organizadores beta
 │   └── TASKS.md
+├── llm-credential-isolation/ ← aislamiento de claves LLM por organizador y evento
+│   └── TASKS.md
 └── <iniciativa>/
     └── TASKS.md         ← plan de tareas
 ```

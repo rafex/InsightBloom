@@ -35,8 +35,8 @@
 
       .form-group
         label(for="ai-api-key") API key exclusiva de {{ activeTab.label }}
-        input#ai-api-key(v-model="activeProvider.apiKey" type="password" autocomplete="new-password" :placeholder="activeProvider.apiKeyHint || 'Introduce una nueva clave'")
-        p.field-hint(v-if="activeProvider.configured && activeProvider.apiKeyConfigured") Clave configurada: {{ activeProvider.apiKeyHint }}. Déjalo vacío para conservarla.
+        input#ai-api-key(v-model="activeProvider.apiKey" type="password" autocomplete="new-password" placeholder="Introduce una nueva clave")
+        p.field-hint(v-if="activeProvider.configured && activeProvider.apiKeyConfigured") Hay una clave guardada. Déjalo vacío para conservarla.
         p.field-hint(v-else-if="!activeProvider.configured") No se copia ni se comparte la clave del chat; puedes asignar una clave exclusiva para este flujo.
         label.clear-key(v-if="activeProvider.configured && activeProvider.apiKeyConfigured")
           input(type="checkbox" v-model="activeProvider.clearApiKey")
@@ -151,8 +151,7 @@ export default {
         guardrails: provider.guardrails,
         temperature: provider.temperature,
         apiKeyConfigured: provider.apiKeyConfigured,
-        apiKeyHint: provider.apiKeyHint,
-        apiKey: provider.apiKey,
+        hasReplacementKey: provider.apiKey.length > 0,
         clearApiKey: provider.clearApiKey
       })
     }

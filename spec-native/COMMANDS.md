@@ -182,6 +182,14 @@ INGEST_URL=http://localhost:8082 just chat-dev
 cd chat && python -m pytest -v
 ```
 
+## LLM Gateway (Python + FastAPI)
+
+```bash
+python3 -m venv /tmp/insightbloom-llm-gateway-venv
+/tmp/insightbloom-llm-gateway-venv/bin/pip install -r backend/services/insightbloom-llm-gateway/requirements-test.txt
+/tmp/insightbloom-llm-gateway-venv/bin/python -m pytest -q backend/services/insightbloom-llm-gateway/tests
+```
+
 ## Survey
 
 ```bash

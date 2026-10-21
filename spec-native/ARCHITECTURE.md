@@ -416,6 +416,7 @@ frontend/web/
       insightbloom-moderation/
       insightbloom-stats/
       insightbloom-survey/
+      insightbloom-llm-gateway/  Python/FastAPI; almacenamiento/cifrado aislado
       insightbloom-presentations/   Node.js/Express (no Java)
     cli/
       insightbloom-cli/
@@ -528,9 +529,19 @@ Los servicios pueden comunicarse con endpoints internos protegidos por
   temperatura y kill switch desde su pestaña en `Dashboard → IA`. Se persisten
   en SQLite de `users`; la API key se cifra en reposo. Los consumidores consultan
   el contrato interno `/api/v1/settings/ai/internal`, protegido por
-  `X-Internal-Auth`, y nunca reciben la clave desde el frontend. No se despliegan
-  URL, modelo, prompt ni API key desde GitOps. Los perfiles no configurados pueden
-  usar el perfil de chat como fallback interno hasta que se personalicen.
+  `X-Internal-Auth`; ese endpoint todavía entrega claves en claro a los
+  consumidores y es una dependencia heredada que debe retirarse tras migrarlos.
+  La interfaz ya no revela fragmentos de las claves ni incluye el valor de la
+  clave en su snapshot de edición. La iniciativa
+  [`llm-credential-isolation`](./specs/llm-credential-isolation/SPEC.md) añade
+  `insightbloom-llm-gateway` como servicio dedicado, apagado hasta configurar sus
+  secretos y migrar consumidores. El gateway tiene una base SQLite propia,
+  cifrado AES-GCM versionado con clave maestra separada, catálogo fijo y rutas
+  internas restringidas por NetworkPolicy. La gestión de organizadores, la firma
+  de contexto por evento y la migración de consumidores todavía no están
+  conectadas; no habilitar ni considerar listo el gateway hasta completar esas
+  tareas. No copiar claves globales al nuevo servicio; sin credencial de
+  organizador/evento, la IA debe quedar deshabilitada.
 - **Twilio**: OTP via SMS para verificacion de usuarios. Configurado via
   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`.
 - **Zoho SMTP**: envio de correos (certificados, notificaciones).

@@ -1,0 +1,33 @@
+name: Publish LLM gateway image
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*']
+    paths:
+      - 'backend/services/insightbloom-llm-gateway/**'
+      - '.github/workflows/publish-llm-gateway.yml'
+      - '.github/workflows/_build-standalone-service.yml'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag (vN.YYYYmmDD[-N])'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build-standalone-service.yml
+    with:
+      image_name: insightbloom-llm-gateway
+      context: backend/services/insightbloom-llm-gateway
+      dockerfile: backend/services/insightbloom-llm-gateway/Dockerfile
+      version_tag: ${{ github.event.inputs.version_tag || '' }}
+      event_name: ${{ github.event_name }}
+      ref_type: ${{ github.ref_type }}
+      ref_name: ${{ github.ref_name }}
+    secrets: inherit
