@@ -7,6 +7,8 @@ Tareas ejecutables por iniciativa.
 ```
 tasks/
 ├── README.md           ← este archivo
+├── security-readiness/  ← preparación para autorregistro público
+│   └── TASKS.md
 ├── beta-organizer-invitations/ ← acceso controlado de organizadores beta
 │   └── TASKS.md
 └── <iniciativa>/
