@@ -1,4 +1,4 @@
-# TASKS — Aislamiento de credenciales LLM
+# TASKS — Configuración LLM por evento y herramienta
 
 ## Metadata
 
@@ -9,51 +9,56 @@
 
 ## Tareas
 
-### TASK-0001 — Gateway, almacenamiento versionado y catálogo aprobado
+### TASK-0001 — Gateway event-only y endpoint personalizado seguro
 
 - ID: TASK-0001
 - State: `in_progress`
 - Owner: product owner
 - Dependencies: —
-- Expected files: `backend/services/insightbloom-llm-gateway/**`, `infra/**`, GitOps chart
-- Close criteria: Gateway dedicado almacena secretos solo cifrados con AES-GCM y clave maestra separada, resuelve ámbito de organizador/evento, restringe catálogo y audita sin datos sensibles.
-- Validation: pruebas unitarias de cifrado, rotación, persistencia, precedencia, autorización, catálogo y filtración; compilación/imagen local.
+- Expected files: `backend/services/insightbloom-llm-gateway/**`
+- Close criteria: el gateway almacena únicamente credenciales de evento, cifra secretos, resuelve por evento/capacidad y valida URLs HTTPS públicas contra SSRF y redirects.
+- Evidence: se añadió `base_url`, borrado al iniciar de filas de organizador y resolución event-only; el cliente conecta a una IP pública fijada y verifica TLS contra el hostname original.
+- Validation: gateway `pytest -q` pasó (9 pruebas), incluida la validación de proveedor personalizado y rechazo de DNS privado.
+- Remaining: validar DNS rebinding/redirect contra servidor de prueba local y completar rotación/recifrado en integración.
 
-Avance parcial: el almacén cifrado, el catálogo, la API interna, los límites, la auditoría, el Dockerfile, el workflow de publicación y el pod apagado/restringido están creados. Siguen pendientes las credenciales de despliegue, la emisión de contexto firmada desde `users`, el TLS interno y las pruebas de staging; por eso la tarea sigue `in_progress`.
-
-Validación local: `insightbloom-llm-gateway` 7 pruebas aprobadas; `insightbloom-users` 414 pruebas aprobadas; `npm --prefix frontend/web run build` aprobado; `helm lint infrastructure/charts/insightbloom` y `helm template` aprobados. La compilación del frontend muestra advertencias existentes de chunks grandes y directivas `use client` ignoradas en dependencias.
-
-### TASK-0002 — Gestión segura de credenciales desde usuarios y UI
+### TASK-0002 — Gestión autenticada y UI por evento
 
 - ID: TASK-0002
-- State: `todo`
+- State: `in_progress`
 - Owner: product owner
 - Dependencies: TASK-0001
-- Expected files: `insightbloom-users`, API frontend y vistas de configuración de IA
-- Close criteria: Organizador solo gestiona su clave; propietario del evento o ADMIN gestiona override; respuestas solo muestran estado sin hints; UX reemplaza o borra explícitamente y es accesible.
-- Validation: pruebas de roles, aislamiento entre tenants/eventos, respuestas JSON, persistencia y UX.
+- Expected files: `insightbloom-users`, API frontend y configuración del evento
+- Close criteria: propietario/ADMIN puede consultar, guardar, reemplazar y borrar por herramienta; solo se muestran metadatos; acciones quedan auditadas.
+- Evidence: endpoints `/{eventId}/llm/{capability}` en `ConferenceHandler`, cliente de gateway con actor, y tarjetas de configuración para cinco herramientas en `ConferenceConfigPage.vue`. La vista global se retiró.
+- Validation: `insightbloom-users` pasó 415 pruebas y el build del frontend pasó. La verificación sigue pendiente en pruebas de handler para propietario/ADMIN y aislamiento de otro evento, más revisión de lector de pantalla.
 
-### TASK-0003 — Migrar consumidores y retirar distribución heredada
+### TASK-0003 — Consumidores event-only y eliminación de credenciales globales activas
 
 - ID: TASK-0003
-- State: `todo`
+- State: `in_progress`
 - Owner: product owner
 - Dependencies: TASK-0001, TASK-0002
-- Expected files: `chat`, `insightbloom-survey`, demás consumidores y `PlatformSettingsHandler`
-- Close criteria: Ningún consumidor obtiene claves de `/ai/internal`; gateway ejecuta peticiones para las cinco capacidades y el endpoint heredado deja de distribuir claves.
-- Validation: pruebas de integración locales para capacidades, tenant/evento y errores seguros; búsqueda de referencias residuales.
+- Expected files: `insightbloom-users`, `insightbloom-survey`, `PlatformSettingsHandler` y frontend
+- Close criteria: todas las herramientas solicitan al gateway solo su evento/capacidad; ningún consumidor ni endpoint distribuye o usa claves globales.
+- Evidence: correo, distribución de asientos, tutor, creación/mejora de preguntas, evaluación y Roberto/chat consultan el gateway por evento. Se retiraron rutas globales, API/UI frontend y dependencia OpenAI directa. Historial/cache del bot quedan aislados por evento. `DatabaseManager` limpia valores globales activos al iniciar; `SqlitePlatformSettingsRepository` ya no descifra ni persiste credenciales globales y el seeder no se invoca.
+- Validation: `insightbloom-users` (415), `insightbloom-survey` (3), gateway (9), chat (37) y `npm run build` aprobaron. La búsqueda no encontró referencias ejecutables a `/settings/ai/internal`, `/settings/chat-ai` ni `/settings/ai` en backend, chat o frontend.
+- Remaining: confirmar las rutas reales de SQLite en producción y observar la purga tras el siguiente reinicio planificado; no se ha accedido ni cambiado producción.
 
-### TASK-0004 — Despliegue declarativo y controles operativos
+### TASK-0004 — Despliegue declarativo y validación operativa
 
 - ID: TASK-0004
-- State: `todo`
+- State: `in_progress`
 - Owner: product owner
 - Dependencies: TASK-0001, TASK-0003
 - Expected files: chart GitOps, secretos cifrados, NetworkPolicy, runbook y pipelines
-- Close criteria: Gateway apagado por defecto, secreto maestro dedicado, PVC/backups, llamadas solo desde consumidores permitidos, observabilidad redactada y procedimiento de rotación/restauración.
-- Validation: lint de Helm/manifiestos, revisión de políticas, ensayo local/staging sin producción.
+- Evidence: el chart declara referencias opcionales a clave maestra y tokens dedicados, URLs internas para gateway/consumidores, NetworkPolicy de entrada solo desde `users`, `chat` y `survey`, y salida del gateway limitada a DNS de clúster y TCP/443 público fuera de rangos privados/reservados. Sin los secretos la funcionalidad queda apagada.
+- Close criteria: secreto maestro dedicado y tokens provisionados; tráfico limitado a consumidores autorizados; backups/restauración y observabilidad no registran secretos; validación funcional en staging.
+- Validation: lint de Helm/manifiestos, revisión de políticas, integración de cada capacidad y ensayo staging sin producción.
+- Validation local: `helm lint` y `helm template` aprobaron con las reglas de egress del gateway. Las referencias a secretos son opcionales y no contienen valores secretos.
+- Note: no desplegar ni crear secretos desde esta implementación local.
 
-## Riesgos abiertos
+## Riesgos y pendientes de salida
 
-- La configuración efectiva de proxies/APM y políticas de red de producción debe verificarse en staging; no se infiere del chart.
-- Las claves globales existentes no se copiarán; eventos sin credencial propia no tendrán IA.
+- Aún no se ha demostrado en staging el aislamiento de eventos, la compatibilidad real de proveedores personalizados ni el comportamiento de proxies/APM.
+- Configurar el gateway requerirá provisioning de secretos y valores en GitOps; sin ellos la funcionalidad nueva no estará activa en despliegue.
+- La limpieza de credenciales solo se aplica a la base activa al inicializar `users`; backups históricos quedan bajo su retención y no deben restaurarse como configuración activa.

@@ -19,14 +19,14 @@ class GenerateEmailDraftUseCaseTest {
 
         final var conference = new Conference("event", "Evento", "owner");
         when(conferences.findByUuid("event")).thenReturn(Optional.of(conference));
-        when(emailLlm.isEnabled()).thenReturn(true);
-        when(emailLlm.complete(anyString())).thenReturn("Borrador generado");
+        when(emailLlm.isEnabled("event")).thenReturn(true);
+        when(emailLlm.complete(eq("event"), anyString())).thenReturn("Borrador generado");
 
         final var useCase = new GenerateEmailDraftUseCase(conferences, emailLlm);
         final String draft = useCase.execute("event", "Recordar que el evento cambia");
 
         assertEquals("Borrador generado", draft);
-        verify(emailLlm).complete(contains("Evento"));
+        verify(emailLlm).complete(eq("event"), contains("Evento"));
     }
 
     @Test
@@ -34,7 +34,8 @@ class GenerateEmailDraftUseCaseTest {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EmailLlmClient emailLlm = mock(EmailLlmClient.class);
 
-        when(emailLlm.isEnabled()).thenReturn(false);
+        when(conferences.findByUuid("event")).thenReturn(Optional.of(new Conference("event", "Evento", "owner")));
+        when(emailLlm.isEnabled("event")).thenReturn(false);
 
         final var useCase = new GenerateEmailDraftUseCase(conferences, emailLlm);
         assertThrows(IllegalStateException.class, () ->
@@ -60,7 +61,6 @@ class GenerateEmailDraftUseCaseTest {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EmailLlmClient emailLlm = mock(EmailLlmClient.class);
 
-        when(emailLlm.isEnabled()).thenReturn(true);
         when(conferences.findByUuid("unknown")).thenReturn(Optional.empty());
 
         final var useCase = new GenerateEmailDraftUseCase(conferences, emailLlm);

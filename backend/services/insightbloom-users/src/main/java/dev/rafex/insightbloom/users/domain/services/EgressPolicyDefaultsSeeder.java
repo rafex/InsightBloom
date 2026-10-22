@@ -6,8 +6,8 @@ import dev.rafex.insightbloom.users.domain.ports.PlatformSettingsRepository;
 /**
  * Inicializa, una sola vez, la lista blanca/negra GLOBAL de egress con los mismos valores que
  * hoy vive en el ConfigMap ({@code EGRESS_PROXY_ALLOWED_HOSTS}/{@code _BLOCKED_HOSTS}) -- mismo
- * espíritu que {@link AiDefaultsSeeder}: mover la fuente de verdad a la base de datos (editable
- * desde el dashboard, sin pasar por gitops/Flux) sin perder el punto de partida actual.
+ * mover la fuente de verdad a la base de datos (editable desde el dashboard, sin pasar por
+ * gitops/Flux) sin perder el punto de partida actual.
  *
  * Solo siembra si {@code platform_settings.egress_allowed_hosts} todavía está vacío -- nunca
  * sobreescribe lo que un admin ya haya guardado desde el dashboard. Idempotente: correr esto en

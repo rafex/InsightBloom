@@ -692,6 +692,26 @@ public class DatabaseManager {
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_guardrails", "TEXT");
                 ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", capability + "_ai_temperature", "REAL");
             }
+            // La configuración LLM global quedó retirada. Borrar las credenciales y metadatos
+            // anteriores en la base activa; los organizadores deberán registrar claves por evento.
+            try (Statement cleanup = conn.createStatement()) {
+                cleanup.execute("PRAGMA secure_delete=ON");
+                final StringBuilder sql = new StringBuilder("UPDATE platform_settings SET chat_ai_enabled=0, "
+                        + "ai_base_url=NULL, ai_model=NULL, ai_api_key_ciphertext=NULL, chat_system_prompt=NULL, "
+                        + "chat_guardrails=NULL, chat_temperature=NULL");
+                for (final String capability : new String[] {"tutor", "survey", "seat_layout", "email"}) {
+                    sql.append(", ").append(capability).append("_ai_configured=0")
+                            .append(", ").append(capability).append("_ai_enabled=0")
+                            .append(", ").append(capability).append("_ai_base_url=NULL")
+                            .append(", ").append(capability).append("_ai_model=NULL")
+                            .append(", ").append(capability).append("_ai_api_key_ciphertext=NULL")
+                            .append(", ").append(capability).append("_ai_system_prompt=NULL")
+                            .append(", ").append(capability).append("_ai_guardrails=NULL")
+                            .append(", ").append(capability).append("_ai_temperature=NULL");
+                }
+                cleanup.executeUpdate(sql.toString());
+                cleanup.execute("PRAGMA wal_checkpoint(TRUNCATE)");
+            }
             // Umbrales de PlatformDeviceGuard (2026-07): nullable, defaults efectivos en el guard
             // (5/3/3) si el admin de plataforma no los configuro todavia.
             ColumnMigrationHelper.addColumnIfMissing(conn, "platform_settings", "max_accounts_per_device", "INTEGER");

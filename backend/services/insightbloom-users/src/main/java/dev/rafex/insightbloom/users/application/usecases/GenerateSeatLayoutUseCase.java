@@ -43,13 +43,18 @@ public class GenerateSeatLayoutUseCase {
     }
 
     public List<DefineVenueSeatsUseCase.SeatInput> execute(final String description) {
-        if (!llm.isEnabled()) {
+        return execute(null, description);
+    }
+
+    public List<DefineVenueSeatsUseCase.SeatInput> execute(final String eventId, final String description) {
+        if (eventId == null ? !llm.isEnabled() : !llm.isEnabled(eventId, "seatLayout")) {
             throw new IllegalStateException("llm_not_configured");
         }
         if (description == null || description.isBlank()) {
             throw new IllegalArgumentException("description_required");
         }
-        final String raw = llm.complete(SYSTEM_PROMPT, description);
+        final String raw = eventId == null ? llm.complete(SYSTEM_PROMPT, description)
+                : llm.complete(eventId, "seatLayout", SYSTEM_PROMPT, description);
         final String jsonObject = extractJsonObject(raw);
 
         final Map<String, Object> parsed = jsonCodec.readValue(jsonObject, Map.class);

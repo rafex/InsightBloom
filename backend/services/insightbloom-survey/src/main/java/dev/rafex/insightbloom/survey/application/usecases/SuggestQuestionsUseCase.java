@@ -64,7 +64,7 @@ public class SuggestQuestionsUseCase {
     public record SuggestedQuestion(String text, String type, List<String> options, String referenceAnswer) {}
 
     public List<SuggestedQuestion> execute(final String conferenceId, final int count) {
-        if (!llm.isEnabled()) {
+        if (!llm.isEnabled(conferenceId, "survey")) {
             throw new IllegalStateException("llm_not_configured");
         }
         final String markdown = presentations.fetchMarkdown(conferenceId)
@@ -86,7 +86,7 @@ public class SuggestQuestionsUseCase {
                         + "en las diapositivas, pero es informacion valida a considerar):\n" + extraContext)
                 + "\n\nPreguntas que YA EXISTEN en el cuestionario (no las repitas ni generes equivalentes):\n"
                 + (existingQuestions.isBlank() ? "(ninguna)" : existingQuestions);
-        final String raw = llm.complete(SYSTEM_PROMPT, userPrompt);
+        final String raw = llm.complete(conferenceId, "survey", SYSTEM_PROMPT, userPrompt);
         final String jsonArray = extractJsonArray(raw);
 
         @SuppressWarnings("unchecked")

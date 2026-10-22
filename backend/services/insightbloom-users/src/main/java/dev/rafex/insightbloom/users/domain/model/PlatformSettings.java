@@ -1,7 +1,7 @@
 package dev.rafex.insightbloom.users.domain.model;
 
 public class PlatformSettings {
-    private AiProviderSettings chatAi = AiProviderSettings.defaults(true);
+    private AiProviderSettings chatAi = AiProviderSettings.defaults(false);
     private AiProviderSettings tutorAi = AiProviderSettings.defaults(false);
     private AiProviderSettings surveyAi = AiProviderSettings.defaults(false);
     private AiProviderSettings seatLayoutAi = AiProviderSettings.defaults(false);

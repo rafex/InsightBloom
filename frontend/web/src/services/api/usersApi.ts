@@ -6,7 +6,7 @@ import type {
   CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   WorkspaceZipJobInfo,
-  ChatSettings, AiSettings, AiPromptVariable, SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
+  SandboxIncident, SandboxVariant, SandboxAvailability, SandboxStatusEntry,
   SandboxPrewarmResult,
   WorkspaceFileEntry, WorkspaceFileContent, DeviceBlock, DeviceAccessSettings, PlatformDeviceBlock,
   DeviceFingerprintFlag, ConferenceAccess, JitsiInviteAccess, CertificateTemplateCatalog, CertificateTemplate,
@@ -134,6 +134,37 @@ export async function getActiveRegisteredAttendeesCount(token: string): Promise<
 export async function getDownloadCounts(conferenceId: string, token: string): Promise<DownloadCounts> {
   const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/downloads/count`, authHeader(token))
   return res.data.data
+}
+
+export interface EventLlmConfiguration {
+  configured: boolean
+  provider?: 'openai' | 'groq' | 'custom'
+  model?: string
+  baseUrl?: string
+  updatedAt?: number
+}
+
+export async function getEventLlmConfiguration(
+  conferenceId: string, capability: string, token: string
+): Promise<EventLlmConfiguration> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/llm/${capability}`, authHeader(token))
+  return res.data.data
+}
+
+export async function saveEventLlmConfiguration(
+  conferenceId: string,
+  capability: string,
+  config: { provider: 'openai' | 'groq' | 'custom'; model: string; baseUrl?: string; apiKey: string },
+  token: string
+): Promise<EventLlmConfiguration> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/llm/${capability}`, config, authHeader(token))
+  return res.data.data
+}
+
+export async function deleteEventLlmConfiguration(
+  conferenceId: string, capability: string, token: string
+): Promise<void> {
+  await axios.delete(`/api/users/api/v1/conferences/${conferenceId}/llm/${capability}`, authHeader(token))
 }
 
 export async function createConference(
@@ -942,65 +973,6 @@ export async function updateRole(
 
 export async function setRoleActive(uuid: string, active: boolean, token: string): Promise<Role> {
   const res = await axios.put(`/api/users/api/v1/roles/${uuid}/active`, { active }, authHeader(token))
-  return res.data.data
-}
-
-export async function getChatAiSetting(): Promise<boolean> {
-  const res = await axios.get('/api/users/api/v1/settings/chat-ai/public')
-  return res.data.data.chatAiEnabled
-}
-
-export async function getChatSettings(token: string): Promise<ChatSettings> {
-  const res = await axios.get('/api/users/api/v1/settings/chat-ai', authHeader(token))
-  return res.data.data
-}
-
-/** Configuración global de IA; la API nunca devuelve la clave, solo su estado y últimos dígitos. */
-export async function getAiSettings(token: string): Promise<AiSettings> {
-  const res = await axios.get('/api/users/api/v1/settings/ai', authHeader(token))
-  return res.data.data
-}
-
-export async function setAiSettings(
-  chatAiEnabled: boolean, aiBaseUrl: string, aiModel: string, aiApiKey: string | null,
-  clearApiKey: boolean, chatSystemPrompt: string | null, chatTemperature: number | null,
-  token: string
-): Promise<ChatSettings> {
-  const res = await axios.put('/api/users/api/v1/settings/ai', {
-    chatAiEnabled, aiBaseUrl, aiModel, aiApiKey, clearApiKey, chatSystemPrompt, chatTemperature
-  }, authHeader(token))
-  return res.data.data
-}
-
-export async function setAiProviderSettings(
-  capability: 'chat' | 'tutor' | 'survey' | 'seat-layout' | 'email',
-  enabled: boolean, baseUrl: string, model: string, apiKey: string | null,
-  clearApiKey: boolean, systemPrompt: string | null, guardrails: string | null, temperature: number | null,
-  token: string
-): Promise<AiSettings> {
-  const res = await axios.put(`/api/users/api/v1/settings/ai/${capability}`, {
-    enabled, baseUrl, model, apiKey, clearApiKey, systemPrompt, guardrails, temperature
-  }, authHeader(token))
-  return res.data.data
-}
-
-/** Referencia de variables disponibles para redactar prompts (ver AiPromptCatalog en el backend). */
-export async function getAiPromptCatalog(token: string): Promise<AiPromptVariable[]> {
-  const res = await axios.get('/api/users/api/v1/settings/ai/catalog', authHeader(token))
-  return res.data.data.variables
-}
-
-export async function setChatAiSetting(chatAiEnabled: boolean, token: string): Promise<boolean> {
-  const res = await axios.put('/api/users/api/v1/settings/chat-ai', { chatAiEnabled }, authHeader(token))
-  return res.data.data.chatAiEnabled
-}
-
-/** Actualiza el prompt de sistema y/o la temperatura de Roberto sin tocar el kill switch chatAiEnabled. */
-export async function setChatSettings(
-  chatAiEnabled: boolean, chatSystemPrompt: string | null, chatTemperature: number | null, token: string
-): Promise<ChatSettings> {
-  const res = await axios.put('/api/users/api/v1/settings/chat-ai',
-    { chatAiEnabled, chatSystemPrompt, chatTemperature }, authHeader(token))
   return res.data.data
 }
 

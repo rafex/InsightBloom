@@ -33,6 +33,7 @@ class CredentialStore:
                     capability TEXT NOT NULL,
                     provider TEXT NOT NULL,
                     model TEXT NOT NULL,
+                    base_url TEXT,
                     ciphertext TEXT NOT NULL,
                     updated_at INTEGER NOT NULL,
                     PRIMARY KEY(scope_type, scope_id, capability)
@@ -54,6 +55,15 @@ class CredentialStore:
                     PRIMARY KEY(organizer_id, event_id, minute)
                 );
             """)
+            columns = {row[1] for row in db.execute("PRAGMA table_info(credentials)")}
+            if "base_url" not in columns:
+                db.execute("ALTER TABLE credentials ADD COLUMN base_url TEXT")
+            # Organizer-scoped records were only a transitional fallback; retain event scope only.
+            db.execute("DELETE FROM credentials WHERE scope_type='organizer'")
+        # Checkpoint after closing the migration transaction/connection; SQLite rejects
+        # TRUNCATE checkpoints while a write transaction still owns the database.
+        with self._connect() as db:
+            db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.database, timeout=5, isolation_level="IMMEDIATE")
@@ -64,18 +74,19 @@ class CredentialStore:
     def _aad(scope_type: str, scope_id: str, capability: str) -> bytes:
         return f"{scope_type}\0{scope_id}\0{capability}".encode("utf-8")
 
-    def set(self, *, scope_type: str, scope_id: str, capability: str, provider: str, model: str, api_key: str, actor: str) -> None:
-        if scope_type not in {"organizer", "event"} or capability not in CAPABILITIES:
+    def set(self, *, scope_type: str, scope_id: str, capability: str, provider: str, model: str, api_key: str, actor: str, base_url: str | None = None) -> None:
+        if scope_type != "event" or capability not in CAPABILITIES:
             raise ValueError("credential_scope_invalid")
         if not scope_id or len(scope_id) > 128 or not api_key or len(api_key) > 4096:
             raise ValueError("credential_input_invalid")
         encrypted = self.keyring.encrypt(api_key, associated_data=self._aad(scope_type, scope_id, capability))
         now = int(time.time())
         with self._connect() as db:
-            db.execute("""INSERT INTO credentials(scope_type,scope_id,capability,provider,model,ciphertext,updated_at)
-                VALUES(?,?,?,?,?,?,?) ON CONFLICT(scope_type,scope_id,capability) DO UPDATE SET
-                provider=excluded.provider,model=excluded.model,ciphertext=excluded.ciphertext,updated_at=excluded.updated_at""",
-                       (scope_type, scope_id, capability, provider, model, encrypted, now))
+            db.execute("""INSERT INTO credentials(scope_type,scope_id,capability,provider,model,base_url,ciphertext,updated_at)
+                VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(scope_type,scope_id,capability) DO UPDATE SET
+                provider=excluded.provider,model=excluded.model,base_url=excluded.base_url,
+                ciphertext=excluded.ciphertext,updated_at=excluded.updated_at""",
+                       (scope_type, scope_id, capability, provider, model, base_url, encrypted, now))
             db.execute("INSERT INTO audit(actor,action,scope_type,scope_id,capability,occurred_at) VALUES(?,?,?,?,?,?)",
                        (actor, "credential_set", scope_type, scope_id, capability, now))
 
@@ -89,22 +100,23 @@ class CredentialStore:
 
     def status(self, *, scope_type: str, scope_id: str, capability: str) -> dict[str, Any]:
         with self._connect() as db:
-            row = db.execute("SELECT provider,model,updated_at FROM credentials WHERE scope_type=? AND scope_id=? AND capability=?",
+            row = db.execute("SELECT provider,model,base_url,updated_at FROM credentials WHERE scope_type=? AND scope_id=? AND capability=?",
                              (scope_type, scope_id, capability)).fetchone()
         if row is None:
             return {"configured": False}
-        return {"configured": True, "provider": row["provider"], "model": row["model"], "updatedAt": row["updated_at"]}
+        return {"configured": True, "provider": row["provider"], "model": row["model"],
+                "baseUrl": row["base_url"].removesuffix("/chat/completions") if row["base_url"] else None,
+                "updatedAt": row["updated_at"]}
 
-    def resolve(self, *, organizer_id: str, event_id: str, capability: str) -> tuple[str, str, str, str] | None:
+    def resolve(self, *, event_id: str, capability: str) -> tuple[str, str, str, str | None] | None:
         with self._connect() as db:
-            row = db.execute("""SELECT scope_type,scope_id,provider,model,ciphertext FROM credentials
-                WHERE capability=? AND ((scope_type='event' AND scope_id=?) OR (scope_type='organizer' AND scope_id=?))
-                ORDER BY CASE scope_type WHEN 'event' THEN 0 ELSE 1 END LIMIT 1""",
-                             (capability, event_id, organizer_id)).fetchone()
+            row = db.execute("""SELECT scope_id,provider,model,base_url,ciphertext FROM credentials
+                WHERE scope_type='event' AND capability=? AND scope_id=?""",
+                             (capability, event_id)).fetchone()
         if row is None:
             return None
-        key = self.keyring.decrypt(row["ciphertext"], associated_data=self._aad(row["scope_type"], row["scope_id"], capability))
-        return row["provider"], row["model"], key, row["scope_type"]
+        key = self.keyring.decrypt(row["ciphertext"], associated_data=self._aad("event", row["scope_id"], capability))
+        return row["provider"], row["model"], key, row["base_url"]
 
     def consume_quota(self, *, organizer_id: str, event_id: str, limit: int = 30) -> bool:
         minute = int(time.time() // 60)

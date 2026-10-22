@@ -21,9 +21,8 @@ import java.util.Set;
  * {@code blocked = global ∪ evento}. BLOCKED SIEMPRE GANA sobre allowed en cualquier nivel -- un
  * evento no puede "desbloquear" algo que la plataforma prohíbe, solo puede agregar bloqueos
  * propios. Un cambio al blocklist global se propaga de inmediato a todos los eventos activos, sin
- * tocarlos uno por uno (a diferencia de {@code AiDefaultsSeeder}, que es "seed-then-independent"
- * -- acá la capa global sigue viva siempre, es una decisión de seguridad, no de autonomía por
- * evento).
+ * tocarlos uno por uno -- acá la capa global sigue viva siempre, es una decisión de seguridad,
+ * no de autonomía por evento. La configuración LLM, en cambio, es exclusivamente por evento.
  */
 public class ResolveEgressPolicyUseCase {
     private final SandboxOrchestrator sandboxOrchestrator;

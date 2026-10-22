@@ -51,7 +51,7 @@ public class ImproveQuestionUseCase {
     public record ImprovedQuestion(String text, String type, List<String> options, String referenceAnswer) {}
 
     public List<ImprovedQuestion> execute(final Request req) {
-        if (!llm.isEnabled()) {
+        if (!llm.isEnabled(req.conferenceUuid(), "survey")) {
             throw new IllegalStateException("llm_not_configured");
         }
         if (req.text() == null || req.text().isBlank()) {
@@ -72,7 +72,7 @@ public class ImproveQuestionUseCase {
                 userPrompt.append("\nContenido visible de las diapositivas (contexto):\n")
                         .append(stripNonVisibleContent(markdown)));
 
-        final String raw = llm.complete(SYSTEM_PROMPT, userPrompt.toString());
+        final String raw = llm.complete(req.conferenceUuid(), "survey", SYSTEM_PROMPT, userPrompt.toString());
         final String jsonArray = extractJsonArray(raw);
 
         @SuppressWarnings("unchecked")

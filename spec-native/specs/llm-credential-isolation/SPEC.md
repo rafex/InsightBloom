@@ -1,4 +1,4 @@
-# Credenciales LLM aisladas por organizador y evento
+# Configuración LLM aislada por evento y herramienta
 
 **Estado:** active
 **Owner:** product owner
@@ -6,48 +6,36 @@
 
 ## Objetivo
 
-Permitir que organizadores configuren proveedores LLM sin que las claves abandonen el servicio dedicado que las almacena y usa. Las credenciales se aíslan por organizador y, opcionalmente, por evento y capacidad.
+Permitir al propietario de un evento y a ADMIN configurar por separado el proveedor, endpoint, modelo y API key que usa cada herramienta. Cada evento administra sus propias credenciales; no existen credenciales LLM globales, predeterminadas ni heredadas de organizador.
 
 ## Comportamiento
 
-- Cada capacidad admite una clave predeterminada del organizador y una sobrescritura por evento.
-- Precedencia: override del evento → credencial del organizador → IA deshabilitada. Las claves globales de plataforma no se usan como fallback.
-- Solo el gateway descifra claves y se comunica con proveedores.
-- El catálogo de proveedor/modelo es cerrado y administrado por el sistema; no se aceptan URLs arbitrarias.
-- El API nunca devuelve claves, pistas parciales ni ciphertext. Reemplazo y borrado son operaciones explícitas.
-- El organizador gestiona su propia clave; el propietario del evento o ADMIN gestiona el override.
-- El gateway autentica servicios llamantes, verifica evento/capacidad, limita uso y audita metadatos sin prompts, claves ni cuerpos.
-- El formato cifrado es versionado y permite recifrado durante rotación de la clave maestra dedicada.
-
-## Capacidades en alcance
-
-`chat`, `tutor`, `survey`, `seatLayout` y `email`.
-
-## Fuera de alcance
-
-- Migrar automáticamente claves globales existentes.
-- Desplegar o habilitar el gateway en producción desde esta iniciativa.
-- Guardar claves de proveedores en servicios consumidores o en el navegador más allá del envío de reemplazo por TLS.
+- Las capacidades son `chat`, `tutor`, `survey`, `seatLayout` y `email`.
+- Cada capacidad obtiene exclusivamente la configuración guardada para ese evento. Si no está configurada, la herramienta opera sin IA.
+- Se puede elegir proveedor/modelo del catálogo aprobado o una URL personalizada compatible con OpenAI y el ID de modelo.
+- El endpoint personalizado requiere HTTPS público, DNS global y ausencia de redirecciones; se valida y fija la dirección resuelta al conectar para reducir SSRF y DNS rebinding.
+- El gateway dedicado es el único componente que descifra claves y llama al proveedor. Las claves se almacenan cifradas con AES-GCM y una clave maestra exclusiva del gateway.
+- Las rutas de estado, escritura y borrado autorizan al propietario del evento o a ADMIN. Toda operación se audita con actor, evento, capacidad y acción, sin valores secretos.
+- Las respuestas de estado muestran proveedor, modelo, endpoint y condición configurada; nunca devuelven API key, fragmentos ni ciphertext.
+- No se copian las credenciales globales existentes. Se eliminan del almacenamiento activo al inicializar `users`; backups históricos permanecen según su retención y no se reactivan al restaurar.
+- No existe fallback entre herramienta, evento u organizador. Credenciales ausentes implican IA deshabilitada.
 
 ## Requisitos de seguridad y UX
 
-- AES-GCM con nonce aleatorio y clave maestra aleatoria dedicada, inyectada solo al gateway.
-- Claves y cuerpos sensibles excluidos de logs, trazas, errores y telemetría.
-- Autorización del lado servidor para cada operación de configuración y cada generación.
-- Falla cerrada ante credenciales ausentes, identidad inválida, modelo no permitido, límites excedidos o proveedor no disponible.
-- UI accesible y móvil que informa estado configurado, proveedor/modelo y fecha de cambio; nunca muestra la clave almacenada.
+- La clave solo viaja desde el navegador al backend autenticado y luego al gateway por canal de servicio; los logs, errores y trazas no deben capturar secretos ni cuerpos.
+- Reemplazar requiere ingresar una nueva clave; borrar es explícito. El campo se limpia tras guardar.
+- URL personalizada: rechazar HTTP, userinfo, query/fragment, loopback, rangos privados/reservados y metadatos; resolver DNS al conectar, exigir que todas las respuestas sean públicas, fijar la IP para TLS/HTTP y no seguir redirects.
+- La interfaz debe ser móvil, operable por teclado y comunicar estado, proveedor/modelo, URL y cómo reemplazar o eliminar la clave sin revelar su valor.
 
 ## Criterios de aceptación
 
-- Persistencia cifrada y descifrado con clave correcta; rechazo de clave maestra incorrecta y ciphertext alterado.
-- Rotación con recifrado y persistencia entre reinicios.
-- Aislamiento de organizadores y eventos; verificación de permisos para cambios.
-- Precedencia de credenciales y deshabilitación sin fallback global.
-- Catálogo cerrado, límites, autenticación del servicio y auditoría solo de metadatos.
-- Ninguna respuesta, excepción, log o snapshot de UI expone clave, fragmento o ciphertext.
-- Consumidores ya no leen `/settings/ai/internal`; ese endpoint deja de distribuir credenciales.
-- Pruebas locales/staging comprueban además trazas de proxy/APM; ningún sondeo ni cambio de producción.
+- Dueño/ADMIN puede consultar estado, configurar, reemplazar y borrar credenciales por evento y herramienta.
+- Otro usuario/evento no puede leer ni cambiar la configuración; ADMIN queda auditado como cualquier actor.
+- Cada herramienta usa solo su configuración de evento; no hay claves globales ni herencia.
+- URL HTTP, destinos privados/reservados, redirects y resolución DNS no pública son rechazados; URLs HTTPS públicas compatibles funcionan.
+- Las credenciales globales están ausentes del almacenamiento activo y no se copian ni reactivan.
+- Pruebas cubren cifrado, persistencia, aislamiento, roles, redacción, endpoint personalizado y cada consumidor.
 
 ## Despliegue
 
-Desplegar apagado, provisionar secreto maestro y tokens de servicio de forma privada, migrar y validar consumidores en staging, aplicar políticas de red y auditoría, y solo entonces retirar el endpoint heredado.
+La implementación local no habilita el gateway en producción. Antes de activarlo se deben provisionar por canal privado la clave maestra y tokens, configurar NetworkPolicy y observabilidad redactada, y validar en staging la integración, los consumidores y el borrado de datos activos.

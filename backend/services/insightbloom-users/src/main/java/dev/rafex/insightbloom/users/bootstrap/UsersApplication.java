@@ -83,13 +83,7 @@ public class UsersApplication {
         final var certificateSettingsRepo = new SqliteCertificateSettingsRepository(db);
         final var certificateTemplateRepo = new SqliteCertificateTemplateRepository(db);
         final var platformSettingsRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqlitePlatformSettingsRepository(
-                db, new dev.rafex.insightbloom.users.adapters.outbound.crypto.AiApiKeyCipher(internalApiKey));
-        // AI_SEED_DEFAULTS=false salta el seeding y deja las capacidades sin configurar tal cual
-        // esten en la BD (heredando en silencio la config de chat); en true (default) rellena una
-        // sola vez, por capacidad, un Prompt base y Guardarails reales -- nunca pisa lo que el
-        // admin ya haya guardado explicitamente. Ver AiDefaultsSeeder.
-        final boolean aiSeedDefaults = !"false".equalsIgnoreCase(System.getenv("AI_SEED_DEFAULTS"));
-        dev.rafex.insightbloom.users.domain.services.AiDefaultsSeeder.seedIfNeeded(platformSettingsRepo, aiSeedDefaults);
+                db);
         // Control de egress por dominio (2026-07): mismo mecanismo de seed-once que AI_SEED_DEFAULTS,
         // pero sembrando desde los valores que HOY vive en el ConfigMap (EGRESS_PROXY_ALLOWED_HOSTS/
         // BLOCKED_HOSTS) para no perder el punto de partida al mover la fuente de verdad a la BD.
@@ -247,7 +241,12 @@ public class UsersApplication {
         final var cancelConferenceUseCase = new dev.rafex.insightbloom.users.application.usecases.CancelConferenceUseCase(
                 conferenceRepo, reservationRepo, userRepo, emailPort, sendNotificationUseCase, frontendBaseUrl);
         final var setOnDemandVideoUseCase = new dev.rafex.insightbloom.users.application.usecases.SetOnDemandVideoUseCase(conferenceRepo);
-        final var emailLlmClient = new EmailLlmClient(platformSettingsRepo, JacksonJsonCodec.defaultCodec());
+        final var llmGatewayClient = new dev.rafex.insightbloom.users.adapters.outbound.llm.LlmGatewayClient(
+                System.getenv("LLM_GATEWAY_INTERNAL_URL"), System.getenv("LLM_GATEWAY_USERS_TOKEN"),
+                System.getenv("LLM_GATEWAY_CONTEXT_SIGNING_KEY"), JacksonJsonCodec.defaultCodec());
+        final var internalLlmContextHandler = new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalLlmContextHandler(
+                conferenceRepo, llmGatewayClient, System.getenv("LLM_GATEWAY_CHAT_TOKEN"));
+        final var emailLlmClient = new EmailLlmClient(llmGatewayClient);
         final var generateEmailDraftUseCase = new GenerateEmailDraftUseCase(conferenceRepo, emailLlmClient);
         final var getOrCreateEventPadUseCase = new GetOrCreateEventPadUseCase(
                 conferenceRepo, etherpadPort, etherpadPrivatePadSecret);
@@ -269,12 +268,9 @@ public class UsersApplication {
                 jaasAppId, jaasApiKeyId, jaasPrivateKeyBase64, eventPermissionGuard, userRepo,
                 conferenceRepo, deviceAccessGuard, ticketUseCase, jaasUsageRepo);
         final var llmClient = new dev.rafex.insightbloom.users.adapters.outbound.llm.GroqLlmClient(
-                platformSettingsRepo, JacksonJsonCodec.defaultCodec());
+                llmGatewayClient, "seatLayout");
         final var generateSeatLayoutUseCase = new GenerateSeatLayoutUseCase(llmClient, JacksonJsonCodec.defaultCodec());
         final var getChatAiSettingUseCase = new GetChatAiSettingUseCase(platformSettingsRepo);
-        final var setChatAiSettingUseCase = new SetChatAiSettingUseCase(platformSettingsRepo);
-        final var setChatSettingsUseCase = new SetChatSettingsUseCase(platformSettingsRepo);
-        final var setAiSettingsUseCase = new SetAiSettingsUseCase(platformSettingsRepo);
         final var setDeviceAccessSettingsUseCase = new SetDeviceAccessSettingsUseCase(platformSettingsRepo);
         final var listPlatformDeviceBlocksUseCase = new ListPlatformDeviceBlocksUseCase(platformDeviceBlockRepo);
         final var unblockPlatformDeviceUseCase = new UnblockPlatformDeviceUseCase(platformDeviceBlockRepo);
@@ -596,7 +592,7 @@ public class UsersApplication {
         // ResolveImagePolicyUseCase/PublishContainerUseCase: instanciados más arriba (Fase 4b,
         // MVP con hostUsers:false, sin prerequisito de infra externo -- ver KubernetesPodClient).
         final var platformSettingsHandler = new PlatformSettingsHandler(
-                getChatAiSettingUseCase, setChatAiSettingUseCase, setChatSettingsUseCase, setAiSettingsUseCase,
+                getChatAiSettingUseCase,
                 setDeviceAccessSettingsUseCase, setGlobalEgressPolicyUseCase, setGlobalImagePolicyUseCase,
                 listPlatformDeviceBlocksUseCase,
                 unblockPlatformDeviceUseCase, listDeviceFingerprintFlagsUseCase, reviewDeviceFingerprintFlagUseCase,
@@ -626,6 +622,7 @@ public class UsersApplication {
         routes.add("/internal/sandbox-incidents/*", internalSandboxIncidentHandler);
         routes.add("/internal/egress-policy/*", internalEgressPolicyHandler);
         routes.add("/internal/app-preview-target/*", internalAppPreviewTargetHandler);
+        routes.add("/internal/llm-context/*", internalLlmContextHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);

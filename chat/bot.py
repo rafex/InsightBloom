@@ -21,7 +21,6 @@ import re
 from typing import TYPE_CHECKING
 
 import httpx
-from openai import AsyncOpenAI
 
 if TYPE_CHECKING:
     from main import ConnectionManager
@@ -30,7 +29,8 @@ log = logging.getLogger("roberto")
 
 PRESENTATIONS_URL = os.getenv("PRESENTATIONS_URL", "http://localhost:8091")
 USERS_URL = os.getenv("USERS_URL", "http://localhost:8081")
-INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "")
+LLM_GATEWAY_URL = os.getenv("LLM_GATEWAY_INTERNAL_URL", "")
+LLM_GATEWAY_CHAT_TOKEN = os.getenv("LLM_GATEWAY_CHAT_TOKEN", "")
 
 # Cuánto tiempo (segundos) se reutilizan los ajustes del panel admin (kill switch, prompt,
 # temperatura), para no pegarle a insightbloom-users en cada mensaje del chat.
@@ -87,19 +87,17 @@ _PRESENTATION_CACHE_TTL = 600
 
 class Roberto:
     def __init__(self):
-        self._history: list[dict] = []
+        self._history: dict[str, list[dict]] = {}
         self._presentation_cache: dict[str, tuple[float, str]] = {}
-        self._chat_settings_cache: tuple[float, dict] | None = None
-        self._client: AsyncOpenAI | None = None
-        self._client_signature: tuple[str, str, str] | None = None
+        self._chat_settings_cache: dict[str, tuple[float, dict]] = {}
 
     # ── Interfaz pública ────────────────────────────────────────────────────
 
     async def maybe_respond(self, text: str, sender: str, manager: "ConnectionManager",
                              conference_id: str | None = None) -> None:
         """Evalúa si Roberto debe responder al mensaje y lo hace de forma asíncrona."""
-        settings = await self._get_chat_settings()
-        if not self._client or not settings["enabled"]:
+        settings = await self._get_chat_settings(conference_id)
+        if not conference_id or not settings["enabled"]:
             return
         if sender == "Roberto":
             return
@@ -109,17 +107,17 @@ class Roberto:
         # Decide si responde
         prob = _PROB_MENTION if "roberto" in text.lower() else _PROB_BASE
         if random.random() > prob:
-            self._remember("user", f"{sender}: {text}")
+            self._remember("user", f"{sender}: {text}", conference_id)
             return
 
-        self._remember("user", f"{sender}: {text}")
+        self._remember("user", f"{sender}: {text}", conference_id)
         asyncio.create_task(self._respond(manager, conference_id))
 
     async def on_insightbloom_event(self, word: str, kind: str, manager: "ConnectionManager",
                                      conference_id: str | None = None) -> None:
         """Roberto puede comentar (40 % de probabilidad) cuando llega un evento de InsightBloom."""
-        settings = await self._get_chat_settings()
-        if not self._client or not settings["enabled"] or random.random() > 0.40:
+        settings = await self._get_chat_settings(conference_id)
+        if not conference_id or not settings["enabled"] or random.random() > 0.40:
             return
         kind_es = "duda" if kind in ("doubt", "DOUBT") else "tema"
         prompt = (
@@ -131,54 +129,49 @@ class Roberto:
 
     # ── Internos ────────────────────────────────────────────────────────────
 
-    async def _get_chat_settings(self) -> dict:
-        """Carga la configuración administrada en IA. La clave solo viaja por la red interna."""
+    async def _get_chat_settings(self, conference_id: str | None) -> dict:
+        """Loads event metadata and a short-lived context assertion; never receives API keys."""
+        if not conference_id:
+            return {"enabled": False}
         now = asyncio.get_event_loop().time()
-        cached = self._chat_settings_cache
+        cached = self._chat_settings_cache.get(conference_id)
         if cached and (now - cached[0]) < _CHAT_SETTINGS_CACHE_TTL:
             return cached[1]
         settings = {
             "enabled": False, "system_prompt": _DEFAULT_SYSTEM_PROMPT,
-            "temperature": _DEFAULT_TEMPERATURE, "base_url": "", "model": "", "api_key": "",
+            "temperature": _DEFAULT_TEMPERATURE, "context_token": "",
         }
         try:
-            headers = {"X-Internal-Auth": INTERNAL_API_KEY} if INTERNAL_API_KEY else {}
-            async with httpx.AsyncClient(timeout=3.0, headers=headers) as client:
-                r = await client.get(f"{USERS_URL}/api/v1/settings/ai/internal")
-                if r.status_code == 200:
-                    data = r.json().get("data", {})
-                    provider = data.get("providers", {}).get("chat", {})
-                    settings.update({
-                        "enabled": bool(provider.get("enabled", False)),
-                        "system_prompt": provider.get("systemPrompt") or _DEFAULT_SYSTEM_PROMPT,
-                        "temperature": provider.get("temperature") if provider.get("temperature") is not None else _DEFAULT_TEMPERATURE,
-                        "base_url": provider.get("baseUrl") or "",
-                        "model": provider.get("model") or "",
-                        "api_key": provider.get("apiKey") or "",
-                    })
-            if settings["enabled"] and settings["api_key"] and settings["base_url"] and settings["model"]:
-                signature = (settings["base_url"], settings["model"], settings["api_key"])
-                if signature != self._client_signature:
-                    self._client = AsyncOpenAI(api_key=settings["api_key"], base_url=settings["base_url"])
-                    self._client_signature = signature
-            else:
-                self._client = None
-                self._client_signature = None
-        except Exception as exc:
-            self._client = None
-            self._client_signature = None
-            log.info("No se pudo consultar la configuración IA; se deshabilita temporalmente: %s", exc)
-        self._chat_settings_cache = (now, settings)
+            if not LLM_GATEWAY_CHAT_TOKEN or not LLM_GATEWAY_URL:
+                raise RuntimeError("gateway_unavailable")
+            headers = {"X-Service-Id": "chat", "X-Service-Token": LLM_GATEWAY_CHAT_TOKEN}
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                status = await client.get(
+                    f"{LLM_GATEWAY_URL.rstrip('/')}/internal/credentials/event/{conference_id}/chat",
+                    headers=headers)
+                if status.status_code == 200 and status.json().get("data", {}).get("configured"):
+                    context = await client.get(
+                        f"{USERS_URL}/internal/llm-context/{conference_id}/chat",
+                        headers={"X-Service-Token": LLM_GATEWAY_CHAT_TOKEN})
+                    if context.status_code == 200:
+                        settings["context_token"] = context.json().get("data", {}).get("contextToken", "")
+                        settings["enabled"] = bool(settings["context_token"])
+        except Exception:
+            log.info("No se pudo consultar la configuración LLM del evento; IA deshabilitada")
+        self._chat_settings_cache[conference_id] = (now, settings)
         return settings
 
-    def _remember(self, role: str, content: str) -> None:
-        self._history.append({"role": role, "content": content})
-        if len(self._history) > _MAX_HISTORY:
-            self._history = self._history[-_MAX_HISTORY:]
+    def _remember(self, role: str, content: str, conference_id: str | None) -> None:
+        if not conference_id:
+            return
+        history = self._history.setdefault(conference_id, [])
+        history.append({"role": role, "content": content})
+        if len(history) > _MAX_HISTORY:
+            self._history[conference_id] = history[-_MAX_HISTORY:]
 
     async def _respond(self, manager: "ConnectionManager", conference_id: str | None) -> None:
         await asyncio.sleep(random.uniform(1.5, 4.5))
-        await self._call_api(list(self._history), manager, conference_id)
+        await self._call_api(list(self._history.get(conference_id or "", [])), manager, conference_id)
 
     async def _get_presentation_context(self, conference_id: str | None) -> str | None:
         """Descarga (y cachea) el markdown de la presentación de la conferencia,
@@ -215,9 +208,10 @@ class Roberto:
     async def _call_api(self, messages: list[dict], manager: "ConnectionManager",
                          conference_id: str | None = None) -> None:
         try:
-            settings = await self._get_chat_settings()
-            client = self._client
-            if not client or not settings["enabled"]:
+            if not conference_id:
+                return
+            settings = await self._get_chat_settings(conference_id)
+            if not settings["enabled"]:
                 return
             system_content = settings["system_prompt"]
             presentation = await self._get_presentation_context(conference_id)
@@ -228,44 +222,48 @@ class Roberto:
                     + presentation
                 )
 
-            resp = await client.chat.completions.create(
-                model=settings["model"],
-                messages=[{"role": "system", "content": system_content}, *messages],
-                max_tokens=150,
-                temperature=settings["temperature"],
-            )
-            reply = resp.choices[0].message.content.strip()
+            reply = await self._gateway_complete(settings, conference_id,
+                [{"role": "system", "content": system_content}, *messages], settings["temperature"])
+            if not reply:
+                return
 
-            if not await self._passes_guardrail(reply, client, settings["model"]):
+            if not await self._passes_guardrail(reply, settings, conference_id):
                 log.warning("Respuesta de Roberto bloqueada por el guardrail: %s", reply[:120])
                 return
 
-            self._remember("assistant", reply)
+            self._remember("assistant", reply, conference_id)
             await manager.broadcast({
                 "type": "message",
                 "nickname": "Roberto",
                 "text": reply,
             }, conference_id)
         except Exception as exc:
-            log.error("Roberto API error: %s", exc)
+            log.error("Roberto LLM request failed (%s)", type(exc).__name__)
 
-    async def _passes_guardrail(self, candidate_reply: str, client: AsyncOpenAI, model: str) -> bool:
-        """Revisa la respuesta candidata con un segundo modelo antes de enviarla.
-        Si el guardrail falla por cualquier motivo (red, modelo no disponible),
-        se permite el envío (fail-open) para no dejar a Roberto en silencio total
-        por un problema ajeno a la respuesta misma."""
+    async def _gateway_complete(self, settings: dict, conference_id: str,
+                                messages: list[dict], temperature: float) -> str:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{LLM_GATEWAY_URL.rstrip('/')}/internal/complete",
+                headers={"X-Service-Id": "chat", "X-Service-Token": LLM_GATEWAY_CHAT_TOKEN},
+                json={"organizerId": conference_id, "eventId": conference_id, "capability": "chat",
+                      "contextToken": settings["context_token"], "messages": messages,
+                      "temperature": temperature},
+            )
+            if response.status_code != 200:
+                return ""
+            return (response.json().get("data", {}).get("choices", [{}])[0]
+                    .get("message", {}).get("content") or "").strip()
+
+    async def _passes_guardrail(self, candidate_reply: str, settings: dict, conference_id: str) -> bool:
+        """Revisa la respuesta candidata con el proveedor configurado para este evento."""
         try:
-            resp = await client.chat.completions.create(
-                model=model,
-                messages=[
+            verdict = await self._gateway_complete(settings, conference_id, [
                     {"role": "system", "content": GUARDRAIL_SYSTEM_PROMPT},
                     {"role": "user", "content": candidate_reply},
-                ],
-                max_tokens=10,
-                temperature=0,
-            )
-            verdict = (resp.choices[0].message.content or "").strip().upper()
+                ], 0)
+            verdict = verdict.strip().upper()
             return "UNSAFE" not in verdict
         except Exception as exc:
-            log.warning("Guardrail no disponible, se permite la respuesta por defecto: %s", exc)
-            return True
+            log.warning("Guardrail no disponible (%s); respuesta omitida", type(exc).__name__)
+            return False

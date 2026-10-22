@@ -62,7 +62,7 @@ public class MentorChatUseCase {
     public Response execute(final Request request) {
         final AiMentorConfig config = configs.findByConference(request.conferenceUuid()).orElse(null);
         if (config == null || !config.enabled()) throw new IllegalStateException("mentor_disabled");
-        if (!llm.isEnabled()) throw new IllegalStateException("llm_not_configured");
+        if (!llm.isEnabled(request.conferenceUuid(), "tutor")) throw new IllegalStateException("llm_not_configured");
         final String message = requireText(request.message(), "message_required", MAX_MESSAGE);
         final String code = optionalText(request.codeContext(), MAX_CODE, "code_context_too_long");
         final String fileName = optionalText(request.fileName(), 200, "file_name_too_long");
@@ -73,7 +73,7 @@ public class MentorChatUseCase {
                 : "";
         final var event = users.getConferenceSummary(request.conferenceUuid()).orElse(null);
         final String prompt = buildUserPrompt(config, event, message, fileName, code, request.history(), presentation);
-        final String reply = llm.complete(SYSTEM_PROMPT, prompt);
+        final String reply = llm.complete(request.conferenceUuid(), "tutor", SYSTEM_PROMPT, prompt);
         if (reply == null || reply.isBlank()) throw new IllegalStateException("empty_llm_reply");
         return new Response(reply.trim().length() > MAX_MESSAGE
                 ? reply.trim().substring(0, MAX_MESSAGE) + "…" : reply.trim());

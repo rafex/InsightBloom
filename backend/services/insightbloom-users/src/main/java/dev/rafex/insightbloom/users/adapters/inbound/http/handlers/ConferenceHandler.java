@@ -67,6 +67,7 @@ import dev.rafex.insightbloom.users.application.usecases.SendAttendeeEmailUseCas
 import dev.rafex.insightbloom.users.application.usecases.GenerateEmailDraftUseCase;
 import dev.rafex.insightbloom.users.application.usecases.NotifyConferenceUpdatedUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SetOnDemandVideoUseCase;
+import dev.rafex.insightbloom.users.adapters.outbound.llm.LlmGatewayClient;
 import dev.rafex.insightbloom.users.domain.model.OnDemandCuePoint;
 import dev.rafex.insightbloom.users.domain.model.ToolKey;
 import dev.rafex.insightbloom.users.domain.model.Conference;
@@ -180,6 +181,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final GenerateEmailDraftUseCase generateEmailDraftUseCase;
     private final NotifyConferenceUpdatedUseCase notifyConferenceUpdatedUseCase;
     private final SetOnDemandVideoUseCase setOnDemandVideoUseCase;
+    private final LlmGatewayClient llmGatewayClient = new LlmGatewayClient(
+            System.getenv("LLM_GATEWAY_INTERNAL_URL"), System.getenv("LLM_GATEWAY_USERS_TOKEN"),
+            dev.rafex.ether.json.JsonUtils.codec());
     private final Map<String, CopyOnWriteArrayList<EventStream>> diagramSubscribers = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArrayList<EventStream>> whiteboardSubscribers = new ConcurrentHashMap<>();
     private record VideoSubscriber(EventStream stream, String deviceFingerprint) {}
@@ -359,6 +363,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/sandbox-config", Set.of("PUT")),
                 Route.of("/{id}/on-demand-video", Set.of("PUT")),
+                Route.of("/{id}/llm/{capability}", Set.of("GET", "PUT", "DELETE")),
                 Route.of("/{id}/egress-policy", Set.of("GET", "PUT")),
                 Route.of("/{id}/image-policy", Set.of("GET", "PUT")),
                 Route.of("/{id}/device-access-config", Set.of("PUT")),
@@ -427,6 +432,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
         final String path = jx.path();
+        if (path.contains("/llm/") && jx.pathParam("id") != null) {
+            return handleEventLlmStatus(jx, jx.pathParam("id"), jx.pathParam("capability"));
+        }
         if (path.endsWith("/public")) return handlePublicList(jx);
         // Debe preceder al catch-all de /public/{friendlyId}: sirve la imagen binaria del flyer
         // (no el JSON del evento) para que exista una URL http(s) real que WhatsApp/Telegram
@@ -652,6 +660,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     @Override
     public boolean delete(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().contains("/llm/") && jx.pathParam("id") != null) {
+            return handleClearEventLlm(jx, jx.pathParam("id"), jx.pathParam("capability"));
+        }
         if (jx.path().contains("/sandbox/preview/")) {
             return sandboxHandler.delete(x);
         }
@@ -670,6 +681,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     @Override
     public boolean put(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().contains("/llm/") && jx.pathParam("id") != null) {
+            return handleSetEventLlm(jx, jx.pathParam("id"), jx.pathParam("capability"));
+        }
         if (jx.path().endsWith("/flyer")) {
             return handleUploadFlyer(jx, jx.pathParam("id"));
         }
@@ -722,6 +736,56 @@ public class ConferenceHandler extends BaseResourceHandler {
             return handleSaveWhiteboard(jx, jx.pathParam("id"));
         }
         return handleUpdate(jx, jx.pathParam("id"));
+    }
+
+    private boolean handleEventLlmStatus(final JettyHttpExchange jx, final String eventId, final String capability) {
+        if (!isLlmCapability(capability)) { sendError(jx, 404, "capability_not_found", "Herramienta IA desconocida"); return true; }
+        if (requireConferenceOwner(jx, eventId) == null) return true;
+        try { sendOk(jx, 200, llmGatewayClient.status(eventId, capability)); }
+        catch (final Exception e) { sendError(jx, 503, "llm_gateway_unavailable", "No se pudo consultar la configuración IA"); }
+        return true;
+    }
+
+    private boolean handleSetEventLlm(final JettyHttpExchange jx, final String eventId, final String capability) {
+        if (!isLlmCapability(capability)) { sendError(jx, 404, "capability_not_found", "Herramienta IA desconocida"); return true; }
+        final var actor = requireConferenceOwner(jx, eventId);
+        if (actor == null) return true;
+        try {
+            final Map<String, Object> body = parseBody(jx);
+            final String provider = requiredLlmField(body, "provider", 32);
+            final String model = requiredLlmField(body, "model", 128);
+            final String apiKey = requiredLlmField(body, "apiKey", 4096);
+            final Object rawUrl = body.get("baseUrl");
+            final String baseUrl = rawUrl instanceof String text && !text.isBlank() ? text.trim() : null;
+            if (baseUrl != null && baseUrl.length() > 2048) throw new IllegalArgumentException("llm_input_invalid");
+            sendOk(jx, 200, llmGatewayClient.set(eventId, capability, provider, model, baseUrl, apiKey, actor.subjectUuid()));
+        } catch (final IllegalArgumentException e) {
+            sendError(jx, 400, "llm_input_invalid", "Revisa el proveedor, modelo, URL y API key");
+        } catch (final Exception e) {
+            sendError(jx, 503, "llm_gateway_unavailable", "No se pudo guardar la configuración IA");
+        }
+        return true;
+    }
+
+    private boolean handleClearEventLlm(final JettyHttpExchange jx, final String eventId, final String capability) {
+        if (!isLlmCapability(capability)) { sendError(jx, 404, "capability_not_found", "Herramienta IA desconocida"); return true; }
+        final var actor = requireConferenceOwner(jx, eventId);
+        if (actor == null) return true;
+        try { llmGatewayClient.clear(eventId, capability, actor.subjectUuid()); sendOk(jx, 200, Map.of("configured", false)); }
+        catch (final Exception e) { sendError(jx, 503, "llm_gateway_unavailable", "No se pudo borrar la configuración IA"); }
+        return true;
+    }
+
+    private static boolean isLlmCapability(final String value) {
+        return Set.of("chat", "tutor", "survey", "seatLayout", "email").contains(value);
+    }
+
+    private static String requiredLlmField(final Map<String, Object> body, final String field, final int max) {
+        final Object value = body.get(field);
+        if (!(value instanceof String text) || text.isBlank() || text.length() > max) {
+            throw new IllegalArgumentException("llm_input_invalid");
+        }
+        return text.trim();
     }
 
     private boolean handleList(final JettyHttpExchange jx) {
@@ -2813,7 +2877,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             final var body = parseBody(jx);
             final String description = (String) body.get("description");
-            final var seats = generateSeatLayoutUseCase.execute(description);
+            final var seats = generateSeatLayoutUseCase.execute(id, description);
             sendOk(jx, 200, Map.of("seats", seats));
         } catch (final IllegalStateException e) {
             sendError(jx, 503, "llm_not_configured", "La generacion por IA no esta configurada en este despliegue");

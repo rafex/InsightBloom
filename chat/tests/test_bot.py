@@ -1,22 +1,11 @@
-"""Compatibility checks for Roberto's OpenAI-compatible provider adapter."""
-
-import pytest
-from openai import AsyncOpenAI
+"""Event isolation checks for Roberto's chat context."""
 
 from bot import Roberto
 
 
-@pytest.mark.asyncio
-async def test_roberto_openai_client_supports_configured_chat_completions() -> None:
-    """OpenAI SDK upgrades must retain the configured base URL and chat API surface."""
+def test_roberto_keeps_message_history_isolated_by_event() -> None:
     roberto = Roberto()
-    client = roberto._client = AsyncOpenAI(
-        api_key="test-key",
-        base_url="https://provider.example/v1",
-    )
-
-    try:
-        assert str(client.base_url) == "https://provider.example/v1/"
-        assert callable(client.chat.completions.create)
-    finally:
-        await client.close()
+    roberto._remember("user", "mensaje de evento A", "event-a")
+    roberto._remember("user", "mensaje de evento B", "event-b")
+    assert roberto._history["event-a"] == [{"role": "user", "content": "mensaje de evento A"}]
+    assert roberto._history["event-b"] == [{"role": "user", "content": "mensaje de evento B"}]

@@ -32,8 +32,7 @@ public class AiProviderSettings {
     }
 
     public static AiProviderSettings defaults(final boolean configured) {
-        return new AiProviderSettings(configured, false,
-                "https://api.groq.com/openai/v1", "openai/gpt-oss-120b", null, null, null, null);
+        return new AiProviderSettings(configured, false, null, null, null, null, null, null);
     }
 
     public AiProviderSettings copy() {

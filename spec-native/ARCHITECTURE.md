@@ -522,26 +522,22 @@ Los servicios pueden comunicarse con endpoints internos protegidos por
 
 ## Integraciones externas
 
-- **Proveedores LLM compatibles con OpenAI**: `chat` (bot Roberto), `tutor`
-  (tutor pedagógico), `survey` (sugerencias, mejora y evaluación de encuestas) y
-  `seatLayout` (generación asistida de mapas de asientos) tienen perfiles
-  independientes. Cada perfil administra URL base, modelo, API key, prompt,
-  temperatura y kill switch desde su pestaña en `Dashboard → IA`. Se persisten
-  en SQLite de `users`; la API key se cifra en reposo. Los consumidores consultan
-  el contrato interno `/api/v1/settings/ai/internal`, protegido por
-  `X-Internal-Auth`; ese endpoint todavía entrega claves en claro a los
-  consumidores y es una dependencia heredada que debe retirarse tras migrarlos.
-  La interfaz ya no revela fragmentos de las claves ni incluye el valor de la
-  clave en su snapshot de edición. La iniciativa
-  [`llm-credential-isolation`](./specs/llm-credential-isolation/SPEC.md) añade
-  `insightbloom-llm-gateway` como servicio dedicado, apagado hasta configurar sus
-  secretos y migrar consumidores. El gateway tiene una base SQLite propia,
-  cifrado AES-GCM versionado con clave maestra separada, catálogo fijo y rutas
-  internas restringidas por NetworkPolicy. La gestión de organizadores, la firma
-  de contexto por evento y la migración de consumidores todavía no están
-  conectadas; no habilitar ni considerar listo el gateway hasta completar esas
-  tareas. No copiar claves globales al nuevo servicio; sin credencial de
-  organizador/evento, la IA debe quedar deshabilitada.
+- **Proveedores LLM compatibles con OpenAI**: `chat` (Roberto), `tutor`,
+  `survey`, `seatLayout` y `email` usan configuración independiente por evento y
+  herramienta. El propietario del evento o ADMIN administra proveedor/modelo del
+  catálogo o URL HTTPS personalizada y su API key desde `Configuración → IA` del
+  evento. El gateway dedicado mantiene las claves cifradas con AES-GCM y es el
+  único servicio que las descifra y llama al proveedor. Los consumidores envían
+  solicitudes con identidad de servicio y contexto firmado de corta duración.
+  URL personalizada valida DNS público y fija la IP al conectar; no sigue
+  redirecciones. No hay claves ni proveedor global, predeterminado o heredado.
+  Los ajustes LLM globales anteriores se limpian del almacenamiento SQLite activo
+  y `users` dejó de leerlos o escribirlos. El chart GitOps ya declara referencias
+  opcionales a secretos dedicados; sin provisionar esos secretos la integración
+  permanece apagada. La activación requiere provisión privada, controles de
+  salida/observabilidad y validación funcional en staging. Backups antiguos
+  conservan su retención, pero no deben restaurarse como configuración activa.
+  Ver [`llm-credential-isolation`](./specs/llm-credential-isolation/SPEC.md).
 - **Twilio**: OTP via SMS para verificacion de usuarios. Configurado via
   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`.
 - **Zoho SMTP**: envio de correos (certificados, notificaciones).

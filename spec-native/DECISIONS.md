@@ -1693,3 +1693,18 @@ Registrar una decision cuando cambie:
     cambios upstream en el CLI; un marcador distinto detiene la construcción, sin producir una
     imagen parcialmente funcional.
 - Reemplaza: `sst-dev.opencode` legacy instalado sin pin.
+
+### DEC-0041 - Credenciales LLM exclusivamente por evento y herramienta
+
+- Fecha: 2026-10-21
+- Estado: accepted
+- Contexto: el propietario del evento necesita configurar endpoints y claves distintas para las herramientas del evento; claves globales o heredadas permitirían uso cruzado y ocultarían qué proveedor financia cada evento.
+- Decision:
+  - Cada evento configura por separado `chat`, `tutor`, `survey`, `seatLayout` y `email`.
+  - No hay proveedor global, valor predeterminado ni herencia desde organizador u otro evento. Sin configuración propia, esa herramienta no usa IA.
+  - El propietario del evento y ADMIN pueden administrar configuración; cada operación se audita.
+  - El catálogo aprobado sigue disponible y también se permite URL OpenAI-compatible personalizada solo por HTTPS con validación SSRF.
+  - El gateway es el único dueño de las claves descifradas; API/UI exponen únicamente metadatos.
+  - Las claves globales se limpian del almacenamiento activo y no se migran. Backups históricos siguen la retención definida y nunca se reactivan al restaurar.
+- Consecuencias: organizadores ingresan sus claves por evento y herramienta; servicios sin configuración quedan sin IA. La habilitación productiva requiere provisioning privado y validación en staging.
+- Reemplaza: el fallback de organizador y la precedencia `evento → organizador → apagado` de la propuesta inicial.

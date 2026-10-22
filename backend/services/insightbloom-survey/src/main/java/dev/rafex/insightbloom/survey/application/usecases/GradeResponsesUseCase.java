@@ -58,7 +58,7 @@ public class GradeResponsesUseCase {
             final boolean deterministicGradeable = question.getType() == QuestionType.MULTIPLE_CHOICE;
             if (!llmGradeable && !deterministicGradeable) continue;
             if (question.getReferenceAnswer() == null) continue;
-            if (llmGradeable && !llm.isEnabled()) {
+            if (llmGradeable && !llm.isEnabled(req.conferenceUuid(), "survey")) {
                 throw new IllegalStateException("llm_not_configured");
             }
 
@@ -67,7 +67,7 @@ public class GradeResponsesUseCase {
                 if (!req.regrade() && response.getGradeScore() != null) { skipped++; continue; }
                 final boolean ok = deterministicGradeable
                         ? gradeMultipleChoice(question, response)
-                        : gradeOne(question, response);
+                        : gradeOne(req.conferenceUuid(), question, response);
                 if (ok) graded++; else skipped++;
             }
         }
@@ -86,12 +86,12 @@ public class GradeResponsesUseCase {
         return true;
     }
 
-    private boolean gradeOne(final SurveyQuestion question, final SurveyResponse response) {
+    private boolean gradeOne(final String conferenceId, final SurveyQuestion question, final SurveyResponse response) {
         try {
             final String userPrompt = "Pregunta: " + question.getText()
                     + "\n\nRespuesta de referencia / criterios: " + question.getReferenceAnswer()
                     + "\n\nRespuesta del asistente: " + response.getAnswerText();
-            final String raw = llm.complete(GRADING_SYSTEM_PROMPT, userPrompt);
+            final String raw = llm.complete(conferenceId, "survey", GRADING_SYSTEM_PROMPT, userPrompt);
             final int scoreStart = raw.indexOf('{');
             final int scoreEnd = raw.lastIndexOf('}');
             if (scoreStart < 0 || scoreEnd < scoreStart) return false;

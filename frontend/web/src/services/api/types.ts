@@ -516,45 +516,6 @@ export interface PublishContainerInfo {
   message?: string
 }
 
-export interface AiProviderSettings {
-  configured: boolean
-  enabled: boolean
-  baseUrl: string
-  model: string
-  systemPrompt: string | null
-  guardrails: string | null
-  temperature: number | null
-  apiKeyConfigured: boolean
-  apiKeyHint: string | null
-}
-
-export interface AiSettings {
-  providers: {
-    chat: AiProviderSettings
-    tutor: AiProviderSettings
-    survey: AiProviderSettings
-    seatLayout: AiProviderSettings
-    email: AiProviderSettings
-  }
-  chatAiEnabled: boolean
-  chatSystemPrompt: string | null
-  chatGuardrails: string | null
-  chatTemperature: number | null
-  aiBaseUrl: string
-  aiModel: string
-  aiApiKeyConfigured: boolean
-  aiApiKeyHint: string | null
-}
-
-export type ChatSettings = AiSettings
-
-export interface AiPromptVariable {
-  key: string
-  label: string
-  example: string
-  autoIncludedIn: string
-}
-
 export interface NotificationItem {
   uuid: string
   type: string
