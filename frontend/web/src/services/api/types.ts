@@ -320,6 +320,12 @@ export interface VenueSeat {
   occupied: boolean
 }
 
+export interface VenueMapConfig {
+  conferenceUuid: string
+  engine: 'FREEFORM' | 'SEATMAP_CANVAS'
+  layoutJson: string
+}
+
 export interface ConferenceHistoryEntry {
   conferenceUuid: string
   friendlyId?: string

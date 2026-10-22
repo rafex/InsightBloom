@@ -2,7 +2,7 @@ import axios from 'axios'
 import type {
   Conference, ConferenceHistoryEntry, UpdateConferenceRequest,
   DownloadCounts, CertificateSettings, Timezone, UserProfile,
-  SeatingMode, Reservation, Ticket, VenueSeat, EventType, EventCapability, IntegrationConfig, EventNotesPad, EventNotesLive,
+  SeatingMode, Reservation, Ticket, VenueSeat, VenueMapConfig, EventType, EventCapability, IntegrationConfig, EventNotesPad, EventNotesLive,
   CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine,
   Role, RoleScopeValue, PermissionValue, EventRoleAssignment, JaasToken, SandboxInfo, WorkspaceDownloadInfo,
   WorkspaceZipJobInfo,
@@ -710,6 +710,30 @@ export async function checkInTicket(conferenceId: string, ticketCode: string, to
 export async function setVenueMap(conferenceId: string, imageBase64: string, token: string): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/venue-map`,
     { imageBase64 }, authHeader(token))
+  return res.data.data
+}
+
+export async function getVenueMapImage(conferenceId: string, token: string): Promise<string> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/venue-map`, authHeader(token))
+  return res.data.data.imageBase64 || ''
+}
+
+export async function getVenueMapConfig(conferenceId: string, token: string): Promise<VenueMapConfig> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${conferenceId}/venue-map-engine`, authHeader(token))
+  return res.data.data
+}
+
+export async function setVenueMapConfig(
+  conferenceId: string, engine: VenueMapConfig['engine'], layoutJson: string, token: string
+): Promise<VenueMapConfig> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${conferenceId}/venue-map-engine`,
+    { engine, layoutJson }, authHeader(token))
+  return res.data.data
+}
+
+export async function cloneVenueMap(conferenceId: string, sourceConferenceUuid: string, token: string): Promise<VenueMapConfig> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/venue-map/clone`,
+    { sourceConferenceUuid }, authHeader(token))
   return res.data.data
 }
 

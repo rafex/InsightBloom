@@ -182,6 +182,10 @@ public class UsersApplication {
                 conferenceRepo, friendlyIdService, timezoneRepo, eventRoleRepo, ticketUseCase);
         final var setVenueMapUseCase = new SetVenueMapUseCase(conferenceRepo);
         final var defineVenueSeatsUseCase = new DefineVenueSeatsUseCase(conferenceRepo, venueSeatRepo, reservationRepo);
+        final var venueMapConfigRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteVenueMapConfigRepository(db);
+        final var venueMapConfigUseCase = new dev.rafex.insightbloom.users.application.usecases.VenueMapConfigUseCase(conferenceRepo, venueMapConfigRepo);
+        final var cloneVenueMapUseCase = new dev.rafex.insightbloom.users.application.usecases.CloneVenueMapUseCase(
+                conferenceRepo, venueMapConfigRepo, venueSeatRepo, defineVenueSeatsUseCase);
         final var getConferenceSeatMapUseCase = new GetConferenceSeatMapUseCase(venueSeatRepo, reservationRepo);
         final var reserveSeatUseCase = new ReserveSeatUseCase(
                 conferenceRepo, reservationRepo, venueSeatRepo, userRepo, emailPort, frontendBaseUrl);
@@ -542,6 +546,7 @@ public class UsersApplication {
                 listReservationsUseCase, listConferenceAttendeesUseCase, checkInTicketUseCase,
                 ticketUseCase, eventPermissionGuard, createGuestUseCase,
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
+                venueMapConfigUseCase, cloneVenueMapUseCase,
                 setEventTypeUseCase, setCanvasConfigUseCase,
                 eventCapabilityGuard, getOrCreateEventPadUseCase,
                 exportEventNotesUseCase,

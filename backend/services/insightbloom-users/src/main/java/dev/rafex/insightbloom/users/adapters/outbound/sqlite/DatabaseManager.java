@@ -280,6 +280,7 @@ public class DatabaseManager {
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN venue_map_base64 TEXT");
             } catch (SQLException ignored) {}
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS conference_venue_map_configs (conference_uuid TEXT PRIMARY KEY, engine TEXT NOT NULL DEFAULT 'FREEFORM', layout_json TEXT NOT NULL DEFAULT '{}')");
             try {
                 stmt.executeUpdate("ALTER TABLE conferences ADD COLUMN sandbox_variant TEXT");
             } catch (SQLException ignored) {}

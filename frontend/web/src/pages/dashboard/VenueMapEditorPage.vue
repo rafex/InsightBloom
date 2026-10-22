@@ -9,6 +9,7 @@
       button.tab-btn(:class="{active: activeTab === 'image'}" @click="activeTab = 'image'") 📷 Subir imagen
       button.tab-btn(:class="{active: activeTab === 'ai'}" @click="activeTab = 'ai'") ✨ Generar con IA
       button.tab-btn(:class="{active: activeTab === 'canvas'}" @click="activeTab = 'canvas'") 📐 Editor manual
+      button.tab-btn(:class="{active: activeTab === 'seatmap'}" @click="activeTab = 'seatmap'") 🪑 Mapa numerado
 
     .form-group(v-show="activeTab === 'image'")
       label Imagen del recinto
@@ -31,6 +32,24 @@
     .form-group(v-show="activeTab === 'canvas'")
       VenueMapCanvasEditor(v-if="showingCanvasEditor" @save="applyCanvasSeats" @cancel="showingCanvasEditor = false")
 
+    .form-group(v-show="activeTab === 'seatmap'")
+      label Motor de mapa
+      select(v-model="venueMapEngine" aria-label="Motor del mapa de asientos")
+        option(value="FREEFORM") Mapa libre sobre imagen
+        option(value="SEATMAP_CANVAS") Mapa numerado por secciones
+      p.field-hint Elige plantillas, define filas o dibuja secciones y pasillos. Puedes arrastrar cada asiento para ajustar su ubicación.
+      .clone-controls(v-if="venueMapEngine === 'SEATMAP_CANVAS' && cloneableConferences.length")
+        label(for="clone-venue-map") Reutilizar otro evento
+        select#clone-venue-map(v-model="cloneSourceUuid")
+          option(value="") Selecciona un evento
+          option(v-for="event in cloneableConferences" :key="event.uuid" :value="event.uuid") {{ event.name }}
+        BaseButton(size="sm" variant="secondary" :disabled="!cloneSourceUuid || cloningMap" @click="cloneExistingMap") {{ cloningMap ? 'Copiando…' : 'Clonar distribución' }}
+      SeatMapCanvasPicker(v-if="venueMapEngine === 'SEATMAP_CANVAS'" :key="editorKey" :seats="canvasSeats" :layout-json="layoutJson" :image-url="imageBase64" editor-mode @seats-change="onCanvasSeatsChange" @layout-change="onLayoutChange")
+      .save-action
+        SaveState(:state="canvasSaveState")
+        BaseButton(:loading="savingCanvas" :disabled="canvasSaveState === 'clean' || canvasSaveState === 'saved'" @click="saveCanvasMap") Guardar configuración del mapa
+      FeedbackMessage(v-if="canvasError" :message="canvasError" tone="error")
+
     template(v-if="imageBase64")
       p.field-hint Haz clic sobre el mapa para agregar un asiento. Clic en un asiento para eliminarlo.
       SeatMapPicker(:image-url="imageBase64" :seats="seats" editable @add-seat="addSeat")
@@ -51,19 +70,20 @@ import { ref, computed, onMounted } from 'vue'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import SeatMapPicker from '@/components/SeatMapPicker.vue'
 import VenueMapCanvasEditor from '@/components/VenueMapCanvasEditor.vue'
-import { getConference, setVenueMap, getConferenceSeatMap, defineVenueSeats, generateSeatLayout } from '@/services/api/usersApi'
+import { getConference, setVenueMap, getConferenceSeatMap, defineVenueSeats, generateSeatLayout, getVenueMapConfig, setVenueMapConfig, cloneVenueMap, getConferences } from '@/services/api/usersApi'
 import type { VenueSeat } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import SaveState from '@/components/ui/SaveState.vue'
+import SeatMapCanvasPicker from '@/components/SeatMapCanvasPicker.vue'
 
 interface EditableSeat { uuid: string | null, label: string, x: number, y: number, occupied: boolean }
 
 export default {
   name: 'VenueMapEditorPage',
-  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor, BaseButton, FeedbackMessage, LoadingState, SaveState },
+  components: { DashboardBreadcrumb, SeatMapPicker, VenueMapCanvasEditor, SeatMapCanvasPicker, BaseButton, FeedbackMessage, LoadingState, SaveState },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -84,19 +104,43 @@ export default {
     const activeTab = ref('image')
     const showingCanvasEditor = ref(true)
     const conferenceName = ref('')
+    const venueMapEngine = ref<'FREEFORM' | 'SEATMAP_CANVAS'>('FREEFORM')
+    const initialVenueMapEngine = ref<'FREEFORM' | 'SEATMAP_CANVAS'>('FREEFORM')
+    const layoutJson = ref('{}')
+    const initialLayoutSnapshot = ref('{}')
+    const canvasSeats = ref<EditableSeat[]>([])
+    const initialCanvasSnapshot = ref('[]')
+    const savingCanvas = ref(false)
+    const canvasError = ref('')
+    const canvasSaved = ref(false)
+    const editorKey = ref(0)
+    const cloneableConferences = ref<Array<{ uuid: string, name: string }>>([])
+    const cloneSourceUuid = ref('')
+    const cloningMap = ref(false)
     let seatCounter = 0
 
     onMounted(async () => {
       try {
-        const [conf, seatMap] = await Promise.all([
+        const [conf, seatMap, mapConfig] = await Promise.all([
           getConference(props.conferenceId as string, auth.state.token as string),
-          getConferenceSeatMap(props.conferenceId as string, auth.state.token as string)
+          getConferenceSeatMap(props.conferenceId as string, auth.state.token as string),
+          getVenueMapConfig(props.conferenceId as string, auth.state.token as string)
         ])
         imageBase64.value = conf.venueMapBase64 || ''
         seats.value = seatMap.map((s: VenueSeat) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: s.occupied }))
         initialImageBase64.value = imageBase64.value
         initialSeatsSnapshot.value = seatsSnapshot(seats.value)
         conferenceName.value = conf.name || ''
+        venueMapEngine.value = mapConfig.engine
+        initialVenueMapEngine.value = mapConfig.engine
+        layoutJson.value = mapConfig.layoutJson || '{}'
+        initialLayoutSnapshot.value = layoutJson.value
+        initialVenueMapEngine.value = venueMapEngine.value
+        canvasSeats.value = seatMap.map((s: VenueSeat) => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: s.occupied }))
+        initialCanvasSnapshot.value = seatsSnapshot(canvasSeats.value)
+        cloneableConferences.value = (await getConferences(auth.state.token as string))
+          .filter((event: any) => event.uuid !== props.conferenceId && event.createdByUserUuid === auth.state.userUuid)
+          .map((event: any) => ({ uuid: event.uuid, name: event.name || event.friendlyId }))
       } finally {
         loading.value = false
       }
@@ -162,6 +206,38 @@ export default {
       }
     }
 
+    function onCanvasSeatsChange(value: EditableSeat[]) { canvasSeats.value = value; canvasSaved.value = false }
+    function onLayoutChange(value: string) { layoutJson.value = value; canvasSaved.value = false }
+    async function saveCanvasMap() {
+      if (!auth.state.token) return
+      savingCanvas.value = true; canvasError.value = ''; canvasSaved.value = false
+      try {
+        const saved = await defineVenueSeats(props.conferenceId as string,
+          canvasSeats.value.map(({ uuid, label, x, y }) => ({ uuid, label, x, y })), auth.state.token)
+        await setVenueMapConfig(props.conferenceId as string, venueMapEngine.value, layoutJson.value, auth.state.token)
+        canvasSeats.value = saved.map(s => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: s.occupied }))
+        initialCanvasSnapshot.value = seatsSnapshot(canvasSeats.value)
+        initialLayoutSnapshot.value = layoutJson.value
+        canvasSaved.value = true
+      } catch (e: any) {
+        canvasError.value = e.response?.data?.error?.message || 'No se pudo guardar la distribución. Revisa que los asientos reservados sigan incluidos.'
+      } finally { savingCanvas.value = false }
+    }
+    async function cloneExistingMap() {
+      if (!auth.state.token || !cloneSourceUuid.value) return
+      cloningMap.value = true; canvasError.value = ''
+      try {
+        const config = await cloneVenueMap(props.conferenceId as string, cloneSourceUuid.value, auth.state.token)
+        const clonedSeats = await getConferenceSeatMap(props.conferenceId as string, auth.state.token)
+        venueMapEngine.value = config.engine; layoutJson.value = config.layoutJson
+        canvasSeats.value = clonedSeats.map(s => ({ uuid: s.uuid, label: s.label, x: s.x, y: s.y, occupied: s.occupied }))
+        initialCanvasSnapshot.value = seatsSnapshot(canvasSeats.value); initialLayoutSnapshot.value = layoutJson.value
+        initialVenueMapEngine.value = venueMapEngine.value
+        editorKey.value += 1; canvasSaved.value = true
+      } catch (e: any) { canvasError.value = e.response?.data?.error?.message || 'No se pudo clonar el mapa del evento.' }
+      finally { cloningMap.value = false }
+    }
+
     function applyCanvasSeats(canvasSeats: any[]) {
       seats.value = canvasSeats.map((s, idx) => ({
         uuid: null,
@@ -188,6 +264,11 @@ export default {
       if (seatsSnapshot(seats.value) !== initialSeatsSnapshot.value) return 'dirty'
       return seatsSaved.value ? 'saved' : 'clean'
     })
+    const canvasSaveState = computed(() => {
+      if (savingCanvas.value) return 'saving'
+      if (venueMapEngine.value !== initialVenueMapEngine.value || seatsSnapshot(canvasSeats.value) !== initialCanvasSnapshot.value || layoutJson.value !== initialLayoutSnapshot.value) return 'dirty'
+      return canvasSaved.value ? 'saved' : 'clean'
+    })
 
     const breadcrumbItems = computed(() => [
       { label: 'Eventos', to: '/dashboard/events' },
@@ -198,7 +279,10 @@ export default {
     return {
       loading, imageBase64, seats, savingMap, mapSaveState, mapError, savingSeats, seatsSaved, seatsSaveState, seatsError,
       aiDescription, generatingAi, aiError, activeTab, showingCanvasEditor,
-      onImageSelected, saveMap, addSeat, removeSeat, saveSeats, generateWithAi, applyCanvasSeats, breadcrumbItems
+      venueMapEngine, layoutJson, canvasSeats, savingCanvas, canvasSaveState, canvasError, editorKey,
+      cloneableConferences, cloneSourceUuid, cloningMap,
+      onImageSelected, saveMap, addSeat, removeSeat, saveSeats, generateWithAi, applyCanvasSeats, breadcrumbItems,
+      onCanvasSeatsChange, onLayoutChange, saveCanvasMap, cloneExistingMap
     }
   }
 }
@@ -217,4 +301,6 @@ h2 { color: var(--color-heading); margin-bottom: 16px; }
 .seat-list { margin: 16px 0; display: flex; flex-direction: column; gap: 6px; }
 .seat-row { display: flex; gap: 8px; align-items: center; }
 .seat-label { flex: 1; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 0.85rem; }
+.clone-controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.clone-controls select { flex:1; min-width:220px; }
 </style>

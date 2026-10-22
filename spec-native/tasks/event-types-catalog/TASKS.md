@@ -459,7 +459,7 @@ manual de aprobacion, edicion y rechazo.
 
 ### TASK-0060: Verificar mantenimiento/compatibilidad de seatmap-canvas
 
-**Estado:** todo
+**Estado:** done
 **Owner:** —
 **Dependencias:** ninguna
 **Archivos esperados:** ninguno (investigacion) — el resultado se registra
@@ -469,24 +469,25 @@ hallazgo antes de continuar).
 si no, se decide si igual se adopta (vendorizado/congelado) o se busca una
 alternativa equivalente antes de iniciar TASK-0061.
 **Validacion:** revision manual del repositorio y su historial de commits.
+**Evidencia de cierre:** la versión publicada vigente es `@alisaitteke/seatmap-canvas@2.7.6`, licencia MIT. El README del upstream advierte que Canvas v1 ya no se desarrolla y marca el wrapper Vue 3 como experimental. Se acepta el uso fijado del núcleo vanilla detrás de un adaptador propio, con `FREEFORM` como modo por defecto y fallback SVG para distribuciones pequeñas.
 
 ### TASK-0061: `venueMapEngine` en `Conference` + modelo de distribucion `SEATMAP_CANVAS`
 
-**Estado:** todo
+**Estado:** done
 **Owner:** —
 **Dependencias:** TASK-0060
-**Archivos esperados** (en `insightbloom-users`): `Conference.java`
-(`venueMapEngine`: `FREEFORM` | `SEATMAP_CANVAS`, solo relevante si
-`seatingMode = SEATED`), columna nueva para guardar la configuracion de
-filas/secciones/butacas de `seatmap-canvas` (JSON, migracion idempotente
-try/catch como el resto de la tabla `conferences`).
+**Archivos esperados** (en `insightbloom-users`): configuración persistida
+por conferencia con motor `FREEFORM` | `SEATMAP_CANVAS` y geometría JSON
+versionada. Se usa la tabla hija idempotente
+`conference_venue_map_configs`, separada del inventario/reservas de asientos.
 **Criterio de cierre:** un evento `SEATMAP_CANVAS` guarda y recupera su
 distribucion completa (filas, butacas, numeracion) sin perdida de datos.
 **Validacion:** tests de dominio/repositorio en `insightbloom-users`.
+**Evidencia de cierre:** API devuelve `FREEFORM` para eventos anteriores sin fila; migración crea la tabla al iniciar; el repositorio conserva engine y JSON al reiniciar. `SqliteVenueMapConfigRepositoryTest` cubre persistencia y re inicialización.
 
 ### TASK-0062: `DefineVenueSeatsUseCase` extendido para `SEATMAP_CANVAS`
 
-**Estado:** todo
+**Estado:** done
 **Owner:** —
 **Dependencias:** TASK-0061
 **Archivos esperados:** `DefineVenueSeatsUseCase.java` (o un caso de uso
@@ -498,10 +499,11 @@ fila/columna segun el motor) sigue siendo compatible con
 `ReserveSeatUseCase`/`GetConferenceSeatMapUseCase` sin duplicar esa logica
 de reserva/concurrencia.
 **Validacion:** tests unitarios espejo de `DefineVenueSeatsUseCaseTest`.
+**Evidencia de cierre:** `DefineVenueSeatsUseCase` sigue siendo inventario canónico y protege asientos con reserva; el clonado reutiliza ese caso de uso y genera UUID nuevos. `mvn -q test` pasa con prueba de clonado que verifica ausencia de reservas transferidas.
 
 ### TASK-0063: Endpoint de configuracion de motor + reutilizar distribucion entre eventos
 
-**Estado:** todo
+**Estado:** done
 **Owner:** —
 **Dependencias:** TASK-0062
 **Archivos esperados:** ruta `PUT /{id}/venue-map-engine` (organizer-only,
@@ -510,10 +512,11 @@ un evento anterior a uno nuevo (FR-023).
 **Criterio de cierre:** el organizador reutiliza el mapa de un recinto ya
 definido en otro evento sin redefinir filas/butacas.
 **Validacion:** test unitario + prueba manual.
+**Evidencia de cierre:** rutas autenticadas `GET/PUT /{id}/venue-map-engine` y `POST /{id}/venue-map/clone`; guardas de organizador, capacidad `TICKETING_SEATED` y propiedad en ambos eventos; test SQLite verifica que solo el dueño guarda y que la copia no reutiliza UUID/reservas.
 
 ### TASK-0064: Frontend — wrapper Vue de seatmap-canvas + editor de distribucion
 
-**Estado:** todo
+**Estado:** done
 **Owner:** —
 **Dependencias:** TASK-0060, TASK-0063
 **Archivos esperados:** `frontend/web/package.json` (`seatmap-canvas`),
@@ -525,10 +528,11 @@ filas/secciones en vez de hacer clic libre.
 **Criterio de cierre:** el organizador define un recinto con filas y
 butacas numeradas usando el editor de `seatmap-canvas`.
 **Validacion:** `npm run build`, prueba manual en preview.
+**Evidencia de cierre:** dependencia exacta `2.7.6`; componente adaptador `SeatMapCanvasPicker.vue` consume la API del núcleo y mantiene alternativa SVG. `VenueMapEditorPage.vue` ofrece plantillas rectangulares/semicirculares/herradura, generación por filas, dibujo de contornos/pasillos y ajuste/movimiento/rotación de secciones y asientos. Validado con `npm run typecheck`, `npm run test` y `npm run build`.
 
 ### TASK-0065: Frontend — selector de asiento con seatmap-canvas para el asistente
 
-**Estado:** todo
+**Estado:** in_progress
 **Owner:** —
 **Dependencias:** TASK-0064
 **Archivos esperados:** `TicketPage.vue` (rama `SEATED` usa
@@ -539,3 +543,4 @@ implementado).
 reserva; un asiento tomado aparece deshabilitado/gris.
 **Validacion:** `npx vue-tsc --noEmit`, `npx vitest run`, prueba manual de
 concurrencia (dos sesiones reservando el mismo asiento).
+**Evidencia de cierre:** `TicketPage.vue` carga disponibilidad y configuración según el motor, permite selección por mouse/teclado y manda la reserva al endpoint existente. La API sigue siendo autoridad y devuelve conflicto si dos asistentes toman el mismo asiento; la UI refresca el mapa tras el conflicto. Validado con `npm run typecheck`, `npm run test` y `npm run build`; la concurrencia en dos sesiones queda para staging.

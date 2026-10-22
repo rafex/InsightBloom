@@ -48,6 +48,15 @@
       span(v-if="ticket.status === 'CHECKED_IN'") ✅ Ya ingresaste al evento
       span(v-else) 🎫 Boleto reservado — muestra este QR en la entrada
 
+  .ticket-general-cta(v-else-if="seatingMode === 'SEATED'")
+    h2 Selecciona tu asiento
+    p(v-if="!auth.state.token") Inicia sesión para consultar los asientos disponibles y reservar uno.
+    template(v-else-if="seatMapLoaded")
+      SeatMapCanvasPicker(v-if="seatMapConfig?.engine === 'SEATMAP_CANVAS'" :seats="venueSeats" :layout-json="seatMapConfig.layoutJson" :model-value="selectedSeatUuid" @update:model-value="selectedSeatUuid = $event")
+      SeatMapPicker(v-else :image-url="venueImage" :seats="venueSeats" :model-value="selectedSeatUuid" @update:model-value="selectedSeatUuid = $event")
+      BaseButton(:loading="claiming" :disabled="!selectedSeatUuid" @click="reserveSelectedSeat") Reservar este asiento
+    LoadingState.ticket-loading(v-else message="Cargando plano y disponibilidad…")
+    FeedbackMessage.ticket-error(v-if="error" :message="error")
   .ticket-general-cta(v-else)
     p Aún no tienes un boleto canjeado para esta conferencia.
     template(v-if="auth.state.token && auth.state.role !== 'guest'")
@@ -74,9 +83,11 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import TicketQr from '@/components/TicketQr.vue'
+import SeatMapCanvasPicker from '@/components/SeatMapCanvasPicker.vue'
+import SeatMapPicker from '@/components/SeatMapPicker.vue'
 import QrScanner from 'qr-scanner'
-import { getConferenceByFriendlyId, getMyIssuedTicket, getMyTicket, claimTicket, claimTicketAsGuest } from '@/services/api/usersApi'
-import type { Ticket, Reservation, SeatingMode } from '@/services/api/types'
+import { getConferenceByFriendlyId, getMyIssuedTicket, getMyTicket, claimTicket, claimTicketAsGuest, getVenueMapConfig, getVenueMapImage, getConferenceSeatMap, reserveSeat } from '@/services/api/usersApi'
+import type { Ticket, Reservation, SeatingMode, VenueMapConfig, VenueSeat } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
@@ -87,7 +98,7 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 
 export default {
   name: 'TicketPage',
-  components: { TicketQr, BaseButton, BaseLink, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
+  components: { TicketQr, SeatMapCanvasPicker, SeatMapPicker, BaseButton, BaseLink, EmptyState, FeedbackMessage, LoadingState, StatusBadge },
   props: {
     conferenceId: { type: String, default: '' },
     seatingMode: { type: String as () => SeatingMode | undefined, default: undefined },
@@ -102,6 +113,11 @@ export default {
     const ticketInput = ref('')
     const guestName = ref('')
     const error = ref('')
+    const seatMapConfig = ref<VenueMapConfig | null>(null)
+    const venueSeats = ref<VenueSeat[]>([])
+    const selectedSeatUuid = ref('')
+    const seatMapLoaded = ref(false)
+    const venueImage = ref('')
     const scanning = ref(false)
     const videoEl = ref<HTMLVideoElement | null>(null)
     let scanner: QrScanner | null = null
@@ -144,6 +160,7 @@ export default {
           eventStartTime.value = publicConference.startTime || null
           eventEndTime.value = publicConference.endTime || null
           eventVenue.value = publicConference.venue || null
+          if (publicConference.seatingMode) eventModeLabel.value = publicConference.seatingMode === 'SEATED' ? 'Asiento numerado' : publicConference.seatingMode === 'GENERAL' ? 'Acceso general' : eventModeLabel.value
           eventModeLabel.value = publicConference.visibility === 'HYBRID' ? 'Híbrido' : publicConference.visibility === 'PUBLIC' ? 'Público' : 'Privado'
         }
         // Accept both the compact QR parameter and older tickets already in
@@ -155,6 +172,15 @@ export default {
           ticket.value = await getMyIssuedTicket(props.conferenceId, auth.state.token)
           if (!ticket.value) ticket.value = await getMyTicket(props.conferenceId, auth.state.token)
           if (routeTicket) { ticketInput.value = routeTicket; if (!ticket.value) await claim() }
+        }
+        if (!ticket.value && props.seatingMode === 'SEATED' && auth.state.token) {
+          const [config, seats, image] = await Promise.all([
+            getVenueMapConfig(props.conferenceId, auth.state.token),
+            getConferenceSeatMap(props.conferenceId, auth.state.token),
+            getVenueMapImage(props.conferenceId, auth.state.token)
+          ])
+          seatMapConfig.value = config; venueSeats.value = seats; venueImage.value = image
+          seatMapLoaded.value = true
         }
       } catch (e: any) {
         // Distinguir causas (mismo criterio que CheckInScannerPage): red caida, sesion vencida
@@ -188,6 +214,23 @@ export default {
       } finally {
         claiming.value = false
       }
+    }
+
+    async function reserveSelectedSeat() {
+      if (!auth.state.token || !selectedSeatUuid.value) return
+      claiming.value = true; error.value = ''
+      try {
+        ticket.value = await reserveSeat(props.conferenceId as string, selectedSeatUuid.value, auth.state.token)
+      } catch (e: any) {
+        const code = e.response?.data?.error?.code
+        error.value = code === 'seat_already_taken'
+          ? 'Ese asiento acaba de ser reservado. Actualicé el mapa; selecciona otro.'
+          : e.response?.data?.error?.detail || 'No se pudo reservar el asiento.'
+        if (code === 'seat_already_taken') {
+          selectedSeatUuid.value = ''
+          venueSeats.value = await getConferenceSeatMap(props.conferenceId as string, auth.state.token)
+        }
+      } finally { claiming.value = false }
     }
 
     async function claimAsGuest() {
@@ -242,6 +285,7 @@ export default {
 
     return {
       loading, ticket, claiming, ticketInput, guestName, error, claim, claimAsGuest, auth,
+      seatMapConfig, venueSeats, selectedSeatUuid, seatMapLoaded, venueImage, reserveSelectedSeat,
       scanning, videoEl, toggleScanner, ticketUrl, eventName, eventSubtitle, eventDateLabel,
       eventVenueLabel, eventModeLabel, ticketOwnerLabel, ticketStatusLabel, ticketStatusTone
     }

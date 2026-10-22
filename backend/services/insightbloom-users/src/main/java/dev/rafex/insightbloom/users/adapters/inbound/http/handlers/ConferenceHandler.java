@@ -26,6 +26,8 @@ import dev.rafex.insightbloom.users.application.usecases.CountActiveRegisteredAt
 import dev.rafex.insightbloom.users.application.usecases.SetConferenceActiveUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CreateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.DefineVenueSeatsUseCase;
+import dev.rafex.insightbloom.users.application.usecases.VenueMapConfigUseCase;
+import dev.rafex.insightbloom.users.application.usecases.CloneVenueMapUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateCertificateUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GenerateSeatLayoutUseCase;
 import dev.rafex.insightbloom.users.application.usecases.GetConferenceHistoryUseCase;
@@ -143,6 +145,8 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final SetVenueMapUseCase setVenueMapUseCase;
     private final DefineVenueSeatsUseCase defineVenueSeatsUseCase;
     private final GetConferenceSeatMapUseCase getConferenceSeatMapUseCase;
+    private final VenueMapConfigUseCase venueMapConfigUseCase;
+    private final CloneVenueMapUseCase cloneVenueMapUseCase;
     private final ReserveSeatUseCase reserveSeatUseCase;
     private final SetEventTypeUseCase setEventTypeUseCase;
     private final SetCanvasConfigUseCase setCanvasConfigUseCase;
@@ -222,6 +226,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final DefineVenueSeatsUseCase defineVenueSeatsUseCase,
                              final GetConferenceSeatMapUseCase getConferenceSeatMapUseCase,
                              final ReserveSeatUseCase reserveSeatUseCase,
+                             final VenueMapConfigUseCase venueMapConfigUseCase,
+                             final CloneVenueMapUseCase cloneVenueMapUseCase,
                              final SetEventTypeUseCase setEventTypeUseCase,
                              final SetCanvasConfigUseCase setCanvasConfigUseCase,
                              final EventCapabilityGuard eventCapabilityGuard,
@@ -286,6 +292,8 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.setVenueMapUseCase = setVenueMapUseCase;
         this.defineVenueSeatsUseCase = defineVenueSeatsUseCase;
         this.getConferenceSeatMapUseCase = getConferenceSeatMapUseCase;
+        this.venueMapConfigUseCase = venueMapConfigUseCase;
+        this.cloneVenueMapUseCase = cloneVenueMapUseCase;
         this.reserveSeatUseCase = reserveSeatUseCase;
         this.setEventTypeUseCase = setEventTypeUseCase;
         this.setCanvasConfigUseCase = setCanvasConfigUseCase;
@@ -359,7 +367,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/flyer", Set.of("POST", "PUT")),
                 Route.of("/{id}/canvas-config", Set.of("PUT")),
                 Route.of("/{id}/active", Set.of("PUT")),
-                Route.of("/{id}/venue-map", Set.of("PUT")),
+                Route.of("/{id}/venue-map", Set.of("GET", "PUT")),
+                Route.of("/{id}/venue-map-engine", Set.of("GET", "PUT")),
+                Route.of("/{id}/venue-map/clone", Set.of("POST")),
                 Route.of("/{id}/venue-map/generate-seats", Set.of("POST")),
                 Route.of("/{id}/sandbox-config", Set.of("PUT")),
                 Route.of("/{id}/on-demand-video", Set.of("PUT")),
@@ -495,6 +505,12 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (path.endsWith("/seats")) {
             return handleGetSeatMap(jx, jx.pathParam("id"));
         }
+        if (path.endsWith("/venue-map") && !path.endsWith("/venue-map/clone")) {
+            return handleGetVenueMap(jx, jx.pathParam("id"));
+        }
+        if (path.endsWith("/venue-map-engine")) {
+            return handleGetVenueMapConfig(jx, jx.pathParam("id"));
+        }
         if (path.endsWith("/egress-policy")) {
             return handleGetEgressPolicy(jx, jx.pathParam("id"));
         }
@@ -604,6 +620,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         if (jx.path().endsWith("/venue-map/generate-seats")) {
             return handleGenerateSeatLayout(jx, jx.pathParam("id"));
         }
+        if (jx.path().endsWith("/venue-map/clone")) {
+            return handleCloneVenueMap(jx, jx.pathParam("id"));
+        }
         if (jx.path().endsWith("/attendees/email")) {
             return handleSendAttendeeEmail(jx, jx.pathParam("id"));
         }
@@ -707,6 +726,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (jx.path().endsWith("/venue-map")) {
             return handleSetVenueMap(jx, jx.pathParam("id"));
+        }
+        if (jx.path().endsWith("/venue-map-engine")) {
+            return handleSetVenueMapConfig(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/sandbox-config")) {
             return handleSetSandboxConfig(jx, jx.pathParam("id"));
@@ -2858,6 +2880,76 @@ public class ConferenceHandler extends BaseResourceHandler {
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", "Internal server error");
         }
+        return true;
+    }
+
+    private boolean handleGetVenueMapConfig(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            if (getConferenceUseCase.byId(id).isEmpty()) { sendError(jx, 404, "not_found", "Conference not found"); return true; }
+            sendOk(jx, 200, venueMapConfigUseCase.get(id));
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleGetVenueMap(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final var conference = getConferenceUseCase.byId(id);
+            if (conference.isEmpty()) { sendError(jx, 404, "not_found", "Conference not found"); return true; }
+            sendOk(jx, 200, Map.of("imageBase64", conference.get().getVenueMapBase64() == null ? "" : conference.get().getVenueMapBase64()));
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleSetVenueMapConfig(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid() || !isOrganizerOrAdmin(validation.role())) {
+                sendError(jx, 403, "forbidden", "Only the event owner can configure the venue map"); return true;
+            }
+            if (!hasCapability(id, EventCapability.TICKETING_SEATED)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita mapa de asientos"); return true;
+            }
+            final Map<String, Object> body = parseBody(jx);
+            final String engine = body.get("engine") instanceof String value ? value : "FREEFORM";
+            final String layoutJson = body.get("layoutJson") instanceof String value ? value : "{}";
+            final var saved = venueMapConfigUseCase.set(id, validation.subjectUuid(), engine, layoutJson);
+            if (saved.isPresent()) sendOk(jx, 200, saved.get());
+            else sendError(jx, 404, "not_found", "Conference not found or not owned by you");
+        } catch (final IllegalArgumentException e) { sendError(jx, 400, e.getMessage(), "Invalid venue map configuration"); }
+        catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleCloneVenueMap(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var validation = validateTokenUseCase.execute(token);
+            if (!validation.valid() || !isOrganizerOrAdmin(validation.role())) {
+                sendError(jx, 403, "forbidden", "Only the event owner can clone a venue map"); return true;
+            }
+            if (!hasCapability(id, EventCapability.TICKETING_SEATED)) {
+                sendError(jx, 409, "capability_not_available", "El tipo de evento no habilita mapa de asientos"); return true;
+            }
+            final Object source = parseBody(jx).get("sourceConferenceUuid");
+            if (!(source instanceof String sourceUuid) || sourceUuid.isBlank()) {
+                sendError(jx, 400, "invalid_source", "Source event is required"); return true;
+            }
+            final var cloned = cloneVenueMapUseCase.execute(id, sourceUuid, validation.subjectUuid());
+            if (cloned.isPresent()) sendOk(jx, 200, cloned.get());
+            else sendError(jx, 404, "not_found", "Source or target event not found or not owned by you");
+        } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "No se puede quitar un asiento con una reserva activa"); }
+        catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
         return true;
     }
 

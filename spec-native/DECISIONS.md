@@ -448,7 +448,7 @@ Registrar una decision cuando cambie:
 ### DEC-0019 - seatmap-canvas como motor alternativo de mapa de asientos, no reemplazo
 
 - Fecha: 2026-07-10
-- Estado: proposed
+- Estado: accepted
 - Contexto:
   el editor de mapa de asientos de la Fase 2 de ticketing (`FREEFORM`,
   marcadores libres sobre una imagen) sirve para recintos sin layout fijo,
@@ -458,25 +458,27 @@ Registrar una decision cuando cambie:
 - Decision:
   para `TICKETING_SEATED`, el organizador elige un `venueMapEngine`:
   `FREEFORM` (existente, sigue siendo el default) o `SEATMAP_CANVAS`,
-  basado en la libreria `alisaitteke/seatmap-canvas` (MIT), que modela
-  filas/secciones/butacas numeradas. Ambos motores comparten el mismo
+  basado en `@alisaitteke/seatmap-canvas@2.7.6` (MIT), que modela
+  filas/secciones/butacas numeradas. El upstream declara que Canvas v1 ya no
+  se desarrolla y marca su wrapper Vue 3 como experimental. Se fija la versión
+  y se usa el núcleo vanilla tras un adaptador Vue propio, con fallback SVG.
+  Ambos motores comparten el mismo
   mecanismo de reserva y concurrencia ya construido
   (`ReserveSeatUseCase` + `UNIQUE(conference_uuid, seat_uuid)`); solo
   cambia como se define y renderiza el layout, no como se reserva un
-  asiento. **Pendiente**: confirmar antes de implementar (TASK-0060) que
-  `seatmap-canvas` sigue mantenido y es viable integrar en el stack Vue 3
-  actual (es una libreria canvas vanilla-JS, requiere un wrapper).
+  asiento. La versión congelada se acepta explícitamente; su aislamiento
+  permite sustituir el renderizador sin cambiar persistencia ni reservas.
 - Consecuencias:
   el organizador con un recinto real gana un editor mas fiel a la
   distribucion fisica del lugar, sin perder `FREEFORM` para casos sin
   layout fijo;
-  se agrega una dependencia externa de un proyecto de mantenimiento no
-  garantizado — si deja de ser viable, `FREEFORM` sigue siendo el camino
-  soportado por defecto;
+  se agrega una dependencia externa sin mantenimiento upstream garantizado;
+  `FREEFORM` sigue siendo el camino soportado por defecto y la capa adaptadora
+  limita el costo de reemplazar el renderizador;
   el modelo de datos de `venue_seats` debe seguir siendo compatible con
   ambos motores sin duplicar la logica de reserva ya construida;
-  el estado `proposed` debe pasar a `accepted` una vez confirmado el punto
-  de mantenimiento/compatibilidad pendiente.
+  los eventos existentes conservan `FREEFORM`; el plano y las reservas quedan
+  desacoplados del formato interno de la librería.
 - Reemplaza: `none`
 
 ### DEC-0020 - Instancias compartidas (multi-tenant) para drawio/Etherpad/Jitsi/Excalidraw, con TTL de datos por evento
