@@ -209,7 +209,7 @@ export default {
     function statusLabel(status: string) { return ({ PENDING: 'Pendiente', DELIVERY_FAILED: 'Error de envío', ACCEPTED: 'Aceptada', EXPIRED: 'Vencida', REVOKED: 'Revocada' } as Record<string,string>)[status] || status }
     function dateLabel(value: string) { return new Intl.DateTimeFormat('es-MX',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)) }
     onMounted(load)
-    return { tab, loading, saving, error, message, messageTone, invites, referrals, organizers, enabledReferrers, inviteEmail, inviteFilter, settings,
+    return { tab, loading, saving, error, message, messageTone, invites, referrals, organizers, enabledReferrers, eligibleReferrers, inviteEmail, inviteFilter, settings,
       loadInvites, createInvite, resend, revoke, approve, reject, toggleReferrer, saveSettings, statusLabel, dateLabel }
   }
 }
