@@ -4,7 +4,7 @@
 beta-organizer-invitations
 
 ## Status
-done
+active
 
 ## Summary
 La plataforma permitirá que ADMIN invite por correo a cuentas ORGANIZER mediante un token temporal, ligado al destinatario y de un solo uso. El registro público continuará disponible para participantes; las recomendaciones de nuevos organizadores quedarán detrás de una habilitación administrativa y requerirán aprobación antes de enviar otra invitación.

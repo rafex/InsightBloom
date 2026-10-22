@@ -11,12 +11,14 @@
 
 ### TASK-BI-002: Casos de uso, correo y API segura
 
-**Estado:** done
+**Estado:** in_progress
 **Owner:** product owner
 **Dependencias:** TASK-BI-001
 **Archivos esperados:** `backend/services/insightbloom-users/`
 **Criterio de cierre:** endpoints ADMIN y usuario autenticado para invitar, gestionar, recomendar, aprobar/rechazar y aceptar; grant de ORGANIZER tras OTP EMAIL; fallos/reintentos de correo auditados.
 **Validación:** pruebas de matriz ADMIN/ORGANIZER/ATTENDEE, errores genéricos, no elevación de rol, cuotas y rotación.
+
+**Seguimiento 2026-10-22:** La interfaz desplegada no podía cargar los datos administrativos porque `UsersApplication` montaba `OrganizerInvitationHandler` solo en el prefijo público `/api/v1/organizer-invitations/*`; faltaba el prefijo `/api/v1/admin/organizer-invitations/*` que cubre las rutas administrativas declaradas por el handler. Se agregó el montaje faltante. Queda pendiente validar el flujo HTTP autenticado después del despliegue.
 
 ### TASK-BI-003: Flujos Vue de administración e invitado
 

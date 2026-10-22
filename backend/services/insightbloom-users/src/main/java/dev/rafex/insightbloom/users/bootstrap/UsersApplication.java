@@ -640,6 +640,7 @@ public class UsersApplication {
         routes.add("/api/v1/users/me/audit-logs/*", auditLogHandler);
         routes.add("/api/v1/admin/audit-logs/*", auditLogHandler);
         routes.add("/api/v1/admin/auth/otp-audit", otpRequestAuditHandler);
+        routes.add("/api/v1/admin/organizer-invitations/*", organizerInvitationHandler);
         routes.add("/api/v1/organizer-invitations/*", organizerInvitationHandler);
         routes.add("/api/v1/audit-logs/*", auditLogHandler);
         routes.add("/version", new VersionHandler("insightbloom-users"));
