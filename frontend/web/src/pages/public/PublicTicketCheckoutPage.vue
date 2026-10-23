@@ -34,6 +34,15 @@
             .total
               small Total
               strong {{ isFree ? `0.00 ${event.ticketCurrency || 'MXN'}` : formattedPrice }}
+            .device-choice(v-if="!success && isFree && isAuthenticated")
+              label(for="ticket-device-count") Dispositivos autorizados
+              select#ticket-device-count(v-model.number="maxDevices" aria-label="Cantidad de dispositivos autorizados")
+                option(:value="1") 1 dispositivo (recomendado)
+                option(:value="2") 2 dispositivos
+                option(:value="3") 3 dispositivos
+                option(:value="4") 4 dispositivos
+                option(:value="5") 5 dispositivos
+              p Activarás el boleto verificando el correo de tu cuenta. La clave privada queda en este navegador.
             template(v-if="!success")
               span.checkout-closed(v-if="event.ticketSoldOut") Los boletos de este evento están agotados.
               span.checkout-closed(v-else-if="event.ticketSalesClosed") La adquisición pública fue cerrada por el organizador. Solicita tu boleto directamente al organizador.
@@ -84,6 +93,7 @@ export default {
     const actionError = ref('')
     const submitting = ref(false)
     const success = ref(false)
+    const maxDevices = ref(1)
     const isAuthenticated = computed(() => auth.isAuthenticated() && auth.state.role !== 'guest')
     const isFree = computed(() => Number(event.value?.ticketPrice || 0) === 0)
     const formattedPrice = computed(() => isFree.value
@@ -105,8 +115,12 @@ export default {
       submitting.value = true
       actionError.value = ''
       try {
-        await requestPublicTicket(event.value.friendlyId, auth.state.token)
-        success.value = true
+        const ticket = await requestPublicTicket(event.value.friendlyId, auth.state.token, { maxDevices: maxDevices.value, enrollmentMethod: 'EMAIL_OTP' })
+        if (ticket.deviceMaxDevices && ticket.deviceMaxDevices > 0) {
+          if (ticket.status === 'CLAIMED' || ticket.status === 'CHECKED_IN') {
+            await router.push(`/c/${encodeURIComponent(event.value.friendlyId)}/ticket`)
+          } else await router.push({ path: '/ticket-enroll', query: { event: ticket.conferenceUuid, ticketCode: ticket.ticketCode } })
+        } else success.value = true
       } catch (e: any) {
         const code = e.response?.data?.error?.code
         if (code === 'capacity_exceeded' || code === 'ticket_sold_out') {
@@ -124,7 +138,7 @@ export default {
       }
     }
 
-    return { event, loading, error, actionError, submitting, success, isAuthenticated, isFree, formattedPrice, confirmFreeTicket }
+    return { event, loading, error, actionError, submitting, success, maxDevices, isAuthenticated, isFree, formattedPrice, confirmFreeTicket }
   }
 }
 </script>

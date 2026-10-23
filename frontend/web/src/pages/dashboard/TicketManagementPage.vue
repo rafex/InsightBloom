@@ -4,10 +4,21 @@
   h2 Boletos del evento
   .issue-card
     h3 Emitir boleto
-    p Envía el QR por correo o copia el UUID para compartirlo directamente.
+    p Configura cuántos dispositivos puede usar el asistente. El acceso queda ligado a claves criptográficas, no a una huella del navegador.
     .issue-row
       input(v-model="recipientEmail" type="email" aria-label="Correo del destinatario" placeholder="Correo (opcional)")
       input(v-model="seatUuid" type="text" aria-label="UUID del asiento" placeholder="UUID de asiento (opcional)")
+      label(for="ticket-max-devices") Dispositivos
+      select#ticket-max-devices(v-model.number="maxDevices" aria-label="Máximo de dispositivos por boleto")
+        option(:value="1") 1 (recomendado)
+        option(:value="2") 2
+        option(:value="3") 3
+        option(:value="4") 4
+        option(:value="5") 5
+      label(for="ticket-enrollment-method") Activación
+      select#ticket-enrollment-method(v-model="enrollmentMethod" aria-label="Método de activación")
+        option(value="EMAIL_OTP") Código al correo
+        option(value="ONE_TIME_LINK") Enlace de un solo uso
       BaseButton(variant="primary" type="button" :loading="issuing" @click="issue") Emitir boleto
     FeedbackMessage(v-if="feedback" :message="feedback" :tone="feedbackError ? 'error' : 'success'")
     template(v-if="canIssueBatch")
@@ -15,7 +26,7 @@
       .issue-row
         input(v-model.number="batchQuantity" type="number" min="2" max="200" aria-label="Cantidad de boletos anónimos" placeholder="Cantidad")
         BaseButton(variant="secondary" type="button" :loading="issuingBatch" :disabled="!batchQuantity || batchQuantity < 2" @click="issueBatch") Emitir {{ batchQuantity || '' }} boletos anónimos
-      p.field-hint Genera varios boletos sin destinatario de una sola vez. Podés compartir el QR/UUID de cada uno a mano con invitados puntuales; los que no repartas quedan disponibles igual para que cualquiera los reclame solo desde la cartelera pública (botón "Adquirir boleto"), hasta agotarse. No exceden el aforo restante: si pedís más de lo que queda, no se emite ninguno.
+      p.field-hint Los lotes quedan protegidos y sin destinatario. Comparte para cada persona el enlace de activación de un solo uso; el código estático no permite hacer check-in. No exceden el aforo restante.
   .compose-card#compose-card
     h3 Comunicarse con inscritos
     p.helper(v-if="!composeTarget") Para: todos los inscritos
@@ -46,7 +57,8 @@
       h4 {{ group.label }} ({{ group.tickets.length }})
       .ticket-row(v-for="ticket in group.tickets" :key="ticket.uuid")
         .ticket-main
-          strong {{ ticket.ticketCode }}
+          strong(v-if="!ticket.deviceMaxDevices") {{ ticket.ticketCode }}
+          strong(v-else) Boleto protegido · {{ ticket.deviceMaxDevices }} dispositivo(s)
           StatusBadge(v-if="!ticket.operational" :status="ticket.status" :label="formatTicketStatusLabel(ticket.status)")
           StatusBadge(v-if="ticket.operational" status="ACTIVE" label="Operativo · no revocable")
           span.claimant(v-if="!ticket.operational && ticket.claimedByUserUuid")
@@ -58,14 +70,16 @@
             span.audit-actor(:title="actorUuid(ticket.revokedByUserUuid)") {{ actorLabel(ticket.revokedByUserUuid) }}
             |  · {{ formatAuditDate(ticket.revokedAt) }}
         .row-actions
-          BaseButton.icon-btn(variant="ghost" size="sm" type="button" title="Ver código QR" aria-label="Ver código QR" @click="showQr(ticket)")
+          BaseButton.icon-btn(v-if="!ticket.deviceMaxDevices" variant="ghost" size="sm" type="button" title="Ver código QR" aria-label="Ver código QR" @click="showQr(ticket)")
             UiIcon(name="qr" size="16" aria-hidden="true")
-          BaseButton.icon-btn(variant="ghost" size="sm" type="button" title="Copiar UUID" aria-label="Copiar UUID" @click="copy(ticket.ticketCode)")
+          BaseButton.icon-btn(v-if="!ticket.deviceMaxDevices" variant="ghost" size="sm" type="button" title="Copiar UUID" aria-label="Copiar UUID" @click="copy(ticket.ticketCode)")
             UiIcon(name="copy" size="16" aria-hidden="true")
           BaseButton.icon-btn(variant="ghost" size="sm" type="button" title="Copiar URL para compartir" aria-label="Copiar URL para compartir" @click="copyUrl(ticket)")
             UiIcon(name="link" size="16" aria-hidden="true")
+          BaseButton.icon-btn(v-if="ticket.deviceMaxDevices" variant="ghost" size="sm" type="button" title="Crear enlace de activación seguro" aria-label="Crear enlace de activación seguro" @click="shareActivation(ticket)")
+            UiIcon(name="send" size="16" aria-hidden="true")
           BaseButton.icon-btn(
-            v-if="ticket.claimedByUserUuid || ticket.recipientEmail"
+            v-if="(ticket.claimedByUserUuid || ticket.recipientEmail) && (!ticket.deviceMaxDevices || ticket.deviceEnrollmentMethod === 'EMAIL_OTP')"
             variant="ghost" size="sm" type="button"
             title="Reenviar por correo" aria-label="Reenviar por correo"
             :loading="resendingUuid === ticket.uuid" :disabled="resendingUuid === ticket.uuid"
@@ -95,7 +109,7 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
 import EmailComposeEditor from '@/components/EmailComposeEditor.vue'
 import AiEmailAssistant from '@/components/AiEmailAssistant.vue'
-import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets, sendAttendeeEmail } from '@/services/api/usersApi'
+import { issueTicket, issueTicketBatch, listTickets, getConference, revokeTicket, resendTicket, resendAllTickets, sendAttendeeEmail, createTicketEnrollmentLink } from '@/services/api/usersApi'
 import type { Ticket, TicketManagementSummary, TicketStatus } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { formatTicketStatusLabel } from '@/utils/status'
@@ -113,6 +127,8 @@ export default {
     const selectedTicket = ref<Ticket | null>(null)
     const recipientEmail = ref('')
     const seatUuid = ref('')
+    const maxDevices = ref(1)
+    const enrollmentMethod = ref('ONE_TIME_LINK')
     const conferenceName = ref('')
     const conferenceFriendlyId = ref('')
     const seatingMode = ref('')
@@ -153,11 +169,14 @@ export default {
       if (!props.conferenceId || !auth.state.token) return
       issuing.value = true; feedback.value = ''; feedbackError.value = false
       try {
-        const ticket = await issueTicket(props.conferenceId, recipientEmail.value.trim() || null, seatUuid.value.trim() || null, auth.state.token)
+        const ticket = await issueTicket(props.conferenceId, recipientEmail.value.trim() || null, seatUuid.value.trim() || null, auth.state.token,
+          { maxDevices: maxDevices.value, enrollmentMethod: enrollmentMethod.value })
         await load()
         recipientEmail.value = ''
         seatUuid.value = ''
-        feedback.value = `Boleto emitido: ${ticket.ticketCode}`
+        feedback.value = ticket.deviceMaxDevices
+          ? 'Boleto protegido emitido. Comparte el enlace de activación con el destinatario.'
+          : `Boleto emitido: ${ticket.ticketCode}`
       } catch (e: any) {
         feedbackError.value = true
         const apiError = e.response?.data?.error || {}
@@ -176,7 +195,8 @@ export default {
       if (!props.conferenceId || !auth.state.token || !batchQuantity.value) return
       issuingBatch.value = true; feedback.value = ''; feedbackError.value = false
       try {
-        const issued = await issueTicketBatch(props.conferenceId, batchQuantity.value, auth.state.token)
+        const issued = await issueTicketBatch(props.conferenceId, batchQuantity.value, auth.state.token,
+          { maxDevices: maxDevices.value, enrollmentMethod: 'ONE_TIME_LINK' })
         await load()
         feedback.value = `${issued.length} boletos emitidos.`
       } catch (e: any) {
@@ -199,6 +219,7 @@ export default {
     }
 
     async function copyUrl(ticket: Ticket) {
+      if (ticket.deviceMaxDevices) { await shareActivation(ticket); return }
       await navigator.clipboard?.writeText(ticketUrl(ticket))
       feedbackError.value = false; feedback.value = 'URL del boleto copiada.'
     }
@@ -214,7 +235,28 @@ export default {
 
     function ticketUrl(ticket: Ticket) {
       const friendlyId = conferenceFriendlyId.value || props.conferenceId || ''
+      if (ticket.deviceMaxDevices && ticket.deviceEnrollmentMethod === 'EMAIL_OTP') {
+        return `${location.origin}/ticket-enroll?event=${encodeURIComponent(props.conferenceId || '')}&ticketCode=${encodeURIComponent(ticket.ticketCode)}`
+      }
       return `${location.origin}/c/${encodeURIComponent(friendlyId)}/ticket?t=${encodeURIComponent(ticket.ticketCode)}`
+    }
+
+    async function shareActivation(ticket: Ticket) {
+      if (!props.conferenceId || !auth.state.token) return
+      try {
+        let url = ticketUrl(ticket)
+        if (ticket.deviceEnrollmentMethod === 'ONE_TIME_LINK') {
+          url = (await createTicketEnrollmentLink(props.conferenceId, ticket.uuid, auth.state.token)).url
+        }
+        await navigator.clipboard?.writeText(url)
+        feedback.value = ticket.deviceEnrollmentMethod === 'ONE_TIME_LINK'
+          ? 'Enlace de un solo uso copiado. Compártelo de forma privada: quien lo obtenga podría activar primero el boleto.'
+          : 'Enlace de activación copiado. El asistente deberá verificar el correo asignado.'
+        feedbackError.value = false
+      } catch (e: any) {
+        feedback.value = e.response?.data?.error?.detail || 'No se pudo crear el enlace de activación.'
+        feedbackError.value = true
+      }
     }
 
     async function revoke(uuid: string) {
@@ -343,7 +385,7 @@ export default {
     ])
 
     onMounted(load)
-    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, copyUrl, showQr, share, revoke, ticketUrl, formatAuditDate, formatTicketStatusLabel, claimantLabel, actorLabel, actorUuid, breadcrumbItems,
+    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, maxDevices, enrollmentMethod, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, copyUrl, showQr, share, shareActivation, revoke, ticketUrl, formatAuditDate, formatTicketStatusLabel, claimantLabel, actorLabel, actorUuid, breadcrumbItems,
       batchQuantity, issuingBatch, canIssueBatch, issueBatch, resendingUuid, resendingAll, resendOne, resendAll,
       composeSubject, composeMessage, composeFormat, showAiAssistant,
       composeTarget, sendingEmail, emailFeedback, emailFeedbackError, sendEmail, writeToAttendee, clearComposeTarget }

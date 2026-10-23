@@ -1710,3 +1710,18 @@ Registrar una decision cuando cambie:
   - Las claves globales se limpian del almacenamiento activo y no se migran. Backups históricos siguen la retención definida y nunca se reactivan al restaurar.
 - Consecuencias: organizadores ingresan sus claves por evento y herramienta; servicios sin configuración quedan sin IA. La habilitación productiva requiere provisioning privado y validación en staging.
 - Reemplaza: el fallback de organizador y la precedencia `evento → organizador → apagado` de la propuesta inicial.
+
+### DEC-0042 - Prueba criptográfica de posesión por boleto
+
+- Fecha: 2026-10-23
+- Estado: accepted
+- Contexto: un QR de boleto estático es un bearer token. Thumbmark y su fallback local son fingerprints mutables y no prueban que el asistente tenga el dispositivo previamente autorizado.
+- Decision:
+  - Cada boleto nuevo puede registrar de 1 a 5 dispositivos (default 1), con claves ECDSA P-256 creadas por Web Crypto; el servidor conserva claves públicas, nunca claves privadas.
+  - El comprador elige enrolamiento por OTP de correo o enlace de un solo uso; reemplazos permiten aprobación del dispositivo actual, OTP al correo o recuperación por comprador autenticado.
+  - El código de entrada es rotativo y firmado. El check-in conectado valida la firma y conserva la transición atómica.
+  - El lector offline valida un paquete firmado previamente descargado. Se documenta y anuncia el riesgo de duplicados entre lectores desconectados; conflictos se marcan al sincronizar.
+  - Boletos previos solo migran tras OTP al correo registrado o reemisión controlada; los no verificables quedan como legado.
+  - Fingerprint queda como metadato de señal, nunca como autoridad de acceso.
+- Consecuencias: agrega persistencia de credenciales por boleto, firma y sincronización offline; perder el almacenamiento local exige recuperación y nueva vinculación.
+- Reemplaza: uso de QR UUID estático como prueba suficiente de posesión para boletos nuevos.

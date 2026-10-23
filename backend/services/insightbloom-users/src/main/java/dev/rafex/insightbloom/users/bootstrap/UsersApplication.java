@@ -112,6 +112,7 @@ public class UsersApplication {
         final var timezoneRepo = new SqliteTimezoneRepository(db);
         final var reservationRepo = new SqliteReservationRepository(db);
         final var ticketRepo = new SqliteTicketRepository(db);
+        final var ticketDeviceRepo = new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteTicketDeviceRepository(db);
         final var venueSeatRepo = new SqliteVenueSeatRepository(db);
         final var eventTypeRepo = new SqliteEventTypeRepository(db);
         final var roleRepo = new SqliteRoleRepository(db);
@@ -178,6 +179,8 @@ public class UsersApplication {
         final var ticketUseCase = new TicketUseCase(
                 conferenceRepo, eventTypeRepo, ticketRepo, membershipRepo, emailPort, frontendBaseUrl,
                 reservationRepo, timezoneRepo, userRepo);
+        final var ticketDeviceUseCase = new dev.rafex.insightbloom.users.application.usecases.TicketDeviceUseCase(
+                ticketDeviceRepo, ticketRepo, emailPort, frontendBaseUrl);
         final var createConferenceUseCase = new CreateConferenceUseCase(
                 conferenceRepo, friendlyIdService, timezoneRepo, eventRoleRepo, ticketUseCase);
         final var setVenueMapUseCase = new SetVenueMapUseCase(conferenceRepo);
@@ -544,7 +547,7 @@ public class UsersApplication {
                 recordDownloadUseCase, getDownloadCountsUseCase,
                 setSeatingModeUseCase, reserveGeneralUseCase, getMyTicketUseCase, cancelReservationUseCase,
                 listReservationsUseCase, listConferenceAttendeesUseCase, checkInTicketUseCase,
-                ticketUseCase, eventPermissionGuard, createGuestUseCase,
+                ticketUseCase, ticketDeviceUseCase, eventPermissionGuard, createGuestUseCase,
                 setVenueMapUseCase, defineVenueSeatsUseCase, getConferenceSeatMapUseCase, reserveSeatUseCase,
                 venueMapConfigUseCase, cloneVenueMapUseCase,
                 setEventTypeUseCase, setCanvasConfigUseCase,

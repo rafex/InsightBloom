@@ -19,6 +19,7 @@ import dev.rafex.ether.json.JsonUtils;
 import dev.rafex.insightbloom.common.http.BaseResourceHandler;
 import dev.rafex.insightbloom.users.application.usecases.CancelReservationUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CheckInTicketUseCase;
+import dev.rafex.insightbloom.users.application.usecases.TicketDeviceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountRegisteredAttendeesUseCase;
 import dev.rafex.insightbloom.users.application.usecases.CountUniqueRegisteredAttendeesUseCase;
@@ -63,6 +64,8 @@ import dev.rafex.insightbloom.users.application.usecases.SaveEventWhiteboardUseC
 import dev.rafex.insightbloom.users.application.usecases.UpdateConferenceUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.TicketUseCase;
+import dev.rafex.insightbloom.users.domain.model.Ticket;
+import dev.rafex.insightbloom.users.domain.model.TicketDeviceCredential;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ToolAccessUseCase;
 import dev.rafex.insightbloom.users.application.usecases.SendAttendeeEmailUseCase;
@@ -140,6 +143,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final ListConferenceAttendeesUseCase listConferenceAttendeesUseCase;
     private final CheckInTicketUseCase checkInTicketUseCase;
     private final TicketUseCase ticketUseCase;
+    private final TicketDeviceUseCase ticketDeviceUseCase;
     private final EventPermissionGuard eventPermissionGuard;
     private final CreateGuestUseCase createGuestUseCase;
     private final SetVenueMapUseCase setVenueMapUseCase;
@@ -220,6 +224,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                              final ListConferenceAttendeesUseCase listConferenceAttendeesUseCase,
                              final CheckInTicketUseCase checkInTicketUseCase,
                              final TicketUseCase ticketUseCase,
+                             final TicketDeviceUseCase ticketDeviceUseCase,
                              final EventPermissionGuard eventPermissionGuard,
                              final CreateGuestUseCase createGuestUseCase,
                              final SetVenueMapUseCase setVenueMapUseCase,
@@ -287,6 +292,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.listConferenceAttendeesUseCase = listConferenceAttendeesUseCase;
         this.checkInTicketUseCase = checkInTicketUseCase;
         this.ticketUseCase = ticketUseCase;
+        this.ticketDeviceUseCase = ticketDeviceUseCase;
         this.eventPermissionGuard = eventPermissionGuard;
         this.createGuestUseCase = createGuestUseCase;
         this.setVenueMapUseCase = setVenueMapUseCase;
@@ -406,6 +412,13 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/presentation-access", Set.of("GET")),
                 Route.of("/{id}/reservations/check-in", Set.of("POST")),
                 Route.of("/{id}/tickets", Set.of("GET", "POST")),
+                Route.of("/{id}/tickets/enrollment/otp", Set.of("POST")),
+                Route.of("/{id}/tickets/enrollment/complete", Set.of("POST")),
+                Route.of("/{id}/tickets/offline-bundle", Set.of("GET")),
+                Route.of("/{id}/tickets/offline-sync", Set.of("POST")),
+                Route.of("/{id}/tickets/{ticketUuid}/enrollment-link", Set.of("POST")),
+                Route.of("/{id}/tickets/{ticketUuid}/devices", Set.of("GET")),
+                Route.of("/{id}/tickets/{ticketUuid}/devices/{credentialUuid}/revoke", Set.of("POST")),
                 Route.of("/{id}/tickets/me", Set.of("GET")),
                 Route.of("/{id}/tickets/claim", Set.of("POST")),
                 Route.of("/{id}/tickets/check-in", Set.of("POST")),
@@ -495,6 +508,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/presentation-access")) return handlePresentationAccess(jx, jx.pathParam("id"));
         if (path.endsWith("/tickets/me")) return handleGetMyIssuedTicket(jx, jx.pathParam("id"));
+        if (path.endsWith("/tickets/offline-bundle")) return handleOfflineTicketBundle(jx, jx.pathParam("id"));
+        if (path.endsWith("/tickets") && path.contains("/tickets/")) return handleListTickets(jx, jx.pathParam("id"));
+        if (path.endsWith("/devices") && path.contains("/tickets/")) return handleTicketDevices(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"));
         if (path.endsWith("/tickets")) return handleListTickets(jx, jx.pathParam("id"));
         if (path.endsWith("/reservations")) {
             return handleListReservations(jx, jx.pathParam("id"));
@@ -613,6 +629,12 @@ public class ConferenceHandler extends BaseResourceHandler {
             return handleCheckIn(jx, jx.pathParam("id"));
         }
         if (jx.path().endsWith("/tickets/claim")) return handleClaimTicket(jx, jx.pathParam("id"));
+        if (jx.path().endsWith("/tickets/enrollment/otp")) return handleTicketEnrollmentOtp(jx, jx.pathParam("id"));
+        if (jx.path().endsWith("/tickets/enrollment/complete")) return handleTicketEnrollmentComplete(jx, jx.pathParam("id"));
+        if (jx.path().endsWith("/tickets/offline-sync")) return handleOfflineTicketSync(jx, jx.pathParam("id"));
+        if (jx.path().endsWith("/enrollment-link")) return handleTicketEnrollmentLink(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"));
+        if (jx.path().endsWith("/devices") && jx.path().contains("/tickets/")) return handleTicketDevices(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"));
+        if (jx.path().endsWith("/revoke") && jx.path().contains("/devices/")) return handleRevokeTicketDevice(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"), jx.pathParam("credentialUuid"));
         if (jx.path().endsWith("/tickets/check-in")) return handleTicketCheckIn(jx, jx.pathParam("id"));
         if (jx.path().endsWith("/revoke")) return handleRevokeTicket(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"));
         if (jx.path().endsWith("/tickets/resend-all")) return handleResendAllTickets(jx, jx.pathParam("id"));
@@ -1064,10 +1086,8 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 409, "ticket_not_required", "Este evento no requiere boleto");
                 return true;
             }
-            if (ticketUseCase.isPublicTicketSoldOut(conference)) {
-                sendError(jx, 409, "ticket_sold_out", "Los boletos de este evento se agotaron");
-                return true;
-            }
+            final var existing = ticketUseCase.myTicket(conference.getUuid(), validation.subjectUuid());
+            if (existing.isPresent()) { sendOk(jx, 200, existing.get()); return true; }
             if (!conference.isTicketSalesEnabled()) {
                 sendError(jx, 409, "ticket_sales_closed",
                         "La adquisición pública de boletos fue cerrada por el organizador");
@@ -1078,17 +1098,29 @@ public class ConferenceHandler extends BaseResourceHandler {
                         "Este evento requiere pago. La integración de pagos aún no está habilitada");
                 return true;
             }
-            final var existing = ticketUseCase.myTicket(conference.getUuid(), validation.subjectUuid());
-            // Antes de emitir un boleto nuevo, se intenta reclamar uno anonimo pre-emitido por
-            // el organizador (issueBatch) que nadie haya reclamado todavia -- ver
-            // TicketUseCase.claimAnyAvailable. Solo si no queda ninguno libre se emite uno.
-            final var ticket = existing.orElseGet(() -> ticketUseCase
-                    .claimAnyAvailable(conference.getUuid(), validation.subjectUuid())
-                    .orElseGet(() -> {
-                        final var issued = ticketUseCase.issue(conference.getUuid(), validation.subjectUuid(), null, null);
-                        return ticketUseCase.claim(conference.getUuid(), issued.getTicketCode(), validation.subjectUuid());
-                    }));
-            sendOk(jx, 201, ticket);
+            final var purchaseBody = parseBody(jx);
+            if (purchaseBody.get("maxDevices") instanceof Number n
+                    && (!Double.isFinite(n.doubleValue()) || n.doubleValue() != n.intValue())) {
+                sendError(jx, 400, "ticket_device_limit_invalid", "El límite debe ser un número entero entre uno y cinco"); return true;
+            }
+            final int requestedMaxDevices = purchaseBody.get("maxDevices") instanceof Number n ? n.intValue() : 1;
+            final String requestedEnrollment = purchaseBody.get("enrollmentMethod") instanceof String s ? s : "EMAIL_OTP";
+            if (requestedMaxDevices < 1 || requestedMaxDevices > 5) {
+                sendError(jx, 400, "ticket_device_limit_invalid", "Elige entre uno y cinco dispositivos"); return true;
+            }
+            final var buyer = userRepository.findByUuid(validation.subjectUuid())
+                    .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
+            if (!buyer.isEmailVerified() || buyer.getEmail() == null || buyer.getEmail().isBlank()) {
+                sendError(jx, 409, "verified_email_required", "Verifica el correo de tu cuenta antes de solicitar un boleto protegido"); return true;
+            }
+            final var pending = ticketUseCase.pendingProtectedTicketForEmail(conference.getUuid(), buyer.getEmail());
+            if (pending.isPresent()) { sendOk(jx, 200, pending.get()); return true; }
+            if (ticketUseCase.isPublicTicketSoldOut(conference)) {
+                sendError(jx, 409, "ticket_sold_out", "Los boletos de este evento se agotaron"); return true;
+            }
+            final var issued = ticketUseCase.issueProtected(conference.getUuid(), validation.subjectUuid(),
+                    buyer.getEmail(), null, requestedMaxDevices, requestedEnrollment);
+            sendOk(jx, 201, issued);
         } catch (final IllegalStateException e) {
             final boolean soldOut = "capacity_exceeded".equals(e.getMessage());
             final int status = soldOut ? 409 : 400;
@@ -2410,6 +2442,12 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final String recipientEmail = (String) body.get("recipientEmail");
             final String seatUuid = (String) body.get("seatUuid");
+            if (body.get("maxDevices") instanceof Number n
+                    && (!Double.isFinite(n.doubleValue()) || n.doubleValue() != n.intValue())) {
+                sendError(jx, 400, "ticket_device_limit_invalid", "El límite debe ser un número entero entre uno y cinco"); return true;
+            }
+            final int maxDevices = body.get("maxDevices") instanceof Number max ? max.intValue() : 1;
+            final String enrollmentMethod = body.get("enrollmentMethod") instanceof String method ? method : "ONE_TIME_LINK";
             final Integer quantity = body.get("quantity") instanceof Number n ? n.intValue() : null;
             if (quantity != null && quantity > 1) {
                 if (recipientEmail != null && !recipientEmail.isBlank()) {
@@ -2422,10 +2460,14 @@ public class ConferenceHandler extends BaseResourceHandler {
                             "No se puede emitir en lote en un evento con asientos; cada boleto necesita su propio asiento.");
                     return true;
                 }
-                sendOk(jx, 201, ticketUseCase.issueBatch(id, v.subjectUuid(), quantity));
+                sendOk(jx, 201, ticketUseCase.issueBatchProtected(id, v.subjectUuid(), quantity, maxDevices, enrollmentMethod));
                 return true;
             }
-            sendOk(jx, 201, ticketUseCase.issue(id, v.subjectUuid(), recipientEmail, seatUuid));
+            final Ticket issued = ticketUseCase.issueProtected(id, v.subjectUuid(), recipientEmail, seatUuid, maxDevices, enrollmentMethod);
+            if ("ONE_TIME_LINK".equals(enrollmentMethod) && recipientEmail != null && !recipientEmail.isBlank()) {
+                ticketDeviceUseCase.createLink(id, issued.getUuid(), v.subjectUuid());
+            }
+            sendOk(jx, 201, issued);
         } catch (final IllegalStateException e) {
             final String code = e.getMessage() == null ? "ticket_issue_failed" : e.getMessage();
             final String detail = switch (code) {
@@ -2589,6 +2631,186 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
+    private boolean handleTicketEnrollmentLink(final JettyHttpExchange jx, final String conferenceId, final String ticketUuid) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            final var ticket = ticketUseCase.ticketByUuid(conferenceId, ticketUuid)
+                    .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
+            final boolean ticketOwner = actor.valid() && actor.subjectUuid().equals(ticket.getClaimedByUserUuid());
+            if (!actor.valid() || (!canManageTickets(conferenceId, actor) && !ticketOwner)) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para compartir el acceso del boleto"); return true;
+            }
+            final var result = ticketDeviceUseCase.createLink(conferenceId, ticketUuid, actor.subjectUuid());
+            sendOk(jx, 201, result);
+        } catch (final IllegalArgumentException | IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), "No se pudo crear un enlace de activación para este boleto");
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleTicketEnrollmentOtp(final JettyHttpExchange jx, final String conferenceId) {
+        try {
+            final var body = parseBody(jx);
+            final String code = body.get("ticketCode") instanceof String s ? s : "";
+            final var result = ticketDeviceUseCase.startOtp(conferenceId, code);
+            sendOk(jx, 202, result);
+        } catch (final IllegalArgumentException | IllegalStateException e) {
+            sendError(jx, 400, e.getMessage(), "No se pudo iniciar la activación. Verifica el boleto e inténtalo más tarde.");
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleTicketEnrollmentComplete(final JettyHttpExchange jx, final String conferenceId) {
+        try {
+            final var body = parseBody(jx);
+            final String rawToken = extractToken(jx);
+            ValidateTokenUseCase.ValidationResult identity = null;
+            if (rawToken != null) {
+                identity = validateTokenUseCase.execute(rawToken);
+                if (!identity.valid()) { sendError(jx, 401, "token_invalid", "Inicia sesión nuevamente para activar el boleto"); return true; }
+            }
+            final String fingerprint = body.get("deviceFingerprint") instanceof String s ? s : extractDeviceFingerprint(jx);
+            CreateGuestUseCase.GuestResult guest = null;
+            final String claimantUuid;
+            if (identity != null) claimantUuid = identity.subjectUuid();
+            else {
+                final String displayName = body.get("displayName") instanceof String s && !s.isBlank() ? s.trim() : "Invitado";
+                guest = createGuestUseCase.execute(new CreateGuestUseCase.GuestRequest(displayName, fingerprint, conferenceId));
+                claimantUuid = guest.guestUuid();
+            }
+            final String enrollmentToken = body.get("enrollmentToken") instanceof String s ? s : "";
+            final String publicKey = body.get("publicKeyJwk") instanceof String s ? s : "";
+            final String label = body.get("deviceLabel") instanceof String s ? s : "Este dispositivo";
+            final String otp = body.get("otp") instanceof String s ? s : null;
+            final boolean replaceOldest = Boolean.TRUE.equals(body.get("replaceOldest"));
+            final TicketDeviceCredential existing = ticketDeviceUseCase.complete(conferenceId, enrollmentToken, otp,
+                    claimantUuid, publicKey, label, fingerprint, replaceOldest);
+            final Ticket claimed = ticketUseCase.completeBoundClaim(conferenceId, existing.ticketUuid(), claimantUuid);
+            final Map<String, Object> response = new java.util.LinkedHashMap<>();
+            response.put("ticket", claimed); response.put("credentialUuid", existing.uuid());
+            response.put("registeredAt", existing.registeredAt().toString());
+            if (guest != null) {
+                response.put("token", guest.token()); response.put("guestUuid", guest.guestUuid());
+                response.put("role", "guest"); response.put("expiresAt", guest.expiresAt());
+            }
+            sendOk(jx, 200, response);
+        } catch (final IllegalArgumentException | IllegalStateException e) {
+            sendError(jx, 409, e.getMessage(), "No se pudo activar este boleto. Verifica el código e inténtalo nuevamente.");
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleTicketDevices(final JettyHttpExchange jx, final String conferenceId, final String ticketUuid) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            if (!actor.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final boolean manager = canManageTickets(conferenceId, actor);
+            final var ticket = ticketUseCase.ticketByUuid(conferenceId, ticketUuid).orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
+            if (!manager && !actor.subjectUuid().equals(ticket.getClaimedByUserUuid())) {
+                sendError(jx, 403, "forbidden", "No tienes acceso a los dispositivos de este boleto"); return true;
+            }
+            final var devices = ticketDeviceUseCase.list(conferenceId, ticketUuid, actor.subjectUuid()).stream()
+                    .map(d -> Map.of("uuid", d.uuid(), "label", d.label(), "registeredAt", d.registeredAt().toString(),
+                            "active", d.active(), "revokedAt", d.revokedAt() == null ? "" : d.revokedAt().toString())).toList();
+            sendOk(jx, 200, Map.of("maxDevices", ticket.getDeviceMaxDevices(), "enrollmentMethod", ticket.getDeviceEnrollmentMethod(), "devices", devices));
+        } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), e.getMessage());
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleRevokeTicketDevice(final JettyHttpExchange jx, final String conferenceId,
+                                              final String ticketUuid, final String credentialUuid) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            if (!actor.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+            final var ticket = ticketUseCase.ticketByUuid(conferenceId, ticketUuid).orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
+            if (!canManageTickets(conferenceId, actor) && !actor.subjectUuid().equals(ticket.getClaimedByUserUuid())) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para administrar los dispositivos de este boleto"); return true;
+            }
+            ticketDeviceUseCase.revoke(conferenceId, ticketUuid, credentialUuid, actor.subjectUuid());
+            sendOk(jx, 200, Map.of("revoked", true));
+        } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), e.getMessage());
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleOfflineTicketBundle(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            if (!actor.valid() || !canCheckIn(conferenceId, actor)) {
+                sendError(jx, 403, "forbidden", "No tienes permiso para descargar el paquete de check-in"); return true;
+            }
+            sendOk(jx, 200, ticketDeviceUseCase.signedOfflineBundle(conferenceId));
+        } catch (final IllegalStateException e) {
+            final String code = e.getMessage() == null ? "offline_bundle_unavailable" : e.getMessage();
+            sendError(jx, "offline_signing_not_configured".equals(code) ? 503 : 409, code,
+                    "El paquete de check-in offline no está disponible con la configuración actual.");
+        } catch (final IllegalArgumentException e) { sendError(jx, 404, "conference_not_found", "Evento no encontrado");
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleOfflineTicketSync(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            if (!actor.valid() || !canCheckIn(conferenceId, actor)) { sendError(jx, 403, "forbidden", "No tienes permiso para sincronizar check-ins"); return true; }
+            final var body = parseBody(jx);
+            if (!(body.get("scans") instanceof List<?> scans) || scans.size() > 5000) {
+                sendError(jx, 400, "offline_scans_invalid", "El lote de check-ins no es válido"); return true;
+            }
+            final String bundlePayload = body.get("bundlePayload") instanceof String s ? s : "";
+            final String bundleSignature = body.get("bundleSignature") instanceof String s ? s : "";
+            if (!ticketDeviceUseCase.verifyOfflineBundle(bundlePayload, bundleSignature)) {
+                sendError(jx, 400, "offline_bundle_invalid", "El paquete de lector no es válido"); return true;
+            }
+            final var bundle = JsonUtils.codec().readTree(bundlePayload);
+            if (!conferenceId.equals(bundle.path("conferenceUuid").asText()) || bundle.path("version").asInt() != 1) {
+                sendError(jx, 400, "offline_bundle_invalid", "El paquete de lector no corresponde a este evento"); return true;
+            }
+            final long bundleIssuedAt = bundle.path("issuedAt").asLong();
+            final long bundleExpiresAt = bundle.path("expiresAt").asLong();
+            final List<Map<String, Object>> results = new ArrayList<>();
+            for (final Object raw : scans) {
+                if (!(raw instanceof Map<?, ?> scan)) continue;
+                String ticketUuid = null; String credentialUuid = null; boolean proofVerified = false;
+                try {
+                    ticketUuid = (String) scan.get("ticketUuid");
+                    credentialUuid = (String) scan.get("credentialUuid");
+                    final long expiry = ((Number) scan.get("expiresAt")).longValue();
+                    final long scannedAt = ((Number) scan.get("scannedAt")).longValue();
+                    final String signature = (String) scan.get("signature");
+                    if (!ticketDeviceUseCase.verifyOfflinePresentation(conferenceId, ticketUuid, credentialUuid, expiry, signature,
+                            scannedAt, bundleIssuedAt, bundleExpiresAt))
+                        throw new IllegalArgumentException("ticket_device_proof_invalid");
+                    proofVerified = true;
+                    final Ticket checked = ticketUseCase.checkInVerifiedDevicePresentation(conferenceId, ticketUuid);
+                    ticketDeviceUseCase.recordAudit(conferenceId, ticketUuid, credentialUuid, "OFFLINE_SYNC_ACCEPTED", actor.subjectUuid(), String.valueOf(scan.get("scanUuid")));
+                    results.add(Map.of("scanUuid", String.valueOf(scan.get("scanUuid")), "ticketUuid", ticketUuid, "result", "accepted", "status", checked.getStatus().name()));
+                } catch (final Exception failure) {
+                    final String code = failure instanceof IllegalStateException ? "duplicate_or_unavailable" : "invalid_or_expired";
+                    if (proofVerified) {
+                        try { ticketDeviceUseCase.recordAudit(conferenceId, ticketUuid, credentialUuid,
+                                "OFFLINE_SYNC_" + code.toUpperCase(java.util.Locale.ROOT), actor.subjectUuid(), String.valueOf(scan.get("scanUuid"))); }
+                        catch (final Exception ignored) { }
+                    }
+                    results.add(Map.of("scanUuid", String.valueOf(scan.get("scanUuid")), "result", code));
+                }
+            }
+            sendOk(jx, 200, Map.of("results", results));
+        } catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
     private boolean handleTicketCheckIn(final JettyHttpExchange jx, final String id) {
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
@@ -2598,6 +2820,21 @@ public class ConferenceHandler extends BaseResourceHandler {
             final var body = parseBody(jx);
             final String input = body.get("ticket") instanceof String s ? s
                     : body.get("ticketCode") instanceof String s ? s : (String) body.get("qr");
+            if (input != null && input.startsWith("{")) {
+                final Map<String, Object> presentation = JsonUtils.codec().readValue(input, Map.class);
+                if (!(presentation.get("v") instanceof Number version) || version.intValue() != 1) {
+                    sendError(jx, 400, "ticket_presentation_invalid", "El código de acceso no es válido"); return true;
+                }
+                final String ticketUuid = (String) presentation.get("ticketUuid");
+                final String credentialUuid = (String) presentation.get("credentialUuid");
+                final long expiresAt = ((Number) presentation.get("expiresAt")).longValue();
+                final String signature = (String) presentation.get("signature");
+                if (!ticketDeviceUseCase.verifyPresentation(id, ticketUuid, credentialUuid, expiresAt, signature)) {
+                    sendError(jx, 401, "ticket_device_proof_invalid", "El boleto debe mostrarse desde un dispositivo autorizado"); return true;
+                }
+                sendOk(jx, 200, ticketUseCase.checkInVerifiedDevicePresentation(id, ticketUuid));
+                return true;
+            }
             sendOk(jx, 200, ticketUseCase.checkIn(id, input));
         } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Este boleto ya fue utilizado o aún no fue canjeado");
         } catch (final IllegalArgumentException e) { sendError(jx, 404, e.getMessage(), "Boleto no encontrado para esta conferencia");

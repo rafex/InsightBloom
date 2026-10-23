@@ -12,6 +12,8 @@ public class Ticket {
     private final String recipientEmail;
     private final String seatUuid;
     private final boolean operational;
+    private final int deviceMaxDevices;
+    private final String deviceEnrollmentMethod;
     private TicketStatus status;
     private String claimedByUserUuid;
     private final Instant issuedAt;
@@ -22,6 +24,12 @@ public class Ticket {
 
     public Ticket(final String conferenceUuid, final String issuedByUserUuid,
                   final String recipientEmail, final String seatUuid) {
+        this(conferenceUuid, issuedByUserUuid, recipientEmail, seatUuid, 0, "LEGACY");
+    }
+
+    public Ticket(final String conferenceUuid, final String issuedByUserUuid,
+                  final String recipientEmail, final String seatUuid,
+                  final int deviceMaxDevices, final String deviceEnrollmentMethod) {
         this.uuid = UUID.randomUUID().toString();
         this.conferenceUuid = conferenceUuid;
         this.ticketCode = UUID.randomUUID().toString();
@@ -29,6 +37,8 @@ public class Ticket {
         this.recipientEmail = recipientEmail;
         this.seatUuid = seatUuid;
         this.operational = false;
+        this.deviceMaxDevices = deviceMaxDevices;
+        this.deviceEnrollmentMethod = deviceEnrollmentMethod == null ? "LEGACY" : deviceEnrollmentMethod;
         this.status = TicketStatus.ISSUED;
         this.issuedAt = Instant.now();
     }
@@ -65,6 +75,16 @@ public class Ticket {
                   final TicketStatus status, final String claimedByUserUuid,
                   final Instant issuedAt, final Instant claimedAt, final Instant checkedInAt,
                   final String revokedByUserUuid, final Instant revokedAt, final boolean operational) {
+        this(uuid, conferenceUuid, ticketCode, issuedByUserUuid, recipientEmail, seatUuid, status, claimedByUserUuid,
+                issuedAt, claimedAt, checkedInAt, revokedByUserUuid, revokedAt, operational, 0, "LEGACY");
+    }
+
+    public Ticket(final String uuid, final String conferenceUuid, final String ticketCode,
+                  final String issuedByUserUuid, final String recipientEmail, final String seatUuid,
+                  final TicketStatus status, final String claimedByUserUuid,
+                  final Instant issuedAt, final Instant claimedAt, final Instant checkedInAt,
+                  final String revokedByUserUuid, final Instant revokedAt, final boolean operational,
+                  final int deviceMaxDevices, final String deviceEnrollmentMethod) {
         this.uuid = uuid;
         this.conferenceUuid = conferenceUuid;
         this.ticketCode = ticketCode;
@@ -72,6 +92,8 @@ public class Ticket {
         this.recipientEmail = recipientEmail;
         this.seatUuid = seatUuid;
         this.operational = operational;
+        this.deviceMaxDevices = deviceMaxDevices;
+        this.deviceEnrollmentMethod = deviceEnrollmentMethod == null ? "LEGACY" : deviceEnrollmentMethod;
         this.status = status;
         this.claimedByUserUuid = claimedByUserUuid;
         this.issuedAt = issuedAt;
@@ -88,6 +110,9 @@ public class Ticket {
     public String getRecipientEmail() { return recipientEmail; }
     public String getSeatUuid() { return seatUuid; }
     public boolean isOperational() { return operational; }
+    public int getDeviceMaxDevices() { return deviceMaxDevices; }
+    public String getDeviceEnrollmentMethod() { return deviceEnrollmentMethod; }
+    public boolean isDeviceProtected() { return deviceMaxDevices >= 1 && deviceMaxDevices <= 5; }
     public TicketStatus getStatus() { return status; }
     public String getClaimedByUserUuid() { return claimedByUserUuid; }
     public Instant getIssuedAt() { return issuedAt; }

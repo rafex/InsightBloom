@@ -30,6 +30,7 @@
 | IDE Publication Separation | [`specs/ide-publication-separation/SPEC.md`](./specs/ide-publication-separation/SPEC.md) | [`tasks/ide-publication-separation/TASKS.md`](./tasks/ide-publication-separation/TASKS.md) | active |
 | Material Bootstrap | [`specs/material-bootstrap/SPEC.md`](./specs/material-bootstrap/SPEC.md) | [`tasks/material-bootstrap/TASKS.md`](./tasks/material-bootstrap/TASKS.md) | active |
 | OTP Request Audit | [`specs/otp-request-audit/SPEC.md`](./specs/otp-request-audit/SPEC.md) | [`tasks/otp-request-audit/TASKS.md`](./tasks/otp-request-audit/TASKS.md) | active |
+| Ticket Device Binding | [`specs/ticket-device-binding/SPEC.md`](./specs/ticket-device-binding/SPEC.md) | [`tasks/ticket-device-binding/TASKS.md`](./tasks/ticket-device-binding/TASKS.md) | active |
 
 ## Workflows
 
@@ -42,6 +43,7 @@
 - [`workflows/PRESENTATION-OFFLINE.md`](./workflows/PRESENTATION-OFFLINE.md) — Paquetes offline cifrados y exclusivos del moderador
 - [`workflows/JITSI-TROUBLESHOOTING.md`](./workflows/JITSI-TROUBLESHOOTING.md) — Diagnóstico y prevención de fallos de videollamada Jitsi
 - [`workflows/IDE-WEB-PUBLICATION.md`](./workflows/IDE-WEB-PUBLICATION.md) — Auditoría y publicación temporal de páginas del IDE
+- [`workflows/TICKET-OFFLINE-SIGNING.md`](./workflows/TICKET-OFFLINE-SIGNING.md) — Provisionamiento de claves para paquetes offline de check-in
 
 ## Pipelines
 

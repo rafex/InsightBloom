@@ -13,6 +13,8 @@ tasks/
 │   └── TASKS.md
 ├── llm-credential-isolation/ ← aislamiento de claves LLM por organizador y evento
 │   └── TASKS.md
+├── ticket-device-binding/ ← credenciales criptográficas por boleto y check-in offline
+│   └── TASKS.md
 └── <iniciativa>/
     └── TASKS.md         ← plan de tareas
 ```

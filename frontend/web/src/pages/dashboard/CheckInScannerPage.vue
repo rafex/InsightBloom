@@ -6,6 +6,12 @@
   .scanner-wrap
     video(ref="videoEl" aria-label="Vista previa de la cámara para escanear el código QR" aria-describedby="scan-hint")
   p#scan-hint.scan-hint Apunta la cámara al código QR del boleto del asistente.
+  .offline-tools
+    BaseButton(variant="secondary" size="sm" type="button" :loading="offlineLoading" @click="prepareOffline") Preparar lector sin conexión
+    span(v-if="offlineBundle") Paquete firmado listo hasta {{ offlineExpiryLabel }}
+    span(v-if="offlineQueue.length") {{ offlineQueue.length }} check-in(s) pendiente(s) de sincronización
+    BaseButton(v-if="offlineQueue.length && online" variant="secondary" size="sm" type="button" :loading="syncing" @click="syncOffline") Sincronizar check-ins
+    p La validación offline depende del paquete firmado y del reloj del lector. Lectores aislados podrían aceptar el mismo boleto; el servidor señalará duplicados al sincronizar.
   p.scanner-status(role="status" aria-live="polite" :class="{ ready: scannerReady, error: scannerError }") {{ scannerStatus }}
 
   .manual-checkin
@@ -58,7 +64,8 @@ import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import FormField from '@/components/ui/FormField.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
-import { checkInIssuedTicket, checkInTicket, getConference } from '@/services/api/usersApi'
+import { checkInIssuedTicket, checkInTicket, getConference, getOfflineTicketBundle, syncOfflineTicketScans } from '@/services/api/usersApi'
+import { verifyOfflineTicketBundle, verifyOfflineTicketScan, queueOfflineTicketScan, readOfflineTicketQueue, removeSyncedOfflineTicketScans, type OfflineTicketBundle } from '@/utils/ticketDeviceCrypto'
 import type { Ticket, Reservation } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { formatStatusLabel } from '@/utils/status'
@@ -79,6 +86,12 @@ export default {
     const imageProcessing = ref(false)
     let scanner: QrScanner | null = null
     const processing = ref(false)
+    const offlineBundle = ref<OfflineTicketBundle | null>(null)
+    const offlineLoading = ref(false)
+    const syncing = ref(false)
+    const online = ref(navigator.onLine)
+    const offlineQueue = ref(readOfflineTicketQueue())
+    const offlineExpiryLabel = computed(() => offlineBundle.value ? new Date(offlineBundle.value.expiresAt).toLocaleString() : '')
 
     function extractTicketCode(rawValue: string): string {
       const value = rawValue.trim()
@@ -125,11 +138,20 @@ export default {
       if (processing.value || !props.conferenceId) return
       processing.value = true
       const ticketCode = extractTicketCode(rawValue)
+      const isPresentation = ticketCode.startsWith('{')
       try {
         let reservation: Ticket | Reservation
         try {
           reservation = await checkInIssuedTicket(props.conferenceId, ticketCode, auth.state.token as string)
         } catch (ticketError: any) {
+          if (isPresentation && (!ticketError.response || !navigator.onLine)) {
+            if (!offlineBundle.value) throw new Error('offline_bundle_missing')
+            const proof = await verifyOfflineTicketScan(offlineBundle.value, ticketCode, props.conferenceId)
+            queueOfflineTicketScan({ ...proof, conferenceUuid: props.conferenceId, scanUuid: crypto.randomUUID(), scannedAt: Math.floor(Date.now() / 1000) })
+            offlineQueue.value = readOfflineTicketQueue().filter(scan => scan.conferenceUuid === props.conferenceId)
+            lastResult.value = { ok: true, message: 'Boleto válido sin conexión. Check-in pendiente de sincronización.' }
+            return
+          }
           const code = ticketError.response?.data?.error?.code
           const status = ticketError.response?.status
           // Compatibilidad con boletos de reservas emitidos antes de la migración,
@@ -141,7 +163,11 @@ export default {
         lastResult.value = { ok: true, message: 'Ingreso registrado' }
         recent.value = [reservation, ...recent.value].slice(0, 10)
       } catch (e: any) {
-        lastResult.value = { ok: false, message: errorMessage(e) }
+        lastResult.value = { ok: false, message: e.message === 'offline_bundle_missing'
+          ? 'No se puede validar sin conexión. Descarga primero el paquete firmado del evento.'
+          : e.message?.startsWith('offline_') || e.message?.startsWith('ticket_')
+            ? 'El código expiró o no corresponde a un dispositivo incluido en el paquete offline.'
+            : errorMessage(e) }
       } finally {
         manualCode.value = ''
         setTimeout(() => { processing.value = false }, 1500)
@@ -152,6 +178,52 @@ export default {
       if (!manualCode.value.trim()) return
       await onDecoded(manualCode.value)
     }
+
+    async function prepareOffline() {
+      if (!auth.state.token || !props.conferenceId) return
+      offlineLoading.value = true
+      try {
+        const bundle = await getOfflineTicketBundle(props.conferenceId, auth.state.token)
+        await verifyOfflineTicketBundle(bundle, props.conferenceId)
+        offlineBundle.value = bundle
+        localStorage.setItem(`insightbloom-ticket-offline:${props.conferenceId}`, JSON.stringify(bundle))
+        lastResult.value = { ok: true, message: 'Paquete offline verificado y guardado en este lector.' }
+      } catch (e: any) {
+        lastResult.value = { ok: false, message: e.response?.data?.error?.detail || 'No se pudo descargar el paquete firmado. Verifica la configuración de firma offline del servidor.' }
+      } finally { offlineLoading.value = false }
+    }
+
+    async function syncOffline() {
+      if (!auth.state.token || !props.conferenceId || !offlineBundle.value || syncing.value) return
+      syncing.value = true
+      try {
+        const scans = readOfflineTicketQueue().filter(scan => scan.conferenceUuid === props.conferenceId)
+        if (!scans.length) return
+        const response = await syncOfflineTicketScans(props.conferenceId, offlineBundle.value.payload, offlineBundle.value.signature, scans, auth.state.token)
+        removeSyncedOfflineTicketScans(response.results.map(item => item.scanUuid))
+        offlineQueue.value = readOfflineTicketQueue().filter(scan => scan.conferenceUuid === props.conferenceId)
+        const duplicates = response.results.filter(item => item.result === 'duplicate_or_unavailable').length
+        lastResult.value = { ok: duplicates === 0, message: `${response.results.length - duplicates} check-in(s) sincronizados${duplicates ? `; ${duplicates} duplicado(s) o no disponibles` : ''}.` }
+      } catch {
+        lastResult.value = { ok: false, message: 'No se pudieron sincronizar los check-ins. Se conservaron en este lector para reintentar.' }
+      } finally { syncing.value = false }
+    }
+
+    function handleOnline() { online.value = true; void syncOffline() }
+    function handleOffline() { online.value = false }
+
+    onMounted(async () => {
+      const key = `insightbloom-ticket-offline:${props.conferenceId}`
+      const cached = localStorage.getItem(key)
+      if (cached) {
+        try { const bundle = JSON.parse(cached) as OfflineTicketBundle; await verifyOfflineTicketBundle(bundle, props.conferenceId as string, false); offlineBundle.value = bundle }
+        catch { localStorage.removeItem(key) }
+      }
+      offlineQueue.value = readOfflineTicketQueue().filter(scan => scan.conferenceUuid === props.conferenceId)
+      window.addEventListener('online', handleOnline)
+      window.addEventListener('offline', handleOffline)
+      if (navigator.onLine && offlineQueue.value.length) void syncOffline()
+    })
 
     async function scanQrImage(event: Event) {
       const input = event.target as HTMLInputElement
@@ -236,6 +308,8 @@ export default {
 
     onBeforeUnmount(() => {
       if (scanner) { scanner.stop(); scanner.destroy(); scanner = null }
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
     })
 
     onMounted(async () => {

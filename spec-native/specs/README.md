@@ -16,6 +16,7 @@ Cada iniciativa tiene su propia carpeta con `SPEC.md`.
 | — | [security-readiness](./security-readiness/SPEC.md) | active | product owner |
 | — | [beta-organizer-invitations](./beta-organizer-invitations/SPEC.md) | done | product owner |
 | — | [llm-credential-isolation](./llm-credential-isolation/SPEC.md) | active | product owner |
+| — | [ticket-device-binding](./ticket-device-binding/SPEC.md) | active | product owner |
 
 ## Cómo crear una nueva iniciativa
 

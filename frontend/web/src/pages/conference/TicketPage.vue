@@ -33,20 +33,36 @@
               .t-perf-line
           .t-stub
             .t-qr-container
-              TicketQr(:ticket-code="ticket.ticketCode" :ticket-url="ticketUrl" :show-code="false")
-              span.t-qr-caption Escanea para abrir tu acceso
+              TicketQr(:ticket-code="displayQrCode" :ticket-url="isProtectedTicket ? '' : ticketUrl" :show-code="false")
+              span.t-qr-caption(v-if="isProtectedTicket") Código rotativo · se actualiza cada 30 segundos
+              span.t-qr-caption(v-else) Escanea para abrir tu acceso
+              p(v-if="isProtectedTicket && !hasLocalDeviceKey" role="status") Este navegador no tiene una clave autorizada para mostrar el QR.
+              .device-list(v-if="isProtectedTicket && devices.length")
+                h3 Dispositivos del boleto
+                p {{ activeDeviceCount }} de {{ ticket.deviceMaxDevices }} autorizados
+                .device-row(v-for="device in devices" :key="device.uuid")
+                  span {{ device.label }} · {{ new Date(device.registeredAt).toLocaleDateString() }}
+                  BaseButton(v-if="device.active" size="sm" variant="danger" type="button" @click="revokeDevice(device.uuid)") Revocar
+                BaseButton(v-if="auth.state.token" size="sm" variant="secondary" type="button" @click="startDeviceRecovery") Añadir dispositivo
             .t-admit
               span.t-admit-text Estado
               StatusBadge.t-admit-num(:status="ticket.status" :label="ticketStatusLabel" :tone="ticketStatusTone")
               span.t-admit-hint(v-if="ticket.status === 'CHECKED_IN'") Acceso registrado
               span.t-admit-hint(v-else) Presenta este boleto en la entrada
           .ticket-manual
-            span Código manual / UUID del boleto
-            code {{ ticket.ticketCode }}
-            small Si el escaneo falla, proporciona este código al personal de acceso.
+            template(v-if="isProtectedTicket")
+              span Acceso vinculado a dispositivos autorizados
+              small El UUID no sirve para entrar. Para registrar un reemplazo, verifica el correo asociado.
+              BaseButton(v-if="!hasLocalDeviceKey" size="sm" type="button" @click="startDeviceRecovery") {{ ticket.deviceEnrollmentMethod === 'ONE_TIME_LINK' ? 'Registrar dispositivo con enlace seguro' : 'Registrar este dispositivo con OTP' }}
+            template(v-else)
+              span Código manual / UUID del boleto
+              code {{ ticket.ticketCode }}
+              small Si el escaneo falla, proporciona este código al personal de acceso.
+              small Boleto legado: su QR no está vinculado a una clave de dispositivo. Pide al organizador que lo reemita para protegerlo.
     p.ticket-status(:class="{ checked: ticket.status === 'CHECKED_IN' }")
       span(v-if="ticket.status === 'CHECKED_IN'") ✅ Ya ingresaste al evento
       span(v-else) 🎫 Boleto reservado — muestra este QR en la entrada
+    FeedbackMessage.ticket-error(v-if="error" :message="error" tone="error")
 
   .ticket-general-cta(v-else-if="seatingMode === 'SEATED'")
     h2 Selecciona tu asiento
@@ -79,14 +95,13 @@
 </template>
 
 <script lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import TicketQr from '@/components/TicketQr.vue'
 import SeatMapCanvasPicker from '@/components/SeatMapCanvasPicker.vue'
 import SeatMapPicker from '@/components/SeatMapPicker.vue'
 import QrScanner from 'qr-scanner'
-import { getConferenceByFriendlyId, getMyIssuedTicket, getMyTicket, claimTicket, claimTicketAsGuest, getVenueMapConfig, getVenueMapImage, getConferenceSeatMap, reserveSeat } from '@/services/api/usersApi'
+import { getConferenceByFriendlyId, getMyIssuedTicket, getMyTicket, claimTicket, claimTicketAsGuest, getVenueMapConfig, getVenueMapImage, getConferenceSeatMap, reserveSeat, getTicketDevices, revokeTicketDevice, createTicketEnrollmentLink } from '@/services/api/usersApi'
 import type { Ticket, Reservation, SeatingMode, VenueMapConfig, VenueSeat } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -95,6 +110,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
+import { createTicketPresentation, loadTicketDeviceKey } from '@/utils/ticketDeviceCrypto'
 
 export default {
   name: 'TicketPage',
@@ -119,8 +135,55 @@ export default {
     const seatMapLoaded = ref(false)
     const venueImage = ref('')
     const scanning = ref(false)
+    const presentation = ref('')
+    const hasLocalDeviceKey = ref(false)
+    const devices = ref<Array<{ uuid: string, label: string, registeredAt: string, active: boolean }>>([])
+    const activeDeviceCount = computed(() => devices.value.filter(d => d.active).length)
+    const localCredentialUuid = ref('')
+    const isProtectedTicket = computed(() => !!ticket.value && 'deviceMaxDevices' in ticket.value && Number(ticket.value.deviceMaxDevices) > 0)
+    const displayQrCode = computed(() => isProtectedTicket.value ? presentation.value : (ticket.value?.ticketCode || ''))
     const videoEl = ref<HTMLVideoElement | null>(null)
     let scanner: QrScanner | null = null
+    let presentationTimer: number | undefined
+
+    async function refreshPresentation() {
+      if (!isProtectedTicket.value || !ticket.value || !auth.state.token) return
+      try {
+        const enrolled = await getTicketDevices(props.conferenceId as string, ticket.value.uuid, auth.state.token)
+        devices.value = enrolled.devices
+        for (const active of enrolled.devices.filter(device => device.active)) {
+          const key = await loadTicketDeviceKey(ticket.value.uuid, active.uuid)
+          if (!key) continue
+          localCredentialUuid.value = active.uuid
+          hasLocalDeviceKey.value = true
+          presentation.value = await createTicketPresentation(ticket.value.uuid, active.uuid, key)
+          return
+        }
+        hasLocalDeviceKey.value = false
+        presentation.value = ''
+      } catch { /* La pantalla explica cómo volver a registrar el dispositivo. */ }
+    }
+
+    async function startDeviceRecovery() {
+      if (!ticket.value) return
+      if (auth.state.token) {
+        try {
+          const link = await createTicketEnrollmentLink(props.conferenceId as string, ticket.value.uuid, auth.state.token)
+          location.assign(link.url)
+          return
+        } catch { error.value = 'No se pudo crear un enlace seguro para este dispositivo.'; return }
+      }
+      location.assign(`/ticket-enroll?event=${encodeURIComponent(props.conferenceId || '')}&ticketCode=${encodeURIComponent(ticket.value.ticketCode)}`)
+    }
+
+    async function revokeDevice(credentialUuid: string) {
+      if (!ticket.value || !auth.state.token) return
+      try {
+        await revokeTicketDevice(props.conferenceId as string, ticket.value.uuid, credentialUuid, auth.state.token)
+        devices.value = devices.value.map(d => d.uuid === credentialUuid ? { ...d, active: false } : d)
+        if (credentialUuid === localCredentialUuid.value) { presentation.value = ''; hasLocalDeviceKey.value = false }
+      } catch { error.value = 'No se pudo revocar el dispositivo. Inténtalo de nuevo.' }
+    }
 
     const eventName = ref('Tu evento')
     const eventDate = ref<string | null>(null)
@@ -168,10 +231,14 @@ export default {
         const query = new URLSearchParams(location.search)
         const routeTicket = query.get('t') || query.get('ticket')
         if (routeTicket) ticketInput.value = routeTicket
-        if (auth.state.token && auth.state.role !== 'guest') {
+        if (auth.state.token) {
           ticket.value = await getMyIssuedTicket(props.conferenceId, auth.state.token)
           if (!ticket.value) ticket.value = await getMyTicket(props.conferenceId, auth.state.token)
           if (routeTicket) { ticketInput.value = routeTicket; if (!ticket.value) await claim() }
+        }
+        if (ticket.value && 'deviceMaxDevices' in ticket.value && Number(ticket.value.deviceMaxDevices) > 0) {
+          await refreshPresentation()
+          presentationTimer = window.setInterval(() => void refreshPresentation(), 30_000)
         }
         if (!ticket.value && props.seatingMode === 'SEATED' && auth.state.token) {
           const [config, seats, image] = await Promise.all([
@@ -281,13 +348,18 @@ export default {
     }
 
     onMounted(load)
-    onBeforeUnmount(stopScanner)
+    onBeforeUnmount(() => {
+      stopScanner()
+      if (presentationTimer) window.clearInterval(presentationTimer)
+    })
 
     return {
       loading, ticket, claiming, ticketInput, guestName, error, claim, claimAsGuest, auth,
       seatMapConfig, venueSeats, selectedSeatUuid, seatMapLoaded, venueImage, reserveSelectedSeat,
       scanning, videoEl, toggleScanner, ticketUrl, eventName, eventSubtitle, eventDateLabel,
-      eventVenueLabel, eventModeLabel, ticketOwnerLabel, ticketStatusLabel, ticketStatusTone
+      eventVenueLabel, eventModeLabel, ticketOwnerLabel, ticketStatusLabel, ticketStatusTone,
+      isProtectedTicket, displayQrCode, presentation, hasLocalDeviceKey, startDeviceRecovery,
+      devices, activeDeviceCount, revokeDevice
     }
   }
 }

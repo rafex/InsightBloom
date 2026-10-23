@@ -16,6 +16,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/public/PublicEventsPage.vue')
   },
   { path: '/events', component: () => import('@/pages/public/PublicEventsPage.vue') },
+  { path: '/ticket-enroll', component: () => import('@/pages/public/TicketEnrollmentPage.vue') },
   { path: '/events/:friendlyId/checkout', component: () => import('@/pages/public/PublicTicketCheckoutPage.vue') },
   { path: '/events/:friendlyId', component: () => import('@/pages/public/PublicEventDetailPage.vue') },
   {

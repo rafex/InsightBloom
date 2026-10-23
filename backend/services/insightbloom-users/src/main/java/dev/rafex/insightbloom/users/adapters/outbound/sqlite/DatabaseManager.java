@@ -431,8 +431,47 @@ public class DatabaseManager {
             ColumnMigrationHelper.addColumnIfMissing(conn, "tickets", "revoked_by_user_uuid", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "tickets", "revoked_at", "TEXT");
             ColumnMigrationHelper.addColumnIfMissing(conn, "tickets", "operational", "INTEGER NOT NULL DEFAULT 0");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "tickets", "device_max_devices", "INTEGER NOT NULL DEFAULT 0");
+            ColumnMigrationHelper.addColumnIfMissing(conn, "tickets", "device_enrollment_method", "TEXT NOT NULL DEFAULT 'LEGACY'");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tickets_conference ON tickets(conference_uuid)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tickets_claimed_user ON tickets(conference_uuid, claimed_by_user_uuid)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS ticket_device_enrollments (
+                    uuid TEXT PRIMARY KEY,
+                    ticket_uuid TEXT NOT NULL,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    method TEXT NOT NULL,
+                    otp_hash TEXT,
+                    expires_at TEXT NOT NULL,
+                    consumed_at TEXT,
+                    failed_attempts INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_ticket_device_enrollments_ticket ON ticket_device_enrollments(ticket_uuid, created_at)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS ticket_device_credentials (
+                    uuid TEXT PRIMARY KEY,
+                    ticket_uuid TEXT NOT NULL,
+                    public_key_jwk TEXT NOT NULL,
+                    label TEXT NOT NULL,
+                    fingerprint TEXT,
+                    registered_at TEXT NOT NULL,
+                    revoked_at TEXT
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_ticket_device_credentials_ticket ON ticket_device_credentials(ticket_uuid, revoked_at)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS ticket_device_audit (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticket_uuid TEXT NOT NULL,
+                    credential_uuid TEXT,
+                    action TEXT NOT NULL,
+                    actor_uuid TEXT,
+                    detail TEXT,
+                    occurred_at TEXT NOT NULL
+                )
+            """);
             // Migración idempotente de reservas históricas al modelo de boletos.
             stmt.executeUpdate("""
                 INSERT OR IGNORE INTO tickets

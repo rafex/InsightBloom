@@ -82,7 +82,7 @@ class TicketUseCaseTest {
     }
 
     @Test
-    void keepsPublicSalesAvailableForAnUnclaimedAnonymousTicket() {
+    void legacyUnclaimedTicketDoesNotBypassDeviceBindingInPublicSales() {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
         final TicketRepository tickets = mock(TicketRepository.class);
@@ -98,7 +98,32 @@ class TicketUseCaseTest {
                 mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "",
                 mock(ReservationRepository.class));
 
-        assertFalse(useCase.isPublicTicketSoldOut(conference));
+        assertTrue(useCase.isPublicTicketSoldOut(conference));
+    }
+
+    @Test
+    void rejectsStaticQrForDeviceProtectedTicket() {
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final var conference = new dev.rafex.insightbloom.users.domain.model.Conference("event", "Evento", "owner");
+        final Instant now = Instant.now();
+        final Ticket ticket = new Ticket("ticket-uuid", conference.getUuid(), "123e4567-e89b-42d3-a456-426614174000", "owner", null, null,
+                dev.rafex.insightbloom.users.domain.model.TicketStatus.CLAIMED, "attendee", now, now, null,
+                null, null, false, 1, "EMAIL_OTP");
+        when(conferences.findByUuid(conference.getUuid())).thenReturn(Optional.of(conference));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        when(tickets.findByCode(conference.getUuid(), ticket.getTicketCode())).thenReturn(Optional.of(ticket));
+
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "",
+                mock(ReservationRepository.class));
+
+        final var failure = assertThrows(IllegalStateException.class,
+                () -> useCase.checkIn(conference.getUuid(), ticket.getTicketCode()));
+        assertEquals("ticket_device_proof_required", failure.getMessage());
+        verify(tickets, never()).checkIn(anyString(), anyString());
     }
 
     @Test

@@ -294,6 +294,8 @@ export interface Ticket {
   revokedByUserUuid?: string | null
   revokedAt?: string | null
   operational?: boolean
+  deviceMaxDevices?: number
+  deviceEnrollmentMethod?: string
 }
 
 export interface TicketClaimedUser {

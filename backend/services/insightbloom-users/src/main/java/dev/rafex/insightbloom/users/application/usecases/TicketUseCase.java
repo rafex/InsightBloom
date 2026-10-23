@@ -81,6 +81,21 @@ public class TicketUseCase {
 
     public Ticket issue(final String conferenceUuid, final String issuerUuid, final String recipientEmail,
                         final String seatUuid) {
+        return issue(conferenceUuid, issuerUuid, recipientEmail, seatUuid, 0, "LEGACY");
+    }
+
+    public Ticket issueProtected(final String conferenceUuid, final String issuerUuid, final String recipientEmail,
+                                 final String seatUuid, final int maxDevices, final String enrollmentMethod) {
+        if (maxDevices < 1 || maxDevices > 5) throw new IllegalArgumentException("ticket_device_limit_invalid");
+        if (!"EMAIL_OTP".equals(enrollmentMethod) && !"ONE_TIME_LINK".equals(enrollmentMethod))
+            throw new IllegalArgumentException("ticket_enrollment_method_invalid");
+        if ("EMAIL_OTP".equals(enrollmentMethod) && (recipientEmail == null || recipientEmail.isBlank()))
+            throw new IllegalArgumentException("ticket_recipient_email_required");
+        return issue(conferenceUuid, issuerUuid, recipientEmail, seatUuid, maxDevices, enrollmentMethod);
+    }
+
+    private Ticket issue(final String conferenceUuid, final String issuerUuid, final String recipientEmail,
+                         final String seatUuid, final int maxDevices, final String enrollmentMethod) {
         final Conference conference = conference(conferenceUuid);
         ensureConferenceActive(conference);
         final EventCapability capability = seatUuid == null ? EventCapability.TICKETING_GENERAL : EventCapability.TICKETING_SEATED;
@@ -89,7 +104,7 @@ public class TicketUseCase {
         if ("SEATED".equals(conference.getSeatingMode()) == false && seatUuid != null) throw new IllegalStateException("seat_not_allowed");
         final boolean counted = conference.getCapacity() != null;
         if (counted && !conferenceRepository.tryIncrementReservedCount(conferenceUuid)) throw new IllegalStateException("capacity_exceeded");
-        final Ticket ticket = new Ticket(conferenceUuid, issuerUuid, blankToNull(recipientEmail), blankToNull(seatUuid));
+        final Ticket ticket = new Ticket(conferenceUuid, issuerUuid, blankToNull(recipientEmail), blankToNull(seatUuid), maxDevices, enrollmentMethod);
         try {
             ticketRepository.insert(ticket);
         } catch (RuntimeException e) {
@@ -134,6 +149,29 @@ public class TicketUseCase {
         return issued;
     }
 
+    public List<Ticket> issueBatchProtected(final String conferenceUuid, final String issuerUuid, final int quantity,
+                                            final int maxDevices, final String enrollmentMethod) {
+        if (quantity < 2 || quantity > MAX_BATCH_ISSUE) throw new IllegalArgumentException("quantity_invalid");
+        if (maxDevices < 1 || maxDevices > 5) throw new IllegalArgumentException("ticket_device_limit_invalid");
+        if (!"EMAIL_OTP".equals(enrollmentMethod) && !"ONE_TIME_LINK".equals(enrollmentMethod))
+            throw new IllegalArgumentException("ticket_enrollment_method_invalid");
+        if ("EMAIL_OTP".equals(enrollmentMethod)) throw new IllegalArgumentException("ticket_recipient_email_required");
+        final Conference conference = conference(conferenceUuid);
+        ensureConferenceActive(conference);
+        if (!hasCapability(conference, EventCapability.TICKETING_GENERAL)) throw new IllegalStateException("capability_not_available");
+        if ("SEATED".equals(conference.getSeatingMode())) throw new IllegalStateException("seat_required");
+        if (conference.getCapacity() != null && quantity > Math.max(0, conference.getCapacity() - conference.getReservedCount()))
+            throw new IllegalStateException("capacity_exceeded");
+        final List<Ticket> issued = new java.util.ArrayList<>(quantity);
+        try {
+            for (int i = 0; i < quantity; i++) issued.add(issue(conferenceUuid, issuerUuid, null, null, maxDevices, enrollmentMethod));
+        } catch (final RuntimeException e) {
+            for (final Ticket ticket : issued) { try { revoke(conferenceUuid, ticket.getUuid(), issuerUuid); } catch (final RuntimeException ignored) { } }
+            throw e;
+        }
+        return issued;
+    }
+
     /**
      * Emite el boleto contado del personal operativo. Se entrega ya canjeado al usuario y queda
      * protegido contra revocación. Es idempotente para no consumir otra plaza si el rol se asigna
@@ -170,6 +208,7 @@ public class TicketUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
         if (ticket.getStatus().name().equals("REVOKED")) throw new IllegalStateException("ticket_revoked");
         if (ticket.getStatus().name().equals("EXPIRED")) throw new IllegalStateException("ticket_expired");
+        if (ticket.isDeviceProtected()) throw new IllegalStateException("ticket_device_enrollment_required");
         if (ticket.getClaimedByUserUuid() != null) {
             if (ticket.getClaimedByUserUuid().equals(userUuid)) return ticket;
             throw new IllegalStateException("ticket_already_claimed");
@@ -211,7 +250,8 @@ public class TicketUseCase {
         }
         for (final Ticket candidate : ticketRepository.findByConference(conferenceUuid)) {
             if (candidate.isOperational() || candidate.getStatus() != TicketStatus.ISSUED
-                    || candidate.getClaimedByUserUuid() != null || candidate.getRecipientEmail() != null) {
+                    || candidate.getClaimedByUserUuid() != null || candidate.getRecipientEmail() != null
+                    || candidate.isDeviceProtected()) {
                 continue;
             }
             if (ticketRepository.claim(candidate.getUuid(), userUuid, Instant.now().toString())) {
@@ -240,10 +280,33 @@ public class TicketUseCase {
         return ticketRepository.findByConferenceAndUser(conferenceUuid, userUuid);
     }
 
+    public Optional<Ticket> pendingProtectedTicketForEmail(final String conferenceUuid, final String email) {
+        if (email == null || email.isBlank()) return Optional.empty();
+        return ticketRepository.findByConference(conferenceUuid).stream()
+                .filter(t -> t.isDeviceProtected() && t.getStatus() == TicketStatus.ISSUED
+                        && t.getClaimedByUserUuid() == null && email.equalsIgnoreCase(t.getRecipientEmail()))
+                .findFirst();
+    }
+
     public List<Ticket> list(final String conferenceUuid) {
         final Conference conference = conference(conferenceUuid);
         expireIfNeeded(conference);
         return ticketRepository.findByConference(conferenceUuid);
+    }
+
+    public Optional<Ticket> ticketByUuid(final String conferenceUuid, final String ticketUuid) {
+        return ticketRepository.findByUuid(ticketUuid).filter(t -> conferenceUuid.equals(t.getConferenceUuid()));
+    }
+
+    public Ticket completeBoundClaim(final String conferenceUuid, final String ticketUuid, final String userUuid) {
+        final Conference conference = conference(conferenceUuid);
+        final Ticket ticket = ticketByUuid(conferenceUuid, ticketUuid)
+                .filter(t -> userUuid.equals(t.getClaimedByUserUuid()))
+                .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
+        if (!membershipRepository.exists(userUuid, conferenceUuid)) {
+            membershipRepository.recordJoin(new ConferenceMembership(userUuid, conferenceUuid, conference.getName(), conference.getFriendlyId()));
+        }
+        return ticket;
     }
 
     /**
@@ -289,6 +352,14 @@ public class TicketUseCase {
                                            Map<String, UserSummary> ticketActors) {}
 
     public Ticket checkIn(final String conferenceUuid, final String qrOrUuid) {
+        return checkIn(conferenceUuid, qrOrUuid, false);
+    }
+
+    public Ticket checkInVerifiedDevicePresentation(final String conferenceUuid, final String qrOrUuid) {
+        return checkIn(conferenceUuid, qrOrUuid, true);
+    }
+
+    private Ticket checkIn(final String conferenceUuid, final String qrOrUuid, final boolean deviceVerified) {
         final Conference conference = conference(conferenceUuid);
         expireIfNeeded(conference);
         final String code = normalizeCode(qrOrUuid);
@@ -296,6 +367,7 @@ public class TicketUseCase {
                 .or(() -> ticketRepository.findByUuid(code))
                 .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
         if (!conferenceUuid.equals(ticket.getConferenceUuid())) throw new IllegalArgumentException("ticket_not_found");
+        if (ticket.isDeviceProtected() && !deviceVerified) throw new IllegalStateException("ticket_device_proof_required");
         if (ticket.getStatus().name().equals("CHECKED_IN")) throw new IllegalStateException("already_checked_in");
         if (ticket.getStatus().name().equals("EXPIRED")) throw new IllegalStateException("ticket_expired");
         if (ticket.getStatus().name().equals("ISSUED")) throw new IllegalStateException("ticket_not_claimed");
@@ -344,18 +416,13 @@ public class TicketUseCase {
     }
 
     /**
-     * Indica si el autoservicio público ya no puede adquirir un boleto nuevo.
-     * Un boleto anónimo preemitido sigue siendo reclamable aunque el contador reservado
-     * haya llegado al aforo, por eso se busca ese caso antes de declarar agotado el evento.
+     * Indica si el autoservicio público ya no puede adquirir un boleto nuevo. Los boletos
+     * sin destinatario no se consumen automáticamente: requieren que el organizador comparta
+     * su enlace de activación de un solo uso.
      */
     public boolean isPublicTicketSoldOut(final Conference conference) {
         if (!isTicketed(conference) || conference.getCapacity() == null) return false;
-        final boolean hasUnclaimedPublicTicket = ticketRepository.findByConference(conference.getUuid()).stream()
-                .anyMatch(ticket -> !ticket.isOperational()
-                        && ticket.getStatus() == TicketStatus.ISSUED
-                        && ticket.getClaimedByUserUuid() == null
-                        && ticket.getRecipientEmail() == null);
-        return !hasUnclaimedPublicTicket && conference.getReservedCount() >= conference.getCapacity();
+        return conference.getReservedCount() >= conference.getCapacity();
     }
 
     /**
@@ -444,7 +511,26 @@ public class TicketUseCase {
     }
 
     private void sendEmail(final Conference conference, final Ticket ticket) {
+        if (ticket.isDeviceProtected()) {
+            if ("EMAIL_OTP".equals(ticket.getDeviceEnrollmentMethod())) {
+                sendProtectedSetupEmail(conference, ticket);
+            }
+            return;
+        }
         sendTicketEmail(conference, ticket, ticket.getRecipientEmail());
+    }
+
+    private void sendProtectedSetupEmail(final Conference conference, final Ticket ticket) {
+        if (!emailPort.isEnabled() || ticket.getRecipientEmail() == null) return;
+        try {
+            final String setupUrl = frontendBaseUrl.replaceAll("/$", "") + "/ticket-enroll?event="
+                    + java.net.URLEncoder.encode(conference.getUuid(), java.nio.charset.StandardCharsets.UTF_8)
+                    + "&ticketCode=" + java.net.URLEncoder.encode(ticket.getTicketCode(), java.nio.charset.StandardCharsets.UTF_8);
+            final String html = "<p>Completa la activación de tu boleto para " + escapeHtml(conference.getName())
+                    + ". Abre el enlace y valida el código que enviaremos a este correo.</p><p><a href=\""
+                    + setupUrl + "\">Activar mi boleto</a></p>";
+            emailPort.sendHtml(ticket.getRecipientEmail(), "Activa tu boleto para " + conference.getName(), html);
+        } catch (final Exception ignored) { }
     }
 
     /**
@@ -465,6 +551,11 @@ public class TicketUseCase {
         if (!emailPort.isEnabled()) throw new IllegalStateException("email_provider_not_configured");
         final String email = resolveEmail(ticket);
         if (email == null) throw new IllegalStateException("no_email_available");
+        if (ticket.isDeviceProtected()) {
+            if ("EMAIL_OTP".equals(ticket.getDeviceEnrollmentMethod())) sendProtectedSetupEmail(conference, ticket);
+            else throw new IllegalStateException("ticket_enrollment_link_must_be_resent");
+            return ticket;
+        }
         sendTicketEmail(conference, ticket, email);
         return ticket;
     }
@@ -514,4 +605,8 @@ public class TicketUseCase {
     }
 
     private static String blankToNull(final String value) { return value == null || value.isBlank() ? null : value.trim(); }
+    private static String escapeHtml(final String value) {
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&#39;");
+    }
 }

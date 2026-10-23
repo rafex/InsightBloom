@@ -1,16 +1,42 @@
-# SESSION — Design System Migration
+# SESSION — Ticket Device Binding
 
-> **Iniciativa**: Migración a design system unificado
-> **Documento de referencia**: [`frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md`](../frontend/web/docs/DESIGN_SYSTEM_MIGRATION.md)
+> **Iniciativa**: Vinculación de boletos a dispositivos
+> **Spec**: [`specs/ticket-device-binding/SPEC.md`](./specs/ticket-device-binding/SPEC.md)
+> **Tareas**: [`tasks/ticket-device-binding/TASKS.md`](./tasks/ticket-device-binding/TASKS.md)
 > **Branch**: `main`
-> **Creado**: 2026-07-28
-> **Último checkpoint**: 2026-08-02 (shell de IDE y ayuda flotante configurable)
+> **Último checkpoint**: 2026-10-23
 
 ## Estado
 
-| State    | Bloqueante | Próximo paso |
-|----------|------------|-------------|
-| `in_progress` | No | Completar validación autenticada responsive por rol y verificar el commit desplegado |
+| State | Bloqueante | Próximo paso |
+|-------|------------|-------------|
+| `in_progress` | No | Provisionar claves Ed25519 en `insightbloom-users-secrets`, desplegar y validar enrolamiento/check-in online y offline en staging; planear reemisión controlada de tickets legacy |
+
+## Resumen de avance
+
+### Hecho
+
+- Tickets nuevos se emiten con máximo 1–5 dispositivos y método OTP/enlace.
+- Clave P-256 no exportable en navegador, credencial pública en SQLite, OTP con PBKDF2 y tokens/link almacenados como hash.
+- QR rotativo firmado; el check-in conectado rechaza el QR estático de boletos protegidos.
+- Scanner valida paquetes Ed25519, encola y sincroniza check-ins offline; audita conflictos.
+- Las pantallas de emisión, activación, recuperación, gestión de dispositivos y check-in están implementadas.
+
+### Pendiente
+
+- Añadir la pareja privada/pública Ed25519 al Secret de Kubernetes indicado por [`workflows/TICKET-OFFLINE-SIGNING.md`](./workflows/TICKET-OFFLINE-SIGNING.md). El endpoint offline devuelve 503 mientras falte.
+- Desplegar a staging y verificar los recorridos con dos dispositivos y dos lectores desconectados.
+- Reemitir boletos legacy manualmente desde la gestión del evento; no se migran ni se convierten al iniciar sesión.
+
+### Validación local
+
+- Maven: suite completa de `insightbloom-users`.
+- Frontend: `npm run typecheck` y `npm run build`.
+- GitOps: `helm lint infrastructure/charts/insightbloom`.
+
+---
+
+## Historial conservado — Design System Migration
 
 ## Resumen de avance
 

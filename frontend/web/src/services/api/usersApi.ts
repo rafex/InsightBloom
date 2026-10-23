@@ -288,10 +288,46 @@ export async function getPublicConference(friendlyId: string, token?: string | n
   return res.data.data
 }
 
-export async function requestPublicTicket(friendlyId: string, token: string): Promise<Ticket> {
+export async function requestPublicTicket(friendlyId: string, token: string, options: { maxDevices?: number, enrollmentMethod?: string } = {}): Promise<Ticket> {
   const res = await axios.post(
-    `/api/users/api/v1/conferences/public/${encodeURIComponent(friendlyId)}/tickets`, {}, authHeader(token)
+    `/api/users/api/v1/conferences/public/${encodeURIComponent(friendlyId)}/tickets`, options, authHeader(token)
   )
+  return res.data.data
+}
+
+export async function startTicketEnrollmentOtp(conferenceUuid: string, ticketCode: string): Promise<{ challengeId: string, expiresAt: string }> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/enrollment/otp`, { ticketCode })
+  return res.data.data
+}
+
+export async function completeTicketEnrollment(conferenceUuid: string, payload: Record<string, unknown>, token?: string | null): Promise<any> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/enrollment/complete`, payload,
+    token ? authHeader(token) : undefined)
+  return res.data.data
+}
+
+export async function createTicketEnrollmentLink(conferenceUuid: string, ticketUuid: string, token: string): Promise<{ url: string, expiresAt: string }> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/${encodeURIComponent(ticketUuid)}/enrollment-link`, {}, authHeader(token))
+  return res.data.data
+}
+
+export async function getTicketDevices(conferenceUuid: string, ticketUuid: string, token: string): Promise<{ maxDevices: number, enrollmentMethod: string, devices: Array<{ uuid: string, label: string, registeredAt: string, active: boolean, revokedAt?: string }> }> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/${encodeURIComponent(ticketUuid)}/devices`, authHeader(token))
+  return res.data.data
+}
+
+export async function revokeTicketDevice(conferenceUuid: string, ticketUuid: string, credentialUuid: string, token: string): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/${encodeURIComponent(ticketUuid)}/devices/${encodeURIComponent(credentialUuid)}/revoke`, {}, authHeader(token))
+}
+
+export async function getOfflineTicketBundle(conferenceUuid: string, token: string): Promise<{ payload: string, signature: string, publicKey: string, expiresAt: string }> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/offline-bundle`, authHeader(token))
+  return res.data.data
+}
+
+export async function syncOfflineTicketScans(conferenceUuid: string, bundlePayload: string, bundleSignature: string, scans: unknown[], token: string): Promise<{ results: Array<{ scanUuid: string, result: string }> }> {
+  const res = await axios.post(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/offline-sync`,
+    { bundlePayload, bundleSignature, scans }, authHeader(token))
   return res.data.data
 }
 
@@ -612,20 +648,21 @@ export async function getMyIssuedTicket(conferenceId: string, token: string): Pr
 }
 
 export async function issueTicket(
-  conferenceId: string, recipientEmail: string | null, seatUuid: string | null, token: string
+  conferenceId: string, recipientEmail: string | null, seatUuid: string | null, token: string,
+  deviceOptions: { maxDevices?: number, enrollmentMethod?: string } = {}
 ): Promise<Ticket> {
   const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets`,
-    { recipientEmail, seatUuid }, authHeader(token))
+    { recipientEmail, seatUuid, ...deviceOptions }, authHeader(token))
   return res.data.data
 }
 
 /** Emite varios boletos anónimos de una sola vez (sin destinatario ni asiento) -- solo eventos
  *  GENERAL. Falla completa si `quantity` excede el aforo restante: no emite ninguno. */
 export async function issueTicketBatch(
-  conferenceId: string, quantity: number, token: string
+  conferenceId: string, quantity: number, token: string, deviceOptions: { maxDevices?: number, enrollmentMethod?: string } = {}
 ): Promise<Ticket[]> {
   const res = await axios.post(`/api/users/api/v1/conferences/${conferenceId}/tickets`,
-    { quantity }, authHeader(token))
+    { quantity, ...deviceOptions }, authHeader(token))
   return res.data.data
 }
 
