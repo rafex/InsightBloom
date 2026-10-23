@@ -277,12 +277,12 @@ export interface Reservation {
   checkedInAt?: string | null
 }
 
-export type TicketStatus = 'ISSUED' | 'CLAIMED' | 'CHECKED_IN' | 'REVOKED' | 'EXPIRED'
+export type TicketStatus = 'PENDING_SIGNATURE' | 'ISSUED' | 'CLAIMED' | 'CHECKED_IN' | 'REVOKED' | 'EXPIRED'
 
 export interface Ticket {
   uuid: string
   conferenceUuid: string
-  ticketCode: string
+  ticketCode: string | null
   issuedByUserUuid: string
   recipientEmail?: string | null
   seatUuid?: string | null

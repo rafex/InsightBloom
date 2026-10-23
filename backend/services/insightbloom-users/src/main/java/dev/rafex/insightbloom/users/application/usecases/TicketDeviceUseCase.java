@@ -7,7 +7,6 @@ import dev.rafex.insightbloom.users.domain.ports.EmailPort;
 import dev.rafex.insightbloom.users.domain.ports.TicketDeviceRepository;
 import dev.rafex.insightbloom.users.domain.ports.TicketRepository;
 import dev.rafex.insightbloom.users.domain.services.TicketDeviceCrypto;
-import dev.rafex.insightbloom.users.domain.services.TicketOfflineBundleSigner;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -31,11 +30,15 @@ public final class TicketDeviceUseCase {
     private final TicketRepository tickets;
     private final EmailPort emailPort;
     private final String frontendBaseUrl;
-    private final TicketOfflineBundleSigner offlineSigner = new TicketOfflineBundleSigner();
+    private OrganizerTicketSignatureUseCase organizerTicketSignatures;
 
     public TicketDeviceUseCase(final TicketDeviceRepository devices, final TicketRepository tickets,
                                final EmailPort emailPort, final String frontendBaseUrl) {
         this.devices = devices; this.tickets = tickets; this.emailPort = emailPort; this.frontendBaseUrl = frontendBaseUrl;
+    }
+
+    public void configureOrganizerTicketSignatures(final OrganizerTicketSignatureUseCase useCase) {
+        this.organizerTicketSignatures = useCase;
     }
 
     public record EnrollmentLink(String url, Instant expiresAt) {}
@@ -114,9 +117,11 @@ public final class TicketDeviceUseCase {
         final Instant now = Instant.now();
         final String credentialUuid = UUID.randomUUID().toString();
         final String safeLabel = label == null || label.isBlank() ? "Dispositivo" : label.trim().substring(0, Math.min(80, label.trim().length()));
-        return devices.enrollAndClaim(enrollment.uuid(), claimantUuid, credentialUuid, ticket.getUuid(), publicKeyJwk,
+        final TicketDeviceCredential enrolled = devices.enrollAndClaim(enrollment.uuid(), claimantUuid, credentialUuid, ticket.getUuid(), publicKeyJwk,
                 safeLabel, fingerprint == null ? null : fingerprint.substring(0, Math.min(256, fingerprint.length())),
                 ticket.getDeviceMaxDevices(), replaceOldest, now).orElseThrow(() -> new IllegalArgumentException("ticket_enrollment_invalid_or_expired"));
+        if (organizerTicketSignatures != null) organizerTicketSignatures.invalidateOfflinePackage(conferenceUuid);
+        return enrolled;
     }
 
     public List<TicketDeviceCredential> list(final String conferenceUuid, final String ticketUuid, final String actorUuid) {
@@ -128,6 +133,7 @@ public final class TicketDeviceUseCase {
         ownedTicket(conferenceUuid, ticketUuid);
         final Instant now = Instant.now();
         if (!devices.revokeCredential(ticketUuid, credentialUuid, now)) throw new IllegalArgumentException("ticket_device_not_found");
+        if (organizerTicketSignatures != null) organizerTicketSignatures.invalidateOfflinePackage(conferenceUuid);
         devices.recordAudit(ticketUuid, credentialUuid, "DEVICE_REVOKED", actorUuid, "owner_action", now);
     }
 
@@ -158,16 +164,20 @@ public final class TicketDeviceUseCase {
         }).toList();
     }
 
-    public TicketOfflineBundleSigner.SignedBundle signedOfflineBundle(final String conferenceUuid) {
-        return offlineSigner.sign(conferenceUuid, offlineDevices(conferenceUuid), Instant.now());
+    public boolean verifyOfflineBundle(final String payload, final String signature) {
+        return organizerTicketSignatures != null && organizerTicketSignatures.isStoredOfflinePackage(
+                conferenceUuidFromOfflinePayload(payload), payload, signature);
     }
 
-    public boolean verifyOfflineBundle(final String payload, final String signature) {
-        return offlineSigner.verify(payload, signature);
+    private static String conferenceUuidFromOfflinePayload(final String payload) {
+        if (payload == null || payload.length() > 5_000_000) return "";
+        final var matcher = java.util.regex.Pattern.compile("\\\"conferenceUuid\\\":\\\"([0-9a-fA-F-]{36})\\\"").matcher(payload);
+        return matcher.find() ? matcher.group(1) : "";
     }
 
     public boolean verifyOfflinePresentation(final String conferenceUuid, final String ticketUuid, final String credentialUuid,
-            final long expiresAt, final String signature, final long scannedAt, final long bundleIssuedAt, final long bundleExpiresAt) {
+            final long expiresAt, final String signature, final long scannedAt, final long bundleIssuedAt,
+            final long bundleExpiresAt, final String bundledPublicKeyJwk) {
         final long now = Instant.now().getEpochSecond();
         if (scannedAt > now + 300 || scannedAt < bundleIssuedAt || scannedAt > bundleExpiresAt
                 || bundleExpiresAt - bundleIssuedAt > Duration.ofHours(24).getSeconds()
@@ -175,10 +185,9 @@ public final class TicketDeviceUseCase {
         final Ticket ticket = tickets.findByUuid(ticketUuid).filter(t -> conferenceUuid.equals(t.getConferenceUuid()))
                 .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
         if (!ticket.isDeviceProtected()) return false;
-        final TicketDeviceCredential credential = devices.findActiveCredential(credentialUuid, ticketUuid)
-                .orElseThrow(() -> new IllegalArgumentException("ticket_device_not_authorized"));
+        if (bundledPublicKeyJwk == null || !TicketDeviceCrypto.validPublicJwk(bundledPublicKeyJwk)) return false;
         final String payload = "insightbloom-ticket-v1|" + ticketUuid + "|" + credentialUuid + "|" + expiresAt;
-        return TicketDeviceCrypto.verify(credential.publicKeyJwk(), payload, signature);
+        return TicketDeviceCrypto.verify(bundledPublicKeyJwk, payload, signature);
     }
 
     private Ticket ownedTicket(final String conferenceUuid, final String ticketUuid) {

@@ -18,7 +18,7 @@ public class SqliteTicketRepository implements TicketRepository {
     @Override public void insert(final Ticket t) {
         final String sql = "INSERT INTO tickets (uuid, conference_uuid, ticket_code, issued_by_user_uuid, recipient_email, seat_uuid, operational, status, claimed_by_user_uuid, issued_at, claimed_at, checked_in_at, revoked_by_user_uuid, revoked_at, device_max_devices, device_enrollment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, t.getUuid()); ps.setString(2, t.getConferenceUuid()); ps.setString(3, t.getTicketCode());
+            ps.setString(1, t.getUuid()); ps.setString(2, t.getConferenceUuid()); ps.setString(3, t.storedTicketCode());
             ps.setString(4, t.getIssuedByUserUuid()); ps.setString(5, t.getRecipientEmail()); ps.setString(6, t.getSeatUuid());
             ps.setBoolean(7, t.isOperational()); ps.setString(8, t.getStatus().name()); ps.setString(9, t.getClaimedByUserUuid());
             ps.setString(10, t.getIssuedAt().toString()); ps.setString(11, t.getClaimedAt() == null ? null : t.getClaimedAt().toString());
@@ -82,15 +82,22 @@ public class SqliteTicketRepository implements TicketRepository {
 
     @Override public boolean revoke(final String uuid, final String revokedByUserUuid, final String revokedAt) {
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(
-                "UPDATE tickets SET status = 'REVOKED', revoked_by_user_uuid = ?, revoked_at = ? WHERE uuid = ? AND status IN ('ISSUED', 'CLAIMED')")) {
+                "UPDATE tickets SET status = 'REVOKED', revoked_by_user_uuid = ?, revoked_at = ? WHERE uuid = ? AND status IN ('PENDING_SIGNATURE', 'ISSUED', 'CLAIMED')")) {
             ps.setString(1, revokedByUserUuid); ps.setString(2, revokedAt); ps.setString(3, uuid);
             return ps.executeUpdate() == 1;
         } catch (SQLException e) { throw new RuntimeException(e); }
     }
 
+    @Override public boolean finalizeSignature(final String uuid) {
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(
+                "UPDATE tickets SET status='ISSUED' WHERE uuid=? AND status='PENDING_SIGNATURE' AND EXISTS(SELECT 1 FROM organizer_ticket_signatures s WHERE s.ticket_uuid=tickets.uuid AND s.conference_uuid=tickets.conference_uuid)")) {
+            ps.setString(1, uuid); return ps.executeUpdate() == 1;
+        } catch (SQLException e) { throw new IllegalStateException("ticket_signature_finalize_failed", e); }
+    }
+
     @Override public void expireByConference(final String conferenceUuid, final String expiredAt) {
         try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(
-                "UPDATE tickets SET status = 'EXPIRED' WHERE conference_uuid = ? AND status IN ('ISSUED', 'CLAIMED')")) {
+                "UPDATE tickets SET status = 'EXPIRED' WHERE conference_uuid = ? AND status IN ('PENDING_SIGNATURE', 'ISSUED', 'CLAIMED')")) {
             ps.setString(1, conferenceUuid); ps.executeUpdate();
         } catch (SQLException e) { throw new RuntimeException(e); }
     }

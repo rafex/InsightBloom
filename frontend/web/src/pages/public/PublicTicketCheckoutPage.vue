@@ -34,6 +34,9 @@
             .total
               small Total
               strong {{ isFree ? `0.00 ${event.ticketCurrency || 'MXN'}` : formattedPrice }}
+            .signature-pending(v-if="pendingSignature" role="status" aria-live="polite")
+              strong Solicitud recibida
+              p El organizador debe firmar tu boleto para habilitarlo. No se ha emitido ni enviado un QR todavía; recibirás el boleto cuando termine ese paso.
             .device-choice(v-if="!success && isFree && isAuthenticated")
               label(for="ticket-device-count") Dispositivos autorizados
               select#ticket-device-count(v-model.number="maxDevices" aria-label="Cantidad de dispositivos autorizados")
@@ -50,6 +53,7 @@
               BaseButton.checkout-action(v-else-if="isFree && event.ticketPurchaseEnabled" type="button" :loading="submitting" @click="confirmFreeTicket") Confirmar boleto
               span.checkout-closed(v-else-if="!event.ticketPurchaseEnabled") La adquisición de boletos no está disponible para este evento.
               BaseButton.checkout-action(v-else type="button" disabled) Pago próximamente
+            BaseLink.checkout-action(v-else-if="pendingSignature" :to="`/events/${event.friendlyId}`") Volver al evento
             BaseLink.checkout-action(v-else variant="success" :to="`/c/${event.friendlyId}`") Entrar al evento
           FeedbackMessage.checkout-feedback(v-if="actionError" :message="actionError" tone="error")
       //- Sin formulario de tarjeta falso: campos de pago deshabilitados hacen dudar ("¿tengo
@@ -93,6 +97,7 @@ export default {
     const actionError = ref('')
     const submitting = ref(false)
     const success = ref(false)
+    const pendingSignature = ref(false)
     const maxDevices = ref(1)
     const isAuthenticated = computed(() => auth.isAuthenticated() && auth.state.role !== 'guest')
     const isFree = computed(() => Number(event.value?.ticketPrice || 0) === 0)
@@ -116,7 +121,10 @@ export default {
       actionError.value = ''
       try {
         const ticket = await requestPublicTicket(event.value.friendlyId, auth.state.token, { maxDevices: maxDevices.value, enrollmentMethod: 'EMAIL_OTP' })
-        if (ticket.deviceMaxDevices && ticket.deviceMaxDevices > 0) {
+        if (ticket.status === 'PENDING_SIGNATURE') {
+          pendingSignature.value = true
+          success.value = true
+        } else if (ticket.deviceMaxDevices && ticket.deviceMaxDevices > 0) {
           if (ticket.status === 'CLAIMED' || ticket.status === 'CHECKED_IN') {
             await router.push(`/c/${encodeURIComponent(event.value.friendlyId)}/ticket`)
           } else await router.push({ path: '/ticket-enroll', query: { event: ticket.conferenceUuid, ticketCode: ticket.ticketCode } })
@@ -138,7 +146,7 @@ export default {
       }
     }
 
-    return { event, loading, error, actionError, submitting, success, maxDevices, isAuthenticated, isFree, formattedPrice, confirmFreeTicket }
+    return { event, loading, error, actionError, submitting, success, pendingSignature, maxDevices, isAuthenticated, isFree, formattedPrice, confirmFreeTicket }
   }
 }
 </script>
@@ -165,6 +173,7 @@ export default {
 .payment-panel { min-width: 0; }.payment-modal { max-width: 450px; border-radius: 26px; padding: 20px; }.payment-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; color: var(--color-heading); font-size: 18px; font-weight: 800; }.payment-heading small { color: var(--color-warning); font-size: 11px; }.payment-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }.payment-options button { height: 50px; border: 0; border-radius: 11px; background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 11px; font-weight: 700; }.separator { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin: 10px 0 18px; color: var(--color-text-muted); }.separator span { height: 1px; background: var(--color-border-subtle); }.separator p { margin: 0; font-size: 11px; font-weight: 600; }.payment-fields { display: flex; flex-direction: column; gap: 6px; }.payment-fields label, .split-fields label { color: var(--color-text-muted); font-size: 10px; font-weight: 700; }.payment-fields .input-field { height: 40px; margin-bottom: 8px; }.split-fields { display: grid; grid-template-columns: 4fr 2fr; gap: 15px; }.split-fields > div { display: flex; flex-direction: column; gap: 6px; }.payment-note, .free-panel p { color: var(--color-text-muted); font-size: 12px; line-height: 1.5; }.payment-note { margin: 8px 0 0; }
 .free-panel { min-height: 220px; border-radius: 20px; padding: 30px; }.free-panel-icon { display: grid; place-items: center; width: 62px; height: 62px; margin-bottom: 16px; border-radius: 12px; background: var(--color-primary-soft); font-size: 30px; }.free-panel h2 { margin: 0; color: var(--color-heading); }.free-panel p { margin: 10px 0 20px; }.security-note { padding: 12px; border-radius: 9px; background: var(--color-success-soft); color: var(--color-success); font-size: 12px; font-weight: 700; }
 .state { max-width: 980px; margin: 50px auto; padding: 30px; color: var(--color-text-muted); }.state-error { max-width: 980px; margin: 50px auto; padding: 30px; color: var(--color-danger-dark); }.checkout-feedback { margin: 0; padding: 0 16px 13px; color: var(--color-danger-dark); font-size: 12px; font-weight: 700; }
+.signature-pending { margin: 12px 0; padding: 14px; border: 1px solid var(--color-warning, #d99a00); border-radius: 10px; background: var(--color-warning-soft, #fff8e6); }.signature-pending p { margin: 6px 0 0; }
 @media (max-width: 760px) { .checkout-main { padding: 28px 16px 55px; }.checkout-layout { grid-template-columns: 1fr; }.payment-modal { max-width: none; }.master-container { max-width: 440px; } }
 @media (max-width: 430px) { .product { grid-template-columns: 52px minmax(0, 1fr) 28px; }.product-art { width: 52px; height: 52px; }.product-price { grid-column: 2 / -1; grid-row: 2; text-align: right; }.checkout-footer { align-items: stretch; flex-direction: column; padding: 14px; }.checkout-action { width: 100%; }.coupon-form { grid-template-columns: 1fr; } }
 </style>

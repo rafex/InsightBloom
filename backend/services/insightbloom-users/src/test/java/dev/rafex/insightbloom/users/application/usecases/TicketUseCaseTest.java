@@ -146,7 +146,7 @@ class TicketUseCaseTest {
     }
 
     @Test
-    void sendsTicketQrAsInlineMimeAttachment() {
+    void withholdsTicketQrUntilOrganizerSignatureIsFinalized() {
         final ConferenceRepository conferences = mock(ConferenceRepository.class);
         final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
         final TicketRepository tickets = mock(TicketRepository.class);
@@ -161,7 +161,17 @@ class TicketUseCaseTest {
                 mock(ConferenceMembershipRepository.class), email, "https://frontend.test",
                 mock(ReservationRepository.class));
 
-        useCase.issue(conference.getUuid(), "moderator", "attendee@example.test", null);
+        final Ticket pending = useCase.issue(conference.getUuid(), "moderator", "attendee@example.test", null);
+        assertEquals(dev.rafex.insightbloom.users.domain.model.TicketStatus.PENDING_SIGNATURE, pending.getStatus());
+        assertNull(pending.getTicketCode());
+        verifyNoInteractions(email);
+        final Ticket issued = new Ticket(pending.getUuid(), pending.getConferenceUuid(), pending.storedTicketCode(),
+                pending.getIssuedByUserUuid(), pending.getRecipientEmail(), pending.getSeatUuid(),
+                dev.rafex.insightbloom.users.domain.model.TicketStatus.ISSUED, null, pending.getIssuedAt(), null, null,
+                null, null, false, pending.getDeviceMaxDevices(), pending.getDeviceEnrollmentMethod());
+        when(tickets.findByUuid(pending.getUuid())).thenReturn(Optional.of(pending), Optional.of(issued));
+        when(tickets.finalizeSignature(pending.getUuid())).thenReturn(true);
+        useCase.finalizeTicketAfterOrganizerSignature(conference.getUuid(), pending.getUuid());
 
         final ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
         final ArgumentCaptor<List<EmailPort.EmailAttachment>> attachments = ArgumentCaptor.forClass(List.class);

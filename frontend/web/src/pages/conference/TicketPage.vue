@@ -32,7 +32,9 @@
             .t-perforation
               .t-perf-line
           .t-stub
-            .t-qr-container
+            .t-qr-container(v-if="ticket.status === 'PENDING_SIGNATURE'" role="status")
+              p El organizador está firmando tu boleto. El QR aparecerá cuando termine.
+            .t-qr-container(v-else)
               TicketQr(:ticket-code="displayQrCode" :ticket-url="isProtectedTicket ? '' : ticketUrl" :show-code="false")
               span.t-qr-caption(v-if="isProtectedTicket") Código rotativo · se actualiza cada 30 segundos
               span.t-qr-caption(v-else) Escanea para abrir tu acceso
@@ -48,12 +50,16 @@
               span.t-admit-text Estado
               StatusBadge.t-admit-num(:status="ticket.status" :label="ticketStatusLabel" :tone="ticketStatusTone")
               span.t-admit-hint(v-if="ticket.status === 'CHECKED_IN'") Acceso registrado
+              span.t-admit-hint(v-else-if="ticket.status === 'PENDING_SIGNATURE'") En espera de firma
               span.t-admit-hint(v-else) Presenta este boleto en la entrada
           .ticket-manual
-            template(v-if="isProtectedTicket")
+            template(v-if="ticket.status === 'PENDING_SIGNATURE'")
+              span El boleto aún no está disponible
+              small Espera a que el organizador complete la firma. No compartas un código provisional.
+            template(v-else-if="isProtectedTicket")
               span Acceso vinculado a dispositivos autorizados
               small El UUID no sirve para entrar. Para registrar un reemplazo, verifica el correo asociado.
-              BaseButton(v-if="!hasLocalDeviceKey" size="sm" type="button" @click="startDeviceRecovery") {{ ticket.deviceEnrollmentMethod === 'ONE_TIME_LINK' ? 'Registrar dispositivo con enlace seguro' : 'Registrar este dispositivo con OTP' }}
+              BaseButton(v-if="ticket.status !== 'PENDING_SIGNATURE' && !hasLocalDeviceKey" size="sm" type="button" @click="startDeviceRecovery") {{ ticket.deviceEnrollmentMethod === 'ONE_TIME_LINK' ? 'Registrar dispositivo con enlace seguro' : 'Registrar este dispositivo con OTP' }}
             template(v-else)
               span Código manual / UUID del boleto
               code {{ ticket.ticketCode }}
@@ -61,6 +67,7 @@
               small Boleto legado: su QR no está vinculado a una clave de dispositivo. Pide al organizador que lo reemita para protegerlo.
     p.ticket-status(:class="{ checked: ticket.status === 'CHECKED_IN' }")
       span(v-if="ticket.status === 'CHECKED_IN'") ✅ Ya ingresaste al evento
+      span(v-else-if="ticket.status === 'PENDING_SIGNATURE'") ⏳ Tu boleto está pendiente de firma. El QR se habilitará al finalizar.
       span(v-else) 🎫 Boleto reservado — muestra este QR en la entrada
     FeedbackMessage.ticket-error(v-if="error" :message="error" tone="error")
 
@@ -141,13 +148,13 @@ export default {
     const activeDeviceCount = computed(() => devices.value.filter(d => d.active).length)
     const localCredentialUuid = ref('')
     const isProtectedTicket = computed(() => !!ticket.value && 'deviceMaxDevices' in ticket.value && Number(ticket.value.deviceMaxDevices) > 0)
-    const displayQrCode = computed(() => isProtectedTicket.value ? presentation.value : (ticket.value?.ticketCode || ''))
+    const displayQrCode = computed(() => ticket.value?.status === 'PENDING_SIGNATURE' ? '' : (isProtectedTicket.value ? presentation.value : (ticket.value?.ticketCode || '')))
     const videoEl = ref<HTMLVideoElement | null>(null)
     let scanner: QrScanner | null = null
     let presentationTimer: number | undefined
 
     async function refreshPresentation() {
-      if (!isProtectedTicket.value || !ticket.value || !auth.state.token) return
+      if (!isProtectedTicket.value || !ticket.value || ticket.value.status === 'PENDING_SIGNATURE' || !auth.state.token) return
       try {
         const enrolled = await getTicketDevices(props.conferenceId as string, ticket.value.uuid, auth.state.token)
         devices.value = enrolled.devices
@@ -173,6 +180,7 @@ export default {
           return
         } catch { error.value = 'No se pudo crear un enlace seguro para este dispositivo.'; return }
       }
+      if (!ticket.value.ticketCode) { error.value = 'El boleto todavía espera la firma del organizador.'; return }
       location.assign(`/ticket-enroll?event=${encodeURIComponent(props.conferenceId || '')}&ticketCode=${encodeURIComponent(ticket.value.ticketCode)}`)
     }
 
@@ -193,7 +201,7 @@ export default {
     const eventFriendlyId = String(route.params.friendlyId || '')
     const eventModeLabel = ref('Acceso general')
     const ticketUrl = computed(() => {
-      if (!ticket.value || !eventFriendlyId) return ''
+      if (!ticket.value || !ticket.value.ticketCode || !eventFriendlyId) return ''
       return `${window.location.origin}/c/${encodeURIComponent(eventFriendlyId)}/ticket?t=${encodeURIComponent(ticket.value.ticketCode)}`
     })
     const eventSubtitle = computed(() => {
@@ -207,8 +215,8 @@ export default {
       return 'Asistente registrado'
     })
     // El backend conserva CHECKED_IN/ISSUED; la tarjeta usa etiquetas de UI legibles.
-    const ticketStatusLabel = computed(() => ticket.value?.status === 'CHECKED_IN' ? 'Listo' : 'Reservado')
-    const ticketStatusTone = computed(() => ticket.value?.status === 'CHECKED_IN' ? 'success' : 'info')
+    const ticketStatusLabel = computed(() => ticket.value?.status === 'PENDING_SIGNATURE' ? 'Pendiente de firma' : ticket.value?.status === 'CHECKED_IN' ? 'Listo' : 'Reservado')
+    const ticketStatusTone = computed(() => ticket.value?.status === 'PENDING_SIGNATURE' ? 'warning' : ticket.value?.status === 'CHECKED_IN' ? 'success' : 'info')
 
     async function load() {
       if (!props.conferenceId || !props.ticketed) {

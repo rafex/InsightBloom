@@ -46,6 +46,7 @@ public class TicketUseCase {
     private final String frontendBaseUrl;
     private final TimezoneRepository timezoneRepository;
     private final UserRepository userRepository;
+    private OrganizerTicketSignatureUseCase organizerTicketSignatures;
 
     public TicketUseCase(final ConferenceRepository conferenceRepository, final EventTypeRepository eventTypeRepository,
                          final TicketRepository ticketRepository, final ConferenceMembershipRepository membershipRepository,
@@ -79,6 +80,15 @@ public class TicketUseCase {
         this.userRepository = userRepository;
     }
 
+    public void configureOrganizerTicketSignatures(final OrganizerTicketSignatureUseCase useCase) {
+        this.organizerTicketSignatures = useCase;
+    }
+
+    public OrganizerTicketSignatureUseCase organizerTicketSignatures() {
+        if (organizerTicketSignatures == null) throw new IllegalStateException("organizer_ticket_signing_not_configured");
+        return organizerTicketSignatures;
+    }
+
     public Ticket issue(final String conferenceUuid, final String issuerUuid, final String recipientEmail,
                         final String seatUuid) {
         return issue(conferenceUuid, issuerUuid, recipientEmail, seatUuid, 0, "LEGACY");
@@ -105,14 +115,26 @@ public class TicketUseCase {
         final boolean counted = conference.getCapacity() != null;
         if (counted && !conferenceRepository.tryIncrementReservedCount(conferenceUuid)) throw new IllegalStateException("capacity_exceeded");
         final Ticket ticket = new Ticket(conferenceUuid, issuerUuid, blankToNull(recipientEmail), blankToNull(seatUuid), maxDevices, enrollmentMethod);
+        ticket.markPendingSignature();
         try {
             ticketRepository.insert(ticket);
+            if (organizerTicketSignatures != null) organizerTicketSignatures.invalidateOfflinePackage(conferenceUuid);
         } catch (RuntimeException e) {
             if (counted) conferenceRepository.decrementReservedCount(conferenceUuid);
             throw e;
         }
-        sendEmail(conference, ticket);
         return ticket;
+    }
+
+    public Ticket finalizeTicketAfterOrganizerSignature(final String conferenceUuid, final String ticketUuid) {
+        final Ticket ticket = ticketRepository.findByUuid(ticketUuid)
+                .filter(t -> conferenceUuid.equals(t.getConferenceUuid()))
+                .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
+        if (ticket.getStatus() != TicketStatus.PENDING_SIGNATURE) return ticket;
+        if (!ticketRepository.finalizeSignature(ticketUuid)) return ticketRepository.findByUuid(ticketUuid).orElse(ticket);
+        final Ticket finalized = ticketRepository.findByUuid(ticketUuid).orElseThrow();
+        sendEmail(conference(conferenceUuid), finalized);
+        return finalized;
     }
 
     /**
@@ -372,6 +394,7 @@ public class TicketUseCase {
         if (ticket.getStatus().name().equals("EXPIRED")) throw new IllegalStateException("ticket_expired");
         if (ticket.getStatus().name().equals("ISSUED")) throw new IllegalStateException("ticket_not_claimed");
         if (!ticketRepository.checkIn(ticket.getUuid(), Instant.now().toString())) throw new IllegalStateException("already_checked_in");
+        if (organizerTicketSignatures != null) organizerTicketSignatures.invalidateOfflinePackage(conferenceUuid);
         return ticketRepository.findByUuid(ticket.getUuid()).orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
     }
 
@@ -385,6 +408,7 @@ public class TicketUseCase {
         if (!ticketRepository.revoke(ticketUuid, revokedByUserUuid, Instant.now().toString())) {
             throw new IllegalStateException("ticket_already_used");
         }
+        if (organizerTicketSignatures != null) organizerTicketSignatures.invalidateOfflinePackage(conferenceUuid);
         if (conference.getCapacity() != null) {
             conferenceRepository.decrementReservedCount(conferenceUuid);
         }
@@ -548,6 +572,7 @@ public class TicketUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
         if (ticket.getStatus() == TicketStatus.REVOKED) throw new IllegalStateException("ticket_revoked");
         if (ticket.getStatus() == TicketStatus.EXPIRED) throw new IllegalStateException("ticket_expired");
+        if (ticket.getStatus() == TicketStatus.PENDING_SIGNATURE) throw new IllegalStateException("ticket_signature_pending");
         if (!emailPort.isEnabled()) throw new IllegalStateException("email_provider_not_configured");
         final String email = resolveEmail(ticket);
         if (email == null) throw new IllegalStateException("no_email_available");
@@ -566,7 +591,8 @@ public class TicketUseCase {
         int sent = 0;
         int skipped = 0;
         for (final Ticket ticket : ticketRepository.findByConference(conferenceUuid)) {
-            if (ticket.getStatus() == TicketStatus.REVOKED || ticket.getStatus() == TicketStatus.EXPIRED) {
+            if (ticket.getStatus() == TicketStatus.REVOKED || ticket.getStatus() == TicketStatus.EXPIRED
+                    || ticket.getStatus() == TicketStatus.PENDING_SIGNATURE) {
                 skipped++;
                 continue;
             }

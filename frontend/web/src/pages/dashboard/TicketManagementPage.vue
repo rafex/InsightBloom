@@ -57,7 +57,8 @@
       h4 {{ group.label }} ({{ group.tickets.length }})
       .ticket-row(v-for="ticket in group.tickets" :key="ticket.uuid")
         .ticket-main
-          strong(v-if="!ticket.deviceMaxDevices") {{ ticket.ticketCode }}
+          strong(v-if="ticket.status === 'PENDING_SIGNATURE'") En espera de la firma del organizador
+          strong(v-else-if="!ticket.deviceMaxDevices") {{ ticket.ticketCode }}
           strong(v-else) Boleto protegido · {{ ticket.deviceMaxDevices }} dispositivo(s)
           StatusBadge(v-if="!ticket.operational" :status="ticket.status" :label="formatTicketStatusLabel(ticket.status)")
           StatusBadge(v-if="ticket.operational" status="ACTIVE" label="Operativo · no revocable")
@@ -70,16 +71,16 @@
             span.audit-actor(:title="actorUuid(ticket.revokedByUserUuid)") {{ actorLabel(ticket.revokedByUserUuid) }}
             |  · {{ formatAuditDate(ticket.revokedAt) }}
         .row-actions
-          BaseButton.icon-btn(v-if="!ticket.deviceMaxDevices" variant="ghost" size="sm" type="button" title="Ver código QR" aria-label="Ver código QR" @click="showQr(ticket)")
+          BaseButton.icon-btn(v-if="ticket.status !== 'PENDING_SIGNATURE' && !ticket.deviceMaxDevices" variant="ghost" size="sm" type="button" title="Ver código QR" aria-label="Ver código QR" @click="showQr(ticket)")
             UiIcon(name="qr" size="16" aria-hidden="true")
-          BaseButton.icon-btn(v-if="!ticket.deviceMaxDevices" variant="ghost" size="sm" type="button" title="Copiar UUID" aria-label="Copiar UUID" @click="copy(ticket.ticketCode)")
+          BaseButton.icon-btn(v-if="ticket.status !== 'PENDING_SIGNATURE' && !ticket.deviceMaxDevices" variant="ghost" size="sm" type="button" title="Copiar UUID" aria-label="Copiar UUID" @click="copy(ticket.ticketCode || '')")
             UiIcon(name="copy" size="16" aria-hidden="true")
-          BaseButton.icon-btn(variant="ghost" size="sm" type="button" title="Copiar URL para compartir" aria-label="Copiar URL para compartir" @click="copyUrl(ticket)")
+          BaseButton.icon-btn(v-if="ticket.status !== 'PENDING_SIGNATURE'" variant="ghost" size="sm" type="button" title="Copiar URL para compartir" aria-label="Copiar URL para compartir" @click="copyUrl(ticket)")
             UiIcon(name="link" size="16" aria-hidden="true")
-          BaseButton.icon-btn(v-if="ticket.deviceMaxDevices" variant="ghost" size="sm" type="button" title="Crear enlace de activación seguro" aria-label="Crear enlace de activación seguro" @click="shareActivation(ticket)")
+          BaseButton.icon-btn(v-if="ticket.status !== 'PENDING_SIGNATURE' && ticket.deviceMaxDevices" variant="ghost" size="sm" type="button" title="Crear enlace de activación seguro" aria-label="Crear enlace de activación seguro" @click="shareActivation(ticket)")
             UiIcon(name="send" size="16" aria-hidden="true")
           BaseButton.icon-btn(
-            v-if="(ticket.claimedByUserUuid || ticket.recipientEmail) && (!ticket.deviceMaxDevices || ticket.deviceEnrollmentMethod === 'EMAIL_OTP')"
+            v-if="ticket.status !== 'PENDING_SIGNATURE' && (ticket.claimedByUserUuid || ticket.recipientEmail) && (!ticket.deviceMaxDevices || ticket.deviceEnrollmentMethod === 'EMAIL_OTP')"
             variant="ghost" size="sm" type="button"
             title="Reenviar por correo" aria-label="Reenviar por correo"
             :loading="resendingUuid === ticket.uuid" :disabled="resendingUuid === ticket.uuid"
@@ -174,9 +175,7 @@ export default {
         await load()
         recipientEmail.value = ''
         seatUuid.value = ''
-        feedback.value = ticket.deviceMaxDevices
-          ? 'Boleto protegido emitido. Comparte el enlace de activación con el destinatario.'
-          : `Boleto emitido: ${ticket.ticketCode}`
+        feedback.value = 'Solicitud de boleto creada. El organizador debe firmarla antes de que se entregue el QR.'
       } catch (e: any) {
         feedbackError.value = true
         const apiError = e.response?.data?.error || {}
@@ -198,7 +197,10 @@ export default {
         const issued = await issueTicketBatch(props.conferenceId, batchQuantity.value, auth.state.token,
           { maxDevices: maxDevices.value, enrollmentMethod: 'ONE_TIME_LINK' })
         await load()
-        feedback.value = `${issued.length} boletos emitidos.`
+        const pending = issued.filter(ticket => ticket.status === 'PENDING_SIGNATURE').length
+        feedback.value = pending
+          ? `${issued.length} solicitudes creadas; ${pending} boleto(s) esperan la firma del organizador antes de entregarse.`
+          : `${issued.length} boletos emitidos.`
       } catch (e: any) {
         feedbackError.value = true
         const apiError = e.response?.data?.error || {}
@@ -227,6 +229,9 @@ export default {
     function showQr(ticket: Ticket) { selectedTicket.value = ticket }
 
     async function share(ticket: Ticket) {
+      if (!ticket.ticketCode || ticket.status === 'PENDING_SIGNATURE') {
+        feedback.value = 'Este boleto aún no puede compartirse: espera la firma del organizador.'; feedbackError.value = true; return
+      }
       const url = ticketUrl(ticket)
       if (navigator.share) await navigator.share({ title: 'Boleto del evento', text: ticket.ticketCode, url })
       else await navigator.clipboard?.writeText(url)
@@ -234,6 +239,7 @@ export default {
     }
 
     function ticketUrl(ticket: Ticket) {
+      if (!ticket.ticketCode || ticket.status === 'PENDING_SIGNATURE') return ''
       const friendlyId = conferenceFriendlyId.value || props.conferenceId || ''
       if (ticket.deviceMaxDevices && ticket.deviceEnrollmentMethod === 'EMAIL_OTP') {
         return `${location.origin}/ticket-enroll?event=${encodeURIComponent(props.conferenceId || '')}&ticketCode=${encodeURIComponent(ticket.ticketCode)}`
@@ -242,7 +248,7 @@ export default {
     }
 
     async function shareActivation(ticket: Ticket) {
-      if (!props.conferenceId || !auth.state.token) return
+      if (!props.conferenceId || !auth.state.token || ticket.status === 'PENDING_SIGNATURE') return
       try {
         let url = ticketUrl(ticket)
         if (ticket.deviceEnrollmentMethod === 'ONE_TIME_LINK') {
@@ -363,6 +369,7 @@ export default {
     const operationalTickets = computed(() => tickets.value.filter(ticket => Boolean(ticket.operational)))
     const statusMetrics = computed(() => [
       { key: 'operational', label: 'Operativos', description: 'Creador y personal asignado; no revocables.', count: operationalTickets.value.length },
+      { key: 'pending-signature', label: 'Pendientes de firma', description: 'No se entregan al asistente hasta que el organizador los firme.', count: normalTickets('PENDING_SIGNATURE').length },
       { key: 'issued', label: 'Emitidos', description: 'Emitidos y todavía sin reclamar.', count: normalTickets('ISSUED').length },
       { key: 'claimed', label: 'Reclamados', description: 'Reclamados por un usuario.', count: normalTickets('CLAIMED').length },
       { key: 'checked-in', label: 'Registrados en check-in', description: 'Usuarios registrados en check-in.', count: normalTickets('CHECKED_IN').length },
@@ -371,6 +378,7 @@ export default {
     ])
     const ticketGroups = computed(() => [
       { key: 'operational', label: 'Boletos operativos', tickets: operationalTickets.value },
+      { key: 'PENDING_SIGNATURE', label: 'Pendientes de firma del organizador', tickets: normalTickets('PENDING_SIGNATURE') },
       { key: 'ISSUED', label: 'Emitidos · sin reclamar', tickets: normalTickets('ISSUED') },
       { key: 'CLAIMED', label: 'Reclamados', tickets: normalTickets('CLAIMED') },
       { key: 'CHECKED_IN', label: 'Registrados en check-in', tickets: normalTickets('CHECKED_IN') },

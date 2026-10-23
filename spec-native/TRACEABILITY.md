@@ -40,6 +40,8 @@ Vínculos entre artefactos: specs, tareas, decisiones, archivos y validación.
 | DEC-0035 | decision | SPEC-IDE-PUBLICATION-SEPARATION, backend/services/insightbloom-ide-publisher, backend/services/insightbloom-ide-runtime, InsightBloom-gitops | Ownership independiente de publicación IDE (accepted) |
 | SPEC-TICKET-DEVICE-BINDING | spec | backend/services/insightbloom-users, frontend/web, DEC-0042 | Credencial criptográfica accountless por boleto y validación offline (active) |
 | DEC-0042 | decision | SPEC-TICKET-DEVICE-BINDING, backend/services/insightbloom-users, frontend/web | Huella auxiliar; prueba de posesión mediante clave por boleto (accepted) |
+| SPEC-TICKET-ORG-SIGN-0001 | spec | DEC-0043, backend/services/insightbloom-users, frontend/web, InsightBloom-gitops | Firma por organizador de boletos y paquetes offline (active) |
+| DEC-0043 | decision | SPEC-TICKET-ORG-SIGN-0001, backend/services/insightbloom-users, frontend/web | Firma Ed25519 por evento; clave privada local del dueño y pública en plataforma (accepted) |
 | SPEC-OTP-REQUEST-AUDIT | spec | DEC-0039, backend/services/insightbloom-users | Registro interno, retención 30 días y consulta estrictamente admin de solicitudes OTP |
 | SPEC-BETA-ORGANIZER-INVITATIONS | spec | tasks/beta-organizer-invitations/TASKS.md, ROLES.md, backend/services/insightbloom-users, frontend/web | Invitaciones email-bound y gate manual de recomendaciones beta |
 | DEC-0039 | decision | SPEC-OTP-REQUEST-AUDIT, backend/services/insightbloom-users | Trazabilidad OTP sin enumeración de cuentas (accepted) |

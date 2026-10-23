@@ -1,3 +1,5 @@
+import { getCoseKeyId, verifyCosePayload } from '@/utils/ticketOrganizerCrypto'
+
 const DB_NAME = 'insightbloom-ticket-devices'
 const STORE = 'credentials'
 
@@ -57,7 +59,7 @@ export async function createTicketPresentation(ticketUuid: string, credentialUui
   return JSON.stringify({ v: 1, ticketUuid, credentialUuid, expiresAt, signature: base64Url(signature) })
 }
 
-export interface OfflineTicketBundle { payload: string, signature: string, publicKey: string, expiresAt: string }
+export interface OfflineTicketBundle { payload: string, coseSign1: string, keyId: string, publicKeySpki: string, expiresAt: string }
 export interface OfflineTicketScan { scanUuid: string, conferenceUuid?: string, ticketUuid: string, credentialUuid: string, expiresAt: number, signature: string, scannedAt: number }
 
 function decodeBase64Url(value: string): ArrayBuffer {
@@ -67,13 +69,14 @@ function decodeBase64Url(value: string): ArrayBuffer {
 }
 
 export async function verifyOfflineTicketBundle(bundle: OfflineTicketBundle, conferenceUuid: string, requireFresh = true): Promise<any> {
-  const serverKey = await crypto.subtle.importKey('spki', decodeBase64Url(bundle.publicKey.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')),
-    { name: 'Ed25519' }, false, ['verify'])
-  const bundleVerified = await crypto.subtle.verify({ name: 'Ed25519' }, serverKey, decodeBase64Url(bundle.signature), new TextEncoder().encode(bundle.payload))
-  if (!bundleVerified) throw new Error('offline_bundle_signature_invalid')
+  const signedPackage = await verifyCosePayload(bundle.coseSign1, bundle.publicKeySpki, new TextEncoder().encode(bundle.payload))
+  if (signedPackage.keyId !== bundle.keyId) throw new Error('offline_bundle_key_mismatch')
   const data = JSON.parse(bundle.payload)
   const now = Math.floor(Date.now() / 1000)
-  if (data.version !== 1 || data.conferenceUuid !== conferenceUuid || (requireFresh && data.expiresAt <= now)) throw new Error('offline_bundle_expired')
+  if (data.version !== 2 || data.conferenceUuid !== conferenceUuid || data.keyId !== bundle.keyId
+      || data.organizerPublicKeySpki !== bundle.publicKeySpki || data.expiresAt <= data.issuedAt
+      || data.expiresAt - data.issuedAt > 24 * 60 * 60 || data.issuedAt > now + 60
+      || (requireFresh && data.expiresAt <= now)) throw new Error('offline_bundle_expired')
   return data
 }
 
@@ -82,6 +85,16 @@ export async function verifyOfflineTicketScan(bundle: OfflineTicketBundle, raw: 
   const now = Math.floor(Date.now() / 1000)
   const presentation = JSON.parse(raw)
   if (presentation.v !== 1 || presentation.expiresAt < now - 10 || presentation.expiresAt > now + 90) throw new Error('ticket_presentation_expired')
+  const ticket = (data.tickets as Array<{ ticketUuid: string, status: string, issuedAt: string, seatUuid: string | null, coseSign1: string | null }>)
+    .find(item => item.ticketUuid === presentation.ticketUuid)
+  if (!ticket || !['ISSUED', 'CLAIMED'].includes(ticket.status) || !ticket.coseSign1) throw new Error('ticket_not_valid_in_offline_bundle')
+  const ticketPayload = new TextEncoder().encode(JSON.stringify({ version: 1, conferenceUuid,
+    ticketUuid: ticket.ticketUuid, ticketType: ticket.seatUuid === null ? 'GENERAL' : 'SEATED',
+    seatUuid: ticket.seatUuid, issuedAt: ticket.issuedAt }))
+  const ticketKeyId = await getCoseKeyId(ticket.coseSign1)
+  const ticketSigningKey = (data.organizerKeys as Array<{ keyId: string, publicKeySpki: string }>).find(key => key.keyId === ticketKeyId)
+  if (!ticketSigningKey) throw new Error('ticket_signing_key_mismatch')
+  await verifyCosePayload(ticket.coseSign1, ticketSigningKey.publicKeySpki, ticketPayload)
   const device = (data.devices as Array<{ ticketUuid: string, credentialUuid: string, publicKeyJwk: JsonWebKey | string }>)
     .find(item => item.ticketUuid === presentation.ticketUuid && item.credentialUuid === presentation.credentialUuid)
   if (!device) throw new Error('ticket_device_not_in_bundle')

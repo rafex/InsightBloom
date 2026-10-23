@@ -15,6 +15,8 @@ tasks/
 │   └── TASKS.md
 ├── ticket-device-binding/ ← credenciales criptográficas por boleto y check-in offline
 │   └── TASKS.md
+├── organizer-ticket-signing/ ← sello del organizador y paquetes de check-in offline
+│   └── TASKS.md
 └── <iniciativa>/
     └── TASKS.md         ← plan de tareas
 ```

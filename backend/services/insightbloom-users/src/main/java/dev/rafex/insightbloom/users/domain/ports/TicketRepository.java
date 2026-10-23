@@ -17,5 +17,6 @@ public interface TicketRepository {
     boolean claim(String uuid, String userUuid, String claimedAt);
     boolean checkIn(String uuid, String checkedInAt);
     boolean revoke(String uuid, String revokedByUserUuid, String revokedAt);
+    boolean finalizeSignature(String uuid);
     void expireByConference(String conferenceUuid, String expiredAt);
 }

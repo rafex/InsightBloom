@@ -99,6 +99,7 @@
         BaseLink(variant="secondary" :to="`/dashboard/events/${conferenceId}/tickets`") Administrar boletos
         BaseLink(variant="secondary" :to="`/dashboard/events/${conferenceId}/check-in`") Ir al check-in
         BaseLink(variant="secondary" v-if="seatingMode === 'SEATED'" :to="`/dashboard/events/${conferenceId}/venue-map`") Editar mapa de asientos
+      OrganizerTicketSigningPanel(v-if="seatingMode !== 'NONE' || eventTypes.find(t => t.key === eventTypeKey)?.capabilities.some(c => c.startsWith('TICKETING_'))" :conference-id="conferenceId")
 
     .form-group.sandbox-group(v-show="activeTab === 'sandbox'")
       label IDE de código
@@ -433,13 +434,14 @@ import ToggleSwitch from '@/components/ui/ToggleSwitch.vue'
 import SaveState from '@/components/ui/SaveState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
+import OrganizerTicketSigningPanel from '@/components/OrganizerTicketSigningPanel.vue'
 
 type LlmCapability = 'chat' | 'tutor' | 'survey' | 'seatLayout' | 'email'
 type LlmEditConfig = { configured: boolean; provider: 'openai' | 'groq' | 'custom'; model: string; baseUrl: string; apiKey: string }
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, ToggleSwitch, SaveState, StatusBadge, UiIcon },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, ToggleSwitch, SaveState, StatusBadge, UiIcon, OrganizerTicketSigningPanel },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()

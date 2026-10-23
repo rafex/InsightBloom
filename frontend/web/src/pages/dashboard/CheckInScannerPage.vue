@@ -199,7 +199,7 @@ export default {
       try {
         const scans = readOfflineTicketQueue().filter(scan => scan.conferenceUuid === props.conferenceId)
         if (!scans.length) return
-        const response = await syncOfflineTicketScans(props.conferenceId, offlineBundle.value.payload, offlineBundle.value.signature, scans, auth.state.token)
+        const response = await syncOfflineTicketScans(props.conferenceId, offlineBundle.value.payload, offlineBundle.value.coseSign1, scans, auth.state.token)
         removeSyncedOfflineTicketScans(response.results.map(item => item.scanUuid))
         offlineQueue.value = readOfflineTicketQueue().filter(scan => scan.conferenceUuid === props.conferenceId)
         const duplicates = response.results.filter(item => item.result === 'duplicate_or_unavailable').length

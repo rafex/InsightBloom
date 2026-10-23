@@ -436,6 +436,64 @@ public class DatabaseManager {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tickets_conference ON tickets(conference_uuid)");
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tickets_claimed_user ON tickets(conference_uuid, claimed_by_user_uuid)");
             stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_ticket_signing_keys (
+                    conference_uuid TEXT NOT NULL,
+                    key_id TEXT NOT NULL,
+                    public_key_spki TEXT NOT NULL,
+                    state TEXT NOT NULL CHECK(state IN ('ACTIVE','REVOKED')),
+                    created_by TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    revoked_at TEXT,
+                    PRIMARY KEY(conference_uuid,key_id)
+                )
+            """);
+            stmt.executeUpdate("CREATE UNIQUE INDEX IF NOT EXISTS idx_organizer_ticket_active_key ON organizer_ticket_signing_keys(conference_uuid) WHERE state='ACTIVE'");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_ticket_signatures (
+                    conference_uuid TEXT NOT NULL,
+                    ticket_uuid TEXT NOT NULL,
+                    key_id TEXT NOT NULL,
+                    cose_sign1 TEXT NOT NULL,
+                    signed_by TEXT NOT NULL,
+                    signed_at TEXT NOT NULL,
+                    PRIMARY KEY(conference_uuid,ticket_uuid),
+                    FOREIGN KEY(conference_uuid,key_id) REFERENCES organizer_ticket_signing_keys(conference_uuid,key_id)
+                )
+            """);
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_ticket_signing_audit (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    conference_uuid TEXT NOT NULL,
+                    key_id TEXT NOT NULL,
+                    ticket_uuid TEXT,
+                    action TEXT NOT NULL,
+                    actor_uuid TEXT NOT NULL,
+                    occurred_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_ticket_offline_packages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    conference_uuid TEXT NOT NULL,
+                    key_id TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    cose_sign1 TEXT NOT NULL,
+                    issued_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    created_by TEXT NOT NULL,
+                    downloadable INTEGER NOT NULL DEFAULT 1,
+                    FOREIGN KEY(conference_uuid,key_id) REFERENCES organizer_ticket_signing_keys(conference_uuid,key_id)
+                )
+            """);
+            stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_organizer_ticket_offline_latest ON organizer_ticket_offline_packages(conference_uuid,downloadable,issued_at DESC)");
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS organizer_ticket_offline_drafts (
+                    conference_uuid TEXT PRIMARY KEY,
+                    payload TEXT NOT NULL,
+                    expires_at TEXT NOT NULL
+                )
+            """);
+            stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS ticket_device_enrollments (
                     uuid TEXT PRIMARY KEY,
                     ticket_uuid TEXT NOT NULL,

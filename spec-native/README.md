@@ -31,6 +31,7 @@
 | Material Bootstrap | [`specs/material-bootstrap/SPEC.md`](./specs/material-bootstrap/SPEC.md) | [`tasks/material-bootstrap/TASKS.md`](./tasks/material-bootstrap/TASKS.md) | active |
 | OTP Request Audit | [`specs/otp-request-audit/SPEC.md`](./specs/otp-request-audit/SPEC.md) | [`tasks/otp-request-audit/TASKS.md`](./tasks/otp-request-audit/TASKS.md) | active |
 | Ticket Device Binding | [`specs/ticket-device-binding/SPEC.md`](./specs/ticket-device-binding/SPEC.md) | [`tasks/ticket-device-binding/TASKS.md`](./tasks/ticket-device-binding/TASKS.md) | active |
+| Organizer Ticket Signing | [`specs/organizer-ticket-signing/SPEC.md`](./specs/organizer-ticket-signing/SPEC.md) | [`tasks/organizer-ticket-signing/TASKS.md`](./tasks/organizer-ticket-signing/TASKS.md) | active |
 
 ## Workflows
 

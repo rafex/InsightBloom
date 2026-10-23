@@ -320,9 +320,50 @@ export async function revokeTicketDevice(conferenceUuid: string, ticketUuid: str
   await axios.post(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/${encodeURIComponent(ticketUuid)}/devices/${encodeURIComponent(credentialUuid)}/revoke`, {}, authHeader(token))
 }
 
-export async function getOfflineTicketBundle(conferenceUuid: string, token: string): Promise<{ payload: string, signature: string, publicKey: string, expiresAt: string }> {
+export async function getOfflineTicketBundle(conferenceUuid: string, token: string): Promise<{ payload: string, coseSign1: string, keyId: string, publicKeySpki: string, expiresAt: string }> {
   const res = await axios.get(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/offline-bundle`, authHeader(token))
   return res.data.data
+}
+
+export async function getOfflineTicketManifest(conferenceUuid: string, token: string): Promise<{
+  payload: string, payloadBase64Url: string, keyId: string, expiresAt: string
+}> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/offline-manifest`, authHeader(token))
+  return res.data.data
+}
+
+export async function submitOfflineTicketBundle(conferenceUuid: string, payload: string, coseSign1: string, token: string): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/offline-bundle`,
+    { payload, coseSign1 }, authHeader(token))
+}
+
+export interface OrganizerTicketKeyStatus { keyId: string, publicKeySpki: string, state: string, createdAt: string }
+export interface PendingTicketSignature { ticketUuid: string, payload: string, payloadBase64Url: string, issuedAt: string }
+
+export async function getOrganizerTicketSigningKey(conferenceUuid: string, token: string): Promise<OrganizerTicketKeyStatus | null> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/signing-key`, authHeader(token))
+  return res.data.data
+}
+
+export async function registerOrganizerTicketSigningKey(conferenceUuid: string, body: {
+  keyId: string, publicKeySpki: string, proof: string
+}, token: string): Promise<OrganizerTicketKeyStatus> {
+  const res = await axios.put(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/signing-key`, body, authHeader(token))
+  return res.data.data
+}
+
+export async function revokeOrganizerTicketSigningKey(conferenceUuid: string, token: string): Promise<void> {
+  await axios.delete(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/signing-key`, authHeader(token))
+}
+
+export async function getPendingTicketSignatures(conferenceUuid: string, token: string): Promise<PendingTicketSignature[]> {
+  const res = await axios.get(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/pending-signatures`, authHeader(token))
+  return res.data.data
+}
+
+export async function submitTicketSignature(conferenceUuid: string, ticketUuid: string, coseSign1: string, token: string): Promise<void> {
+  await axios.post(`/api/users/api/v1/conferences/${encodeURIComponent(conferenceUuid)}/tickets/${encodeURIComponent(ticketUuid)}/signature`,
+    { coseSign1 }, authHeader(token))
 }
 
 export async function syncOfflineTicketScans(conferenceUuid: string, bundlePayload: string, bundleSignature: string, scans: unknown[], token: string): Promise<{ results: Array<{ scanUuid: string, result: string }> }> {

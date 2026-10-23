@@ -1,25 +1,29 @@
-# Provisionar la firma de paquetes offline de check-in
+# Operación de firma de boletos y preparación offline
 
-`GET /{event}/tickets/offline-bundle` solo firma un paquete cuando `insightbloom-users` tiene una pareja Ed25519. Sin esas variables el servicio falla cerrado con `503 offline_signing_not_configured`.
+## Antes de emitir
 
-## Generar una pareja
+1. El dueño abre **Configuración del evento → Acceso → Firma del organizador** desde el navegador donde conservará la clave.
+2. Crea una clave Ed25519 propia para el evento y descarga el respaldo cifrado con contraseña. Guarda el archivo y la contraseña fuera de InsightBloom. La plataforma no puede recuperar la clave.
+3. Restaura ese respaldo en un navegador nuevo solo si hace falta y comprueba que corresponde a la clave pública activa del evento.
+4. Mantén el navegador con la clave desbloqueada y la sesión del organizador disponible mientras se crean boletos. La lista de pendientes se actualiza manualmente con **Actualizar cola**. Firma cada emisión; el QR y el correo solo se habilitan después de verificar la firma.
 
-Ejecuta estos comandos en una estación confiable. Conserva el archivo privado en el gestor de secretos; no lo subas a Git ni lo pegues en tickets o logs.
+## Preparar lectores
 
-```sh
-openssl genpkey -algorithm Ed25519 -out ticket-offline-private.pem
-openssl pkey -in ticket-offline-private.pem -outform DER | base64 | tr -d '\n'
-openssl pkey -in ticket-offline-private.pem -pubout -outform DER | base64 | tr -d '\n'
-```
+1. Cuando ya no haya emisiones pendientes, el dueño selecciona **Firmar paquete para lectores offline**. El paquete contiene el estado conocido de boletos, cancelaciones, claves públicas de organizador y dispositivos vinculados; no contiene datos personales ni claves privadas.
+2. Cada lector autorizado abre el scanner del evento mientras tiene conexión y selecciona **Preparar lector sin conexión**. El lector verifica la firma del organizador y conserva el paquete hasta su expiración, con un máximo de 24 horas.
+3. Completa esta descarga antes de perder conexión. Las cancelaciones, revocaciones y boletos emitidos después de la descarga no estarán reflejados en lectores aislados.
+4. Al reconectarse, sincroniza la cola desde el mismo lector. El backend aplica el check-in de forma idempotente y señala boletos usados por lectores desconectados entre sí.
 
-El primer valor va en `TICKET_OFFLINE_SIGNING_PRIVATE_KEY` y el segundo en `TICKET_OFFLINE_SIGNING_PUBLIC_KEY`. Guárdalos en las claves `ticket-offline-signing-private-key` y `ticket-offline-signing-public-key` del Secret `insightbloom-users-secrets`; el chart del servicio los lee como variables opcionales. El backend valida que ambas claves correspondan antes de firmar.
+## Rotación, revocación y recuperación
 
-## Validar antes de habilitar lectores
+- Rotar o revocar una clave impide nuevas firmas. Después de registrar la siguiente clave, prepara y descarga un paquete nuevo para todos los lectores.
+- Un lector ya desconectado puede confiar en el paquete anterior hasta su expiración; la revocación no se propaga mágicamente sin conexión.
+- Si el dueño pierde el navegador, restaura la clave desde el respaldo cifrado en un navegador autorizado. Si pierde también el respaldo o la contraseña, revoca la clave y registra otra. Los boletos ya emitidos conservan su firma histórica pública.
+- Los boletos legacy siguen el flujo online existente y no se aceptan en modo offline hasta que tengan firma válida y dispositivo vinculado.
 
-1. Reinicia solo el workload `users` después de actualizar el Secret.
-2. Descarga un paquete desde el lector autenticado y verifica que el endpoint responda `200`.
-3. Confirma que quitar o alterar cualquier clave vuelve a producir `503` y no firma datos.
-4. Comprueba que el paquete no incluya claves privadas ni información personal; solo UUID de boleto/credencial y clave pública.
-5. Regenera y provisiona una pareja para rotarla. Los paquetes anteriores dejarán de sincronizar con la clave pública nueva, así que sincroniza las colas offline antes de rotar.
+## Límites operativos
 
-El paquete expira a las 24 horas. La cola offline queda en el navegador del lector y conserva UUID, firma y hora local de escaneo hasta sincronizar.
+- Las emisiones y el registro de asistentes requieren conexión. El organizador debe tener el cliente firmante disponible para finalizar cada emisión antes de desconectarse.
+- La clave privada nunca se provisiona en Kubernetes, variables de entorno, el backend ni los lectores. No se configura `TICKET_OFFLINE_SIGNING_PRIVATE_KEY` ni una clave privada global de plataforma.
+- Los lectores aislados no pueden impedir por sí solos que otra unidad acepte el mismo boleto. La sincronización posterior detecta el conflicto, pero no revierte el acceso ya concedido.
+- Antes de producción, validar en staging emisión pública/manual, firma, expiración, revocación, dos lectores y sincronización duplicada.

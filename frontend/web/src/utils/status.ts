@@ -29,6 +29,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const TICKET_STATUS_LABELS: Record<string, string> = {
+  PENDING_SIGNATURE: 'Pendiente de firma del organizador',
   ISSUED: 'Emitido · sin reclamar',
   CLAIMED: 'Reclamado',
   CHECKED_IN: 'Registrado en check-in',

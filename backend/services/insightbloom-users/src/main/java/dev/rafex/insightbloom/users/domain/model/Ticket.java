@@ -105,7 +105,10 @@ public class Ticket {
 
     public String getUuid() { return uuid; }
     public String getConferenceUuid() { return conferenceUuid; }
-    public String getTicketCode() { return ticketCode; }
+    /** Bearer QR material stays hidden until the organizer signature is accepted. */
+    public String getTicketCode() { return status == TicketStatus.PENDING_SIGNATURE ? null : ticketCode; }
+    /** Persistence-only access; intentionally not a bean getter so JSON serializers do not expose it. */
+    public String storedTicketCode() { return ticketCode; }
     public String getIssuedByUserUuid() { return issuedByUserUuid; }
     public String getRecipientEmail() { return recipientEmail; }
     public String getSeatUuid() { return seatUuid; }
@@ -120,4 +123,6 @@ public class Ticket {
     public Instant getCheckedInAt() { return checkedInAt; }
     public String getRevokedByUserUuid() { return revokedByUserUuid; }
     public Instant getRevokedAt() { return revokedAt; }
+
+    public void markPendingSignature() { this.status = TicketStatus.PENDING_SIGNATURE; }
 }

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:ticket-cose": "cd ticket-cose && wasm-pack build --target web --out-dir ../src/wasm/ticket-cose --out-name ticket_cose",
     "preview": "vite preview",
     "lint": "eslint src --ext .js,.ts,.vue && node scripts/validate-react-runtime.mjs",
     "lint:ui-governance": "node scripts/validate-ui-governance.mjs",

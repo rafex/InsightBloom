@@ -1725,3 +1725,22 @@ Registrar una decision cuando cambie:
   - Fingerprint queda como metadato de señal, nunca como autoridad de acceso.
 - Consecuencias: agrega persistencia de credenciales por boleto, firma y sincronización offline; perder el almacenamiento local exige recuperación y nueva vinculación.
 - Reemplaza: uso de QR UUID estático como prueba suficiente de posesión para boletos nuevos.
+
+### DEC-0043 - Firma de boletos y paquetes offline bajo control del organizador
+
+- Fecha: 2026-10-23
+- Estado: accepted
+- Contexto: el check-in offline usaba una clave privada global de plataforma para firmar paquetes; los boletos ya tenían QR rotativo firmado por dispositivo, pero carecían de sello verificable del organizador.
+- Decision:
+  - Cada evento usa una clave Ed25519/COSE_Sign1 bajo custodia local del dueño. InsightBloom guarda la clave pública, firmas de boletos y paquetes; nunca guarda una privada ni usa una global como fallback.
+  - El dueño firma cada boleto durante la emisión online y firma el snapshot offline de vigencia, cancelaciones y vínculos de dispositivos.
+  - Web Crypto firma con una clave no exportable; Rust/WASM serializa/verifica COSE y no es una frontera de seguridad. El dueño conserva una copia cifrada de respaldo.
+  - Se conserva la prueba P-256 del dispositivo, el QR rotativo y el check-in online atómico.
+- Consecuencias: el cliente firmante debe estar disponible durante emisión; perder la clave impide emitir y preparar paquetes nuevos. Lectores desconectados pueden tener estado obsoleto hasta 24 horas y pueden detectar, pero no impedir, duplicados entre sí.
+- Reemplaza: uso de clave privada global de plataforma para firmar paquetes offline en SPEC-TICKET-DEVICE-BINDING.
+
+## Decisiones
+
+| ID | Estado | Título | Tags |
+| --- | --- | --- | --- |
+| [DEC-0043](./decisions/DEC-0043-firma-de-boletos-y-paquetes-offline-bajo-control.md) | accepted | Firma de boletos y paquetes offline bajo control del organizador | tickets, offline, cryptography, security |

@@ -412,9 +412,13 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/presentation-access", Set.of("GET")),
                 Route.of("/{id}/reservations/check-in", Set.of("POST")),
                 Route.of("/{id}/tickets", Set.of("GET", "POST")),
+                Route.of("/{id}/tickets/signing-key", Set.of("GET", "PUT", "DELETE")),
+                Route.of("/{id}/tickets/pending-signatures", Set.of("GET")),
+                Route.of("/{id}/tickets/{ticketUuid}/signature", Set.of("POST")),
+                Route.of("/{id}/tickets/offline-manifest", Set.of("GET")),
                 Route.of("/{id}/tickets/enrollment/otp", Set.of("POST")),
                 Route.of("/{id}/tickets/enrollment/complete", Set.of("POST")),
-                Route.of("/{id}/tickets/offline-bundle", Set.of("GET")),
+                Route.of("/{id}/tickets/offline-bundle", Set.of("GET", "POST")),
                 Route.of("/{id}/tickets/offline-sync", Set.of("POST")),
                 Route.of("/{id}/tickets/{ticketUuid}/enrollment-link", Set.of("POST")),
                 Route.of("/{id}/tickets/{ticketUuid}/devices", Set.of("GET")),
@@ -508,6 +512,10 @@ public class ConferenceHandler extends BaseResourceHandler {
         }
         if (path.endsWith("/presentation-access")) return handlePresentationAccess(jx, jx.pathParam("id"));
         if (path.endsWith("/tickets/me")) return handleGetMyIssuedTicket(jx, jx.pathParam("id"));
+        if (path.endsWith("/tickets/signing-key")) return handleOrganizerTicketSigningKey(jx, jx.pathParam("id"));
+        if (path.endsWith("/tickets/pending-signatures")) return handlePendingTicketSignatures(jx, jx.pathParam("id"));
+        if (path.endsWith("/tickets/offline-manifest")) return handleOfflineTicketManifest(jx, jx.pathParam("id"));
+        if (path.endsWith("/signature") && path.contains("/tickets/")) return handleAcceptTicketSignature(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"));
         if (path.endsWith("/tickets/offline-bundle")) return handleOfflineTicketBundle(jx, jx.pathParam("id"));
         if (path.endsWith("/tickets") && path.contains("/tickets/")) return handleListTickets(jx, jx.pathParam("id"));
         if (path.endsWith("/devices") && path.contains("/tickets/")) return handleTicketDevices(jx, jx.pathParam("id"), jx.pathParam("ticketUuid"));
@@ -2464,9 +2472,6 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             final Ticket issued = ticketUseCase.issueProtected(id, v.subjectUuid(), recipientEmail, seatUuid, maxDevices, enrollmentMethod);
-            if ("ONE_TIME_LINK".equals(enrollmentMethod) && recipientEmail != null && !recipientEmail.isBlank()) {
-                ticketDeviceUseCase.createLink(id, issued.getUuid(), v.subjectUuid());
-            }
             sendOk(jx, 201, issued);
         } catch (final IllegalStateException e) {
             final String code = e.getMessage() == null ? "ticket_issue_failed" : e.getMessage();
@@ -2740,15 +2745,94 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
+    private boolean handleOrganizerTicketSigningKey(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            if (!actor.valid() || !canManageTickets(id, actor)) { sendError(jx, 403, "forbidden", "No tienes permiso para configurar la firma del evento"); return true; }
+            final var signing = ticketUseCase.organizerTicketSignatures();
+            if ("GET".equalsIgnoreCase(jx.method())) { sendOk(jx, 200, signing.keyStatus(id)); return true; }
+            if ("DELETE".equalsIgnoreCase(jx.method())) {
+                signing.revokeActiveKey(id, actor.subjectUuid());
+                sendOk(jx, 200, Map.of("revoked", true)); return true;
+            }
+            final var body = parseBody(jx);
+            final Object rawKeyId = body.get("keyId"), rawPublic = body.get("publicKeySpki"), rawProof = body.get("proof");
+            if (!(rawKeyId instanceof String keyId) || !(rawPublic instanceof String publicKey) || !(rawProof instanceof String proof)) {
+                sendError(jx, 400, "organizer_ticket_key_request_invalid", "Falta el identificador, clave pública o prueba de posesión"); return true;
+            }
+            sendOk(jx, 201, signing.registerKey(id, keyId, publicKey, proof, actor.subjectUuid()));
+        } catch (final IllegalArgumentException e) { sendError(jx, 400, e.getMessage(), e.getMessage()); }
+        catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handlePendingTicketSignatures(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            if (!actor.valid() || !canManageTickets(id, actor)) { sendError(jx, 403, "forbidden", "No tienes permiso para firmar boletos de este evento"); return true; }
+            sendOk(jx, 200, ticketUseCase.organizerTicketSignatures().pending(id));
+        } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Configura una clave de firma del evento antes de firmar boletos"); }
+        catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleAcceptTicketSignature(final JettyHttpExchange jx, final String id, final String ticketUuid) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            if (!actor.valid() || !canManageTickets(id, actor)) { sendError(jx, 403, "forbidden", "No tienes permiso para firmar boletos de este evento"); return true; }
+            final var body = parseBody(jx);
+            if (!(body.get("coseSign1") instanceof String cose)) { sendError(jx, 400, "cose_structure_invalid", "Falta la firma COSE del boleto"); return true; }
+            ticketUseCase.organizerTicketSignatures().acceptTicketSignature(id, ticketUuid, cose, actor.subjectUuid());
+            final var finalizedTicket = ticketUseCase.finalizeTicketAfterOrganizerSignature(id, ticketUuid);
+            if ("ONE_TIME_LINK".equals(finalizedTicket.getDeviceEnrollmentMethod())
+                    && finalizedTicket.getRecipientEmail() != null && !finalizedTicket.getRecipientEmail().isBlank()) {
+                ticketDeviceUseCase.createLink(id, ticketUuid, actor.subjectUuid());
+            }
+            sendOk(jx, 200, Map.of("ticketUuid", ticketUuid, "signed", true));
+        } catch (final IllegalArgumentException e) { sendError(jx, 400, e.getMessage(), e.getMessage()); }
+        catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), e.getMessage()); }
+        catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
+    private boolean handleOfflineTicketManifest(final JettyHttpExchange jx, final String conferenceId) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            if (!actor.valid() || !canManageTickets(conferenceId, actor)) { sendError(jx, 403, "forbidden", "No tienes permiso para preparar el paquete offline"); return true; }
+            sendOk(jx, 200, ticketUseCase.organizerTicketSignatures().createOfflineManifest(conferenceId));
+        } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Registra la clave de firma de este evento antes de preparar el paquete offline"); }
+        catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
+        return true;
+    }
+
     private boolean handleOfflineTicketBundle(final JettyHttpExchange jx, final String conferenceId) {
         final String token = extractToken(jx);
         if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
         try {
             final var actor = validateTokenUseCase.execute(token);
-            if (!actor.valid() || !canCheckIn(conferenceId, actor)) {
+            if (!actor.valid()) { sendError(jx, 403, "forbidden", "No tienes permiso para acceder al paquete offline"); return true; }
+            if ("POST".equalsIgnoreCase(jx.method())) {
+                if (!canManageTickets(conferenceId, actor)) { sendError(jx, 403, "forbidden", "No tienes permiso para firmar el paquete offline"); return true; }
+                final var body = parseBody(jx);
+                if (!(body.get("payload") instanceof String payload) || !(body.get("coseSign1") instanceof String cose)) {
+                    sendError(jx, 400, "offline_manifest_invalid", "Falta el manifiesto firmado"); return true;
+                }
+                ticketUseCase.organizerTicketSignatures().saveOfflinePackage(conferenceId, payload, cose, actor.subjectUuid());
+                sendOk(jx, 201, Map.of("signed", true, "expiresAt", java.time.Instant.now().plusSeconds(24 * 60 * 60).toString()));
+                return true;
+            }
+            if (!canCheckIn(conferenceId, actor)) {
                 sendError(jx, 403, "forbidden", "No tienes permiso para descargar el paquete de check-in"); return true;
             }
-            sendOk(jx, 200, ticketDeviceUseCase.signedOfflineBundle(conferenceId));
+            sendOk(jx, 200, ticketUseCase.organizerTicketSignatures().offlinePackage(conferenceId));
         } catch (final IllegalStateException e) {
             final String code = e.getMessage() == null ? "offline_bundle_unavailable" : e.getMessage();
             sendError(jx, "offline_signing_not_configured".equals(code) ? 503 : 409, code,
@@ -2774,7 +2858,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 sendError(jx, 400, "offline_bundle_invalid", "El paquete de lector no es válido"); return true;
             }
             final var bundle = JsonUtils.codec().readTree(bundlePayload);
-            if (!conferenceId.equals(bundle.path("conferenceUuid").asText()) || bundle.path("version").asInt() != 1) {
+            if (!conferenceId.equals(bundle.path("conferenceUuid").asText()) || bundle.path("version").asInt() != 2) {
                 sendError(jx, 400, "offline_bundle_invalid", "El paquete de lector no corresponde a este evento"); return true;
             }
             final long bundleIssuedAt = bundle.path("issuedAt").asLong();
@@ -2789,8 +2873,24 @@ public class ConferenceHandler extends BaseResourceHandler {
                     final long expiry = ((Number) scan.get("expiresAt")).longValue();
                     final long scannedAt = ((Number) scan.get("scannedAt")).longValue();
                     final String signature = (String) scan.get("signature");
+                    String bundledPublicKeyJwk = null;
+                    boolean ticketIncludedAndValid = false;
+                    for (final var bundledTicket : bundle.path("tickets")) {
+                        if (ticketUuid.equals(bundledTicket.path("ticketUuid").asText())
+                                && ("ISSUED".equals(bundledTicket.path("status").asText()) || "CLAIMED".equals(bundledTicket.path("status").asText()))
+                                && !bundledTicket.path("coseSign1").isNull() && !bundledTicket.path("coseSign1").isMissingNode()) {
+                            ticketIncludedAndValid = true; break;
+                        }
+                    }
+                    for (final var bundledDevice : bundle.path("devices")) {
+                        if (ticketUuid.equals(bundledDevice.path("ticketUuid").asText())
+                                && credentialUuid.equals(bundledDevice.path("credentialUuid").asText())) {
+                            bundledPublicKeyJwk = bundledDevice.path("publicKeyJwk").asText(null); break;
+                        }
+                    }
+                    if (!ticketIncludedAndValid || bundledPublicKeyJwk == null) throw new IllegalArgumentException("ticket_not_valid_in_offline_bundle");
                     if (!ticketDeviceUseCase.verifyOfflinePresentation(conferenceId, ticketUuid, credentialUuid, expiry, signature,
-                            scannedAt, bundleIssuedAt, bundleExpiresAt))
+                            scannedAt, bundleIssuedAt, bundleExpiresAt, bundledPublicKeyJwk))
                         throw new IllegalArgumentException("ticket_device_proof_invalid");
                     proofVerified = true;
                     final Ticket checked = ticketUseCase.checkInVerifiedDevicePresentation(conferenceId, ticketUuid);
