@@ -62,6 +62,8 @@ Persistir snapshots firmados por evento sin modificar sus bytes. Reemplazar la f
 
 ### TASK-OTS-0004 — Compatibilidad, retiro del firmante global y guía operativa
 
+> **Update 2026-10-24T15:30:04Z:** Corrección desplegada: commit fffef06ca0dbf614de21c321f4c5df3dc8e76ca0; workflow Publish web exitoso, Flux aplicó build-40106759762 y Deployment tiene 1/1 pods actualizados. El HTML público carga el bundle fffef06c y el SW nuevo incluye CheckInScannerPage-B2W3ndmk.js. No se pudo repetir navegación autenticada en CUA porque al recargar regresó a login y esa pestaña conservó la versión vieja del service worker; staging de lectores sigue pendiente.
+
 > **Update 2026-10-24T15:23:25Z:** Corregido CheckInScannerPage: se añadieron al retorno de setup los estados/acciones usados por el template offline (offlineQueue, online, syncing, offlineBundle, offlineLoading, offlineExpiryLabel, prepareOffline y syncOffline). lint, typecheck y build pasan localmente; pendiente confirmar el despliegue web y navegación al check-in.
 
 > **Update 2026-10-23T19:06:07Z:** Referencias activas a TICKET_OFFLINE_SIGNING_PRIVATE_KEY/PUBLIC_KEY y signer global retiradas del código/GitOps; guía operativa actualizada. Pendiente ejecutar staging con dos lectores, rotación/revocación y sincronización duplicada antes de cerrar el gate de salida.
