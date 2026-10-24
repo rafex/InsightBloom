@@ -334,7 +334,8 @@ export default {
 
     return {
       videoEl, lastResult, recent, breadcrumbItems, manualCode, submitManualCode, formatStatusLabel,
-      scannerReady, scannerError, scannerStatus, scanQrImage, takePhotoAndScan, imageProcessing, processing
+      scannerReady, scannerError, scannerStatus, scanQrImage, takePhotoAndScan, imageProcessing, processing,
+      offlineBundle, offlineLoading, offlineQueue, offlineExpiryLabel, syncing, online, prepareOffline, syncOffline
     }
   }
 }

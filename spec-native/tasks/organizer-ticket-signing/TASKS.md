@@ -62,6 +62,8 @@ Persistir snapshots firmados por evento sin modificar sus bytes. Reemplazar la f
 
 ### TASK-OTS-0004 — Compatibilidad, retiro del firmante global y guía operativa
 
+> **Update 2026-10-24T15:23:25Z:** Corregido CheckInScannerPage: se añadieron al retorno de setup los estados/acciones usados por el template offline (offlineQueue, online, syncing, offlineBundle, offlineLoading, offlineExpiryLabel, prepareOffline y syncOffline). lint, typecheck y build pasan localmente; pendiente confirmar el despliegue web y navegación al check-in.
+
 > **Update 2026-10-23T19:06:07Z:** Referencias activas a TICKET_OFFLINE_SIGNING_PRIVATE_KEY/PUBLIC_KEY y signer global retiradas del código/GitOps; guía operativa actualizada. Pendiente ejecutar staging con dos lectores, rotación/revocación y sincronización duplicada antes de cerrar el gate de salida.
 
 ```toml
