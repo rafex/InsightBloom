@@ -1,0 +1,15 @@
+{
+  "name": "insightbloom-ticket-cose",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "ticket_cose_bg.wasm",
+    "ticket_cose.js",
+    "ticket_cose.d.ts"
+  ],
+  "main": "ticket_cose.js",
+  "types": "ticket_cose.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

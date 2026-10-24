@@ -35,7 +35,7 @@
       polygon(v-for="section in sections" :key="section.id" :points="polygonPoints(section.points)" :transform="sectionTransform(section)" :class="['section-shape', { aisle: section.aisle, selected: section.id === selectedSectionId }]" :aria-label="section.title" @click.stop="selectSection(section.id)")
       text.section-label(v-for="section in sections" :key="`${section.id}-label`" :x="section.x" :y="section.y" :transform="sectionTransform(section)") {{ section.title }}
       polyline(v-if="drawingPolygon && draftPoints.length" :points="polygonPoints(draftPoints)" class="draft-polygon")
-      g(v-for="seat in seats" :key="seat.uuid || seat.localId || seat.label" :transform="`translate(${seat.x * 1000} ${seat.y * 600}) rotate(${seatRotations[seatKey(seat)] || 0})`" :class="['seat-node', { occupied: seat.occupied, selected: seat.uuid === modelValue || seatKey(seat) === selectedSeatKey, draggable: editorMode }]" :tabindex="seat.occupied && !editorMode ? -1 : 0" role="button" :aria-label="`${seat.label}${seat.occupied ? ', ocupado' : ''}`" @click.stop="selectSeat(seat)" @keydown.enter.prevent="selectSeat(seat)" @keydown.space.prevent="selectSeat(seat)" @pointerdown.stop="startSeatDrag($event, seat)")
+      g(v-for="seat in draftSeats" :key="seat.uuid || seat.localId || seat.label" :transform="`translate(${seat.x * 1000} ${seat.y * 600}) rotate(${seatRotations[seatKey(seat)] || 0})`" :class="['seat-node', { occupied: seat.occupied, selected: seat.uuid === modelValue || seatKey(seat) === selectedSeatKey, draggable: editorMode }]" :tabindex="seat.occupied && !editorMode ? -1 : 0" role="button" :aria-label="`${seat.label}${seat.occupied ? ', ocupado' : ''}`" @click.stop="selectSeat(seat)" @keydown.enter.prevent="selectSeat(seat)" @keydown.space.prevent="selectSeat(seat)" @pointerdown.stop="startSeatDrag($event, seat)")
         circle(r="15")
         text(y="4") {{ seat.label }}
     p.visually-hidden(v-if="!editorMode" aria-live="polite") {{ liveMessage }}
@@ -70,7 +70,7 @@ export default {
     const template = ref<'rectangular' | 'semicircular' | 'horseshoe'>('rectangular')
     const rowCount = ref(6)
     const seatCount = ref(12)
-    const seats = ref<EditableSeat[]>([...props.seats])
+    const draftSeats = ref<EditableSeat[]>([...props.seats])
     const sections = ref<SectionShape[]>([])
     const draftPoints = ref<Array<{x:number,y:number}>>([])
     const drawingPolygon = ref(false)
@@ -101,12 +101,12 @@ export default {
         const parsed = JSON.parse(value || '{}')
         sections.value = Array.isArray(parsed.sections) ? parsed.sections : []
         seatRotations.value = parsed.seatRotations && typeof parsed.seatRotations === 'object' ? parsed.seatRotations : {}
-        if (Array.isArray(parsed.seats) && !props.seats.length) seats.value = parsed.seats
+        if (Array.isArray(parsed.seats) && !props.seats.length) draftSeats.value = parsed.seats
       } catch { sections.value = [] }
     }
 
     function persist() {
-      emit('seats-change', seats.value.map(({ uuid, label, x, y }) => ({ uuid: uuid || null, label, x, y })))
+      emit('seats-change', draftSeats.value.map(({ uuid, label, x, y }) => ({ uuid: uuid || null, label, x, y })))
       emit('layout-change', JSON.stringify({ version: 1, sections: sections.value, seatRotations: seatRotations.value }))
       renderLibrary()
     }
@@ -137,7 +137,7 @@ export default {
           out.push({ uuid: null as any, label: `${template.value === 'semicircular' ? 'S' : 'H'}${index + 1}`, x, y, occupied: false, localId: `new-${++localSequence}` })
         }
       }
-      seats.value = out
+      draftSeats.value = out
       sections.value = [{ id: 'section-main', title: 'Sección A', x: 500, y: 150, rotation: 0, points: [{x:120,y:120},{x:880,y:120},{x:880,y:510},{x:120,y:510}] }]
       persist()
     }
@@ -153,7 +153,7 @@ export default {
       const x = Math.round(p.x * 1000), y = Math.round(p.y * 600)
       if (drawingPolygon.value) draftPoints.value.push({ x, y })
       else if (designMode.value === 'free') {
-        seats.value.push({ uuid: null as any, label: `A${seats.value.length + 1}`, x: p.x, y: p.y, occupied: false, localId: `new-${++localSequence}` })
+        draftSeats.value.push({ uuid: null as any, label: `A${draftSeats.value.length + 1}`, x: p.x, y: p.y, occupied: false, localId: `new-${++localSequence}` })
         persist()
       }
     }
@@ -196,7 +196,7 @@ export default {
     function moveSeat(event: PointerEvent) {
       if (!dragSeatId || dragPointerId !== event.pointerId) return
       const p = pointFromEvent(event)
-      const seat = seats.value.find(item => (item.localId || item.uuid || item.label) === dragSeatId)
+      const seat = draftSeats.value.find(item => (item.localId || item.uuid || item.label) === dragSeatId)
       if (seat) { seat.x = p.x; seat.y = p.y }
     }
     function finishSeatDrag(event?: PointerEvent) {
@@ -209,13 +209,13 @@ export default {
     function renderLibrary() {
       if (!libraryRoot.value) return
       libraryReady.value = false
-      if (props.editorMode || seats.value.length < 3) return
+      if (props.editorMode || draftSeats.value.length < 3) return
       try {
         libraryRoot.value.replaceChildren()
         seatMap = new SeatMapCanvas(libraryRoot.value, { resizable: true, legend: false, style: { seat: { shape: 'circle' } } } as any)
         const block = {
           id: 'insightbloom-venue', title: 'Recinto', x: 0, y: 0, width: 1000, height: 600,
-          color: '#eef2ff', labels: [], seats: seats.value.map(seat => ({
+          color: '#eef2ff', labels: [], seats: draftSeats.value.map(seat => ({
             id: seat.uuid || seat.localId || seat.label, x: seat.x * 1000, y: seat.y * 600,
             title: seat.label, salable: !seat.occupied, selected: seat.uuid === props.modelValue,
             color: seat.occupied ? '#64748b' : '#4f46e5', tags: [], custom_data: {}
@@ -234,12 +234,12 @@ export default {
     }
 
     loadLayout(props.layoutJson)
-    watch(() => props.seats, value => { seats.value = [...value]; renderLibrary() }, { deep: true })
+    watch(() => props.seats, value => { draftSeats.value = [...value]; renderLibrary() }, { deep: true })
     watch(() => props.layoutJson, loadLayout)
     watch(() => props.modelValue, renderLibrary)
-    onMounted(() => { if (props.editorMode && !seats.value.length) generateTemplate(); else renderLibrary() })
+    onMounted(() => { if (props.editorMode && !draftSeats.value.length) generateTemplate(); else renderLibrary() })
     onBeforeUnmount(() => { seatMap = null; libraryRoot.value?.replaceChildren() })
-    return { libraryRoot, svgRoot, designMode, template, rowCount, seatCount, seats, sections, draftPoints, drawingPolygon, liveMessage, libraryReady,
+    return { libraryRoot, svgRoot, designMode, template, rowCount, seatCount, draftSeats, sections, draftPoints, drawingPolygon, liveMessage, libraryReady,
       seatRotations, selectedSeatKey, selectedSectionId, selectedSection,
       generateTemplate, pointFromEvent, onCanvasClick, startPolygon, finishPolygon, cancelPolygon, addAisle, selectSeat,
       startSeatDrag, moveSeat, finishSeatDrag, polygonPoints, sectionTransform, seatKey, selectSection, rotateSelectedSeat, rotateSelectedSection }
