@@ -1,6 +1,6 @@
 # Configuración LLM aislada por evento y herramienta
 
-**Estado:** active
+**Estado:** superseded por [SPEC-LPI](../llm-profile-inheritance/SPEC.md)
 **Owner:** product owner
 **Fecha:** 2026-10-21
 

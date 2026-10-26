@@ -15,7 +15,8 @@ Cada iniciativa tiene su propia carpeta con `SPEC.md`.
 | — | [device-fingerprinting](./device-fingerprinting/SPEC.md) | active | team |
 | — | [security-readiness](./security-readiness/SPEC.md) | active | product owner |
 | — | [beta-organizer-invitations](./beta-organizer-invitations/SPEC.md) | done | product owner |
-| — | [llm-credential-isolation](./llm-credential-isolation/SPEC.md) | active | product owner |
+| — | [llm-credential-isolation](./llm-credential-isolation/SPEC.md) | superseded | product owner |
+| SPEC-LPI | [llm-profile-inheritance](./llm-profile-inheritance/SPEC.md) | active | Codex |
 | — | [ticket-device-binding](./ticket-device-binding/SPEC.md) | active | product owner |
 | SPEC-TICKET-ORG-SIGN-0001 | [organizer-ticket-signing](./organizer-ticket-signing/SPEC.md) | active | product owner |
 

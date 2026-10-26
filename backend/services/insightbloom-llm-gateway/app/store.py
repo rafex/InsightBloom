@@ -38,6 +38,20 @@ class CredentialStore:
                     updated_at INTEGER NOT NULL,
                     PRIMARY KEY(scope_type, scope_id, capability)
                 );
+                CREATE TABLE IF NOT EXISTS user_credentials (
+                    scope_id TEXT NOT NULL, capability TEXT NOT NULL, provider TEXT NOT NULL,
+                    model TEXT NOT NULL, base_url TEXT, ciphertext TEXT NOT NULL, updated_at INTEGER NOT NULL,
+                    PRIMARY KEY(scope_id, capability)
+                );
+                CREATE TABLE IF NOT EXISTS credential_usage (
+                    event_id TEXT NOT NULL, credential_owner TEXT NOT NULL, capability TEXT NOT NULL,
+                    minute INTEGER NOT NULL, requests INTEGER NOT NULL,
+                    PRIMARY KEY(event_id, credential_owner, capability, minute)
+                );
+                CREATE TABLE IF NOT EXISTS effective_sources (
+                    event_id TEXT NOT NULL, capability TEXT NOT NULL, source TEXT NOT NULL,
+                    PRIMARY KEY(event_id, capability)
+                );
                 CREATE TABLE IF NOT EXISTS audit (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     actor TEXT NOT NULL,
@@ -74,49 +88,85 @@ class CredentialStore:
     def _aad(scope_type: str, scope_id: str, capability: str) -> bytes:
         return f"{scope_type}\0{scope_id}\0{capability}".encode("utf-8")
 
-    def set(self, *, scope_type: str, scope_id: str, capability: str, provider: str, model: str, api_key: str, actor: str, base_url: str | None = None) -> None:
-        if scope_type != "event" or capability not in CAPABILITIES:
+    @staticmethod
+    def _table(scope_type: str) -> str:
+        if scope_type not in {"event", "user"}:
             raise ValueError("credential_scope_invalid")
-        if not scope_id or len(scope_id) > 128 or not api_key or len(api_key) > 4096:
+        return "user_credentials" if scope_type == "user" else "credentials"
+
+    def set(self, *, scope_type: str, scope_id: str, capability: str, provider: str, model: str,
+            api_key: str, actor: str, base_url: str | None = None) -> None:
+        table = self._table(scope_type)
+        if capability not in CAPABILITIES or not scope_id or len(scope_id) > 128 or len(api_key) > 4096:
             raise ValueError("credential_input_invalid")
-        encrypted = self.keyring.encrypt(api_key, associated_data=self._aad(scope_type, scope_id, capability))
         now = int(time.time())
         with self._connect() as db:
-            db.execute("""INSERT INTO credentials(scope_type,scope_id,capability,provider,model,base_url,ciphertext,updated_at)
-                VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(scope_type,scope_id,capability) DO UPDATE SET
-                provider=excluded.provider,model=excluded.model,base_url=excluded.base_url,
-                ciphertext=excluded.ciphertext,updated_at=excluded.updated_at""",
-                       (scope_type, scope_id, capability, provider, model, base_url, encrypted, now))
+            old = db.execute(f"SELECT * FROM {table} WHERE scope_id=? AND capability=?" +
+                             (" AND scope_type='event'" if scope_type == "event" else ""), (scope_id, capability)).fetchone()
+            if not api_key:
+                if old is None or old["provider"] != provider or old["base_url"] != base_url:
+                    raise ValueError("new_api_key_required")
+                encrypted = old["ciphertext"]
+            else:
+                encrypted = self.keyring.encrypt(api_key, associated_data=self._aad(scope_type, scope_id, capability))
+            if scope_type == "event":
+                db.execute("""INSERT INTO credentials(scope_type,scope_id,capability,provider,model,base_url,ciphertext,updated_at)
+                    VALUES('event',?,?,?,?,?,?,?) ON CONFLICT(scope_type,scope_id,capability) DO UPDATE SET
+                    provider=excluded.provider,model=excluded.model,base_url=excluded.base_url,
+                    ciphertext=excluded.ciphertext,updated_at=excluded.updated_at""",
+                           (scope_id, capability, provider, model, base_url, encrypted, now))
+            else:
+                db.execute("""INSERT INTO user_credentials(scope_id,capability,provider,model,base_url,ciphertext,updated_at)
+                    VALUES(?,?,?,?,?,?,?) ON CONFLICT(scope_id,capability) DO UPDATE SET
+                    provider=excluded.provider,model=excluded.model,base_url=excluded.base_url,
+                    ciphertext=excluded.ciphertext,updated_at=excluded.updated_at""",
+                           (scope_id, capability, provider, model, base_url, encrypted, now))
             db.execute("INSERT INTO audit(actor,action,scope_type,scope_id,capability,occurred_at) VALUES(?,?,?,?,?,?)",
                        (actor, "credential_set", scope_type, scope_id, capability, now))
 
     def clear(self, *, scope_type: str, scope_id: str, capability: str, actor: str) -> None:
-        now = int(time.time())
+        table = self._table(scope_type)
         with self._connect() as db:
-            db.execute("DELETE FROM credentials WHERE scope_type=? AND scope_id=? AND capability=?",
-                       (scope_type, scope_id, capability))
+            db.execute(f"DELETE FROM {table} WHERE scope_id=? AND capability=?" +
+                       (" AND scope_type='event'" if scope_type == "event" else ""), (scope_id, capability))
             db.execute("INSERT INTO audit(actor,action,scope_type,scope_id,capability,occurred_at) VALUES(?,?,?,?,?,?)",
-                       (actor, "credential_cleared", scope_type, scope_id, capability, now))
+                       (actor, "credential_cleared", scope_type, scope_id, capability, int(time.time())))
 
     def status(self, *, scope_type: str, scope_id: str, capability: str) -> dict[str, Any]:
+        table = self._table(scope_type)
         with self._connect() as db:
-            row = db.execute("SELECT provider,model,base_url,updated_at FROM credentials WHERE scope_type=? AND scope_id=? AND capability=?",
-                             (scope_type, scope_id, capability)).fetchone()
+            row = db.execute(f"SELECT provider,model,base_url,updated_at FROM {table} WHERE scope_id=? AND capability=?" +
+                             (" AND scope_type='event'" if scope_type == "event" else ""), (scope_id, capability)).fetchone()
         if row is None:
             return {"configured": False}
         return {"configured": True, "provider": row["provider"], "model": row["model"],
                 "baseUrl": row["base_url"].removesuffix("/chat/completions") if row["base_url"] else None,
                 "updatedAt": row["updated_at"]}
 
-    def resolve(self, *, event_id: str, capability: str) -> tuple[str, str, str, str | None] | None:
+    def resolve(self, *, event_id: str, capability: str, scope_type: str = "event", scope_id: str | None = None) -> tuple[str, str, str, str | None] | None:
+        table = self._table(scope_type)
+        identity = scope_id or event_id
         with self._connect() as db:
-            row = db.execute("""SELECT scope_id,provider,model,base_url,ciphertext FROM credentials
-                WHERE scope_type='event' AND capability=? AND scope_id=?""",
-                             (capability, event_id)).fetchone()
+            row = db.execute(f"SELECT provider,model,base_url,ciphertext FROM {table} WHERE scope_id=? AND capability=?" +
+                             (" AND scope_type='event'" if scope_type == "event" else ""), (identity, capability)).fetchone()
         if row is None:
             return None
-        key = self.keyring.decrypt(row["ciphertext"], associated_data=self._aad("event", row["scope_id"], capability))
+        key = self.keyring.decrypt(row["ciphertext"], associated_data=self._aad(scope_type, identity, capability))
         return row["provider"], row["model"], key, row["base_url"]
+
+    def record_source(self, event_id: str, capability: str, source: str, actor: str = "gateway") -> None:
+        with self._connect() as db:
+            old = db.execute("SELECT source FROM effective_sources WHERE event_id=? AND capability=?", (event_id, capability)).fetchone()
+            if old is None or old[0] != source:
+                db.execute("INSERT INTO effective_sources VALUES(?,?,?) ON CONFLICT(event_id,capability) DO UPDATE SET source=excluded.source", (event_id, capability, source))
+                db.execute("INSERT INTO audit(actor,action,scope_type,scope_id,capability,occurred_at) VALUES(?,?,?,?,?,?)",
+                           (actor, "source_changed:" + source, "event", event_id, capability, int(time.time())))
+
+    def record_usage(self, event_id: str, credential_owner: str, capability: str) -> None:
+        with self._connect() as db:
+            db.execute("INSERT INTO credential_usage VALUES(?,?,?,?,1) ON CONFLICT(event_id,credential_owner,capability,minute) DO UPDATE SET requests=requests+1",
+                       (event_id, credential_owner, capability, int(time.time() // 60)))
+            db.execute("DELETE FROM credential_usage WHERE minute < ?", (int(time.time() // 60) - 1440,))
 
     def consume_quota(self, *, organizer_id: str, event_id: str, limit: int = 30) -> bool:
         minute = int(time.time() // 60)
@@ -137,17 +187,19 @@ class CredentialStore:
                        (actor, "completion_requested", "event", event_id, capability, int(time.time())))
 
     def reencrypt_all(self) -> int:
-        """Recipher records to the active key; retain old key in the ring during rotation."""
+        """Recipher both event and personal credentials with their original AAD."""
         changed = 0
         with self._connect() as db:
-            rows = db.execute("SELECT scope_type,scope_id,capability,ciphertext FROM credentials").fetchall()
-            for row in rows:
-                version = row["ciphertext"].split(":", 1)[0]
-                if version == self.keyring.active_version:
-                    continue
-                aad = self._aad(row["scope_type"], row["scope_id"], row["capability"])
-                updated = self.keyring.reencrypt(row["ciphertext"], associated_data=aad)
-                db.execute("UPDATE credentials SET ciphertext=?,updated_at=? WHERE scope_type=? AND scope_id=? AND capability=?",
-                           (updated, int(time.time()), row["scope_type"], row["scope_id"], row["capability"]))
-                changed += 1
+            for scope_type in ("event", "user"):
+                table = self._table(scope_type)
+                rows = db.execute(f"SELECT scope_id,capability,ciphertext FROM {table}" +
+                                  (" WHERE scope_type='event'" if scope_type == "event" else "")).fetchall()
+                for row in rows:
+                    if row["ciphertext"].split(":", 1)[0] == self.keyring.active_version:
+                        continue
+                    encrypted = self.keyring.reencrypt(row["ciphertext"], associated_data=self._aad(scope_type, row["scope_id"], row["capability"]))
+                    db.execute(f"UPDATE {table} SET ciphertext=?,updated_at=? WHERE scope_id=? AND capability=?" +
+                               (" AND scope_type='event'" if scope_type == "event" else ""),
+                               (encrypted, int(time.time()), row["scope_id"], row["capability"]))
+                    changed += 1
         return changed

@@ -44,12 +44,12 @@ async def validation_error_without_echo(request: Request, exc: RequestValidation
 
 
 class CredentialInput(BaseModel):
-    scopeType: str = Field(pattern="^event$")
+    scopeType: str = Field(pattern="^(event|user)$")
     scopeId: str = Field(min_length=1, max_length=128)
     capability: str
     provider: str
     model: str
-    apiKey: str = Field(min_length=1, max_length=4096)
+    apiKey: str = Field(default="", max_length=4096)
     baseUrl: Optional[str] = Field(default=None, max_length=2048)
 
 
@@ -215,7 +215,7 @@ def clear_credential(scope_type: str, scope_id: str, capability: str,
     _authenticate("users", x_service_token)
     if not x_actor_id or len(x_actor_id) > 128:
         raise HTTPException(400, "actor_id_invalid")
-    if scope_type != "event" or capability not in CAPABILITIES:
+    if scope_type not in {"event", "user"} or capability not in CAPABILITIES:
         raise HTTPException(400, "credential_scope_invalid")
     _store().clear(scope_type=scope_type, scope_id=scope_id, capability=capability, actor=x_actor_id)
     return {"data": {"configured": False}}
@@ -228,9 +228,67 @@ def credential_status(scope_type: str, scope_id: str, capability: str,
         raise HTTPException(403, "credential_management_forbidden")
     _authenticate(x_service_id, x_service_token)
     status_capabilities = CAPABILITIES if x_service_id == "users" else SERVICE_CAPABILITIES[x_service_id]
-    if capability not in status_capabilities or scope_type != "event":
+    if capability not in status_capabilities or scope_type not in {"event", "user"} or (scope_type == "user" and x_service_id != "users"):
         raise HTTPException(400, "credential_scope_invalid")
+    if x_service_id != "users" and os.environ.get("LLM_USERS_RESOLUTION_URL"):
+        return {"data": _effective_status(scope_id, capability)}
     return {"data": _store().status(scope_type=scope_type, scope_id=scope_id, capability=capability)}
+
+
+def _resolution_context(event_id: str, capability: str) -> dict[str, Any]:
+    url = os.environ.get("LLM_USERS_RESOLUTION_URL", "").rstrip("/")
+    token = os.environ.get("LLM_GATEWAY_USERS_TOKEN", "")
+    if not url or not token:
+        raise HTTPException(503, "resolution_unavailable")
+    try:
+        # Internal fixed deployment URL only; no caller-supplied host or redirects.
+        response = httpx.get(f"{url}/{event_id}/{capability}", headers={"X-Service-Token": token}, timeout=5, follow_redirects=False)
+        response.raise_for_status()
+        data = response.json()["data"]
+        if data.get("mode") not in {"AUTO", "EVENT", "INHERIT_OWNER", "MEMBER_PROFILE", "DISABLED"} or not data.get("ownerId"):
+            raise ValueError("context_invalid")
+        return data
+    except Exception as exc:
+        raise HTTPException(503, "resolution_unavailable") from exc
+
+
+def _effective_status(event_id: str, capability: str) -> dict[str, Any]:
+    if capability not in CAPABILITIES or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", event_id):
+        raise HTTPException(400, "scope_invalid")
+    ctx = _resolution_context(event_id, capability)
+    mode = ctx["mode"]
+    event = _store().status(scope_type="event", scope_id=event_id, capability=capability)
+    if mode == "AUTO":
+        mode = "EVENT" if event["configured"] else "INHERIT_OWNER"
+    scope, identity, source, fallback = "event", event_id, "EVENT", None
+    status = event
+    if mode == "DISABLED":
+        status = {"configured": False}; source = "DISABLED"
+    elif mode != "EVENT":
+        scope, identity, source = "user", ctx["ownerId"], "OWNER"
+        status = _store().status(scope_type="user", scope_id=identity, capability=capability) if ctx.get("ownerEligible") else {"configured": False}
+        if mode == "MEMBER_PROFILE":
+            member = _store().status(scope_type="user", scope_id=ctx["memberId"], capability=capability) if ctx.get("memberEligible") and ctx.get("memberId") else {"configured": False}
+            if member["configured"]:
+                identity, source, status = ctx["memberId"], "MEMBER_PROFILE", member
+            else:
+                fallback = "linked_profile_unavailable"
+    if not status["configured"]:
+        source = "DISABLED"
+    result = {**status, "mode": mode, "effectiveSource": source, "fallbackReason": fallback,
+              "ownerId": ctx["ownerId"], "credentialOwnerId": identity if status["configured"] and scope == "user" else ctx["ownerId"],
+              "scopeType": scope, "scopeId": identity, "canManage": ctx.get("canManage", False),
+              "linkedProfileName": ctx.get("linkedProfileName"), "eventConfiguration": event}
+    _store().record_source(event_id, capability, source + ":" + (identity if status["configured"] else "none") + ":" + (fallback or ""))
+    return result
+
+
+@app.get("/internal/effective/{event_id}/{capability}")
+def effective_status(event_id: str, capability: str, x_service_id: Optional[str] = Header(default=None), x_service_token: Optional[str] = Header(default=None)) -> dict[str, Any]:
+    if x_service_id != "users":
+        raise HTTPException(403, "credential_management_forbidden")
+    _authenticate("users", x_service_token)
+    return {"data": _effective_status(event_id, capability)}
 
 
 @app.post("/internal/complete")
@@ -242,7 +300,13 @@ async def complete(body: CompletionInput, x_service_id: Optional[str] = Header(d
         raise HTTPException(403, "service_capability_forbidden")
     _verify_context_token(body.contextToken, organizer_id=body.organizerId, event_id=body.eventId, capability=body.capability)
     try:
-        resolved = _store().resolve(event_id=body.eventId, capability=body.capability)
+        effective = _effective_status(body.eventId, body.capability) if os.environ.get("LLM_USERS_RESOLUTION_URL") else None
+        if effective and not effective["configured"]:
+            raise HTTPException(404, "llm_not_configured")
+        resolved = _store().resolve(event_id=body.eventId, capability=body.capability,
+            scope_type=effective["scopeType"] if effective else "event", scope_id=effective["scopeId"] if effective else None)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(503, "credential_unavailable") from exc
     if resolved is None:
@@ -256,9 +320,10 @@ async def complete(body: CompletionInput, x_service_id: Optional[str] = Header(d
             endpoint = selected.endpoint
     except ValueError as exc:
         raise HTTPException(503, "provider_model_unavailable") from exc
-    if not _store().consume_quota(organizer_id=body.organizerId, event_id=body.eventId):
+    if not _store().consume_quota(organizer_id=effective["ownerId"] if effective else body.organizerId, event_id=body.eventId):
         raise HTTPException(429, "llm_rate_limit")
     _store().audit_request(actor=x_service_id, event_id=body.eventId, capability=body.capability)
+    _store().record_usage(body.eventId, effective["credentialOwnerId"] if effective else body.organizerId, body.capability)
     payload: dict[str, Any] = {"model": model, "messages": body.messages, "max_tokens": 2048}
     if body.temperature is not None:
         payload["temperature"] = body.temperature

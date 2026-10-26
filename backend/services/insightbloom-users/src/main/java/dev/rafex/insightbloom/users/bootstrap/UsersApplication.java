@@ -256,6 +256,11 @@ public class UsersApplication {
         final var llmGatewayClient = new dev.rafex.insightbloom.users.adapters.outbound.llm.LlmGatewayClient(
                 System.getenv("LLM_GATEWAY_INTERNAL_URL"), System.getenv("LLM_GATEWAY_USERS_TOKEN"),
                 System.getenv("LLM_GATEWAY_CONTEXT_SIGNING_KEY"), JacksonJsonCodec.defaultCodec());
+        final var llmConfiguration = new dev.rafex.insightbloom.users.application.usecases.LlmConfigurationUseCase(
+                conferenceRepo,userRepo,eventPermissionGuard,
+                new dev.rafex.insightbloom.users.adapters.outbound.sqlite.SqliteLlmConfigurationRepository(db),llmGatewayClient);
+        final var personalLlmHandler = new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.PersonalLlmHandler(llmConfiguration,validateTokenUseCase);
+        final var internalLlmResolutionHandler = new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalLlmResolutionHandler(llmConfiguration,System.getenv("LLM_GATEWAY_USERS_TOKEN"));
         final var internalLlmContextHandler = new dev.rafex.insightbloom.users.adapters.inbound.http.handlers.InternalLlmContextHandler(
                 conferenceRepo, llmGatewayClient, System.getenv("LLM_GATEWAY_CHAT_TOKEN"));
         final var emailLlmClient = new EmailLlmClient(llmGatewayClient);
@@ -571,6 +576,7 @@ public class UsersApplication {
                 sandboxHandler, sandboxFilesHandler, userRepo, deviceAccessGuard, getJaasUsageUseCase,
                 toolAccessUseCase, sendAttendeeEmailUseCase, generateEmailDraftUseCase, notifyConferenceUpdatedUseCase,
                 setOnDemandVideoUseCase);
+        conferenceHandler.setLlmConfiguration(llmConfiguration);
         final var userProfileHandler = new UserProfileHandler(getUserProfileUseCase, updateProfileUseCase,
                 validateTokenUseCase, changePasswordUseCase, setAuthMethodUseCase);
         final var notifyHandler = new NotifyHandler(notifyDoubtAnsweredUseCase);
@@ -636,6 +642,8 @@ public class UsersApplication {
         routes.add("/internal/egress-policy/*", internalEgressPolicyHandler);
         routes.add("/internal/app-preview-target/*", internalAppPreviewTargetHandler);
         routes.add("/internal/llm-context/*", internalLlmContextHandler);
+        routes.add("/internal/llm-resolution/*",internalLlmResolutionHandler);
+        routes.add("/api/v1/me/llm/*",personalLlmHandler);
         routes.add("/api/v1/conferences/*", conferenceHandler);
         routes.add("/api/v1/users/*", userProfileHandler);
         routes.add("/api/v1/notify/*", notifyHandler);

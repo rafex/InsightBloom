@@ -2,22 +2,25 @@
 [session]
 state = "in_progress"
 agent = "Codex"
-initiative = "organizer-ticket-signing"
-task = "TASK-OTS-0004"
-intent = "Cerrar validación operativa de la firma de boletos por evento y preparación offline."
-last_updated = "2026-10-23T19:06:07Z"
+initiative = "llm-profile-inheritance"
+task = "TASK-LLM-PROFILE-INHE-0001"
+intent = "Completar y publicar en ramas de revisión la herencia de configuración LLM por dueño, perfil personal y permisos explícitos."
+last_updated = "2026-10-26T15:24:58Z"
 +++
 
 # Active Session
 
 ## Current state
 
-Cerrar validación operativa de la firma de boletos por evento y preparación offline.
+Completar y publicar en ramas de revisión la herencia de configuración LLM por dueño, perfil personal y permisos explícitos.
 
 ## Next steps
 
-1. Ejecutar la prueba integrada en staging con un evento de ensayo y dos lectores; validar emisión pública/manual y firma, lector offline, cancelación/revocación, expiración y sincronización de duplicados. 2. Confirmar que no hay ningún consumidor global de firma de paquetes ni referencias en GitOps. 3. Actualizar evidencia de TASK-OTS-0004 y cerrar la iniciativa después de que staging pase.
+1. Revisar diff de ambos repositorios y ejecutar git diff --check.
+2. Commit y push de InsightBloom y el cambio GitOps opt-in en ramas codex separadas.
+3. No habilitar el callback en el cluster: staging integrado queda como gate de despliegue.
+4. Conservar como pendiente independiente el gate de restauración del ticket-signing indicado en la sesión anterior.
 
 ## Context for next agent
 
-Implementados Rust/WASM COSE, clave local por evento, persistencia/API backend, pendientes de firma, paquete v2 firmado por organizador, verificación QR de dispositivo y sync idempotente. Maven users, frontend typecheck/build y Cargo tests/build WASM pasan. No ejecutar aún validación contra producción; staging es el único gate pendiente.
+El callback interno usa LLM_GATEWAY_USERS_TOKEN, se revalida en cada completion y el chart deja LLM_USERS_RESOLUTION_URL vacío para compatibilidad progresiva. No usar producción para pruebas; el staging real aún no está disponible/verificado.

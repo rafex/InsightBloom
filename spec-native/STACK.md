@@ -67,12 +67,13 @@ Fuente de verdad de la base tecnologica del proyecto.
 
 ## Integraciones
 
-- **LLM Provider** (cualquier API compatible con OpenAI): se configura por
-  capacidad en las pestañas `Chat`, `Tutor IA`, `Encuestas` y `Mapas de asientos`
-  de `Dashboard → IA`. Cada perfil tiene URL base, modelo, prompt, temperatura,
-  kill switch y API key independientes. La clave se cifra en SQLite de
-  `insightbloom-users` y solo se entrega por el endpoint interno autenticado;
-  no se usan variables de despliegue para el proveedor.
+- **LLM Provider** (catálogo o API compatible con OpenAI): ADMIN/ORGANIZER
+  configura perfil personal por herramienta; los eventos pueden heredar del
+  dueño, guardar su propia fuente, vincular el perfil del actor autorizado o
+  apagar la IA. Las credenciales se cifran en el almacenamiento aislado del
+  `insightbloom-llm-gateway`; `users` conserva modos, vínculos y auditoría, no
+  claves. El gateway consulta a `users` para validar fuente y permisos vigentes
+  en cada solicitud. No hay credenciales globales.
   Libreria: `openai` 1.55 (Python).
 - **Twilio**: envio de OTP via SMS para verificacion de usuarios.
   Configuracion: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`.

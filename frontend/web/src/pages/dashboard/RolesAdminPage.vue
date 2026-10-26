@@ -97,6 +97,7 @@ const PERMISSION_LABELS: Record<string, string> = {
   MANAGE_EVENT_TYPES: 'Gestionar tipos de evento',
   HOST_EVENT: 'Crear eventos',
   MANAGE_EVENT_SETTINGS: 'Editar configuración del evento',
+  MANAGE_EVENT_AI: 'Gestionar IA (cuenta ADMIN/ORGANIZER)',
   ASSIGN_EVENT_ROLES: 'Asignar roles del evento',
   MODERATE_CONTENT: 'Moderar contenido',
   CHECK_IN: 'Check-in de boletos',

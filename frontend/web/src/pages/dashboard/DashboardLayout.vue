@@ -27,6 +27,7 @@
           router-link(to="/dashboard/organizer-referrals" @click="closeSidebar") Recomendar organizadores
         .nav-section
           h2.nav-section-title Cuenta
+          router-link(v-if="isOrganizer" to="/dashboard/my-ai" @click="closeSidebar") Mi configuración de IA
           router-link(to="/profile" @click="closeSidebar") Mi perfil
     main#main-content.dashboard-main(tabindex="-1")
       router-view

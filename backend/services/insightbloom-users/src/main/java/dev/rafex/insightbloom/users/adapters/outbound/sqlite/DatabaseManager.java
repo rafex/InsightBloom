@@ -22,6 +22,8 @@ public class DatabaseManager {
 
     public void initialize() {
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS event_llm_sources(event_uuid TEXT NOT NULL,capability TEXT NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('EVENT','INHERIT_OWNER','MEMBER_PROFILE','DISABLED')),member_uuid TEXT,PRIMARY KEY(event_uuid,capability))");
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS llm_configuration_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,event_uuid TEXT,capability TEXT NOT NULL,occurred_at TEXT NOT NULL)");
             // Las migraciones de datos deben ejecutarse una sola vez. Sin esta tabla, una
             // reparación de compatibilidad podría volver a pisar una selección explícita del
             // organizador en cada reinicio del servicio.

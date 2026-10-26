@@ -10,5 +10,21 @@
   "src/pages/dashboard/CertificateSettingsPage.vue": {
     "count": 1,
     "reason": "primaryColorHex: color elegido por el organizador para el documento"
+  },
+  "src/pages/public/PublicTicketCheckoutPage.vue": {
+    "count": 2,
+    "reason": "Fallbacks de color para el aviso de firma pendiente del boleto"
+  },
+  "src/pages/public/TicketEnrollmentPage.vue": {
+    "count": 3,
+    "reason": "Fallbacks de color para la pantalla pública de alta de dispositivo"
+  },
+  "src/components/OrganizerTicketSigningPanel.vue": {
+    "count": 1,
+    "reason": "Fallback de borde del panel de firma de boletos"
+  },
+  "src/components/SeatMapCanvasPicker.vue": {
+    "count": 3,
+    "reason": "Colores que el motor de mapas de asientos requiere al construir su modelo"
   }
 }

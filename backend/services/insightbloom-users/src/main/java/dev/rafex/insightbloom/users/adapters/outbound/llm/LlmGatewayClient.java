@@ -14,7 +14,7 @@ import java.util.Map;
 
 /** Internal client for event-scoped credential metadata and writes. Plain keys are sent only
  * over the private service connection and are never returned by this adapter. */
-public final class LlmGatewayClient {
+public final class LlmGatewayClient implements dev.rafex.insightbloom.users.domain.ports.LlmCredentialsPort {
     private final String baseUrl;
     private final String serviceToken;
     private final String serviceId;
@@ -38,6 +38,27 @@ public final class LlmGatewayClient {
         this.serviceId = serviceId == null ? "users" : serviceId;
         this.signingKey = signingKey == null ? "" : signingKey;
         this.codec = codec;
+    }
+
+    public Map<String,Object> credentialStatus(String scope,String id,String capability) {
+        return metadata(request("GET","/internal/credentials/"+segment(scope)+"/"+segment(id)+"/"+segment(capability),null,null).path("data"));
+    }
+    private Map<String,Object> metadata(com.fasterxml.jackson.databind.JsonNode data) {
+        var out=new LinkedHashMap<String,Object>();out.put("configured",data.path("configured").asBoolean(false));
+        for(var field:java.util.List.of("provider","model","baseUrl","mode","effectiveSource","fallbackReason","linkedProfileName"))if(data.path(field).isTextual())out.put(field,data.path(field).asText());
+        if(data.path("updatedAt").isNumber())out.put("updatedAt",data.path("updatedAt").asLong());
+        if(data.path("eventConfiguration").isObject())out.put("eventConfiguration",metadata(data.path("eventConfiguration")));
+        return out;
+    }
+    public Map<String,Object> effectiveStatus(String eventId,String capability) {
+        return metadata(request("GET","/internal/effective/"+segment(eventId)+"/"+segment(capability),null,null).path("data"));
+    }
+    public void saveCredential(String scope,String id,String capability,Map<String,Object> config,String actor) {
+        var body=new LinkedHashMap<>(config);body.put("scopeType",scope);body.put("scopeId",id);body.put("capability",capability);
+        request("PUT","/internal/credentials",body,actor);
+    }
+    public void clearCredential(String scope,String id,String capability,String actor) {
+        request("DELETE","/internal/credentials/"+segment(scope)+"/"+segment(id)+"/"+segment(capability),null,actor);
     }
 
     public Map<String, Object> status(final String eventId, final String capability) {
@@ -84,6 +105,7 @@ public final class LlmGatewayClient {
                     .method(method, HttpRequest.BodyPublishers.ofString(codec.toJson(body)));
             final var response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                if (response.statusCode() == 400 || response.statusCode() == 422) throw new IllegalArgumentException("configuration_invalid_or_key_required");
                 throw new IllegalStateException("llm_gateway_unavailable");
             }
             return codec.readTree(response.body());
@@ -91,6 +113,7 @@ public final class LlmGatewayClient {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("llm_gateway_unavailable");
         } catch (final Exception e) {
+            if (e instanceof IllegalArgumentException invalid) throw invalid;
             if (e instanceof IllegalStateException state && "llm_gateway_unavailable".equals(state.getMessage())) throw state;
             throw new IllegalStateException("llm_gateway_unavailable");
         }
@@ -102,7 +125,7 @@ public final class LlmGatewayClient {
     }
 
     public boolean isConfigured(final String eventId, final String capability) {
-        return Boolean.TRUE.equals(status(eventId, capability).get("configured"));
+        return Boolean.TRUE.equals((serviceId.equals("users") ? effectiveStatus(eventId, capability) : status(eventId,capability)).get("configured"));
     }
 
     public String complete(final String eventId, final String capability, final String systemPrompt,

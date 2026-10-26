@@ -55,7 +55,6 @@
   "src/pages/conference/VideoConferenceEntryPage.vue": "embedded-tool",
   "src/pages/conference/WhiteboardPage.vue": "embedded-tool",
   "src/pages/conference/WordTimelinePage.vue": "visualization",
-  "src/pages/dashboard/AdminAiSettingsPage.vue": "domain-screen",
   "src/pages/dashboard/AdminDeviceAccessPage.vue": "domain-screen",
   "src/pages/dashboard/AdminEgressPolicyPage.vue": "domain-screen",
   "src/pages/dashboard/AdminImagePolicyPage.vue": "domain-screen",
@@ -93,5 +92,9 @@
   "src/pages/public/PublicEventDetailPage.vue": "domain-screen",
   "src/pages/public/PublicEventsPage.vue": "domain-screen",
   "src/pages/public/OrganizerInvitePage.vue": "domain-screen",
-  "src/pages/public/PublicTicketCheckoutPage.vue": "domain-screen"
+  "src/pages/public/PublicTicketCheckoutPage.vue": "domain-screen",
+  "src/components/LlmConfigurationEditor.vue": "shared-component",
+  "src/components/SeatMapCanvasPicker.vue": "visualization",
+  "src/components/OrganizerTicketSigningPanel.vue": "shared-component",
+  "src/pages/public/TicketEnrollmentPage.vue": "domain-screen"
 }

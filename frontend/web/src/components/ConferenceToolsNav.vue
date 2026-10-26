@@ -11,6 +11,7 @@ nav.tools-nav(v-if="conferenceId" aria-label="Herramientas del evento")
     router-link(v-if="hasCapability('WORD_CLOUD')" :to="`/dashboard/events/${conferenceId}/moderation/words`") Palabras/Nube
     router-link(v-if="hasCapability('CODE_IDE')" :to="`/dashboard/events/${conferenceId}/moderation/ide`") Editor Monaco
     router-link(:to="`/dashboard/events/${conferenceId}/moderation/tools`") Herramientas
+    router-link(v-if="canManageAi" :to="`/dashboard/events/${conferenceId}/ai`") IA del evento
     BaseAnchor.menu-video-link(
       v-if="hasCapability('VIDEO_CONFERENCE') && friendlyId"
       variant="ghost"
@@ -36,7 +37,7 @@ nav.tools-nav(v-if="conferenceId" aria-label="Herramientas del evento")
 import { ref, onMounted } from 'vue'
 import DropdownMenu from '@/components/DropdownMenu.vue'
 import BaseAnchor from '@/components/ui/BaseAnchor.vue'
-import { getConference, getActiveEventTypes } from '@/services/api/usersApi'
+import { getEventLlmConfiguration, getConference, getActiveEventTypes } from '@/services/api/usersApi'
 import type { Conference, EventCapability, EventType } from '@/services/api/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import { eventTypeHasCapability } from '@/features/conferences/capabilities'
@@ -54,6 +55,7 @@ export default {
   components: { BaseAnchor, DropdownMenu },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
+    const canManageAi = ref(false)
     const auth = useAuthStore()
     const isOrganizer = auth.isOrganizer()
     const conference = ref<Conference | null>(null)
@@ -80,6 +82,7 @@ export default {
     }
 
     onMounted(async () => {
+      try { await getEventLlmConfiguration(props.conferenceId as string, "chat", auth.state.token as string); canManageAi.value = true } catch { canManageAi.value = false }
       if (!props.conferenceId) return
       try {
         const [conf, types] = await Promise.all([
@@ -93,7 +96,7 @@ export default {
       } catch (e: any) { /* nav degrada a "mostrar todo" si el fetch falla, ver hasCapability */ }
     })
 
-    return { conference, friendlyId, isOrganizer, hasCapability, hasTicketing, hasSeating, openPublic }
+    return { canManageAi, conference, friendlyId, isOrganizer, hasCapability, hasTicketing, hasSeating, openPublic }
   }
 }
 </script>

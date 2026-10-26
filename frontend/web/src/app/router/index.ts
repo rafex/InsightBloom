@@ -114,6 +114,8 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/dashboard/ConferenceConfigPage.vue'),
         props: true
       },
+      { path: 'my-ai', component: () => import('@/pages/dashboard/PersonalAiSettingsPage.vue') },
+      { path: 'events/:conferenceId/ai', component: () => import('@/pages/dashboard/EventAiSettingsPage.vue'), props: true },
       {
         path: 'events/:conferenceId/moderation/messages',
         component: () => import('@/pages/dashboard/ModerationMessagesPage.vue'),

@@ -34,6 +34,8 @@ Capacidades:
 - Censurar, restaurar y editar palabras y mensajes.
 - Gestionar encuestas (crear, ver resultados, emitir certificados).
 - Crear y editar el certificado de sus propias conferencias.
+- Administrar sus credenciales personales de IA por herramienta y configurar IA
+  de eventos propios, heredada por eventos nuevos o existentes sin sobrescritura.
 - Subir presentaciones (Marp Markdown) para la conferencia.
 - Enviar mensajes como cualquier participante.
 - Consultar nubes de dudas, temas y timelines.
@@ -59,6 +61,9 @@ Capacidades:
 - Enviar mensajes como participante.
 - Editar el certificado de un evento cuando su rol de evento tenga
   `MANAGE_CERTIFICATE`.
+- Administrar IA de un evento solo cuando su cuenta sea ADMIN/ORGANIZER y su
+  asignación vigente incluya explícitamente `MANAGE_EVENT_AI`. No obtiene acceso
+  a las claves personales del dueño.
 
 Restricciones:
 

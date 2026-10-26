@@ -1699,7 +1699,7 @@ Registrar una decision cuando cambie:
 ### DEC-0041 - Credenciales LLM exclusivamente por evento y herramienta
 
 - Fecha: 2026-10-21
-- Estado: accepted
+- Estado: replaced (DEC-0044)
 - Contexto: el propietario del evento necesita configurar endpoints y claves distintas para las herramientas del evento; claves globales o heredadas permitirían uso cruzado y ocultarían qué proveedor financia cada evento.
 - Decision:
   - Cada evento configura por separado `chat`, `tutor`, `survey`, `seatLayout` y `email`.
@@ -1710,6 +1710,13 @@ Registrar una decision cuando cambie:
   - Las claves globales se limpian del almacenamiento activo y no se migran. Backups históricos siguen la retención definida y nunca se reactivan al restaurar.
 - Consecuencias: organizadores ingresan sus claves por evento y herramienta; servicios sin configuración quedan sin IA. La habilitación productiva requiere provisioning privado y validación en staging.
 - Reemplaza: el fallback de organizador y la precedencia `evento → organizador → apagado` de la propuesta inicial.
+
+### DEC-0044 - Herencia personal de IA con delegación por evento
+
+- Fecha: 2026-10-26
+- Estado: accepted
+- Decisión: perfiles personales cifrados por ADMIN/ORGANIZER; cada capacidad del evento elige heredar del dueño, usar configuración propia, vincular el perfil propio o apagar la IA. Un vínculo delegado se revalida por solicitud; una autorización inválida vuelve al dueño, y un fallo del proveedor nunca cambia la fuente.
+- Consecuencias: sustituye DEC-0041; requiere callback interno fail-closed y mantiene separadas las credenciales personales de los registros legacy.
 
 ### DEC-0042 - Prueba criptográfica de posesión por boleto
 
@@ -1744,3 +1751,4 @@ Registrar una decision cuando cambie:
 | ID | Estado | Título | Tags |
 | --- | --- | --- | --- |
 | [DEC-0043](./decisions/DEC-0043-firma-de-boletos-y-paquetes-offline-bajo-control.md) | accepted | Firma de boletos y paquetes offline bajo control del organizador | tickets, offline, cryptography, security |
+| [DEC-0044](./decisions/DEC-0044-herencia-personal-de-ia-con-delegaci-n-por-event.md) | accepted | Herencia personal de IA con delegación por evento | - |

@@ -522,22 +522,22 @@ Los servicios pueden comunicarse con endpoints internos protegidos por
 
 ## Integraciones externas
 
-- **Proveedores LLM compatibles con OpenAI**: `chat` (Roberto), `tutor`,
-  `survey`, `seatLayout` y `email` usan configuración independiente por evento y
-  herramienta. El propietario del evento o ADMIN administra proveedor/modelo del
-  catálogo o URL HTTPS personalizada y su API key desde `Configuración → IA` del
-  evento. El gateway dedicado mantiene las claves cifradas con AES-GCM y es el
-  único servicio que las descifra y llama al proveedor. Los consumidores envían
-  solicitudes con identidad de servicio y contexto firmado de corta duración.
-  URL personalizada valida DNS público y fija la IP al conectar; no sigue
-  redirecciones. No hay claves ni proveedor global, predeterminado o heredado.
-  Los ajustes LLM globales anteriores se limpian del almacenamiento SQLite activo
-  y `users` dejó de leerlos o escribirlos. El chart GitOps ya declara referencias
-  opcionales a secretos dedicados; sin provisionar esos secretos la integración
-  permanece apagada. La activación requiere provisión privada, controles de
-  salida/observabilidad y validación funcional en staging. Backups antiguos
-  conservan su retención, pero no deben restaurarse como configuración activa.
-  Ver [`llm-credential-isolation`](./specs/llm-credential-isolation/SPEC.md).
+- **Proveedores LLM**: `chat` (Roberto), `tutor`, `survey`, `seatLayout` y
+  `email` seleccionan fuente por herramienta: perfil del dueño, credencial propia
+  del evento, perfil del actor vinculado o IA apagada. ADMIN/ORGANIZER administran
+  su perfil personal; el dueño/ADMIN o un moderador con `MANAGE_EVENT_AI` puede
+  gestionar IA del evento sin obtener acceso a claves personales ajenas.
+  `users` revalida por solicitud el dueño y la autorización del perfil vinculado;
+  el gateway dedicado almacena claves cifradas con AES-GCM y es el único servicio
+  que las descifra y llama al proveedor. Los fallos del proveedor no cambian la
+  fuente; si el perfil vinculado pierde autorización se vuelve al dueño. URL
+  personalizada valida DNS público y fija IP al conectar; no sigue redirecciones.
+  No hay credenciales globales ni de plataforma. Las configuraciones propias
+  existentes se conservan. La activación requiere provisionar tokens privados,
+  habilitar el callback interno después de desplegar su endpoint y validar el
+  recorrido en staging. Los backups históricos no deben restaurarse como
+  configuración activa. Ver
+  [`llm-profile-inheritance`](./specs/llm-profile-inheritance/SPEC.md).
 - **Twilio**: OTP via SMS para verificacion de usuarios. Configurado via
   `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`.
 - **Zoho SMTP**: envio de correos (certificados, notificaciones).

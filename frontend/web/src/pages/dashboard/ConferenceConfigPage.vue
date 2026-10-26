@@ -304,38 +304,7 @@
       FeedbackMessage(v-if="surveyAiConfigSaved" message="Contexto de Encuesta IA guardado." tone="success")
       FeedbackMessage(v-if="surveyAiConfigError" :message="surveyAiConfigError" tone="error")
 
-    .form-group.event-llm-group(v-show="activeTab === 'ai'")
-      label Proveedores LLM de este evento
-      p.field-hint Cada herramienta usa solo la configuración de este evento. No hay proveedor ni clave global o predeterminada. Sin configuración, la IA de esa herramienta queda apagada. La clave se cifra en el servicio LLM y nunca vuelve a mostrarse.
-      .llm-tool-card(v-for="tool in llmTools" :key="tool.id")
-        h3 {{ tool.label }}
-        p.llm-status(:role="llmErrors[tool.id] ? 'alert' : 'status'") {{ llmErrors[tool.id] || (llmConfigs[tool.id].configured ? `Configurado · ${llmConfigs[tool.id].provider} · ${llmConfigs[tool.id].model}` : 'Sin configurar · IA apagada') }}
-        .coord-field
-          label(:for="`llm-provider-${tool.id}`") Proveedor
-          select(:id="`llm-provider-${tool.id}`" v-model="llmConfigs[tool.id].provider" :disabled="llmBusy[tool.id]" @change="normalizeLlmModel(tool.id)")
-            option(value="openai") OpenAI
-            option(value="groq") Groq
-            option(value="custom") URL compatible con OpenAI
-        .coord-field(v-if="llmConfigs[tool.id].provider !== 'custom'")
-          label(:for="`llm-model-${tool.id}`") Modelo
-          select(:id="`llm-model-${tool.id}`" v-model="llmConfigs[tool.id].model" :disabled="llmBusy[tool.id]")
-            option(v-if="llmConfigs[tool.id].provider === 'openai'" value="gpt-4o-mini") gpt-4o-mini
-            template(v-else)
-              option(value="llama-3.3-70b-versatile") llama-3.3-70b-versatile
-              option(value="llama-3.1-8b-instant") llama-3.1-8b-instant
-              option(value="openai/gpt-oss-120b") openai/gpt-oss-120b
-        .coord-field(v-else)
-          label(:for="`llm-url-${tool.id}`") URL base HTTPS
-          input(:id="`llm-url-${tool.id}`" v-model="llmConfigs[tool.id].baseUrl" type="url" maxlength="2048" placeholder="https://api.example.com/v1" :disabled="llmBusy[tool.id]")
-          label(:for="`llm-custom-model-${tool.id}`") Identificador del modelo
-          input(:id="`llm-custom-model-${tool.id}`" v-model="llmConfigs[tool.id].model" type="text" maxlength="128" placeholder="nombre-del-modelo" :disabled="llmBusy[tool.id]")
-        .coord-field
-          label(:for="`llm-key-${tool.id}`") API key {{ llmConfigs[tool.id].configured ? '(ingrésala para reemplazarla)' : '' }}
-          input(:id="`llm-key-${tool.id}`" v-model="llmConfigs[tool.id].apiKey" type="password" autocomplete="new-password" maxlength="4096" :required="!llmConfigs[tool.id].configured" :disabled="llmBusy[tool.id]")
-          span.field-hint La clave no se conserva en el navegador después de guardar y no puede recuperarse desde InsightBloom.
-        .llm-actions
-          BaseButton(variant="secondary" type="button" @click="saveEventLlm(tool.id)" :disabled="llmBusy[tool.id]") {{ llmBusy[tool.id] ? 'Guardando…' : 'Guardar configuración' }}
-          BaseButton(v-if="llmConfigs[tool.id].configured" variant="danger" type="button" @click="clearEventLlm(tool.id)" :disabled="llmBusy[tool.id]") Quitar configuración
+    EventLlmSettings(v-if="activeTab === 'ai'" :event-id="conferenceId")
 
     .form-group.egress-policy-group(v-show="activeTab === 'network'")
       label Control de red del evento
@@ -407,6 +376,7 @@
 </template>
 
 <script lang="ts">
+import EventLlmSettings from '@/components/EventLlmSettings.vue'
 import { ref, computed, onMounted, onBeforeUnmount, reactive, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import {
@@ -416,7 +386,7 @@ import {
   recreateSandbox as recreateSandboxApi, setDeviceAccessConfig, setCanvasConfigs, setCertificateEngine,
   getCertificateEngine, getConferenceEgressPolicy, setConferenceEgressPolicy,
   getConferenceImagePolicy, setConferenceImagePolicy,
-  getEventLlmConfiguration, saveEventLlmConfiguration, deleteEventLlmConfiguration
+
 } from '@/services/api/usersApi'
 import { getAiMentorConfig, setAiMentorConfig, getAiSurveyConfig, setAiSurveyConfig } from '@/services/api/surveyApi'
 import type { Conference, SeatingMode, EventType, EventRoleAssignment, Role, SandboxIncident, SandboxStatusEntry, SandboxPrewarmResult, CanvasTool, CanvasAudienceMode, CanvasToolConfig, CertificateEngine } from '@/services/api/types'
@@ -436,12 +406,10 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import UiIcon from '@/components/ui/UiIcon.vue'
 import OrganizerTicketSigningPanel from '@/components/OrganizerTicketSigningPanel.vue'
 
-type LlmCapability = 'chat' | 'tutor' | 'survey' | 'seatLayout' | 'email'
-type LlmEditConfig = { configured: boolean; provider: 'openai' | 'groq' | 'custom'; model: string; baseUrl: string; apiKey: string }
 
 export default {
   name: 'ConferenceConfigPage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, ToggleSwitch, SaveState, StatusBadge, UiIcon, OrganizerTicketSigningPanel },
+  components: { EventLlmSettings, DashboardBreadcrumb, ConferenceToolsNav, BaseButton, BaseLink, BaseModal, EmptyState, FeedbackMessage, LoadingState, ToggleSwitch, SaveState, StatusBadge, UiIcon, OrganizerTicketSigningPanel },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth        = useAuthStore()
@@ -566,20 +534,6 @@ export default {
     const savingSurveyAiConfig = ref(false)
     const surveyAiConfigSaved = ref(false)
     const surveyAiConfigError = ref('')
-    const llmTools: Array<{ id: LlmCapability; label: string }> = [
-      { id: 'chat', label: 'Chat en vivo' }, { id: 'tutor', label: 'Tutor IA' },
-      { id: 'survey', label: 'Encuestas' }, { id: 'seatLayout', label: 'Distribución de asientos' },
-      { id: 'email', label: 'Borradores de correo' }
-    ]
-    const llmConfigs = reactive<Record<LlmCapability, LlmEditConfig>>({
-      chat: { configured: false, provider: 'openai', model: 'gpt-4o-mini', baseUrl: '', apiKey: '' },
-      tutor: { configured: false, provider: 'openai', model: 'gpt-4o-mini', baseUrl: '', apiKey: '' },
-      survey: { configured: false, provider: 'openai', model: 'gpt-4o-mini', baseUrl: '', apiKey: '' },
-      seatLayout: { configured: false, provider: 'openai', model: 'gpt-4o-mini', baseUrl: '', apiKey: '' },
-      email: { configured: false, provider: 'openai', model: 'gpt-4o-mini', baseUrl: '', apiKey: '' }
-    })
-    const llmBusy = reactive<Record<LlmCapability, boolean>>({ chat: false, tutor: false, survey: false, seatLayout: false, email: false })
-    const llmErrors = reactive<Record<LlmCapability, string>>({ chat: '', tutor: '', survey: '', seatLayout: '', email: '' })
     const egressAllowedHosts = ref('')
     const egressBlockedHosts = ref('')
     const egressAllowAll = ref(false)
@@ -691,60 +645,6 @@ export default {
       } catch (e: any) {
         mentorError.value = e.response?.data?.error?.message || 'No se pudo cargar la configuración pedagógica del evento'
       }
-    }
-
-    async function loadEventLlmConfigurations() {
-      await Promise.all(llmTools.map(async ({ id }) => {
-        try {
-          const state = await getEventLlmConfiguration(props.conferenceId as string, id, auth.state.token as string)
-          llmConfigs[id].configured = state.configured
-          if (state.provider) llmConfigs[id].provider = state.provider
-          if (state.model) llmConfigs[id].model = state.model
-          if (state.baseUrl) llmConfigs[id].baseUrl = state.baseUrl
-        } catch (e: any) {
-          llmErrors[id] = e.response?.data?.error?.message || 'No se pudo consultar el estado de esta configuración'
-        }
-      }))
-    }
-
-    function normalizeLlmModel(id: LlmCapability) {
-      const config = llmConfigs[id]
-      if (config.provider === 'openai') config.model = 'gpt-4o-mini'
-      else if (config.provider === 'groq' && !['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b'].includes(config.model)) {
-        config.model = 'llama-3.3-70b-versatile'
-      } else if (config.provider === 'custom' && ['gpt-4o-mini', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b'].includes(config.model)) {
-        config.model = ''
-      }
-    }
-
-    async function saveEventLlm(id: LlmCapability) {
-      const config = llmConfigs[id]
-      llmBusy[id] = true; llmErrors[id] = ''
-      try {
-        if (!config.apiKey.trim()) throw new Error('Escribe la API key para guardar o reemplazar la credencial.')
-        const state = await saveEventLlmConfiguration(props.conferenceId as string, id, {
-          provider: config.provider, model: config.model.trim(),
-          ...(config.provider === 'custom' ? { baseUrl: config.baseUrl.trim() } : {}),
-          apiKey: config.apiKey
-        }, auth.state.token as string)
-        config.apiKey = ''
-        config.configured = state.configured
-        config.provider = state.provider || config.provider
-        config.model = state.model || config.model
-        config.baseUrl = state.baseUrl || config.baseUrl
-      } catch (e: any) {
-        llmErrors[id] = e.response?.data?.error?.message || e.message || 'No se pudo guardar la configuración'
-      } finally { llmBusy[id] = false }
-    }
-
-    async function clearEventLlm(id: LlmCapability) {
-      llmBusy[id] = true; llmErrors[id] = ''
-      try {
-        await deleteEventLlmConfiguration(props.conferenceId as string, id, auth.state.token as string)
-        llmConfigs[id].configured = false; llmConfigs[id].apiKey = ''; llmConfigs[id].baseUrl = ''
-      } catch (e: any) {
-        llmErrors[id] = e.response?.data?.error?.message || 'No se pudo borrar la configuración'
-      } finally { llmBusy[id] = false }
     }
 
     async function saveMentor() {
@@ -902,7 +802,6 @@ export default {
       }
 
       await loadMentor()
-      await loadEventLlmConfigurations()
       await loadSurveyAiConfig()
       await loadEgressPolicy()
       await loadImagePolicy()
@@ -1236,7 +1135,6 @@ export default {
              mentorEnabled, mentorObjective, mentorPrompt, mentorIncludePresentation, mentorMaxRequests,
              savingMentor, mentorSaved, mentorError, saveMentor,
              surveyExtraContext, savingSurveyAiConfig, surveyAiConfigSaved, surveyAiConfigError, saveSurveyAiConfig,
-             llmTools, llmConfigs, llmBusy, llmErrors, normalizeLlmModel, saveEventLlm, clearEventLlm,
              egressAllowedHosts, egressBlockedHosts, egressAllowAll, savingEgressPolicy, egressPolicySaved, egressPolicyError,
              saveEgressPolicy,
              imageAllowedImages, imageBlockedImages, savingImagePolicy, imagePolicySaved, imagePolicyError,
