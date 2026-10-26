@@ -38,9 +38,9 @@ section.llm-editor(:aria-labelledby="`${prefix}-title`" :aria-busy="busy")
             option(value="llama-3.1-8b-instant") llama-3.1-8b-instant
             option(value="openai/gpt-oss-120b") openai/gpt-oss-120b
       .form-group
-        label(:for="`${prefix}-key`") API key {{ ownState?.configured ? '(opcional para conservarla)' : '' }}
-        input(:id="`${prefix}-key`" v-model="form.apiKey" type="password" autocomplete="new-password" maxlength="4096" :required="!ownState?.configured" :disabled="busy" :aria-describedby="`${prefix}-secret-help`")
-        p(:id="`${prefix}-secret-help`") Se guarda cifrada y nunca vuelve a mostrarse. Dejarla vacía conserva la existente; cambiar proveedor o URL requiere una clave nueva.
+        label(:for="`${prefix}-key`") API key {{ needsKey ? '(obligatoria)' : '(opcional para conservarla)' }}
+        input(:id="`${prefix}-key`" v-model="form.apiKey" type="password" autocomplete="new-password" maxlength="4096" :required="needsKey" :disabled="busy" :aria-describedby="`${prefix}-secret-help`")
+        p(:id="`${prefix}-secret-help`") Se guarda cifrada y nunca vuelve a mostrarse. Dejarla vacía conserva la existente; al cambiar proveedor o URL se exige una clave nueva.
       .llm-actions
         BaseButton(type="submit" :loading="busy") Guardar configuración
         BaseButton(v-if="ownState?.configured" type="button" variant="danger" :disabled="busy" @click="pending = 'delete'") Quitar configuración

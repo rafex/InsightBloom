@@ -18,6 +18,9 @@ export function useLlmEditor(props: { eventId: string; capability: string }, cha
   const pending = ref<'mode' | 'delete' | null>(null)
   const endpoint = computed(() => props.eventId ? `/api/users/api/v1/conferences/${encodeURIComponent(props.eventId)}/llm/${props.capability}` : `${personalLlmUrl}/${props.capability}`)
   const ownState = computed(() => props.eventId ? state.value.eventConfiguration : state.value)
+  const needsKey = computed(() => !ownState.value?.configured
+    || form.provider !== ownState.value.provider
+    || (form.provider === 'custom' && form.baseUrl.replace(/\/+$/, '') !== (ownState.value.baseUrl || '').replace(/\/+$/, '')))
   const statusLabel = computed(() => {
     const source = state.value.effectiveSource
     const label = source === 'OWNER' ? 'Heredada del dueño' : source === 'MEMBER_PROFILE' ? `Perfil de ${state.value.linkedProfileName || 'colaborador'}` : source === 'EVENT' ? 'Propia del evento' : props.eventId ? 'IA apagada' : state.value.configured ? 'Configuración personal' : 'Sin configurar'
@@ -61,5 +64,5 @@ export function useLlmEditor(props: { eventId: string; capability: string }, cha
   }
   function providerChanged() { form.model = form.provider === 'openai' ? 'gpt-4o-mini' : form.provider === 'groq' ? 'llama-3.3-70b-versatile' : ''; form.baseUrl = '' }
   onMounted(load); onBeforeUnmount(() => { form.apiKey = '' })
-  return { state, mode, busy, loaded, error, saved, form, pending, ownState, statusLabel, load, save, applyMode, remove, providerChanged }
+  return { state, mode, busy, loaded, error, saved, form, pending, ownState, needsKey, statusLabel, load, save, applyMode, remove, providerChanged }
 }

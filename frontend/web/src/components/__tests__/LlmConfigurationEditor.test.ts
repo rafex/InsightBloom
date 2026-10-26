@@ -37,6 +37,15 @@ describe('LLM configuration UX', () => {
     const w = editor(''); await flushPromises(); await w.get('form').trigger('submit'); await flushPromises()
     expect(axios.put).toHaveBeenCalledWith(expect.stringContaining('/me/llm/chat'), expect.objectContaining({ apiKey: '' }), expect.anything())
   })
+  it('requires a fresh key when a configured custom endpoint changes', async () => {
+    const custom = { configured: true, provider: 'custom', model: 'model-v1', baseUrl: 'https://api.example.test/v1' }
+    vi.mocked(axios.get).mockResolvedValue({ data: { data: { ...custom, mode: 'EVENT', effectiveSource: 'EVENT', eventConfiguration: custom } } })
+    const w = editor(); await flushPromises()
+    const url = w.get('input[type="url"]')
+    expect((w.get('input[type="password"]').element as HTMLInputElement).required).toBe(false)
+    await url.setValue('https://api.example.test/v2')
+    expect((w.get('input[type="password"]').element as HTMLInputElement).required).toBe(true)
+  })
   it('does not expose editing when access is denied', async () => {
     vi.mocked(axios.get).mockRejectedValue(new Error('forbidden'))
     const w = editor(); await flushPromises(); expect(w.find('input[type="password"]').exists()).toBe(false)
