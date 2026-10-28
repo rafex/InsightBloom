@@ -19,7 +19,7 @@
     "adm-zip": "^0.6.1",
     "cheerio": "^1.2.0",
     "express": "^5.2.1",
-    "multer": "^2.3.0",
+    "multer": "^2.5.0",
     "nats": "^2.29.3",
     "playwright-chromium": "1.63.0",
     "ws": "^8.21.3"
