@@ -5,7 +5,7 @@
 # infra/docker/Dockerfile.java-builder / .github/workflows/publish-java-base-images.yml) --
 # reemplaza la instalación manual que antes vivía acá sobre eclipse-temurin:25-jdk-alpine.
 # ─────────────────────────────────────────────────────────────────────────────
-FROM ghcr.io/rafex/insightbloom-java-builder:25.0.4.0 AS builder
+FROM ghcr.io/rafex/insightbloom-java-builder:25.0.5.0 AS builder
 
 WORKDIR /workspace
 
@@ -37,7 +37,7 @@ RUN mvn -f backend/services/pom.xml clean package -DskipTests -q
 #                --build-arg SERVICE_PORT=8081 \
 #                -f container/backend/java/Dockerfile .
 # ─────────────────────────────────────────────────────────────────────────────
-FROM ghcr.io/rafex/insightbloom-java-runtime:25.0.4.0 AS runtime
+FROM ghcr.io/rafex/insightbloom-java-runtime:25.0.5.0 AS runtime
 
 ARG SERVICE=insightbloom-users
 ARG SERVICE_PORT=8081
