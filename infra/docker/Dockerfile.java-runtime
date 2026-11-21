@@ -8,9 +8,9 @@
 # github.com/ibmruntimes/semeru25-binaries y verificando su checksum.
 FROM debian:bookworm-slim
 
-ARG SEMERU_VERSION=25.0.4.0
-ARG SEMERU_TARBALL=ibm-semeru-open-jre_x64_linux_25.0.4.0.tar.gz
-ARG SEMERU_SHA256=96df49c3d63000e75640a44b6ebf803bb96513ba2a64b00462c986104ffd4961
+ARG SEMERU_VERSION=25.0.5.0
+ARG SEMERU_TARBALL=ibm-semeru-open-jre_x64_linux_25.0.5.0.tar.gz
+ARG SEMERU_SHA256=dead27a708a2b843ed0787b7fceb92fed04245718474da51577599183e54a958
 
 # curl: usado por el HEALTHCHECK que define cada servicio en container/backend/java/Dockerfile.
 # ca-certificates: llamadas TLS salientes que ya hacen los servicios (Etherpad, Kubernetes API...).

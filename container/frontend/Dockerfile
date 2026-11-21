@@ -23,7 +23,7 @@ RUN npm run build
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 – Runtime: nginx sirviendo el SPA + proxy a backends
 # ─────────────────────────────────────────────────────────────────────────────
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30.7-alpine@sha256:caf4e1e032a20f9c3c5e28fc7f25ffd768ad8677b4975c54193075997b3a97e3 AS runtime
 
 # Elimina la configuración default de nginx
 RUN rm /etc/nginx/conf.d/default.conf
