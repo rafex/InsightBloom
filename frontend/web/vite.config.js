@@ -46,7 +46,10 @@ export default defineConfig({
         // exactamente lo que la carga lazy busca evitar (la mayoria nunca abre el editor). Se
         // excluye del precache; sigue funcionando igual via fetch normal (cache HTTP del
         // navegador) la primera vez que un moderador realmente lo abre.
-        globIgnores: ['**/monaco-*.js'],
+        // El chunk "survey-vue3-ui" (SurveyJS, solo en las paginas de encuestas, tambien lazy) paso
+        // de ~1.6MB a ~2.2MB con SurveyJS 3.2 y supera el mismo limite. Las encuestas necesitan el
+        // backend, asi que precachearlo no aporta uso offline: se excluye igual que monaco.
+        globIgnores: ['**/monaco-*.js', '**/survey-vue3-ui*.js'],
         // No agregar runtimeCaching para /api/presentations. Incluye rutas
         // protegidas y públicas cuyo contenido cambia por conferencia/sesión.
         // La reproducción offline no compensa mostrar un JSON ticket_required
