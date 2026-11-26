@@ -251,6 +251,14 @@ public class DatabaseManager {
             } catch (SQLException ignored) {}
 
             stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS conference_ticket_request_links (
+                    conference_uuid TEXT PRIMARY KEY,
+                    token_hash TEXT NOT NULL,
+                    expires_at TEXT NOT NULL
+                )
+                """);
+
+            stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS timezones (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     iana_name TEXT NOT NULL UNIQUE,

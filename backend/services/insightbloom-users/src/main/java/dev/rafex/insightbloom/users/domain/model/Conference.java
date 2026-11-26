@@ -34,7 +34,7 @@ public class Conference {
     private String onDemandVideoUrl; // nullable
     private String flyerBase64; // imagen promocional opcional (data URL), nullable
     private String description; // detalle público del evento, nullable
-    private String visibility = "PRIVATE"; // PRIVATE | PUBLIC | HYBRID
+    private String visibility = "PRIVATE"; // PRIVATE | PUBLIC | HYBRID | LISTED_PRIVATE_TICKETS
     private String scheduleMarkdown; // cronograma opcional, authored as Markdown
     private String scheduleLayout = "RIGHT"; // LEFT | RIGHT
     // Preset visual de la cartelera pública. Solo controla presentación; el contenido sigue
@@ -189,6 +189,10 @@ public class Conference {
     public String getOnDemandVideoUrl() { return onDemandVideoUrl; }
     public String getFlyerBase64() { return flyerBase64; }
     public String getDescription() { return description; }
+    public boolean hasListedPrivateTickets() { return "LISTED_PRIVATE_TICKETS".equals(visibility); }
+    public boolean allowsPublicTicketRequests() { return "PUBLIC".equals(visibility) || "HYBRID".equals(visibility); }
+    public boolean isPubliclyListed() { return allowsPublicTicketRequests() || hasListedPrivateTickets(); }
+
     public String getVisibility() { return visibility; }
     public String getScheduleMarkdown() { return scheduleMarkdown; }
     public String getScheduleLayout() { return scheduleLayout; }
@@ -291,7 +295,8 @@ public class Conference {
     public void setFlyerBase64(String flyerBase64) { this.flyerBase64 = flyerBase64; }
     public void setDescription(String description) { this.description = description; }
     public void setVisibility(String visibility) {
-        this.visibility = "PUBLIC".equals(visibility) || "HYBRID".equals(visibility) ? visibility : "PRIVATE";
+        this.visibility = "PUBLIC".equals(visibility) || "HYBRID".equals(visibility)
+                || "LISTED_PRIVATE_TICKETS".equals(visibility) ? visibility : "PRIVATE";
     }
     public void setScheduleMarkdown(String scheduleMarkdown) { this.scheduleMarkdown = scheduleMarkdown; }
     public void setScheduleLayout(String scheduleLayout) {

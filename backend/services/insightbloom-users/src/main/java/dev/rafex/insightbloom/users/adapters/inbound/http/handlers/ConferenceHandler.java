@@ -65,6 +65,7 @@ import dev.rafex.insightbloom.users.application.usecases.UpdateConferenceUseCase
 import dev.rafex.insightbloom.users.application.usecases.ValidateTokenUseCase;
 import dev.rafex.insightbloom.users.application.usecases.TicketUseCase;
 import dev.rafex.insightbloom.users.domain.model.Ticket;
+import dev.rafex.insightbloom.users.domain.model.TicketStatus;
 import dev.rafex.insightbloom.users.domain.model.TicketDeviceCredential;
 import dev.rafex.insightbloom.users.application.usecases.CreateGuestUseCase;
 import dev.rafex.insightbloom.users.application.usecases.ToolAccessUseCase;
@@ -365,6 +366,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 Route.of("/{id}/downloads/count", Set.of("GET")),
                 Route.of("/{id}/seating", Set.of("PUT")),
                 Route.of("/{id}/ticket-sales", Set.of("PUT")),
+                Route.of("/{id}/ticket-request-link", Set.of("GET", "POST", "DELETE")),
                 Route.of("/{id}/event-type", Set.of("PUT")),
                 Route.of("/{id}/flyer", Set.of("POST", "PUT")),
                 Route.of("/{id}/canvas-config", Set.of("PUT")),
@@ -454,6 +456,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     @Override
     public boolean get(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/ticket-request-link")) {
+            return handleTicketRequestLink(jx, jx.pathParam("id"));
+        }
         final String path = jx.path();
         if (path.contains("/llm/") && jx.pathParam("id") != null) {
             return handleEventLlmStatus(jx, jx.pathParam("id"), jx.pathParam("capability"));
@@ -607,6 +612,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     @Override
     public boolean post(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/ticket-request-link")) {
+            return handleTicketRequestLink(jx, jx.pathParam("id"));
+        }
         // The route includes the friendly id between /public and /tickets.
         // Checking for the exact suffix "/public/tickets" skipped this handler and
         // let the generic /{id}/tickets branch receive a null id, resulting in
@@ -705,6 +713,9 @@ public class ConferenceHandler extends BaseResourceHandler {
     @Override
     public boolean delete(final HttpExchange x) {
         final var jx = asJetty(x);
+        if (jx.path().endsWith("/ticket-request-link")) {
+            return handleTicketRequestLink(jx, jx.pathParam("id"));
+        }
         if (jx.path().contains("/llm/") && jx.pathParam("id") != null) {
             return handleClearEventLlm(jx, jx.pathParam("id"), jx.pathParam("capability"));
         }
@@ -962,7 +973,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 : Math.max(0, conference.getCapacity() - occupied);
         final boolean ticketSoldOut = ticketRequired && ticketUseCase.isPublicTicketSoldOut(conference);
         final boolean ticketSalesClosed = ticketRequired
-                && ("PUBLIC".equals(conference.getVisibility()) || "HYBRID".equals(conference.getVisibility()))
+                && conference.allowsPublicTicketRequests()
                 && !conference.isTicketSalesEnabled();
         final boolean hasTicket = userUuid != null && ticketUseCase != null
                 && ticketUseCase.myTicket(conference.getUuid(), userUuid).isPresent();
@@ -974,8 +985,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                 conference.getDescription(), organizer, conference.getEventDate(),
                 conference.getStartTime(), conference.getEndTime(), conference.getVenue(),
                 conference.getLatitude(), conference.getLongitude(), conference.getCapacity(), remaining,
-                ticketRequired, ticketRequired && ("PUBLIC".equals(conference.getVisibility())
-                        || "HYBRID".equals(conference.getVisibility())) && conference.isTicketSalesEnabled()
+                ticketRequired, ticketRequired && conference.allowsPublicTicketRequests() && conference.isTicketSalesEnabled()
                         && !ticketSoldOut, ticketSoldOut, ticketSalesClosed, conference.getVisibility(),
                 conference.getFlyerBase64(), conference.getScheduleMarkdown(), conference.getScheduleLayout(),
                 conference.getPublicTheme(),
@@ -984,10 +994,16 @@ public class ConferenceHandler extends BaseResourceHandler {
                 conference.getTicketPrice(), conference.getTicketCurrency(), hasTicket);
     }
 
+    private boolean isListedWithValidTicketing(final Conference event) {
+        return event.isPubliclyListed() && (!event.hasListedPrivateTickets()
+                || (ticketUseCase != null && ticketUseCase.isTicketed(event)));
+    }
+
     private boolean handlePublicList(final JettyHttpExchange jx) {
         try {
             final String userUuid = optionalAuthenticatedUserUuid(jx);
             sendOk(jx, 200, getConferenceUseCase.publicEvents().stream()
+                    .filter(this::isListedWithValidTicketing)
                     .map(conference -> publicView(conference, userUuid)).toList());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", "Internal server error");
@@ -999,7 +1015,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final String userUuid = optionalAuthenticatedUserUuid(jx);
             getConferenceUseCase.resolveAny(publicIdentifier(jx, friendlyId))
-                    .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
+                    .filter(this::isListedWithValidTicketing)
                     .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
                     .ifPresentOrElse(c -> sendOk(jx, 200, publicView(c, userUuid)),
                             () -> sendError(jx, 404, "public_event_not_found", "Evento público no encontrado"));
@@ -1020,7 +1036,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private boolean handlePublicFlyer(final JettyHttpExchange jx, final String friendlyId) {
         try {
             final Conference conference = getConferenceUseCase.resolveAny(publicIdentifier(jx, friendlyId))
-                    .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
+                    .filter(this::isListedWithValidTicketing)
                     .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
                     .orElse(null);
             final String dataUrl = conference == null ? null : conference.getFlyerBase64();
@@ -1064,9 +1080,12 @@ public class ConferenceHandler extends BaseResourceHandler {
                 return true;
             }
             final Conference conference = getConferenceUseCase.resolveAny(publicIdentifier(jx, friendlyId))
-                    .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
+                    .filter(this::isListedWithValidTicketing)
                     .filter(c -> c.getStatus() == ConferenceStatus.ACTIVE)
                     .orElseThrow(() -> new IllegalArgumentException("public_event_not_found"));
+            if (conference.hasListedPrivateTickets()) {
+                return handlePrivateTicketRequest(jx, conference, validation.subjectUuid());
+            }
             if (ticketUseCase == null || !ticketUseCase.isTicketed(conference)) {
                 sendError(jx, 409, "ticket_not_required", "Este evento no requiere boleto");
                 return true;
@@ -1115,6 +1134,62 @@ public class ConferenceHandler extends BaseResourceHandler {
             sendError(jx, 404, e.getMessage(), e.getMessage());
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", "Internal server error");
+        }
+        return true;
+    }
+
+    private boolean handlePrivateTicketRequest(final JettyHttpExchange jx, final Conference event, final String userUuid)
+            throws java.io.IOException {
+        final var body = parseBody(jx);
+        if (!(body.get("inviteToken") instanceof String inviteToken)) {
+            sendError(jx, 403, "ticket_request_link_invalid", "Abre el enlace de solicitud que compartió el anfitrión.");
+            return true;
+        }
+        final var buyer = userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new IllegalArgumentException("user_not_found"));
+        final Ticket ticket = ticketUseCase.requestPrivateTicket(event.getUuid(), buyer, inviteToken, 1);
+        jx.response().getHeaders().put("Cache-Control", "no-store");
+        if (ticket.getStatus() == TicketStatus.PENDING_SIGNATURE) {
+            sendOk(jx, 200, Map.of("status", ticket.getStatus().name()));
+        } else {
+            sendOk(jx, 200, ticket);
+        }
+        return true;
+    }
+
+    private boolean handleTicketRequestLink(final JettyHttpExchange jx, final String id) {
+        final String token = extractToken(jx);
+        if (token == null) { sendError(jx, 401, "token_missing", "Inicia sesión"); return true; }
+        try {
+            final var actor = validateTokenUseCase.execute(token);
+            final var event = getConferenceUseCase.byId(id).orElse(null);
+            if (!actor.valid() || event == null || !("ADMIN".equalsIgnoreCase(actor.role())
+                    || event.getCreatedByUserUuid().equals(actor.subjectUuid()))) {
+                sendError(jx, 403, "forbidden", "No puedes administrar el enlace de este evento.");
+                return true;
+            }
+            jx.response().getHeaders().put("Cache-Control", "no-store");
+            switch (jx.method()) {
+                case "GET" -> sendOk(jx, 200, ticketUseCase.ticketRequestLinkExpiry(id)
+                        .map(expiry -> Map.of("expiresAt", expiry.toString())).orElseGet(Map::of));
+                case "POST" -> {
+                    final var link = ticketUseCase.rotateTicketRequestLink(id);
+                    LOGGER.info(() -> "Ticket request link rotated for event " + id + " by " + actor.subjectUuid());
+                    sendOk(jx, 201, Map.of("token", link.token(), "expiresAt", link.expiresAt().toString()));
+                }
+                case "DELETE" -> {
+                    ticketUseCase.revokeTicketRequestLink(id);
+                    LOGGER.info(() -> "Ticket request link revoked for event " + id + " by " + actor.subjectUuid());
+                    sendOk(jx, 200, Map.of());
+                }
+                default -> sendError(jx, 405, "method_not_allowed", "Operación no disponible");
+            }
+        } catch (final IllegalStateException e) {
+            if ("ticket_request_unavailable".equals(e.getMessage())) {
+                sendError(jx, 409, "ticket_request_unavailable", "El enlace requiere un evento gratuito con boletos generales y aforo definido.");
+            } else sendError(jx, 500, "internal_error", "No se pudo administrar el enlace.");
+        } catch (final Exception e) {
+            sendError(jx, 500, "internal_error", "No se pudo administrar el enlace.");
         }
         return true;
     }

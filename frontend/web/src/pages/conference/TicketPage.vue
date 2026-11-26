@@ -232,7 +232,7 @@ export default {
           eventEndTime.value = publicConference.endTime || null
           eventVenue.value = publicConference.venue || null
           if (publicConference.seatingMode) eventModeLabel.value = publicConference.seatingMode === 'SEATED' ? 'Asiento numerado' : publicConference.seatingMode === 'GENERAL' ? 'Acceso general' : eventModeLabel.value
-          eventModeLabel.value = publicConference.visibility === 'HYBRID' ? 'Híbrido' : publicConference.visibility === 'PUBLIC' ? 'Público' : 'Privado'
+          eventModeLabel.value = publicConference.visibility === 'LISTED_PRIVATE_TICKETS' ? 'Boletos por invitación' : publicConference.visibility === 'HYBRID' ? 'Híbrido' : publicConference.visibility === 'PUBLIC' ? 'Público' : 'Privado'
         }
         // Accept both the compact QR parameter and older tickets already in
         // circulation.

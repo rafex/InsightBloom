@@ -7,8 +7,8 @@
         .detail-copy
           .badges
             StatusBadge.event-badge(
-              :status="event.visibility === 'HYBRID' ? 'HYBRID' : 'PUBLIC'"
-              :label="event.visibility === 'HYBRID' ? 'Evento híbrido' : 'Evento público'"
+              :status="event.visibility"
+              :label="event.visibility === 'LISTED_PRIVATE_TICKETS' ? 'Boletos por invitación' : event.visibility === 'HYBRID' ? 'Evento híbrido' : 'Evento público'"
               tone="info"
               pill
             )
@@ -36,6 +36,7 @@
           .actions
             BaseLink(v-if="event.hasTicket || !event.ticketRequired" :to="`/c/${event.friendlyId}`") Entrar
             BaseLink(v-else-if="event.ticketPurchaseEnabled" :to="`/events/${event.friendlyId}/checkout`") Adquirir boleto
+            p(v-else-if="event.visibility === 'LISTED_PRIVATE_TICKETS'") Si recibiste un enlace o QR del anfitrión, ábrelo para solicitar tu boleto.
             StatusBadge(v-else-if="event.ticketSoldOut" status="SOLD_OUT" label="Boletos agotados" tone="danger" pill)
             StatusBadge(v-else-if="event.ticketSalesClosed" status="TICKET_SALES_CLOSED" label="Adquisición cerrada por el organizador" tone="warning" pill)
             StatusBadge(v-else status="INACTIVE" label="Boletos no disponibles" tone="neutral" pill)

@@ -186,7 +186,7 @@ export async function createConference(
   canvasConfigs?: CanvasToolConfig[] | null,
   certificateEngine?: CertificateEngine | null,
   description?: string | null,
-  visibility?: 'PRIVATE' | 'PUBLIC' | 'HYBRID',
+  visibility?: 'PRIVATE' | 'PUBLIC' | 'HYBRID' | 'LISTED_PRIVATE_TICKETS',
   scheduleMarkdown?: string | null,
   scheduleLayout?: 'LEFT' | 'RIGHT',
   publicTheme?: 'CLASSIC' | 'EDITORIAL' | 'MINIMAL',
@@ -288,11 +288,29 @@ export async function getPublicConference(friendlyId: string, token?: string | n
   return res.data.data
 }
 
-export async function requestPublicTicket(friendlyId: string, token: string, options: { maxDevices?: number, enrollmentMethod?: string } = {}): Promise<Ticket> {
+export async function requestPublicTicket(friendlyId: string, token: string, options: { maxDevices?: number, enrollmentMethod?: string, inviteToken?: string } = {}): Promise<Ticket> {
   const res = await axios.post(
     `/api/users/api/v1/conferences/public/${encodeURIComponent(friendlyId)}/tickets`, options, authHeader(token)
   )
   return res.data.data
+}
+
+function ticketRequestLinkPath(conferenceId: string) {
+  return `/api/users/api/v1/conferences/${encodeURIComponent(conferenceId)}/ticket-request-link`
+}
+
+export async function getTicketRequestLinkStatus(conferenceId: string, token: string): Promise<{ expiresAt?: string }> {
+  const res = await axios.get(ticketRequestLinkPath(conferenceId), authHeader(token))
+  return res.data.data
+}
+
+export async function rotateTicketRequestLink(conferenceId: string, token: string): Promise<{ token: string, expiresAt: string }> {
+  const res = await axios.post(ticketRequestLinkPath(conferenceId), {}, authHeader(token))
+  return res.data.data
+}
+
+export async function revokeTicketRequestLink(conferenceId: string, token: string): Promise<void> {
+  await axios.delete(ticketRequestLinkPath(conferenceId), authHeader(token))
 }
 
 export async function startTicketEnrollmentOtp(conferenceUuid: string, ticketCode: string): Promise<{ challengeId: string, expiresAt: string }> {

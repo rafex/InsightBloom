@@ -22,6 +22,46 @@ public class SqliteConferenceRepository implements ConferenceRepository {
     }
 
     @Override
+    public Optional<TicketRequestLink> findTicketRequestLink(String conferenceUuid) {
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(
+                "SELECT token_hash, expires_at FROM conference_ticket_request_links WHERE conference_uuid = ?")) {
+            ps.setString(1, conferenceUuid);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(new TicketRequestLink(rs.getString(1), Instant.parse(rs.getString(2))))
+                        : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Could not read ticket request link", e);
+        }
+    }
+
+    @Override
+    public void saveTicketRequestLink(String conferenceUuid, TicketRequestLink link) {
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement("""
+                INSERT INTO conference_ticket_request_links (conference_uuid, token_hash, expires_at) VALUES (?, ?, ?)
+                ON CONFLICT(conference_uuid) DO UPDATE SET token_hash = excluded.token_hash, expires_at = excluded.expires_at
+                """)) {
+            ps.setString(1, conferenceUuid);
+            ps.setString(2, link.tokenHash());
+            ps.setString(3, link.expiresAt().toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Could not save ticket request link", e);
+        }
+    }
+
+    @Override
+    public void deleteTicketRequestLink(String conferenceUuid) {
+        try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(
+                "DELETE FROM conference_ticket_request_links WHERE conference_uuid = ?")) {
+            ps.setString(1, conferenceUuid);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Could not delete ticket request link", e);
+        }
+    }
+
+    @Override
     public void save(Conference conference) {
         // NOTA (2026-07-17): sandbox_variant/sandbox_pool_size/sandbox_internet_enabled/
         // sandbox_extra_packages/sandbox_remote_git_url/sandbox_jvm_heap_mb agregados a esta
@@ -198,6 +238,11 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, uuid);
             ps.executeUpdate();
+            try (PreparedStatement links = conn.prepareStatement(
+                    "DELETE FROM conference_ticket_request_links WHERE conference_uuid = ?")) {
+                links.setString(1, uuid);
+                links.executeUpdate();
+            }
             try (PreparedStatement canvas = conn.prepareStatement(
                     "DELETE FROM conference_canvas_configs WHERE conference_uuid = ?")) {
                 canvas.setString(1, uuid);

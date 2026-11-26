@@ -32,6 +32,10 @@ import java.util.regex.Pattern;
 
 /** Emisión, canje y check-in de boletos. Las transiciones sensibles son atómicas en SQLite. */
 public class TicketUseCase {
+    private static final java.security.SecureRandom LINK_RANDOM = new java.security.SecureRandom();
+    private final Object ticketRequestLock = new Object();
+    public record NewTicketRequestLink(String token, Instant expiresAt) {}
+
     private static final long TICKET_EXPIRATION_HOURS = 5;
     /** Tope de sanidad por request -- no es una regla de negocio, evita que una request suelta
      *  intente emitir una cantidad absurda de una sola vez. */
@@ -92,6 +96,73 @@ public class TicketUseCase {
     public Ticket issue(final String conferenceUuid, final String issuerUuid, final String recipientEmail,
                         final String seatUuid) {
         return issue(conferenceUuid, issuerUuid, recipientEmail, seatUuid, 0, "LEGACY");
+    }
+
+    public Optional<Instant> ticketRequestLinkExpiry(final String conferenceUuid) {
+        return conferenceRepository.findTicketRequestLink(conferenceUuid)
+                .map(ConferenceRepository.TicketRequestLink::expiresAt);
+    }
+
+    public NewTicketRequestLink rotateTicketRequestLink(final String conferenceUuid) {
+        synchronized (ticketRequestLock) {
+            final Conference event = conference(conferenceUuid);
+            ensureTicketRequestEvent(event);
+            ensureConferenceActive(event);
+            final byte[] bytes = new byte[32];
+            LINK_RANDOM.nextBytes(bytes);
+            final String token = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+            final Instant expiresAt = Instant.now().plus(java.time.Duration.ofDays(7));
+            conferenceRepository.saveTicketRequestLink(conferenceUuid,
+                    new ConferenceRepository.TicketRequestLink(ticketRequestHash(token), expiresAt));
+            return new NewTicketRequestLink(token, expiresAt);
+        }
+    }
+
+    public void revokeTicketRequestLink(final String conferenceUuid) {
+        synchronized (ticketRequestLock) {
+            conferenceRepository.deleteTicketRequestLink(conferenceUuid);
+        }
+    }
+
+    public Ticket requestPrivateTicket(final String conferenceUuid, final User buyer, final String token,
+                                       final int maxDevices) {
+        synchronized (ticketRequestLock) {
+            final Conference event = conference(conferenceUuid);
+            ensureTicketRequestEvent(event);
+            ensureConferenceActive(event);
+            final var link = conferenceRepository.findTicketRequestLink(conferenceUuid)
+                    .orElseThrow(() -> new IllegalArgumentException("ticket_request_link_invalid"));
+            if (token == null || !token.matches("[A-Za-z0-9_-]{43}") || !Instant.now().isBefore(link.expiresAt())
+                    || !java.security.MessageDigest.isEqual(
+                            link.tokenHash().getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+                            ticketRequestHash(token).getBytes(java.nio.charset.StandardCharsets.US_ASCII))) {
+                throw new IllegalArgumentException("ticket_request_link_invalid");
+            }
+            if (!buyer.isEmailVerified() || buyer.getEmail() == null || buyer.getEmail().isBlank()) {
+                throw new IllegalStateException("verified_email_required");
+            }
+            final var existing = myTicket(conferenceUuid, buyer.getUuid())
+                    .or(() -> pendingProtectedTicketForEmail(conferenceUuid, buyer.getEmail()));
+            if (existing.isPresent()) return existing.get();
+            return issueProtected(conferenceUuid, buyer.getUuid(), buyer.getEmail(), null, maxDevices, "EMAIL_OTP");
+        }
+    }
+
+    private void ensureTicketRequestEvent(final Conference event) {
+        if (event.getStatus() != ConferenceStatus.ACTIVE || !event.hasListedPrivateTickets()
+                || !hasCapability(event, EventCapability.TICKETING_GENERAL)
+                || "SEATED".equals(event.getSeatingMode()) || !event.isFreeTicket() || event.getCapacity() == null) {
+            throw new IllegalStateException("ticket_request_unavailable");
+        }
+    }
+
+    private static String ticketRequestHash(final String token) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(java.nio.charset.StandardCharsets.US_ASCII)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public Ticket issueProtected(final String conferenceUuid, final String issuerUuid, final String recipientEmail,
@@ -305,7 +376,8 @@ public class TicketUseCase {
     public Optional<Ticket> pendingProtectedTicketForEmail(final String conferenceUuid, final String email) {
         if (email == null || email.isBlank()) return Optional.empty();
         return ticketRepository.findByConference(conferenceUuid).stream()
-                .filter(t -> t.isDeviceProtected() && t.getStatus() == TicketStatus.ISSUED
+                .filter(t -> t.isDeviceProtected() && (t.getStatus() == TicketStatus.ISSUED
+                        || t.getStatus() == TicketStatus.PENDING_SIGNATURE)
                         && t.getClaimedByUserUuid() == null && email.equalsIgnoreCase(t.getRecipientEmail()))
                 .findFirst();
     }

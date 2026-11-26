@@ -31,6 +31,7 @@
       template(#default="{ id, describedBy }")
         select(:id="id" :aria-describedby="describedBy" v-model="visibility")
           option(value="PRIVATE") Privado: el organizador distribuye los boletos
+          option(value="LISTED_PRIVATE_TICKETS") Visible en cartelera · boletos privados
           option(value="PUBLIC") Público: aparece en la cartelera y permite solicitar boleto
           option(value="HYBRID") Híbrido: cartelera pública y boletos privados adicionales
 
@@ -158,7 +159,7 @@ export default {
 
     const displayName = ref('')
     const description = ref('')
-    const visibility = ref<'PRIVATE' | 'PUBLIC' | 'HYBRID'>('PRIVATE')
+    const visibility = ref<'PRIVATE' | 'PUBLIC' | 'HYBRID' | 'LISTED_PRIVATE_TICKETS'>('PRIVATE')
     const ticketPrice = ref('0.00')
     const ticketCurrency = ref('MXN')
     const scheduleMarkdown = ref('')

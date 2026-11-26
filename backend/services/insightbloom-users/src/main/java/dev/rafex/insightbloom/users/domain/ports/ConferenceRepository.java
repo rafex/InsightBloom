@@ -7,6 +7,20 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ConferenceRepository {
+    record TicketRequestLink(String tokenHash, java.time.Instant expiresAt) {}
+
+    default Optional<TicketRequestLink> findTicketRequestLink(String conferenceUuid) {
+        throw new UnsupportedOperationException();
+    }
+
+    default void saveTicketRequestLink(String conferenceUuid, TicketRequestLink link) {
+        throw new UnsupportedOperationException();
+    }
+
+    default void deleteTicketRequestLink(String conferenceUuid) {
+        throw new UnsupportedOperationException();
+    }
+
     void save(Conference conference);
     void replaceCanvasConfigs(String conferenceUuid, List<CanvasConfig> configs);
     void replaceOnDemandCuePoints(String conferenceUuid, List<OnDemandCuePoint> cuePoints);

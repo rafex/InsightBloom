@@ -22,12 +22,12 @@
         //- Sin seccion de cupones hasta que exista la funcionalidad: un input deshabilitado
         //- "Disponible proximamente" solo genera dudas (auditoria UX 2026-07-26).
         section.card.checkout
-          label.title Resumen de compra
+          label.title {{ privateTickets ? "Solicitud de boleto" : "Resumen de compra" }}
           .details
             span Boleto de acceso
             span {{ formattedPrice }}
             span Modalidad
-            span {{ event.visibility === 'HYBRID' ? 'Híbrido' : 'Público' }}
+            span {{ privateTickets ? 'Por invitación' : event.visibility === 'HYBRID' ? 'Híbrido' : 'Público' }}
             span Descuento
             span 0.00 {{ event.ticketCurrency || 'MXN' }}
           .checkout-footer
@@ -36,8 +36,8 @@
               strong {{ isFree ? `0.00 ${event.ticketCurrency || 'MXN'}` : formattedPrice }}
             .signature-pending(v-if="pendingSignature" role="status" aria-live="polite")
               strong Solicitud recibida
-              p El organizador debe firmar tu boleto para habilitarlo. No se ha emitido ni enviado un QR todavía; recibirás el boleto cuando termine ese paso.
-            .device-choice(v-if="!success && isFree && isAuthenticated")
+              p Tu lugar quedó reservado. Recibirás el boleto por correo cuando se complete la firma del organizador.
+            .device-choice(v-if="!privateTickets && !success && isFree && isAuthenticated")
               label(for="ticket-device-count") Dispositivos autorizados
               select#ticket-device-count(v-model.number="maxDevices" aria-label="Cantidad de dispositivos autorizados")
                 option(:value="1") 1 dispositivo (recomendado)
@@ -47,7 +47,18 @@
                 option(:value="5") 5 dispositivos
               p Activarás el boleto verificando el correo de tu cuenta. La clave privada queda en este navegador.
             template(v-if="!success")
-              span.checkout-closed(v-if="event.ticketSoldOut") Los boletos de este evento están agotados.
+              span.checkout-closed(v-if="privateTickets && !inviteToken") Abre el enlace o escanea el QR que te compartió el anfitrión.
+              template(v-else-if="privateTickets")
+                p Verifica el correo de tu cuenta. Si hay cupo, el sistema reservará tu boleto al solicitarlo.
+                BaseLink.checkout-action(v-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: route.path } }") Inicia sesión
+                BaseLink.checkout-action(v-if="!isAuthenticated" :to="{ path: '/register', query: { redirect: route.path + '?solicitar=1' } }") Crear cuenta y solicitar boleto
+                BaseButton.checkout-action(v-if="needsVerifiedEmail" type="button" :loading="sendingCode" @click="sendVerificationCode") {{ verificationEmail ? 'Reenviar código' : 'Enviar código de verificación' }}
+                form(v-if="verificationEmail" @submit.prevent="verifyAndRequest")
+                  label(for="ticket-email-code") Código enviado a {{ verificationEmail }}
+                  input#ticket-email-code(v-model.trim="verificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required)
+                  BaseButton(type="submit" :loading="verifying" :disabled="verificationCode.length !== 6") Verificar y solicitar boleto
+                BaseButton.checkout-action(v-if="isAuthenticated && !needsVerifiedEmail" type="button" :loading="submitting" @click="confirmFreeTicket") Solicitar boleto
+              span.checkout-closed(v-else-if="event.ticketSoldOut") Los boletos de este evento están agotados.
               span.checkout-closed(v-else-if="event.ticketSalesClosed") La adquisición pública fue cerrada por el organizador. Solicita tu boleto directamente al organizador.
               BaseLink.checkout-action(v-else-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: `/events/${event.friendlyId}/checkout` } }") Inicia sesión
               BaseButton.checkout-action(v-else-if="isFree && event.ticketPurchaseEnabled" type="button" :loading="submitting" @click="confirmFreeTicket") Confirmar boleto
@@ -80,8 +91,9 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseLink from '@/components/ui/BaseLink.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
 import LoadingState from '@/components/ui/LoadingState.vue'
-import { getPublicConference, requestPublicTicket } from '@/services/api/usersApi'
+import { getPublicConference, getUserProfile, requestPublicTicket } from '@/services/api/usersApi'
 import { useAuthStore } from '@/features/auth/authStore'
+import { sendOtp, verifyOtp } from '@/services/api/authApi'
 import type { PublicConference } from '@/services/api/types'
 
 export default {
@@ -99,6 +111,13 @@ export default {
     const success = ref(false)
     const pendingSignature = ref(false)
     const maxDevices = ref(1)
+    const inviteToken = ref('')
+    const needsVerifiedEmail = ref(false)
+    const verificationEmail = ref('')
+    const verificationCode = ref('')
+    const sendingCode = ref(false)
+    const verifying = ref(false)
+    const privateTickets = computed(() => event.value?.visibility === 'LISTED_PRIVATE_TICKETS')
     const isAuthenticated = computed(() => auth.isAuthenticated() && auth.state.role !== 'guest')
     const isFree = computed(() => Number(event.value?.ticketPrice || 0) === 0)
     const formattedPrice = computed(() => isFree.value
@@ -106,8 +125,24 @@ export default {
       : `${event.value?.ticketPrice || '0.00'} ${event.value?.ticketCurrency || 'MXN'}`)
 
     onMounted(async () => {
+      const storageKey = `ticket-request:${route.params.friendlyId}`
+      const fragment = new URLSearchParams(route.hash.slice(1)).get('solicitud')
+      if (fragment !== null) {
+        inviteToken.value = /^[A-Za-z0-9_-]{43}$/.test(fragment) ? fragment : ''
+        try {
+          if (inviteToken.value) sessionStorage.setItem(storageKey, inviteToken.value)
+          else sessionStorage.removeItem(storageKey)
+        } catch { /* the current page can still use the link */ }
+        await router.replace({ path: route.path, query: route.query })
+      } else {
+        try { inviteToken.value = sessionStorage.getItem(storageKey) || '' } catch { /* storage blocked */ }
+      }
       try {
         event.value = await getPublicConference(route.params.friendlyId as string)
+        if (route.query.solicitar === '1') {
+          await router.replace({ path: route.path })
+          if (privateTickets.value && inviteToken.value && isAuthenticated.value) await confirmFreeTicket()
+        }
       } catch {
         error.value = 'No se encontró el evento público.'
       } finally {
@@ -115,12 +150,56 @@ export default {
       }
     })
 
+    async function sendVerificationCode() {
+      const { token, userUuid } = auth.state
+      if (!token || !userUuid || sendingCode.value) return
+      sendingCode.value = true
+      actionError.value = ''
+      try {
+        const profile = await getUserProfile(userUuid, token)
+        if (!profile.email) {
+          actionError.value = 'Esta cuenta no tiene correo. Usa una cuenta con correo electrónico.'
+          return
+        }
+        await sendOtp(profile.email, 'EMAIL')
+        verificationEmail.value = profile.email
+      } catch (error: any) {
+        actionError.value = error.response?.data?.error?.message || 'No se pudo enviar el código.'
+      } finally {
+        sendingCode.value = false
+      }
+    }
+
+    async function verifyAndRequest() {
+      if (verifying.value || !verificationEmail.value) return
+      verifying.value = true
+      actionError.value = ''
+      try {
+        const session = await verifyOtp(verificationEmail.value, verificationCode.value)
+        if (session.userUuid !== auth.state.userUuid) {
+          actionError.value = 'Inicia sesión con la cuenta cuyo correo verificaste.'
+          return
+        }
+        auth.setSession(session)
+        needsVerifiedEmail.value = false
+        verificationCode.value = ''
+        await confirmFreeTicket()
+      } catch (error: any) {
+        actionError.value = error.response?.data?.error?.message || 'El código es inválido o venció.'
+      } finally {
+        verifying.value = false
+      }
+    }
+
     async function confirmFreeTicket() {
-      if (!event.value || !isAuthenticated.value || !auth.state.token) return
+      if (!event.value || !isAuthenticated.value || !auth.state.token || (privateTickets.value && !inviteToken.value)) return
       submitting.value = true
       actionError.value = ''
       try {
-        const ticket = await requestPublicTicket(event.value.friendlyId, auth.state.token, { maxDevices: maxDevices.value, enrollmentMethod: 'EMAIL_OTP' })
+        const ticket = await requestPublicTicket(event.value.friendlyId, auth.state.token, {
+          maxDevices: maxDevices.value, enrollmentMethod: 'EMAIL_OTP',
+          inviteToken: privateTickets.value ? inviteToken.value : undefined
+        })
         if (ticket.status === 'PENDING_SIGNATURE') {
           pendingSignature.value = true
           success.value = true
@@ -136,7 +215,14 @@ export default {
           event.value.ticketSoldOut = true
           event.value.ticketPurchaseEnabled = false
         }
-        else if (code === 'payment_required') actionError.value = 'Este evento requiere pago y todavía no hay un proveedor habilitado.'
+        else if (code === 'verified_email_required') {
+          needsVerifiedEmail.value = true
+          actionError.value = 'Verifica tu correo para continuar con la solicitud.'
+        } else if (code === 'ticket_request_link_invalid') {
+          actionError.value = 'El enlace ha vencido o fue revocado. Pide al anfitrión un enlace vigente.'
+        } else if (code === 'ticket_request_unavailable') {
+          actionError.value = 'Este evento no admite solicitudes por enlace. Contacta al anfitrión.'
+        } else if (code === 'payment_required') actionError.value = 'Este evento requiere pago y todavía no hay un proveedor habilitado.'
         else if (code === 'login_required' || code === 'token_missing') {
           await router.push({ path: '/login', query: { redirect: `/events/${event.value.friendlyId}/checkout` } })
           return
@@ -146,7 +232,7 @@ export default {
       }
     }
 
-    return { event, loading, error, actionError, submitting, success, pendingSignature, maxDevices, isAuthenticated, isFree, formattedPrice, confirmFreeTicket }
+    return { event, loading, error, actionError, submitting, success, pendingSignature, maxDevices, isAuthenticated, isFree, formattedPrice, confirmFreeTicket, route, privateTickets, inviteToken, needsVerifiedEmail, verificationEmail, verificationCode, sendingCode, verifying, sendVerificationCode, verifyAndRequest }
   }
 }
 </script>

@@ -2,6 +2,7 @@
 .tickets-page
   DashboardBreadcrumb(:items="breadcrumbItems")
   h2 Boletos del evento
+  TicketRequestLinkCard.issue-card(v-if="privateTickets" :conference-id="conferenceId" :friendly-id="conferenceFriendlyId")
   .issue-card
     h3 Emitir boleto
     p Configura cuántos dispositivos puede usar el asistente. El acceso queda ligado a claves criptográficas, no a una huella del navegador.
@@ -102,6 +103,7 @@ import { ref, computed, onMounted } from 'vue'
 import { Marked } from 'marked'
 import DashboardBreadcrumb from '@/components/DashboardBreadcrumb.vue'
 import TicketQr from '@/components/TicketQr.vue'
+import TicketRequestLinkCard from '@/components/TicketRequestLinkCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
@@ -119,7 +121,7 @@ const sendMarked = new Marked()
 
 export default {
   name: 'TicketManagementPage',
-  components: { DashboardBreadcrumb, TicketQr, BaseButton, EmptyState, FeedbackMessage, LoadingState, StatusBadge, EmailComposeEditor, AiEmailAssistant, UiIcon },
+  components: { DashboardBreadcrumb, TicketQr, TicketRequestLinkCard, BaseButton, EmptyState, FeedbackMessage, LoadingState, StatusBadge, EmailComposeEditor, AiEmailAssistant, UiIcon },
   props: { conferenceId: { type: String, default: '' } },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()
@@ -133,6 +135,7 @@ export default {
     const conferenceName = ref('')
     const conferenceFriendlyId = ref('')
     const seatingMode = ref('')
+    const privateTickets = ref(false)
     const loading = ref(true)
     const issuing = ref(false)
     const feedback = ref('')
@@ -161,6 +164,7 @@ export default {
         conferenceName.value = conf.name
         conferenceFriendlyId.value = conf.friendlyId
         seatingMode.value = conf.seatingMode || ''
+        privateTickets.value = conf.visibility === 'LISTED_PRIVATE_TICKETS'
         summary.value = list
         tickets.value = list.tickets
       } finally { loading.value = false }
@@ -393,7 +397,7 @@ export default {
     ])
 
     onMounted(load)
-    return { tickets, summary, statusMetrics, ticketGroups, recipientEmail, seatUuid, maxDevices, enrollmentMethod, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, copyUrl, showQr, share, shareActivation, revoke, ticketUrl, formatAuditDate, formatTicketStatusLabel, claimantLabel, actorLabel, actorUuid, breadcrumbItems,
+    return { tickets, summary, privateTickets, conferenceFriendlyId, statusMetrics, ticketGroups, recipientEmail, seatUuid, maxDevices, enrollmentMethod, selectedTicket, issuing, loading, feedback, feedbackError, issue, copy, copyUrl, showQr, share, shareActivation, revoke, ticketUrl, formatAuditDate, formatTicketStatusLabel, claimantLabel, actorLabel, actorUuid, breadcrumbItems,
       batchQuantity, issuingBatch, canIssueBatch, issueBatch, resendingUuid, resendingAll, resendOne, resendAll,
       composeSubject, composeMessage, composeFormat, showAiAssistant,
       composeTarget, sendingEmail, emailFeedback, emailFeedbackError, sendEmail, writeToAttendee, clearComposeTarget }

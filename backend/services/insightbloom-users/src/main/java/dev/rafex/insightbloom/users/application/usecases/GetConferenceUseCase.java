@@ -40,7 +40,7 @@ public class GetConferenceUseCase {
     public List<Conference> publicEvents() {
         return conferenceRepository.findAll().stream()
                 .filter(c -> c.getStatus() == dev.rafex.insightbloom.users.domain.model.ConferenceStatus.ACTIVE)
-                .filter(c -> "PUBLIC".equals(c.getVisibility()) || "HYBRID".equals(c.getVisibility()))
+                .filter(Conference::isPubliclyListed)
                 .toList();
     }
 

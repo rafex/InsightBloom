@@ -17,8 +17,8 @@
           .event-card-body
             .badges
               StatusBadge.event-badge(
-                :status="event.visibility === 'HYBRID' ? 'HYBRID' : 'PUBLIC'"
-                :label="event.visibility === 'HYBRID' ? 'Híbrido' : 'Público'"
+                :status="event.visibility"
+                :label="event.visibility === 'LISTED_PRIVATE_TICKETS' ? 'Boletos por invitación' : event.visibility === 'HYBRID' ? 'Híbrido' : 'Público'"
                 tone="info"
                 pill
               )

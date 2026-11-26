@@ -17,7 +17,7 @@ export interface OnDemandCuePoint {
 export type CanvasTool = 'DRAWIO' | 'EXCALIDRAW' | 'ETHERPAD'
 export type CanvasAudienceMode = 'INDEPENDENT' | 'MODERATOR_ONLY' | 'COLLABORATIVE'
 export type CertificateEngine = 'INHOUSE' | 'HTML_CHROME'
-export type EventVisibility = 'PRIVATE' | 'PUBLIC' | 'HYBRID'
+export type EventVisibility = 'PRIVATE' | 'PUBLIC' | 'HYBRID' | 'LISTED_PRIVATE_TICKETS'
 export type PublicTheme = 'CLASSIC' | 'EDITORIAL' | 'MINIMAL'
 export interface CanvasToolConfig {
   tool: CanvasTool

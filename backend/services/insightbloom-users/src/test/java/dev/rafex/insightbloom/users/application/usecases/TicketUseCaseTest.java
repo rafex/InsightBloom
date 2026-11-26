@@ -1,6 +1,9 @@
 package dev.rafex.insightbloom.users.application.usecases;
 
+import dev.rafex.insightbloom.users.domain.model.Conference;
 import dev.rafex.insightbloom.users.domain.model.EventCapability;
+import dev.rafex.insightbloom.users.domain.model.TicketStatus;
+import dev.rafex.insightbloom.users.domain.model.User;
 import dev.rafex.insightbloom.users.domain.model.EventType;
 import dev.rafex.insightbloom.users.domain.model.Ticket;
 import dev.rafex.insightbloom.users.domain.model.UserRole;
@@ -21,6 +24,57 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class TicketUseCaseTest {
+    @Test
+    void issuesPrivateTicketOnlyWithCurrentLinkVerifiedEmailAndCapacity() {
+        final Conference event = new Conference("event", "Evento", "owner");
+        event.setVisibility("LISTED_PRIVATE_TICKETS");
+        event.setCapacity(2);
+        final ConferenceRepository conferences = mock(ConferenceRepository.class);
+        final EventTypeRepository eventTypes = mock(EventTypeRepository.class);
+        final TicketRepository tickets = mock(TicketRepository.class);
+        final User attendee = mock(User.class);
+        final String eventId = event.getUuid();
+        when(attendee.getUuid()).thenReturn("attendee");
+        when(attendee.getEmail()).thenReturn("asistente@example.test");
+        when(conferences.findByUuid(eventId)).thenReturn(Optional.of(event));
+        when(eventTypes.findByKey("conference")).thenReturn(Optional.of(
+                new EventType("conference", "Conferencia", null, Set.of(EventCapability.TICKETING_GENERAL))));
+        final var useCase = new TicketUseCase(conferences, eventTypes, tickets,
+                mock(ConferenceMembershipRepository.class), mock(EmailPort.class), "",
+                mock(ReservationRepository.class));
+        final var saved = ArgumentCaptor.forClass(ConferenceRepository.TicketRequestLink.class);
+
+        final var original = useCase.rotateTicketRequestLink(eventId);
+        final var replacement = useCase.rotateTicketRequestLink(eventId);
+        verify(conferences, times(2)).saveTicketRequestLink(eq(eventId), saved.capture());
+        final var current = saved.getValue();
+        assertNotEquals(original.token(), replacement.token());
+        assertNotEquals(replacement.token(), current.tokenHash());
+        when(conferences.findTicketRequestLink(eventId)).thenReturn(Optional.of(current));
+
+        assertEquals("ticket_request_link_invalid", assertThrows(IllegalArgumentException.class,
+                () -> useCase.requestPrivateTicket(eventId, attendee, original.token(), 1)).getMessage());
+        assertEquals("verified_email_required", assertThrows(IllegalStateException.class,
+                () -> useCase.requestPrivateTicket(eventId, attendee, replacement.token(), 1)).getMessage());
+
+        when(attendee.isEmailVerified()).thenReturn(true);
+        assertEquals("capacity_exceeded", assertThrows(IllegalStateException.class,
+                () -> useCase.requestPrivateTicket(eventId, attendee, replacement.token(), 1)).getMessage());
+        when(conferences.tryIncrementReservedCount(eventId)).thenReturn(true);
+        final Ticket ticket = useCase.requestPrivateTicket(eventId, attendee, replacement.token(), 1);
+        assertEquals(TicketStatus.PENDING_SIGNATURE, ticket.getStatus());
+        assertNull(ticket.getTicketCode());
+        when(tickets.findByConference(eventId)).thenReturn(List.of(ticket));
+        assertSame(ticket, useCase.requestPrivateTicket(eventId, attendee, replacement.token(), 1));
+        verify(tickets).insert(ticket);
+
+        useCase.revokeTicketRequestLink(eventId);
+        verify(conferences).deleteTicketRequestLink(eventId);
+        when(conferences.findTicketRequestLink(eventId)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class,
+                () -> useCase.requestPrivateTicket(eventId, attendee, replacement.token(), 1));
+    }
+
     @Test
     void acceptsUuidV4AndQrPayloadContainingIt() {
         final String uuid = "123e4567-e89b-42d3-a456-426614174000";
