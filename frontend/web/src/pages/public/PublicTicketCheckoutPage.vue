@@ -46,26 +46,27 @@
                 option(:value="4") 4 dispositivos
                 option(:value="5") 5 dispositivos
               p Activarás el boleto verificando el correo de tu cuenta. La clave privada queda en este navegador.
-            template(v-if="!success")
-              span.checkout-closed(v-if="privateTickets && !inviteToken") Abre el enlace o escanea el QR que te compartió el anfitrión.
-              template(v-else-if="privateTickets")
-                p Verifica el correo de tu cuenta. Si hay cupo, el sistema reservará tu boleto al solicitarlo.
-                BaseLink.checkout-action(v-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: route.path } }") Inicia sesión
-                BaseLink.checkout-action(v-if="!isAuthenticated" :to="{ path: '/register', query: { redirect: route.path + '?solicitar=1' } }") Crear cuenta y solicitar boleto
-                BaseButton.checkout-action(v-if="needsVerifiedEmail" type="button" :loading="sendingCode" @click="sendVerificationCode") {{ verificationEmail ? 'Reenviar código' : 'Enviar código de verificación' }}
-                form(v-if="verificationEmail" @submit.prevent="verifyAndRequest")
-                  label(for="ticket-email-code") Código enviado a {{ verificationEmail }}
-                  input#ticket-email-code(v-model.trim="verificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required)
-                  BaseButton(type="submit" :loading="verifying" :disabled="verificationCode.length !== 6") Verificar y solicitar boleto
-                BaseButton.checkout-action(v-if="isAuthenticated && !needsVerifiedEmail" type="button" :loading="submitting" @click="confirmFreeTicket") Solicitar boleto
-              span.checkout-closed(v-else-if="event.ticketSoldOut") Los boletos de este evento están agotados.
-              span.checkout-closed(v-else-if="event.ticketSalesClosed") La adquisición pública fue cerrada por el organizador. Solicita tu boleto directamente al organizador.
-              BaseLink.checkout-action(v-else-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: `/events/${event.friendlyId}/checkout` } }") Inicia sesión
-              BaseButton.checkout-action(v-else-if="isFree && event.ticketPurchaseEnabled" type="button" :loading="submitting" @click="confirmFreeTicket") Confirmar boleto
-              span.checkout-closed(v-else-if="!event.ticketPurchaseEnabled") La adquisición de boletos no está disponible para este evento.
-              BaseButton.checkout-action(v-else type="button" disabled) Pago próximamente
-            BaseLink.checkout-action(v-else-if="pendingSignature" :to="`/events/${event.friendlyId}`") Volver al evento
-            BaseLink.checkout-action(v-else variant="success" :to="`/c/${event.friendlyId}`") Entrar al evento
+            .checkout-actions
+              template(v-if="!success")
+                span.checkout-closed(v-if="privateTickets && !inviteToken") Abre el enlace o escanea el QR que te compartió el anfitrión.
+                template(v-else-if="privateTickets")
+                  p Verifica el correo de tu cuenta. Si hay cupo, el sistema reservará tu boleto al solicitarlo.
+                  BaseLink.checkout-action(v-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: route.path } }") Inicia sesión
+                  BaseLink.checkout-action(v-if="!isAuthenticated" :to="{ path: '/register', query: { redirect: route.path + '?solicitar=1' } }") Crear cuenta y solicitar boleto
+                  BaseButton.checkout-action(v-if="needsVerifiedEmail" type="button" :loading="sendingCode" @click="sendVerificationCode") {{ verificationEmail ? 'Reenviar código' : 'Enviar código de verificación' }}
+                  form(v-if="verificationEmail" @submit.prevent="verifyAndRequest")
+                    label(for="ticket-email-code") Código enviado a {{ verificationEmail }}
+                    input#ticket-email-code(v-model.trim="verificationCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required)
+                    BaseButton(type="submit" :loading="verifying" :disabled="verificationCode.length !== 6") Verificar y solicitar boleto
+                  BaseButton.checkout-action(v-if="isAuthenticated && !needsVerifiedEmail" type="button" :loading="submitting" @click="confirmFreeTicket") Solicitar boleto
+                span.checkout-closed(v-else-if="event.ticketSoldOut") Los boletos de este evento están agotados.
+                span.checkout-closed(v-else-if="event.ticketSalesClosed") La adquisición pública fue cerrada por el organizador. Solicita tu boleto directamente al organizador.
+                BaseLink.checkout-action(v-else-if="!isAuthenticated" :to="{ path: '/login', query: { redirect: `/events/${event.friendlyId}/checkout` } }") Inicia sesión
+                BaseButton.checkout-action(v-else-if="isFree && event.ticketPurchaseEnabled" type="button" :loading="submitting" @click="confirmFreeTicket") Confirmar boleto
+                span.checkout-closed(v-else-if="!event.ticketPurchaseEnabled") La adquisición de boletos no está disponible para este evento.
+                BaseButton.checkout-action(v-else type="button" disabled) Pago próximamente
+              BaseLink.checkout-action(v-else-if="pendingSignature" :to="`/events/${event.friendlyId}`") Volver al evento
+              BaseLink.checkout-action(v-else variant="success" :to="`/c/${event.friendlyId}`") Entrar al evento
           FeedbackMessage.checkout-feedback(v-if="actionError" :message="actionError" tone="error")
       //- Sin formulario de tarjeta falso: campos de pago deshabilitados hacen dudar ("¿tengo
       //- que pagar? ¿esta roto?"). Hasta que exista proveedor de pagos, un aviso claro basta.
@@ -239,12 +240,12 @@ export default {
 
 <style scoped>
 .checkout-page { min-height: 100vh; background: var(--color-primary-soft); }
-.checkout-main { max-width: 980px; margin: 0 auto; padding: 42px 24px 76px; }
+.checkout-main { max-width: 1120px; margin: 0 auto; padding: 42px 24px 76px; }
 .back { margin-left: -12px; }
-.checkout-layout { display: grid; grid-template-columns: minmax(360px, 420px) minmax(300px, 1fr); gap: 28px; margin-top: 25px; align-items: start; }
-.master-container { display: grid; gap: 5px; }
+.checkout-layout { display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); gap: 28px; margin-top: 25px; align-items: start; }
+.master-container { display: grid; min-width: 0; gap: 5px; }
 .card, .payment-modal, .free-panel { background: var(--color-surface); box-shadow: 0 22px 34px rgba(30, 27, 75, .09), 0 4px 12px rgba(30, 27, 75, .07); }
-.card { width: 100%; }
+.card { width: 100%; min-width: 0; }
 .title { display: flex; align-items: center; min-height: 42px; padding: 0 20px; border-bottom: 1px solid var(--color-border-subtle); font-size: 12px; font-weight: 800; color: var(--color-text-muted); }
 .cart { border-radius: 19px 19px 7px 7px; }
 .products { padding: 14px; }
@@ -255,11 +256,11 @@ export default {
 .quantity { display: grid; place-items: center; width: 32px; height: 30px; border: 1px solid var(--color-border-subtle); border-radius: 7px; color: var(--color-text-secondary); font-size: 13px; font-weight: 700; }
 .product-price { color: var(--color-text); font-size: 14px; font-weight: 900; white-space: nowrap; }
 .coupons { border-radius: 7px; }.coupon-form { display: grid; grid-template-columns: 1fr 90px; gap: 10px; padding: 12px; }.input-field { width: 100%; height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--color-border-subtle); border-radius: 7px; background: var(--color-surface-muted); color: var(--color-text-secondary); }.input-field:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(79, 70, 229, .16); }.input-field:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }.coupon-form button { height: 38px; border: 0; border-radius: 7px; background: var(--color-primary); color: var(--color-on-primary); font-size: 12px; font-weight: 700; }.coupon-form button:disabled, .payment-options button:disabled { cursor: not-allowed; opacity: .55; }
-.checkout { border-radius: 9px 9px 19px 19px; }.details { display: grid; grid-template-columns: 3fr 1fr; gap: 6px; padding: 14px 16px; }.details span:nth-child(odd) { color: var(--color-text-muted); font-size: 11px; font-weight: 700; }.details span:nth-child(even) { color: var(--color-text-secondary); font-size: 13px; font-weight: 700; text-align: right; white-space: nowrap; }.checkout-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 12px 12px 20px; background: var(--color-surface-muted); }.total { display: flex; flex-direction: column; gap: 2px; }.total small { color: var(--color-text-muted); font-size: 11px; }.total strong { color: var(--color-text); font-size: 22px; font-weight: 900; white-space: nowrap; }.checkout-action { min-width: 142px; min-height: 38px; padding: 0 15px; border-radius: 7px; font-size: 13px; }.error { margin: 0; padding: 0 16px 13px; color: var(--color-danger-dark); font-size: 12px; font-weight: 700; }
+.checkout { min-width: 0; border-radius: 9px 9px 19px 19px; }.details { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; padding: 14px 16px; }.details span:nth-child(odd) { color: var(--color-text-muted); font-size: 11px; font-weight: 700; }.details span:nth-child(even) { color: var(--color-text-secondary); font-size: 13px; font-weight: 700; text-align: right; white-space: nowrap; }.checkout-footer { display: grid; gap: 14px; padding: 16px 20px 20px; background: var(--color-surface-muted); }.total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }.total small { color: var(--color-text-muted); font-size: 12px; }.total strong { color: var(--color-text); font-size: 22px; font-weight: 900; white-space: nowrap; }.checkout-actions { display: grid; min-width: 0; gap: 10px; }.checkout-action { display: flex; width: 100%; min-width: 0; min-height: 44px; align-items: center; justify-content: center; padding: 8px 15px; border-radius: 8px; font-size: 14px; line-height: 1.3; text-align: center; white-space: normal; }.checkout-closed { display: block; color: var(--color-text-muted); font-size: 14px; line-height: 1.5; }.error { margin: 0; padding: 0 16px 13px; color: var(--color-danger-dark); font-size: 12px; font-weight: 700; }
 .payment-panel { min-width: 0; }.payment-modal { max-width: 450px; border-radius: 26px; padding: 20px; }.payment-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; color: var(--color-heading); font-size: 18px; font-weight: 800; }.payment-heading small { color: var(--color-warning); font-size: 11px; }.payment-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }.payment-options button { height: 50px; border: 0; border-radius: 11px; background: var(--color-surface-muted); color: var(--color-text-muted); font-size: 11px; font-weight: 700; }.separator { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin: 10px 0 18px; color: var(--color-text-muted); }.separator span { height: 1px; background: var(--color-border-subtle); }.separator p { margin: 0; font-size: 11px; font-weight: 600; }.payment-fields { display: flex; flex-direction: column; gap: 6px; }.payment-fields label, .split-fields label { color: var(--color-text-muted); font-size: 10px; font-weight: 700; }.payment-fields .input-field { height: 40px; margin-bottom: 8px; }.split-fields { display: grid; grid-template-columns: 4fr 2fr; gap: 15px; }.split-fields > div { display: flex; flex-direction: column; gap: 6px; }.payment-note, .free-panel p { color: var(--color-text-muted); font-size: 12px; line-height: 1.5; }.payment-note { margin: 8px 0 0; }
-.free-panel { min-height: 220px; border-radius: 20px; padding: 30px; }.free-panel-icon { display: grid; place-items: center; width: 62px; height: 62px; margin-bottom: 16px; border-radius: 12px; background: var(--color-primary-soft); font-size: 30px; }.free-panel h2 { margin: 0; color: var(--color-heading); }.free-panel p { margin: 10px 0 20px; }.security-note { padding: 12px; border-radius: 9px; background: var(--color-success-soft); color: var(--color-success); font-size: 12px; font-weight: 700; }
+.free-panel { min-width: 0; min-height: 220px; border-radius: 20px; padding: 30px; }.free-panel-icon { display: grid; place-items: center; width: 62px; height: 62px; margin-bottom: 16px; border-radius: 12px; background: var(--color-primary-soft); font-size: 30px; }.free-panel h2 { margin: 0; color: var(--color-heading); }.free-panel p { margin: 10px 0 20px; }.security-note { padding: 12px; border-radius: 9px; background: var(--color-success-soft); color: var(--color-success); font-size: 12px; font-weight: 700; }
 .state { max-width: 980px; margin: 50px auto; padding: 30px; color: var(--color-text-muted); }.state-error { max-width: 980px; margin: 50px auto; padding: 30px; color: var(--color-danger-dark); }.checkout-feedback { margin: 0; padding: 0 16px 13px; color: var(--color-danger-dark); font-size: 12px; font-weight: 700; }
-.signature-pending { margin: 12px 0; padding: 14px; border: 1px solid var(--color-warning, #d99a00); border-radius: 10px; background: var(--color-warning-soft, #fff8e6); }.signature-pending p { margin: 6px 0 0; }
-@media (max-width: 760px) { .checkout-main { padding: 28px 16px 55px; }.checkout-layout { grid-template-columns: 1fr; }.payment-modal { max-width: none; }.master-container { max-width: 440px; } }
-@media (max-width: 430px) { .product { grid-template-columns: 52px minmax(0, 1fr) 28px; }.product-art { width: 52px; height: 52px; }.product-price { grid-column: 2 / -1; grid-row: 2; text-align: right; }.checkout-footer { align-items: stretch; flex-direction: column; padding: 14px; }.checkout-action { width: 100%; }.coupon-form { grid-template-columns: 1fr; } }
+.signature-pending { margin: 0; padding: 16px; border: 1px solid var(--color-warning, #d99a00); border-radius: 10px; background: var(--color-warning-soft, #fff8e6); line-height: 1.5; }.signature-pending p { margin: 6px 0 0; color: var(--color-text-secondary); }
+@media (max-width: 860px) { .checkout-main { padding: 28px 16px 55px; }.checkout-layout { grid-template-columns: minmax(0, 1fr); }.payment-modal { max-width: none; }.master-container { max-width: none; } }
+@media (max-width: 430px) { .product { grid-template-columns: 52px minmax(0, 1fr) 28px; }.product-art { width: 52px; height: 52px; }.product-price { grid-column: 2 / -1; grid-row: 2; text-align: right; }.checkout-footer { padding: 14px; }.free-panel { padding: 22px; }.coupon-form { grid-template-columns: 1fr; } }
 </style>
