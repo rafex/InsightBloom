@@ -312,6 +312,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import FeedbackMessage from '@/components/ui/FeedbackMessage.vue'
+import LoadingState from '@/components/ui/LoadingState.vue'
 import SaveState from '@/components/ui/SaveState.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import { getQuestions, createQuestion, updateQuestion, deactivateQuestion, getResults, suggestQuestions, purgeResponses, improveQuestion, gradeResponses, getSurveyDefinition, selectSurveyEngine, saveSurveyDefinition, validateSurveyDefinition, publishSurveyDefinition, getSurveyJsSubmissions, getSurveyAccessManagement, releaseSurveyAccess, type SurveyEngine, type SurveyAttendee } from '@/services/api/surveyApi'
@@ -390,7 +391,7 @@ const TYPE_ICONS: Record<string, string> = {
 
 export default {
   name: 'SurveyManagePage',
-  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, BaseModal, EmptyState, FeedbackMessage, SaveState, StatusBadge },
+  components: { DashboardBreadcrumb, ConferenceToolsNav, BarChart, SurveyComponent, BaseButton, BaseModal, EmptyState, FeedbackMessage, LoadingState, SaveState, StatusBadge },
   props: { conferenceId: String },
   setup(props: { conferenceId?: string }) {
     const auth = useAuthStore()

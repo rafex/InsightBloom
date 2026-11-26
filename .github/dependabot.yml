@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      # survey-vue3-ui exige exactamente la misma version de survey-core; separadas dejan el
+      # peer roto sin que npm avise (frontend/web/.npmrc usa legacy-peer-deps).
+      surveyjs:
+        patterns:
+          - "survey-*"
   - package-ecosystem: npm
     directory: /backend/services/insightbloom-presentations
     schedule:
