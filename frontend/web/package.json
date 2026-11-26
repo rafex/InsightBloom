@@ -24,7 +24,7 @@
     "d3-cloud": "^1.2.9",
     "jschannel": "^1.0.2",
     "leaflet": "^1.9.4",
-    "marked": "^18.0.9",
+    "marked": "^18.0.14",
     "monaco-editor": "^0.56.0",
     "qr-scanner": "^1.4.2",
     "qrcode": "^1.5.4",
