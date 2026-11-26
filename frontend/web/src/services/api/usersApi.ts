@@ -227,14 +227,14 @@ export async function updateConference(
   {
     displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
     flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme,
-    ticketPrice, ticketCurrency
+    ticketPrice, ticketCurrency, ticketSigningMode
   }: UpdateConferenceRequest,
   token: string
 ): Promise<Conference> {
   const res = await axios.put(`/api/users/api/v1/conferences/${uuid}`, {
     displayName, venue, eventDate, startTime, endTime, latitude, longitude, presentationSourceUrl,
     flyerBase64, timezoneId, description, visibility, scheduleMarkdown, scheduleLayout, publicTheme,
-    ticketPrice, ticketCurrency
+    ticketPrice, ticketCurrency, ticketSigningMode
   }, authHeader(token))
   return res.data.data
 }

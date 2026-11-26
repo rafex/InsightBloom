@@ -21,6 +21,7 @@ public class Ticket {
     private Instant checkedInAt;
     private String revokedByUserUuid;
     private Instant revokedAt;
+    private String signedQrCode;
 
     public Ticket(final String conferenceUuid, final String issuedByUserUuid,
                   final String recipientEmail, final String seatUuid) {
@@ -123,6 +124,8 @@ public class Ticket {
     public Instant getCheckedInAt() { return checkedInAt; }
     public String getRevokedByUserUuid() { return revokedByUserUuid; }
     public Instant getRevokedAt() { return revokedAt; }
+    public String getSignedQrCode() { return signedQrCode; }
+    public void setSignedQrCode(final String signedQrCode) { this.signedQrCode = signedQrCode; }
 
     public void markPendingSignature() { this.status = TicketStatus.PENDING_SIGNATURE; }
 }

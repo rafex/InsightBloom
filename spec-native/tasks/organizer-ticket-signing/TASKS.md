@@ -80,3 +80,24 @@ validation = ["Suite Maven users", "Frontend typecheck/build", "Helm lint GitOps
 ```
 
 Documentar ciclo de vida/recuperación/rotación de clave, preparar ruta de reemisión de legacy, validar restauración de respaldo y staging. Retirar variables, secret refs y signer global después de migrar y verificar el flujo de evento.
+
+### TASK-ORGANIZER-TICKET-0001 - Emisión automática de boletos con firma de InsightBloom
+
+> **Update 2026-11-26T23:41:24Z:** Implementación de aplicación y GitOps completada localmente. Validaciones observadas: Maven users 433 tests; signer Python 3 tests; frontend typecheck/build; Helm lint/template; manifiesto SOPS descifrado y campos presentes; git diff --check. El checkout público/protegido usa TicketUseCase y en PLATFORM emite con firma antes de responder. No se desplegó el pod ni se ejecutó smoke test de clúster; eventos existentes conservan ORGANIZER hasta cambiar su modo.
+
+> **Update 2026-11-26T23:08:58Z:** Implementing site-managed per-event Ed25519 signing through a dedicated internal gopass-backed signer pod. User approved automatic signatures for new events, completion of pending tickets on enablement, online-only validation, and organizer signing compatibility.
+
+```toml
+id = "TASK-ORGANIZER-TICKET-0001"
+title = "Emisión automática de boletos con firma de InsightBloom"
+state = "in_progress"
+priority = "p1"
+owner = "product owner"
+labels = []
+dependencies = []
+expected_files = ["backend/services/insightbloom-ticket-signer", "backend/services/insightbloom-users", "frontend/web", "spec-native/specs/organizer-ticket-signing/SPEC.md"]
+close_criteria = "Pod interno gopass provisionado y API de firma autenticada por service-to-service auth con acceso de red restringido a insightbloom-users; nunca retorna material privado; clave Ed25519 por evento. Modo configurable y default en eventos nuevos; boletos nuevos y pendientes se emiten como ISSUED automáticamente con correo una vez; QR incluye COSE Ed25519 y check-in online verifica firma, evento y estado DB; errores de signer producen rollback/no entregan boleto; eventos de firma de organizador conservan flujo; offline deshabilitado para modo InsightBloom."
+validation = ["Pruebas de API del signer: auth/deny, validación de evento y carga, firma determinista, secreto nunca en respuesta.", "Pruebas backend para signer client, emisión, idempotencia/email, pendientes, verificación de firma y rollback de capacidad ante errores.", "Pruebas frontend para modo por evento, QR firmado y mensajes de emisión.", "mvn -f backend/services/pom.xml -pl insightbloom-users test", "npm --prefix frontend/web run typecheck", "npm --prefix frontend/web run build", "Helm lint/template e inspección de NetworkPolicy del pod signer."]
+```
+
+Agregar modo de firma automático configurable por evento, predeterminado para eventos nuevos y conservando la firma del organizador en eventos existentes. Un pod interno dedicado usa gopass para custodiar las claves privadas Ed25519 por evento y ofrece una API autenticada de firma consumible solo por insightbloom-users; la NetworkPolicy limita ingreso y salida del pod, y las claves privadas no salen del pod. InsightBloom firma boletos COSE al solicitarse, completa pendientes existentes al activar el modo, incluye la firma en el QR y valida firma, evento y estado en check-in online. El check-in offline no está disponible para eventos con firma de InsightBloom.

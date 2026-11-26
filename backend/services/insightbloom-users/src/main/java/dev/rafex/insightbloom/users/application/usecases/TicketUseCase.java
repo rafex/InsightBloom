@@ -51,6 +51,7 @@ public class TicketUseCase {
     private final TimezoneRepository timezoneRepository;
     private final UserRepository userRepository;
     private OrganizerTicketSignatureUseCase organizerTicketSignatures;
+    private PlatformTicketSigner platformTicketSigner;
 
     public TicketUseCase(final ConferenceRepository conferenceRepository, final EventTypeRepository eventTypeRepository,
                          final TicketRepository ticketRepository, final ConferenceMembershipRepository membershipRepository,
@@ -87,6 +88,8 @@ public class TicketUseCase {
     public void configureOrganizerTicketSignatures(final OrganizerTicketSignatureUseCase useCase) {
         this.organizerTicketSignatures = useCase;
     }
+
+    public void configurePlatformTicketSigner(final PlatformTicketSigner signer) { this.platformTicketSigner = signer; }
 
     public OrganizerTicketSignatureUseCase organizerTicketSignatures() {
         if (organizerTicketSignatures == null) throw new IllegalStateException("organizer_ticket_signing_not_configured");
@@ -179,6 +182,8 @@ public class TicketUseCase {
                          final String seatUuid, final int maxDevices, final String enrollmentMethod) {
         final Conference conference = conference(conferenceUuid);
         ensureConferenceActive(conference);
+        if ("PLATFORM".equals(conference.getTicketSigningMode()) && platformTicketSigner == null)
+            throw new IllegalStateException("ticket_signer_not_configured");
         final EventCapability capability = seatUuid == null ? EventCapability.TICKETING_GENERAL : EventCapability.TICKETING_SEATED;
         if (!hasCapability(conference, capability)) throw new IllegalStateException("capability_not_available");
         if ("SEATED".equals(conference.getSeatingMode()) && seatUuid == null) throw new IllegalStateException("seat_required");
@@ -190,10 +195,69 @@ public class TicketUseCase {
         try {
             ticketRepository.insert(ticket);
             if (organizerTicketSignatures != null) organizerTicketSignatures.invalidateOfflinePackage(conferenceUuid);
+            if ("PLATFORM".equals(conference.getTicketSigningMode())) signAndFinalizeWithPlatform(conference, ticket);
         } catch (RuntimeException e) {
+            ticketRepository.revoke(ticket.getUuid(), issuerUuid, Instant.now().toString());
             if (counted) conferenceRepository.decrementReservedCount(conferenceUuid);
             throw e;
         }
+        return withSignedQr(ticketRepository.findByUuid(ticket.getUuid()).orElse(ticket), conference);
+    }
+
+    private void signAndFinalizeWithPlatform(final Conference conference, final Ticket ticket) {
+        final String payload = OrganizerTicketSignatureUseCase.canonicalTicketPayload(ticket);
+        final PlatformTicketSigner.Signed signed = platformTicketSigner.sign(conference.getUuid(), payload);
+        organizerTicketSignatures.registerPlatformKey(conference.getUuid(), signed.keyId(), signed.publicKeySpki());
+        final byte[] payloadBytes = payload.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        final byte[] signature = java.util.Base64.getUrlDecoder().decode(signed.signatureBase64Url());
+        final byte[] cose = dev.rafex.insightbloom.users.domain.services.CoseSign1Ed25519.encode(
+                signed.keyId().getBytes(java.nio.charset.StandardCharsets.US_ASCII), payloadBytes, signature);
+        organizerTicketSignatures.acceptPlatformTicketSignature(conference.getUuid(), ticket.getUuid(),
+                java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(cose));
+        if (!ticketRepository.finalizeSignature(ticket.getUuid())) throw new IllegalStateException("ticket_signature_finalize_failed");
+        sendEmail(conference, ticketRepository.findByUuid(ticket.getUuid()).orElse(ticket));
+    }
+
+    public void finalizePendingWithPlatform(final String conferenceUuid) {
+        if (platformTicketSigner == null) throw new IllegalStateException("ticket_signer_not_configured");
+        final Conference conference = conference(conferenceUuid);
+        if (!"PLATFORM".equals(conference.getTicketSigningMode())) return;
+        for (final Ticket ticket : ticketRepository.findByConference(conferenceUuid)) {
+            if (ticket.getStatus() == TicketStatus.PENDING_SIGNATURE && !ticket.isOperational()) {
+                signAndFinalizeWithPlatform(conference, ticket);
+            }
+        }
+    }
+
+    public void disableOfflinePackage(final String conferenceUuid) {
+        if (organizerTicketSignatures != null) organizerTicketSignatures.invalidateOfflinePackage(conferenceUuid);
+    }
+
+    public boolean isPlatformSigning(final String conferenceUuid) {
+        return "PLATFORM".equals(conference(conferenceUuid).getTicketSigningMode());
+    }
+
+    public boolean requiresSignedTicketQr(final String conferenceUuid, final String input) {
+        if (!isPlatformSigning(conferenceUuid)) return false;
+        final String code = normalizeCode(input);
+        return ticketRepository.findByCode(conferenceUuid, code).or(() -> ticketRepository.findByUuid(code))
+                .filter(t -> conferenceUuid.equals(t.getConferenceUuid()))
+                .map(t -> !t.isOperational()).orElse(true);
+    }
+
+    public boolean verifySignedTicketQr(final String conferenceUuid, final String ticketUuid, final String cose) {
+        final Ticket ticket = ticketRepository.findByUuid(ticketUuid)
+                .filter(t -> conferenceUuid.equals(t.getConferenceUuid()))
+                .orElse(null);
+        return ticket != null && !ticket.isOperational() && organizerTicketSignatures != null
+                && organizerTicketSignatures.verifyTicketSignature(conferenceUuid, ticket, cose);
+    }
+
+    private Ticket withSignedQr(final Ticket ticket, final Conference conference) {
+        if (!"PLATFORM".equals(conference.getTicketSigningMode()) || ticket.isOperational() || organizerTicketSignatures == null) return ticket;
+        organizerTicketSignatures.ticketSignature(conference.getUuid(), ticket.getUuid()).ifPresent(cose ->
+                ticket.setSignedQrCode(dev.rafex.ether.json.JsonUtils.toJson(Map.of(
+                        "v", 2, "conferenceUuid", conference.getUuid(), "ticketUuid", ticket.getUuid(), "coseSign1", cose))));
         return ticket;
     }
 
@@ -370,7 +434,8 @@ public class TicketUseCase {
     public Optional<Ticket> myTicket(final String conferenceUuid, final String userUuid) {
         final Conference conference = conference(conferenceUuid);
         expireIfNeeded(conference);
-        return ticketRepository.findByConferenceAndUser(conferenceUuid, userUuid);
+        return ticketRepository.findByConferenceAndUser(conferenceUuid, userUuid)
+                .map(ticket -> withSignedQr(ticket, conference));
     }
 
     public Optional<Ticket> pendingProtectedTicketForEmail(final String conferenceUuid, final String email) {
@@ -461,7 +526,14 @@ public class TicketUseCase {
                 .or(() -> ticketRepository.findByUuid(code))
                 .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
         if (!conferenceUuid.equals(ticket.getConferenceUuid())) throw new IllegalArgumentException("ticket_not_found");
+        if ("PLATFORM".equals(conference.getTicketSigningMode()) && !ticket.isOperational()) {
+            final String cose = organizerTicketSignatures == null ? null
+                    : organizerTicketSignatures.ticketSignature(conferenceUuid, ticket.getUuid()).orElse(null);
+            if (cose == null || !organizerTicketSignatures.verifyTicketSignature(conferenceUuid, ticket, cose))
+                throw new IllegalStateException("ticket_signature_invalid");
+        }
         if (ticket.isDeviceProtected() && !deviceVerified) throw new IllegalStateException("ticket_device_proof_required");
+        if (ticket.getStatus() == TicketStatus.REVOKED) throw new IllegalStateException("ticket_revoked");
         if (ticket.getStatus().name().equals("CHECKED_IN")) throw new IllegalStateException("already_checked_in");
         if (ticket.getStatus().name().equals("EXPIRED")) throw new IllegalStateException("ticket_expired");
         if (ticket.getStatus().name().equals("ISSUED")) throw new IllegalStateException("ticket_not_claimed");
@@ -693,9 +765,11 @@ public class TicketUseCase {
     private void sendTicketEmail(final Conference conference, final Ticket ticket, final String email) {
         if (!emailPort.isEnabled() || email == null) return;
         try {
+            final Ticket qrTicket = withSignedQr(ticket, conference);
             final String ticketUrl = frontendBaseUrl + "/c/" + conference.getFriendlyId()
                     + "/ticket?ticket=" + ticket.getTicketCode();
-            final byte[] qrPng = TicketQrGenerator.toPngBytes(ticketUrl);
+            final byte[] qrPng = TicketQrGenerator.toPngBytes(!ticket.isDeviceProtected() && qrTicket.getSignedQrCode() != null
+                    ? qrTicket.getSignedQrCode() : ticketUrl);
             final String html = TicketEmailTemplate.render(conference.getName(), ticketUrl, "cid:ticket-qr", ticket.getTicketCode());
             emailPort.sendHtml(email, "Tu boleto para " + conference.getName(), html,
                     List.of(new EmailPort.EmailAttachment("ticket-qr.png", "image/png", qrPng, "ticket-qr")));

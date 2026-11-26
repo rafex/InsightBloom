@@ -6,7 +6,7 @@ owner = "product owner"
 created_at = "2026-10-23"
 updated_at = "2026-10-23"
 replaces = "none"
-related_tasks = ["TASK-OTS-0001", "TASK-OTS-0002", "TASK-OTS-0003", "TASK-OTS-0004"]
+related_tasks = ["TASK-OTS-0001", "TASK-OTS-0002", "TASK-OTS-0003", "TASK-OTS-0004", "TASK-ORGANIZER-TICKET-0001"]
 related_decisions = ["DEC-0043"]
 artifacts = ["backend/services/insightbloom-users", "frontend/web", "spec-native/workflows/TICKET-OFFLINE-SIGNING.md"]
 validation = ["mvn -f backend/services/pom.xml -pl insightbloom-users test", "npm --prefix frontend/web run typecheck", "npm --prefix frontend/web run build"]
@@ -16,7 +16,7 @@ validation = ["mvn -f backend/services/pom.xml -pl insightbloom-users test", "np
 
 ## Resumen
 
-Cada boleto nuevo y cada snapshot offline de un evento quedan firmados con una clave Ed25519 bajo custodia local de su organizador; InsightBloom conserva solo la clave pública y las firmas.
+Cada evento puede elegir firma local del organizador para validar también offline o firma automática de InsightBloom para emitir boletos listos con validación online. La plataforma conserva las privadas del segundo modo dentro de un servicio gopass interno; el organizador mantiene la custodia local de las privadas del primer modo.
 
 ## Problema
 
@@ -28,7 +28,7 @@ El dueño del evento puede firmar boletos durante la emisión online y preparar 
 
 ## Alcance
 
-**Incluye:** clave Ed25519 por evento; registro de clave pública con prueba de posesión; respaldo local cifrado; firmas COSE_Sign1 por boleto; cola para emisión pública y manual; snapshots offline firmados por el organizador; lector que verifica tres capas; revocación/rotación de claves; auditoría y soporte de legado.
+**Incluye:** modo de firma por evento; claves Ed25519 por evento; registro de clave pública con prueba de posesión para claves de organizador; respaldo local cifrado; custodia gopass y API interna autenticada para firma de InsightBloom; firmas COSE_Sign1 por boleto; emisión automática y cola de pendientes; snapshots offline firmados por el organizador; lector que verifica tres capas en modo de organizador; revocación/rotación de claves; auditoría y soporte de legado.
 
 **Excluye:** emitir o vender boletos sin conexión; custodiar o recuperar claves privadas de organizador; impedir doble uso entre lectores sin conexión entre sí; sustituir la firma P-256 y el vínculo de dispositivo existentes; certificar identidad civil del poseedor.
 
@@ -43,6 +43,9 @@ El dueño del evento puede firmar boletos durante la emisión online y preparar 
 - RF-7: El check-in offline se guarda localmente y sincroniza idempotentemente; el backend conserva la transición conectada atómica y reporta conflictos entre lectores como duplicados.
 - RF-8: Las APIs permiten registrar, rotar y revocar claves públicas; leer la cola de firmas; finalizar una emisión; crear/publicar un snapshot; descargarlo y sincronizar escaneos. Solo el dueño del evento o ADMIN puede operar las funciones de firma/publicación.
 - RF-9: Boletos legacy continúan online con su compatibilidad existente y se identifican como no verificables offline hasta reemitirse. El paquete offline no utiliza clave privada global ni fallback de plataforma.
+- RF-10: Los eventos nuevos usan `PLATFORM` por defecto; los eventos existentes migran a `ORGANIZER`. El organizador puede cambiar el modo en la configuración del evento. Al activar `PLATFORM`, el backend firma y libera los pendientes; futuras emisiones solo se confirman cuando el signer responde correctamente.
+- RF-11: El pod signer mantiene claves Ed25519 por UUID de evento en gopass. Su API exige un token de servicio dedicado, no devuelve privadas y solo acepta payloads COSE cuyo `conferenceUuid` coincide con el evento de la solicitud. NetworkPolicy permite llamadas entrantes solo desde `insightbloom-users`; el signer no necesita egress salvo DNS.
+- RF-12: El QR de un boleto `PLATFORM` incluye el COSE firmado. Check-in online valida que la firma guardada coincida con el QR, que la clave pública esté registrada para ese evento y que el boleto siga activo en la base. Estos eventos no ofrecen manifiestos, paquetes ni sincronización offline.
 
 ## Requisitos no funcionales
 

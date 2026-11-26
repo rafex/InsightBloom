@@ -257,6 +257,12 @@ public class DatabaseManager {
                     expires_at TEXT NOT NULL
                 )
                 """);
+            stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS conference_ticket_signing_modes (
+                    conference_uuid TEXT PRIMARY KEY,
+                    mode TEXT NOT NULL DEFAULT 'ORGANIZER'
+                )
+                """);
 
             stmt.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS timezones (

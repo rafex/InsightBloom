@@ -164,6 +164,13 @@ public class SqliteConferenceRepository implements ConferenceRepository {
             ps.setString(63, conference.getSandboxBootstrapValue());
             ps.setInt(64, conference.getSandboxBootstrapEnabled() ? 1 : 0);
             ps.executeUpdate();
+            try (PreparedStatement mode = conn.prepareStatement(
+                    "INSERT INTO conference_ticket_signing_modes(conference_uuid,mode) VALUES(?,?) " +
+                            "ON CONFLICT(conference_uuid) DO UPDATE SET mode=excluded.mode")) {
+                mode.setString(1, conference.getUuid());
+                mode.setString(2, conference.getTicketSigningMode());
+                mode.executeUpdate();
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -238,6 +245,10 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         try (Connection conn = db.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, uuid);
             ps.executeUpdate();
+            try (PreparedStatement mode = conn.prepareStatement("DELETE FROM conference_ticket_signing_modes WHERE conference_uuid=?")) {
+                mode.setString(1, uuid);
+                mode.executeUpdate();
+            }
             try (PreparedStatement links = conn.prepareStatement(
                     "DELETE FROM conference_ticket_request_links WHERE conference_uuid = ?")) {
                 links.setString(1, uuid);
@@ -376,6 +387,12 @@ public class SqliteConferenceRepository implements ConferenceRepository {
         conference.setTicketPrice(rs.getString("ticket_price"));
         conference.setTicketCurrency(rs.getString("ticket_currency"));
         conference.setTicketSalesEnabled(rs.getInt("ticket_sales_enabled") != 0);
+        try (PreparedStatement mode = conn.prepareStatement("SELECT mode FROM conference_ticket_signing_modes WHERE conference_uuid=?")) {
+            mode.setString(1, conference.getUuid());
+            try (ResultSet modeRow = mode.executeQuery()) {
+                conference.setTicketSigningMode(modeRow.next() ? modeRow.getString(1) : "ORGANIZER");
+            }
+        }
         conference.setCertificateEngine(rs.getString("certificate_engine"));
         conference.setOnDemandVideoProvider(rs.getString("on_demand_video_provider"));
         conference.setOnDemandVideoUrl(rs.getString("on_demand_video_url"));

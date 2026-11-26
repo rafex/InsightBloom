@@ -37,6 +37,52 @@ public final class OrganizerTicketSignatureUseCase {
         return signatures.activeKey(conferenceUuid).map(k -> new KeyStatus(k.keyId(), k.publicKeySpki(), k.state(), k.createdAt())).orElse(null);
     }
 
+    /** Registers a key returned by the private platform signer; callers are internal only. */
+    public void registerPlatformKey(final String conferenceUuid, final String keyId, final String publicKeySpki) {
+        final var current = signatures.activeKey(conferenceUuid);
+        final var existing = signatures.key(conferenceUuid, keyId);
+        if (existing.isPresent() && !existing.get().publicKeySpki().equals(publicKeySpki))
+            throw new IllegalStateException("ticket_signer_key_mismatch");
+        if (existing.isEmpty()) signatures.registerPlatformKey(conferenceUuid, keyId, publicKeySpki, Instant.now());
+    }
+
+    public boolean acceptPlatformTicketSignature(final String conferenceUuid, final String ticketUuid,
+                                                 final String coseBase64Url) {
+        final Ticket ticket = tickets.findByUuid(ticketUuid).filter(t -> conferenceUuid.equals(t.getConferenceUuid()))
+                .orElseThrow(() -> new IllegalArgumentException("ticket_not_found"));
+        if (ticket.getStatus() != TicketStatus.PENDING_SIGNATURE) {
+            if (signatures.ticketSignature(conferenceUuid, ticketUuid).filter(coseBase64Url::equals).isPresent()) return true;
+            throw new IllegalStateException("ticket_not_signable");
+        }
+        final byte[] expected = canonicalTicketPayload(ticket).getBytes(StandardCharsets.UTF_8);
+        final String keyId = verifyCose(conferenceUuid, coseBase64Url, expected, false);
+        if (!signatures.saveTicketSignature(conferenceUuid, ticketUuid, keyId, coseBase64Url, "insightbloom-platform", Instant.now())
+                && !signatures.hasTicketSignature(conferenceUuid, ticketUuid)) throw new IllegalStateException("ticket_signature_store_failed");
+        return true;
+    }
+
+    public boolean verifyTicketSignature(final String conferenceUuid, final Ticket ticket, final String coseBase64Url) {
+        try {
+            if (!signatures.ticketSignature(conferenceUuid, ticket.getUuid()).filter(coseBase64Url::equals).isPresent()) return false;
+            final byte[] cose = Base64.getUrlDecoder().decode(coseBase64Url);
+            final CoseSign1Ed25519.Parts parts = CoseSign1Ed25519.decode(cose);
+            final String keyId = new String(parts.keyId(), StandardCharsets.US_ASCII);
+            final byte[] payload = canonicalTicketPayload(ticket).getBytes(StandardCharsets.UTF_8);
+            if (!java.security.MessageDigest.isEqual(payload, parts.payload())) return false;
+            final var key = signatures.key(conferenceUuid, keyId).orElse(null);
+            if (key == null) return false;
+            final var publicKey = KeyFactory.getInstance("Ed25519").generatePublic(
+                    new X509EncodedKeySpec(Base64.getUrlDecoder().decode(key.publicKeySpki())));
+            final Signature verifier = Signature.getInstance("Ed25519"); verifier.initVerify(publicKey);
+            verifier.update(CoseSign1Ed25519.signatureInput(payload));
+            return verifier.verify(parts.signature());
+        } catch (final Exception invalid) { return false; }
+    }
+
+    public java.util.Optional<String> ticketSignature(final String conferenceUuid, final String ticketUuid) {
+        return signatures.ticketSignature(conferenceUuid, ticketUuid);
+    }
+
     public KeyStatus registerKey(final String conferenceUuid, final String keyId, final String publicKeySpki,
                                  final String proofBase64Url, final String actorUuid) {
         if (keyId == null || !KEY_ID.matcher(keyId).matches()) throw new IllegalArgumentException("organizer_ticket_key_id_invalid");
@@ -167,17 +213,19 @@ public final class OrganizerTicketSignatureUseCase {
 
     private String verifyCose(final String conferenceUuid, final String coseBase64Url, final byte[] expected,
                               final boolean requireActiveKey) {
-        final var activeKey = signatures.activeKey(conferenceUuid).orElseThrow(() -> new IllegalStateException("organizer_ticket_signing_not_configured"));
         final byte[] cose;
         try { cose = Base64.getUrlDecoder().decode(coseBase64Url); }
         catch (Exception e) { throw new IllegalArgumentException("cose_structure_invalid"); }
         final CoseSign1Ed25519.Parts parts = CoseSign1Ed25519.decode(cose);
         final String keyId = new String(parts.keyId(), StandardCharsets.UTF_8);
-        if (requireActiveKey && !activeKey.keyId().equals(keyId)) throw new IllegalArgumentException("organizer_ticket_key_mismatch");
+        final var verificationKey = requireActiveKey
+                ? signatures.activeKey(conferenceUuid).filter(k -> k.keyId().equals(keyId))
+                    .orElseThrow(() -> new IllegalArgumentException("organizer_ticket_key_mismatch"))
+                : signatures.key(conferenceUuid, keyId).orElseThrow(() -> new IllegalArgumentException("organizer_ticket_key_unknown"));
         if (!java.security.MessageDigest.isEqual(expected, parts.payload())) throw new IllegalArgumentException("ticket_signature_payload_mismatch");
         try {
             final var publicKey = KeyFactory.getInstance("Ed25519").generatePublic(
-                    new X509EncodedKeySpec(Base64.getUrlDecoder().decode(activeKey.publicKeySpki())));
+                    new X509EncodedKeySpec(Base64.getUrlDecoder().decode(verificationKey.publicKeySpki())));
             final Signature verifier = Signature.getInstance("Ed25519"); verifier.initVerify(publicKey);
             verifier.update(CoseSign1Ed25519.signatureInput(expected));
             if (!verifier.verify(parts.signature())) throw new IllegalArgumentException("ticket_signature_invalid");

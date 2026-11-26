@@ -148,7 +148,7 @@ export default {
     const activeDeviceCount = computed(() => devices.value.filter(d => d.active).length)
     const localCredentialUuid = ref('')
     const isProtectedTicket = computed(() => !!ticket.value && 'deviceMaxDevices' in ticket.value && Number(ticket.value.deviceMaxDevices) > 0)
-    const displayQrCode = computed(() => ticket.value?.status === 'PENDING_SIGNATURE' ? '' : (isProtectedTicket.value ? presentation.value : (ticket.value?.ticketCode || '')))
+    const displayQrCode = computed(() => ticket.value?.status === 'PENDING_SIGNATURE' ? '' : (isProtectedTicket.value ? presentation.value : (('signedQrCode' in (ticket.value || {})) ? (ticket.value as Ticket).signedQrCode || ticket.value?.ticketCode || '' : ticket.value?.ticketCode || '')))
     const videoEl = ref<HTMLVideoElement | null>(null)
     let scanner: QrScanner | null = null
     let presentationTimer: number | undefined
@@ -163,7 +163,9 @@ export default {
           if (!key) continue
           localCredentialUuid.value = active.uuid
           hasLocalDeviceKey.value = true
-          presentation.value = await createTicketPresentation(ticket.value.uuid, active.uuid, key)
+          const ticketSignature = ('signedQrCode' in ticket.value && ticket.value.signedQrCode)
+            ? JSON.parse(ticket.value.signedQrCode).coseSign1 as string : undefined
+          presentation.value = await createTicketPresentation(ticket.value.uuid, active.uuid, key, ticketSignature)
           return
         }
         hasLocalDeviceKey.value = false
