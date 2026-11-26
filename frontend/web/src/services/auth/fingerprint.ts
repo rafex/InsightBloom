@@ -11,7 +11,10 @@ export async function getFingerprint(): Promise<string> {
   if (_fingerprint) return _fingerprint
 
   try {
-    const tm = new Thumbmark({ timeout: 3000 })
+    // logging: false -- por defecto la libreria envia, en una muestra de ejecuciones, la huella y
+    // la ruta a api.thumbmarkjs.com y desde 1.11 ademas descarga y evalua un script remoto dentro
+    // del origen de la app. No quitar sin revisar ambas cosas.
+    const tm = new Thumbmark({ timeout: 3000, logging: false })
     const result = await tm.get()
     if (result?.thumbmark) {
       _fingerprint = result.thumbmark
