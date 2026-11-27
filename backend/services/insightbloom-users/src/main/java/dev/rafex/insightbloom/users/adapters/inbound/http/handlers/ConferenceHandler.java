@@ -145,6 +145,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private final TicketUseCase ticketUseCase;
     private final TicketDeviceUseCase ticketDeviceUseCase;
     private final EventPermissionGuard eventPermissionGuard;
+    private final ConferenceViews conferenceViews;
     private final CreateGuestUseCase createGuestUseCase;
     private final SetVenueMapUseCase setVenueMapUseCase;
     private final DefineVenueSeatsUseCase defineVenueSeatsUseCase;
@@ -291,6 +292,9 @@ public class ConferenceHandler extends BaseResourceHandler {
         this.ticketUseCase = ticketUseCase;
         this.ticketDeviceUseCase = ticketDeviceUseCase;
         this.eventPermissionGuard = eventPermissionGuard;
+        this.conferenceViews = new ConferenceViews(eventPermissionGuard,
+                conference -> ticketUseCase != null && ticketUseCase.isTicketed(conference),
+                (conference, userUuid) -> ticketUseCase != null && ticketUseCase.hasAccess(conference, userUuid));
         this.createGuestUseCase = createGuestUseCase;
         this.setVenueMapUseCase = setVenueMapUseCase;
         this.defineVenueSeatsUseCase = defineVenueSeatsUseCase;
@@ -876,30 +880,34 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
-    // AUD-01: el agregado completo (config de sandboxes, XML de drawio, escena de Excalidraw,
-    // motor de certificados, etc.) respondia sin credenciales por estas dos rutas. by-id lo usan
-    // exclusivamente pantallas autenticadas del dashboard/moderacion (todas mandan token hoy);
-    // by-friendly la usa la pagina publica del evento (ConferencePage.vue) SIN token para
-    // cualquier visitante -- por eso ahi el agregado se sanitiza siempre, y by-id exige sesion.
+    // AUD-01: el agregado completo (config de sandboxes, script de arranque, XML de drawio,
+    // escena de Excalidraw, etc.) solo se entrega a otros servicios y a quien trabaja en el
+    // evento. Cualquier otra peticion recibe la vista publica -- ver ConferenceViews. No basta
+    // con tener sesion: un invitado puede crearse sin credenciales.
 
     private boolean handleGetById(final JettyHttpExchange jx, final String id) {
         // Ademas del token de usuario, se acepta X-Internal-Auth: otros servicios (survey,
-        // moderation) llaman esta ruta sin sesion de usuario para resolver isConferenceOwner.
-        if (!validInternalAuth(jx)) {
+        // moderation, query) llaman esta ruta sin sesion de usuario.
+        final boolean internal = validInternalAuth(jx);
+        ValidateTokenUseCase.ValidationResult session = null;
+        if (!internal) {
             final String token = extractToken(jx);
             if (token == null) { sendError(jx, 401, "token_missing", "Authorization required"); return true; }
             try {
-                final var v = validateTokenUseCase.execute(token);
-                if (!v.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
+                session = validateTokenUseCase.execute(token);
+                if (!session.valid()) { sendError(jx, 401, "token_invalid", "Invalid token"); return true; }
             } catch (final Exception e) {
                 sendError(jx, 500, "internal_error", "Internal server error");
                 return true;
             }
         }
         try {
-            getConferenceUseCase.byId(id).ifPresentOrElse(
-                    c -> sendOk(jx, 200, c),
-                    () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
+            final var conference = getConferenceUseCase.byId(id);
+            if (conference.isEmpty()) {
+                sendError(jx, 404, "conference_not_found", "Conference not found");
+                return true;
+            }
+            sendOk(jx, 200, internal ? conference.get() : conferenceViews.forSession(conference.get(), session));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", "Internal server error");
         }
@@ -909,7 +917,7 @@ public class ConferenceHandler extends BaseResourceHandler {
     private boolean handleGetByFriendly(final JettyHttpExchange jx, final String friendlyId) {
         try {
             getConferenceUseCase.byFriendlyId(friendlyId).ifPresentOrElse(
-                    c -> sendOk(jx, 200, sanitizeForPublicAggregate(c)),
+                    c -> sendOk(jx, 200, conferenceViews.publicAggregate(c, optionalSession(jx))),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", "Internal server error");
@@ -917,26 +925,10 @@ public class ConferenceHandler extends BaseResourceHandler {
         return true;
     }
 
-    /**
-     * Quita del agregado los campos operativos/internos (config de sandboxes, control de
-     * dispositivos, motor de certificados, XML editable de drawio, escena nativa de Excalidraw)
-     * antes de servirlo por una ruta sin autenticación -- ver AUD-01. Las versiones "publicadas"
-     * (SVG) de drawio/whiteboard SÍ son para el público, se conservan.
-     */
-    private Conference sanitizeForPublicAggregate(final Conference c) {
-        c.setSandboxVariant(null);
-        c.setSandboxPoolSize(null);
-        c.setSandboxCliPoolSize(null);
-        c.setSandboxInternetEnabled(null);
-        c.setSandboxRemoteGitUrl(null);
-        c.setSandboxJvmHeapMb(null);
-        c.setSandboxSeatsPerPod(null);
-        c.setMaxDevicesPerUser(null);
-        c.setMaxAccountsPerDevice(null);
-        c.setCertificateEngine(null);
-        c.setDiagramXml(null);
-        c.setWhiteboardSceneAndPublishedSvg(null, c.getWhiteboardPublishedSvg());
-        return c;
+    /** Sesion de una ruta publica: null si no hay token; un token invalido no hace fallar la peticion. */
+    private ValidateTokenUseCase.ValidationResult optionalSession(final JettyHttpExchange jx) {
+        final String token = extractToken(jx);
+        return token == null ? null : validateTokenUseCase.execute(token);
     }
 
     /** DTO público reducido: no expone sandboxes, tokens ni configuración interna. */
@@ -1245,10 +1237,9 @@ public class ConferenceHandler extends BaseResourceHandler {
 
     private boolean handleGetByShortCode(final JettyHttpExchange jx, final String shortCode) {
         try {
-            // AUD-01: mismo tratamiento que by-friendly -- ruta publica sin token, agregado
-            // sanitizado (ver sanitizeForPublicAggregate).
+            // AUD-01: mismo tratamiento que by-friendly -- ruta publica, vista publica.
             getConferenceUseCase.byShortCode(shortCode).ifPresentOrElse(
-                    c -> sendOk(jx, 200, sanitizeForPublicAggregate(c)),
+                    c -> sendOk(jx, 200, conferenceViews.publicAggregate(c, optionalSession(jx))),
                     () -> sendError(jx, 404, "conference_not_found", "Conference not found"));
         } catch (final Exception e) {
             sendError(jx, 500, "internal_error", "Internal server error");
@@ -1271,7 +1262,7 @@ public class ConferenceHandler extends BaseResourceHandler {
             }
             if (rejectIfConferenceClosed(jx, resolvedConference.get())) return true;
             final var joinedConference = joinConferenceUseCase.execute(v.subjectUuid(), identifier);
-            sendOk(jx, 200, joinedConference);
+            sendOk(jx, 200, conferenceViews.forSession(joinedConference, v));
         } catch (final IllegalStateException e) {
             if ("ticket_required".equals(e.getMessage())) {
                 sendError(jx, 403, "ticket_required", "Necesitas canjear un boleto para acceder a este evento");

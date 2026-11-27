@@ -17,7 +17,8 @@ import {
   setSandboxConfig,
   deleteSandbox,
   recreateSandbox,
-  setConferenceEgressPolicy
+  setConferenceEgressPolicy,
+  getConferenceByFriendlyId
 } from '../usersApi'
 
 vi.mock('axios')
@@ -91,6 +92,21 @@ describe('usersApi', () => {
       expect(body.flyerBase64).toBe('data:image/png;base64,AAAA')
       expect(body.timezoneId).toBe(3)
       expect(config.headers.Authorization).toBe('Bearer tok')
+    })
+  })
+
+  describe('getConferenceByFriendlyId', () => {
+    it('sends the session token only when there is one', async () => {
+      axios.get.mockResolvedValue({ data: { data: { uuid: 'c1' } } })
+
+      await getConferenceByFriendlyId('evento', 'tok')
+      await getConferenceByFriendlyId('evento', null)
+
+      const url = '/api/users/api/v1/conferences/by-friendly/evento'
+      expect(axios.get.mock.calls.slice(-2)).toEqual([
+        [url, { headers: { Authorization: 'Bearer tok' } }],
+        [url, undefined]
+      ])
     })
   })
 

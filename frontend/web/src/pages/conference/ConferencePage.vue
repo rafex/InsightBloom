@@ -226,7 +226,14 @@ export default {
           presentationAccess.value = false
           return false
         }
-        privateAccess.value = !access.ticketRequired || access.hasAccess
+        const nextPrivateAccess = !access.ticketRequired || access.hasAccess
+        // El video y la presentación solo viajan a quien tiene acceso: al obtenerlo sin
+        // recargar (p. ej. canjeando un boleto) hay que volver a pedir el evento. Va antes de
+        // conceder el acceso para que un fallo se reintente en la siguiente comprobación.
+        if (nextPrivateAccess && !privateAccess.value) {
+          conference.value = await getConferenceByFriendlyId(friendlyId, auth.state.token)
+        }
+        privateAccess.value = nextPrivateAccess
         presentationAccess.value = !access.ticketRequired || access.hasAccess || access.presentationAccess === true
         return true
       } catch {
@@ -412,7 +419,7 @@ export default {
         // el bridge como compatibilidad para pestañas abiertas desde versiones previas.
         await auth.waitForSessionBridge()
         const [conf, tzList, eventTypes] = await Promise.all([
-          getConferenceByFriendlyId(friendlyId),
+          getConferenceByFriendlyId(friendlyId, auth.state.token),
           getTimezones().catch(() => []),
           getActiveEventTypes().catch(() => [])
         ])
