@@ -43,7 +43,7 @@ export default {
     async function loadSession() {
       try {
         await auth.waitForSessionBridge()
-        const conf = await getConferenceByFriendlyId(friendlyId)
+        const conf = await getConferenceByFriendlyId(friendlyId, auth.state.token)
         const [access, eventTypes] = await Promise.all([
           getConferenceAccess(conf.uuid, auth.state.token),
           getActiveEventTypes().catch(() => [])

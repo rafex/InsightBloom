@@ -270,8 +270,13 @@ export async function getConference(id: string, token: string): Promise<Conferen
   return res.data.data
 }
 
-export async function getConferenceByFriendlyId(friendlyId: string): Promise<Conference> {
-  const res = await axios.get(`/api/users/api/v1/conferences/by-friendly/${friendlyId}`)
+/**
+ * Ruta pública. Con sesión, el backend agrega lo que solo ve quien tiene acceso al evento
+ * (video, presentación) y, para su creador, `createdByUserUuid`.
+ */
+export async function getConferenceByFriendlyId(friendlyId: string, token?: string | null): Promise<Conference> {
+  const res = await axios.get(`/api/users/api/v1/conferences/by-friendly/${friendlyId}`,
+    token ? authHeader(token) : undefined)
   return res.data.data
 }
 

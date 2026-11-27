@@ -1,6 +1,7 @@
 package dev.rafex.insightbloom.users.domain.services;
 
 import dev.rafex.insightbloom.users.domain.model.Permission;
+import dev.rafex.insightbloom.users.domain.model.Role;
 import dev.rafex.insightbloom.users.domain.ports.EventRoleRepository;
 import dev.rafex.insightbloom.users.domain.ports.RoleRepository;
 
@@ -35,6 +36,14 @@ public class EventPermissionGuard {
         return eventRoleRepository.findByEventAndUser(eventUuid, userUuid)
                 .flatMap(assignment -> roleRepository.findByKey(assignment.getRoleKey()))
                 .map(role -> role.isActive() && role.hasPermission(permission))
+                .orElse(false);
+    }
+
+    /** Si la persona tiene un rol activo asignado en el evento, con cualquier permiso. */
+    public boolean hasActiveEventRole(final String eventUuid, final String userUuid) {
+        return eventRoleRepository.findByEventAndUser(eventUuid, userUuid)
+                .flatMap(assignment -> roleRepository.findByKey(assignment.getRoleKey()))
+                .map(Role::isActive)
                 .orElse(false);
     }
 
