@@ -135,6 +135,7 @@ export interface Conference {
   reservedCount?: number
   ticketPrice?: string | null
   ticketCurrency?: string | null
+  ticketSigningMode?: 'PLATFORM' | 'ORGANIZER'
   ticketSalesEnabled?: boolean
   venueMapBase64?: string | null
   eventTypeKey?: string
@@ -283,6 +284,7 @@ export interface Ticket {
   uuid: string
   conferenceUuid: string
   ticketCode: string | null
+  signedQrCode?: string | null
   issuedByUserUuid: string
   recipientEmail?: string | null
   seatUuid?: string | null
@@ -355,6 +357,7 @@ export interface UpdateConferenceRequest {
   publicTheme?: PublicTheme
   ticketPrice?: string | null
   ticketCurrency?: string | null
+  ticketSigningMode?: 'PLATFORM' | 'ORGANIZER'
 }
 
 export interface DownloadCounts {

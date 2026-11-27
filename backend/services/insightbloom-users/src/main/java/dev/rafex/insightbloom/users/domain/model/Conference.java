@@ -50,6 +50,8 @@ public class Conference {
     // punto flotante y dejar el modelo listo para un proveedor de pagos posterior.
     private String ticketPrice = "0.00";
     private String ticketCurrency = "MXN";
+    // New events opt into platform-managed signing; existing migrated events remain ORGANIZER.
+    private String ticketSigningMode = "ORGANIZER"; // PLATFORM | ORGANIZER
     // Cierra la emisión pública sin desactivar el evento ni revocar boletos existentes.
     private boolean ticketSalesEnabled = true;
     private String venueMapBase64; // imagen del recinto (data URL) para modo SEATED, nullable
@@ -205,6 +207,7 @@ public class Conference {
     public int getReservedCount() { return reservedCount; }
     public String getTicketPrice() { return ticketPrice; }
     public String getTicketCurrency() { return ticketCurrency; }
+    public String getTicketSigningMode() { return ticketSigningMode; }
     public boolean isTicketSalesEnabled() { return ticketSalesEnabled; }
     public boolean isFreeTicket() { return new BigDecimal(ticketPrice).signum() == 0; }
     public String getVenueMapBase64() { return venueMapBase64; }
@@ -276,6 +279,11 @@ public class Conference {
                 ? "MXN" : ticketCurrency.trim().toUpperCase(Locale.ROOT);
         if (!normalized.matches("[A-Z]{3}")) throw new IllegalArgumentException("ticket_currency_invalid");
         this.ticketCurrency = normalized;
+    }
+    public void setTicketSigningMode(String mode) {
+        if (mode == null || mode.isBlank()) return;
+        if (!"PLATFORM".equals(mode) && !"ORGANIZER".equals(mode)) throw new IllegalArgumentException("ticket_signing_mode_invalid");
+        this.ticketSigningMode = mode;
     }
     public void setTicketSalesEnabled(boolean ticketSalesEnabled) { this.ticketSalesEnabled = ticketSalesEnabled; }
     public void setVenueMapBase64(String venueMapBase64) { this.venueMapBase64 = venueMapBase64; }

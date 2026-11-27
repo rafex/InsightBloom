@@ -52,11 +52,11 @@ function base64Url(bytes: ArrayBuffer): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-export async function createTicketPresentation(ticketUuid: string, credentialUuid: string, privateKey: CryptoKey) {
+export async function createTicketPresentation(ticketUuid: string, credentialUuid: string, privateKey: CryptoKey, ticketSignature?: string) {
   const expiresAt = Math.floor(Date.now() / 1000) + 45
   const payload = `insightbloom-ticket-v1|${ticketUuid}|${credentialUuid}|${expiresAt}`
   const signature = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, new TextEncoder().encode(payload))
-  return JSON.stringify({ v: 1, ticketUuid, credentialUuid, expiresAt, signature: base64Url(signature) })
+  return JSON.stringify({ v: 1, ticketUuid, credentialUuid, expiresAt, signature: base64Url(signature), ...(ticketSignature ? { ticketSignature } : {}) })
 }
 
 export interface OfflineTicketBundle { payload: string, coseSign1: string, keyId: string, publicKeySpki: string, expiresAt: string }

@@ -66,6 +66,15 @@ public final class SqliteOrganizerTicketSignatureRepository implements Organizer
         } catch (SQLException e) { throw new IllegalStateException("organizer_ticket_signing_storage_failed", e); }
     }
 
+    @Override public void registerPlatformKey(final String conferenceUuid, final String keyId,
+                                              final String publicKeySpki, final Instant now) {
+        try (Connection c = db.getConnection(); PreparedStatement ps = c.prepareStatement(
+                "INSERT OR IGNORE INTO organizer_ticket_signing_keys(conference_uuid,key_id,public_key_spki,state,created_by,created_at) VALUES(?,?,?,'ACTIVE','insightbloom-platform',?)")) {
+            ps.setString(1, conferenceUuid); ps.setString(2, keyId); ps.setString(3, publicKeySpki); ps.setString(4, now.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) { throw new IllegalStateException("organizer_ticket_signing_storage_failed", e); }
+    }
+
     @Override public boolean revokeActiveKey(final String conferenceUuid, final String actorUuid, final Instant now) {
         try (Connection c = db.getConnection()) {
             c.setAutoCommit(false);

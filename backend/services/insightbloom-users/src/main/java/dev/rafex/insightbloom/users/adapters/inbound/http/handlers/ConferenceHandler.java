@@ -1502,7 +1502,7 @@ public class ConferenceHandler extends BaseResourceHandler {
                             (String) body.get("description"), (String) body.get("visibility"),
                             (String) body.get("scheduleMarkdown"), (String) body.get("scheduleLayout"),
                             (String) body.get("publicTheme"), (String) body.get("ticketPrice"),
-                            (String) body.get("ticketCurrency")));
+                            (String) body.get("ticketCurrency"), (String) body.get("ticketSigningMode")));
             if (updated.isPresent()) {
                 sendOk(jx, 200, updated.get());
                 if (before != null) {
@@ -2850,6 +2850,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var actor = validateTokenUseCase.execute(token);
             if (!actor.valid() || !canManageTickets(conferenceId, actor)) { sendError(jx, 403, "forbidden", "No tienes permiso para preparar el paquete offline"); return true; }
+            if (ticketUseCase.isPlatformSigning(conferenceId)) { sendError(jx, 409, "offline_checkin_unavailable", "Este evento usa validación online"); return true; }
             sendOk(jx, 200, ticketUseCase.organizerTicketSignatures().createOfflineManifest(conferenceId));
         } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Registra la clave de firma de este evento antes de preparar el paquete offline"); }
         catch (final Exception e) { sendError(jx, 500, "internal_error", "Internal server error"); }
@@ -2862,6 +2863,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var actor = validateTokenUseCase.execute(token);
             if (!actor.valid()) { sendError(jx, 403, "forbidden", "No tienes permiso para acceder al paquete offline"); return true; }
+            if (ticketUseCase.isPlatformSigning(conferenceId)) { sendError(jx, 409, "offline_checkin_unavailable", "Este evento usa validación online"); return true; }
             if ("POST".equalsIgnoreCase(jx.method())) {
                 if (!canManageTickets(conferenceId, actor)) { sendError(jx, 403, "forbidden", "No tienes permiso para firmar el paquete offline"); return true; }
                 final var body = parseBody(jx);
@@ -2891,6 +2893,7 @@ public class ConferenceHandler extends BaseResourceHandler {
         try {
             final var actor = validateTokenUseCase.execute(token);
             if (!actor.valid() || !canCheckIn(conferenceId, actor)) { sendError(jx, 403, "forbidden", "No tienes permiso para sincronizar check-ins"); return true; }
+            if (ticketUseCase.isPlatformSigning(conferenceId)) { sendError(jx, 409, "offline_checkin_unavailable", "Este evento usa validación online"); return true; }
             final var body = parseBody(jx);
             if (!(body.get("scans") instanceof List<?> scans) || scans.size() > 5000) {
                 sendError(jx, 400, "offline_scans_invalid", "El lote de check-ins no es válido"); return true;
@@ -2965,10 +2968,26 @@ public class ConferenceHandler extends BaseResourceHandler {
                     : body.get("ticketCode") instanceof String s ? s : (String) body.get("qr");
             if (input != null && input.startsWith("{")) {
                 final Map<String, Object> presentation = JsonUtils.codec().readValue(input, Map.class);
+                if (presentation.get("v") instanceof Number version && version.intValue() == 2) {
+                    final String eventUuid = (String) presentation.get("conferenceUuid");
+                    final String ticketUuid = (String) presentation.get("ticketUuid");
+                    final String cose = (String) presentation.get("coseSign1");
+                    if (!id.equals(eventUuid) || ticketUuid == null || cose == null
+                            || !ticketUseCase.verifySignedTicketQr(id, ticketUuid, cose)) {
+                        sendError(jx, 401, "ticket_signature_invalid", "La firma del boleto no es válida para este evento"); return true;
+                    }
+                    sendOk(jx, 200, ticketUseCase.checkIn(id, ticketUuid));
+                    return true;
+                }
                 if (!(presentation.get("v") instanceof Number version) || version.intValue() != 1) {
                     sendError(jx, 400, "ticket_presentation_invalid", "El código de acceso no es válido"); return true;
                 }
                 final String ticketUuid = (String) presentation.get("ticketUuid");
+                if (ticketUseCase.isPlatformSigning(id)
+                        && (!(presentation.get("ticketSignature") instanceof String ticketSignature)
+                        || !ticketUseCase.verifySignedTicketQr(id, ticketUuid, ticketSignature))) {
+                    sendError(jx, 401, "ticket_signature_invalid", "La firma del boleto no es válida para este evento"); return true;
+                }
                 final String credentialUuid = (String) presentation.get("credentialUuid");
                 final long expiresAt = ((Number) presentation.get("expiresAt")).longValue();
                 final String signature = (String) presentation.get("signature");
@@ -2977,6 +2996,9 @@ public class ConferenceHandler extends BaseResourceHandler {
                 }
                 sendOk(jx, 200, ticketUseCase.checkInVerifiedDevicePresentation(id, ticketUuid));
                 return true;
+            }
+            if (ticketUseCase.requiresSignedTicketQr(id, input)) {
+                sendError(jx, 401, "ticket_signature_required", "Escanea el código firmado del boleto"); return true;
             }
             sendOk(jx, 200, ticketUseCase.checkIn(id, input));
         } catch (final IllegalStateException e) { sendError(jx, 409, e.getMessage(), "Este boleto ya fue utilizado o aún no fue canjeado");

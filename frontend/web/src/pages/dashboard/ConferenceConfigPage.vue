@@ -99,7 +99,7 @@
         BaseLink(variant="secondary" :to="`/dashboard/events/${conferenceId}/tickets`") Administrar boletos
         BaseLink(variant="secondary" :to="`/dashboard/events/${conferenceId}/check-in`") Ir al check-in
         BaseLink(variant="secondary" v-if="seatingMode === 'SEATED'" :to="`/dashboard/events/${conferenceId}/venue-map`") Editar mapa de asientos
-      OrganizerTicketSigningPanel(v-if="seatingMode !== 'NONE' || eventTypes.find(t => t.key === eventTypeKey)?.capabilities.some(c => c.startsWith('TICKETING_'))" :conference-id="conferenceId")
+      OrganizerTicketSigningPanel(v-if="conference?.ticketSigningMode === 'ORGANIZER' && (seatingMode !== 'NONE' || eventTypes.find(t => t.key === eventTypeKey)?.capabilities.some(c => c.startsWith('TICKETING_')))" :conference-id="conferenceId")
 
     .form-group.sandbox-group(v-show="activeTab === 'sandbox'")
       label IDE de código

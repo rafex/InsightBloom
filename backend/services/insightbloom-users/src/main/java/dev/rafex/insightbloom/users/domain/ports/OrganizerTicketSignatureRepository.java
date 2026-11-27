@@ -11,6 +11,7 @@ public interface OrganizerTicketSignatureRepository {
     Optional<EventKey> key(String conferenceUuid, String keyId);
     List<EventKey> keys(String conferenceUuid);
     void registerKey(String conferenceUuid, String keyId, String publicKeySpki, String actorUuid, Instant now);
+    void registerPlatformKey(String conferenceUuid, String keyId, String publicKeySpki, Instant now);
     boolean revokeActiveKey(String conferenceUuid, String actorUuid, Instant now);
     boolean saveTicketSignature(String conferenceUuid, String ticketUuid, String keyId, String coseSign1, String actorUuid, Instant now);
     Optional<String> ticketSignature(String conferenceUuid, String ticketUuid);

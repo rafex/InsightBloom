@@ -35,6 +35,12 @@
           option(value="PUBLIC") Público: aparece en la cartelera y permite solicitar boleto
           option(value="HYBRID") Híbrido: cartelera pública y boletos privados adicionales
 
+    FormField(label="Emisión y firma del boleto" hint="La firma del sitio emite el boleto al instante. La firma del organizador requiere una clave local y conexión para liberar el boleto.")
+      template(#default="{ id, describedBy }")
+        select(:id="id" :aria-describedby="describedBy" v-model="ticketSigningMode")
+          option(value="PLATFORM") Firma automática de InsightBloom
+          option(value="ORGANIZER") Firma local del organizador
+
     .form-group
       label Precio y moneda del boleto
       .price-row
@@ -162,6 +168,7 @@ export default {
     const visibility = ref<'PRIVATE' | 'PUBLIC' | 'HYBRID' | 'LISTED_PRIVATE_TICKETS'>('PRIVATE')
     const ticketPrice = ref('0.00')
     const ticketCurrency = ref('MXN')
+    const ticketSigningMode = ref<'PLATFORM' | 'ORGANIZER'>('ORGANIZER')
     const scheduleMarkdown = ref('')
     const scheduleLayout = ref<'LEFT' | 'RIGHT'>('RIGHT')
     const publicTheme = ref<'CLASSIC' | 'EDITORIAL' | 'MINIMAL'>('CLASSIC')
@@ -213,6 +220,7 @@ Conclusiones, encuesta y entrega de certificados.`
         visibility: visibility.value,
         ticketPrice: ticketPrice.value,
         ticketCurrency: ticketCurrency.value,
+        ticketSigningMode: ticketSigningMode.value,
         scheduleMarkdown: scheduleMarkdown.value,
         scheduleLayout: scheduleLayout.value,
         publicTheme: publicTheme.value,
@@ -247,6 +255,7 @@ Conclusiones, encuesta y entrega de certificados.`
         visibility.value = conference.value.visibility || 'PRIVATE'
         ticketPrice.value = conference.value.ticketPrice || '0.00'
         ticketCurrency.value = conference.value.ticketCurrency || 'MXN'
+        ticketSigningMode.value = conference.value.ticketSigningMode || 'ORGANIZER'
         scheduleMarkdown.value = conference.value.scheduleMarkdown || ''
         scheduleLayout.value = conference.value.scheduleLayout || 'RIGHT'
         publicTheme.value = conference.value.publicTheme || 'CLASSIC'
@@ -322,7 +331,8 @@ Conclusiones, encuesta y entrega de certificados.`
           scheduleLayout: scheduleLayout.value,
           publicTheme: publicTheme.value,
           ticketPrice: ticketPrice.value || '0.00',
-          ticketCurrency: ticketCurrency.value
+          ticketCurrency: ticketCurrency.value,
+          ticketSigningMode: ticketSigningMode.value
         }, auth.state.token as string)
         if (flyerFile.value) {
           conference.value = await uploadConferenceFlyer(
@@ -348,7 +358,7 @@ Conclusiones, encuesta y entrega de certificados.`
     ])
 
     return { conference, loading, error, saving, saveError, saved, saveState, displayName, description, visibility,
-             ticketPrice, ticketCurrency,
+             ticketPrice, ticketCurrency, ticketSigningMode,
              eventDate, venue, startTime, endTime, latitude, longitude, flyerBase64,
              mapUrl, locationError, extractMapCoordinates, scheduleMarkdown, scheduleLayout, scheduleExample, publicTheme, timezones, timezoneId, breadcrumbItems, onFlyerSelected, removeFlyer, save,
              publicThemeOptions: [

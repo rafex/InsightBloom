@@ -34,6 +34,8 @@
       p.field-hint(v-if="Number(ticketPrice) > 0") Evento de pago. La integración del proveedor de pagos se habilitará después; por ahora no se emitirá ningún boleto.
       p.field-hint(v-else) Gratis — se podrá solicitar el boleto sin cobro.
 
+    p.field-hint Los eventos nuevos usan firma automática de InsightBloom. Los boletos se emiten listos al reservarse.
+
     .form-group
       label Cronograma en Markdown (opcional)
       textarea(v-model="scheduleMarkdown" rows="7" maxlength="12000" placeholder="## 09:00 — Registro\n\nBienvenida y apertura\n\n## 10:00 — Charla principal")

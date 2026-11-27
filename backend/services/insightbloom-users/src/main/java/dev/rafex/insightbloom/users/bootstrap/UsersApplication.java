@@ -183,6 +183,10 @@ public class UsersApplication {
         final var organizerTicketSignatures = new dev.rafex.insightbloom.users.application.usecases.OrganizerTicketSignatureUseCase(
                 organizerTicketSignatureRepo, ticketRepo, ticketDeviceRepo);
         ticketUseCase.configureOrganizerTicketSignatures(organizerTicketSignatures);
+        final String ticketSignerUrl = System.getenv().getOrDefault("TICKET_SIGNER_URL", "http://insightbloom-ticket-signer:8097");
+        final String ticketSignerToken = System.getenv("TICKET_SIGNER_API_TOKEN");
+        ticketUseCase.configurePlatformTicketSigner(new dev.rafex.insightbloom.users.adapters.outbound.ticketsigner.HttpPlatformTicketSigner(
+                ticketSignerUrl, ticketSignerToken));
         final var ticketDeviceUseCase = new dev.rafex.insightbloom.users.application.usecases.TicketDeviceUseCase(
                 ticketDeviceRepo, ticketRepo, emailPort, frontendBaseUrl);
         ticketDeviceUseCase.configureOrganizerTicketSignatures(organizerTicketSignatures);
@@ -218,7 +222,7 @@ public class UsersApplication {
         final var countRegisteredAttendeesUseCase = new CountRegisteredAttendeesUseCase(membershipRepo);
         final var countUniqueRegisteredAttendeesUseCase = new CountUniqueRegisteredAttendeesUseCase(conferenceRepo, membershipRepo);
         final var countActiveRegisteredAttendeesUseCase = new CountActiveRegisteredAttendeesUseCase(conferenceRepo, membershipRepo);
-        final var updateConferenceUseCase = new UpdateConferenceUseCase(conferenceRepo);
+        final var updateConferenceUseCase = new UpdateConferenceUseCase(conferenceRepo, ticketUseCase);
         final var setConferenceActiveUseCase = new SetConferenceActiveUseCase(conferenceRepo);
         final var recordDownloadUseCase = new RecordDownloadUseCase(downloadEventRepo);
         final var getDownloadCountsUseCase = new GetDownloadCountsUseCase(downloadEventRepo);

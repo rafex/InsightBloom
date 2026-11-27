@@ -7,9 +7,14 @@ import java.util.Optional;
 
 public class UpdateConferenceUseCase {
     private final ConferenceRepository conferenceRepository;
+    private final TicketUseCase ticketUseCase;
 
     public UpdateConferenceUseCase(final ConferenceRepository conferenceRepository) {
+        this(conferenceRepository, null);
+    }
+    public UpdateConferenceUseCase(final ConferenceRepository conferenceRepository, final TicketUseCase ticketUseCase) {
         this.conferenceRepository = conferenceRepository;
+        this.ticketUseCase = ticketUseCase;
     }
 
     public record UpdateRequest(String displayName, String venue, String eventDate, String startTime,
@@ -17,7 +22,7 @@ public class UpdateConferenceUseCase {
                                  String presentationSourceUrl, String flyerBase64, Integer timezoneId,
                                  String description, String visibility, String scheduleMarkdown,
                                  String scheduleLayout, String publicTheme,
-                                 String ticketPrice, String ticketCurrency) {}
+                                 String ticketPrice, String ticketCurrency, String ticketSigningMode) {}
 
     /** Actualiza todo excepto friendlyId y uuid. Solo el creador puede editar. */
     public Optional<Conference> execute(final String uuid, final String requestingUserUuid,
@@ -56,6 +61,7 @@ public class UpdateConferenceUseCase {
                     if (request.publicTheme() != null) c.setPublicTheme(request.publicTheme());
                     if (request.ticketPrice() != null) c.setTicketPrice(request.ticketPrice());
                     if (request.ticketCurrency() != null) c.setTicketCurrency(request.ticketCurrency());
+                    if (request.ticketSigningMode() != null) c.setTicketSigningMode(request.ticketSigningMode());
                     c.setLatitude(request.latitude());
                     c.setLongitude(request.longitude());
                     if (request.presentationSourceUrl() != null) {
@@ -68,6 +74,10 @@ public class UpdateConferenceUseCase {
                         c.setTimezoneId(request.timezoneId());
                     }
                     conferenceRepository.save(c);
+                    if ("PLATFORM".equals(c.getTicketSigningMode()) && ticketUseCase != null) {
+                        ticketUseCase.disableOfflinePackage(uuid);
+                        ticketUseCase.finalizePendingWithPlatform(uuid);
+                    }
                     return c;
                 });
     }

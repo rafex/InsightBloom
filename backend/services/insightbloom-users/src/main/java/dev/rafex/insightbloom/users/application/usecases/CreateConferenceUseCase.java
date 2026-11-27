@@ -91,6 +91,7 @@ public class CreateConferenceUseCase {
         conference.setCapacity(normalizeCapacity(request.capacity()));
         conference.setTicketPrice(request.ticketPrice());
         conference.setTicketCurrency(request.ticketCurrency());
+        conference.setTicketSigningMode("PLATFORM");
         conference.setCertificateEngine(request.certificateEngine());
         conference.setCanvasConfigs(configs);
         conference.setCanvasTool(configs.size() == 1 ? configs.get(0).tool() : null);
