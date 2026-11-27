@@ -1,4 +1,4 @@
-FROM golang:1.25.3-bookworm AS gopass-build
+FROM golang:1.26.2-bookworm AS gopass-build
 ARG GOPASS_VERSION=v1.17.4
 RUN CGO_ENABLED=0 go install github.com/gopasspw/gopass@${GOPASS_VERSION}
 
